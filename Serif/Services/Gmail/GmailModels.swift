@@ -239,6 +239,72 @@ extension GmailMessage {
     /// Parts that are actual file attachments.
     var attachmentParts: [GmailMessagePart] { collectAttachments(from: payload) }
 
+    // MARK: - Security / Sender info
+
+    /// Domain from the Return-Path or Received header (who actually sent the email).
+    var mailedBy: String? {
+        // Try Return-Path first
+        if let rp = header(named: "Return-Path") {
+            let cleaned = rp.replacingOccurrences(of: "<", with: "").replacingOccurrences(of: ">", with: "")
+            if let at = cleaned.lastIndex(of: "@") {
+                let domain = String(cleaned[cleaned.index(after: at)...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                if !domain.isEmpty { return domain }
+            }
+        }
+        // Fallback: first Received header domain
+        if let received = header(named: "Received") {
+            let pattern = try? NSRegularExpression(pattern: "from\\s+([\\w.-]+)", options: .caseInsensitive)
+            let range = NSRange(received.startIndex..., in: received)
+            if let match = pattern?.firstMatch(in: received, range: range),
+               let r = Range(match.range(at: 1), in: received) {
+                return String(received[r])
+            }
+        }
+        return nil
+    }
+
+    /// DKIM signing domain (from DKIM-Signature d= parameter).
+    var signedBy: String? {
+        guard let dkim = header(named: "DKIM-Signature") else { return nil }
+        let pattern = try? NSRegularExpression(pattern: "\\bd=([^;\\s]+)", options: .caseInsensitive)
+        let range = NSRange(dkim.startIndex..., in: dkim)
+        if let match = pattern?.firstMatch(in: dkim, range: range),
+           let r = Range(match.range(at: 1), in: dkim) {
+            return String(dkim[r]).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        return nil
+    }
+
+    /// Encryption type from Received headers (TLS, STARTTLS, etc.).
+    var encryptionInfo: String? {
+        guard let received = header(named: "Received") else { return nil }
+        let lower = received.lowercased()
+        if lower.contains("tls") || lower.contains("starttls") || lower.contains("esmtps") {
+            return "Standard encryption (TLS)"
+        }
+        return nil
+    }
+
+    /// The domain part of the From header email.
+    var fromDomain: String? {
+        let f = from
+        // Extract email from "Name <email>" format
+        let email: String
+        if let open = f.lastIndex(of: "<"), let close = f.lastIndex(of: ">") {
+            email = String(f[f.index(after: open)..<close])
+        } else {
+            email = f
+        }
+        guard let at = email.lastIndex(of: "@") else { return nil }
+        return String(email[email.index(after: at)...]).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    /// True when mailed-by domain doesn't match the From domain — potential spoofing.
+    var isSuspiciousSender: Bool {
+        guard let fromD = fromDomain, let mailedD = mailedBy?.lowercased() else { return false }
+        return !mailedD.hasSuffix(fromD) && !fromD.hasSuffix(mailedD)
+    }
+
     /// Decodes the raw RFC 2822 source from base64url.
     var rawSource: String? {
         guard let raw = raw else { return nil }
