@@ -3,6 +3,7 @@ import SwiftUI
 struct ThemePickerView: View {
     @ObservedObject var themeManager: ThemeManager
     @Environment(\.theme) private var theme
+    @State private var showCustomize = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -14,22 +15,152 @@ struct ThemePickerView: View {
                 GridItem(.flexible()),
                 GridItem(.flexible()),
                 GridItem(.flexible()),
+                GridItem(.flexible()),
             ], spacing: 12) {
                 ForEach(themeManager.availableThemes) { t in
                     ThemePreviewCard(
                         theme: t,
-                        isSelected: themeManager.currentTheme.id == t.id
+                        isSelected: themeManager.selectedBaseID == t.id
                     ) {
                         withAnimation(.easeInOut(duration: 0.25)) {
-                            themeManager.currentTheme = t
+                            themeManager.selectTheme(t)
                         }
                     }
                 }
+            }
+
+            Divider().background(theme.divider)
+
+            // Customize toggle
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) { showCustomize.toggle() }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "paintpalette")
+                        .font(.system(size: 11))
+                    Text("Customize colors")
+                        .font(.system(size: 12, weight: .medium))
+                    Spacer()
+                    if themeManager.hasOverrides {
+                        Text("\(themeManager.currentOverrides.count) modified")
+                            .font(.system(size: 10))
+                            .foregroundColor(theme.textTertiary)
+                    }
+                    Image(systemName: showCustomize ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .foregroundColor(theme.accentPrimary)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if showCustomize {
+                customizeSection
             }
         }
         .padding(20)
         .background(theme.cardBackground)
         .cornerRadius(12)
+    }
+
+    private var customizeSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if themeManager.hasOverrides {
+                HStack {
+                    Spacer()
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            themeManager.resetOverrides()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.counterclockwise")
+                                .font(.system(size: 10))
+                            Text("Reset all")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .foregroundColor(theme.destructive)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            ForEach(Theme.colorGroups, id: \.name) { group in
+                colorGroup(group.name, keys: group.keys)
+            }
+        }
+    }
+
+    private func colorGroup(_ name: String, keys: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(name)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundColor(theme.textSecondary)
+                .textCase(.uppercase)
+
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                ForEach(keys, id: \.self) { key in
+                    ColorRowView(key: key, themeManager: themeManager)
+                }
+            }
+        }
+    }
+}
+
+struct ColorRowView: View {
+    let key: String
+    @ObservedObject var themeManager: ThemeManager
+
+    private var isOverridden: Bool {
+        themeManager.currentOverrides[key] != nil
+    }
+
+    private var baseTheme: Theme {
+        themeManager.availableThemes.first { $0.id == themeManager.selectedBaseID } ?? .midnight
+    }
+
+    private var colorBinding: Binding<Color> {
+        Binding(
+            get: { themeManager.currentTheme.color(for: key) },
+            set: { newColor in
+                let hex = newColor.hexString
+                let baseHex = baseTheme.color(for: key).hexString
+                if hex == baseHex {
+                    themeManager.removeOverride(key: key)
+                } else {
+                    themeManager.setOverride(key: key, hex: hex)
+                }
+            }
+        )
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ColorPicker("", selection: colorBinding, supportsOpacity: false)
+                .labelsHidden()
+                .scaleEffect(1.8)
+                .frame(width: 22, height: 22)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(.white.opacity(0.4), lineWidth: 1.5))
+
+            Text(Theme.label(for: key))
+                .font(.system(size: 11))
+                .foregroundColor(isOverridden ? themeManager.currentTheme.accentPrimary : themeManager.currentTheme.textSecondary)
+                .lineLimit(1)
+
+            Spacer()
+
+            if isOverridden {
+                Button {
+                    themeManager.removeOverride(key: key)
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 10))
+                        .foregroundColor(themeManager.currentTheme.textTertiary)
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 }
 
