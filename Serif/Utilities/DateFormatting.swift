@@ -9,6 +9,8 @@ extension Date {
             formatter.dateFormat = "h:mm a"
         } else if calendar.isDateInYesterday(self) {
             return "Yesterday"
+        } else if calendar.component(.year, from: self) != calendar.component(.year, from: Date()) {
+            formatter.dateFormat = "MMM d, yyyy"
         } else {
             formatter.dateFormat = "MMM d"
         }

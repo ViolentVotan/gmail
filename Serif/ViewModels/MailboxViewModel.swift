@@ -8,6 +8,7 @@ final class MailboxViewModel: ObservableObject {
     @Published var error:         String?
     @Published var nextPageToken: String?
     @Published var labels:                [GmailLabel] = []
+    @Published var sendAsAliases:         [GmailSendAs] = []
     @Published var readIDs:               Set<String> = []
     @Published var categoryUnreadCounts:  [InboxCategory: Int] = [:]
 
@@ -50,6 +51,11 @@ final class MailboxViewModel: ObservableObject {
 
     func loadLabels() async {
         do { labels = try await GmailLabelService.shared.listLabels(accountID: accountID) }
+        catch { self.error = error.localizedDescription }
+    }
+
+    func loadSendAs() async {
+        do { sendAsAliases = try await GmailProfileService.shared.listSendAs(accountID: accountID) }
         catch { self.error = error.localizedDescription }
     }
 

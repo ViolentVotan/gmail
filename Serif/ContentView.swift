@@ -25,8 +25,10 @@ struct ContentView: View {
     @State private var originalMessage: GmailMessage?
     @State private var originalRawSource: String?
     @State private var isLoadingOriginal = false
-    @AppStorage("undoDuration")      private var undoDuration:      Int = 5
-    @AppStorage("refreshInterval")   private var refreshInterval:   Int = 120
+    @AppStorage("undoDuration")        private var undoDuration:        Int = 5
+    @AppStorage("refreshInterval")     private var refreshInterval:     Int = 120
+    @AppStorage("signatureForNew")     private var signatureForNew:     String = ""
+    @AppStorage("signatureForReply")   private var signatureForReply:   String = ""
     @State private var lastRefreshedAt: Date?
 
     private var isEditingDraft: Bool {
@@ -93,6 +95,7 @@ struct ContentView: View {
             Task {
                 await loadCurrentFolder()
                 await mailboxViewModel.loadLabels()
+                await mailboxViewModel.loadSendAs()
                 await mailboxViewModel.loadCategoryUnreadCounts()
                 await GmailProfileService.shared.loadContactPhotos(accountID: account.id)
                 lastRefreshedAt = Date()
@@ -128,6 +131,7 @@ struct ContentView: View {
             await mailboxViewModel.switchAccount(id)
             await loadCurrentFolder()
             await mailboxViewModel.loadLabels()
+            await mailboxViewModel.loadSendAs()
             await mailboxViewModel.loadCategoryUnreadCounts()
             await GmailProfileService.shared.loadContactPhotos(accountID: id)
         }
@@ -138,11 +142,7 @@ struct ContentView: View {
     }
 
     private func handleMessagesCountChange(_ count: Int) {
-        guard selectedEmail == nil else { return }
-        guard selectedFolder != .trash, selectedFolder != .spam else { return }
-        let first = mailboxViewModel.emails.first
-        selectedEmail = first
-        if let first { markAsReadIfNeeded(first) }
+        // Don't auto-select — the detail pane stays empty until the user clicks
     }
 
     private func handleSelectedEmailChange(_ email: Email?) {
@@ -240,6 +240,94 @@ struct ContentView: View {
         .cornerRadius(12)
     }
 
+    private var signatureSettingsCard: some View {
+        let aliases = mailboxViewModel.sendAsAliases
+        let defaultEmail = aliases.first(where: { $0.isPrimary == true })?.sendAsEmail
+            ?? aliases.first?.sendAsEmail ?? ""
+
+        return VStack(alignment: .leading, spacing: 12) {
+            Text("Signatures")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(themeManager.currentTheme.textPrimary)
+
+            if aliases.isEmpty {
+                Text("No aliases found")
+                    .font(.system(size: 12))
+                    .foregroundColor(themeManager.currentTheme.textTertiary)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(aliases, id: \.sendAsEmail) { alias in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Text(alias.displayName ?? alias.sendAsEmail)
+                                    .font(.system(size: 12, weight: .medium))
+                                    .foregroundColor(themeManager.currentTheme.textPrimary)
+                                if alias.isPrimary == true {
+                                    Text("Primary")
+                                        .font(.system(size: 9, weight: .semibold))
+                                        .foregroundColor(themeManager.currentTheme.accentPrimary)
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 1)
+                                        .background(Capsule().fill(themeManager.currentTheme.accentPrimary.opacity(0.15)))
+                                }
+                            }
+                            Text(alias.sendAsEmail)
+                                .font(.system(size: 11))
+                                .foregroundColor(themeManager.currentTheme.textTertiary)
+                            if let sig = alias.signature, !sig.isEmpty {
+                                Text(sig.strippingHTML.prefix(80) + (sig.strippingHTML.count > 80 ? "…" : ""))
+                                    .font(.system(size: 10))
+                                    .foregroundColor(themeManager.currentTheme.textTertiary)
+                                    .lineLimit(2)
+                            } else {
+                                Text("No signature")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(themeManager.currentTheme.textTertiary)
+                                    .italic()
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                }
+
+                Divider().background(themeManager.currentTheme.divider)
+
+                HStack {
+                    Text("New emails")
+                        .font(.system(size: 12))
+                        .foregroundColor(themeManager.currentTheme.textSecondary)
+                    Spacer()
+                    Picker("", selection: $signatureForNew) {
+                        Text("Default").tag("")
+                        ForEach(aliases, id: \.sendAsEmail) { alias in
+                            Text(alias.displayName ?? alias.sendAsEmail).tag(alias.sendAsEmail)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 140)
+                }
+
+                HStack {
+                    Text("Replies & forwards")
+                        .font(.system(size: 12))
+                        .foregroundColor(themeManager.currentTheme.textSecondary)
+                    Spacer()
+                    Picker("", selection: $signatureForReply) {
+                        Text("Default").tag("")
+                        ForEach(aliases, id: \.sendAsEmail) { alias in
+                            Text(alias.displayName ?? alias.sendAsEmail).tag(alias.sendAsEmail)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(width: 140)
+                }
+            }
+        }
+        .padding(20)
+        .background(themeManager.currentTheme.cardBackground)
+        .cornerRadius(12)
+    }
+
     @ViewBuilder
     private var slidePanels: some View {
         SlidePanel(isPresented: $showSettings, title: "Settings") {
@@ -247,6 +335,7 @@ struct ContentView: View {
                 ThemePickerView(themeManager: themeManager)
                 AccountsSettingsView(authViewModel: authViewModel, selectedAccountID: $selectedAccountID)
                 behaviorSettingsCard
+                signatureSettingsCard
             }
             .padding(20)
         }
@@ -402,6 +491,9 @@ struct ContentView: View {
                 accountID: selectedAccountID ?? authViewModel.primaryAccount?.id ?? "",
                 fromAddress: authViewModel.primaryAccount?.email ?? "",
                 mode: composeMode,
+                sendAsAliases: mailboxViewModel.sendAsAliases,
+                signatureForNew: signatureForNew,
+                signatureForReply: signatureForReply,
                 onDiscard: { discardDraft(id: draftId) }
             )
             .id(draftId)
@@ -588,7 +680,7 @@ struct ContentView: View {
     private func discardDraft(id: UUID) {
         composeMode = .new
         mailStore.deleteDraft(id: id)
-        selectedEmail = mailStore.emails(for: selectedFolder).first
+        selectedEmail = nil
     }
 
     // MARK: - Empty State

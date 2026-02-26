@@ -24,15 +24,21 @@ final class GmailProfileService {
         return try JSONDecoder().decode(GoogleUserInfo.self, from: data)
     }
 
-    // MARK: - Signature
+    // MARK: - SendAs / Aliases
 
-    /// Returns the signature HTML for the default send-as address.
-    func getSignature(accountID: String) async throws -> String? {
+    /// Returns all SendAs aliases for the account.
+    func listSendAs(accountID: String) async throws -> [GmailSendAs] {
         let response: GmailSendAsListResponse = try await GmailAPIClient.shared.request(
             path: "/users/me/settings/sendAs",
             accountID: accountID
         )
-        return response.sendAs.first(where: { $0.isDefault == true })?.signature
+        return response.sendAs
+    }
+
+    /// Returns the signature HTML for the default send-as address.
+    func getSignature(accountID: String) async throws -> String? {
+        let aliases = try await listSendAs(accountID: accountID)
+        return aliases.first(where: { $0.isDefault == true })?.signature
     }
 
     // MARK: - Google People API

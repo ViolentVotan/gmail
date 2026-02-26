@@ -12,7 +12,7 @@ final class ComposeViewModel: ObservableObject {
     @Published var error:     String?
 
     let accountID:   String
-    let fromAddress: String
+    var fromAddress: String
     var gmailDraftID:     String?   // set once we've created a remote draft
     var threadID:         String?   // for replies
     var replyToMessageID: String?   // for In-Reply-To / References headers

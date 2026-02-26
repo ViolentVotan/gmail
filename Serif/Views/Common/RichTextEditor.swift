@@ -316,6 +316,10 @@ struct RichTextEditor: NSViewRepresentable {
             state.textView = textView
         }
         textView.insertionPointColor = .white
+        // Sync binding → NSTextView when text changes externally
+        if textView.string != text {
+            textView.string = text
+        }
         // Update placeholder visibility
         if let placeholderView = textView.viewWithTag(999) {
             placeholderView.isHidden = !textView.string.isEmpty

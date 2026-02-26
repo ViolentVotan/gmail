@@ -16,6 +16,9 @@ struct ComposeView: View {
     let accountID: String
     let fromAddress: String
     let mode: ComposeMode
+    let sendAsAliases: [GmailSendAs]
+    let signatureForNew: String
+    let signatureForReply: String
     let onDiscard: () -> Void
 
     @State private var to = ""
@@ -29,6 +32,8 @@ struct ComposeView: View {
     @State private var attachments: [URL] = []
     @State private var isDragTargeted = false
     @State private var didApplyMode = false
+    @State private var selectedAliasEmail: String
+    @State private var currentSignature: String = ""
     @StateObject private var richTextState = RichTextState()
     @StateObject private var composeVM: ComposeViewModel
     @Environment(\.theme) private var theme
@@ -39,15 +44,22 @@ struct ComposeView: View {
         accountID: String,
         fromAddress: String,
         mode: ComposeMode = .new,
+        sendAsAliases: [GmailSendAs] = [],
+        signatureForNew: String = "",
+        signatureForReply: String = "",
         onDiscard: @escaping () -> Void
     ) {
-        self._mailStore   = ObservedObject(wrappedValue: mailStore)
-        self.draftId      = draftId
-        self.accountID    = accountID
-        self.fromAddress  = fromAddress
-        self.mode         = mode
-        self.onDiscard    = onDiscard
-        self._composeVM   = StateObject(wrappedValue: ComposeViewModel(
+        self._mailStore        = ObservedObject(wrappedValue: mailStore)
+        self.draftId           = draftId
+        self.accountID         = accountID
+        self.fromAddress       = fromAddress
+        self.mode              = mode
+        self.sendAsAliases     = sendAsAliases
+        self.signatureForNew   = signatureForNew
+        self.signatureForReply = signatureForReply
+        self.onDiscard         = onDiscard
+        self._selectedAliasEmail = State(initialValue: fromAddress)
+        self._composeVM        = StateObject(wrappedValue: ComposeViewModel(
             accountID: accountID,
             fromAddress: fromAddress
         ))
@@ -65,6 +77,11 @@ struct ComposeView: View {
                 .background(theme.divider)
 
             VStack(spacing: 0) {
+                if sendAsAliases.count > 1 {
+                    fromField
+                    Divider().background(theme.divider).padding(.horizontal, 24)
+                }
+
                 composeField(label: "To", text: $to)
                 Divider().background(theme.divider).padding(.horizontal, 24)
 
@@ -148,6 +165,10 @@ struct ComposeView: View {
         .onChange(of: cc)       { _ in scheduleAutoSave() }
         .onChange(of: subject)  { _ in scheduleAutoSave() }
         .onChange(of: bodyText) { _ in scheduleAutoSave() }
+        .onChange(of: selectedAliasEmail) { newEmail in
+            composeVM.fromAddress = newEmail
+            replaceSignature(for: newEmail)
+        }
     }
 
     // MARK: - Draft
@@ -165,11 +186,17 @@ struct ComposeView: View {
 
         switch mode {
         case .new:
-            break
+            let sig = resolveSignature(preferredEmail: signatureForNew)
+            if !sig.isEmpty {
+                currentSignature = sig
+                bodyText = "\n\n\(sig)"
+            }
         case .reply(let replyTo, let replySubject, let quotedBody, let replyToMessageID, let threadID):
             to = replyTo
             subject = replySubject.hasPrefix("Re:") ? replySubject : "Re: \(replySubject)"
-            bodyText = "\n\n\(quotedBody)"
+            let sig = resolveSignature(preferredEmail: signatureForReply)
+            currentSignature = sig
+            bodyText = sig.isEmpty ? "\n\n\(quotedBody)" : "\n\n\(sig)\n\n\(quotedBody)"
             composeVM.threadID = threadID
             composeVM.replyToMessageID = replyToMessageID
         case .replyAll(let replyTo, let replyCc, let replySubject, let quotedBody, let replyToMessageID, let threadID):
@@ -177,13 +204,17 @@ struct ComposeView: View {
             cc = replyCc
             showCc = !replyCc.isEmpty
             subject = replySubject.hasPrefix("Re:") ? replySubject : "Re: \(replySubject)"
-            bodyText = "\n\n\(quotedBody)"
+            let sig = resolveSignature(preferredEmail: signatureForReply)
+            currentSignature = sig
+            bodyText = sig.isEmpty ? "\n\n\(quotedBody)" : "\n\n\(sig)\n\n\(quotedBody)"
             composeVM.threadID = threadID
             composeVM.replyToMessageID = replyToMessageID
         case .forward(let fwdSubject, let quotedBody):
             to = ""
             subject = fwdSubject.hasPrefix("Fwd:") ? fwdSubject : "Fwd: \(fwdSubject)"
-            bodyText = "\n\n\(quotedBody)"
+            let sig = resolveSignature(preferredEmail: signatureForReply)
+            currentSignature = sig
+            bodyText = sig.isEmpty ? "\n\n\(quotedBody)" : "\n\n\(sig)\n\n\(quotedBody)"
         }
     }
 
@@ -332,6 +363,83 @@ struct ComposeView: View {
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
+    }
+
+    // MARK: - From field
+
+    private var fromField: some View {
+        HStack(spacing: 10) {
+            Text("From")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundColor(theme.textTertiary)
+                .frame(width: 50, alignment: .leading)
+
+            Picker("", selection: $selectedAliasEmail) {
+                ForEach(sendAsAliases, id: \.sendAsEmail) { alias in
+                    Text(aliasLabel(alias)).tag(alias.sendAsEmail)
+                }
+            }
+            .pickerStyle(.menu)
+            .labelsHidden()
+            .font(.system(size: 13))
+            .fixedSize()
+
+            Spacer()
+        }
+        .padding(.horizontal, 24)
+        .padding(.vertical, 10)
+    }
+
+    private func aliasLabel(_ alias: GmailSendAs) -> String {
+        if let name = alias.displayName, !name.isEmpty {
+            return "\(name) <\(alias.sendAsEmail)>"
+        }
+        return alias.sendAsEmail
+    }
+
+    // MARK: - Signature helpers
+
+    /// Resolves the signature text for a given preferred alias email.
+    /// Falls back to the default/primary alias, then first alias with a signature.
+    private func resolveSignature(preferredEmail: String) -> String {
+        let alias: GmailSendAs?
+        if !preferredEmail.isEmpty {
+            alias = sendAsAliases.first(where: { $0.sendAsEmail == preferredEmail })
+        } else {
+            alias = sendAsAliases.first(where: { $0.isPrimary == true })
+                ?? sendAsAliases.first(where: { $0.isDefault == true })
+                ?? sendAsAliases.first
+        }
+        guard let sig = alias?.signature, !sig.isEmpty else { return "" }
+        let plain = sig.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines)
+        return plain.isEmpty ? "" : plain
+    }
+
+    /// Replaces the current signature in the body with the one from the new alias.
+    private func replaceSignature(for aliasEmail: String) {
+        let isReplyOrForward: Bool
+        switch mode {
+        case .new: isReplyOrForward = false
+        default:   isReplyOrForward = true
+        }
+        let preferredEmail = isReplyOrForward ? signatureForReply : signatureForNew
+        // Use the selected alias signature, falling back to settings preference
+        let newSig: String
+        if let alias = sendAsAliases.first(where: { $0.sendAsEmail == aliasEmail }),
+           let sig = alias.signature, !sig.isEmpty,
+           !sig.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            newSig = sig.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines)
+        } else {
+            newSig = resolveSignature(preferredEmail: preferredEmail)
+        }
+
+        if !currentSignature.isEmpty {
+            bodyText = bodyText.replacingOccurrences(of: currentSignature, with: newSig)
+        } else if !newSig.isEmpty {
+            // No previous signature — prepend before any quoted content
+            bodyText = "\n\n\(newSig)" + bodyText
+        }
+        currentSignature = newSig
     }
 
     // MARK: - Fields
