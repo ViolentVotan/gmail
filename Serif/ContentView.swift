@@ -429,18 +429,26 @@ struct ContentView: View {
 
     private func archiveEmail(_ email: Email) {
         guard let msgID = email.gmailMessageID else { return }
-        Task {
-            await mailboxViewModel.archive(msgID)
-            selectedEmail = mailboxViewModel.emails.first
-        }
+        let vm = mailboxViewModel
+        let removed = vm.removeOptimistically(msgID)
+        selectedEmail = vm.emails.first
+        UndoActionManager.shared.schedule(
+            label: "Archived",
+            onConfirm: { Task { await vm.archive(msgID) } },
+            onUndo:    { if let msg = removed { vm.restoreOptimistically(msg) } }
+        )
     }
 
     private func deleteEmail(_ email: Email) {
         guard let msgID = email.gmailMessageID else { return }
-        Task {
-            await mailboxViewModel.trash(msgID)
-            selectedEmail = mailboxViewModel.emails.first
-        }
+        let vm = mailboxViewModel
+        let removed = vm.removeOptimistically(msgID)
+        selectedEmail = vm.emails.first
+        UndoActionManager.shared.schedule(
+            label: "Moved to Trash",
+            onConfirm: { Task { await vm.trash(msgID) } },
+            onUndo:    { if let msg = removed { vm.restoreOptimistically(msg) } }
+        )
     }
 
     private func toggleStarEmail(_ email: Email) {

@@ -135,7 +135,7 @@ final class MailboxViewModel: ObservableObject {
     func trash(_ messageID: String) async {
         do {
             try await GmailMessageService.shared.trashMessage(id: messageID, accountID: accountID)
-            messages.removeAll { $0.id == messageID }
+            messages.removeAll { $0.id == messageID }   // no-op if already removed optimistically
             messageCache[messageID] = nil
         } catch { self.error = error.localizedDescription }
     }
@@ -143,9 +143,30 @@ final class MailboxViewModel: ObservableObject {
     func archive(_ messageID: String) async {
         do {
             try await GmailMessageService.shared.archiveMessage(id: messageID, accountID: accountID)
-            messages.removeAll { $0.id == messageID }
+            messages.removeAll { $0.id == messageID }   // no-op if already removed optimistically
             messageCache[messageID] = nil
         } catch { self.error = error.localizedDescription }
+    }
+
+    /// Removes a message from the in-memory list immediately (optimistic UI).
+    /// Returns the removed message so it can be put back if the action is undone.
+    @discardableResult
+    func removeOptimistically(_ messageID: String) -> GmailMessage? {
+        guard let idx = messages.firstIndex(where: { $0.id == messageID }) else { return nil }
+        let msg = messages[idx]
+        withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+            messages.remove(at: idx)
+        }
+        return msg
+    }
+
+    /// Re-inserts a previously removed message at its original date position (undo path).
+    func restoreOptimistically(_ message: GmailMessage) {
+        let date = message.date ?? .distantPast
+        let insertIdx = messages.firstIndex { ($0.date ?? .distantPast) < date } ?? messages.endIndex
+        withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+            messages.insert(message, at: insertIdx)
+        }
     }
 
     func spam(_ messageID: String) async {
