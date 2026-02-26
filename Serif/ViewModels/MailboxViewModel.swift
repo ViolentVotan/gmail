@@ -30,14 +30,17 @@ final class MailboxViewModel: ObservableObject {
     // MARK: - Load
 
     func loadFolder(labelIDs: [String], query: String? = nil) async {
+        let isFolderChange = labelIDs != currentLabelIDs || query != currentQuery
         currentLabelIDs = labelIDs
         currentQuery    = query
-        await fetchMessages(reset: true)
+        await fetchMessages(reset: true, clearFirst: isFolderChange)
     }
 
     func search(query: String) async {
-        currentQuery = query.isEmpty ? nil : query
-        await fetchMessages(reset: true)
+        let newQuery = query.isEmpty ? nil : query
+        let isNewQuery = newQuery != currentQuery
+        currentQuery = newQuery
+        await fetchMessages(reset: true, clearFirst: isNewQuery)
     }
 
     func loadMore() async {
@@ -198,9 +201,10 @@ final class MailboxViewModel: ObservableObject {
 
     // MARK: - Private fetch
 
-    private func fetchMessages(reset: Bool) async {
+    private func fetchMessages(reset: Bool, clearFirst: Bool = false) async {
         guard !accountID.isEmpty else { return }
-        if reset { messages = [] }   // clear immediately so skeleton shows
+        // clearFirst=true only on actual folder/query change → show skeleton
+        if clearFirst { messages = [] }
         isLoading = true
         error     = nil
         defer { isLoading = false }
@@ -211,8 +215,8 @@ final class MailboxViewModel: ObservableObject {
                 query:     currentQuery,
                 pageToken: reset ? nil : nextPageToken
             )
-            let refs         = list.messages ?? []
-            nextPageToken    = list.nextPageToken
+            let refs      = list.messages ?? []
+            nextPageToken = list.nextPageToken
 
             // Only fetch IDs not already in cache
             let idsToFetch = refs.map(\.id).filter { messageCache[$0] == nil }
@@ -225,13 +229,31 @@ final class MailboxViewModel: ObservableObject {
                 for msg in fetched { messageCache[msg.id] = msg }
             }
 
-            // Build ordered page from refs using cache
             let page = refs.compactMap { messageCache[$0.id] }
+
             if reset {
-                messages = page
-            } else {
+                // Diff: animate only genuine additions / removals
+                let pageIDs     = Set(page.map(\.id))
                 let existingIDs = Set(messages.map(\.id))
-                messages = messages + page.filter { !existingIDs.contains($0.id) }
+                let hasChanges  = pageIDs != existingIDs
+
+                if hasChanges {
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                        messages = page
+                    }
+                } else {
+                    // Same set of messages — refresh metadata silently (read status, labels…)
+                    messages = page
+                }
+            } else {
+                // Load more: append only new messages at the bottom
+                let existingIDs = Set(messages.map(\.id))
+                let newOnes = page.filter { !existingIDs.contains($0.id) }
+                if !newOnes.isEmpty {
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                        messages = messages + newOnes
+                    }
+                }
             }
         } catch {
             self.error = error.localizedDescription

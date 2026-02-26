@@ -91,6 +91,10 @@ struct EmailListView: View {
                                 onDelete:  onDelete.map  { action in { action(email) } }
                             )
                             .contextMenu { emailContextMenu(for: email) }
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .scale(scale: 0.97, anchor: .top)),
+                                removal:   .opacity
+                            ))
                         }
 
                         // Load-more sentinel
@@ -109,6 +113,7 @@ struct EmailListView: View {
                         }
                     }
                     .padding(.vertical, 4)
+                    .animation(.spring(response: 0.38, dampingFraction: 0.82), value: sortedEmails.map(\.id))
                 }
                 .scrollDisabled(swipeCoordinator.isSwipeActive)
                 .focusable()
