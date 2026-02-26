@@ -56,6 +56,17 @@ final class EmailDetailViewModel: ObservableObject {
         thread = GmailThread(id: thread!.id, historyId: thread!.historyId, messages: updated)
     }
 
+    /// Optimistically toggles the STARRED label on the latest message.
+    func toggleStar() {
+        guard var labelIDs = latestMessage?.labelIds else { return }
+        if labelIDs.contains("STARRED") {
+            labelIDs.removeAll { $0 == "STARRED" }
+        } else {
+            labelIDs.append("STARRED")
+        }
+        updateLabelIDs(labelIDs)
+    }
+
     // MARK: - Raw source
 
     func fetchRawSource() async {

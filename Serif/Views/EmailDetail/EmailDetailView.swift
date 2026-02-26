@@ -5,7 +5,7 @@ struct EmailDetailView: View {
     let accountID: String
     var onArchive:     (() -> Void)?
     var onDelete:      (() -> Void)?
-    var onToggleStar:  (() -> Void)?
+    var onToggleStar:  ((Bool) -> Void)?
     var onMarkUnread:  (() -> Void)?
     var allLabels:     [GmailLabel]
     var onAddLabel:    ((String) -> Void)?
@@ -47,7 +47,7 @@ struct EmailDetailView: View {
         accountID: String,
         onArchive:     (() -> Void)? = nil,
         onDelete:      (() -> Void)? = nil,
-        onToggleStar:  (() -> Void)? = nil,
+        onToggleStar:  ((Bool) -> Void)? = nil,
         onMarkUnread:  (() -> Void)? = nil,
         allLabels:             [GmailLabel] = [],
         onAddLabel:            ((String) -> Void)? = nil,
@@ -360,7 +360,14 @@ struct EmailDetailView: View {
                 Divider()
                 Section {
                     Button { onMarkUnread?() } label: { Label("Mark as Unread",     systemImage: "envelope.badge") }
-                    Button { onToggleStar?() } label: { Label(email.isStarred ? "Remove Star" : "Add to Favorites", systemImage: email.isStarred ? "star.slash" : "star") }
+                    Button {
+                        let starred = detailVM.latestMessage?.isStarred ?? email.isStarred
+                        detailVM.toggleStar()
+                        onToggleStar?(starred)
+                    } label: {
+                        let starred = detailVM.latestMessage?.isStarred ?? email.isStarred
+                        Label(starred ? "Remove from Favorites" : "Add to Favorites", systemImage: starred ? "star.slash" : "star")
+                    }
                     Button { } label: { Label("Snooze",    systemImage: "clock") }
                     Button { } label: { Label("Add Label", systemImage: "tag") }
                 }

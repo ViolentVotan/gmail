@@ -399,7 +399,10 @@ struct ContentView: View {
                 accountID: selectedAccountID ?? authViewModel.primaryAccount?.id ?? "",
                 onArchive:    { archiveEmail(email) },
                 onDelete:     { deleteEmail(email) },
-                onToggleStar: { toggleStarEmail(email) },
+                onToggleStar: { isCurrentlyStarred in
+                    guard let msgID = email.gmailMessageID else { return }
+                    Task { await mailboxViewModel.toggleStar(msgID, isStarred: isCurrentlyStarred) }
+                },
                 onMarkUnread: { markUnreadEmail(email) },
                 allLabels:    mailboxViewModel.labels,
                 onAddLabel:   { labelID in
