@@ -95,11 +95,39 @@ final class GmailAPIClient {
         guard let url = URL(string: urlString) else { throw GmailAPIError.invalidURL }
         var req = URLRequest(url: url)
         req.setValue("Bearer \(token.accessToken)", forHTTPHeaderField: "Authorization")
+
+        let path = url.path + (url.query.map { "?\($0)" } ?? "")
+
+        #if DEBUG
+        let t0 = Date()
+        do {
+            let (data, response) = try await URLSession.shared.data(for: req)
+            guard let http = response as? HTTPURLResponse else { throw GmailAPIError.invalidURL }
+            let ms = Int(Date().timeIntervalSince(t0) * 1000)
+            await APILogger.shared.log(APILogEntry(
+                method: "GET", path: path, statusCode: http.statusCode, errorMessage: nil,
+                responseBodyData: data, responseSize: data.count, durationMs: ms, fromCache: false
+            ))
+            guard (200...299).contains(http.statusCode) else { throw GmailAPIError.httpError(http.statusCode, data) }
+            do { return try JSONDecoder().decode(T.self, from: data) }
+            catch { throw GmailAPIError.decodingError(error) }
+        } catch let error as GmailAPIError {
+            throw error
+        } catch {
+            let ms = Int(Date().timeIntervalSince(t0) * 1000)
+            await APILogger.shared.log(APILogEntry(
+                method: "GET", path: path, statusCode: nil, errorMessage: error.localizedDescription,
+                responseBodyData: Data(), responseSize: 0, durationMs: ms, fromCache: false
+            ))
+            throw error
+        }
+        #else
         let (data, response) = try await URLSession.shared.data(for: req)
         guard let http = response as? HTTPURLResponse else { throw GmailAPIError.invalidURL }
         guard (200...299).contains(http.statusCode) else { throw GmailAPIError.httpError(http.statusCode, data) }
         do { return try JSONDecoder().decode(T.self, from: data) }
         catch { throw GmailAPIError.decodingError(error) }
+        #endif
     }
 
     // MARK: - Token refresh

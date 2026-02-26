@@ -19,13 +19,16 @@ struct ComposeView: View {
     let sendAsAliases: [GmailSendAs]
     let signatureForNew: String
     let signatureForReply: String
+    let contacts: [StoredContact]
     let onDiscard: () -> Void
 
     @State private var to = ""
     @State private var cc = ""
+    @State private var bcc = ""
     @State private var subject = ""
     @State private var bodyText = ""
     @State private var showCc = false
+    @State private var showBcc = false
     @State private var isSending = false
     @State private var sendError: String?
     @State private var saveTask: Task<Void, Never>?
@@ -47,6 +50,7 @@ struct ComposeView: View {
         sendAsAliases: [GmailSendAs] = [],
         signatureForNew: String = "",
         signatureForReply: String = "",
+        contacts: [StoredContact] = [],
         onDiscard: @escaping () -> Void
     ) {
         self._mailStore        = ObservedObject(wrappedValue: mailStore)
@@ -57,6 +61,7 @@ struct ComposeView: View {
         self.sendAsAliases     = sendAsAliases
         self.signatureForNew   = signatureForNew
         self.signatureForReply = signatureForReply
+        self.contacts          = contacts
         self.onDiscard         = onDiscard
         self._selectedAliasEmail = State(initialValue: fromAddress)
         self._composeVM        = StateObject(wrappedValue: ComposeViewModel(
@@ -76,23 +81,31 @@ struct ComposeView: View {
             Divider()
                 .background(theme.divider)
 
-            VStack(spacing: 0) {
-                if sendAsAliases.count > 1 {
-                    fromField
+            ZStack(alignment: .top) {
+                VStack(spacing: 0) {
+                    if sendAsAliases.count > 1 {
+                        fromField
+                        Divider().background(theme.divider).padding(.horizontal, 24)
+                    }
+
+                    AutocompleteTextField(label: "To", placeholder: "Recipients", text: $to, contacts: contacts)
+                    Divider().background(theme.divider).padding(.horizontal, 24)
+
+                    if showCc {
+                        AutocompleteTextField(label: "Cc", placeholder: "Cc recipients", text: $cc, contacts: contacts)
+                        Divider().background(theme.divider).padding(.horizontal, 24)
+                    }
+
+                    if showBcc {
+                        AutocompleteTextField(label: "Bcc", placeholder: "Bcc recipients", text: $bcc, contacts: contacts)
+                        Divider().background(theme.divider).padding(.horizontal, 24)
+                    }
+
+                    composeField(label: "Subject", text: $subject, placeholder: "Subject")
                     Divider().background(theme.divider).padding(.horizontal, 24)
                 }
-
-                composeField(label: "To", text: $to)
-                Divider().background(theme.divider).padding(.horizontal, 24)
-
-                if showCc {
-                    composeField(label: "Cc", text: $cc)
-                    Divider().background(theme.divider).padding(.horizontal, 24)
-                }
-
-                composeField(label: "Subject", text: $subject)
-                Divider().background(theme.divider).padding(.horizontal, 24)
             }
+            .zIndex(10)
 
             RichTextEditor(
                 state: richTextState,
@@ -163,6 +176,7 @@ struct ComposeView: View {
         .onAppear { loadDraft() }
         .onChange(of: to)       { _ in scheduleAutoSave() }
         .onChange(of: cc)       { _ in scheduleAutoSave() }
+        .onChange(of: bcc)      { _ in scheduleAutoSave() }
         .onChange(of: subject)  { _ in scheduleAutoSave() }
         .onChange(of: bodyText) { _ in scheduleAutoSave() }
         .onChange(of: selectedAliasEmail) { newEmail in
@@ -226,6 +240,7 @@ struct ComposeView: View {
             guard !Task.isCancelled else { return }
             composeVM.to      = to
             composeVM.cc      = cc
+            composeVM.bcc     = bcc
             composeVM.subject = subject
             composeVM.body    = bodyText
             await composeVM.saveDraft()
@@ -240,6 +255,7 @@ struct ComposeView: View {
         sendError      = nil
         composeVM.to             = to
         composeVM.cc             = cc
+        composeVM.bcc            = bcc
         composeVM.subject        = subject
         composeVM.body           = bodyText
         composeVM.attachmentURLs = attachments
@@ -279,12 +295,24 @@ struct ComposeView: View {
             } label: {
                 Text("Cc")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(theme.textSecondary)
+                    .foregroundColor(showCc ? theme.accentPrimary : theme.textSecondary)
                     .frame(width: 28, height: 28)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Show Cc")
+
+            Button {
+                showBcc.toggle()
+            } label: {
+                Text("Bcc")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(showBcc ? theme.accentPrimary : theme.textSecondary)
+                    .frame(height: 28)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("Show Bcc")
 
             Divider().frame(height: 16)
 
@@ -444,14 +472,14 @@ struct ComposeView: View {
 
     // MARK: - Fields
 
-    private func composeField(label: String, text: Binding<String>) -> some View {
+    private func composeField(label: String, text: Binding<String>, placeholder: String = "") -> some View {
         HStack(spacing: 10) {
             Text(label)
                 .font(.system(size: 12, weight: .medium))
                 .foregroundColor(theme.textTertiary)
                 .frame(width: 50, alignment: .leading)
 
-            TextField("", text: text)
+            TextField(placeholder, text: text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .foregroundColor(theme.textPrimary)

@@ -43,30 +43,97 @@ final class GmailProfileService {
 
     // MARK: - Google People API
 
-    /// Pre-loads contact photos from Google People API into ContactPhotoCache.
-    /// Silently ignores errors (e.g. missing scope — user needs to re-authorize).
+    /// Loads contacts (names, emails, photos) from Google People API.
+    /// Fetches both "My Contacts" (connections) and "Other Contacts" (auto-created from interactions).
     func loadContactPhotos(accountID: String) async {
+        var allContacts: [StoredContact] = []
+
+        // 1. Fetch "My Contacts" via connections
         do {
             var pageToken: String? = nil
             repeat {
                 var urlStr = "https://people.googleapis.com/v1/people/me/connections"
-                    + "?personFields=emailAddresses,photos&pageSize=1000&sortOrder=LAST_MODIFIED_DESCENDING"
+                    + "?personFields=names,emailAddresses,photos&pageSize=1000&sortOrder=LAST_MODIFIED_DESCENDING"
                 if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
                 let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
                 for person in response.connections ?? [] {
-                    // Only use non-default (user-uploaded) photos
-                    guard let photo = person.photos?.first(where: { $0.default != true }),
-                          let photoURL = photo.url else { continue }
+                    if let photo = person.photos?.first(where: { $0.default != true }),
+                       let photoURL = photo.url {
+                        for addr in person.emailAddresses ?? [] {
+                            guard let email = addr.value, !email.isEmpty else { continue }
+                            ContactPhotoCache.shared.set(photoURL, for: email)
+                        }
+                    }
+                    let displayName = person.names?.first?.displayName ?? ""
                     for addr in person.emailAddresses ?? [] {
                         guard let email = addr.value, !email.isEmpty else { continue }
-                        ContactPhotoCache.shared.set(photoURL, for: email)
+                        allContacts.append(StoredContact(name: displayName, email: email.lowercased()))
                     }
                 }
                 pageToken = response.nextPageToken
             } while pageToken != nil
+            print("[Serif] Loaded \(allContacts.count) contacts from Connections")
         } catch {
-            // silently ignore
+            print("[Serif] Connections fetch error: \(error)")
         }
+
+        // 2. Fetch "Other Contacts" (auto-created from email interactions)
+        do {
+            var pageToken: String? = nil
+            repeat {
+                var urlStr = "https://people.googleapis.com/v1/otherContacts"
+                    + "?readMask=names,emailAddresses&pageSize=1000"
+                if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
+                let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
+                let beforeCount = allContacts.count
+                for person in response.otherContacts ?? [] {
+                    let displayName = person.names?.first?.displayName ?? ""
+                    for addr in person.emailAddresses ?? [] {
+                        guard let email = addr.value, !email.isEmpty else { continue }
+                        allContacts.append(StoredContact(name: displayName, email: email.lowercased()))
+                    }
+                }
+                print("[Serif] Loaded \(allContacts.count - beforeCount) from Other Contacts page")
+                pageToken = response.nextPageToken
+            } while pageToken != nil
+        } catch {
+            print("[Serif] Other Contacts fetch error: \(error)")
+        }
+
+        // Deduplicate by email and persist
+        var seen = Set<String>()
+        let unique = allContacts.filter { seen.insert($0.email).inserted }
+        ContactStore.shared.setContacts(unique, for: accountID)
+        print("[Serif] Total unique contacts stored: \(unique.count)")
+    }
+}
+
+// MARK: - Stored Contact
+
+struct StoredContact: Codable, Identifiable, Hashable {
+    var id: String { email }
+    let name: String
+    let email: String
+}
+
+// MARK: - Contact Store (UserDefaults persistence)
+
+final class ContactStore {
+    static let shared = ContactStore()
+    private init() {}
+
+    func contacts(for accountID: String) -> [StoredContact] {
+        let key = "com.serif.contacts.\(accountID)"
+        guard let data = UserDefaults.standard.data(forKey: key),
+              let decoded = try? JSONDecoder().decode([StoredContact].self, from: data)
+        else { return [] }
+        return decoded
+    }
+
+    func setContacts(_ contacts: [StoredContact], for accountID: String) {
+        let key = "com.serif.contacts.\(accountID)"
+        let data = try? JSONEncoder().encode(contacts)
+        UserDefaults.standard.set(data, forKey: key)
     }
 }
 
@@ -96,9 +163,15 @@ private struct PeopleConnectionsResponse: Decodable {
     let nextPageToken: String?
 }
 
+private struct OtherContactsResponse: Decodable {
+    let otherContacts: [PersonResource]?
+    let nextPageToken: String?
+}
+
 private struct PersonResource: Decodable {
     let emailAddresses: [PersonEmail]?
     let photos: [PersonPhoto]?
+    let names: [PersonName]?
 }
 
 private struct PersonEmail: Decodable {
@@ -108,6 +181,10 @@ private struct PersonEmail: Decodable {
 private struct PersonPhoto: Decodable {
     let url: String?
     let `default`: Bool?
+}
+
+private struct PersonName: Decodable {
+    let displayName: String?
 }
 
 // MARK: - Google User Info Model

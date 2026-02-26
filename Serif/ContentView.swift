@@ -494,6 +494,7 @@ struct ContentView: View {
                 sendAsAliases: mailboxViewModel.sendAsAliases,
                 signatureForNew: signatureForNew,
                 signatureForReply: signatureForReply,
+                contacts: ContactStore.shared.contacts(for: selectedAccountID ?? authViewModel.primaryAccount?.id ?? ""),
                 onDiscard: { discardDraft(id: draftId) }
             )
             .id(draftId)

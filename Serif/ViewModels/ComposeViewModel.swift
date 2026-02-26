@@ -5,6 +5,7 @@ import SwiftUI
 final class ComposeViewModel: ObservableObject {
     @Published var to:        String = ""
     @Published var cc:        String = ""
+    @Published var bcc:       String = ""
     @Published var subject:   String = ""
     @Published var body:      String = ""
     @Published var isSending  = false
@@ -35,6 +36,7 @@ final class ComposeViewModel: ObservableObject {
                 from:               fromAddress,
                 to:                 splitAddresses(to),
                 cc:                 splitAddresses(cc),
+                bcc:                splitAddresses(bcc),
                 subject:            subject,
                 body:               body,
                 threadID:           threadID,
