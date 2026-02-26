@@ -74,55 +74,59 @@ struct EmailDetailView: View {
             Divider()
                 .background(theme.divider)
 
-            if detailVM.isLoading && detailVM.thread == nil {
-                EmailDetailSkeletonView()
-            } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        senderHeader
-                            .padding(.horizontal, 24)
-                            .padding(.top, 24)
-                            .padding(.bottom, 16)
+            ZStack(alignment: .bottom) {
+                if detailVM.isLoading && detailVM.thread == nil {
+                    EmailDetailSkeletonView()
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            senderHeader
+                                .padding(.horizontal, 24)
+                                .padding(.top, 24)
+                                .padding(.bottom, 16)
 
-                        Text(detailVM.latestMessage?.subject ?? email.subject)
-                            .font(.system(size: 20, weight: .bold))
-                            .foregroundColor(theme.textPrimary)
-                            .padding(.horizontal, 24)
-                            .padding(.bottom, availableUserLabels.isEmpty ? 20 : 10)
+                            Text(detailVM.latestMessage?.subject ?? email.subject)
+                                .font(.system(size: 20, weight: .bold))
+                                .foregroundColor(theme.textPrimary)
+                                .padding(.horizontal, 24)
+                                .padding(.bottom, availableUserLabels.isEmpty ? 20 : 10)
 
-                        if !availableUserLabels.isEmpty {
-                            labelsSection
+                            if !availableUserLabels.isEmpty {
+                                labelsSection
+                                    .padding(.horizontal, 24)
+                                    .padding(.bottom, 20)
+                            }
+
+                            let rawHTML = detailVM.latestMessage?.htmlBody ?? ""
+                            let htmlToRender = rawHTML.isEmpty
+                                ? "<p>\(detailVM.latestMessage?.plainBody ?? email.body)</p>"
+                                : rawHTML
+                            HTMLEmailView(html: htmlToRender, contentHeight: $emailBodyHeight)
+                                .frame(height: emailBodyHeight)
                                 .padding(.horizontal, 24)
                                 .padding(.bottom, 20)
-                        }
 
-                        let rawHTML = detailVM.latestMessage?.htmlBody ?? ""
-                        let htmlToRender = rawHTML.isEmpty
-                            ? "<p>\(detailVM.latestMessage?.plainBody ?? email.body)</p>"
-                            : rawHTML
-                        HTMLEmailView(html: htmlToRender, contentHeight: $emailBodyHeight)
-                            .frame(height: emailBodyHeight)
-                            .padding(.horizontal, 24)
-                            .padding(.bottom, 20)
+                            if !displayAttachments.isEmpty {
+                                attachmentsSection
+                                    .padding(.horizontal, 24)
+                                    .padding(.bottom, 20)
+                            }
 
-                        if !displayAttachments.isEmpty {
-                            attachmentsSection
-                                .padding(.horizontal, 24)
-                                .padding(.bottom, 20)
+                            if !threadMessages.isEmpty {
+                                threadSection
+                                    .padding(.horizontal, 24)
+                            }
                         }
-
-                        if !threadMessages.isEmpty {
-                            threadSection
-                                .padding(.horizontal, 24)
-                        }
+                        // Extra bottom padding so content doesn't hide behind the floating bar
+                        .padding(.bottom, 72)
                     }
                 }
+
+                // Floating reply bar
+                ReplyBarView()
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
             }
-
-            Divider()
-                .background(theme.divider)
-
-            ReplyBarView()
         }
         .background(theme.detailBackground)
         .onAppear { loadThread() }
