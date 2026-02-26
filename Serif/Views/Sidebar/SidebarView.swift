@@ -3,6 +3,7 @@ import SwiftUI
 struct SidebarView: View {
     @Binding var selectedFolder: Folder
     @Binding var selectedInboxCategory: InboxCategory?
+    @Binding var selectedLabel: GmailLabel?
     @Binding var selectedAccountID: String?
     @Binding var showSettings: Bool
     @Binding var isExpanded: Bool
@@ -10,9 +11,11 @@ struct SidebarView: View {
     @Binding var showDebug: Bool
     @ObservedObject var authViewModel: AuthViewModel
     var categoryUnreadCounts: [InboxCategory: Int] = [:]
+    var userLabels: [GmailLabel] = []
     @Environment(\.theme) private var theme
 
     @State private var inboxExpanded = true
+    @State private var labelsExpanded = false
 
     private var sidebarWidth: CGFloat { isExpanded ? 200 : 60 }
 
@@ -52,25 +55,27 @@ struct SidebarView: View {
             }
 
             // Folder navigation
-            VStack(spacing: 2) {
-                ForEach(Folder.allCases) { folder in
-                    if folder == .inbox {
-                        inboxSection
-                    } else {
-                        SidebarItemView(
-                            folder: folder,
-                            isSelected: selectedFolder == folder,
-                            isExpanded: isExpanded
-                        ) {
-                            selectedFolder = folder
-                            selectedInboxCategory = nil
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 2) {
+                    ForEach(Folder.allCases) { folder in
+                        if folder == .inbox {
+                            inboxSection
+                        } else if folder == .labels {
+                            labelsSection
+                        } else {
+                            SidebarItemView(
+                                folder: folder,
+                                isSelected: selectedFolder == folder,
+                                isExpanded: isExpanded
+                            ) {
+                                selectedFolder = folder
+                                selectedInboxCategory = nil
+                            }
                         }
                     }
                 }
+                .padding(.horizontal, isExpanded ? 8 : 0)
             }
-            .padding(.horizontal, isExpanded ? 8 : 0)
-
-            Spacer()
 
             // Bottom actions
             VStack(spacing: 2) {
@@ -217,6 +222,38 @@ struct SidebarView: View {
         }
     }
 
+    // MARK: - Labels section
+
+    private var labelsSection: some View {
+        VStack(spacing: 2) {
+            LabelsParentRow(
+                isSelected: selectedFolder == .labels,
+                isExpanded: isExpanded,
+                labelsExpanded: $labelsExpanded,
+                theme: theme
+            ) {
+                selectedFolder = .labels
+                if let first = userLabels.first, selectedLabel == nil {
+                    selectedLabel = first
+                }
+                withAnimation(.easeInOut(duration: 0.2)) { labelsExpanded.toggle() }
+            }
+
+            if isExpanded && labelsExpanded {
+                ForEach(userLabels) { label in
+                    LabelSidebarRow(
+                        label: label,
+                        isSelected: selectedFolder == .labels && selectedLabel?.id == label.id,
+                        theme: theme
+                    ) {
+                        selectedFolder = .labels
+                        selectedLabel = label
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Generic bottom button
 
     private func sidebarButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
@@ -340,6 +377,115 @@ private struct InboxCategoryRow: View {
 
                 if unreadCount > 0 {
                     Text(unreadCount < 100 ? "\(unreadCount)" : "99+")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(isSelected ? theme.accentPrimary : theme.textTertiary)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(isSelected ? theme.accentPrimary.opacity(0.15) : theme.cardBackground))
+                }
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 28)
+            .background(
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isSelected ? theme.accentPrimary.opacity(0.10) : (isHovered ? theme.hoverBackground : Color.clear))
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+    }
+}
+
+// MARK: - Labels Parent Row
+
+private struct LabelsParentRow: View {
+    let isSelected: Bool
+    let isExpanded: Bool
+    @Binding var labelsExpanded: Bool
+    let theme: Theme
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            if isExpanded {
+                HStack(spacing: 10) {
+                    Image(systemName: "tag.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(isSelected ? theme.accentPrimary : (isHovered ? theme.textSecondary : theme.textTertiary))
+                        .frame(width: 20)
+
+                    Text("Labels")
+                        .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                        .foregroundColor(isSelected ? theme.textPrimary : (isHovered ? theme.textSecondary : theme.textTertiary))
+
+                    Spacer()
+
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.2)) { labelsExpanded.toggle() }
+                    } label: {
+                        Image(systemName: labelsExpanded ? "chevron.down" : "chevron.right")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(theme.textTertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 10)
+                .frame(height: 34)
+                .background(
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(isSelected ? theme.accentPrimary.opacity(0.12) : (isHovered ? theme.hoverBackground : Color.clear))
+                )
+                .contentShape(Rectangle())
+            } else {
+                ZStack {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 10).fill(theme.accentPrimary.opacity(0.15))
+                    }
+                    Image(systemName: "tag.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(isSelected ? theme.accentPrimary : (isHovered ? theme.textSecondary : theme.textTertiary))
+                }
+                .frame(width: 40, height: 40)
+                .contentShape(Rectangle())
+            }
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
+        .help(isExpanded ? "" : "Labels")
+    }
+}
+
+// MARK: - Label Sidebar Row
+
+private struct LabelSidebarRow: View {
+    let label: GmailLabel
+    let isSelected: Bool
+    let theme: Theme
+    let action: () -> Void
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Rectangle()
+                    .fill(Color.clear)
+                    .frame(width: 16)
+
+                Circle()
+                    .fill(Color(hex: label.resolvedTextColor))
+                    .frame(width: 8, height: 8)
+
+                Text(label.displayName)
+                    .font(.system(size: 12, weight: isSelected ? .medium : .regular))
+                    .foregroundColor(isSelected ? theme.textPrimary : (isHovered ? theme.textSecondary : theme.textTertiary))
+                    .lineLimit(1)
+
+                Spacer()
+
+                if let unread = label.messagesUnread, unread > 0 {
+                    Text(unread < 100 ? "\(unread)" : "99+")
                         .font(.system(size: 10, weight: .semibold))
                         .foregroundColor(isSelected ? theme.accentPrimary : theme.textTertiary)
                         .padding(.horizontal, 5)

@@ -9,6 +9,7 @@ struct ContentView: View {
     @State private var selectedAccountID: String?
     @State private var selectedFolder: Folder = .inbox
     @State private var selectedInboxCategory: InboxCategory? = .all
+    @State private var selectedLabel: GmailLabel?
     @State private var selectedEmail: Email?
     @State private var showSettings = false
     @State private var showHelp = false
@@ -70,6 +71,7 @@ struct ContentView: View {
             .onAppear(perform: handleAppear)
             .onChange(of: selectedFolder, perform: handleFolderChange)
             .onChange(of: selectedInboxCategory, perform: handleCategoryChange)
+            .onChange(of: selectedLabel?.id) { _ in handleLabelChange() }
             .onChange(of: selectedAccountID, perform: handleAccountChange)
             .onChange(of: authViewModel.accounts, perform: handleAccountsChange)
             .onChange(of: mailboxViewModel.messages.count, perform: handleMessagesCountChange)
@@ -103,7 +105,15 @@ struct ContentView: View {
     private func handleFolderChange(_ folder: Folder) {
         selectedEmail = nil
         searchResetTrigger += 1
+        if folder != .labels { selectedLabel = nil }
         if folder != .drafts { Task { await loadCurrentFolder() } }
+    }
+
+    private func handleLabelChange() {
+        guard selectedFolder == .labels, selectedLabel != nil else { return }
+        selectedEmail = nil
+        searchResetTrigger += 1
+        Task { await loadCurrentFolder() }
     }
 
     private func handleCategoryChange(_ category: InboxCategory?) {
@@ -156,13 +166,15 @@ struct ContentView: View {
                 SidebarView(
                     selectedFolder: $selectedFolder,
                     selectedInboxCategory: $selectedInboxCategory,
+                    selectedLabel: $selectedLabel,
                     selectedAccountID: $selectedAccountID,
                     showSettings: $showSettings,
                     isExpanded: $sidebarExpanded,
                     showHelp: $showHelp,
                     showDebug: $showDebug,
                     authViewModel: authViewModel,
-                    categoryUnreadCounts: mailboxViewModel.categoryUnreadCounts
+                    categoryUnreadCounts: mailboxViewModel.categoryUnreadCounts,
+                    userLabels: mailboxViewModel.labels.filter { !$0.isSystemLabel }
                 )
                 listPane
                 Divider().background(themeManager.currentTheme.divider)
@@ -487,6 +499,10 @@ struct ContentView: View {
                 }
             } else {
                 await mailboxViewModel.loadFolder(labelIDs: ["INBOX"])
+            }
+        case .labels:
+            if let label = selectedLabel {
+                await mailboxViewModel.loadFolder(labelIDs: [label.id])
             }
         case .drafts:
             break  // local only

@@ -215,6 +215,7 @@ enum Folder: String, CaseIterable, Identifiable {
     case attachments = "Attachments"
     case subscriptions = "Subscriptions"
     case archive = "Archive"
+    case labels = "Labels"
     case spam = "Spam"
     case trash = "Trash"
 
@@ -229,6 +230,7 @@ enum Folder: String, CaseIterable, Identifiable {
         case .attachments:   return "paperclip"
         case .subscriptions: return "newspaper.fill"
         case .archive:       return "archivebox.fill"
+        case .labels:        return "tag.fill"
         case .spam:          return "exclamationmark.shield.fill"
         case .trash:         return "trash.fill"
         }
@@ -245,7 +247,7 @@ enum Folder: String, CaseIterable, Identifiable {
         case .drafts:      return "DRAFT"
         case .spam:        return "SPAM"
         case .trash:       return "TRASH"
-        case .archive, .attachments, .subscriptions: return nil
+        case .archive, .attachments, .subscriptions, .labels: return nil
         }
     }
 
@@ -254,8 +256,8 @@ enum Folder: String, CaseIterable, Identifiable {
         switch self {
         case .archive:       return "-in:inbox -in:trash -in:spam -in:drafts"
         case .attachments:   return "has:attachment"
-        case .subscriptions: return nil
-        default:             return nil
+        case .subscriptions, .labels: return nil
+        default:                      return nil
         }
     }
 }
