@@ -189,6 +189,21 @@ final class MailboxViewModel: ObservableObject {
         } catch { self.error = error.localizedDescription }
     }
 
+    @discardableResult
+    func createAndAddLabel(name: String, to messageID: String) async -> String? {
+        do {
+            let newLabel = try await GmailLabelService.shared.createLabel(name: name, accountID: accountID)
+            labels.append(newLabel)
+            await addLabel(newLabel.id, to: messageID)
+            // Force re-computation of emails (computed depends on both messages and labels)
+            objectWillChange.send()
+            return newLabel.id
+        } catch {
+            self.error = error.localizedDescription
+            return nil
+        }
+    }
+
     func removeLabel(_ labelID: String, from messageID: String) async {
         do {
             let updated = try await GmailMessageService.shared.modifyLabels(

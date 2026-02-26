@@ -51,8 +51,16 @@ struct EmailRowView: View {
 
                     if !email.labels.isEmpty {
                         HStack(spacing: 4) {
-                            ForEach(email.labels.prefix(2)) { label in
+                            ForEach(email.labels.prefix(3)) { label in
                                 LabelChipView(label: label)
+                            }
+                            if email.labels.count > 3 {
+                                Text("+\(email.labels.count - 3)")
+                                    .font(.system(size: 9, weight: .medium))
+                                    .foregroundColor(theme.textTertiary)
+                                    .padding(.horizontal, 5)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(theme.hoverBackground))
                             }
                         }
                         .padding(.top, 2)

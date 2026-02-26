@@ -96,7 +96,12 @@ extension GmailLabel {
         "INBOX", "UNREAD", "STARRED", "IMPORTANT",
         "SENT", "DRAFT", "TRASH", "SPAM",
         "CATEGORY_PERSONAL", "CATEGORY_SOCIAL",
-        "CATEGORY_PROMOTIONS", "CATEGORY_UPDATES", "CATEGORY_FORUMS"
+        "CATEGORY_PROMOTIONS", "CATEGORY_UPDATES", "CATEGORY_FORUMS",
+        "CHAT",
+        // Star/superstars variants
+        "YELLOW_STAR", "ORANGE_STAR", "RED_STAR", "PURPLE_STAR", "BLUE_STAR", "GREEN_STAR",
+        "RED_BANG", "ORANGE_GUILLEMET", "YELLOW_BANG",
+        "GREEN_CHECK", "BLUE_INFO", "PURPLE_QUESTION"
     ]
 
     var isSystemLabel: Bool { GmailLabel.systemLabelIDs.contains(id) }

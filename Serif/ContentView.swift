@@ -416,6 +416,13 @@ struct ContentView: View {
                 onReply:             { mode in startCompose(mode: mode) },
                 onReplyAll:          { mode in startCompose(mode: mode) },
                 onForward:           { mode in startCompose(mode: mode) },
+                onCreateAndAddLabel: { name, completion in
+                    guard let msgID = email.gmailMessageID else { completion(nil); return }
+                    Task {
+                        let labelID = await mailboxViewModel.createAndAddLabel(name: name, to: msgID)
+                        completion(labelID)
+                    }
+                },
                 onPreviewAttachment: { data, name, fileType in
                     attachmentPreviewData     = data
                     attachmentPreviewName     = name
