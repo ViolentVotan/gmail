@@ -37,8 +37,7 @@ final class GmailAPIClient {
         if method == "GET", let cached = APICache.shared.get(path: path, accountID: accountID) {
             await APILogger.shared.log(APILogEntry(
                 method: method, path: path, statusCode: 200, errorMessage: nil,
-                responseBody: String(data: cached, encoding: .utf8).map { String($0.prefix(1000)) } ?? "",
-                responseSize: cached.count, durationMs: 0, fromCache: true
+                responseBodyData: cached, responseSize: cached.count, durationMs: 0, fromCache: true
             ))
             return cached
         }
@@ -47,14 +46,21 @@ final class GmailAPIClient {
         let token = try await validToken(for: accountID)
 
         #if DEBUG
+        let reqHeaders: [String: String] = {
+            var h = ["Authorization": "Bearer [hidden]"]
+            if let ct = contentType { h["Content-Type"] = ct }
+            return h
+        }()
+        let reqBody: String? = body.flatMap { String(data: $0, encoding: .utf8) }
         let t0 = Date()
         do {
-            let (data, code) = try await perform(path: path, method: method, body: body, contentType: contentType, accessToken: token.accessToken)
+            let (data, code, respHeaders) = try await perform(path: path, method: method, body: body, contentType: contentType, accessToken: token.accessToken)
             let ms = Int(Date().timeIntervalSince(t0) * 1000)
             await APILogger.shared.log(APILogEntry(
                 method: method, path: path, statusCode: code, errorMessage: nil,
-                responseBody: String(data: data, encoding: .utf8).map { String($0.prefix(1000)) } ?? "",
-                responseSize: data.count, durationMs: ms, fromCache: false
+                requestHeaders: reqHeaders, requestBody: reqBody,
+                responseHeaders: respHeaders,
+                responseBodyData: data, responseSize: data.count, durationMs: ms, fromCache: false
             ))
             if method == "GET" { APICache.shared.set(data, path: path, accountID: accountID) }
             return data
@@ -62,20 +68,21 @@ final class GmailAPIClient {
             let ms = Int(Date().timeIntervalSince(t0) * 1000)
             await APILogger.shared.log(APILogEntry(
                 method: method, path: path, statusCode: code, errorMessage: "HTTP \(code)",
-                responseBody: String(data: errData, encoding: .utf8).map { String($0.prefix(1000)) } ?? "",
-                responseSize: errData.count, durationMs: ms, fromCache: false
+                requestHeaders: reqHeaders, requestBody: reqBody,
+                responseBodyData: errData, responseSize: errData.count, durationMs: ms, fromCache: false
             ))
             throw GmailAPIError.httpError(code, errData)
         } catch {
             let ms = Int(Date().timeIntervalSince(t0) * 1000)
             await APILogger.shared.log(APILogEntry(
                 method: method, path: path, statusCode: nil, errorMessage: error.localizedDescription,
-                responseBody: "", responseSize: 0, durationMs: ms, fromCache: false
+                requestHeaders: reqHeaders, requestBody: reqBody,
+                responseBodyData: Data(), responseSize: 0, durationMs: ms, fromCache: false
             ))
             throw error
         }
         #else
-        let (data, _) = try await perform(path: path, method: method, body: body, contentType: contentType, accessToken: token.accessToken)
+        let (data, _, _) = try await perform(path: path, method: method, body: body, contentType: contentType, accessToken: token.accessToken)
         return data
         #endif
     }
@@ -111,14 +118,14 @@ final class GmailAPIClient {
 
     // MARK: - HTTP layer
 
-    /// Returns (data, httpStatusCode).
+    /// Returns (data, httpStatusCode, responseHeaders).
     private func perform(
         path: String,
         method: String,
         body: Data?,
         contentType: String?,
         accessToken: String
-    ) async throws -> (Data, Int) {
+    ) async throws -> (Data, Int, [String: String]) {
         guard let url = URL(string: baseURL + path) else { throw GmailAPIError.invalidURL }
         var request = URLRequest(url: url)
         request.httpMethod = method
@@ -129,8 +136,12 @@ final class GmailAPIClient {
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw GmailAPIError.invalidURL }
 
+        let headers = http.allHeaderFields.reduce(into: [String: String]()) { result, pair in
+            if let key = pair.key as? String, let val = pair.value as? String { result[key] = val }
+        }
+
         switch http.statusCode {
-        case 200...299: return (data, http.statusCode)
+        case 200...299: return (data, http.statusCode, headers)
         case 401:       throw GmailAPIError.unauthorized
         default:        throw GmailAPIError.httpError(http.statusCode, data)
         }

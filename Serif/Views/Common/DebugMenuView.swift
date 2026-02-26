@@ -76,10 +76,14 @@ struct DebugMenuView: View {
         }
     }
 
+    // MARK: - Log Entry Row
+
     @ViewBuilder
     private func logEntryRow(_ entry: APILogEntry) -> some View {
         let isExpanded = expandedEntryID == entry.id
         VStack(alignment: .leading, spacing: 0) {
+
+            // ── Collapsed header ──
             Button {
                 withAnimation(.easeInOut(duration: 0.15)) {
                     expandedEntryID = isExpanded ? nil : entry.id
@@ -123,43 +127,129 @@ struct DebugMenuView: View {
             }
             .buttonStyle(.plain)
 
+            // ── Expanded detail ──
             if isExpanded {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(entry.path)
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundColor(theme.textTertiary)
-                        .textSelection(.enabled)
+                VStack(alignment: .leading, spacing: 0) {
 
-                    if let err = entry.errorMessage {
-                        Text(err)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.red)
+                    // REQUEST block
+                    detailSectionLabel("REQUEST")
+
+                    monoBlock {
+                        Text("\(entry.method) \(entry.path)")
+                            .foregroundColor(theme.textPrimary)
+                    }
+
+                    if !entry.requestHeaders.isEmpty {
+                        monoBlock {
+                            ForEach(entry.requestHeaders.keys.sorted(), id: \.self) { key in
+                                HStack(alignment: .top, spacing: 0) {
+                                    Text(key + ": ")
+                                        .foregroundColor(theme.textTertiary)
+                                    Text(entry.requestHeaders[key] ?? "")
+                                        .foregroundColor(theme.textSecondary)
+                                }
+                            }
+                        }
+                    }
+
+                    if let reqBody = entry.requestBody, !reqBody.isEmpty {
+                        detailSectionLabel("REQUEST BODY")
+                        scrollableMonoBlock(reqBody, maxHeight: 120)
+                    }
+
+                    // RESPONSE block
+                    HStack {
+                        detailSectionLabel("RESPONSE")
+                        if let err = entry.errorMessage {
+                            Text(err)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundColor(.red)
+                        }
+                        Spacer()
+                        Text("\(entry.responseSize) bytes · \(entry.date.formatted(.dateTime.hour().minute().second()))")
+                            .font(.system(size: 10))
+                            .foregroundColor(theme.textTertiary)
+                    }
+
+                    if !entry.responseHeaders.isEmpty {
+                        monoBlock {
+                            ForEach(entry.responseHeaders.keys.sorted(), id: \.self) { key in
+                                HStack(alignment: .top, spacing: 0) {
+                                    Text(key + ": ")
+                                        .foregroundColor(theme.textTertiary)
+                                    Text(entry.responseHeaders[key] ?? "")
+                                        .foregroundColor(theme.textSecondary)
+                                }
+                            }
+                        }
                     }
 
                     if !entry.responseBody.isEmpty {
-                        ScrollView(.vertical) {
-                            Text(entry.responseBody)
-                                .font(.system(size: 10, design: .monospaced))
-                                .foregroundColor(theme.textSecondary)
-                                .textSelection(.enabled)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                        HStack {
+                            if entry.bodyTruncated {
+                                Text("Body truncated at 200 KB")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.orange)
+                            }
+                            Spacer()
+                            Button {
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(entry.responseBody, forType: .string)
+                            } label: {
+                                Label("Copy body", systemImage: "doc.on.doc")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(theme.accentPrimary)
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .frame(maxHeight: 160)
-                    }
+                        .padding(.horizontal, 10)
+                        .padding(.top, 4)
 
-                    HStack {
-                        Text("\(entry.responseSize) bytes")
-                        Spacer()
-                        Text(entry.date.formatted(.dateTime.hour().minute().second()))
+                        scrollableMonoBlock(entry.responseBody, maxHeight: 360)
                     }
-                    .font(.system(size: 10))
-                    .foregroundColor(theme.textTertiary)
                 }
-                .padding(.horizontal, 10)
                 .padding(.bottom, 8)
-                .background(theme.detailBackground.opacity(0.5))
+                .background(theme.detailBackground.opacity(0.6))
             }
         }
+    }
+
+    // MARK: - Sub-components
+
+    private func detailSectionLabel(_ title: String) -> some View {
+        Text(title)
+            .font(.system(size: 9, weight: .bold, design: .monospaced))
+            .foregroundColor(theme.textTertiary)
+            .tracking(1)
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
+            .padding(.bottom, 2)
+    }
+
+    private func monoBlock<Content: View>(@ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            content()
+        }
+        .font(.system(size: 10, design: .monospaced))
+        .textSelection(.enabled)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 4)
+    }
+
+    private func scrollableMonoBlock(_ text: String, maxHeight: CGFloat) -> some View {
+        ScrollView([.vertical, .horizontal]) {
+            Text(text)
+                .font(.system(size: 10, design: .monospaced))
+                .foregroundColor(theme.textSecondary)
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(8)
+        }
+        .frame(maxHeight: maxHeight)
+        .background(theme.listBackground)
+        .cornerRadius(4)
+        .padding(.horizontal, 10)
+        .padding(.bottom, 4)
     }
 
     // MARK: - Helpers
