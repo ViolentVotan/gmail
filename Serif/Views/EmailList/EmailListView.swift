@@ -153,6 +153,14 @@ struct EmailListView: View {
                 .keyboardShortcut("f", modifiers: .command)
                 .frame(width: 0, height: 0)
                 .opacity(0)
+
+            // Hidden button for Delete key
+            Button("") {
+                if let email = selectedEmail { onDelete?(email) }
+            }
+            .keyboardShortcut(.delete, modifiers: [])
+            .frame(width: 0, height: 0)
+            .opacity(0)
         }
         .background(theme.listBackground)
         .onChange(of: searchResetTrigger) { _ in
