@@ -11,6 +11,7 @@ struct EmailListView: View {
     let onMarkUnread: ((Email) -> Void)?
     let onMarkSpam: ((Email) -> Void)?
     let onUnsubscribe: ((Email) -> Void)?
+    let onEmptyTrash: (() -> Void)?
     let searchResetTrigger: Int
     @Binding var selectedEmail: Email?
     @Binding var selectedFolder: Folder
@@ -57,6 +58,22 @@ struct EmailListView: View {
                             }
                             .buttonStyle(.plain)
                         }
+                    }
+
+                    // Empty Trash button
+                    if selectedFolder == .trash, !emails.isEmpty, let onEmptyTrash {
+                        Button {
+                            onEmptyTrash()
+                        } label: {
+                            Text("Empty Trash")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(theme.destructive)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(theme.destructive.opacity(0.1))
+                                .cornerRadius(6)
+                        }
+                        .buttonStyle(.plain)
                     }
 
                     Menu {
@@ -107,8 +124,8 @@ struct EmailListView: View {
                                 email: email,
                                 isSelected: selectedEmail?.id == email.id,
                                 onTap: { selectedEmail = email },
-                                onArchive: onArchive.map { action in { action(email) } },
-                                onDelete:  onDelete.map  { action in { action(email) } }
+                                onArchive: selectedFolder == .archive ? nil : onArchive.map { action in { action(email) } },
+                                onDelete:  selectedFolder == .trash   ? nil : onDelete.map  { action in { action(email) } }
                             )
                             .contextMenu { emailContextMenu(for: email) }
                             .transition(.asymmetric(
@@ -195,8 +212,12 @@ struct EmailListView: View {
 
         Divider()
 
-        Button { onArchive?(email) } label: { Label("Archive",       systemImage: "archivebox") }
-        Button(role: .destructive) { onDelete?(email) } label: { Label("Move to Trash", systemImage: "trash") }
+        if selectedFolder != .archive {
+            Button { onArchive?(email) } label: { Label("Archive", systemImage: "archivebox") }
+        }
+        if selectedFolder != .trash {
+            Button(role: .destructive) { onDelete?(email) } label: { Label("Move to Trash", systemImage: "trash") }
+        }
 
         Divider()
 

@@ -195,6 +195,20 @@ final class MailboxViewModel: ObservableObject {
         }
     }
 
+    func emptyTrash() async {
+        let backup = messages
+        let cacheBackup = messageCache
+        messages.removeAll()
+        messageCache.removeAll()
+        do {
+            try await GmailMessageService.shared.emptyTrash(accountID: accountID)
+        } catch {
+            messages = backup
+            messageCache = cacheBackup
+            self.error = error.localizedDescription
+        }
+    }
+
     func spam(_ messageID: String) async {
         do {
             try await GmailMessageService.shared.spamMessage(id: messageID, accountID: accountID)

@@ -488,8 +488,12 @@ struct EmailDetailView: View {
                 Divider().frame(height: 16)
             }
 
-            toolbarButton(icon: "archivebox", label: "Archive") { onArchive?() }
-            toolbarButton(icon: "trash", label: "Delete") { onDelete?() }
+            if let onArchive {
+                toolbarButton(icon: "archivebox", label: "Archive") { onArchive() }
+            }
+            if let onDelete {
+                toolbarButton(icon: "trash", label: "Delete") { onDelete() }
+            }
 
             Divider().frame(height: 16)
 

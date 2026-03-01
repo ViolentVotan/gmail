@@ -30,6 +30,8 @@ struct ContentView: View {
     @AppStorage("signatureForNew")     private var signatureForNew:     String = ""
     @AppStorage("signatureForReply")   private var signatureForReply:   String = ""
     @State private var lastRefreshedAt: Date?
+    @State private var showEmptyTrashConfirm = false
+    @State private var trashTotalCount = 0
 
     private var isEditingDraft: Bool {
         guard let email = selectedEmail else { return false }
@@ -65,6 +67,15 @@ struct ContentView: View {
                 .background(themeManager.currentTheme.detailBackground)
                 .frame(minWidth: 900, minHeight: 600)
                 .toolbar { toolbarContent }
+                .alert("Empty Trash", isPresented: $showEmptyTrashConfirm) {
+                    Button("Cancel", role: .cancel) {}
+                    Button("Delete All", role: .destructive) {
+                        selectedEmail = nil
+                        Task { await mailboxViewModel.emptyTrash() }
+                    }
+                } message: {
+                    Text("This will permanently delete \(trashTotalCount) message\(trashTotalCount == 1 ? "" : "s"). This action cannot be undone.")
+                }
         )
     }
 
@@ -526,6 +537,7 @@ struct ContentView: View {
                 onMarkUnread:   { markUnreadEmail($0) },
                 onMarkSpam:     { markSpamEmail($0) },
                 onUnsubscribe:  { unsubscribeEmail($0) },
+                onEmptyTrash:   { emptyTrash() },
                 searchResetTrigger: searchResetTrigger,
                 selectedEmail: $selectedEmail,
                 selectedFolder: $selectedFolder
@@ -556,8 +568,8 @@ struct ContentView: View {
             EmailDetailView(
                 email: email,
                 accountID: selectedAccountID ?? authViewModel.primaryAccount?.id ?? "",
-                onArchive:    { archiveEmail(email) },
-                onDelete:     { deleteEmail(email) },
+                onArchive:    selectedFolder == .archive ? nil : { archiveEmail(email) },
+                onDelete:     selectedFolder == .trash   ? nil : { deleteEmail(email) },
                 onToggleStar: { isCurrentlyStarred in
                     guard let msgID = email.gmailMessageID else { return }
                     Task { await mailboxViewModel.toggleStar(msgID, isStarred: isCurrentlyStarred) }
@@ -712,6 +724,21 @@ struct ContentView: View {
     private func markUnreadEmail(_ email: Email) {
         guard let msgID = email.gmailMessageID else { return }
         Task { await mailboxViewModel.markAsUnread(msgID) }
+    }
+
+    private func emptyTrash() {
+        let accountID = selectedAccountID ?? authViewModel.primaryAccount?.id ?? ""
+        guard !accountID.isEmpty else { return }
+        Task {
+            do {
+                let label = try await GmailLabelService.shared.getLabel(id: "TRASH", accountID: accountID)
+                trashTotalCount = label.messagesTotal ?? 0
+            } catch {
+                trashTotalCount = mailboxViewModel.emails.count
+            }
+            guard trashTotalCount > 0 else { return }
+            showEmptyTrashConfirm = true
+        }
     }
 
     private func markSpamEmail(_ email: Email) {

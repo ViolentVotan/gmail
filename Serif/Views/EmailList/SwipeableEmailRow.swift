@@ -124,8 +124,12 @@ final class SwipeRowState: ObservableObject {
             }
             if isHoriz == true {
                 accumX += dx
+                // Clamp direction when the corresponding action is nil
+                var clamped = accumX
+                if onArchive == nil { clamped = min(clamped, 0) }
+                if onDelete  == nil { clamped = max(clamped, 0) }
                 withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.85)) {
-                    dragOffset = rubberbanded(accumX)
+                    dragOffset = rubberbanded(clamped)
                 }
                 return nil  // consume horizontal swipe
             }
