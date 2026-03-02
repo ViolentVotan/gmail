@@ -128,48 +128,68 @@ actor AttachmentIndexer {
 
     // MARK: - Active Scan (queries API for messages with attachments)
 
-    /// Scans the account for messages with attachments using `has:attachment` query,
-    /// fetches them in full format to discover parts, and registers them.
+    private var isScanning = false
+
+    /// Max messages to scan exploratively. Beyond this limit, attachments are
+    /// discovered only when the user opens an email (full-format fetch).
+    private let scanLimit = 3000
+
+    /// Scans the account for messages with attachments using `has:attachment` query.
+    /// Paginates up to `scanLimit` messages, fetches each batch in full format, and registers them.
+    /// Safe to call multiple times — skips if already scanning.
     func scanForAttachments() async {
+        guard !isScanning else { return }
+        isScanning = true
+        defer { isScanning = false }
+
         let service = messageService
         let acctID = accountID
         let db = database
+        var pageToken: String? = nil
+        var totalDiscovered = 0
+        var totalScanned = 0
 
         do {
-            // List messages with attachments (up to 200)
-            let list = try await service.listMessages(
-                accountID: acctID,
-                labelIDs: [],
-                query: "has:attachment",
-                pageToken: nil
-            )
-            let refs = list.messages ?? []
-            guard !refs.isEmpty else { return }
+            repeat {
+                let list = try await service.listMessages(
+                    accountID: acctID,
+                    labelIDs: [],
+                    query: "has:attachment",
+                    pageToken: pageToken
+                )
+                let refs = list.messages ?? []
+                pageToken = list.nextPageToken
 
-            // Filter out already-processed messages
-            let toScan = refs.filter { ref in
-                !processedMessageIDs.contains(ref.id) && !db.hasMessageAttachments(messageId: ref.id)
-            }
-            guard !toScan.isEmpty else {
-                // Still mark them as processed
+                guard !refs.isEmpty else { break }
+                totalScanned += refs.count
+
+                // Filter out already-processed messages
+                let toScan = refs.filter { ref in
+                    !processedMessageIDs.contains(ref.id) && !db.hasMessageAttachments(messageId: ref.id)
+                }
+
+                // Mark all as seen
                 for ref in refs { processedMessageIDs.insert(ref.id) }
-                return
+
+                if !toScan.isEmpty {
+                    // Fetch in full format to get parts + body
+                    let messages = try await service.getMessages(
+                        ids: toScan.map(\.id),
+                        accountID: acctID,
+                        format: "full"
+                    )
+
+                    totalDiscovered += messages.count
+                    print("[AttachmentIndexer] Scanned page: \(messages.count) messages with attachments (total: \(totalDiscovered)/\(totalScanned) scanned)")
+
+                    // Register + process immediately so UI updates incrementally
+                    await registerFromFullMessages(messages: messages)
+                }
+            } while pageToken != nil && totalScanned < scanLimit
+
+            if totalDiscovered > 0 {
+                print("[AttachmentIndexer] Scan complete: \(totalDiscovered) messages with attachments out of \(totalScanned) scanned (limit: \(scanLimit))")
             }
-
-            print("[AttachmentIndexer] Scanning \(toScan.count) messages with attachments")
-
-            // Fetch in full format (batches of 5) to get parts info
-            let messages = try await service.getMessages(
-                ids: toScan.map(\.id),
-                accountID: acctID,
-                format: "full"
-            )
-
-            // Register via the full-message path (has body + parts)
-            await registerFromFullMessages(messages: messages)
-
-            // Mark all refs as processed (including ones already in DB)
-            for ref in refs { processedMessageIDs.insert(ref.id) }
         } catch {
             print("[AttachmentIndexer] Scan failed: \(error)")
         }

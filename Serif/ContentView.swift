@@ -346,6 +346,11 @@ struct ContentView: View {
         if folder != .labels { selectedLabel = nil }
         if folder == .attachments {
             attachmentStore.refresh()
+            if let indexer = attachmentIndexer {
+                Task {
+                    await indexer.scanForAttachments()
+                }
+            }
         } else if folder == .drafts {
             Task { await mailStore.syncGmailDrafts(accountID: accountID) }
         } else {
