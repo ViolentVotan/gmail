@@ -27,11 +27,7 @@ struct EmailDetailView: View {
     var extractBodyUnsubscribeURL: ((String) -> URL?)?
 
     @StateObject private var detailVM: EmailDetailViewModel
-    @State private var labelSearchText = ""
-    @State private var isLabelFieldFocused = false
-    @State private var highlightedIndex: Int = 0
     @State private var emailBodyHeight: CGFloat = 100
-    @State private var isUnsubscribing = false
     @State private var didUnsubscribe = false
     @State private var showSenderInfo = false
     @Environment(\.theme) private var theme
@@ -124,9 +120,38 @@ struct EmailDetailView: View {
         return Array(all.dropLast())
     }
 
+    private var currentLabelIDs: [String] {
+        detailVM.latestMessage?.labelIds ?? email.gmailLabelIDs
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            detailToolbar
+            DetailToolbarView(
+                email: email,
+                detailVM: detailVM,
+                isMailingList: isMailingList,
+                resolvedUnsubscribeURL: resolvedUnsubscribeURL,
+                oneClick: oneClick,
+                alreadyUnsubscribed: alreadyUnsubscribed,
+                onArchive: onArchive,
+                onDelete: onDelete,
+                onMoveToInbox: onMoveToInbox,
+                onDeletePermanently: onDeletePermanently,
+                onMarkNotSpam: onMarkNotSpam,
+                onToggleStar: onToggleStar,
+                onMarkUnread: onMarkUnread,
+                onReply: onReply,
+                onReplyAll: onReplyAll,
+                onForward: onForward,
+                onShowOriginal: onShowOriginal,
+                onDownloadMessage: onDownloadMessage,
+                onUnsubscribe: onUnsubscribe,
+                onPrint: onPrint,
+                replyMode: replyMode,
+                replyAllMode: replyAllMode,
+                forwardMode: forwardMode,
+                didUnsubscribe: $didUnsubscribe
+            )
 
             Divider()
                 .background(theme.divider)
@@ -148,10 +173,17 @@ struct EmailDetailView: View {
                                 .padding(.horizontal, 24)
                                 .padding(.bottom, 10)
 
-                            labelsSection
-                                .padding(.horizontal, 24)
-                                .padding(.bottom, 20)
-                                .zIndex(1)
+                            LabelEditorView(
+                                currentLabelIDs: currentLabelIDs,
+                                allLabels: allLabels,
+                                detailVM: detailVM,
+                                onAddLabel: onAddLabel,
+                                onRemoveLabel: onRemoveLabel,
+                                onCreateAndAddLabel: onCreateAndAddLabel
+                            )
+                            .padding(.horizontal, 24)
+                            .padding(.bottom, 20)
+                            .zIndex(1)
 
                             if detailVM.hasBlockedTrackers {
                                 TrackerBannerView(
@@ -182,7 +214,6 @@ struct EmailDetailView: View {
                                     .padding(.horizontal, 24)
                             }
                         }
-                        // Extra bottom padding so content doesn't hide behind the floating bar
                         .padding(.bottom, 72)
                     }
                 }
@@ -195,187 +226,6 @@ struct EmailDetailView: View {
         }
         .background(theme.detailBackground)
         .onAppear { loadThread() }
-    }
-
-    // MARK: - Label helpers
-
-    private var currentLabelIDs: [String] {
-        detailVM.latestMessage?.labelIds ?? email.gmailLabelIDs
-    }
-
-    private var currentUserLabels: [GmailLabel] {
-        let ids = Set(currentLabelIDs)
-        return allLabels.filter { !$0.isSystemLabel && ids.contains($0.id) }
-    }
-
-    private var availableUserLabels: [GmailLabel] {
-        allLabels.filter { !$0.isSystemLabel }
-    }
-
-    private func emailLabel(from gmailLabel: GmailLabel) -> EmailLabel {
-        EmailLabel(
-            id: GmailDataTransformer.deterministicUUID(from: gmailLabel.id),
-            name: gmailLabel.displayName,
-            color: gmailLabel.resolvedBgColor,
-            textColor: gmailLabel.resolvedTextColor
-        )
-    }
-
-    private var showDropdown: Bool {
-        isLabelFieldFocused && !labelSearchText.trimmingCharacters(in: .whitespaces).isEmpty
-            && (!filteredLabels.isEmpty || showCreateOption)
-    }
-
-    private var labelsSection: some View {
-        HStack(spacing: 6) {
-            ForEach(currentUserLabels) { label in
-                LabelChipView(label: emailLabel(from: label), isRemovable: true) {
-                    let newIDs = currentLabelIDs.filter { $0 != label.id }
-                    detailVM.updateLabelIDs(newIDs)
-                    onRemoveLabel?(label.id)
-                }
-            }
-
-            HStack(spacing: 4) {
-                Image(systemName: "tag")
-                    .font(.system(size: 10))
-                    .foregroundColor(theme.textTertiary)
-                TextField("Add label…", text: $labelSearchText, onEditingChanged: { editing in
-                    isLabelFieldFocused = editing
-                    if editing { highlightedIndex = 0 }
-                })
-                .textFieldStyle(.plain)
-                .font(.system(size: 12))
-                .foregroundColor(theme.textPrimary)
-                .onChange(of: labelSearchText) { _ in highlightedIndex = 0 }
-                .onSubmit { confirmHighlighted() }
-                .onKeyPress(.downArrow) {
-                    highlightedIndex = min(highlightedIndex + 1, dropdownItems.count - 1)
-                    return .handled
-                }
-                .onKeyPress(.upArrow) {
-                    highlightedIndex = max(highlightedIndex - 1, 0)
-                    return .handled
-                }
-            }
-            .frame(minWidth: 80, maxWidth: 160)
-            .overlay(alignment: .topLeading) {
-                if showDropdown {
-                    autocompleteDropdown
-                        .offset(y: 24)
-                }
-            }
-
-            Spacer()
-        }
-    }
-
-    private var dropdownItems: [DropdownItem] {
-        var items: [DropdownItem] = filteredLabels.map { .existing($0) }
-        if showCreateOption { items.append(.create(labelSearchText.trimmingCharacters(in: .whitespaces))) }
-        return items
-    }
-
-    private var autocompleteDropdown: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            let items = dropdownItems
-            ForEach(Array(items.enumerated()), id: \.offset) { index, item in
-                let isHighlighted = index == highlightedIndex
-                Button {
-                    switch item {
-                    case .existing(let label): addLabel(label)
-                    case .create: createNewLabel()
-                    }
-                } label: {
-                    Group {
-                        switch item {
-                        case .existing(let label):
-                            HStack(spacing: 8) {
-                                Circle()
-                                    .fill(Color(hex: label.resolvedBgColor))
-                                    .frame(width: 8, height: 8)
-                                Text(label.displayName)
-                                    .font(.system(size: 12))
-                                    .foregroundColor(theme.textPrimary)
-                                if currentLabelIDs.contains(label.id) {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 10, weight: .semibold))
-                                        .foregroundColor(theme.accentPrimary)
-                                }
-                            }
-                        case .create(let name):
-                            HStack(spacing: 6) {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(theme.accentPrimary)
-                                Text("Create \"\(name)\"")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(theme.accentPrimary)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(isHighlighted ? theme.hoverBackground : Color.clear)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .fixedSize(horizontal: true, vertical: true)
-        .background(theme.cardBackground.opacity(0.95))
-        .cornerRadius(8)
-        .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
-    }
-
-    private func confirmHighlighted() {
-        let items = dropdownItems
-        guard !items.isEmpty, highlightedIndex < items.count else {
-            if showCreateOption { createNewLabel() }
-            return
-        }
-        switch items[highlightedIndex] {
-        case .existing(let label): addLabel(label)
-        case .create: createNewLabel()
-        }
-    }
-
-    private var filteredLabels: [GmailLabel] {
-        let query = labelSearchText.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !query.isEmpty else { return [] }
-        return availableUserLabels.filter { $0.displayName.lowercased().contains(query) }
-    }
-
-    private var showCreateOption: Bool {
-        let query = labelSearchText.trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return false }
-        return !availableUserLabels.contains { $0.displayName.caseInsensitiveCompare(query) == .orderedSame }
-    }
-
-    private func addLabel(_ label: GmailLabel) {
-        guard !currentLabelIDs.contains(label.id) else {
-            labelSearchText = ""
-            return
-        }
-        var newIDs = currentLabelIDs
-        newIDs.append(label.id)
-        detailVM.updateLabelIDs(newIDs)
-        onAddLabel?(label.id)
-        labelSearchText = ""
-    }
-
-    private func createNewLabel() {
-        let name = labelSearchText.trimmingCharacters(in: .whitespaces)
-        guard !name.isEmpty else { return }
-        labelSearchText = ""
-        onCreateAndAddLabel?(name) { [self] labelID in
-            if let labelID {
-                var newIDs = currentLabelIDs
-                newIDs.append(labelID)
-                detailVM.updateLabelIDs(newIDs)
-            }
-        }
     }
 
     // MARK: - Compose helpers
@@ -430,9 +280,7 @@ struct EmailDetailView: View {
                 guard let msgID = detailVM.latestMessage?.id else { return }
                 let data = try await detailVM.downloadAttachment(messageID: msgID, part: part)
                 await MainActor.run { saveAttachmentData(data, named: attachment.name) }
-            } catch {
-                // Silently ignore download errors for now
-            }
+            } catch { }
         }
     }
 
@@ -444,136 +292,6 @@ struct EmailDetailView: View {
             guard panel.runModal() == .OK, let url = panel.url else { return }
             try? data.write(to: url)
         }
-    }
-
-    // MARK: - Toolbar
-
-    private var detailToolbar: some View {
-        HStack(spacing: 12) {
-            Spacer()
-
-            // Unsubscribe button — only shown for mailing lists
-            if isMailingList, let url = resolvedUnsubscribeURL {
-                if alreadyUnsubscribed {
-                    HStack(spacing: 4) {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 10, weight: .semibold))
-                        Text("Unsubscribed")
-                            .font(.system(size: 12, weight: .medium))
-                    }
-                    .foregroundColor(theme.textTertiary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(theme.hoverBackground)
-                    .cornerRadius(6)
-                } else {
-                    Button {
-                        isUnsubscribing = true
-                        Task {
-                            let msgID = email.gmailMessageID
-                            let success = await onUnsubscribe?(url, oneClick, msgID) ?? false
-                            isUnsubscribing = false
-                            if success { didUnsubscribe = true }
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            if isUnsubscribing {
-                                ProgressView().scaleEffect(0.6).frame(width: 12, height: 12)
-                            }
-                            Text("Unsubscribe")
-                                .font(.system(size: 12, weight: .medium))
-                        }
-                        .foregroundColor(theme.destructive)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(theme.destructive.opacity(0.1))
-                        .cornerRadius(6)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isUnsubscribing)
-                    .help(oneClick ? "One-click unsubscribe" : "Open unsubscribe page")
-                }
-
-                Divider().frame(height: 16)
-            }
-
-            if let onArchive {
-                toolbarButton(icon: "archivebox", label: "Archive") { onArchive() }
-            }
-            if let onDelete {
-                toolbarButton(icon: "trash", label: "Delete") { onDelete() }
-            }
-            if let onMoveToInbox {
-                toolbarButton(icon: "tray.and.arrow.down", label: "Move to Inbox") { onMoveToInbox() }
-            }
-
-            Divider().frame(height: 16)
-
-            Menu {
-                Section {
-                    Button { onReply?(replyMode()) }    label: { Label("Reply",     systemImage: "arrowshape.turn.up.left") }
-                    Button { onReplyAll?(replyAllMode()) } label: { Label("Reply All", systemImage: "arrowshape.turn.up.left.2") }
-                    Button { onForward?(forwardMode()) }  label: { Label("Forward",   systemImage: "arrowshape.turn.up.right") }
-                }
-                Divider()
-                Section {
-                    Button { onMarkUnread?() } label: { Label("Mark as Unread",     systemImage: "envelope.badge") }
-                    Button {
-                        let starred = detailVM.latestMessage?.isStarred ?? email.isStarred
-                        detailVM.toggleStar()
-                        onToggleStar?(starred)
-                    } label: {
-                        let starred = detailVM.latestMessage?.isStarred ?? email.isStarred
-                        Label(starred ? "Remove from Favorites" : "Add to Favorites", systemImage: starred ? "star.slash" : "star")
-                    }
-                }
-                Divider()
-                Section {
-                    Button {
-                        if let msg = detailVM.latestMessage {
-                            onPrint?(msg, email)
-                        }
-                    } label: { Label("Print", systemImage: "printer") }
-                    Button { onDownloadMessage?(detailVM) } label: { Label("Download Message", systemImage: "arrow.down.circle") }
-                    Button { onShowOriginal?(detailVM) } label: { Label("Show Original",    systemImage: "doc.text") }
-                }
-                Divider()
-                Section {
-                    Button { } label: { Label("Mute Thread",    systemImage: "bell.slash") }
-                    Button { } label: { Label("Block Sender",   systemImage: "hand.raised") }
-                    if let onMarkNotSpam {
-                        Button { onMarkNotSpam() } label: { Label("Not Spam", systemImage: "tray.and.arrow.down") }
-                    } else {
-                        Button(role: .destructive) { onDelete?() } label: { Label("Report as Spam", systemImage: "exclamationmark.shield") }
-                    }
-                    if let onDeletePermanently {
-                        Button(role: .destructive) { onDeletePermanently() } label: { Label("Delete Permanently", systemImage: "trash.slash") }
-                    }
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 13))
-                    .foregroundColor(theme.textSecondary)
-                    .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("More")
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
-    }
-
-    private func toolbarButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 13))
-                .foregroundColor(theme.textSecondary)
-                .frame(width: 28, height: 28)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(label)
     }
 
     // MARK: - Sender Header
@@ -618,7 +336,6 @@ struct EmailDetailView: View {
 
     // MARK: - Attachments
 
-    /// Pairs each Attachment with its source GmailMessagePart (nil for sample-data attachments).
     private var attachmentPairs: [(Attachment, GmailMessagePart?)] {
         if let latest = detailVM.latestMessage {
             return latest.attachmentParts.map { part in
@@ -652,11 +369,6 @@ struct EmailDetailView: View {
 
     // MARK: - Thread (previous messages)
 
-    private enum DropdownItem {
-        case existing(GmailLabel)
-        case create(String)
-    }
-
     private var threadSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Divider()
@@ -666,240 +378,5 @@ struct EmailDetailView: View {
                 GmailThreadMessageView(message: message)
             }
         }
-    }
-}
-
-// MARK: - Thread message card (GmailMessage)
-
-private struct GmailThreadMessageView: View {
-    let message: GmailMessage
-    @Environment(\.theme) private var theme
-
-    private var sender: Contact { GmailDataTransformer.parseContact(message.from) }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                AvatarView(initials: sender.initials, color: sender.avatarColor, size: 32,
-                           avatarURL: sender.avatarURL, senderDomain: sender.domain)
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(sender.name)
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(theme.textPrimary)
-
-                    if let date = message.date {
-                        Text(date.formattedRelative)
-                            .font(.system(size: 11))
-                            .foregroundColor(theme.textTertiary)
-                    }
-                }
-            }
-
-            Text(message.body.strippingHTML)
-                .font(.system(size: 13))
-                .foregroundColor(theme.textSecondary)
-                .lineSpacing(4)
-                .padding(.leading, 42)
-        }
-        .padding(16)
-        .background(theme.cardBackground)
-        .cornerRadius(10)
-    }
-}
-
-
-// MARK: - Sender Info Popover
-
-private struct SenderInfoPopover: View {
-    let message: GmailMessage
-    let email: Email
-    @Environment(\.theme) private var theme
-
-    private var fromDisplay: String {
-        let name = email.sender.name
-        let addr = email.sender.email
-        if name.isEmpty || name == addr { return addr }
-        return "\(name) <\(addr)>"
-    }
-
-    private var sentByDomain: String? {
-        // Display domain from From header (the domain claimed in the "From")
-        message.fromDomain
-    }
-
-    private var dateFormatted: String {
-        if let d = message.date {
-            let fmt = DateFormatter()
-            fmt.dateStyle = .medium
-            fmt.timeStyle = .short
-            return fmt.string(from: d)
-        }
-        return "—"
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Message info section
-            VStack(spacing: 0) {
-                infoRow(label: "From:", value: fromDisplay, suspicious: message.isSuspiciousSender)
-                if let domain = sentByDomain {
-                    infoRow(label: "sent by:", value: domain)
-                }
-                infoRow(label: "to:", value: message.to)
-                if !message.cc.isEmpty {
-                    infoRow(label: "cc:", value: message.cc)
-                }
-                infoRow(label: "Date:", value: dateFormatted)
-                infoRow(label: "Subject:", value: message.subject, multiline: true)
-            }
-
-            // Security section
-            if message.mailedBy != nil || message.signedBy != nil || message.encryptionInfo != nil {
-                Divider()
-                    .background(theme.divider)
-                    .padding(.vertical, 6)
-
-                VStack(spacing: 0) {
-                    if let mailed = message.mailedBy {
-                        infoRow(label: "Mailed by:", value: mailed, suspicious: message.isSuspiciousSender)
-                    }
-                    if let signed = message.signedBy {
-                        infoRow(label: "Signed by:", value: signed)
-                    }
-                    if let encryption = message.encryptionInfo {
-                        securityRow(label: "Security:", value: encryption)
-                    }
-                }
-            }
-        }
-        .padding(14)
-        .frame(minWidth: 320, maxWidth: 440)
-    }
-
-    private func infoRow(label: String, value: String, suspicious: Bool = false, multiline: Bool = false) -> some View {
-        HStack(alignment: multiline ? .top : .center, spacing: 0) {
-            Text(label)
-                .font(.system(size: 11))
-                .foregroundColor(theme.textSecondary)
-                .frame(width: 72, alignment: .trailing)
-                .padding(.trailing, 8)
-
-            Text(value)
-                .font(.system(size: 11, weight: suspicious ? .semibold : .regular))
-                .foregroundColor(suspicious ? .red : theme.textPrimary)
-                .lineLimit(multiline ? 3 : 1)
-                .textSelection(.enabled)
-
-            Spacer()
-        }
-        .padding(.vertical, 3)
-    }
-
-    private func securityRow(label: String, value: String) -> some View {
-        HStack(alignment: .center, spacing: 0) {
-            Text(label)
-                .font(.system(size: 11))
-                .foregroundColor(theme.textSecondary)
-                .frame(width: 72, alignment: .trailing)
-                .padding(.trailing, 8)
-
-            HStack(spacing: 4) {
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 9))
-                    .foregroundColor(.green)
-                Text(value)
-                    .font(.system(size: 11))
-                    .foregroundColor(theme.textPrimary)
-            }
-
-            Spacer()
-        }
-        .padding(.vertical, 3)
-    }
-}
-
-// MARK: - HTML stripping
-
-extension String {
-    var strippingHTML: String {
-        var result = self
-        // Remove style/script blocks first
-        result = result.replacingOccurrences(of: "<style[^>]*>[\\s\\S]*?</style>",  with: "", options: .regularExpression)
-        result = result.replacingOccurrences(of: "<script[^>]*>[\\s\\S]*?</script>", with: "", options: .regularExpression)
-        // Replace block tags with newlines
-        result = result.replacingOccurrences(of: "<br\\s*/?>",  with: "\n", options: .regularExpression)
-        result = result.replacingOccurrences(of: "<p[^>]*>",    with: "\n", options: .regularExpression)
-        result = result.replacingOccurrences(of: "</p>",         with: "")
-        result = result.replacingOccurrences(of: "<div[^>]*>",  with: "\n", options: .regularExpression)
-        result = result.replacingOccurrences(of: "</div>",       with: "")
-        // Strip remaining tags
-        result = result.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-        // Decode common HTML entities
-        result = result.replacingOccurrences(of: "&nbsp;",  with: " ")
-        result = result.replacingOccurrences(of: "&lt;",    with: "<")
-        result = result.replacingOccurrences(of: "&gt;",    with: ">")
-        result = result.replacingOccurrences(of: "&amp;",   with: "&")
-        result = result.replacingOccurrences(of: "&quot;",  with: "\"")
-        result = result.replacingOccurrences(of: "&#39;",   with: "'")
-        // Collapse multiple blank lines
-        result = result.replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
-        return result.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-}
-
-// MARK: - Detail Skeleton
-
-private struct EmailDetailSkeletonView: View {
-    @Environment(\.theme) private var theme
-    @State private var animate = false
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                // Sender header
-                HStack(spacing: 12) {
-                    Circle()
-                        .fill(theme.textTertiary.opacity(animate ? 0.1 : 0.2))
-                        .frame(width: 40, height: 40)
-                    VStack(alignment: .leading, spacing: 6) {
-                        bar(width: 140, height: 11)
-                        bar(width: 190, height: 9)
-                    }
-                    Spacer()
-                    bar(width: 55, height: 9)
-                }
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-                .padding(.bottom, 20)
-
-                // Subject
-                bar(width: 260, height: 16)
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 28)
-
-                // Body lines
-                VStack(alignment: .leading, spacing: 10) {
-                    ForEach(0..<3, id: \.self) { _ in bar(height: 11) }
-                    bar(width: 220, height: 11)
-                    Spacer().frame(height: 6)
-                    ForEach(0..<4, id: \.self) { _ in bar(height: 11) }
-                    bar(width: 160, height: 11)
-                }
-                .padding(.horizontal, 24)
-            }
-        }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
-                animate = true
-            }
-        }
-    }
-
-    private func bar(width: CGFloat? = nil, height: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: height / 2)
-            .fill(theme.textTertiary.opacity(animate ? 0.1 : 0.2))
-            .frame(width: width, height: height)
-            .frame(maxWidth: width == nil ? .infinity : nil, alignment: .leading)
     }
 }

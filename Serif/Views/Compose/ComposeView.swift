@@ -1,15 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-// TODO: Wire reply/forward from EmailDetailView and ContentView
-
-enum ComposeMode {
-    case new
-    case reply(to: String, subject: String, quotedBody: String, replyToMessageID: String, threadID: String)
-    case replyAll(to: String, cc: String, subject: String, quotedBody: String, replyToMessageID: String, threadID: String)
-    case forward(subject: String, quotedBody: String)
-}
-
 struct ComposeView: View {
     @ObservedObject var mailStore: MailStore
     let draftId: UUID

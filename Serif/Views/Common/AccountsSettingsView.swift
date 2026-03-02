@@ -50,40 +50,16 @@ struct AccountsSettingsView: View {
     private func accountRow(_ account: GmailAccount) -> some View {
         let isSelected = account.id == selectedAccountID
             || (selectedAccountID == nil && account.id == authViewModel.accounts.first?.id)
-        let initial = String(account.displayName.prefix(1)).uppercased()
 
         return HStack(spacing: 10) {
             // Avatar — tap to switch
-            Button { selectedAccountID = account.id } label: {
-                ZStack {
-                    Circle().fill(isSelected ? theme.accentPrimary : theme.hoverBackground)
-                    if !isSelected && account.profilePictureURL == nil {
-                        Circle().strokeBorder(theme.divider, lineWidth: 1)
-                    }
-
-                    if let url = account.profilePictureURL {
-                        AsyncImage(url: url) { phase in
-                            if case .success(let img) = phase {
-                                img.resizable().scaledToFill().clipShape(Circle())
-                            } else {
-                                Text(initial)
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(isSelected ? .white : theme.textSecondary)
-                            }
-                        }
-                    } else {
-                        Text(initial)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(isSelected ? .white : theme.textSecondary)
-                    }
-
-                    if isSelected && account.profilePictureURL != nil {
-                        Circle().strokeBorder(theme.accentPrimary, lineWidth: 2)
-                    }
-                }
-                .frame(width: 34, height: 34)
+            AccountAvatarBubble(
+                account: account,
+                isSelected: isSelected,
+                size: 34
+            ) {
+                selectedAccountID = account.id
             }
-            .buttonStyle(.plain)
 
             // Account info
             VStack(alignment: .leading, spacing: 2) {
