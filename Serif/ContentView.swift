@@ -316,9 +316,13 @@ struct ContentView: View {
                 messageService: .shared,
                 accountID: account.id
             )
+            indexer.onProgressUpdate = { [weak attachmentStore] in
+                attachmentStore?.refresh()
+            }
             attachmentIndexer = indexer
             mailboxViewModel.attachmentIndexer = indexer
             Task {
+                await indexer.resumeQueue()
                 await loadCurrentFolder()
                 await mailboxViewModel.loadLabels()
                 await mailboxViewModel.loadSendAs()

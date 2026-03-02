@@ -106,6 +106,10 @@ final class AttachmentDatabase {
             let msg = db.flatMap { String(cString: sqlite3_errmsg($0)) } ?? "unknown"
             throw AttachmentDatabaseError.schemaFailed(msg)
         }
+
+        // Migration: add retryCount column if missing
+        let migration = "ALTER TABLE attachments ADD COLUMN retryCount INTEGER DEFAULT 0"
+        sqlite3_exec(db, migration, nil, nil, nil) // silently ignores if column already exists
     }
 
     // MARK: - Insert
@@ -189,6 +193,28 @@ final class AttachmentDatabase {
 
         bindText(stmt, 1, id)
         return sqlite3_step(stmt) == SQLITE_ROW
+    }
+
+    // MARK: - Retry
+
+    /// Reset failed items back to pending if retryCount < maxRetries
+    func resetFailedForRetry(maxRetries: Int) {
+        let sql = "UPDATE attachments SET indexingStatus = 'pending' WHERE indexingStatus = 'failed' AND retryCount < ?"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(stmt) }
+        sqlite3_bind_int64(stmt, 1, Int64(maxRetries))
+        sqlite3_step(stmt)
+    }
+
+    /// Increment retry count and mark as failed
+    func incrementRetry(id: String) {
+        let sql = "UPDATE attachments SET indexingStatus = 'failed', retryCount = retryCount + 1 WHERE id = ?"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(stmt) }
+        bindText(stmt, 1, id)
+        sqlite3_step(stmt)
     }
 
     // MARK: - Pending

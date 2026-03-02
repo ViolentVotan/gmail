@@ -6,10 +6,36 @@ struct DebugMenuView: View {
     @ObservedObject private var logger = APILogger.shared
     @State private var cacheCount = 0
     @State private var expandedEntryID: UUID?
+    @State private var indexingStats = IndexingStats()
     @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+
+            // MARK: - Attachment Indexer
+            debugSection(title: "Attachment Indexer") {
+                VStack(alignment: .leading, spacing: 6) {
+                    indexerStatRow("Total", value: indexingStats.total, color: theme.textPrimary)
+                    indexerStatRow("Indexed", value: indexingStats.indexed, color: theme.accentSecondary)
+                    indexerStatRow("Pending", value: indexingStats.pending, color: theme.unreadIndicator)
+                    indexerStatRow("Failed", value: indexingStats.failed, color: theme.destructive)
+
+                    if indexingStats.total > 0 {
+                        let progress = indexingStats.total > 0
+                            ? Double(indexingStats.indexed) / Double(indexingStats.total)
+                            : 0
+                        ProgressView(value: progress)
+                            .tint(theme.accentPrimary)
+                            .padding(.top, 4)
+                            .padding(.horizontal, 12)
+                    }
+                }
+                .padding(.vertical, 4)
+
+                debugButton(icon: "arrow.clockwise", label: "Refresh Stats") {
+                    refreshIndexingStats()
+                }
+            }
 
             // MARK: - Onboarding
             debugSection(title: "Onboarding") {
@@ -73,7 +99,33 @@ struct DebugMenuView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
             cacheCount = APICache.shared.cachedResponseCount
+            refreshIndexingStats()
         }
+    }
+
+    // MARK: - Indexer Stats
+
+    private func indexerStatRow(_ label: String, value: Int, color: Color) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundColor(theme.textSecondary)
+            Spacer()
+            Text("\(value)")
+                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .foregroundColor(color)
+        }
+        .padding(.horizontal, 12)
+    }
+
+    private func refreshIndexingStats() {
+        let raw = AttachmentDatabase.shared.stats()
+        indexingStats = IndexingStats(
+            total: raw.total,
+            indexed: raw.indexed,
+            pending: raw.pending,
+            failed: raw.failed
+        )
     }
 
     // MARK: - Log Entry Row

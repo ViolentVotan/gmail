@@ -6,6 +6,10 @@ actor AttachmentIndexer {
     private let accountID: String
     private var isProcessing = false
     private let maxConcurrent = 3
+    private let maxRetries = 3
+
+    /// Called on @MainActor after each indexing batch so the UI can refresh stats.
+    var onProgressUpdate: (@MainActor () -> Void)?
 
     init(database: AttachmentDatabase, messageService: GmailMessageService, accountID: String) {
         self.database = database
@@ -44,6 +48,12 @@ actor AttachmentIndexer {
         await processQueue()
     }
 
+    /// Resume pending + retry failed items. Call on app launch.
+    func resumeQueue() async {
+        database.resetFailedForRetry(maxRetries: maxRetries)
+        await processQueue()
+    }
+
     /// Process pending attachments
     func processQueue() async {
         guard !isProcessing else { return }
@@ -58,6 +68,10 @@ actor AttachmentIndexer {
                         await self.indexAttachment(att)
                     }
                 }
+            }
+            // Notify UI after each batch
+            if let onProgress = onProgressUpdate {
+                await onProgress()
             }
             pending = database.pendingAttachments(limit: maxConcurrent)
         }
@@ -87,7 +101,7 @@ actor AttachmentIndexer {
                 print("[AttachmentIndexer] Unsupported: \(att.filename)")
             }
         } catch {
-            database.updateIndexedContent(id: att.id, text: nil, embedding: nil, status: .failed)
+            database.incrementRetry(id: att.id)
             print("[AttachmentIndexer] Failed: \(att.filename) — \(error)")
         }
     }
