@@ -61,7 +61,7 @@ final class MailStore: ObservableObject {
             isRead:         true,
             isStarred:      message.isStarred,
             hasAttachments: !message.attachmentParts.isEmpty,
-            attachments:    message.attachmentParts.map(GmailDataTransformer.makeAttachment),
+            attachments:    message.attachmentParts.map { GmailDataTransformer.makeAttachment(from: $0, messageId: message.id) },
             folder:         .drafts,
             labels:         [],
             isDraft:             true,

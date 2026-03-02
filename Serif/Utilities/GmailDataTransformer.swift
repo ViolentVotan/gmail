@@ -34,11 +34,12 @@ enum GmailDataTransformer {
 
     // MARK: - Attachment
 
-    static func makeAttachment(from part: GmailMessagePart) -> Attachment {
+    static func makeAttachment(from part: GmailMessagePart, messageId: String) -> Attachment {
         let name = part.filename ?? "attachment"
         let ext  = String(name.split(separator: ".").last ?? "")
         let size = part.body.map { sizeString($0.size) } ?? ""
-        return Attachment(name: name, fileType: .from(fileExtension: ext), size: size)
+        return Attachment(name: name, fileType: .from(fileExtension: ext), size: size,
+                          gmailAttachmentId: part.body?.attachmentId, gmailMessageId: messageId, mimeType: part.mimeType)
     }
 
     // MARK: - Folder

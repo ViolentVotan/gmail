@@ -111,12 +111,19 @@ struct Attachment: Identifiable {
     let name: String
     let fileType: FileType
     let size: String
+    let gmailAttachmentId: String?
+    let gmailMessageId: String?
+    let mimeType: String?
 
-    init(id: UUID = UUID(), name: String, fileType: FileType = .document, size: String = "") {
+    init(id: UUID = UUID(), name: String, fileType: FileType = .document, size: String = "",
+         gmailAttachmentId: String? = nil, gmailMessageId: String? = nil, mimeType: String? = nil) {
         self.id = id
         self.name = name
         self.fileType = fileType
         self.size = size
+        self.gmailAttachmentId = gmailAttachmentId
+        self.gmailMessageId = gmailMessageId
+        self.mimeType = mimeType
     }
 
     enum FileType: String, CaseIterable {

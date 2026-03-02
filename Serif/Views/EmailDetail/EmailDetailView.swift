@@ -109,7 +109,7 @@ struct EmailDetailView: View {
 
     private var displayAttachments: [Attachment] {
         if let latest = detailVM.latestMessage {
-            return latest.attachmentParts.map(GmailDataTransformer.makeAttachment)
+            return latest.attachmentParts.map { GmailDataTransformer.makeAttachment(from: $0, messageId: latest.id) }
         }
         return email.attachments
     }
@@ -339,7 +339,7 @@ struct EmailDetailView: View {
     private var attachmentPairs: [(Attachment, GmailMessagePart?)] {
         if let latest = detailVM.latestMessage {
             return latest.attachmentParts.map { part in
-                (GmailDataTransformer.makeAttachment(from: part), part)
+                (GmailDataTransformer.makeAttachment(from: part, messageId: latest.id), part)
             }
         }
         return email.attachments.map { ($0, nil) }

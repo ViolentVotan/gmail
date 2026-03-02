@@ -468,7 +468,7 @@ final class MailboxViewModel: ObservableObject {
             isRead:         !message.isUnread,
             isStarred:      message.isStarred,
             hasAttachments: !message.attachmentParts.isEmpty,
-            attachments:    message.attachmentParts.map(GmailDataTransformer.makeAttachment),
+            attachments:    message.attachmentParts.map { GmailDataTransformer.makeAttachment(from: $0, messageId: message.id) },
             folder:         GmailDataTransformer.folderFor(labelIDs: msgLabelIDs),
             labels:         emailLabels,
             isDraft:             message.isDraft,
