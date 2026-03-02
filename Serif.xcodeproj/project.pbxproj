@@ -93,6 +93,8 @@
 		A100010100000000000000D2 /* DetailPaneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D2 /* DetailPaneView.swift */; };
 		A100010100000000000000D3 /* ListPaneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D3 /* ListPaneView.swift */; };
 		A100010100000000000000D4 /* PanelCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D4 /* PanelCoordinator.swift */; };
+		A100010100000000000000D5 /* IndexedAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D5 /* IndexedAttachment.swift */; };
+		A100010100000000000000D6 /* AttachmentDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D6 /* AttachmentDatabase.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -184,6 +186,8 @@
 		A100020100000000000000D2 /* DetailPaneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailPaneView.swift; sourceTree = "<group>"; };
 		A100020100000000000000D3 /* ListPaneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListPaneView.swift; sourceTree = "<group>"; };
 		A100020100000000000000D4 /* PanelCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelCoordinator.swift; sourceTree = "<group>"; };
+		A100020100000000000000D5 /* IndexedAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexedAttachment.swift; sourceTree = "<group>"; };
+		A100020100000000000000D6 /* AttachmentDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentDatabase.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -242,6 +246,7 @@
 				A10002010000000000000071 /* GmailAccount.swift */,
 				A10002010000000000000030 /* MailStore.swift */,
 				A100020100000000000000C8 /* ComposeMode.swift */,
+				A100020100000000000000D5 /* IndexedAttachment.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -392,6 +397,7 @@
 				A100020100000000000000C1 /* AvatarCache.swift */,
 				A100020100000000000000C2 /* BIMIService.swift */,
 				A100020100000000000000C3 /* NetworkMonitor.swift */,
+				A100020100000000000000D6 /* AttachmentDatabase.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -611,6 +617,8 @@
 				A100010100000000000000D2 /* DetailPaneView.swift in Sources */,
 				A100010100000000000000D3 /* ListPaneView.swift in Sources */,
 				A100010100000000000000D4 /* PanelCoordinator.swift in Sources */,
+				A100010100000000000000D5 /* IndexedAttachment.swift in Sources */,
+				A100010100000000000000D6 /* AttachmentDatabase.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
