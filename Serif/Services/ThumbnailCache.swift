@@ -14,6 +14,11 @@ final class ThumbnailCache: ObservableObject {
 
     private let maxSize = CGSize(width: 300, height: 200)
 
+    func clearAll() {
+        thumbnails.removeAll()
+        loading.removeAll()
+    }
+
     func thumbnail(for id: String) -> NSImage? {
         thumbnails[id]
     }

@@ -2,6 +2,7 @@ import SwiftUI
 
 #if DEBUG
 struct DebugMenuView: View {
+    let accountID: String
     @AppStorage("isSignedIn") private var isSignedIn: Bool = false
     @ObservedObject private var logger = APILogger.shared
     @State private var cacheCount = 0
@@ -140,14 +141,14 @@ struct DebugMenuView: View {
     }
 
     private func refreshIndexingStats() {
-        let raw = AttachmentDatabase.shared.stats()
+        let raw = AttachmentDatabase.shared.stats(accountID: accountID)
         indexingStats = IndexingStats(
             total: raw.total,
             indexed: raw.indexed,
             pending: raw.pending,
             failed: raw.failed
         )
-        unsupportedTypes = AttachmentDatabase.shared.unsupportedMimeTypes()
+        unsupportedTypes = AttachmentDatabase.shared.unsupportedMimeTypes(accountID: accountID)
     }
 
     // MARK: - Log Entry Row

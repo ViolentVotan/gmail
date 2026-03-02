@@ -69,7 +69,7 @@ struct SlidePanelsOverlay: View {
     #if DEBUG
     private var debugPanel: some View {
         SlidePanel(isPresented: $panels.showDebug, title: "Debug") {
-            DebugMenuView()
+            DebugMenuView(accountID: selectedAccountID ?? authViewModel.primaryAccount?.id ?? "")
         }
         .environment(\.theme, theme)
         .zIndex(10)

@@ -82,4 +82,9 @@ final class MailCacheStore {
         guard let data = try? JSONEncoder().encode(thread) else { return }
         try? data.write(to: url, options: .atomic)
     }
+
+    func deleteAccount(_ accountID: String) {
+        let accountDir = baseDir.appendingPathComponent(accountID, isDirectory: true)
+        try? FileManager.default.removeItem(at: accountDir)
+    }
 }

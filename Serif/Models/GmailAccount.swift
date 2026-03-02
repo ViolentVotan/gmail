@@ -44,6 +44,10 @@ final class AccountStore {
     func remove(id: String) {
         accounts = accounts.filter { $0.id != id }
         TokenStore.shared.delete(for: id)
+        AttachmentDatabase.shared.deleteByAccountID(id)
+        MailCacheStore.shared.deleteAccount(id)
+        UnsubscribeService.shared.clearAccount(id)
+        ContactStore.shared.deleteAccount(id)
     }
 
     func update(_ account: GmailAccount) {

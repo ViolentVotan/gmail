@@ -150,6 +150,10 @@ final class ContactStore {
         let data = try? JSONEncoder().encode(contacts)
         UserDefaults.standard.set(data, forKey: key)
     }
+
+    func deleteAccount(_ accountID: String) {
+        UserDefaults.standard.removeObject(forKey: "com.serif.contacts.\(accountID)")
+    }
 }
 
 // MARK: - Contact Photo Cache

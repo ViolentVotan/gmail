@@ -46,7 +46,8 @@ actor AttachmentIndexer {
                 indexedAt: nil,
                 indexingStatus: .pending,
                 extractedText: nil,
-                emailBody: nil
+                emailBody: nil,
+                accountID: accountID
             )
             database.insertAttachment(indexed)
         }
@@ -57,7 +58,7 @@ actor AttachmentIndexer {
 
     /// Resume pending + retry failed items.
     func resumePending() async {
-        database.resetFailedForRetry(maxRetries: maxRetries)
+        database.resetFailedForRetry(maxRetries: maxRetries, accountID: accountID)
         await processQueue()
     }
 
@@ -73,7 +74,7 @@ actor AttachmentIndexer {
         let service = messageService
         let acctID = accountID
 
-        var pending = db.pendingAttachments(limit: maxConcurrent)
+        var pending = db.pendingAttachments(limit: maxConcurrent, accountID: acctID)
         while !pending.isEmpty {
             await withTaskGroup(of: Void.self) { group in
                 for att in pending {
@@ -85,7 +86,7 @@ actor AttachmentIndexer {
             if let onProgress = onProgressUpdate {
                 await onProgress()
             }
-            pending = db.pendingAttachments(limit: maxConcurrent)
+            pending = db.pendingAttachments(limit: maxConcurrent, accountID: acctID)
         }
     }
 
@@ -125,9 +126,60 @@ actor AttachmentIndexer {
         }
     }
 
+    // MARK: - Active Scan (queries API for messages with attachments)
+
+    /// Scans the account for messages with attachments using `has:attachment` query,
+    /// fetches them in full format to discover parts, and registers them.
+    func scanForAttachments() async {
+        let service = messageService
+        let acctID = accountID
+        let db = database
+
+        do {
+            // List messages with attachments (up to 200)
+            let list = try await service.listMessages(
+                accountID: acctID,
+                labelIDs: [],
+                query: "has:attachment",
+                pageToken: nil
+            )
+            let refs = list.messages ?? []
+            guard !refs.isEmpty else { return }
+
+            // Filter out already-processed messages
+            let toScan = refs.filter { ref in
+                !processedMessageIDs.contains(ref.id) && !db.hasMessageAttachments(messageId: ref.id)
+            }
+            guard !toScan.isEmpty else {
+                // Still mark them as processed
+                for ref in refs { processedMessageIDs.insert(ref.id) }
+                return
+            }
+
+            print("[AttachmentIndexer] Scanning \(toScan.count) messages with attachments")
+
+            // Fetch in full format (batches of 5) to get parts info
+            let messages = try await service.getMessages(
+                ids: toScan.map(\.id),
+                accountID: acctID,
+                format: "full"
+            )
+
+            // Register via the full-message path (has body + parts)
+            await registerFromFullMessages(messages: messages)
+
+            // Mark all refs as processed (including ones already in DB)
+            for ref in refs { processedMessageIDs.insert(ref.id) }
+        } catch {
+            print("[AttachmentIndexer] Scan failed: \(error)")
+        }
+    }
+
     // MARK: - Register from metadata-format messages (mailbox list)
 
     /// Register attachments from metadata-format messages (no body available).
+    /// Note: metadata format lacks parts info, so this only works for messages
+    /// already fetched in full format and cached.
     func registerFromMetadata(messages: [GmailMessage]) async {
         for message in messages {
             let parts = message.attachmentParts
@@ -158,7 +210,8 @@ actor AttachmentIndexer {
                     senderEmail: senderEmail, senderName: senderName,
                     emailSubject: message.subject, emailDate: message.date,
                     direction: direction, indexedAt: nil, indexingStatus: .pending,
-                    extractedText: nil, emailBody: nil
+                    extractedText: nil, emailBody: nil,
+                    accountID: accountID
                 )
                 database.insertAttachment(indexed)
             }
@@ -203,7 +256,8 @@ actor AttachmentIndexer {
                     senderEmail: senderEmail, senderName: senderName,
                     emailSubject: message.subject, emailDate: message.date,
                     direction: direction, indexedAt: nil, indexingStatus: .pending,
-                    extractedText: nil, emailBody: body
+                    extractedText: nil, emailBody: body,
+                    accountID: accountID
                 )
                 database.insertAttachment(indexed)
                 newCount += 1

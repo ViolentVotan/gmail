@@ -313,6 +313,7 @@ struct ContentView: View {
         if let account = authViewModel.primaryAccount {
             selectedAccountID = account.id
             mailboxViewModel.accountID = account.id
+            attachmentStore.accountID = account.id
             let indexer = AttachmentIndexer(
                 database: .shared,
                 messageService: .shared,
@@ -331,6 +332,7 @@ struct ContentView: View {
                 await GmailProfileService.shared.loadContactPhotos(accountID: account.id)
                 lastRefreshedAt = Date()
                 await indexer.resumePending()
+                await indexer.scanForAttachments()
             }
         } else {
             selectedEmail = mailStore.emails(for: .inbox).first
@@ -371,6 +373,10 @@ struct ContentView: View {
         // Skip if handleAppear already set up this account
         guard mailboxViewModel.accountID != id else { return }
         selectedEmailIDs = []
+        ThumbnailCache.shared.clearAll()
+        SubscriptionsStore.shared.removeAll()
+        attachmentStore.accountID = id
+        attachmentStore.refresh()
         let indexer = AttachmentIndexer(
             database: .shared,
             messageService: .shared,
@@ -389,6 +395,7 @@ struct ContentView: View {
             await mailboxViewModel.loadCategoryUnreadCounts()
             await GmailProfileService.shared.loadContactPhotos(accountID: id)
             await indexer.resumePending()
+            await indexer.scanForAttachments()
         }
     }
 

@@ -31,6 +31,7 @@ final class AttachmentStore: ObservableObject {
     private let searchService: AttachmentSearchService
     private var searchTask: Task<Void, Never>?
     private var cancellables = Set<AnyCancellable>()
+    var accountID: String = ""
 
     var indexer: AttachmentIndexer?
 
@@ -84,8 +85,8 @@ final class AttachmentStore: ObservableObject {
     // MARK: - Refresh
 
     func refresh() {
-        allAttachments = database.allAttachments(limit: 5000, offset: 0)
-        let raw = database.stats()
+        allAttachments = database.allAttachments(limit: 5000, offset: 0, accountID: accountID)
+        let raw = database.stats(accountID: accountID)
         stats = IndexingStats(
             total: raw.total,
             indexed: raw.indexed,
@@ -103,7 +104,7 @@ final class AttachmentStore: ObservableObject {
             defer { isSearching = false }
 
             guard !Task.isCancelled else { return }
-            let results = searchService.search(query: query)
+            let results = searchService.search(query: query, accountID: accountID)
             guard !Task.isCancelled else { return }
             searchResults = results
         }

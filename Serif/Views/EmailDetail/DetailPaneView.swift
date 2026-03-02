@@ -132,13 +132,13 @@ struct DetailPaneView: View {
             onShowOriginal: { vm in panelCoordinator.showOriginalMessage(from: vm) },
             onDownloadMessage: { vm in panelCoordinator.downloadMessage(from: vm) },
             onUnsubscribe: { url, oneClick, msgID in
-                await UnsubscribeService.shared.unsubscribe(url: url, oneClick: oneClick, messageID: msgID)
+                await UnsubscribeService.shared.unsubscribe(url: url, oneClick: oneClick, messageID: msgID, accountID: accountID)
             },
             onPrint: { msg, email in
                 EmailPrintService.shared.printEmail(message: msg, email: email)
             },
             checkUnsubscribed: { msgID in
-                UnsubscribeService.shared.isUnsubscribed(messageID: msgID)
+                UnsubscribeService.shared.isUnsubscribed(messageID: msgID, accountID: accountID)
             },
             extractBodyUnsubscribeURL: { html in
                 UnsubscribeService.extractBodyUnsubscribeURL(from: html)

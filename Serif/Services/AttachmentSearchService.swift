@@ -14,17 +14,17 @@ struct AttachmentSearchService {
 
     // MARK: - Search
 
-    func search(query: String) -> [AttachmentSearchResult] {
+    func search(query: String, accountID: String) -> [AttachmentSearchResult] {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
 
         guard !trimmed.isEmpty else {
-            return database.allAttachments(limit: 200).map {
+            return database.allAttachments(limit: 200, accountID: accountID).map {
                 AttachmentSearchResult(id: $0.id, attachment: $0, score: 1.0, matchSource: .fts)
             }
         }
 
         // Step 1: FTS keyword search
-        let ftsResults = database.searchFTS(query: trimmed)
+        let ftsResults = database.searchFTS(query: trimmed, accountID: accountID)
         let maxBM25 = ftsResults.map(\.1).max() ?? 1.0
 
         var resultMap: [String: AttachmentSearchResult] = [:]
@@ -41,7 +41,7 @@ struct AttachmentSearchService {
         // Step 2: Semantic fallback if fewer than threshold results
         if ftsResults.count < semanticThreshold {
             if let queryEmbedding = ContentExtractor.generateEmbedding(for: trimmed) {
-                let allEmbeddings = database.allEmbeddings()
+                let allEmbeddings = database.allEmbeddings(accountID: accountID)
                 var semanticScores: [(String, Float)] = []
 
                 for (id, emb) in allEmbeddings {

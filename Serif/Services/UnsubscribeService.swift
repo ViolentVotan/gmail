@@ -7,30 +7,37 @@ final class UnsubscribeService {
     static let shared = UnsubscribeService()
     private init() {}
 
-    private let doneKey = "unsubscribedMessageIDs"
+    nonisolated private func doneKey(for accountID: String) -> String {
+        "unsubscribedMessageIDs.\(accountID)"
+    }
 
     // MARK: - Persisted state
 
-    func isUnsubscribed(messageID: String) -> Bool {
-        let set = UserDefaults.standard.stringArray(forKey: doneKey) ?? []
+    func isUnsubscribed(messageID: String, accountID: String) -> Bool {
+        let set = UserDefaults.standard.stringArray(forKey: doneKey(for: accountID)) ?? []
         return set.contains(messageID)
     }
 
-    private func markUnsubscribed(messageID: String) {
-        var set = UserDefaults.standard.stringArray(forKey: doneKey) ?? []
+    private func markUnsubscribed(messageID: String, accountID: String) {
+        let key = doneKey(for: accountID)
+        var set = UserDefaults.standard.stringArray(forKey: key) ?? []
         guard !set.contains(messageID) else { return }
         set.append(messageID)
-        UserDefaults.standard.set(set, forKey: doneKey)
+        UserDefaults.standard.set(set, forKey: key)
+    }
+
+    nonisolated func clearAccount(_ accountID: String) {
+        UserDefaults.standard.removeObject(forKey: doneKey(for: accountID))
     }
 
     // MARK: - Perform unsubscribe
 
     /// Returns `true` when we can confirm the unsubscribe succeeded (one-click with 2xx).
     @discardableResult
-    func unsubscribe(url: URL, oneClick: Bool, messageID: String? = nil) async -> Bool {
+    func unsubscribe(url: URL, oneClick: Bool, messageID: String? = nil, accountID: String = "") async -> Bool {
         if oneClick && (url.scheme == "https" || url.scheme == "http") {
             let success = await performOneClickPost(url: url)
-            if success, let messageID { markUnsubscribed(messageID: messageID) }
+            if success, let messageID { markUnsubscribed(messageID: messageID, accountID: accountID) }
             return success
         } else {
             NSWorkspace.shared.open(url)

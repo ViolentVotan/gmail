@@ -90,6 +90,9 @@ final class AttachmentDatabase: @unchecked Sendable {
         // 2. Column migrations (silently ignored if already exist)
         sqlite3_exec(db, "ALTER TABLE attachments ADD COLUMN retryCount INTEGER DEFAULT 0", nil, nil, nil)
         sqlite3_exec(db, "ALTER TABLE attachments ADD COLUMN emailBody TEXT", nil, nil, nil)
+        sqlite3_exec(db, "ALTER TABLE attachments ADD COLUMN accountID TEXT", nil, nil, nil)
+        // Clean up pre-migration rows without accountID — they can't be attributed to any account
+        sqlite3_exec(db, "DELETE FROM attachments WHERE accountID IS NULL", nil, nil, nil)
 
         // 3. FTS migration — rebuild when schema changes
         migrateFTS()
@@ -144,6 +147,14 @@ final class AttachmentDatabase: @unchecked Sendable {
             exec("PRAGMA user_version = 1")
             print("[AttachmentDB] Migrated FTS to v1 (added emailBody)")
         }
+
+        // v1 → v2: rebuild FTS + vacuum after accountID cleanup
+        if version < 2 {
+            exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')")
+            exec("VACUUM")
+            exec("PRAGMA user_version = 2")
+            print("[AttachmentDB] Migrated to v2 (accountID cleanup + vacuum)")
+        }
     }
 
     // MARK: - Insert
@@ -159,8 +170,8 @@ final class AttachmentDatabase: @unchecked Sendable {
         INSERT OR IGNORE INTO attachments
             (id, messageId, attachmentId, filename, mimeType, fileType, size,
              senderEmail, senderName, emailSubject, emailDate, direction,
-             indexedAt, indexingStatus, extractedText, emailBody)
-        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+             indexedAt, indexingStatus, extractedText, emailBody, accountID)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
@@ -190,6 +201,7 @@ final class AttachmentDatabase: @unchecked Sendable {
         bindText(stmt, 14, attachment.indexingStatus.rawValue)
         bindTextOrNull(stmt, 15, attachment.extractedText)
         bindTextOrNull(stmt, 16, attachment.emailBody)
+        bindText(stmt, 17, attachment.accountID)
 
         sqlite3_step(stmt)
     }
@@ -268,13 +280,14 @@ final class AttachmentDatabase: @unchecked Sendable {
 
     // MARK: - Retry
 
-    func resetFailedForRetry(maxRetries: Int) {
+    func resetFailedForRetry(maxRetries: Int, accountID: String) {
         queue.sync {
-            let sql = "UPDATE attachments SET indexingStatus = 'pending' WHERE indexingStatus = 'failed' AND retryCount < ?"
+            let sql = "UPDATE attachments SET indexingStatus = 'pending' WHERE indexingStatus = 'failed' AND retryCount < ? AND accountID = ?"
             var stmt: OpaquePointer?
             guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
             defer { sqlite3_finalize(stmt) }
             sqlite3_bind_int64(stmt, 1, Int64(maxRetries))
+            bindText(stmt, 2, accountID)
             sqlite3_step(stmt)
         }
     }
@@ -292,43 +305,46 @@ final class AttachmentDatabase: @unchecked Sendable {
 
     // MARK: - Pending
 
-    func pendingAttachments(limit: Int = 50) -> [IndexedAttachment] {
+    func pendingAttachments(limit: Int = 50, accountID: String) -> [IndexedAttachment] {
         queue.sync {
             let sql = """
             SELECT * FROM attachments
-            WHERE indexingStatus = 'pending'
+            WHERE indexingStatus = 'pending' AND accountID = ?
             ORDER BY emailDate DESC
             LIMIT ?
             """
             var stmt: OpaquePointer?
             guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
             defer { sqlite3_finalize(stmt) }
-            sqlite3_bind_int64(stmt, 1, Int64(limit))
+            bindText(stmt, 1, accountID)
+            sqlite3_bind_int64(stmt, 2, Int64(limit))
             return readRows(stmt)
         }
     }
 
     // MARK: - All
 
-    func allAttachments(limit: Int = 100, offset: Int = 0) -> [IndexedAttachment] {
+    func allAttachments(limit: Int = 100, offset: Int = 0, accountID: String) -> [IndexedAttachment] {
         queue.sync {
             let sql = """
             SELECT * FROM attachments
+            WHERE accountID = ?
             ORDER BY emailDate DESC
             LIMIT ? OFFSET ?
             """
             var stmt: OpaquePointer?
             guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
             defer { sqlite3_finalize(stmt) }
-            sqlite3_bind_int64(stmt, 1, Int64(limit))
-            sqlite3_bind_int64(stmt, 2, Int64(offset))
+            bindText(stmt, 1, accountID)
+            sqlite3_bind_int64(stmt, 2, Int64(limit))
+            sqlite3_bind_int64(stmt, 3, Int64(offset))
             return readRows(stmt)
         }
     }
 
     // MARK: - FTS Search
 
-    func searchFTS(query: String, limit: Int = 30) -> [(IndexedAttachment, Double)] {
+    func searchFTS(query: String, limit: Int = 30, accountID: String) -> [(IndexedAttachment, Double)] {
         queue.sync {
             let sanitized = sanitizeFTSQuery(query)
             guard !sanitized.isEmpty else { return [] }
@@ -337,7 +353,7 @@ final class AttachmentDatabase: @unchecked Sendable {
             SELECT a.*, abs(bm25(attachments_fts, 1.0, 5.0, 3.0, 0.5)) AS score
             FROM attachments_fts f
             JOIN attachments a ON a.rowid = f.rowid
-            WHERE attachments_fts MATCH ?
+            WHERE attachments_fts MATCH ? AND a.accountID = ?
             ORDER BY score DESC
             LIMIT ?
             """
@@ -346,12 +362,13 @@ final class AttachmentDatabase: @unchecked Sendable {
             defer { sqlite3_finalize(stmt) }
 
             bindText(stmt, 1, sanitized)
-            sqlite3_bind_int64(stmt, 2, Int64(limit))
+            bindText(stmt, 2, accountID)
+            sqlite3_bind_int64(stmt, 3, Int64(limit))
 
             var results: [(IndexedAttachment, Double)] = []
             while sqlite3_step(stmt) == SQLITE_ROW {
                 let att = readRow(stmt)
-                let score = sqlite3_column_double(stmt, 16)
+                let score = sqlite3_column_double(stmt, 19)
                 results.append((att, score))
             }
             return results
@@ -360,12 +377,13 @@ final class AttachmentDatabase: @unchecked Sendable {
 
     // MARK: - All embeddings (for semantic search)
 
-    func allEmbeddings() -> [(String, [Float])] {
+    func allEmbeddings(accountID: String) -> [(String, [Float])] {
         queue.sync {
-            let sql = "SELECT id, embedding FROM attachments WHERE embedding IS NOT NULL"
+            let sql = "SELECT id, embedding FROM attachments WHERE embedding IS NOT NULL AND accountID = ?"
             var stmt: OpaquePointer?
             guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
             defer { sqlite3_finalize(stmt) }
+            bindText(stmt, 1, accountID)
 
             var results: [(String, [Float])] = []
             while sqlite3_step(stmt) == SQLITE_ROW {
@@ -397,7 +415,7 @@ final class AttachmentDatabase: @unchecked Sendable {
 
     // MARK: - Stats
 
-    func stats() -> (total: Int, indexed: Int, pending: Int, failed: Int) {
+    func stats(accountID: String) -> (total: Int, indexed: Int, pending: Int, failed: Int) {
         queue.sync {
             let sql = """
             SELECT
@@ -406,10 +424,12 @@ final class AttachmentDatabase: @unchecked Sendable {
                 SUM(CASE WHEN indexingStatus = 'pending' THEN 1 ELSE 0 END),
                 SUM(CASE WHEN indexingStatus = 'failed' THEN 1 ELSE 0 END)
             FROM attachments
+            WHERE accountID = ?
             """
             var stmt: OpaquePointer?
             guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return (0, 0, 0, 0) }
             defer { sqlite3_finalize(stmt) }
+            bindText(stmt, 1, accountID)
             guard sqlite3_step(stmt) == SQLITE_ROW else { return (0, 0, 0, 0) }
 
             let total   = Int(sqlite3_column_int64(stmt, 0))
@@ -421,18 +441,19 @@ final class AttachmentDatabase: @unchecked Sendable {
     }
 
     /// Distinct MIME types of unsupported attachments (for debugging).
-    func unsupportedMimeTypes() -> [(mimeType: String, count: Int)] {
+    func unsupportedMimeTypes(accountID: String) -> [(mimeType: String, count: Int)] {
         queue.sync {
             let sql = """
             SELECT COALESCE(mimeType, 'unknown'), COUNT(*)
             FROM attachments
-            WHERE indexingStatus = 'unsupported'
+            WHERE indexingStatus = 'unsupported' AND accountID = ?
             GROUP BY mimeType
             ORDER BY COUNT(*) DESC
             """
             var stmt: OpaquePointer?
             guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
             defer { sqlite3_finalize(stmt) }
+            bindText(stmt, 1, accountID)
 
             var results: [(String, Int)] = []
             while sqlite3_step(stmt) == SQLITE_ROW {
@@ -461,6 +482,19 @@ final class AttachmentDatabase: @unchecked Sendable {
             }
         }
         return total
+    }
+
+    /// Delete all rows for a specific account and rebuild FTS.
+    func deleteByAccountID(_ accountID: String) {
+        queue.sync {
+            let sql = "DELETE FROM attachments WHERE accountID = ?"
+            var stmt: OpaquePointer?
+            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+            defer { sqlite3_finalize(stmt) }
+            bindText(stmt, 1, accountID)
+            sqlite3_step(stmt)
+            exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')")
+        }
     }
 
     /// Delete all rows from the attachments table and rebuild FTS.
@@ -515,6 +549,7 @@ final class AttachmentDatabase: @unchecked Sendable {
         // Column 15 = embedding BLOB — not mapped into IndexedAttachment
         // Column 16 = retryCount — managed separately
         let emailBody     = columnText(stmt, 17)
+        let accountID     = columnText(stmt, 18) ?? ""
 
         return IndexedAttachment(
             id: id,
@@ -532,7 +567,8 @@ final class AttachmentDatabase: @unchecked Sendable {
             indexedAt: indexedAt,
             indexingStatus: status,
             extractedText: extractedText,
-            emailBody: emailBody
+            emailBody: emailBody,
+            accountID: accountID
         )
     }
 
