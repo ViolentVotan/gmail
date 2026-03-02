@@ -49,6 +49,13 @@ final class AttachmentStore: ObservableObject {
         if let direction = filterDirection {
             results = results.filter { $0.attachment.direction == direction }
         }
+
+        // Deduplicate by filename + size (same file attached to multiple emails)
+        var seen = Set<String>()
+        results = results.filter { r in
+            let key = "\(r.attachment.filename)_\(r.attachment.size)"
+            return seen.insert(key).inserted
+        }
         return results
     }
 
@@ -77,7 +84,7 @@ final class AttachmentStore: ObservableObject {
     // MARK: - Refresh
 
     func refresh() {
-        allAttachments = database.allAttachments(limit: 200, offset: 0)
+        allAttachments = database.allAttachments(limit: 5000, offset: 0)
         let raw = database.stats()
         stats = IndexingStats(
             total: raw.total,

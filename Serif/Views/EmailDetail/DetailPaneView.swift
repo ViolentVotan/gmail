@@ -17,6 +17,7 @@ struct DetailPaneView: View {
     let signatureForReply: String
 
     let panelCoordinator: PanelCoordinator
+    var attachmentIndexer: AttachmentIndexer?
 
     let onSelectNext: (Email?) -> Void
     let onClearSelection: () -> Void
@@ -92,6 +93,7 @@ struct DetailPaneView: View {
         EmailDetailView(
             email: email,
             accountID: accountID,
+            attachmentIndexer: attachmentIndexer,
             onArchive: selectedFolder == .archive ? nil : { actionCoordinator.archiveEmail(email, selectNext: onSelectNext) },
             onDelete: selectedFolder == .trash ? nil : { actionCoordinator.deleteEmail(email, selectNext: onSelectNext) },
             onMoveToInbox: selectedFolder == .archive || selectedFolder == .trash

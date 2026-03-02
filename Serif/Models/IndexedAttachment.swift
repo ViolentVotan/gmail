@@ -16,6 +16,7 @@ struct IndexedAttachment: Identifiable {
     let indexedAt: Date?
     let indexingStatus: IndexingStatus
     let extractedText: String?
+    let emailBody: String?          // plain-text email body (for FTS search context)
 
     enum Direction: String {
         case received, sent

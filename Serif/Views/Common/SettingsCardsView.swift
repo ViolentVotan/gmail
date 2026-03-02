@@ -204,6 +204,86 @@ struct SignatureSettingsCard: View {
     }
 }
 
+// MARK: - Storage Settings Card
+
+struct StorageSettingsCard: View {
+    @ObservedObject var attachmentStore: AttachmentStore
+    @State private var dbSize: Int64 = 0
+    @State private var showClearConfirm = false
+    @State private var isClearing = false
+    @Environment(\.theme) private var theme
+
+    private var formattedSize: String {
+        let bytes = dbSize
+        if bytes < 1024 { return "\(bytes) B" }
+        if bytes < 1024 * 1024 { return String(format: "%.1f KB", Double(bytes) / 1024) }
+        return String(format: "%.1f MB", Double(bytes) / (1024 * 1024))
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Storage")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(theme.textPrimary)
+
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Attachment index")
+                        .font(.system(size: 12))
+                        .foregroundColor(theme.textSecondary)
+                    HStack(spacing: 8) {
+                        Text(formattedSize)
+                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .foregroundColor(theme.textPrimary)
+                        Text("\(attachmentStore.stats.total) attachments")
+                            .font(.system(size: 11))
+                            .foregroundColor(theme.textTertiary)
+                    }
+                }
+
+                Spacer()
+
+                Button {
+                    showClearConfirm = true
+                } label: {
+                    HStack(spacing: 5) {
+                        if isClearing {
+                            ProgressView()
+                                .scaleEffect(0.5)
+                                .frame(width: 12, height: 12)
+                        } else {
+                            Image(systemName: "trash")
+                                .font(.system(size: 11))
+                        }
+                        Text(isClearing ? "Clearing..." : "Clear")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundColor(.red)
+                }
+                .buttonStyle(.plain)
+                .disabled(isClearing || attachmentStore.stats.total == 0)
+            }
+        }
+        .padding(20)
+        .background(theme.cardBackground)
+        .cornerRadius(12)
+        .shadow(color: .black.opacity(0.06), radius: 4, y: 1)
+        .onAppear { dbSize = AttachmentDatabase.shared.databaseSizeBytes() }
+        .alert("Clear attachment index?", isPresented: $showClearConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Clear", role: .destructive) {
+                isClearing = true
+                AttachmentDatabase.shared.clearAll()
+                attachmentStore.refresh()
+                dbSize = AttachmentDatabase.shared.databaseSizeBytes()
+                isClearing = false
+            }
+        } message: {
+            Text("This will delete all \(attachmentStore.stats.total) indexed attachments (\(formattedSize)). Attachments will be re-indexed as you browse your emails.")
+        }
+    }
+}
+
 // MARK: - Refresh Status
 
 struct RefreshStatusView: View {

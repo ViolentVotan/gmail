@@ -7,6 +7,7 @@ struct DebugMenuView: View {
     @State private var cacheCount = 0
     @State private var expandedEntryID: UUID?
     @State private var indexingStats = IndexingStats()
+    @State private var unsupportedTypes: [(mimeType: String, count: Int)] = []
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -28,6 +29,26 @@ struct DebugMenuView: View {
                             .tint(theme.accentPrimary)
                             .padding(.top, 4)
                             .padding(.horizontal, 12)
+                    }
+
+                    if !unsupportedTypes.isEmpty {
+                        Divider().padding(.horizontal, 12).padding(.vertical, 4)
+                        Text("Unsupported MIME types")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(theme.textTertiary)
+                            .padding(.horizontal, 12)
+                        ForEach(unsupportedTypes, id: \.mimeType) { entry in
+                            HStack {
+                                Text(entry.mimeType)
+                                    .font(.system(size: 11, design: .monospaced))
+                                    .foregroundColor(theme.textSecondary)
+                                Spacer()
+                                Text("×\(entry.count)")
+                                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                    .foregroundColor(theme.textTertiary)
+                            }
+                            .padding(.horizontal, 12)
+                        }
                     }
                 }
                 .padding(.vertical, 4)
@@ -126,6 +147,7 @@ struct DebugMenuView: View {
             pending: raw.pending,
             failed: raw.failed
         )
+        unsupportedTypes = AttachmentDatabase.shared.unsupportedMimeTypes()
     }
 
     // MARK: - Log Entry Row

@@ -15,6 +15,7 @@ final class MailboxViewModel: ObservableObject {
     @Published var lastRestoredMessageID: String?
 
     var accountID: String
+    var attachmentIndexer: AttachmentIndexer?
     private var currentLabelIDs: [String] = ["INBOX"]
     private var currentQuery:    String?
     /// In-memory cache of fetched messages (metadata format) keyed by message ID.
@@ -400,6 +401,14 @@ final class MailboxViewModel: ObservableObject {
                 // Check again after second await
                 guard !Task.isCancelled, generation == fetchGeneration else { return }
                 for msg in fetched { messageCache[msg.id] = msg }
+
+                // Passive attachment registration
+                if let indexer = attachmentIndexer {
+                    let withAttachments = fetched.filter { !$0.attachmentParts.isEmpty }
+                    if !withAttachments.isEmpty {
+                        Task { await indexer.registerFromMetadata(messages: withAttachments) }
+                    }
+                }
             }
 
             // Final guard before mutating published state

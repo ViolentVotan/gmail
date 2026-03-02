@@ -94,7 +94,7 @@ struct ContentView: View {
                 )
 
                 if selectedFolder == .attachments {
-                    AttachmentExplorerView(store: attachmentStore)
+                    AttachmentExplorerView(store: attachmentStore, panelCoordinator: panelCoordinator, accountID: accountID)
                 } else {
                     ListPaneView(
                         emails: displayedEmails,
@@ -127,6 +127,7 @@ struct ContentView: View {
                         signatureForNew: signatureForNew,
                         signatureForReply: signatureForReply,
                         panelCoordinator: panelCoordinator,
+                        attachmentIndexer: attachmentIndexer,
                         onSelectNext: { selectedEmail = $0 },
                         onClearSelection: { selectedEmail = nil; selectedEmailIDs = [] },
                         onDeselectAll: { selectedEmailIDs = [] },
@@ -156,7 +157,8 @@ struct ContentView: View {
                 lastRefreshedAt: lastRefreshedAt,
                 signatureForNew: $signatureForNew,
                 signatureForReply: $signatureForReply,
-                sendAsAliases: mailboxViewModel.sendAsAliases
+                sendAsAliases: mailboxViewModel.sendAsAliases,
+                attachmentStore: attachmentStore
             )
         }
     }
@@ -320,6 +322,7 @@ struct ContentView: View {
                 attachmentStore?.refresh()
             }
             attachmentIndexer = indexer
+            mailboxViewModel.attachmentIndexer = indexer
             Task {
                 await loadCurrentFolder()
                 await mailboxViewModel.loadLabels()
@@ -327,8 +330,7 @@ struct ContentView: View {
                 await mailboxViewModel.loadCategoryUnreadCounts()
                 await GmailProfileService.shared.loadContactPhotos(accountID: account.id)
                 lastRefreshedAt = Date()
-                // Background: resume pending + discover all attachments from Gmail
-                await indexer.resumeAndDiscover()
+                await indexer.resumePending()
             }
         } else {
             selectedEmail = mailStore.emails(for: .inbox).first
@@ -366,6 +368,8 @@ struct ContentView: View {
 
     private func handleAccountChange(_ newID: String?) {
         guard let id = newID else { return }
+        // Skip if handleAppear already set up this account
+        guard mailboxViewModel.accountID != id else { return }
         selectedEmailIDs = []
         let indexer = AttachmentIndexer(
             database: .shared,
@@ -376,6 +380,7 @@ struct ContentView: View {
             attachmentStore?.refresh()
         }
         attachmentIndexer = indexer
+        mailboxViewModel.attachmentIndexer = indexer
         Task {
             await mailboxViewModel.switchAccount(id)
             await loadCurrentFolder()
@@ -383,7 +388,7 @@ struct ContentView: View {
             await mailboxViewModel.loadSendAs()
             await mailboxViewModel.loadCategoryUnreadCounts()
             await GmailProfileService.shared.loadContactPhotos(accountID: id)
-            await indexer.resumeAndDiscover()
+            await indexer.resumePending()
         }
     }
 

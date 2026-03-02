@@ -2,6 +2,9 @@ import SwiftUI
 
 struct AttachmentExplorerView: View {
     @ObservedObject var store: AttachmentStore
+    @ObservedObject var panelCoordinator: PanelCoordinator
+    let accountID: String
+    @State private var downloadingAttachmentID: String?
     @Environment(\.theme) private var theme
 
     private let columns = [GridItem(.adaptive(minimum: 150, maximum: 200), spacing: 16)]
@@ -97,7 +100,9 @@ struct AttachmentExplorerView: View {
                         ForEach(store.displayedAttachments) { result in
                             AttachmentCardView(
                                 result: result,
-                                isSearchActive: !store.searchQuery.isEmpty
+                                isSearchActive: !store.searchQuery.isEmpty,
+                                accountID: accountID,
+                                onTap: { loadAndPreview(result.attachment) }
                             )
                         }
                     }
@@ -119,6 +124,29 @@ struct AttachmentExplorerView: View {
                 .foregroundColor(theme.textTertiary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Load & Preview
+
+    private func loadAndPreview(_ attachment: IndexedAttachment) {
+        guard downloadingAttachmentID == nil else { return }
+        downloadingAttachmentID = attachment.id
+        Task {
+            defer { downloadingAttachmentID = nil }
+            do {
+                let data = try await GmailMessageService.shared.getAttachment(
+                    messageID: attachment.messageId,
+                    attachmentID: attachment.attachmentId,
+                    accountID: accountID
+                )
+                let fileType = Attachment.FileType(rawValue: attachment.fileType) ?? .document
+                await MainActor.run {
+                    panelCoordinator.previewAttachment(data: data, name: attachment.filename, fileType: fileType)
+                }
+            } catch {
+                print("[AttachmentExplorer] Preview failed: \(error)")
+            }
+        }
     }
 
     // MARK: - Filter Chip

@@ -12,6 +12,7 @@ struct SlidePanelsOverlay: View {
     @Binding var signatureForNew: String
     @Binding var signatureForReply: String
     var sendAsAliases: [GmailSendAs]
+    @ObservedObject var attachmentStore: AttachmentStore
 
     @Environment(\.theme) private var theme
 
@@ -45,6 +46,7 @@ struct SlidePanelsOverlay: View {
                     signatureForNew: $signatureForNew,
                     signatureForReply: $signatureForReply
                 )
+                StorageSettingsCard(attachmentStore: attachmentStore)
             }
             .padding(20)
         }

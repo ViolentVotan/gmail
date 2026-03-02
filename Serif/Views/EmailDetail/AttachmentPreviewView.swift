@@ -259,7 +259,8 @@ private struct PDFKitView: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: PDFView, context: Context) {
-        if let document = PDFDocument(data: data), nsView.document == nil {
+        // Always update — data may have changed when previewing a different attachment
+        if let document = PDFDocument(data: data) {
             nsView.document = document
         }
     }

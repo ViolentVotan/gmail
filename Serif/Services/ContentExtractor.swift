@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import PDFKit
 import Vision
 import NaturalLanguage
@@ -27,10 +28,18 @@ enum ContentExtractor {
         "swift", "py", "js", "ts", "css", "yaml", "yml", "toml", "ini", "cfg"
     ]
 
+    private static let wordMimeTypes: Set<String> = [
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/msword",
+        "application/vnd.oasis.opendocument.text"
+    ]
+
+    private static let wordExtensions: Set<String> = ["doc", "docx", "odt"]
+
     // MARK: - Public API
 
     /// Route extraction based on file extension and MIME type.
-    static func extract(from data: Data, mimeType: String?, filename: String) async -> ExtractionResult {
+    static func extract(from data: Data, mimeType: String?, filename: String) -> ExtractionResult {
         let ext = (filename as NSString).pathExtension.lowercased()
 
         // PDF
@@ -38,9 +47,14 @@ enum ContentExtractor {
             return extractPDF(data: data)
         }
 
+        // Word documents (.doc, .docx, .odt)
+        if wordExtensions.contains(ext) || wordMimeTypes.contains(mimeType ?? "") {
+            return extractWordDocument(data: data, ext: ext.isEmpty ? "docx" : ext)
+        }
+
         // Images
         if imageExtensions.contains(ext) || (mimeType?.hasPrefix("image/") == true) {
-            return await extractOCR(data: data)
+            return extractOCR(data: data)
         }
 
         // Plain-text family
@@ -69,38 +83,44 @@ enum ContentExtractor {
 
     // MARK: - OCR (Vision)
 
-    private static func extractOCR(data: Data) async -> ExtractionResult {
-        let recognized: String? = await withCheckedContinuation { continuation in
-            let request = VNRecognizeTextRequest { request, error in
-                guard error == nil,
-                      let observations = request.results as? [VNRecognizedTextObservation] else {
-                    continuation.resume(returning: nil)
-                    return
-                }
+    private static func extractOCR(data: Data) -> ExtractionResult {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.recognitionLanguages = ["fr-FR", "en-US"]
+        request.usesLanguageCorrection = true
 
-                let text = observations
-                    .compactMap { $0.topCandidates(1).first?.string }
-                    .joined(separator: "\n")
-
-                continuation.resume(returning: text.isEmpty ? nil : text)
-            }
-
-            request.recognitionLevel = .accurate
-            request.recognitionLanguages = ["fr-FR", "en-US"]
-            request.usesLanguageCorrection = true
-
-            let handler = VNImageRequestHandler(data: data, options: [:])
-            do {
-                try handler.perform([request])
-            } catch {
-                continuation.resume(returning: nil)
-            }
+        let handler = VNImageRequestHandler(data: data, options: [:])
+        do {
+            try handler.perform([request])
+        } catch {
+            return .unsupported
         }
 
-        if let recognized {
-            return .text(recognized)
+        guard let observations = request.results, !observations.isEmpty else {
+            return .unsupported
         }
-        return .unsupported
+
+        let text = observations
+            .compactMap { $0.topCandidates(1).first?.string }
+            .joined(separator: "\n")
+
+        return text.isEmpty ? .unsupported : .text(text)
+    }
+
+    // MARK: - Word Documents
+
+    private static func extractWordDocument(data: Data, ext: String) -> ExtractionResult {
+        let tempFile = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString + "." + ext)
+        do {
+            try data.write(to: tempFile)
+            defer { try? FileManager.default.removeItem(at: tempFile) }
+            let attributed = try NSAttributedString(url: tempFile, options: [:], documentAttributes: nil)
+            let text = attributed.string.trimmingCharacters(in: .whitespacesAndNewlines)
+            return text.isEmpty ? .unsupported : .text(text)
+        } catch {
+            return .unsupported
+        }
     }
 
     // MARK: - Plain Text

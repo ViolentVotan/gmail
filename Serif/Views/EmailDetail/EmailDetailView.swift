@@ -3,6 +3,7 @@ import SwiftUI
 struct EmailDetailView: View {
     let email: Email
     let accountID: String
+    var attachmentIndexer: AttachmentIndexer?
     var onArchive:            (() -> Void)?
     var onDelete:             (() -> Void)?
     var onMoveToInbox:        (() -> Void)?
@@ -57,6 +58,7 @@ struct EmailDetailView: View {
     init(
         email: Email,
         accountID: String,
+        attachmentIndexer: AttachmentIndexer? = nil,
         onArchive:            (() -> Void)? = nil,
         onDelete:             (() -> Void)? = nil,
         onMoveToInbox:        (() -> Void)? = nil,
@@ -81,6 +83,7 @@ struct EmailDetailView: View {
     ) {
         self.email              = email
         self.accountID          = accountID
+        self.attachmentIndexer  = attachmentIndexer
         self.onArchive          = onArchive
         self.onDelete           = onDelete
         self.onMoveToInbox      = onMoveToInbox
@@ -259,6 +262,7 @@ struct EmailDetailView: View {
 
     private func loadThread() {
         guard let threadID = email.gmailThreadID else { return }
+        detailVM.attachmentIndexer = attachmentIndexer
         Task { await detailVM.loadThread(id: threadID) }
     }
 

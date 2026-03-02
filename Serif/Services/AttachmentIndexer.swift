@@ -5,9 +5,10 @@ actor AttachmentIndexer {
     private let messageService: GmailMessageService
     private let accountID: String
     private var isProcessing = false
-    private var isDiscovering = false
     private let maxConcurrent = 3
     private let maxRetries = 3
+    /// In-memory set of message IDs already processed — avoids redundant DB queries on repeated fetches.
+    private var processedMessageIDs: Set<String> = []
 
     /// Called on @MainActor after each indexing batch so the UI can refresh stats.
     var onProgressUpdate: (@MainActor () -> Void)?
@@ -18,107 +19,7 @@ actor AttachmentIndexer {
         self.accountID = accountID
     }
 
-    // MARK: - Discovery
-
-    /// Discover all attachments via Gmail API (has:attachment query).
-    /// Fetches messages in "full" format to get attachment parts.
-    /// Call on app launch — this is the primary way attachments enter the DB.
-    func discoverAttachments() async {
-        guard !isDiscovering else { return }
-        isDiscovering = true
-        defer { isDiscovering = false }
-
-        print("[AttachmentIndexer] Starting attachment discovery...")
-
-        var pageToken: String? = nil
-        var totalDiscovered = 0
-
-        repeat {
-            do {
-                // List messages that have attachments
-                let list = try await messageService.listMessages(
-                    accountID: accountID,
-                    labelIDs: [],
-                    query: "has:attachment",
-                    pageToken: pageToken,
-                    maxResults: 50
-                )
-
-                let refs = list.messages ?? []
-                pageToken = list.nextPageToken
-
-                guard !refs.isEmpty else { break }
-
-                // Filter out messages we already fully processed
-                let newIDs = refs.map(\.id).filter { msgId in
-                    !database.hasMessageAttachments(messageId: msgId)
-                }
-
-                guard !newIDs.isEmpty else { continue }
-
-                // Fetch in "full" format to get attachment parts
-                let fullMessages = try await messageService.getMessages(
-                    ids: newIDs,
-                    accountID: accountID,
-                    format: "full"
-                )
-
-                // Register each attachment
-                for message in fullMessages {
-                    let attachmentParts = message.attachmentParts
-                    guard !attachmentParts.isEmpty else { continue }
-
-                    let email = makeMinimalEmail(from: message)
-
-                    for part in attachmentParts {
-                        guard let attachmentId = part.body?.attachmentId else { continue }
-
-                        let id = "\(message.id)_\(attachmentId)"
-                        guard !database.exists(id: id) else { continue }
-
-                        let name = part.filename ?? "attachment"
-                        let ext = String(name.split(separator: ".").last ?? "")
-
-                        let indexed = IndexedAttachment(
-                            id: id,
-                            messageId: message.id,
-                            attachmentId: attachmentId,
-                            filename: name,
-                            mimeType: part.mimeType,
-                            fileType: Attachment.FileType.from(fileExtension: ext).rawValue,
-                            size: part.body?.size ?? 0,
-                            senderEmail: email.senderEmail,
-                            senderName: email.senderName,
-                            emailSubject: email.subject,
-                            emailDate: email.date,
-                            direction: email.direction,
-                            indexedAt: nil,
-                            indexingStatus: .pending,
-                            extractedText: nil
-                        )
-                        database.insertAttachment(indexed)
-                        totalDiscovered += 1
-                    }
-                }
-
-                // Notify UI after each page
-                if let onProgress = onProgressUpdate {
-                    await onProgress()
-                }
-
-            } catch {
-                print("[AttachmentIndexer] Discovery error: \(error)")
-                break
-            }
-        } while pageToken != nil
-
-        print("[AttachmentIndexer] Discovery complete: \(totalDiscovered) new attachments found")
-
-        // Now process the queue to index content
-        await processQueue()
-    }
-
-    // MARK: - Register (from already-fetched full-format emails)
+    // MARK: - Passive Registration (from already-fetched emails)
 
     /// Register attachments from emails that were fetched in full format (e.g., thread detail view).
     func register(attachments: [(attachment: Attachment, email: Email)]) async {
@@ -144,7 +45,8 @@ actor AttachmentIndexer {
                 direction: email.folder == .sent ? .sent : .received,
                 indexedAt: nil,
                 indexingStatus: .pending,
-                extractedText: nil
+                extractedText: nil,
+                emailBody: nil
             )
             database.insertAttachment(indexed)
         }
@@ -153,13 +55,10 @@ actor AttachmentIndexer {
 
     // MARK: - Resume (app launch)
 
-    /// Resume pending + retry failed items. Then discover new attachments.
-    func resumeAndDiscover() async {
+    /// Resume pending + retry failed items.
+    func resumePending() async {
         database.resetFailedForRetry(maxRetries: maxRetries)
-        // Process any pending items from last session first
         await processQueue()
-        // Then discover new attachments from Gmail
-        await discoverAttachments()
     }
 
     // MARK: - Process Queue
@@ -169,25 +68,35 @@ actor AttachmentIndexer {
         isProcessing = true
         defer { isProcessing = false }
 
-        var pending = database.pendingAttachments(limit: maxConcurrent)
+        // Capture actor-isolated properties once so task group children run off-actor
+        let db = database
+        let service = messageService
+        let acctID = accountID
+
+        var pending = db.pendingAttachments(limit: maxConcurrent)
         while !pending.isEmpty {
             await withTaskGroup(of: Void.self) { group in
                 for att in pending {
-                    group.addTask { [self] in
-                        await self.indexAttachment(att)
+                    group.addTask {
+                        await Self.indexAttachment(att, database: db, messageService: service, accountID: acctID)
                     }
                 }
             }
             if let onProgress = onProgressUpdate {
                 await onProgress()
             }
-            pending = database.pendingAttachments(limit: maxConcurrent)
+            pending = db.pendingAttachments(limit: maxConcurrent)
         }
     }
 
-    // MARK: - Index single attachment
+    // MARK: - Index single attachment (static, runs off-actor)
 
-    private func indexAttachment(_ att: IndexedAttachment) async {
+    private static func indexAttachment(
+        _ att: IndexedAttachment,
+        database: AttachmentDatabase,
+        messageService: GmailMessageService,
+        accountID: String
+    ) async {
         do {
             let data = try await messageService.getAttachment(
                 messageID: att.messageId,
@@ -195,7 +104,7 @@ actor AttachmentIndexer {
                 accountID: accountID
             )
 
-            let result = await ContentExtractor.extract(
+            let result = ContentExtractor.extract(
                 from: data,
                 mimeType: att.mimeType,
                 filename: att.filename
@@ -216,28 +125,92 @@ actor AttachmentIndexer {
         }
     }
 
-    // MARK: - Helpers
+    // MARK: - Register from metadata-format messages (mailbox list)
 
-    private struct MinimalEmail {
-        let senderEmail: String?
-        let senderName: String?
-        let subject: String?
-        let date: Date?
-        let direction: IndexedAttachment.Direction
+    /// Register attachments from metadata-format messages (no body available).
+    func registerFromMetadata(messages: [GmailMessage]) async {
+        for message in messages {
+            let parts = message.attachmentParts
+            guard !parts.isEmpty else { continue }
+            guard !processedMessageIDs.contains(message.id) else { continue }
+            guard !database.hasMessageAttachments(messageId: message.id) else {
+                processedMessageIDs.insert(message.id)
+                continue
+            }
+
+            let labels = message.labelIds ?? []
+            let direction: IndexedAttachment.Direction = labels.contains("SENT") ? .sent : .received
+            let fromRaw = message.from
+            let senderEmail = fromRaw.components(separatedBy: "<").last?.replacingOccurrences(of: ">", with: "").trimmingCharacters(in: .whitespaces)
+            let senderName = fromRaw.components(separatedBy: "<").first?.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+
+            for part in parts {
+                guard let attachmentId = part.body?.attachmentId else { continue }
+                let id = "\(message.id)_\(attachmentId)"
+                guard !database.exists(id: id) else { continue }
+                let name = part.filename ?? "attachment"
+                let ext = String(name.split(separator: ".").last ?? "")
+                let indexed = IndexedAttachment(
+                    id: id, messageId: message.id, attachmentId: attachmentId,
+                    filename: name, mimeType: part.mimeType,
+                    fileType: Attachment.FileType.from(fileExtension: ext).rawValue,
+                    size: part.body?.size ?? 0,
+                    senderEmail: senderEmail, senderName: senderName,
+                    emailSubject: message.subject, emailDate: message.date,
+                    direction: direction, indexedAt: nil, indexingStatus: .pending,
+                    extractedText: nil, emailBody: nil
+                )
+                database.insertAttachment(indexed)
+            }
+            processedMessageIDs.insert(message.id)
+        }
+        if let onProgress = onProgressUpdate { await onProgress() }
     }
 
-    private func makeMinimalEmail(from message: GmailMessage) -> MinimalEmail {
-        let labels = message.labelIds ?? []
-        let direction: IndexedAttachment.Direction = labels.contains("SENT") ? .sent : .received
-        let fromRaw = message.from
-        let senderEmail = fromRaw.components(separatedBy: "<").last?.replacingOccurrences(of: ">", with: "").trimmingCharacters(in: .whitespaces)
-        let senderName = fromRaw.components(separatedBy: "<").first?.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-        return MinimalEmail(
-            senderEmail: senderEmail,
-            senderName: senderName,
-            subject: message.subject,
-            date: message.date,
-            direction: direction
-        )
+    // MARK: - Register from full-format messages (thread detail)
+
+    /// Register attachments from full-format messages (has body). Also enriches existing records.
+    func registerFromFullMessages(messages: [GmailMessage]) async {
+        var newCount = 0
+        for message in messages {
+            let parts = message.attachmentParts
+            guard !parts.isEmpty else { continue }
+            let alreadySeen = processedMessageIDs.contains(message.id)
+
+            let labels = message.labelIds ?? []
+            let direction: IndexedAttachment.Direction = labels.contains("SENT") ? .sent : .received
+            let fromRaw = message.from
+            let senderEmail = fromRaw.components(separatedBy: "<").last?.replacingOccurrences(of: ">", with: "").trimmingCharacters(in: .whitespaces)
+            let senderName = fromRaw.components(separatedBy: "<").first?.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+            let rawBody = message.plainBody ?? message.snippet
+            let body = rawBody.map { String($0.prefix(5000)) }
+
+            for part in parts {
+                guard let attachmentId = part.body?.attachmentId else { continue }
+                let id = "\(message.id)_\(attachmentId)"
+                if database.exists(id: id) {
+                    // Only enrich body if this message wasn't already fully processed
+                    if !alreadySeen, let body = body { database.updateEmailBody(id: id, body: body) }
+                    continue
+                }
+                let name = part.filename ?? "attachment"
+                let ext = String(name.split(separator: ".").last ?? "")
+                let indexed = IndexedAttachment(
+                    id: id, messageId: message.id, attachmentId: attachmentId,
+                    filename: name, mimeType: part.mimeType,
+                    fileType: Attachment.FileType.from(fileExtension: ext).rawValue,
+                    size: part.body?.size ?? 0,
+                    senderEmail: senderEmail, senderName: senderName,
+                    emailSubject: message.subject, emailDate: message.date,
+                    direction: direction, indexedAt: nil, indexingStatus: .pending,
+                    extractedText: nil, emailBody: body
+                )
+                database.insertAttachment(indexed)
+                newCount += 1
+            }
+            processedMessageIDs.insert(message.id)
+        }
+        if let onProgress = onProgressUpdate { await onProgress() }
+        if newCount > 0 { await processQueue() }
     }
 }
