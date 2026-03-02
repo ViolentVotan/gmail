@@ -95,6 +95,12 @@
 		A100010100000000000000D4 /* PanelCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D4 /* PanelCoordinator.swift */; };
 		A100010100000000000000D5 /* IndexedAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D5 /* IndexedAttachment.swift */; };
 		A100010100000000000000D6 /* AttachmentDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D6 /* AttachmentDatabase.swift */; };
+		A100010100000000000000D7 /* AttachmentSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D7 /* AttachmentSearchService.swift */; };
+		A100010100000000000000D8 /* AttachmentIndexer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D8 /* AttachmentIndexer.swift */; };
+		A100010100000000000000D9 /* ContentExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D9 /* ContentExtractor.swift */; };
+		A100010100000000000000DA /* AttachmentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000DA /* AttachmentStore.swift */; };
+		A100010100000000000000DB /* AttachmentCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000DB /* AttachmentCardView.swift */; };
+		A100010100000000000000DC /* AttachmentExplorerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000DC /* AttachmentExplorerView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -188,6 +194,12 @@
 		A100020100000000000000D4 /* PanelCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelCoordinator.swift; sourceTree = "<group>"; };
 		A100020100000000000000D5 /* IndexedAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexedAttachment.swift; sourceTree = "<group>"; };
 		A100020100000000000000D6 /* AttachmentDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentDatabase.swift; sourceTree = "<group>"; };
+		A100020100000000000000D7 /* AttachmentSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentSearchService.swift; sourceTree = "<group>"; };
+		A100020100000000000000D8 /* AttachmentIndexer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentIndexer.swift; sourceTree = "<group>"; };
+		A100020100000000000000D9 /* ContentExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentExtractor.swift; sourceTree = "<group>"; };
+		A100020100000000000000DA /* AttachmentStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentStore.swift; sourceTree = "<group>"; };
+		A100020100000000000000DB /* AttachmentCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentCardView.swift; sourceTree = "<group>"; };
+		A100020100000000000000DC /* AttachmentExplorerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentExplorerView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -341,6 +353,8 @@
 			isa = PBXGroup;
 			children = (
 				A10002010000000000000040 /* AttachmentsListView.swift */,
+				A100020100000000000000DB /* AttachmentCardView.swift */,
+				A100020100000000000000DC /* AttachmentExplorerView.swift */,
 			);
 			path = Attachments;
 			sourceTree = "<group>";
@@ -398,6 +412,9 @@
 				A100020100000000000000C2 /* BIMIService.swift */,
 				A100020100000000000000C3 /* NetworkMonitor.swift */,
 				A100020100000000000000D6 /* AttachmentDatabase.swift */,
+				A100020100000000000000D7 /* AttachmentSearchService.swift */,
+				A100020100000000000000D8 /* AttachmentIndexer.swift */,
+				A100020100000000000000D9 /* ContentExtractor.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -435,6 +452,7 @@
 				A1000201000000000000007E /* ComposeViewModel.swift */,
 				A100020100000000000000C5 /* EmailActionCoordinator.swift */,
 				A100020100000000000000D4 /* PanelCoordinator.swift */,
+				A100020100000000000000DA /* AttachmentStore.swift */,
 			);
 			path = ViewModels;
 			sourceTree = "<group>";
@@ -619,6 +637,12 @@
 				A100010100000000000000D4 /* PanelCoordinator.swift in Sources */,
 				A100010100000000000000D5 /* IndexedAttachment.swift in Sources */,
 				A100010100000000000000D6 /* AttachmentDatabase.swift in Sources */,
+				A100010100000000000000D7 /* AttachmentSearchService.swift in Sources */,
+				A100010100000000000000D8 /* AttachmentIndexer.swift in Sources */,
+				A100010100000000000000D9 /* ContentExtractor.swift in Sources */,
+				A100010100000000000000DA /* AttachmentStore.swift in Sources */,
+				A100010100000000000000DB /* AttachmentCardView.swift in Sources */,
+				A100010100000000000000DC /* AttachmentExplorerView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
