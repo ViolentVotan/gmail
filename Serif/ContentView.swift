@@ -34,6 +34,7 @@ struct ContentView: View {
     @State private var showEmptyTrashConfirm = false
     @State private var trashTotalCount = 0
     @State private var selectedEmailIDs: Set<String> = []
+    @State private var searchFocusTrigger = false
 
     init() {
         let store = MailStore()
@@ -79,6 +80,12 @@ struct ContentView: View {
 
     private func selectNext(_ email: Email?) { selectedEmail = email }
     private func clearSelection() { selectedEmail = nil; selectedEmailIDs = [] }
+
+    private func selectAllEmails() {
+        let allIDs = Set(displayedEmails.map { $0.id.uuidString })
+        selectedEmailIDs = allIDs
+        selectedEmail = nil
+    }
 
     var body: some View {
         withLifecycle(
@@ -236,6 +243,12 @@ struct ContentView: View {
 
             Button("") { UndoActionManager.shared.undo() }
                 .keyboardShortcut("z", modifiers: .command).frame(width: 0, height: 0).opacity(0)
+
+            Button("") { searchFocusTrigger = true }
+                .keyboardShortcut("f", modifiers: .command).frame(width: 0, height: 0).opacity(0)
+
+            Button("") { selectAllEmails() }
+                .keyboardShortcut("a", modifiers: .command).frame(width: 0, height: 0).opacity(0)
 
             OfflineToastView()
                 .environment(\.theme, themeManager.currentTheme)
@@ -416,6 +429,7 @@ struct ContentView: View {
                 onBulkToggleStar:    { for e in selectedEmails { actionCoordinator.toggleStarEmail(e) } },
                 onRefresh:           { await loadCurrentFolder() },
                 searchResetTrigger: searchResetTrigger,
+                searchFocusTrigger: $searchFocusTrigger,
                 selectedEmail: $selectedEmail,
                 selectedEmailIDs: $selectedEmailIDs,
                 selectedFolder: $selectedFolder

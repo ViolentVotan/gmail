@@ -22,11 +22,11 @@ struct EmailListView: View {
     let onBulkToggleStar: (() -> Void)?
     let onRefresh: (() async -> Void)?
     let searchResetTrigger: Int
+    @Binding var searchFocusTrigger: Bool
     @Binding var selectedEmail: Email?
     @Binding var selectedEmailIDs: Set<String>
     @Binding var selectedFolder: Folder
     @State private var searchText = ""
-    @State private var searchFocusTrigger = false
     @State private var searchDebounceTask: Task<Void, Never>?
     @State private var sortOrder: EmailSortOrder = .dateNewest
     @State private var selectionAnchorID: String?
@@ -227,17 +227,11 @@ struct EmailListView: View {
 
     private var hiddenButtons: some View {
         Group {
-            Button("") { searchFocusTrigger = true }
-                .keyboardShortcut("f", modifiers: .command)
-
             Button("") {
                 if isMultiSelect { onBulkDelete?() }
                 else if let email = selectedEmail { onDelete?(email) }
             }
             .keyboardShortcut(.delete, modifiers: [])
-
-            Button("") { selectAll() }
-                .keyboardShortcut("a", modifiers: .command)
         }
         .frame(width: 0, height: 0)
         .opacity(0)
@@ -302,7 +296,7 @@ struct EmailListView: View {
         }
     }
 
-    private func selectAll() {
+    func selectAll() {
         selectedEmailIDs = Set(sortedEmails.map { $0.id.uuidString })
         selectedEmail = nil
         selectionAnchorID = sortedEmails.first?.id.uuidString

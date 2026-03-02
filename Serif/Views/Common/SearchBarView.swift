@@ -3,7 +3,6 @@ import SwiftUI
 struct SearchBarView: View {
     @Binding var text: String
     @Binding var focusTrigger: Bool
-    @FocusState private var fieldFocused: Bool
     @Environment(\.theme) private var theme
 
     init(text: Binding<String>, focusTrigger: Binding<Bool> = .constant(false)) {
@@ -17,7 +16,7 @@ struct SearchBarView: View {
                 .font(.system(size: 13, weight: .medium))
                 .foregroundColor(theme.textTertiary)
 
-            NonAutoFocusTextField(text: $text, placeholder: "Search", isFocused: $fieldFocused)
+            NonAutoFocusTextField(text: $text, placeholder: "Search", focusTrigger: $focusTrigger)
                 .font(.system(size: 13))
                 .foregroundColor(theme.textPrimary)
 
@@ -36,12 +35,6 @@ struct SearchBarView: View {
         .padding(.vertical, 7)
         .background(theme.searchBarBackground)
         .cornerRadius(8)
-        .onChange(of: focusTrigger) { triggered in
-            if triggered {
-                fieldFocused = true
-                focusTrigger = false
-            }
-        }
     }
 }
 
@@ -50,7 +43,7 @@ struct SearchBarView: View {
 struct NonAutoFocusTextField: NSViewRepresentable {
     @Binding var text: String
     var placeholder: String
-    var isFocused: FocusState<Bool>.Binding
+    @Binding var focusTrigger: Bool
 
     func makeNSView(context: Context) -> NoAutoFocusNSTextField {
         let field = NoAutoFocusNSTextField()
@@ -69,9 +62,13 @@ struct NonAutoFocusTextField: NSViewRepresentable {
         if nsView.stringValue != text {
             nsView.stringValue = text
         }
-        // Handle programmatic focus (⌘F)
-        if isFocused.wrappedValue && nsView.window?.firstResponder != nsView.currentEditor() {
-            nsView.window?.makeFirstResponder(nsView)
+        if focusTrigger {
+            DispatchQueue.main.async {
+                nsView.programmaticFocus = true
+                nsView.window?.makeFirstResponder(nsView)
+                nsView.programmaticFocus = false
+                focusTrigger = false
+            }
         }
     }
 
@@ -87,26 +84,19 @@ struct NonAutoFocusTextField: NSViewRepresentable {
             guard let field = obj.object as? NSTextField else { return }
             parent.text = field.stringValue
         }
-
-        func controlTextDidEndEditing(_ obj: Notification) {
-            parent.isFocused.wrappedValue = false
-        }
     }
 }
 
 class NoAutoFocusNSTextField: NSTextField {
+    var programmaticFocus = false
+
     override var acceptsFirstResponder: Bool { true }
     override func becomeFirstResponder() -> Bool {
-        // Refuse automatic first responder on window setup
-        // Accept if triggered by user click or programmatic focus
-        if let event = NSApp.currentEvent {
-            if event.type == .leftMouseDown || event.type == .keyDown {
-                return super.becomeFirstResponder()
-            }
+        if programmaticFocus {
+            return super.becomeFirstResponder()
         }
-        // Check if this is a programmatic focus request (⌘F)
-        let trace = Thread.callStackSymbols.joined()
-        if trace.contains("makeFirstResponder") {
+        if let event = NSApp.currentEvent,
+           event.type == .leftMouseDown || event.type == .keyDown {
             return super.becomeFirstResponder()
         }
         return false
