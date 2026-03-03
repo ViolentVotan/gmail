@@ -261,7 +261,7 @@ struct StorageSettingsCard: View {
                     .foregroundColor(.red)
                 }
                 .buttonStyle(.plain)
-                .disabled(isClearing || attachmentStore.stats.total == 0)
+                .disabled(isClearing || dbSize == 0)
             }
         }
         .padding(20)
@@ -285,7 +285,7 @@ struct StorageSettingsCard: View {
                 isClearing = false
             }
         } message: {
-            Text("This will delete all \(attachmentStore.stats.total) indexed attachments (\(formattedSize)). Attachments will be re-indexed as you browse your emails.")
+            Text("This will delete all cached data (\(formattedSize)). Attachments will be re-indexed as you browse your emails.")
         }
     }
 }

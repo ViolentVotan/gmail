@@ -241,8 +241,18 @@ extension GmailMessage {
 
     var body: String { htmlBody ?? plainBody ?? snippet ?? "" }
 
-    /// Parts that are actual file attachments.
+    /// Parts that are actual file attachments (requires body.attachmentId — full format only).
     var attachmentParts: [GmailMessagePart] { collectAttachments(from: payload) }
+
+    /// True if any part has a non-empty filename (works even in metadata format where attachmentId may be missing).
+    var hasPartsWithFilenames: Bool { hasFilenames(in: payload) }
+
+    private func hasFilenames(in part: GmailMessagePart?) -> Bool {
+        guard let part = part else { return false }
+        if let filename = part.filename, !filename.isEmpty { return true }
+        for sub in part.parts ?? [] { if hasFilenames(in: sub) { return true } }
+        return false
+    }
 
     // MARK: - Security / Sender info
 

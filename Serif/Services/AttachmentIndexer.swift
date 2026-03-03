@@ -204,47 +204,45 @@ actor AttachmentIndexer {
 
     // MARK: - Register from metadata-format messages (mailbox list)
 
-    /// Register attachments from metadata-format messages (no body available).
-    /// Note: metadata format lacks parts info, so this only works for messages
-    /// already fetched in full format and cached.
+    /// Register attachments discovered from metadata-format messages.
+    /// Metadata format may lack `body.attachmentId`, so we re-fetch in full format
+    /// for messages that have attachment parts but are missing the attachment ID.
     func registerFromMetadata(messages: [GmailMessage]) async {
+        // Split: messages with full attachment info vs those needing a full-format fetch
+        var alreadyFull: [GmailMessage] = []
+        var needFullFetch: [String] = []
+
         for message in messages {
-            let parts = message.attachmentParts
-            guard !parts.isEmpty else { continue }
             guard !processedMessageIDs.contains(message.id) else { continue }
             guard !database.hasMessageAttachments(messageId: message.id) else {
                 processedMessageIDs.insert(message.id)
                 continue
             }
-
-            let labels = message.labelIds ?? []
-            let direction: IndexedAttachment.Direction = labels.contains("SENT") ? .sent : .received
-            let fromRaw = message.from
-            let senderEmail = fromRaw.components(separatedBy: "<").last?.replacingOccurrences(of: ">", with: "").trimmingCharacters(in: .whitespaces)
-            let senderName = fromRaw.components(separatedBy: "<").first?.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-
-            for part in parts {
-                guard let attachmentId = part.body?.attachmentId else { continue }
-                let id = "\(message.id)_\(attachmentId)"
-                guard !database.exists(id: id) else { continue }
-                let name = part.filename ?? "attachment"
-                let ext = String(name.split(separator: ".").last ?? "")
-                let indexed = IndexedAttachment(
-                    id: id, messageId: message.id, attachmentId: attachmentId,
-                    filename: name, mimeType: part.mimeType,
-                    fileType: Attachment.FileType.from(fileExtension: ext).rawValue,
-                    size: part.body?.size ?? 0,
-                    senderEmail: senderEmail, senderName: senderName,
-                    emailSubject: message.subject, emailDate: message.date,
-                    direction: direction, indexedAt: nil, indexingStatus: .pending,
-                    extractedText: nil, emailBody: nil,
-                    accountID: accountID
-                )
-                database.insertAttachment(indexed)
+            if !message.attachmentParts.isEmpty {
+                // Already has attachmentId (full format or cached)
+                alreadyFull.append(message)
+            } else if message.hasPartsWithFilenames {
+                // Has parts with filenames but no attachmentId — metadata format limitation
+                needFullFetch.append(message.id)
             }
-            processedMessageIDs.insert(message.id)
         }
-        if let onProgress = onProgressUpdate { await onProgress() }
+
+        // Re-fetch in full format to get attachmentIds + body
+        if !needFullFetch.isEmpty {
+            do {
+                let full = try await messageService.getMessages(
+                    ids: needFullFetch, accountID: accountID, format: "full"
+                )
+                alreadyFull.append(contentsOf: full)
+            } catch {
+                print("[AttachmentIndexer] Failed to re-fetch for attachments: \(error)")
+            }
+        }
+
+        // Delegate to registerFromFullMessages which handles insert + processQueue
+        if !alreadyFull.isEmpty {
+            await registerFromFullMessages(messages: alreadyFull)
+        }
     }
 
     // MARK: - Register from full-format messages (thread detail)

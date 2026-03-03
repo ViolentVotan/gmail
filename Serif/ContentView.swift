@@ -123,8 +123,6 @@ struct ContentView: View {
                         onEmptySpamRequested: { count in spamTotalCount = count; showEmptySpamConfirm = true }
                     )
 
-                    Divider().background(themeManager.currentTheme.divider)
-
                     DetailPaneView(
                         selectedEmail: selectedEmail,
                         selectedEmailIDs: selectedEmailIDs,

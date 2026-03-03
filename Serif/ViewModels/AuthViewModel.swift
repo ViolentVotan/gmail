@@ -57,6 +57,7 @@ final class AuthViewModel: ObservableObject {
     // MARK: - Sign Out
 
     func signOut(_ account: GmailAccount) {
+        AttachmentDatabase.shared.deleteByAccountID(account.email)
         AccountStore.shared.remove(id: account.id)
         accounts = AccountStore.shared.accounts
     }

@@ -529,7 +529,7 @@ final class AttachmentDatabase: @unchecked Sendable {
         }
     }
 
-    /// Delete all rows for a specific account and rebuild FTS.
+    /// Delete all rows for a specific account, rebuild FTS, and reclaim disk space.
     func deleteByAccountID(_ accountID: String) {
         queue.sync {
             let sql = "DELETE FROM attachments WHERE accountID = ?"
@@ -538,14 +538,24 @@ final class AttachmentDatabase: @unchecked Sendable {
             defer { sqlite3_finalize(stmt) }
             bindText(stmt, 1, accountID)
             sqlite3_step(stmt)
+            // Also clean scanned_messages for this account
+            let sql2 = "DELETE FROM scanned_messages WHERE accountID = ?"
+            var stmt2: OpaquePointer?
+            if sqlite3_prepare_v2(db, sql2, -1, &stmt2, nil) == SQLITE_OK {
+                defer { sqlite3_finalize(stmt2) }
+                bindText(stmt2, 1, accountID)
+                sqlite3_step(stmt2)
+            }
             exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')")
+            exec("VACUUM")
         }
     }
 
-    /// Delete all rows from the attachments table and rebuild FTS.
+    /// Delete all rows from the attachments and scanned_messages tables, rebuild FTS, and reclaim disk space.
     func clearAll() {
         queue.sync {
             exec("DELETE FROM attachments")
+            exec("DELETE FROM scanned_messages")
             exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')")
             exec("VACUUM")
         }

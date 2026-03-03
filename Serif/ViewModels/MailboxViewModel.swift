@@ -434,7 +434,7 @@ final class MailboxViewModel: ObservableObject {
         guard !msgs.isEmpty else { return }
         SubscriptionsStore.shared.analyze(msgs.map { makeEmail(from: $0) })
         if let indexer = attachmentIndexer {
-            let withAttachments = msgs.filter { !$0.attachmentParts.isEmpty }
+            let withAttachments = msgs.filter { $0.hasPartsWithFilenames }
             if !withAttachments.isEmpty {
                 Task { await indexer.registerFromMetadata(messages: withAttachments) }
             }

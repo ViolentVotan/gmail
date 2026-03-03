@@ -51,6 +51,9 @@ struct DetailPaneView: View {
             }
         }
         .frame(minWidth: 400)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.vertical, 8)
+        .padding(.trailing, 8)
     }
 
     // MARK: - Bulk Actions

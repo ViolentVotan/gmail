@@ -41,6 +41,12 @@ final class AvatarCache {
         return NSImage(contentsOfFile: fileURL.path)
     }
 
+    /// Remove all cached avatar images from disk.
+    func clearAll() {
+        try? FileManager.default.removeItem(at: cacheDir)
+        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+    }
+
     private func cacheKey(for urlString: String) -> String {
         var hash: UInt64 = 5381
         for byte in urlString.utf8 { hash = (hash &* 33) &+ UInt64(byte) }

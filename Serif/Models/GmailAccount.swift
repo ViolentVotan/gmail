@@ -49,6 +49,12 @@ final class AccountStore {
         UnsubscribeService.shared.clearAccount(id)
         ContactStore.shared.deleteAccount(id)
         Task { @MainActor in SubscriptionsStore.shared.deleteAccount(id) }
+        // Clean per-account UserDefaults
+        UserDefaults.standard.removeObject(forKey: "signatureForNew.\(id)")
+        UserDefaults.standard.removeObject(forKey: "signatureForReply.\(id)")
+        UserDefaults.standard.removeObject(forKey: "attachmentExclusionRules.\(id)")
+        // Purge avatar disk cache
+        AvatarCache.shared.clearAll()
     }
 
     func update(_ account: GmailAccount) {
