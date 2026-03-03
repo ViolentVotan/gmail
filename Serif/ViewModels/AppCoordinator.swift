@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 @MainActor
 class AppCoordinator: ObservableObject {
@@ -12,6 +13,8 @@ class AppCoordinator: ObservableObject {
     let panelCoordinator = PanelCoordinator()
     let attachmentStore: AttachmentStore
     let subscriptionsStore = SubscriptionsStore.shared
+
+    private var cancellables: Set<AnyCancellable> = []
 
     // MARK: - Selection State
 
@@ -56,6 +59,16 @@ class AppCoordinator: ObservableObject {
         self.authViewModel = AuthViewModel()
         self.actionCoordinator = EmailActionCoordinator(mailboxViewModel: vm, mailStore: store)
         self.attachmentStore = AttachmentStore(database: .shared)
+
+        // Forward child objectWillChange so SwiftUI re-renders when nested models update
+        vm.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
+        store.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.objectWillChange.send() }
+            .store(in: &cancellables)
     }
 
     // MARK: - Computed Properties
