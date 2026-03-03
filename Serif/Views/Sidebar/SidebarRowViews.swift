@@ -16,12 +16,12 @@ struct InboxParentRow: View {
                 HStack(spacing: 10) {
                     Image(systemName: "tray.fill")
                         .font(.system(size: 14))
-                        .foregroundColor(isSelected ? theme.accentPrimary : (isHovered ? theme.textSecondary : theme.textTertiary))
+                        .foregroundColor(isSelected ? theme.sidebarAccent : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
                         .frame(width: 20)
 
                     Text("Inbox")
                         .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                        .foregroundColor(isSelected ? theme.textPrimary : (isHovered ? theme.textSecondary : theme.textTertiary))
+                        .foregroundColor(isSelected ? theme.sidebarText : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
 
                     Spacer()
 
@@ -31,7 +31,7 @@ struct InboxParentRow: View {
                     } label: {
                         Image(systemName: inboxExpanded ? "chevron.down" : "chevron.right")
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(theme.textTertiary)
+                            .foregroundColor(theme.sidebarTextMuted)
                     }
                     .buttonStyle(.plain)
                 }
@@ -39,18 +39,18 @@ struct InboxParentRow: View {
                 .frame(height: 34)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(isSelected ? theme.accentPrimary.opacity(0.12) : (isHovered ? theme.hoverBackground : Color.clear))
+                        .fill(isSelected ? theme.sidebarSelectedBg : (isHovered ? theme.sidebarHover : Color.clear))
                 )
                 .contentShape(Rectangle())
             } else {
                 // Collapsed: just the icon with dot if needed
                 ZStack {
                     if isSelected {
-                        RoundedRectangle(cornerRadius: 10).fill(theme.accentPrimary.opacity(0.15))
+                        RoundedRectangle(cornerRadius: 10).fill(theme.sidebarSelectedBg)
                     }
                     Image(systemName: "tray.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(isSelected ? theme.accentPrimary : (isHovered ? theme.textSecondary : theme.textTertiary))
+                        .foregroundColor(isSelected ? theme.sidebarAccent : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
                 }
                 .frame(width: 40, height: 40)
                 .contentShape(Rectangle())
@@ -82,29 +82,29 @@ struct InboxCategoryRow: View {
 
                 Image(systemName: category.icon)
                     .font(.system(size: 12))
-                    .foregroundColor(isSelected ? theme.accentPrimary : (isHovered ? theme.textSecondary : theme.textTertiary))
+                    .foregroundColor(isSelected ? theme.sidebarAccent : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
                     .frame(width: 16)
 
                 Text(category.displayName)
                     .font(.system(size: 12, weight: isSelected ? .medium : .regular))
-                    .foregroundColor(isSelected ? theme.textPrimary : (isHovered ? theme.textSecondary : theme.textTertiary))
+                    .foregroundColor(isSelected ? theme.sidebarText : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
 
                 Spacer()
 
                 if unreadCount > 0 {
                     Text(unreadCount < 100 ? "\(unreadCount)" : "99+")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(isSelected ? theme.accentPrimary : theme.textTertiary)
+                        .foregroundColor(isSelected ? theme.sidebarBadgeText : theme.sidebarTextMuted)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
-                        .background(Capsule().fill(isSelected ? theme.accentPrimary.opacity(0.15) : theme.cardBackground))
+                        .background(Capsule().fill(isSelected ? theme.sidebarBadge : theme.sidebarBadge))
                 }
             }
             .padding(.horizontal, 10)
             .frame(height: 28)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(isSelected ? theme.accentPrimary.opacity(0.10) : (isHovered ? theme.hoverBackground : Color.clear))
+                    .fill(isSelected ? theme.sidebarSelectedBg : (isHovered ? theme.sidebarHover : Color.clear))
             )
             .contentShape(Rectangle())
         }
@@ -129,12 +129,12 @@ struct LabelsParentRow: View {
                 HStack(spacing: 10) {
                     Image(systemName: "tag.fill")
                         .font(.system(size: 14))
-                        .foregroundColor(isSelected ? theme.accentPrimary : (isHovered ? theme.textSecondary : theme.textTertiary))
+                        .foregroundColor(isSelected ? theme.sidebarAccent : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
                         .frame(width: 20)
 
                     Text("Labels")
                         .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                        .foregroundColor(isSelected ? theme.textPrimary : (isHovered ? theme.textSecondary : theme.textTertiary))
+                        .foregroundColor(isSelected ? theme.sidebarText : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
 
                     Spacer()
 
@@ -143,7 +143,7 @@ struct LabelsParentRow: View {
                     } label: {
                         Image(systemName: labelsExpanded ? "chevron.down" : "chevron.right")
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(theme.textTertiary)
+                            .foregroundColor(theme.sidebarTextMuted)
                     }
                     .buttonStyle(.plain)
                 }
@@ -151,17 +151,17 @@ struct LabelsParentRow: View {
                 .frame(height: 34)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(isSelected ? theme.accentPrimary.opacity(0.12) : (isHovered ? theme.hoverBackground : Color.clear))
+                        .fill(isSelected ? theme.sidebarSelectedBg : (isHovered ? theme.sidebarHover : Color.clear))
                 )
                 .contentShape(Rectangle())
             } else {
                 ZStack {
                     if isSelected {
-                        RoundedRectangle(cornerRadius: 10).fill(theme.accentPrimary.opacity(0.15))
+                        RoundedRectangle(cornerRadius: 10).fill(theme.sidebarSelectedBg)
                     }
                     Image(systemName: "tag.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(isSelected ? theme.accentPrimary : (isHovered ? theme.textSecondary : theme.textTertiary))
+                        .foregroundColor(isSelected ? theme.sidebarAccent : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
                 }
                 .frame(width: 40, height: 40)
                 .contentShape(Rectangle())
@@ -195,7 +195,7 @@ struct LabelSidebarRow: View {
 
                 Text(label.displayName)
                     .font(.system(size: 12, weight: isSelected ? .medium : .regular))
-                    .foregroundColor(isSelected ? theme.textPrimary : (isHovered ? theme.textSecondary : theme.textTertiary))
+                    .foregroundColor(isSelected ? theme.sidebarText : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
                     .lineLimit(1)
 
                 Spacer()
@@ -203,17 +203,17 @@ struct LabelSidebarRow: View {
                 if let unread = label.messagesUnread, unread > 0 {
                     Text(unread < 100 ? "\(unread)" : "99+")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(isSelected ? theme.accentPrimary : theme.textTertiary)
+                        .foregroundColor(isSelected ? theme.sidebarBadgeText : theme.sidebarTextMuted)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
-                        .background(Capsule().fill(isSelected ? theme.accentPrimary.opacity(0.15) : theme.cardBackground))
+                        .background(Capsule().fill(isSelected ? theme.sidebarBadge : theme.sidebarBadge))
                 }
             }
             .padding(.horizontal, 10)
             .frame(height: 28)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(isSelected ? theme.accentPrimary.opacity(0.10) : (isHovered ? theme.hoverBackground : Color.clear))
+                    .fill(isSelected ? theme.sidebarSelectedBg : (isHovered ? theme.sidebarHover : Color.clear))
             )
             .contentShape(Rectangle())
         }
@@ -245,29 +245,29 @@ struct SidebarItemView: View {
         HStack(spacing: 10) {
             Image(systemName: folder.icon)
                 .font(.system(size: 14))
-                .foregroundColor(isSelected ? theme.accentPrimary : (isHovered ? theme.textSecondary : theme.textTertiary))
+                .foregroundColor(isSelected ? theme.sidebarAccent : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
                 .frame(width: 20)
 
             Text(folder.rawValue)
                 .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                .foregroundColor(isSelected ? theme.textPrimary : (isHovered ? theme.textSecondary : theme.textTertiary))
+                .foregroundColor(isSelected ? theme.sidebarText : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
 
             Spacer()
 
             if folder.count > 0 {
                 Text("\(folder.count)")
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(isSelected ? theme.accentPrimary : theme.textTertiary)
+                    .foregroundColor(isSelected ? theme.sidebarBadgeText : theme.sidebarTextMuted)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Capsule().fill(isSelected ? theme.accentPrimary.opacity(0.15) : theme.cardBackground))
+                    .background(Capsule().fill(isSelected ? theme.sidebarBadge : theme.sidebarBadge))
             }
         }
         .padding(.horizontal, 10)
         .frame(height: 34)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? theme.accentPrimary.opacity(0.12) : (isHovered ? theme.hoverBackground : Color.clear))
+                .fill(isSelected ? theme.sidebarSelectedBg : (isHovered ? theme.sidebarHover : Color.clear))
         )
         .contentShape(Rectangle())
     }
@@ -275,14 +275,14 @@ struct SidebarItemView: View {
     private var collapsedContent: some View {
         ZStack {
             if isSelected {
-                RoundedRectangle(cornerRadius: 10).fill(theme.accentPrimary.opacity(0.15))
+                RoundedRectangle(cornerRadius: 10).fill(theme.sidebarSelectedBg)
             }
             ZStack(alignment: .topTrailing) {
                 Image(systemName: folder.icon)
                     .font(.system(size: 16))
-                    .foregroundColor(isSelected ? theme.accentPrimary : (isHovered ? theme.textSecondary : theme.textTertiary))
+                    .foregroundColor(isSelected ? theme.sidebarAccent : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
                 if folder.count > 0 {
-                    Circle().fill(theme.accentPrimary).frame(width: 8, height: 8).offset(x: 4, y: -2)
+                    Circle().fill(theme.sidebarAccent).frame(width: 8, height: 8).offset(x: 4, y: -2)
                 }
             }
         }

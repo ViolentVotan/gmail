@@ -52,7 +52,7 @@ struct SidebarView: View {
             // Divider
             if isExpanded {
                 Rectangle()
-                    .fill(theme.divider)
+                    .fill(theme.sidebarTextMuted.opacity(0.3))
                     .frame(height: 1)
                     .padding(.horizontal, 16)
                     .padding(.bottom, 8)
@@ -176,11 +176,11 @@ struct SidebarView: View {
                 HStack(spacing: 10) {
                     Image(systemName: icon)
                         .font(.system(size: 14))
-                        .foregroundColor(theme.textTertiary)
+                        .foregroundColor(theme.sidebarTextMuted)
                         .frame(width: 20)
                     Text(label)
                         .font(.system(size: 13))
-                        .foregroundColor(theme.textTertiary)
+                        .foregroundColor(theme.sidebarTextMuted)
                     Spacer()
                 }
                 .padding(.horizontal, 10)
@@ -189,7 +189,7 @@ struct SidebarView: View {
             } else {
                 Image(systemName: icon)
                     .font(.system(size: 16))
-                    .foregroundColor(theme.textTertiary)
+                    .foregroundColor(theme.sidebarTextMuted)
                     .frame(width: 40, height: 40)
                     .contentShape(Rectangle())
             }

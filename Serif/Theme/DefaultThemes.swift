@@ -181,10 +181,10 @@ extension Theme {
         tagBackground: Color(hex: "#3F4450")
     )
 
-    // MARK: - Papier
+    // MARK: - Paper
     static let emerald = Theme(
         id: "emerald",
-        name: "Papier",
+        name: "Paper",
         icon: "doc.plaintext",
         sidebarBackground: Color(hex: "#E8DFD0"),
         listBackground: Color(hex: "#F0E8DA"),
@@ -301,34 +301,34 @@ extension Theme {
         tagBackground: Color(hex: "#3E4451")
     )
 
-    // MARK: - Sunset
+    // MARK: - Violet
     static let sunset = Theme(
         id: "sunset",
-        name: "Sunset",
-        icon: "sunset.fill",
-        sidebarBackground: Color(hex: "#1A0F0A"),
-        listBackground: Color(hex: "#211510"),
-        detailBackground: Color(hex: "#2A1A14"),
-        cardBackground: Color(hex: "#35221A"),
-        selectedCardBackground: Color(hex: "#422C22"),
-        hoverBackground: Color(hex: "#35221A"),
-        searchBarBackground: Color(hex: "#35221A"),
-        accentPrimary: Color(hex: "#FB923C"),
-        accentSecondary: Color(hex: "#F472B6"),
-        textPrimary: Color(hex: "#FFF7ED"),
-        textSecondary: Color(hex: "#B89A82"),
-        textTertiary: Color(hex: "#7A5F4A"),
-        textInverse: Color(hex: "#1A0F0A"),
-        border: Color(hex: "#422C22"),
-        divider: Color(hex: "#35221A"),
-        unreadIndicator: Color(hex: "#FB923C"),
-        attachmentBackground: Color(hex: "#35221A"),
-        avatarRing: Color(hex: "#FB923C"),
+        name: "Violet",
+        icon: "diamond.fill",
+        sidebarBackground: Color(hex: "#5B3D9B"),
+        listBackground: Color(hex: "#FFFFFF"),
+        detailBackground: Color(hex: "#FFFFFF"),
+        cardBackground: Color(hex: "#F7F5FC"),
+        selectedCardBackground: Color(hex: "#EBE3F7"),
+        hoverBackground: Color(hex: "#F0ECF7"),
+        searchBarBackground: Color(hex: "#EDEBF2"),
+        accentPrimary: Color(hex: "#6B4EAF"),
+        accentSecondary: Color(hex: "#9B7ED8"),
+        textPrimary: Color(hex: "#1A1A2E"),
+        textSecondary: Color(hex: "#6B6B80"),
+        textTertiary: Color(hex: "#A8A8B8"),
+        textInverse: Color(hex: "#FFFFFF"),
+        border: Color(hex: "#E0DCE8"),
+        divider: Color(hex: "#E8E5F0"),
+        unreadIndicator: Color(hex: "#6B4EAF"),
+        attachmentBackground: Color(hex: "#F0ECF7"),
+        avatarRing: Color(hex: "#6B4EAF"),
         destructive: Color(hex: "#EF4444"),
-        buttonPrimary: Color(hex: "#F97316"),
-        buttonSecondary: Color(hex: "#422C22"),
-        inputBackground: Color(hex: "#211510"),
-        tagBackground: Color(hex: "#422C22")
+        buttonPrimary: Color(hex: "#6B4EAF"),
+        buttonSecondary: Color(hex: "#E8E5F0"),
+        inputBackground: Color(hex: "#F2F0F7"),
+        tagBackground: Color(hex: "#EBE3F7")
     )
 
     // MARK: - Light

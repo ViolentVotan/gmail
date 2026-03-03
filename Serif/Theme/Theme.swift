@@ -47,6 +47,32 @@ struct Theme: Identifiable, Equatable {
         return lum > 0.5
     }
 
+    /// Whether the sidebar background is dark (used for themes with dark sidebar + light content).
+    private var sidebarIsDark: Bool {
+        guard let c = NSColor(sidebarBackground).usingColorSpace(.sRGB) else { return true }
+        let lum = 0.299 * c.redComponent + 0.587 * c.greenComponent + 0.114 * c.blueComponent
+        return lum < 0.5
+    }
+
+    // MARK: - Sidebar-Adaptive Colors
+
+    /// Text color for selected items on the sidebar.
+    var sidebarText: Color { sidebarIsDark && isLight ? .white : textPrimary }
+    /// Text color for hovered items on the sidebar.
+    var sidebarTextHover: Color { sidebarIsDark && isLight ? .white.opacity(0.85) : textSecondary }
+    /// Text color for default (non-selected) items on the sidebar.
+    var sidebarTextMuted: Color { sidebarIsDark && isLight ? .white.opacity(0.6) : textTertiary }
+    /// Accent color for selected icons on the sidebar.
+    var sidebarAccent: Color { sidebarIsDark && isLight ? .white : accentPrimary }
+    /// Unread badge color on the sidebar.
+    var sidebarBadge: Color { sidebarIsDark && isLight ? .white.opacity(0.25) : accentPrimary.opacity(0.15) }
+    /// Unread badge text on the sidebar.
+    var sidebarBadgeText: Color { sidebarIsDark && isLight ? .white : accentPrimary }
+    /// Hover background for sidebar rows.
+    var sidebarHover: Color { sidebarIsDark && isLight ? Color.white.opacity(0.1) : hoverBackground }
+    /// Selected background for sidebar rows.
+    var sidebarSelectedBg: Color { sidebarIsDark && isLight ? Color.white.opacity(0.15) : accentPrimary.opacity(0.12) }
+
     static func == (lhs: Theme, rhs: Theme) -> Bool {
         lhs.id == rhs.id
         && lhs.sidebarBackground == rhs.sidebarBackground

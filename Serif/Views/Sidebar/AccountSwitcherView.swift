@@ -57,10 +57,10 @@ struct AccountSwitcherView: View {
             ZStack {
                 Circle()
                     .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
-                    .foregroundColor(theme.divider)
+                    .foregroundColor(theme.sidebarTextMuted)
                 Image(systemName: "plus")
                     .font(.system(size: size * 0.32, weight: .medium))
-                    .foregroundColor(theme.textTertiary)
+                    .foregroundColor(theme.sidebarTextMuted)
             }
             .frame(width: size, height: size)
         }
