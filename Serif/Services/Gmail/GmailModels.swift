@@ -55,6 +55,40 @@ struct GmailThread: Codable {
     let messages:  [GmailMessage]?
 }
 
+// MARK: - History
+
+struct GmailHistoryListResponse: Codable {
+    let history:       [GmailHistoryRecord]?
+    let nextPageToken: String?
+    let historyId:     String
+}
+
+struct GmailHistoryRecord: Codable {
+    let id:              String
+    let messagesAdded:   [GmailHistoryMessageAdded]?
+    let messagesDeleted: [GmailHistoryMessageDeleted]?
+    let labelsAdded:     [GmailHistoryLabelAdded]?
+    let labelsRemoved:   [GmailHistoryLabelRemoved]?
+}
+
+struct GmailHistoryMessageAdded: Codable {
+    let message: GmailMessageRef
+}
+
+struct GmailHistoryMessageDeleted: Codable {
+    let message: GmailMessageRef
+}
+
+struct GmailHistoryLabelAdded: Codable {
+    let message:  GmailMessageRef
+    let labelIds: [String]
+}
+
+struct GmailHistoryLabelRemoved: Codable {
+    let message:  GmailMessageRef
+    let labelIds: [String]
+}
+
 struct GmailThreadListResponse: Codable {
     let threads:            [GmailThreadRef]?
     let nextPageToken:      String?

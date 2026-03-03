@@ -452,6 +452,142 @@ final class MailboxViewModel: ObservableObject {
         MailCacheStore.shared.saveFolderCache(cache, accountID: accountID, folderKey: currentFolderKey)
     }
 
+    // MARK: - Delta Sync via History API
+
+    /// Refreshes the current folder using delta sync when possible,
+    /// falling back to full re-fetch.
+    func refreshCurrentFolder(labelIDs: [String], query: String? = nil) async {
+        let isSameFolder = labelIDs == currentLabelIDs && query == currentQuery
+
+        // Only attempt delta sync if:
+        // 1. Same folder (not a folder switch)
+        // 2. No search query (history API doesn't support queries)
+        // 3. We have cached messages (not first load)
+        // 4. Single label ID or no label (history API filters by one label)
+        if isSameFolder && query == nil && !allCachedMessages.isEmpty && labelIDs.count <= 1 {
+            let success = await syncViaHistory(labelId: labelIDs.first)
+            if success { return }
+        }
+
+        // Full refresh (existing path)
+        await loadFolder(labelIDs: labelIDs, query: query)
+    }
+
+    /// Attempts incremental sync using Gmail History API.
+    /// Returns true if delta sync succeeded, false if a full refresh is needed.
+    private func syncViaHistory(labelId: String? = nil) async -> Bool {
+        guard let account = AccountStore.shared.accounts.first(where: { $0.id == accountID }),
+              let startHistoryId = account.historyId else {
+            return false
+        }
+
+        do {
+            var allAdded: [String] = []
+            var allDeleted: Set<String> = []
+            var labelChanges: Set<String> = []
+            var latestHistoryId = startHistoryId
+            var pageToken: String? = nil
+
+            repeat {
+                let response = try await GmailMessageService.shared.listHistory(
+                    accountID: accountID,
+                    startHistoryId: startHistoryId,
+                    labelId: labelId,
+                    pageToken: pageToken
+                )
+
+                latestHistoryId = response.historyId
+                pageToken = response.nextPageToken
+
+                for record in response.history ?? [] {
+                    for added in record.messagesAdded ?? [] {
+                        allAdded.append(added.message.id)
+                    }
+                    for deleted in record.messagesDeleted ?? [] {
+                        allDeleted.insert(deleted.message.id)
+                    }
+                    for labelAdd in record.labelsAdded ?? [] {
+                        labelChanges.insert(labelAdd.message.id)
+                    }
+                    for labelRemove in record.labelsRemoved ?? [] {
+                        labelChanges.insert(labelRemove.message.id)
+                    }
+                }
+            } while pageToken != nil
+
+            // Remove deleted messages from cache + UI
+            if !allDeleted.isEmpty {
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                    messages.removeAll { allDeleted.contains($0.id) }
+                }
+                allCachedMessages.removeAll { allDeleted.contains($0.id) }
+                for id in allDeleted { messageCache[id] = nil }
+            }
+
+            // Fetch new messages
+            let existingIDs = Set(messages.map(\.id))
+            let newIDs = allAdded.filter { !existingIDs.contains($0) && !allDeleted.contains($0) }
+
+            if !newIDs.isEmpty {
+                let fetched = try await GmailMessageService.shared.getMessages(
+                    ids: newIDs, accountID: accountID, format: "metadata"
+                )
+                for msg in fetched { messageCache[msg.id] = msg }
+                let sorted = fetched.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                    messages.insert(contentsOf: sorted, at: 0)
+                }
+                allCachedMessages.insert(contentsOf: sorted, at: 0)
+                localOffset += sorted.count
+                analyzeInBackground(fetched)
+            }
+
+            // Re-fetch messages with label changes to update their labelIds
+            let toRefetch = labelChanges.subtracting(allDeleted).subtracting(Set(newIDs)).filter { existingIDs.contains($0) }
+            if !toRefetch.isEmpty {
+                let refreshed = try await GmailMessageService.shared.getMessages(
+                    ids: Array(toRefetch), accountID: accountID, format: "metadata"
+                )
+                for msg in refreshed {
+                    messageCache[msg.id] = msg
+                    if let idx = messages.firstIndex(where: { $0.id == msg.id }) {
+                        messages[idx] = msg
+                    }
+                    if let idx = allCachedMessages.firstIndex(where: { $0.id == msg.id }) {
+                        allCachedMessages[idx] = msg
+                    }
+                }
+            }
+
+            // Save updated cache
+            saveCacheToDisk()
+
+            // Persist the new historyId
+            updateStoredHistoryId(latestHistoryId)
+
+            return true
+
+        } catch let error as GmailAPIError {
+            if case .httpError(let code, _) = error, code == 404 {
+                // historyId expired — fall back to full refresh
+                updateStoredHistoryId(nil)
+                return false
+            }
+            self.error = error.localizedDescription
+            return true
+        } catch {
+            self.error = error.localizedDescription
+            return true
+        }
+    }
+
+    /// Updates the persisted historyId for the current account.
+    private func updateStoredHistoryId(_ historyId: String?) {
+        guard var account = AccountStore.shared.accounts.first(where: { $0.id == accountID }) else { return }
+        account.historyId = historyId
+        AccountStore.shared.update(account)
+    }
+
     // MARK: - Private fetch
 
     private var currentFolderKey: String {
@@ -547,6 +683,11 @@ final class MailboxViewModel: ObservableObject {
                     nextPageToken: nextPageToken ?? savedPageToken
                 )
                 MailCacheStore.shared.saveFolderCache(cacheToSave, accountID: accountID, folderKey: folderKey)
+
+                // Seed historyId from fetched messages for delta sync on next refresh
+                if let latestHistoryId = page.compactMap(\.historyId).first {
+                    updateStoredHistoryId(latestHistoryId)
+                }
             } else {
                 // loadMore via API — append new messages
                 let existingIDs = Set(messages.map(\.id))

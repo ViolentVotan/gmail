@@ -44,7 +44,8 @@ final class AuthViewModel: ObservableObject {
                 messagesTotal:     profile.messagesTotal,
                 threadsTotal:      profile.threadsTotal,
                 signature:         signature,
-                unreadCount:       0
+                unreadCount:       0,
+                historyId:         profile.historyId
             )
             AccountStore.shared.add(account)
             accounts = AccountStore.shared.accounts

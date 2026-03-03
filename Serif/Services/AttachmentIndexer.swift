@@ -135,7 +135,7 @@ actor AttachmentIndexer {
     private let scanLimit = 3000
 
     /// Scans the account for messages with attachments using `has:attachment` query.
-    /// Paginates up to `scanLimit` messages, fetches each batch in full format, and registers them.
+    /// Persists scan progress so it can resume from where it left off on next launch.
     /// Safe to call multiple times — skips if already scanning.
     func scanForAttachments() async {
         guard !isScanning else { return }
@@ -150,7 +150,13 @@ actor AttachmentIndexer {
         let service = messageService
         let acctID = accountID
         let db = database
-        var pageToken: String? = nil
+
+        // Load persisted scan state
+        let scanState = db.loadScanState(accountID: acctID)
+        let previouslyComplete = scanState?.isComplete ?? false
+        // If scan was previously complete, start from page 1 to catch new messages
+        // Otherwise resume from saved pageToken
+        var pageToken: String? = previouslyComplete ? nil : scanState?.pageToken
         var totalDiscovered = 0
         var totalScanned = 0
 
@@ -173,6 +179,12 @@ actor AttachmentIndexer {
                     !processedMessageIDs.contains(ref.id)
                 }
 
+                // If scan was previously complete and entire page is already known,
+                // we've caught up with new messages — stop scanning
+                if previouslyComplete && toScan.isEmpty {
+                    break
+                }
+
                 // Mark all as seen in-memory + persist to DB
                 let newIDs = refs.map(\.id)
                 for id in newIDs { processedMessageIDs.insert(id) }
@@ -192,12 +204,21 @@ actor AttachmentIndexer {
                     // Register + process immediately so UI updates incrementally
                     await registerFromFullMessages(messages: messages)
                 }
+
+                // Persist scan progress after each page
+                db.saveScanState(accountID: acctID, pageToken: pageToken, isComplete: false)
+
             } while pageToken != nil && totalScanned < scanLimit
+
+            // Mark scan as complete if we exhausted all pages
+            let isComplete = pageToken == nil || (previouslyComplete && totalScanned > 0)
+            db.saveScanState(accountID: acctID, pageToken: nil, isComplete: isComplete)
 
             if totalDiscovered > 0 {
                 print("[AttachmentIndexer] Scan complete: \(totalDiscovered) new messages out of \(totalScanned) scanned (limit: \(scanLimit))")
             }
         } catch {
+            // On error, the current pageToken is already saved from the last successful page
             print("[AttachmentIndexer] Scan failed: \(error)")
         }
     }

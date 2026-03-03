@@ -96,6 +96,16 @@ final class AttachmentDatabase: @unchecked Sendable {
         )
         """, nil, nil, nil)
 
+        // 1c. Attachment scan state tracking table
+        sqlite3_exec(db, """
+        CREATE TABLE IF NOT EXISTS scan_state (
+            accountID  TEXT PRIMARY KEY,
+            pageToken  TEXT,
+            isComplete INTEGER DEFAULT 0,
+            updatedAt  REAL
+        )
+        """, nil, nil, nil)
+
         // 2. Column migrations (silently ignored if already exist)
         sqlite3_exec(db, "ALTER TABLE attachments ADD COLUMN retryCount INTEGER DEFAULT 0", nil, nil, nil)
         sqlite3_exec(db, "ALTER TABLE attachments ADD COLUMN emailBody TEXT", nil, nil, nil)
@@ -546,18 +556,80 @@ final class AttachmentDatabase: @unchecked Sendable {
                 bindText(stmt2, 1, accountID)
                 sqlite3_step(stmt2)
             }
+            // Also clean scan_state for this account
+            let sql3 = "DELETE FROM scan_state WHERE accountID = ?"
+            var stmt3: OpaquePointer?
+            if sqlite3_prepare_v2(db, sql3, -1, &stmt3, nil) == SQLITE_OK {
+                defer { sqlite3_finalize(stmt3) }
+                bindText(stmt3, 1, accountID)
+                sqlite3_step(stmt3)
+            }
             exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')")
             exec("VACUUM")
         }
     }
 
-    /// Delete all rows from the attachments and scanned_messages tables, rebuild FTS, and reclaim disk space.
+    /// Delete all rows from the attachments, scanned_messages, and scan_state tables, rebuild FTS, and reclaim disk space.
     func clearAll() {
         queue.sync {
             exec("DELETE FROM attachments")
             exec("DELETE FROM scanned_messages")
+            exec("DELETE FROM scan_state")
             exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')")
             exec("VACUUM")
+        }
+    }
+
+    // MARK: - Scan State
+
+    struct ScanState {
+        let pageToken: String?
+        let isComplete: Bool
+    }
+
+    func loadScanState(accountID: String) -> ScanState? {
+        queue.sync {
+            let sql = "SELECT pageToken, isComplete FROM scan_state WHERE accountID = ? LIMIT 1"
+            var stmt: OpaquePointer?
+            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
+            defer { sqlite3_finalize(stmt) }
+            bindText(stmt, 1, accountID)
+            guard sqlite3_step(stmt) == SQLITE_ROW else { return nil }
+            let pageToken = columnText(stmt, 0)
+            let isComplete = sqlite3_column_int(stmt, 1) != 0
+            return ScanState(pageToken: pageToken, isComplete: isComplete)
+        }
+    }
+
+    func saveScanState(accountID: String, pageToken: String?, isComplete: Bool) {
+        queue.sync {
+            let sql = """
+            INSERT INTO scan_state (accountID, pageToken, isComplete, updatedAt)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(accountID) DO UPDATE SET
+                pageToken = excluded.pageToken,
+                isComplete = excluded.isComplete,
+                updatedAt = excluded.updatedAt
+            """
+            var stmt: OpaquePointer?
+            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+            defer { sqlite3_finalize(stmt) }
+            bindText(stmt, 1, accountID)
+            bindTextOrNull(stmt, 2, pageToken)
+            sqlite3_bind_int(stmt, 3, isComplete ? 1 : 0)
+            sqlite3_bind_double(stmt, 4, Date().timeIntervalSince1970)
+            sqlite3_step(stmt)
+        }
+    }
+
+    func clearScanState(accountID: String) {
+        queue.sync {
+            let sql = "DELETE FROM scan_state WHERE accountID = ?"
+            var stmt: OpaquePointer?
+            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+            defer { sqlite3_finalize(stmt) }
+            bindText(stmt, 1, accountID)
+            sqlite3_step(stmt)
         }
     }
 

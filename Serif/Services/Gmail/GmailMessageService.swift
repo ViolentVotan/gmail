@@ -64,6 +64,25 @@ final class GmailMessageService {
         try await client.request(path: "/users/me/threads/\(id)?format=full", accountID: accountID)
     }
 
+    // MARK: - History
+
+    /// Fetches history records since the given historyId.
+    /// Pass labelId to filter only changes relevant to a specific label.
+    func listHistory(
+        accountID: String,
+        startHistoryId: String,
+        labelId: String? = nil,
+        pageToken: String? = nil,
+        maxResults: Int = 500
+    ) async throws -> GmailHistoryListResponse {
+        var path = "/users/me/history?startHistoryId=\(startHistoryId)&maxResults=\(maxResults)"
+        path += "&historyTypes=messageAdded&historyTypes=messageDeleted"
+        path += "&historyTypes=labelAdded&historyTypes=labelRemoved"
+        if let labelId { path += "&labelId=\(labelId)" }
+        if let token = pageToken { path += "&pageToken=\(token)" }
+        return try await client.request(path: path, accountID: accountID)
+    }
+
     // MARK: - Mutations
 
     func markAsRead(id: String, accountID: String) async throws {

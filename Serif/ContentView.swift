@@ -275,16 +275,16 @@ struct ContentView: View {
         case .inbox:
             if let category = selectedInboxCategory {
                 if category == .all {
-                    await mailboxViewModel.loadFolder(labelIDs: ["INBOX"])
+                    await mailboxViewModel.refreshCurrentFolder(labelIDs: ["INBOX"])
                 } else {
-                    await mailboxViewModel.loadFolder(labelIDs: category.gmailLabelIDs)
+                    await mailboxViewModel.refreshCurrentFolder(labelIDs: category.gmailLabelIDs)
                 }
             } else {
-                await mailboxViewModel.loadFolder(labelIDs: ["INBOX"])
+                await mailboxViewModel.refreshCurrentFolder(labelIDs: ["INBOX"])
             }
         case .labels:
             if let label = selectedLabel {
-                await mailboxViewModel.loadFolder(labelIDs: [label.id])
+                await mailboxViewModel.refreshCurrentFolder(labelIDs: [label.id])
             }
         case .drafts:
             await mailStore.syncGmailDrafts(accountID: accountID)
@@ -294,7 +294,7 @@ struct ContentView: View {
             await mailboxViewModel.loadFolder(labelIDs: [], query: "has:attachment")
         default:
             if let labelID = selectedFolder.gmailLabelID {
-                await mailboxViewModel.loadFolder(labelIDs: [labelID])
+                await mailboxViewModel.refreshCurrentFolder(labelIDs: [labelID])
             } else if let query = selectedFolder.gmailQuery {
                 await mailboxViewModel.loadFolder(labelIDs: [], query: query)
             }

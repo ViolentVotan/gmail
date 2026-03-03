@@ -10,6 +10,7 @@ struct GmailAccount: Identifiable, Codable, Equatable {
     var threadsTotal:      Int
     var signature:         String?
     var unreadCount:       Int
+    var historyId:         String?
 }
 
 /// Persists the list of connected accounts to UserDefaults.
