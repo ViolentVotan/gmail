@@ -87,6 +87,15 @@ final class AttachmentDatabase: @unchecked Sendable {
             throw AttachmentDatabaseError.schemaFailed(msg)
         }
 
+        // 1b. Scanned messages tracking table
+        sqlite3_exec(db, """
+        CREATE TABLE IF NOT EXISTS scanned_messages (
+            messageID TEXT NOT NULL,
+            accountID TEXT NOT NULL,
+            PRIMARY KEY (messageID, accountID)
+        )
+        """, nil, nil, nil)
+
         // 2. Column migrations (silently ignored if already exist)
         sqlite3_exec(db, "ALTER TABLE attachments ADD COLUMN retryCount INTEGER DEFAULT 0", nil, nil, nil)
         sqlite3_exec(db, "ALTER TABLE attachments ADD COLUMN emailBody TEXT", nil, nil, nil)
@@ -482,6 +491,42 @@ final class AttachmentDatabase: @unchecked Sendable {
             }
         }
         return total
+    }
+
+    // MARK: - Scanned Messages
+
+    /// Returns all message IDs that have already been scanned (with or without attachments).
+    func allScannedMessageIDs(accountID: String) -> Set<String> {
+        queue.sync {
+            let sql = "SELECT messageID FROM scanned_messages WHERE accountID = ?"
+            var stmt: OpaquePointer?
+            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+            defer { sqlite3_finalize(stmt) }
+            bindText(stmt, 1, accountID)
+            var ids: Set<String> = []
+            while sqlite3_step(stmt) == SQLITE_ROW {
+                if let raw = sqlite3_column_text(stmt, 0) {
+                    ids.insert(String(cString: raw))
+                }
+            }
+            return ids
+        }
+    }
+
+    /// Persists a batch of scanned message IDs so they are skipped on next launch.
+    func markMessagesScanned(_ ids: [String], accountID: String) {
+        queue.sync {
+            let sql = "INSERT OR IGNORE INTO scanned_messages (messageID, accountID) VALUES (?, ?)"
+            var stmt: OpaquePointer?
+            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+            defer { sqlite3_finalize(stmt) }
+            for id in ids {
+                sqlite3_reset(stmt)
+                bindText(stmt, 1, id)
+                bindText(stmt, 2, accountID)
+                sqlite3_step(stmt)
+            }
+        }
     }
 
     /// Delete all rows for a specific account and rebuild FTS.

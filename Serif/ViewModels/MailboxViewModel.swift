@@ -196,6 +196,7 @@ final class MailboxViewModel: ObservableObject {
             try await GmailMessageService.shared.trashMessage(id: messageID, accountID: accountID)
             messages.removeAll { $0.id == messageID }   // no-op if already removed optimistically
             messageCache[messageID] = nil
+            saveCacheToDisk()
         } catch { self.error = error.localizedDescription }
     }
 
@@ -204,6 +205,7 @@ final class MailboxViewModel: ObservableObject {
             try await GmailMessageService.shared.archiveMessage(id: messageID, accountID: accountID)
             messages.removeAll { $0.id == messageID }   // no-op if already removed optimistically
             messageCache[messageID] = nil
+            saveCacheToDisk()
         } catch { self.error = error.localizedDescription }
     }
 
@@ -216,6 +218,7 @@ final class MailboxViewModel: ObservableObject {
         withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
             messages.remove(at: idx)
         }
+        saveCacheToDisk()
         return msg
     }
 
@@ -228,6 +231,7 @@ final class MailboxViewModel: ObservableObject {
         withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
             messages.insert(message, at: insertIdx)
         }
+        saveCacheToDisk()
         // Signal the UI to re-select this email
         lastRestoredMessageID = message.id
     }
@@ -237,11 +241,13 @@ final class MailboxViewModel: ObservableObject {
         let cacheBackup = messageCache
         messages.removeAll()
         messageCache.removeAll()
+        saveCacheToDisk()
         do {
             try await GmailMessageService.shared.emptyTrash(accountID: accountID)
         } catch {
             messages = backup
             messageCache = cacheBackup
+            saveCacheToDisk()
             self.error = error.localizedDescription
         }
     }
@@ -251,11 +257,13 @@ final class MailboxViewModel: ObservableObject {
         let cacheBackup = messageCache
         messages.removeAll()
         messageCache.removeAll()
+        saveCacheToDisk()
         do {
             try await GmailMessageService.shared.emptySpam(accountID: accountID)
         } catch {
             messages = backup
             messageCache = cacheBackup
+            saveCacheToDisk()
             self.error = error.localizedDescription
         }
     }
@@ -363,6 +371,12 @@ final class MailboxViewModel: ObservableObject {
             }
         }
         .sorted { $0.date > $1.date }
+    }
+
+    // MARK: - Disk Cache Sync
+
+    private func saveCacheToDisk() {
+        MailCacheStore.shared.save(messages, accountID: accountID, folderKey: currentFolderKey)
     }
 
     // MARK: - Private fetch

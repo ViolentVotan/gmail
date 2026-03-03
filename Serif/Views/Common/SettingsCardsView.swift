@@ -268,7 +268,10 @@ struct StorageSettingsCard: View {
         .background(theme.cardBackground)
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.06), radius: 4, y: 1)
-        .onAppear { dbSize = AttachmentDatabase.shared.databaseSizeBytes() }
+        .onAppear {
+            attachmentStore.refresh()
+            dbSize = AttachmentDatabase.shared.databaseSizeBytes()
+        }
         .onChange(of: attachmentStore.stats.total) { _ in
             dbSize = AttachmentDatabase.shared.databaseSizeBytes()
         }

@@ -142,6 +142,11 @@ actor AttachmentIndexer {
         isScanning = true
         defer { isScanning = false }
 
+        // Pre-populate in-memory set from DB so we skip already-scanned messages
+        if processedMessageIDs.isEmpty {
+            processedMessageIDs = database.allScannedMessageIDs(accountID: accountID)
+        }
+
         let service = messageService
         let acctID = accountID
         let db = database
@@ -163,13 +168,15 @@ actor AttachmentIndexer {
                 guard !refs.isEmpty else { break }
                 totalScanned += refs.count
 
-                // Filter out already-processed messages
+                // Filter out already-scanned messages (known from DB or current session)
                 let toScan = refs.filter { ref in
-                    !processedMessageIDs.contains(ref.id) && !db.hasMessageAttachments(messageId: ref.id)
+                    !processedMessageIDs.contains(ref.id)
                 }
 
-                // Mark all as seen
-                for ref in refs { processedMessageIDs.insert(ref.id) }
+                // Mark all as seen in-memory + persist to DB
+                let newIDs = refs.map(\.id)
+                for id in newIDs { processedMessageIDs.insert(id) }
+                db.markMessagesScanned(newIDs, accountID: acctID)
 
                 if !toScan.isEmpty {
                     // Fetch in full format to get parts + body
@@ -180,7 +187,7 @@ actor AttachmentIndexer {
                     )
 
                     totalDiscovered += messages.count
-                    print("[AttachmentIndexer] Scanned page: \(messages.count) messages with attachments (total: \(totalDiscovered)/\(totalScanned) scanned)")
+                    print("[AttachmentIndexer] Scanned page: \(messages.count) new messages with attachments (total: \(totalDiscovered)/\(totalScanned) scanned)")
 
                     // Register + process immediately so UI updates incrementally
                     await registerFromFullMessages(messages: messages)
@@ -188,7 +195,7 @@ actor AttachmentIndexer {
             } while pageToken != nil && totalScanned < scanLimit
 
             if totalDiscovered > 0 {
-                print("[AttachmentIndexer] Scan complete: \(totalDiscovered) messages with attachments out of \(totalScanned) scanned (limit: \(scanLimit))")
+                print("[AttachmentIndexer] Scan complete: \(totalDiscovered) new messages out of \(totalScanned) scanned (limit: \(scanLimit))")
             }
         } catch {
             print("[AttachmentIndexer] Scan failed: \(error)")

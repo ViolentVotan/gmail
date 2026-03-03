@@ -47,15 +47,16 @@ struct UndoToastView: View {
     var body: some View {
         VStack {
             Spacer()
-            if let action = undoMgr.pendingAction {
+            if let action = undoMgr.currentAction {
                 toastCard(action)
+                    .id(action.id)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .padding(.bottom, 28)
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: undoMgr.pendingAction == nil)
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: undoMgr.currentAction?.id)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .allowsHitTesting(undoMgr.pendingAction != nil)
+        .allowsHitTesting(undoMgr.currentAction != nil)
     }
 
     private func toastCard(_ action: PendingUndoAction) -> some View {
