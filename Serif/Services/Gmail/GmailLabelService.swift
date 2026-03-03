@@ -19,6 +19,24 @@ final class GmailLabelService {
         )
     }
 
+    func updateLabel(id: String, newName: String, accountID: String) async throws -> GmailLabel {
+        struct UpdateRequest: Encodable { let name: String }
+        let body = try JSONEncoder().encode(UpdateRequest(name: newName))
+        return try await GmailAPIClient.shared.request(
+            path: "/users/me/labels/\(id)",
+            method: "PATCH", body: body, contentType: "application/json",
+            accountID: accountID
+        )
+    }
+
+    func deleteLabel(id: String, accountID: String) async throws {
+        _ = try await GmailAPIClient.shared.rawRequest(
+            path: "/users/me/labels/\(id)",
+            method: "DELETE",
+            accountID: accountID
+        )
+    }
+
     func createLabel(name: String, accountID: String) async throws -> GmailLabel {
         struct CreateRequest: Encodable {
             let name: String

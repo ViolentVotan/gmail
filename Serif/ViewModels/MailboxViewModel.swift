@@ -122,6 +122,34 @@ final class MailboxViewModel: ObservableObject {
         if let err = result.error { error = err }
     }
 
+    func renameLabel(_ label: GmailLabel, to newName: String) async {
+        if let idx = labels.firstIndex(where: { $0.id == label.id }) {
+            let updated = GmailLabel(id: label.id, name: newName, type: label.type,
+                                      messagesTotal: label.messagesTotal, messagesUnread: label.messagesUnread,
+                                      threadsTotal: label.threadsTotal, threadsUnread: label.threadsUnread,
+                                      color: label.color)
+            labels[idx] = updated
+        }
+        do {
+            let fresh = try await GmailLabelService.shared.updateLabel(id: label.id, newName: newName, accountID: accountID)
+            if let idx = labels.firstIndex(where: { $0.id == fresh.id }) { labels[idx] = fresh }
+        } catch {
+            if let idx = labels.firstIndex(where: { $0.id == label.id }) { labels[idx] = label }
+            self.error = error.localizedDescription
+        }
+    }
+
+    func deleteLabel(_ label: GmailLabel) async {
+        let backup = labels
+        labels.removeAll { $0.id == label.id }
+        do {
+            try await GmailLabelService.shared.deleteLabel(id: label.id, accountID: accountID)
+        } catch {
+            labels = backup
+            self.error = error.localizedDescription
+        }
+    }
+
     func loadCategoryUnreadCounts() async {
         categoryUnreadCounts = await labelService.loadCategoryUnreadCounts(accountID: accountID)
     }

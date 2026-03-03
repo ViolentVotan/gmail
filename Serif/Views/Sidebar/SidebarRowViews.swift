@@ -174,6 +174,8 @@ struct LabelSidebarRow: View {
     let label: GmailLabel
     let isSelected: Bool
     let theme: Theme
+    var onRename: ((GmailLabel) -> Void)?
+    var onDelete: ((GmailLabel) -> Void)?
     let action: () -> Void
     @State private var isHovered = false
 
@@ -209,6 +211,11 @@ struct LabelSidebarRow: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
+        .contextMenu {
+            Button("Rename...") { onRename?(label) }
+            Divider()
+            Button("Delete", role: .destructive) { onDelete?(label) }
+        }
     }
 }
 

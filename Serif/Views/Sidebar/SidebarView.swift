@@ -12,10 +12,15 @@ struct SidebarView: View {
     @ObservedObject var authViewModel: AuthViewModel
     var categoryUnreadCounts: [InboxCategory: Int] = [:]
     var userLabels: [GmailLabel] = []
+    var onRenameLabel: ((GmailLabel, String) -> Void)?
+    var onDeleteLabel: ((GmailLabel) -> Void)?
     @Environment(\.theme) private var theme
 
     @State private var inboxExpanded = true
     @State private var labelsExpanded = false
+    @State private var labelToRename: GmailLabel?
+    @State private var labelToDelete: GmailLabel?
+    @State private var renameText = ""
 
     private var sidebarWidth: CGFloat { isExpanded ? 200 : 60 }
 
@@ -104,6 +109,33 @@ struct SidebarView: View {
         .padding(.vertical, 8)
         .padding(.horizontal, 8)
         .animation(.easeInOut(duration: 0.25), value: isExpanded)
+        .alert("Rename Label", isPresented: Binding(
+            get: { labelToRename != nil },
+            set: { if !$0 { labelToRename = nil } }
+        )) {
+            TextField("Label name", text: $renameText)
+            Button("Cancel", role: .cancel) { labelToRename = nil }
+            Button("Save") {
+                if let label = labelToRename, !renameText.isEmpty {
+                    onRenameLabel?(label, renameText)
+                }
+                labelToRename = nil
+            }
+        } message: {
+            Text("Enter a new name for this label.")
+        }
+        .alert("Delete Label", isPresented: Binding(
+            get: { labelToDelete != nil },
+            set: { if !$0 { labelToDelete = nil } }
+        )) {
+            Button("Cancel", role: .cancel) { labelToDelete = nil }
+            Button("Delete", role: .destructive) {
+                if let label = labelToDelete { onDeleteLabel?(label) }
+                labelToDelete = nil
+            }
+        } message: {
+            Text("Are you sure? This will remove the label from all messages.")
+        }
     }
 
     // MARK: - Inbox super-category
@@ -159,7 +191,9 @@ struct SidebarView: View {
                     LabelSidebarRow(
                         label: label,
                         isSelected: selectedFolder == .labels && selectedLabel?.id == label.id,
-                        theme: theme
+                        theme: theme,
+                        onRename: { labelToRename = $0; renameText = $0.name },
+                        onDelete: { labelToDelete = $0 }
                     ) {
                         selectedFolder = .labels
                         selectedLabel = label

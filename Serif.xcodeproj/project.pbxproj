@@ -118,6 +118,7 @@
 		B10001010000000000000005 /* ContentExtractorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000005 /* ContentExtractorTests.swift */; };
 		B10001010000000000000006 /* TrackerBlockerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000006 /* TrackerBlockerTests.swift */; };
 		B10001010000000000000007 /* AppCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000007 /* AppCoordinatorTests.swift */; };
+		B10001010000000000000008 /* LabelManagementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000008 /* LabelManagementTests.swift */; };
 		A100010100000000000000F0 /* SignatureResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F0 /* SignatureResolver.swift */; };
 		A100010100000000000000F1 /* ComposeModeInitializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F1 /* ComposeModeInitializer.swift */; };
 		A100010100000000000000F2 /* MessageFetchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F2 /* MessageFetchService.swift */; };
@@ -241,6 +242,7 @@
 		B10002010000000000000005 /* ContentExtractorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentExtractorTests.swift; sourceTree = "<group>"; };
 		B10002010000000000000006 /* TrackerBlockerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerBlockerTests.swift; sourceTree = "<group>"; };
 		B10002010000000000000007 /* AppCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinatorTests.swift; sourceTree = "<group>"; };
+		B10002010000000000000008 /* LabelManagementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelManagementTests.swift; sourceTree = "<group>"; };
 		B10002010000000000000099 /* SerifTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SerifTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A100020100000000000000F0 /* SignatureResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignatureResolver.swift; sourceTree = "<group>"; };
 		A100020100000000000000F1 /* ComposeModeInitializer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeModeInitializer.swift; sourceTree = "<group>"; };
@@ -577,6 +579,7 @@
 				B10002010000000000000005 /* ContentExtractorTests.swift */,
 				B10002010000000000000006 /* TrackerBlockerTests.swift */,
 				B10002010000000000000007 /* AppCoordinatorTests.swift */,
+				B10002010000000000000008 /* LabelManagementTests.swift */,
 			);
 			path = SerifTests;
 			sourceTree = "<group>";
@@ -801,6 +804,7 @@
 				B10001010000000000000005 /* ContentExtractorTests.swift in Sources */,
 				B10001010000000000000006 /* TrackerBlockerTests.swift in Sources */,
 				B10001010000000000000007 /* AppCoordinatorTests.swift in Sources */,
+				B10001010000000000000008 /* LabelManagementTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

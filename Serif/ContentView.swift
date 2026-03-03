@@ -51,7 +51,9 @@ struct ContentView: View {
                     showDebug: panelBinding(\.showDebug),
                     authViewModel: coordinator.authViewModel,
                     categoryUnreadCounts: coordinator.mailboxViewModel.categoryUnreadCounts,
-                    userLabels: coordinator.mailboxViewModel.labels.filter { !$0.isSystemLabel }
+                    userLabels: coordinator.mailboxViewModel.labels.filter { !$0.isSystemLabel },
+                    onRenameLabel: { label, newName in Task { await coordinator.renameLabel(label, to: newName) } },
+                    onDeleteLabel: { label in Task { await coordinator.deleteLabel(label) } }
                 )
 
                 if coordinator.selectedFolder == .attachments {

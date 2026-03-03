@@ -118,6 +118,23 @@ class AppCoordinator: ObservableObject {
         showEmptySpamConfirm = true
     }
 
+    func renameLabel(_ label: GmailLabel, to newName: String) async {
+        await mailboxViewModel.renameLabel(label, to: newName)
+        if selectedLabel?.id == label.id {
+            selectedLabel = mailboxViewModel.labels.first { $0.id == label.id }
+        }
+    }
+
+    func deleteLabel(_ label: GmailLabel) async {
+        await mailboxViewModel.deleteLabel(label)
+        if selectedLabel?.id == label.id {
+            selectedLabel = nil
+            if selectedFolder == .labels {
+                selectedLabel = mailboxViewModel.labels.filter { !$0.isSystemLabel }.first
+            }
+        }
+    }
+
     func selectAllEmails() {
         selectedEmailIDs = Set(displayedEmails.map { $0.id.uuidString })
         selectedEmail = nil
