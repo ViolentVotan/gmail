@@ -7,6 +7,7 @@ actor AttachmentIndexer {
     private var isProcessing = false
     private let maxConcurrent = 3
     private let maxRetries = 3
+    private let cpuMonitor = CPUMonitor.shared
     /// In-memory set of message IDs already processed — avoids redundant DB queries on repeated fetches.
     private var processedMessageIDs: Set<String> = []
 
@@ -77,11 +78,16 @@ actor AttachmentIndexer {
         let db = database
         let service = messageService
         let acctID = accountID
+        let monitor = cpuMonitor
 
         var pending = db.pendingAttachments(limit: maxConcurrent, accountID: acctID)
         while !pending.isEmpty {
+            // Hard gate: wait if process CPU is above threshold
+            await monitor.throttleIfNeeded()
+            let batchSize = monitor.recommendedConcurrency(max: maxConcurrent)
+            let batch = Array(pending.prefix(batchSize))
             await withTaskGroup(of: Void.self) { group in
-                for att in pending {
+                for att in batch {
                     group.addTask {
                         await Self.indexAttachment(att, database: db, messageService: service, accountID: acctID)
                     }
@@ -90,6 +96,7 @@ actor AttachmentIndexer {
             if let onProgress = onProgressUpdate {
                 await onProgress()
             }
+            try? await Task.sleep(nanoseconds: monitor.recommendedDelay(base: 200_000_000))
             pending = db.pendingAttachments(limit: maxConcurrent, accountID: acctID)
         }
     }
@@ -154,6 +161,7 @@ actor AttachmentIndexer {
         let service = messageService
         let acctID = accountID
         let db = database
+        let monitor = cpuMonitor
 
         // Load persisted scan state
         let scanState = db.loadScanState(accountID: acctID)
@@ -195,22 +203,32 @@ actor AttachmentIndexer {
                 db.markMessagesScanned(newIDs, accountID: acctID)
 
                 if !toScan.isEmpty {
-                    // Fetch in full format to get parts + body
-                    let messages = try await service.getMessages(
-                        ids: toScan.map(\.id),
-                        accountID: acctID,
-                        format: "full"
-                    )
-
-                    totalDiscovered += messages.count
-                    print("[AttachmentIndexer] Scanned page: \(messages.count) new messages with attachments (total: \(totalDiscovered)/\(totalScanned) scanned)")
-
-                    // Register + process immediately so UI updates incrementally
-                    await registerFromFullMessages(messages: messages)
+                    // Fetch in adaptive chunks based on CPU pressure
+                    let cpuUsage = monitor.processCPUUsage()
+                    let chunkSize = cpuUsage > 100 ? 5 : cpuUsage > 75 ? 10 : cpuUsage > 50 ? 20 : toScan.count
+                    for chunkStart in stride(from: 0, to: toScan.count, by: chunkSize) {
+                        await monitor.throttleIfNeeded()
+                        let chunk = Array(toScan[chunkStart..<min(chunkStart + chunkSize, toScan.count)])
+                        let messages = try await service.getMessages(
+                            ids: chunk.map(\.id),
+                            accountID: acctID,
+                            format: "full"
+                        )
+                        totalDiscovered += messages.count
+                        await registerFromFullMessages(messages: messages)
+                        if chunkStart + chunkSize < toScan.count {
+                            try await Task.sleep(nanoseconds: monitor.recommendedDelay(base: 300_000_000))
+                        }
+                    }
+                    print("[AttachmentIndexer] Scanned page: \(totalDiscovered) messages with attachments (total scanned: \(totalScanned))")
                 }
 
                 // Persist scan progress after each page
                 db.saveScanState(accountID: acctID, pageToken: pageToken, isComplete: false)
+
+                // Pace between pages — hard gate + adaptive delay
+                await monitor.throttleIfNeeded()
+                try await Task.sleep(nanoseconds: monitor.recommendedDelay(base: 500_000_000))
 
             } while pageToken != nil && totalScanned < scanLimit
 

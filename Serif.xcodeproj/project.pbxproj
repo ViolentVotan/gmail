@@ -126,6 +126,8 @@
 		A100010100000000000000F4 /* HistorySyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F4 /* HistorySyncService.swift */; };
 		A100010100000000000000F5 /* MessageFetching.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F5 /* MessageFetching.swift */; };
 		A100010100000000000000F6 /* CacheStoring.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F6 /* CacheStoring.swift */; };
+		A100010100000000000000F7 /* CPUMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F7 /* CPUMonitor.swift */; };
+		B10001010000000000000009 /* CPUMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000009 /* CPUMonitorTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -251,6 +253,8 @@
 		A100020100000000000000F4 /* HistorySyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistorySyncService.swift; sourceTree = "<group>"; };
 		A100020100000000000000F5 /* MessageFetching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageFetching.swift; sourceTree = "<group>"; };
 		A100020100000000000000F6 /* CacheStoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheStoring.swift; sourceTree = "<group>"; };
+		A100020100000000000000F7 /* CPUMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CPUMonitor.swift; sourceTree = "<group>"; };
+		B10002010000000000000009 /* CPUMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CPUMonitorTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -487,6 +491,7 @@
 				A100020100000000000000C1 /* AvatarCache.swift */,
 				A100020100000000000000C2 /* BIMIService.swift */,
 				A100020100000000000000C3 /* NetworkMonitor.swift */,
+				A100020100000000000000F7 /* CPUMonitor.swift */,
 				A100020100000000000000D6 /* AttachmentDatabase.swift */,
 				A100020100000000000000D7 /* AttachmentSearchService.swift */,
 				A100020100000000000000D8 /* AttachmentIndexer.swift */,
@@ -580,6 +585,7 @@
 				B10002010000000000000006 /* TrackerBlockerTests.swift */,
 				B10002010000000000000007 /* AppCoordinatorTests.swift */,
 				B10002010000000000000008 /* LabelManagementTests.swift */,
+				B10002010000000000000009 /* CPUMonitorTests.swift */,
 			);
 			path = SerifTests;
 			sourceTree = "<group>";
@@ -790,6 +796,7 @@
 				A100010100000000000000F4 /* HistorySyncService.swift in Sources */,
 				A100010100000000000000F5 /* MessageFetching.swift in Sources */,
 				A100010100000000000000F6 /* CacheStoring.swift in Sources */,
+				A100010100000000000000F7 /* CPUMonitor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -805,6 +812,7 @@
 				B10001010000000000000006 /* TrackerBlockerTests.swift in Sources */,
 				B10001010000000000000007 /* AppCoordinatorTests.swift in Sources */,
 				B10001010000000000000008 /* LabelManagementTests.swift in Sources */,
+				B10001010000000000000009 /* CPUMonitorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
