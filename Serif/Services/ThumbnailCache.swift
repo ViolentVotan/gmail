@@ -1,7 +1,7 @@
 import AppKit
 import PDFKit
 
-/// In-memory cache of attachment thumbnails, loaded on-demand.
+/// In-memory cache of attachment thumbnails, loaded on-demand with concurrency throttling.
 @MainActor
 final class ThumbnailCache: ObservableObject {
     static let shared = ThumbnailCache()
@@ -12,18 +12,31 @@ final class ThumbnailCache: ObservableObject {
     /// IDs currently being fetched (to avoid duplicate requests).
     private var loading: Set<String> = []
 
+    /// Pending thumbnail requests queued when at capacity.
+    private var pendingQueue: [(id: String, attachment: IndexedAttachment, accountID: String)] = []
+
+    /// Number of active concurrent fetches.
+    private var activeFetches = 0
+    private let maxConcurrentFetches = 4
+
     private let maxSize = CGSize(width: 300, height: 200)
 
     func clearAll() {
         thumbnails.removeAll()
         loading.removeAll()
+        pendingQueue.removeAll()
     }
 
     func thumbnail(for id: String) -> NSImage? {
         thumbnails[id]
     }
 
-    /// Request a thumbnail for an attachment. Downloads the data, generates a thumbnail, and caches it.
+    /// Cancel a pending thumbnail load if the card scrolled offscreen before the fetch started.
+    func cancelIfNeeded(id: String) {
+        pendingQueue.removeAll { $0.id == id }
+    }
+
+    /// Request a thumbnail for an attachment. Queues if at concurrency limit.
     func loadIfNeeded(attachment: IndexedAttachment, accountID: String) {
         let id = attachment.id
         guard thumbnails[id] == nil, !loading.contains(id) else { return }
@@ -32,11 +45,28 @@ final class ThumbnailCache: ObservableObject {
         guard fileType == .image || fileType == .pdf else { return }
 
         loading.insert(id)
+
+        if activeFetches < maxConcurrentFetches {
+            startFetch(id: id, attachment: attachment, accountID: accountID)
+        } else {
+            pendingQueue.append((id: id, attachment: attachment, accountID: accountID))
+        }
+    }
+
+    // MARK: - Fetch
+
+    private func startFetch(id: String, attachment: IndexedAttachment, accountID: String) {
+        activeFetches += 1
         let msgId = attachment.messageId
         let attId = attachment.attachmentId
+        let fileType = Attachment.FileType(rawValue: attachment.fileType) ?? .document
 
         Task {
-            defer { loading.remove(id) }
+            defer {
+                loading.remove(id)
+                activeFetches -= 1
+                dequeueNext()
+            }
             do {
                 let data = try await GmailMessageService.shared.getAttachment(
                     messageID: msgId,
@@ -55,6 +85,18 @@ final class ThumbnailCache: ObservableObject {
                 // Silently skip — will show icon fallback
             }
         }
+    }
+
+    private func dequeueNext() {
+        guard activeFetches < maxConcurrentFetches, !pendingQueue.isEmpty else { return }
+        let next = pendingQueue.removeFirst()
+        // Skip if cancelled (removed from loading) or already cached
+        guard loading.contains(next.id), thumbnails[next.id] == nil else {
+            loading.remove(next.id)
+            dequeueNext()
+            return
+        }
+        startFetch(id: next.id, attachment: next.attachment, accountID: next.accountID)
     }
 
     // MARK: - Generators

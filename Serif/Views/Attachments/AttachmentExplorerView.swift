@@ -5,6 +5,10 @@ struct AttachmentExplorerView: View {
     @ObservedObject var panelCoordinator: PanelCoordinator
     let accountID: String
     @State private var downloadingAttachmentID: String?
+    @State private var showExclusionRuleAlert = false
+    @State private var exclusionRulePattern = ""
+    @State private var showRulesPopover = false
+    @State private var newRuleText = ""
     @Environment(\.theme) private var theme
 
     private let columns = [GridItem(.adaptive(minimum: 150, maximum: 200), spacing: 16)]
@@ -18,6 +22,15 @@ struct AttachmentExplorerView: View {
         }
         .background(theme.listBackground)
         .onAppear { store.refresh() }
+        .alert("Add exclusion rule", isPresented: $showExclusionRuleAlert) {
+            TextField("Pattern (e.g. Outlook-*)", text: $exclusionRulePattern)
+            Button("Cancel", role: .cancel) {}
+            Button("Add") {
+                store.addExclusionRule(exclusionRulePattern)
+            }
+        } message: {
+            Text("Attachments matching this pattern will be hidden. Use * as wildcard.")
+        }
     }
 
     // MARK: - Header
@@ -82,6 +95,12 @@ struct AttachmentExplorerView: View {
                 filterChip(label: "Sent", isSelected: store.filterDirection == .sent) {
                     store.filterDirection = store.filterDirection == .sent ? nil : .sent
                 }
+
+                Divider()
+                    .frame(height: 16)
+                    .padding(.horizontal, 4)
+
+                rulesChip
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -102,7 +121,11 @@ struct AttachmentExplorerView: View {
                                 result: result,
                                 isSearchActive: !store.searchQuery.isEmpty,
                                 accountID: accountID,
-                                onTap: { loadAndPreview(result.attachment) }
+                                onTap: { loadAndPreview(result.attachment) },
+                                onAddExclusionRule: { pattern in
+                                    exclusionRulePattern = pattern
+                                    showExclusionRuleAlert = true
+                                }
                             )
                         }
                     }
@@ -147,6 +170,88 @@ struct AttachmentExplorerView: View {
                 print("[AttachmentExplorer] Preview failed: \(error)")
             }
         }
+    }
+
+    // MARK: - Rules Chip
+
+    private var rulesChip: some View {
+        Button { showRulesPopover.toggle() } label: {
+            HStack(spacing: 4) {
+                Image(systemName: "eye.slash")
+                    .font(.system(size: 10))
+                Text(store.exclusionRules.isEmpty ? "Rules" : "Rules (\(store.exclusionRules.count))")
+                    .font(.system(size: 11, weight: .medium))
+            }
+            .foregroundColor(theme.textSecondary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Capsule().fill(theme.cardBackground))
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $showRulesPopover, arrowEdge: .bottom) {
+            rulesPopoverContent
+        }
+    }
+
+    private var rulesPopoverContent: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Exclusion Rules")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(theme.textPrimary)
+
+            if store.exclusionRules.isEmpty {
+                Text("Right-click an attachment to add a rule")
+                    .font(.system(size: 11))
+                    .foregroundColor(theme.textTertiary)
+            } else {
+                VStack(spacing: 4) {
+                    ForEach(store.exclusionRules, id: \.self) { rule in
+                        HStack {
+                            Text(rule)
+                                .font(.system(size: 12, design: .monospaced))
+                                .foregroundColor(theme.textPrimary)
+                            Spacer()
+                            Button {
+                                store.removeExclusionRule(rule)
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(theme.textTertiary)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+            }
+
+            Divider()
+
+            HStack(spacing: 6) {
+                TextField("Pattern (e.g. image-*)", text: $newRuleText)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                    .frame(minWidth: 140)
+                    .onSubmit {
+                        guard !newRuleText.isEmpty else { return }
+                        store.addExclusionRule(newRuleText)
+                        newRuleText = ""
+                    }
+                Button {
+                    guard !newRuleText.isEmpty else { return }
+                    store.addExclusionRule(newRuleText)
+                    newRuleText = ""
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 14))
+                        .foregroundColor(theme.accentPrimary)
+                }
+                .buttonStyle(.plain)
+                .disabled(newRuleText.isEmpty)
+            }
+        }
+        .padding(14)
+        .frame(width: 260)
     }
 
     // MARK: - Filter Chip

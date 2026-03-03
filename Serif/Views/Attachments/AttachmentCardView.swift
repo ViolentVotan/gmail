@@ -5,6 +5,7 @@ struct AttachmentCardView: View {
     let isSearchActive: Bool
     let accountID: String
     var onTap: (() -> Void)?
+    var onAddExclusionRule: ((String) -> Void)?
     @State private var isHovered = false
     @ObservedObject private var thumbCache = ThumbnailCache.shared
     @Environment(\.theme) private var theme
@@ -78,6 +79,29 @@ struct AttachmentCardView: View {
         .onAppear {
             thumbCache.loadIfNeeded(attachment: result.attachment, accountID: accountID)
         }
+        .onDisappear {
+            thumbCache.cancelIfNeeded(id: result.attachment.id)
+        }
+        .contextMenu {
+            Button {
+                onAddExclusionRule?(suggestedPattern)
+            } label: {
+                Label("Add exclusion rule...", systemImage: "eye.slash")
+            }
+        }
+    }
+
+    /// Suggests a glob pattern from the filename, e.g. "Outlook-abc123.png" → "Outlook-*"
+    private var suggestedPattern: String {
+        let name = result.attachment.filename
+        // Try to find a prefix before a digit-run or random-looking suffix
+        if let dashRange = name.range(of: "-"),
+           let afterDash = name[dashRange.upperBound...].first,
+           afterDash.isNumber || afterDash.isLetter {
+            let prefix = String(name[...dashRange.lowerBound])
+            return prefix + "*"
+        }
+        return name
     }
 
     private var cardContent: some View {

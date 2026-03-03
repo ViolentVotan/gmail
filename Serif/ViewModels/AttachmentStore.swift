@@ -1,6 +1,17 @@
 import Foundation
 import Combine
 
+// MARK: - Glob Matching
+
+extension String {
+    /// Matches a simple glob pattern (supports `*` as wildcard, case-insensitive).
+    func matchesGlob(_ pattern: String) -> Bool {
+        let escaped = NSRegularExpression.escapedPattern(for: pattern)
+        let regexPattern = "^" + escaped.replacingOccurrences(of: "\\*", with: ".*") + "$"
+        return range(of: regexPattern, options: [.regularExpression, .caseInsensitive]) != nil
+    }
+}
+
 // MARK: - IndexingStats
 
 struct IndexingStats: Equatable {
@@ -24,6 +35,7 @@ final class AttachmentStore: ObservableObject {
     @Published var isSearching = false
     @Published var filterFileType: Attachment.FileType?
     @Published var filterDirection: IndexedAttachment.Direction?
+    @Published var exclusionRules: [String] = []
 
     // MARK: - Dependencies
 
@@ -49,6 +61,13 @@ final class AttachmentStore: ObservableObject {
         }
         if let direction = filterDirection {
             results = results.filter { $0.attachment.direction == direction }
+        }
+
+        // Apply exclusion rules
+        if !exclusionRules.isEmpty {
+            results = results.filter { r in
+                !exclusionRules.contains(where: { r.attachment.filename.matchesGlob($0) })
+            }
         }
 
         // Deduplicate by filename + size (same file attached to multiple emails)
@@ -85,6 +104,7 @@ final class AttachmentStore: ObservableObject {
     // MARK: - Refresh
 
     func refresh() {
+        loadExclusionRules()
         allAttachments = database.allAttachments(limit: 5000, offset: 0, accountID: accountID)
         let raw = database.stats(accountID: accountID)
         stats = IndexingStats(
@@ -93,6 +113,27 @@ final class AttachmentStore: ObservableObject {
             pending: raw.pending,
             failed: raw.failed
         )
+    }
+
+    // MARK: - Exclusion Rules
+
+    func loadExclusionRules() {
+        exclusionRules = UserDefaults.standard.stringArray(forKey: "attachmentExclusionRules.\(accountID)") ?? []
+    }
+
+    func saveExclusionRules() {
+        UserDefaults.standard.set(exclusionRules, forKey: "attachmentExclusionRules.\(accountID)")
+    }
+
+    func addExclusionRule(_ pattern: String) {
+        guard !pattern.isEmpty, !exclusionRules.contains(pattern) else { return }
+        exclusionRules.append(pattern)
+        saveExclusionRules()
+    }
+
+    func removeExclusionRule(_ pattern: String) {
+        exclusionRules.removeAll { $0 == pattern }
+        saveExclusionRules()
     }
 
     // MARK: - Search
