@@ -23,7 +23,9 @@ struct AccountAvatarBubble: View {
                 if let url = account.profilePictureURL {
                     AsyncImage(url: url) { phase in
                         if case .success(let img) = phase {
-                            img.resizable().scaledToFill().clipShape(Circle())
+                            img.resizable()
+                                .scaledToFill()
+                                .frame(width: size, height: size)
                         } else {
                             Text(initial)
                                 .font(.system(size: size * 0.38, weight: .semibold))
@@ -42,6 +44,8 @@ struct AccountAvatarBubble: View {
                 }
             }
             .frame(width: size, height: size)
+            .clipShape(Circle())
+            .drawingGroup(opaque: false)
         }
         .buttonStyle(.plain)
         .help(account.email)
