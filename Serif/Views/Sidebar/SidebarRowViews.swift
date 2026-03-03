@@ -92,12 +92,7 @@ struct InboxCategoryRow: View {
                 Spacer()
 
                 if unreadCount > 0 {
-                    Text(unreadCount < 100 ? "\(unreadCount)" : "99+")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(isSelected ? theme.sidebarBadgeText : theme.sidebarTextMuted)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(isSelected ? theme.sidebarBadge : theme.sidebarBadge))
+                    BadgeView(count: unreadCount, isSelected: isSelected)
                 }
             }
             .padding(.horizontal, 10)
@@ -201,12 +196,7 @@ struct LabelSidebarRow: View {
                 Spacer()
 
                 if let unread = label.messagesUnread, unread > 0 {
-                    Text(unread < 100 ? "\(unread)" : "99+")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(isSelected ? theme.sidebarBadgeText : theme.sidebarTextMuted)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(isSelected ? theme.sidebarBadge : theme.sidebarBadge))
+                    BadgeView(count: unread, isSelected: isSelected)
                 }
             }
             .padding(.horizontal, 10)
@@ -256,7 +246,7 @@ struct SidebarItemView: View {
 
             if folder.count > 0 {
                 Text("\(folder.count)")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.serifSmallMedium)
                     .foregroundColor(isSelected ? theme.sidebarBadgeText : theme.sidebarTextMuted)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)

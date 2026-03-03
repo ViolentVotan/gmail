@@ -11,12 +11,12 @@ struct BehaviorSettingsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Behavior")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.serifTitle)
                 .foregroundColor(theme.textPrimary)
 
             HStack {
                 Text("Undo duration")
-                    .font(.system(size: 12))
+                    .font(.serifCaption)
                     .foregroundColor(theme.textSecondary)
                 Spacer()
                 Picker("", selection: $undoDuration) {
@@ -33,7 +33,7 @@ struct BehaviorSettingsCard: View {
 
             HStack {
                 Text("Refresh interval")
-                    .font(.system(size: 12))
+                    .font(.serifCaption)
                     .foregroundColor(theme.textSecondary)
                 Spacer()
                 Picker("", selection: $refreshInterval) {
@@ -48,10 +48,7 @@ struct BehaviorSettingsCard: View {
 
             RefreshStatusView(lastRefreshedAt: lastRefreshedAt, refreshInterval: refreshInterval)
         }
-        .padding(20)
-        .background(theme.cardBackground)
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.06), radius: 4, y: 1)
+        .cardStyle()
     }
 }
 
@@ -67,12 +64,12 @@ struct ContactsSettingsCard: View {
 
         VStack(alignment: .leading, spacing: 12) {
             Text("Contacts")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.serifTitle)
                 .foregroundColor(theme.textPrimary)
 
             HStack {
                 Text("\(count) contacts cached")
-                    .font(.system(size: 12))
+                    .font(.serifCaption)
                     .foregroundColor(theme.textSecondary)
 
                 Spacer()
@@ -92,10 +89,10 @@ struct ContactsSettingsCard: View {
                                 .frame(width: 12, height: 12)
                         } else {
                             Image(systemName: "arrow.clockwise")
-                                .font(.system(size: 11))
+                                .font(.serifSmall)
                         }
                         Text(isRefreshingContacts ? "Refreshing…" : "Refresh")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.serifLabel)
                     }
                     .foregroundColor(theme.accentPrimary)
                 }
@@ -103,10 +100,7 @@ struct ContactsSettingsCard: View {
                 .disabled(isRefreshingContacts)
             }
         }
-        .padding(20)
-        .background(theme.cardBackground)
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.06), radius: 4, y: 1)
+        .cardStyle()
     }
 }
 
@@ -121,12 +115,12 @@ struct SignatureSettingsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Signatures")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.serifTitle)
                 .foregroundColor(theme.textPrimary)
 
             if aliases.isEmpty {
                 Text("No aliases found")
-                    .font(.system(size: 12))
+                    .font(.serifCaption)
                     .foregroundColor(theme.textTertiary)
             } else {
                 VStack(alignment: .leading, spacing: 8) {
@@ -134,7 +128,7 @@ struct SignatureSettingsCard: View {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(spacing: 6) {
                                 Text(alias.displayName ?? alias.sendAsEmail)
-                                    .font(.system(size: 12, weight: .medium))
+                                    .font(.serifLabel)
                                     .foregroundColor(theme.textPrimary)
                                 if alias.isPrimary == true {
                                     Text("Primary")
@@ -146,16 +140,16 @@ struct SignatureSettingsCard: View {
                                 }
                             }
                             Text(alias.sendAsEmail)
-                                .font(.system(size: 11))
+                                .font(.serifSmall)
                                 .foregroundColor(theme.textTertiary)
                             if let sig = alias.signature, !sig.isEmpty {
                                 Text(sig.strippingHTML.prefix(80) + (sig.strippingHTML.count > 80 ? "…" : ""))
-                                    .font(.system(size: 10))
+                                    .font(.serifBadge)
                                     .foregroundColor(theme.textTertiary)
                                     .lineLimit(2)
                             } else {
                                 Text("No signature")
-                                    .font(.system(size: 10))
+                                    .font(.serifBadge)
                                     .foregroundColor(theme.textTertiary)
                                     .italic()
                             }
@@ -168,7 +162,7 @@ struct SignatureSettingsCard: View {
 
                 HStack {
                     Text("New emails")
-                        .font(.system(size: 12))
+                        .font(.serifCaption)
                         .foregroundColor(theme.textSecondary)
                     Spacer()
                     Picker("", selection: $signatureForNew) {
@@ -183,7 +177,7 @@ struct SignatureSettingsCard: View {
 
                 HStack {
                     Text("Replies & forwards")
-                        .font(.system(size: 12))
+                        .font(.serifCaption)
                         .foregroundColor(theme.textSecondary)
                     Spacer()
                     Picker("", selection: $signatureForReply) {
@@ -197,10 +191,7 @@ struct SignatureSettingsCard: View {
                 }
             }
         }
-        .padding(20)
-        .background(theme.cardBackground)
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.06), radius: 4, y: 1)
+        .cardStyle()
     }
 }
 
@@ -223,20 +214,20 @@ struct StorageSettingsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Storage")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.serifTitle)
                 .foregroundColor(theme.textPrimary)
 
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Attachment index")
-                        .font(.system(size: 12))
+                        .font(.serifCaption)
                         .foregroundColor(theme.textSecondary)
                     HStack(spacing: 8) {
                         Text(formattedSize)
-                            .font(.system(size: 12, weight: .medium, design: .monospaced))
+                            .font(.serifMono)
                             .foregroundColor(theme.textPrimary)
                         Text("\(attachmentStore.stats.total) attachments")
-                            .font(.system(size: 11))
+                            .font(.serifSmall)
                             .foregroundColor(theme.textTertiary)
                     }
                 }
@@ -253,10 +244,10 @@ struct StorageSettingsCard: View {
                                 .frame(width: 12, height: 12)
                         } else {
                             Image(systemName: "trash")
-                                .font(.system(size: 11))
+                                .font(.serifSmall)
                         }
                         Text(isClearing ? "Clearing..." : "Clear")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.serifLabel)
                     }
                     .foregroundColor(.red)
                 }
@@ -264,10 +255,7 @@ struct StorageSettingsCard: View {
                 .disabled(isClearing || dbSize == 0)
             }
         }
-        .padding(20)
-        .background(theme.cardBackground)
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.06), radius: 4, y: 1)
+        .cardStyle()
         .onAppear {
             attachmentStore.refresh()
             dbSize = AttachmentDatabase.shared.databaseSizeBytes()
@@ -306,19 +294,19 @@ struct RefreshStatusView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Image(systemName: "clock.arrow.2.circlepath")
-                    .font(.system(size: 10))
+                    .font(.serifBadge)
                     .foregroundColor(theme.textTertiary)
                 Text(lastRefreshLabel)
-                    .font(.system(size: 11))
+                    .font(.serifSmall)
                     .foregroundColor(theme.textTertiary)
                 Spacer()
             }
             HStack {
                 Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 10))
+                    .font(.serifBadge)
                     .foregroundColor(theme.textTertiary)
                 Text(nextRefreshLabel)
-                    .font(.system(size: 11))
+                    .font(.serifSmall)
                     .foregroundColor(theme.textTertiary)
                 Spacer()
             }

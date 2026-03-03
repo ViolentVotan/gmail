@@ -58,10 +58,7 @@ struct ThemePickerView: View {
                 customizeSection
             }
         }
-        .padding(20)
-        .background(theme.cardBackground)
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.06), radius: 2, y: 1)
+        .cardStyle()
     }
 
     private var customizeSection: some View {

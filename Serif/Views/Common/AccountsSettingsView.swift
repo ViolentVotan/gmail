@@ -41,10 +41,7 @@ struct AccountsSettingsView: View {
             .disabled(authViewModel.isSigningIn)
             .opacity(authViewModel.isSigningIn ? 0.6 : 1)
         }
-        .padding(20)
-        .background(theme.cardBackground)
-        .cornerRadius(12)
-        .shadow(color: .black.opacity(0.06), radius: 4, y: 1)
+        .cardStyle()
     }
 
     private func accountRow(_ account: GmailAccount) -> some View {

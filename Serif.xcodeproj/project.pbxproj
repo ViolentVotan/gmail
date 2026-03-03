@@ -12,6 +12,7 @@
 		A10001010000000000000003 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000003 /* Theme.swift */; };
 		A10001010000000000000004 /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000004 /* ThemeManager.swift */; };
 		A10001010000000000000005 /* DefaultThemes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000005 /* DefaultThemes.swift */; };
+		A100010100000000000000DE /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000DE /* DesignSystem.swift */; };
 		A10001010000000000000006 /* Email.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000006 /* Email.swift */; };
 		A10001010000000000000008 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000008 /* SidebarView.swift */; };
 		A10001010000000000000009 /* EmailListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000009 /* EmailListView.swift */; };
@@ -102,6 +103,13 @@
 		A100010100000000000000DB /* AttachmentCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000DB /* AttachmentCardView.swift */; };
 		A100010100000000000000DC /* AttachmentExplorerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000DC /* AttachmentExplorerView.swift */; };
 		A100010100000000000000DD /* ThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000DD /* ThumbnailCache.swift */; };
+		A100010100000000000000E0 /* BadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E0 /* BadgeView.swift */; };
+		A100010100000000000000E1 /* CardContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E1 /* CardContainer.swift */; };
+		A100010100000000000000E2 /* IconButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E2 /* IconButton.swift */; };
+		B10001010000000000000001 /* GmailModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000001 /* GmailModelsTests.swift */; };
+		B10001010000000000000002 /* EmailModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000002 /* EmailModelTests.swift */; };
+		B10001010000000000000003 /* GmailDataTransformerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000003 /* GmailDataTransformerTests.swift */; };
+		B10001010000000000000004 /* StringExtensionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000004 /* StringExtensionsTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -110,6 +118,7 @@
 		A10002010000000000000003 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		A10002010000000000000004 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		A10002010000000000000005 /* DefaultThemes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultThemes.swift; sourceTree = "<group>"; };
+		A100020100000000000000DE /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		A10002010000000000000006 /* Email.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Email.swift; sourceTree = "<group>"; };
 		A10002010000000000000008 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
 		A10002010000000000000009 /* EmailListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailListView.swift; sourceTree = "<group>"; };
@@ -202,6 +211,14 @@
 		A100020100000000000000DB /* AttachmentCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentCardView.swift; sourceTree = "<group>"; };
 		A100020100000000000000DC /* AttachmentExplorerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentExplorerView.swift; sourceTree = "<group>"; };
 		A100020100000000000000DD /* ThumbnailCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailCache.swift; sourceTree = "<group>"; };
+		A100020100000000000000E0 /* BadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BadgeView.swift; sourceTree = "<group>"; };
+		A100020100000000000000E1 /* CardContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardContainer.swift; sourceTree = "<group>"; };
+		A100020100000000000000E2 /* IconButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconButton.swift; sourceTree = "<group>"; };
+		B10002010000000000000001 /* GmailModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailModelsTests.swift; sourceTree = "<group>"; };
+		B10002010000000000000002 /* EmailModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailModelTests.swift; sourceTree = "<group>"; };
+		B10002010000000000000003 /* GmailDataTransformerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailDataTransformerTests.swift; sourceTree = "<group>"; };
+		B10002010000000000000004 /* StringExtensionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringExtensionsTests.swift; sourceTree = "<group>"; };
+		B10002010000000000000099 /* SerifTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SerifTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -213,6 +230,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B10003010000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -220,6 +244,7 @@
 			isa = PBXGroup;
 			children = (
 				A10004010000000000000002 /* Serif */,
+				B10004010000000000000001 /* SerifTests */,
 				A10004010000000000000099 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -249,6 +274,7 @@
 				A10002010000000000000003 /* Theme.swift */,
 				A10002010000000000000004 /* ThemeManager.swift */,
 				A10002010000000000000005 /* DefaultThemes.swift */,
+				A100020100000000000000DE /* DesignSystem.swift */,
 			);
 			path = Theme;
 			sourceTree = "<group>";
@@ -275,6 +301,7 @@
 				A1000401000000000000000A /* Compose */,
 				A1000401000000000000000B /* Attachments */,
 				A1000401000000000000000C /* Onboarding */,
+				A100040100000000000000E3 /* Components */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -367,6 +394,16 @@
 				A10002010000000000000060 /* OnboardingView.swift */,
 			);
 			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		A100040100000000000000E3 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				A100020100000000000000E0 /* BadgeView.swift */,
+				A100020100000000000000E1 /* CardContainer.swift */,
+				A100020100000000000000E2 /* IconButton.swift */,
+			);
+			path = Components;
 			sourceTree = "<group>";
 		};
 		A10004010000000000000010 /* Resources */ = {
@@ -475,8 +512,20 @@
 			isa = PBXGroup;
 			children = (
 				A10002010000000000000099 /* Serif.app */,
+				B10002010000000000000099 /* SerifTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		B10004010000000000000001 /* SerifTests */ = {
+			isa = PBXGroup;
+			children = (
+				B10002010000000000000001 /* GmailModelsTests.swift */,
+				B10002010000000000000002 /* EmailModelTests.swift */,
+				B10002010000000000000003 /* GmailDataTransformerTests.swift */,
+				B10002010000000000000004 /* StringExtensionsTests.swift */,
+			);
+			path = SerifTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -502,6 +551,23 @@
 			productReference = A10002010000000000000099 /* Serif.app */;
 			productType = "com.apple.product-type.application";
 		};
+		B10005010000000000000001 /* SerifTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B10007010000000000000001 /* Build configuration list for PBXNativeTarget "SerifTests" */;
+			buildPhases = (
+				B10006010000000000000001 /* Sources */,
+				B10003010000000000000001 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				B10005010000000000000002 /* PBXTargetDependency */,
+			);
+			name = SerifTests;
+			productName = SerifTests;
+			productReference = B10002010000000000000099 /* SerifTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -514,6 +580,10 @@
 				TargetAttributes = {
 					A10005010000000000000001 = {
 						CreatedOnToolsVersion = 15.4;
+					};
+					B10005010000000000000001 = {
+						CreatedOnToolsVersion = 15.4;
+						TestTargetID = A10005010000000000000001;
 					};
 				};
 			};
@@ -534,6 +604,7 @@
 			projectRoot = "";
 			targets = (
 				A10005010000000000000001 /* Serif */,
+				B10005010000000000000001 /* SerifTests */,
 			);
 		};
 /* End PBXProject section */
@@ -564,6 +635,7 @@
 				A10001010000000000000003 /* Theme.swift in Sources */,
 				A10001010000000000000004 /* ThemeManager.swift in Sources */,
 				A10001010000000000000005 /* DefaultThemes.swift in Sources */,
+				A100010100000000000000DE /* DesignSystem.swift in Sources */,
 				A10001010000000000000006 /* Email.swift in Sources */,
 				A10001010000000000000008 /* SidebarView.swift in Sources */,
 				A10001010000000000000009 /* EmailListView.swift in Sources */,
@@ -647,10 +719,42 @@
 				A100010100000000000000DB /* AttachmentCardView.swift in Sources */,
 				A100010100000000000000DC /* AttachmentExplorerView.swift in Sources */,
 				A100010100000000000000DD /* ThumbnailCache.swift in Sources */,
+				A100010100000000000000E0 /* BadgeView.swift in Sources */,
+				A100010100000000000000E1 /* CardContainer.swift in Sources */,
+				A100010100000000000000E2 /* IconButton.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B10006010000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B10001010000000000000001 /* GmailModelsTests.swift in Sources */,
+				B10001010000000000000002 /* EmailModelTests.swift in Sources */,
+				B10001010000000000000003 /* GmailDataTransformerTests.swift in Sources */,
+				B10001010000000000000004 /* StringExtensionsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		B10005010000000000000002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10005010000000000000001 /* Serif */;
+			targetProxy = B10005010000000000000003 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXContainerItemProxy section */
+		B10005010000000000000003 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A10008010000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A10005010000000000000001;
+			remoteInfo = Serif;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin XCBuildConfiguration section */
 		A10009010000000000000001 /* Debug */ = {
@@ -825,6 +929,40 @@
 			};
 			name = Release;
 		};
+		B10009010000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.serif.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Serif.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Serif";
+			};
+			name = Debug;
+		};
+		B10009010000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.serif.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Serif.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Serif";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -842,6 +980,15 @@
 			buildConfigurations = (
 				A10009010000000000000001 /* Debug */,
 				A10009010000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B10007010000000000000001 /* Build configuration list for PBXNativeTarget "SerifTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B10009010000000000000001 /* Debug */,
+				B10009010000000000000002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
