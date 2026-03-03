@@ -65,12 +65,7 @@ struct ContentView: View {
                         selectedEmail: $coordinator.selectedEmail,
                         selectedEmailIDs: $coordinator.selectedEmailIDs,
                         searchFocusTrigger: $coordinator.searchFocusTrigger,
-                        actionCoordinator: coordinator.actionCoordinator,
-                        mailboxViewModel: coordinator.mailboxViewModel,
-                        onSelectNext: { coordinator.selectedEmail = $0 },
-                        onLoadCurrentFolder: { await coordinator.loadCurrentFolder() },
-                        onEmptyTrashRequested: { count in coordinator.trashTotalCount = count; coordinator.showEmptyTrashConfirm = true },
-                        onEmptySpamRequested: { count in coordinator.spamTotalCount = count; coordinator.showEmptySpamConfirm = true }
+                        coordinator: coordinator
                     )
 
                     DetailPaneView(
@@ -78,21 +73,7 @@ struct ContentView: View {
                         selectedEmailIDs: coordinator.selectedEmailIDs,
                         selectedFolder: coordinator.selectedFolder,
                         displayedEmails: coordinator.displayedEmails,
-                        actionCoordinator: coordinator.actionCoordinator,
-                        mailboxViewModel: coordinator.mailboxViewModel,
-                        mailStore: coordinator.mailStore,
-                        accountID: coordinator.accountID,
-                        fromAddress: coordinator.authViewModel.primaryAccount?.email ?? "",
-                        composeMode: coordinator.composeMode,
-                        signatureForNew: coordinator.signatureForNew,
-                        signatureForReply: coordinator.signatureForReply,
-                        panelCoordinator: coordinator.panelCoordinator,
-                        attachmentIndexer: coordinator.attachmentIndexer,
-                        onSelectNext: { coordinator.selectedEmail = $0 },
-                        onClearSelection: { coordinator.selectedEmail = nil; coordinator.selectedEmailIDs = [] },
-                        onDeselectAll: { coordinator.selectedEmailIDs = [] },
-                        onStartCompose: { mode in coordinator.startCompose(mode: mode) },
-                        onDiscardDraft: { id in coordinator.discardDraft(id: id) }
+                        coordinator: coordinator
                     )
                 }
             }

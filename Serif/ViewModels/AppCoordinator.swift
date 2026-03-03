@@ -76,7 +76,34 @@ class AppCoordinator: ObservableObject {
         : mailboxViewModel.isLoading
     }
 
+    var fromAddress: String {
+        authViewModel.primaryAccount?.email ?? ""
+    }
+
     // MARK: - Actions
+
+    func selectNext(_ email: Email?) {
+        selectedEmail = email
+    }
+
+    func clearSelection() {
+        selectedEmail = nil
+        selectedEmailIDs = []
+    }
+
+    func deselectAll() {
+        selectedEmailIDs = []
+    }
+
+    func emptyTrashRequested(count: Int) {
+        trashTotalCount = count
+        showEmptyTrashConfirm = true
+    }
+
+    func emptySpamRequested(count: Int) {
+        spamTotalCount = count
+        showEmptySpamConfirm = true
+    }
 
     func selectAllEmails() {
         selectedEmailIDs = Set(displayedEmails.map { $0.id.uuidString })

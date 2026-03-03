@@ -6,26 +6,22 @@ struct DetailPaneView: View {
     let selectedFolder: Folder
     let displayedEmails: [Email]
 
-    let actionCoordinator: EmailActionCoordinator
-    let mailboxViewModel: MailboxViewModel
-    let mailStore: MailStore
-    let accountID: String
-    let fromAddress: String
-
-    let composeMode: ComposeMode
-    let signatureForNew: String
-    let signatureForReply: String
-
-    let panelCoordinator: PanelCoordinator
-    var attachmentIndexer: AttachmentIndexer?
-
-    let onSelectNext: (Email?) -> Void
-    let onClearSelection: () -> Void
-    let onDeselectAll: () -> Void
-    let onStartCompose: (ComposeMode) -> Void
-    let onDiscardDraft: (UUID) -> Void
+    let coordinator: AppCoordinator
 
     @Environment(\.theme) private var theme
+
+    // MARK: - Convenience Accessors
+
+    private var actionCoordinator: EmailActionCoordinator { coordinator.actionCoordinator }
+    private var mailboxViewModel: MailboxViewModel { coordinator.mailboxViewModel }
+    private var mailStore: MailStore { coordinator.mailStore }
+    private var accountID: String { coordinator.accountID }
+    private var fromAddress: String { coordinator.fromAddress }
+    private var composeMode: ComposeMode { coordinator.composeMode }
+    private var signatureForNew: String { coordinator.signatureForNew }
+    private var signatureForReply: String { coordinator.signatureForReply }
+    private var panelCoordinator: PanelCoordinator { coordinator.panelCoordinator }
+    private var attachmentIndexer: AttachmentIndexer? { coordinator.attachmentIndexer }
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
@@ -62,13 +58,13 @@ struct DetailPaneView: View {
         BulkActionBarView(
             count: selectedEmailIDs.count,
             selectedFolder: selectedFolder,
-            onArchive:     { actionCoordinator.bulkArchive(selectedEmails, onClear: onClearSelection) },
-            onDelete:      { actionCoordinator.bulkDelete(selectedEmails, onClear: onClearSelection) },
-            onMarkUnread:  { actionCoordinator.bulkMarkUnread(selectedEmails, onClear: onDeselectAll) },
-            onMarkRead:    { actionCoordinator.bulkMarkRead(selectedEmails, onClear: onDeselectAll) },
+            onArchive:     { actionCoordinator.bulkArchive(selectedEmails, onClear: { coordinator.clearSelection() }) },
+            onDelete:      { actionCoordinator.bulkDelete(selectedEmails, onClear: { coordinator.clearSelection() }) },
+            onMarkUnread:  { actionCoordinator.bulkMarkUnread(selectedEmails, onClear: { coordinator.deselectAll() }) },
+            onMarkRead:    { actionCoordinator.bulkMarkRead(selectedEmails, onClear: { coordinator.deselectAll() }) },
             onToggleStar:  { for e in selectedEmails { actionCoordinator.toggleStarEmail(e) } },
-            onMoveToInbox: { actionCoordinator.bulkMoveToInbox(selectedEmails, selectedFolder: selectedFolder, onClear: onClearSelection) },
-            onDeselectAll: onDeselectAll
+            onMoveToInbox: { actionCoordinator.bulkMoveToInbox(selectedEmails, selectedFolder: selectedFolder, onClear: { coordinator.clearSelection() }) },
+            onDeselectAll: { coordinator.deselectAll() }
         )
     }
 
@@ -85,7 +81,7 @@ struct DetailPaneView: View {
             signatureForNew: signatureForNew,
             signatureForReply: signatureForReply,
             contacts: ContactStore.shared.contacts(for: accountID),
-            onDiscard: { onDiscardDraft(draftId) }
+            onDiscard: { coordinator.discardDraft(id: draftId) }
         )
         .id(draftId)
     }
@@ -97,14 +93,14 @@ struct DetailPaneView: View {
             email: email,
             accountID: accountID,
             attachmentIndexer: attachmentIndexer,
-            onArchive: selectedFolder == .archive ? nil : { actionCoordinator.archiveEmail(email, selectNext: onSelectNext) },
-            onDelete: selectedFolder == .trash ? nil : { actionCoordinator.deleteEmail(email, selectNext: onSelectNext) },
+            onArchive: selectedFolder == .archive ? nil : { actionCoordinator.archiveEmail(email, selectNext: { coordinator.selectNext($0) }) },
+            onDelete: selectedFolder == .trash ? nil : { actionCoordinator.deleteEmail(email, selectNext: { coordinator.selectNext($0) }) },
             onMoveToInbox: selectedFolder == .archive || selectedFolder == .trash
-                ? { actionCoordinator.moveToInboxEmail(email, selectedFolder: selectedFolder, selectNext: onSelectNext) } : nil,
+                ? { actionCoordinator.moveToInboxEmail(email, selectedFolder: selectedFolder, selectNext: { coordinator.selectNext($0) }) } : nil,
             onDeletePermanently: selectedFolder == .trash
-                ? { actionCoordinator.deletePermanentlyEmail(email, selectNext: onSelectNext) } : nil,
+                ? { actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selectNext($0) }) } : nil,
             onMarkNotSpam: selectedFolder == .spam
-                ? { actionCoordinator.markNotSpamEmail(email, selectNext: onSelectNext) } : nil,
+                ? { actionCoordinator.markNotSpamEmail(email, selectNext: { coordinator.selectNext($0) }) } : nil,
             onToggleStar: { isCurrentlyStarred in
                 guard let msgID = email.gmailMessageID else { return }
                 Task { await mailboxViewModel.toggleStar(msgID, isStarred: isCurrentlyStarred) }
@@ -119,9 +115,9 @@ struct DetailPaneView: View {
                 guard let msgID = email.gmailMessageID else { return }
                 Task { await mailboxViewModel.removeLabel(labelID, from: msgID) }
             },
-            onReply: onStartCompose,
-            onReplyAll: onStartCompose,
-            onForward: onStartCompose,
+            onReply: { mode in coordinator.startCompose(mode: mode) },
+            onReplyAll: { mode in coordinator.startCompose(mode: mode) },
+            onForward: { mode in coordinator.startCompose(mode: mode) },
             onCreateAndAddLabel: { name, completion in
                 guard let msgID = email.gmailMessageID else { completion(nil); return }
                 Task {

@@ -117,6 +117,9 @@
 		B10001010000000000000004 /* StringExtensionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000004 /* StringExtensionsTests.swift */; };
 		A100010100000000000000F0 /* SignatureResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F0 /* SignatureResolver.swift */; };
 		A100010100000000000000F1 /* ComposeModeInitializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F1 /* ComposeModeInitializer.swift */; };
+		A100010100000000000000F2 /* MessageFetchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F2 /* MessageFetchService.swift */; };
+		A100010100000000000000F3 /* LabelSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F3 /* LabelSyncService.swift */; };
+		A100010100000000000000F4 /* HistorySyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F4 /* HistorySyncService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -233,6 +236,9 @@
 		B10002010000000000000099 /* SerifTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SerifTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A100020100000000000000F0 /* SignatureResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignatureResolver.swift; sourceTree = "<group>"; };
 		A100020100000000000000F1 /* ComposeModeInitializer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeModeInitializer.swift; sourceTree = "<group>"; };
+		A100020100000000000000F2 /* MessageFetchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageFetchService.swift; sourceTree = "<group>"; };
+		A100020100000000000000F3 /* LabelSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelSyncService.swift; sourceTree = "<group>"; };
+		A100020100000000000000F4 /* HistorySyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistorySyncService.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -474,6 +480,9 @@
 				A100020100000000000000D9 /* ContentExtractor.swift */,
 				A100020100000000000000DD /* ThumbnailCache.swift */,
 				A100020100000000000000F0 /* SignatureResolver.swift */,
+				A100020100000000000000F2 /* MessageFetchService.swift */,
+				A100020100000000000000F3 /* LabelSyncService.swift */,
+				A100020100000000000000F4 /* HistorySyncService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -750,6 +759,9 @@
 				A100010100000000000000E7 /* PullToRefreshView.swift in Sources */,
 				A100010100000000000000F0 /* SignatureResolver.swift in Sources */,
 				A100010100000000000000F1 /* ComposeModeInitializer.swift in Sources */,
+				A100010100000000000000F2 /* MessageFetchService.swift in Sources */,
+				A100010100000000000000F3 /* LabelSyncService.swift in Sources */,
+				A100010100000000000000F4 /* HistorySyncService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
