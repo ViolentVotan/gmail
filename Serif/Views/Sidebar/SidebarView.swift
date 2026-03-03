@@ -102,7 +102,8 @@ struct SidebarView: View {
         .background(theme.sidebarBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .padding(.vertical, 8)
-        .padding(.leading, 8)
+        .padding(.horizontal, 8)
+        .animation(.easeInOut(duration: 0.25), value: isExpanded)
     }
 
     // MARK: - Inbox super-category
