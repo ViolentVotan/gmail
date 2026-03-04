@@ -16,7 +16,7 @@ class EmailActionCoordinator: ObservableObject {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
         let removed = vm.removeOptimistically(msgID)
-        selectNext(vm.emails.first)
+        selectNext(nil)
         UndoActionManager.shared.schedule(
             label: "Archived",
             onConfirm: { Task { await vm.archive(msgID) } },
@@ -28,7 +28,7 @@ class EmailActionCoordinator: ObservableObject {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
         let removed = vm.removeOptimistically(msgID)
-        selectNext(vm.emails.first)
+        selectNext(nil)
         UndoActionManager.shared.schedule(
             label: "Moved to Trash",
             onConfirm: { Task { await vm.trash(msgID) } },
@@ -50,7 +50,7 @@ class EmailActionCoordinator: ObservableObject {
         guard let msgID = email.gmailMessageID else { return }
         Task {
             await mailboxViewModel.spam(msgID)
-            selectNext(mailboxViewModel.emails.first)
+            selectNext(nil)
         }
     }
 
@@ -64,7 +64,7 @@ class EmailActionCoordinator: ObservableObject {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
         let removed = vm.removeOptimistically(msgID)
-        selectNext(vm.emails.first)
+        selectNext(nil)
         if selectedFolder == .trash {
             UndoActionManager.shared.schedule(
                 label: "Moved to Inbox",
@@ -84,7 +84,7 @@ class EmailActionCoordinator: ObservableObject {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
         let removed = vm.removeOptimistically(msgID)
-        selectNext(vm.emails.first)
+        selectNext(nil)
         UndoActionManager.shared.schedule(
             label: "Deleted permanently",
             onConfirm: { Task { await vm.deletePermanently(msgID) } },
@@ -96,7 +96,7 @@ class EmailActionCoordinator: ObservableObject {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
         let removed = vm.removeOptimistically(msgID)
-        selectNext(vm.emails.first)
+        selectNext(nil)
         UndoActionManager.shared.schedule(
             label: "Moved to Inbox",
             onConfirm: { Task { await vm.unspam(msgID) } },
