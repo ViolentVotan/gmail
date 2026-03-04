@@ -138,6 +138,7 @@
 /* RichTextHTMLExporter removed */
 		B10001010000000000000009 /* CPUMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000009 /* CPUMonitorTests.swift */; };
 		B1000101000000000000000A /* EmailActionCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000201000000000000000A /* EmailActionCoordinatorTests.swift */; };
+		B1000101000000000000000B /* DraftLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000201000000000000000B /* DraftLifecycleTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -275,6 +276,7 @@
 		A100020100000000000000F7 /* CPUMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CPUMonitor.swift; sourceTree = "<group>"; };
 		B10002010000000000000009 /* CPUMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CPUMonitorTests.swift; sourceTree = "<group>"; };
 		B1000201000000000000000A /* EmailActionCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailActionCoordinatorTests.swift; sourceTree = "<group>"; };
+		B1000201000000000000000B /* DraftLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftLifecycleTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -615,6 +617,7 @@
 				B10002010000000000000008 /* LabelManagementTests.swift */,
 				B10002010000000000000009 /* CPUMonitorTests.swift */,
 				B1000201000000000000000A /* EmailActionCoordinatorTests.swift */,
+				B1000201000000000000000B /* DraftLifecycleTests.swift */,
 			);
 			path = SerifTests;
 			sourceTree = "<group>";
@@ -851,6 +854,7 @@
 				B10001010000000000000008 /* LabelManagementTests.swift in Sources */,
 				B10001010000000000000009 /* CPUMonitorTests.swift in Sources */,
 				B1000101000000000000000A /* EmailActionCoordinatorTests.swift in Sources */,
+				B1000101000000000000000B /* DraftLifecycleTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

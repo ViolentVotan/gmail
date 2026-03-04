@@ -24,6 +24,7 @@ struct ComposeView: View {
     @State private var saveTask: Task<Void, Never>?
     @State private var attachments: [URL] = []
     @State private var didApplyMode = false
+    @State private var isInitialLoad = true
     @State private var selectedAliasEmail: String
     @State private var currentSignatureHTML: String = ""
     @StateObject private var editorState = WebRichTextEditorState()
@@ -61,6 +62,7 @@ struct ComposeView: View {
 
     private var draft: Email? {
         mailStore.emails.first { $0.id == draftId }
+            ?? mailStore.gmailDrafts.first { $0.id == draftId }
     }
 
     var body: some View {
@@ -158,34 +160,51 @@ struct ComposeView: View {
     // MARK: - Draft
 
     private func loadDraft() {
-        if let draft = draft {
+        let existingDraft = draft
+        let hasExistingContent = !(existingDraft?.body.isEmpty ?? true)
+
+        if let draft = existingDraft {
             to      = draft.recipients.map(\.email).joined(separator: ", ")
             cc      = draft.cc.map(\.email).joined(separator: ", ")
             subject = draft.subject == "(No subject)" ? "" : draft.subject
             bodyHTML = draft.body
+            if let gid = draft.gmailDraftID {
+                composeVM.gmailDraftID = gid
+            }
+            if !draft.cc.isEmpty { showCc = true }
         }
 
-        guard !didApplyMode else { return }
-        didApplyMode = true
+        // Don't apply mode initializer on existing drafts — it would overwrite body with signature
+        if !hasExistingContent {
+            guard !didApplyMode else { isInitialLoad = false; return }
+            didApplyMode = true
 
-        let fields = ComposeModeInitializer.apply(
-            mode: mode,
-            signatureForNew: signatureForNew,
-            signatureForReply: signatureForReply,
-            aliases: sendAsAliases
-        )
+            let fields = ComposeModeInitializer.apply(
+                mode: mode,
+                signatureForNew: signatureForNew,
+                signatureForReply: signatureForReply,
+                aliases: sendAsAliases
+            )
 
-        to                   = fields.to.isEmpty ? to : fields.to
-        cc                   = fields.cc.isEmpty ? cc : fields.cc
-        showCc               = fields.showCc || showCc
-        subject              = fields.subject.isEmpty ? subject : fields.subject
-        bodyHTML              = fields.bodyHTML.isEmpty ? bodyHTML : fields.bodyHTML
-        currentSignatureHTML = fields.currentSignatureHTML
-        if let tid = fields.threadID          { composeVM.threadID = tid }
-        if let mid = fields.replyToMessageID  { composeVM.replyToMessageID = mid }
+            to                   = fields.to.isEmpty ? to : fields.to
+            cc                   = fields.cc.isEmpty ? cc : fields.cc
+            showCc               = fields.showCc || showCc
+            subject              = fields.subject.isEmpty ? subject : fields.subject
+            bodyHTML              = fields.bodyHTML.isEmpty ? bodyHTML : fields.bodyHTML
+            currentSignatureHTML = fields.currentSignatureHTML
+            if let tid = fields.threadID          { composeVM.threadID = tid }
+            if let mid = fields.replyToMessageID  { composeVM.replyToMessageID = mid }
+        }
+
+        // Delay clearing isInitialLoad so the WebView's didFinish → setHTML → contentChanged
+        // cycle doesn't trigger a spurious auto-save that could corrupt inline images.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            isInitialLoad = false
+        }
     }
 
     private func scheduleAutoSave() {
+        guard !isInitialLoad else { return }
         mailStore.updateDraft(id: draftId, subject: subject, body: bodyHTML, to: to, cc: cc)
         saveTask?.cancel()
         saveTask = Task {
@@ -198,6 +217,10 @@ struct ComposeView: View {
             composeVM.body    = bodyHTML
             composeVM.isHTML  = true
             await composeVM.saveDraft()
+            // Persist gmailDraftID back to the Email in mailStore so it survives view destruction
+            if let gid = composeVM.gmailDraftID {
+                mailStore.setGmailDraftID(gid, for: draftId)
+            }
         }
     }
 

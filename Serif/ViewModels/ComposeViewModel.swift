@@ -17,6 +17,7 @@ final class ComposeViewModel: ObservableObject {
     let accountID:   String
     var fromAddress: String
     var gmailDraftID:     String?   // set once we've created a remote draft
+    private var isSaving = false     // guard against concurrent saves
     var threadID:         String?   // for replies
     var replyToMessageID: String?   // for In-Reply-To / References headers
     var attachmentURLs:   [URL] = []
@@ -60,26 +61,37 @@ final class ComposeViewModel: ObservableObject {
     // MARK: - Draft
 
     func saveDraft() async {
+        guard !isSaving else { return }
+        isSaving = true
+        defer { isSaving = false }
         do {
+            // Extract inline data: URLs → cid: + MIME parts for proper Gmail storage
+            let (processedBody, extractedImages) = InlineImageProcessor.extractInlineImages(from: body)
+            let allImages = extractedImages + inlineImages
+
             if let draftID = gmailDraftID {
                 let draft = try await GmailSendService.shared.updateDraft(
-                    draftID:   draftID,
-                    from:      fromAddress,
-                    to:        splitAddresses(to),
-                    cc:        splitAddresses(cc),
-                    subject:   subject,
-                    body:      body,
-                    accountID: accountID
+                    draftID:      draftID,
+                    from:         fromAddress,
+                    to:           splitAddresses(to),
+                    cc:           splitAddresses(cc),
+                    subject:      subject,
+                    body:         processedBody,
+                    isHTML:       isHTML,
+                    inlineImages: allImages,
+                    accountID:    accountID
                 )
                 gmailDraftID = draft.id
             } else {
                 let draft = try await GmailSendService.shared.createDraft(
-                    from:      fromAddress,
-                    to:        splitAddresses(to),
-                    cc:        splitAddresses(cc),
-                    subject:   subject,
-                    body:      body,
-                    accountID: accountID
+                    from:         fromAddress,
+                    to:           splitAddresses(to),
+                    cc:           splitAddresses(cc),
+                    subject:      subject,
+                    body:         processedBody,
+                    isHTML:       isHTML,
+                    inlineImages: allImages,
+                    accountID:    accountID
                 )
                 gmailDraftID = draft.id
             }

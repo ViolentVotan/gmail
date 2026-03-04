@@ -70,12 +70,26 @@ final class MessageFetchService {
 
     /// Loads the disk cache for a folder and returns the first page for display.
     /// Updates internal cache state (allCachedMessages, savedPageToken, localOffset).
+    /// - Parameter filterLabelIDs: When non-empty, only keeps messages whose labels
+    ///   intersect with this set. Removes duplicates and stale entries.
     func loadDiskCache(
         accountID: String,
-        folderKey: String
+        folderKey: String,
+        filterLabelIDs: [String] = []
     ) -> (firstPage: [GmailMessage], hasCachedMessages: Bool) {
         let diskCache = cache.loadFolderCache(accountID: accountID, folderKey: folderKey)
-        allCachedMessages = diskCache.messages
+        // Deduplicate by message ID and filter out stale labels
+        let labelSet = Set(filterLabelIDs)
+        var seen = Set<String>()
+        var cleaned = [GmailMessage]()
+        for msg in diskCache.messages {
+            guard seen.insert(msg.id).inserted else { continue }
+            if !labelSet.isEmpty, let labels = msg.labelIds, labelSet.isDisjoint(with: labels) {
+                continue
+            }
+            cleaned.append(msg)
+        }
+        allCachedMessages = cleaned
         savedPageToken    = diskCache.nextPageToken
         if !allCachedMessages.isEmpty {
             for msg in allCachedMessages { messageCache[msg.id] = msg }
@@ -248,15 +262,11 @@ final class MessageFetchService {
         currentQuery: String?
     ) -> [GmailMessage] {
         let folderKey = MailCacheStore.folderKey(labelIDs: currentLabelIDs, query: currentQuery)
-        let diskCache = cache.loadFolderCache(accountID: accountID, folderKey: folderKey)
-        if !diskCache.messages.isEmpty {
-            allCachedMessages = diskCache.messages
-            savedPageToken    = diskCache.nextPageToken
-            for msg in allCachedMessages { messageCache[msg.id] = msg }
-            let first = Array(allCachedMessages.prefix(pageSize))
-            localOffset = first.count
-            return first
-        }
-        return []
+        let (firstPage, hasCached) = loadDiskCache(
+            accountID: accountID,
+            folderKey: folderKey,
+            filterLabelIDs: currentLabelIDs
+        )
+        return hasCached ? firstPage : []
     }
 }

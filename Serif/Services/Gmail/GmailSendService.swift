@@ -56,9 +56,17 @@ final class GmailSendService {
         subject: String,
         body: String,
         isHTML: Bool = false,
+        inlineImages: [InlineImageAttachment] = [],
         accountID: String
     ) async throws -> GmailDraft {
-        let raw = buildRaw(from: from, to: to, cc: cc, bcc: [], subject: subject, body: body, isHTML: isHTML)
+        let raw: String
+        if !inlineImages.isEmpty {
+            raw = buildRawMultipart(from: from, to: to, cc: cc, bcc: [],
+                                    subject: subject, body: body, isHTML: isHTML,
+                                    inlineImages: inlineImages, attachments: [])
+        } else {
+            raw = buildRaw(from: from, to: to, cc: cc, bcc: [], subject: subject, body: body, isHTML: isHTML)
+        }
         let payload: [String: Any] = ["message": ["raw": raw]]
         let encoded = try JSONSerialization.data(withJSONObject: payload)
         return try await GmailAPIClient.shared.request(
@@ -76,9 +84,17 @@ final class GmailSendService {
         subject: String,
         body: String,
         isHTML: Bool = false,
+        inlineImages: [InlineImageAttachment] = [],
         accountID: String
     ) async throws -> GmailDraft {
-        let raw = buildRaw(from: from, to: to, cc: cc, bcc: [], subject: subject, body: body, isHTML: isHTML)
+        let raw: String
+        if !inlineImages.isEmpty {
+            raw = buildRawMultipart(from: from, to: to, cc: cc, bcc: [],
+                                    subject: subject, body: body, isHTML: isHTML,
+                                    inlineImages: inlineImages, attachments: [])
+        } else {
+            raw = buildRaw(from: from, to: to, cc: cc, bcc: [], subject: subject, body: body, isHTML: isHTML)
+        }
         let payload: [String: Any] = ["message": ["raw": raw]]
         let encoded = try JSONSerialization.data(withJSONObject: payload)
         return try await GmailAPIClient.shared.request(

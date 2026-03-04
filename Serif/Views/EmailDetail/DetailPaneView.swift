@@ -27,7 +27,7 @@ struct DetailPaneView: View {
 
     private var isEditingDraft: Bool {
         guard let email = selectedEmail else { return false }
-        return email.isDraft && !email.isGmailDraft
+        return email.isDraft
     }
 
     private var selectedEmails: [Email] {

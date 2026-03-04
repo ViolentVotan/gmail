@@ -35,11 +35,62 @@ final class MailStore: ObservableObject {
             let fetched = try await GmailDraftService.shared.getDrafts(
                 ids: draftIDs, accountID: accountID, format: "full"
             )
-            let emails = fetched.compactMap { draft -> Email? in
-                guard let message = draft.message else { return nil }
-                return Self.makeEmailFromGmailDraft(draft: draft, message: message)
+            var emails: [Email] = []
+            for draft in fetched {
+                guard let message = draft.message else { continue }
+                var email = Self.makeEmailFromGmailDraft(draft: draft, message: message)
+
+                // Resolve cid: → data: for inline images so they display in the editor
+                let inlineParts = message.inlineParts
+                if !inlineParts.isEmpty && email.body.contains("cid:") {
+                    var body = email.body
+                    for part in inlineParts {
+                        guard let cid = part.contentID,
+                              let mime = part.mimeType else { continue }
+
+                        let imageBase64: String?
+                        if let embedded = part.body?.data {
+                            // Data embedded in "full" response — convert base64url → base64
+                            var b64 = embedded
+                                .replacingOccurrences(of: "-", with: "+")
+                                .replacingOccurrences(of: "_", with: "/")
+                            while b64.count % 4 != 0 { b64 += "=" }
+                            imageBase64 = b64
+                        } else if let attID = part.body?.attachmentId {
+                            // Large image — fetch via attachment API
+                            if let data = try? await GmailMessageService.shared.getAttachment(
+                                messageID: message.id, attachmentID: attID, accountID: accountID
+                            ) {
+                                imageBase64 = data.base64EncodedString()
+                            } else {
+                                imageBase64 = nil
+                            }
+                        } else {
+                            imageBase64 = nil
+                        }
+
+                        if let b64 = imageBase64 {
+                            let dataURI = "data:\(mime);base64,\(b64)"
+                            body = body.replacingOccurrences(
+                                of: "src=\"cid:\(cid)\"",
+                                with: "src=\"\(dataURI)\" data-cid=\"\(cid)\""
+                            )
+                        }
+                    }
+                    email.body = body
+                }
+                emails.append(email)
             }
-            await MainActor.run { gmailDrafts = emails }
+            await MainActor.run {
+                gmailDrafts = emails
+                // Remove local drafts that now exist as Gmail drafts to avoid duplicates
+                let syncedGmailIDs = Set(emails.compactMap(\.gmailDraftID))
+                self.emails.removeAll { email in
+                    email.folder == .drafts && email.isDraft
+                        && email.gmailDraftID != nil
+                        && syncedGmailIDs.contains(email.gmailDraftID!)
+                }
+            }
         } catch {
             // Silently fail — keep existing cached drafts if any
             print("[GmailDraftSync] Error: \(error.localizedDescription)")
@@ -92,32 +143,39 @@ final class MailStore: ObservableObject {
     }
 
     func updateDraft(id: UUID, subject: String, body: String, to: String, cc: String) {
-        guard let index = emails.firstIndex(where: { $0.id == id }) else { return }
-        emails[index].subject = subject.isEmpty ? "(No subject)" : subject
-        emails[index].body = body
-        emails[index].preview = body.isEmpty ? "New draft" : String(body.prefix(120))
-        emails[index].date = Date()
-
-        // Parse recipients
-        if !to.isEmpty {
-            emails[index].recipients = to
-                .split(separator: ",")
+        let parseContacts: (String) -> [Contact] = { raw in
+            raw.split(separator: ",")
                 .map { Contact(name: String($0.trimmingCharacters(in: .whitespaces)), email: String($0.trimmingCharacters(in: .whitespaces))) }
-        } else {
-            emails[index].recipients = []
         }
 
-        if !cc.isEmpty {
-            emails[index].cc = cc
-                .split(separator: ",")
-                .map { Contact(name: String($0.trimmingCharacters(in: .whitespaces)), email: String($0.trimmingCharacters(in: .whitespaces))) }
-        } else {
-            emails[index].cc = []
+        // Try local drafts first, then Gmail drafts
+        if let index = emails.firstIndex(where: { $0.id == id }) {
+            emails[index].subject    = subject.isEmpty ? "(No subject)" : subject
+            emails[index].body       = body
+            emails[index].preview    = body.isEmpty ? "New draft" : String(body.strippingHTML.prefix(120))
+            emails[index].date       = Date()
+            emails[index].recipients = to.isEmpty ? [] : parseContacts(to)
+            emails[index].cc         = cc.isEmpty ? [] : parseContacts(cc)
+        } else if let index = gmailDrafts.firstIndex(where: { $0.id == id }) {
+            gmailDrafts[index].subject    = subject.isEmpty ? "(No subject)" : subject
+            gmailDrafts[index].body       = body
+            gmailDrafts[index].preview    = body.isEmpty ? "New draft" : String(body.strippingHTML.prefix(120))
+            gmailDrafts[index].date       = Date()
+            gmailDrafts[index].recipients = to.isEmpty ? [] : parseContacts(to)
+            gmailDrafts[index].cc         = cc.isEmpty ? [] : parseContacts(cc)
+        }
+    }
+
+    /// Persists the Gmail draft ID on the local Email so it survives ComposeView destruction.
+    func setGmailDraftID(_ gid: String, for id: UUID) {
+        if let index = emails.firstIndex(where: { $0.id == id }) {
+            emails[index].gmailDraftID = gid
         }
     }
 
     func deleteDraft(id: UUID) {
         emails.removeAll { $0.id == id }
+        gmailDrafts.removeAll { $0.id == id }
     }
 
     // MARK: - Attachments

@@ -485,7 +485,7 @@ final class MailboxViewModel: ObservableObject {
 
         // ── Local-first: load from disk cache and paginate locally ──
         if reset {
-            let (firstPage, hasCached) = fetchService.loadDiskCache(accountID: accountID, folderKey: folderKey)
+            let (firstPage, hasCached) = fetchService.loadDiskCache(accountID: accountID, folderKey: folderKey, filterLabelIDs: currentLabelIDs)
             if hasCached {
                 if clearFirst || messages.isEmpty {
                     messages = firstPage

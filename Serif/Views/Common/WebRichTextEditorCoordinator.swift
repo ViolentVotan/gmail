@@ -56,6 +56,10 @@ class WebRichTextEditorCoordinator: NSObject, WKScriptMessageHandler, WKNavigati
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         Task { @MainActor in
             parent.state.webView = webView
+            // Push existing content to the editor (e.g. when re-opening a draft)
+            if !parent.htmlContent.isEmpty {
+                parent.state.setHTML(parent.htmlContent)
+            }
             if parent.autoFocus {
                 parent.state.focus()
             }
