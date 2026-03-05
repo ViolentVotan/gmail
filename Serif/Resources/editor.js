@@ -193,9 +193,153 @@
         e.preventDefault();
     });
 
-    // Auto-link URLs on input
-    var linkRegex = /(?:^|\s)(https?:\/\/[^\s<]+)/g;
+    // ── Keyboard shortcuts ──
+    // Intercept formatting shortcuts so they execute in the editor
+    // and don't propagate to the app's global shortcut handlers.
+
     editor.addEventListener('keydown', function(e) {
+        var cmd = e.metaKey || e.ctrlKey;
+        var shift = e.shiftKey;
+        var key = e.key.toLowerCase();
+
+        // — Cmd-based shortcuts —
+        if (cmd) {
+            switch (key) {
+                // Text formatting
+                case 'b': // Bold
+                    e.preventDefault(); e.stopPropagation();
+                    document.execCommand('bold', false, null);
+                    return;
+                case 'i': // Italic
+                    e.preventDefault(); e.stopPropagation();
+                    document.execCommand('italic', false, null);
+                    return;
+                case 'u': // Underline
+                    e.preventDefault(); e.stopPropagation();
+                    document.execCommand('underline', false, null);
+                    return;
+
+                // Undo / Redo
+                case 'z':
+                    e.preventDefault(); e.stopPropagation();
+                    if (shift) {
+                        document.execCommand('redo', false, null);
+                    } else {
+                        document.execCommand('undo', false, null);
+                    }
+                    return;
+
+                // Select all (within editor only)
+                case 'a':
+                    e.preventDefault(); e.stopPropagation();
+                    var range = document.createRange();
+                    range.selectNodeContents(editor);
+                    var sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    return;
+
+                // Strikethrough (Cmd+Shift+X)
+                case 'x':
+                    if (shift) {
+                        e.preventDefault(); e.stopPropagation();
+                        document.execCommand('strikeThrough', false, null);
+                        return;
+                    }
+                    break;
+
+                // Lists (Cmd+Shift+7 = numbered, Cmd+Shift+8 = bullet)
+                case '7':
+                    if (shift) {
+                        e.preventDefault(); e.stopPropagation();
+                        document.execCommand('insertOrderedList', false, null);
+                        return;
+                    }
+                    break;
+                case '8':
+                    if (shift) {
+                        e.preventDefault(); e.stopPropagation();
+                        document.execCommand('insertUnorderedList', false, null);
+                        return;
+                    }
+                    break;
+
+                // Alignment (Cmd+Shift+L/E/R/J)
+                case 'l':
+                    if (shift) {
+                        e.preventDefault(); e.stopPropagation();
+                        document.execCommand('justifyLeft', false, null);
+                        return;
+                    }
+                    break;
+                case 'e':
+                    if (shift) {
+                        e.preventDefault(); e.stopPropagation();
+                        document.execCommand('justifyCenter', false, null);
+                        return;
+                    }
+                    break;
+                case 'r':
+                    if (shift) {
+                        e.preventDefault(); e.stopPropagation();
+                        document.execCommand('justifyRight', false, null);
+                        return;
+                    }
+                    break;
+                case 'j':
+                    if (shift) {
+                        e.preventDefault(); e.stopPropagation();
+                        document.execCommand('justifyFull', false, null);
+                        return;
+                    }
+                    break;
+
+                // Indent / Outdent (Cmd+] / Cmd+[)
+                case ']':
+                    e.preventDefault(); e.stopPropagation();
+                    document.execCommand('indent', false, null);
+                    return;
+                case '[':
+                    e.preventDefault(); e.stopPropagation();
+                    document.execCommand('outdent', false, null);
+                    return;
+
+                // Remove formatting (Cmd+\)
+                case '\\':
+                    e.preventDefault(); e.stopPropagation();
+                    document.execCommand('removeFormat', false, null);
+                    return;
+
+                // Link insertion (Cmd+K)
+                case 'k':
+                    e.preventDefault(); e.stopPropagation();
+                    var currentSel = window.getSelection();
+                    var selectedText = currentSel.toString();
+                    var url = prompt('Enter URL:', 'https://');
+                    if (url) {
+                        if (selectedText) {
+                            document.execCommand('createLink', false, url);
+                        } else {
+                            var linkHTML = '<a href="' + url + '">' + url + '</a>';
+                            document.execCommand('insertHTML', false, linkHTML);
+                        }
+                    }
+                    return;
+            }
+        }
+
+        // — Tab / Shift+Tab for indent/outdent —
+        if (e.key === 'Tab') {
+            e.preventDefault(); e.stopPropagation();
+            if (shift) {
+                document.execCommand('outdent', false, null);
+            } else {
+                document.execCommand('indent', false, null);
+            }
+            return;
+        }
+
+        // — Auto-link URLs on Space/Enter —
         if (e.key === ' ' || e.key === 'Enter') {
             var sel = window.getSelection();
             if (!sel.rangeCount) return;
@@ -204,21 +348,21 @@
                 var text = node.textContent;
                 var match = text.match(/(https?:\/\/[^\s<]+)$/);
                 if (match) {
-                    var url = match[1];
-                    var offset = text.lastIndexOf(url);
-                    var range = document.createRange();
-                    range.setStart(node, offset);
-                    range.setEnd(node, offset + url.length);
+                    var linkUrl = match[1];
+                    var offset = text.lastIndexOf(linkUrl);
+                    var linkRange = document.createRange();
+                    linkRange.setStart(node, offset);
+                    linkRange.setEnd(node, offset + linkUrl.length);
                     var link = document.createElement('a');
-                    link.href = url;
-                    link.textContent = url;
-                    range.deleteContents();
-                    range.insertNode(link);
+                    link.href = linkUrl;
+                    link.textContent = linkUrl;
+                    linkRange.deleteContents();
+                    linkRange.insertNode(link);
                     // Move cursor after link
-                    range.setStartAfter(link);
-                    range.collapse(true);
+                    linkRange.setStartAfter(link);
+                    linkRange.collapse(true);
                     sel.removeAllRanges();
-                    sel.addRange(range);
+                    sel.addRange(linkRange);
                 }
             }
         }
