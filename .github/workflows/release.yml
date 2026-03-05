@@ -39,6 +39,25 @@ jobs:
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
 
+      - name: Generate GoogleCredentials placeholder
+        run: |
+          mkdir -p Serif/Configuration
+          cat > Serif/Configuration/GoogleCredentials.swift << 'CREDS_EOF'
+          import Foundation
+          enum GoogleCredentials {
+              static let clientID     = "${{ secrets.GOOGLE_CLIENT_ID }}"
+              static let clientSecret = "${{ secrets.GOOGLE_CLIENT_SECRET }}"
+              static let redirectURI  = "http://localhost"
+              static let scopes = [
+                  "https://mail.google.com/",
+                  "https://www.googleapis.com/auth/userinfo.email",
+                  "https://www.googleapis.com/auth/userinfo.profile",
+                  "https://www.googleapis.com/auth/contacts.readonly",
+                  "https://www.googleapis.com/auth/contacts.other.readonly"
+              ]
+          }
+          CREDS_EOF
+
       - name: Resolve SPM dependencies
         run: xcodebuild -project $PROJECT -scheme $SCHEME -resolvePackageDependencies
 
