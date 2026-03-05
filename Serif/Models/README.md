@@ -16,4 +16,6 @@ Pure data structures and local persistence stores.
 |------|------|
 | `Email.swift` | UI-facing email model (computed from GmailMessage) |
 | `GmailAccount.swift` | Account model + `AccountStore` (UserDefaults persistence) |
-| `MailStore.swift` | Local draft/compose mail store |
+| `MailStore.swift` | Local draft store, Gmail draft sync, reply draft persistence (`ReplyDraftInfo`) |
+| `EmailLabel.swift` | Label model with name and color |
+| `Attachment.swift` | Attachment model (name, size, MIME type, Gmail IDs) |

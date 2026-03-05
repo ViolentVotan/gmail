@@ -19,17 +19,28 @@ OAuth flow, token storage (Keychain), token refresh. `OAuthService` handles the 
 ### `Gmail/`
 Gmail REST API wrappers. One service per domain:
 - `GmailAPIClient` — HTTP layer (auth headers, base URL, logging)
-- `GmailMessageService` — messages, threads, mutations (trash, archive, star, labels)
-- `GmailLabelService` — label CRUD
-- `GmailProfileService` — profile info, contacts, send-as aliases, photos
-- `GmailSendService` — compose and send (RFC 2822 encoding)
-- `GmailModels` — all API response/request types (`Codable` structs)
+- `GmailMessageService` — Messages, threads, mutations (trash, archive, star, labels), History API
+- `GmailLabelService` — Label CRUD
+- `GmailProfileService` — Profile info, contacts, send-as aliases, photos
+- `GmailSendService` — Compose, send, draft CRUD (RFC 2822 MIME encoding with RFC 2047 header encoding)
+- `GmailDraftService` — Draft fetch (single + batch), used for quick reply draft loading
+- `GmailModels` — All API response/request types (`Codable` structs)
 
 ### Root-level files
 | File | Role |
 |------|------|
-| `APICache.swift` | Debug-only response cache |
-| `UndoActionManager.swift` | Undo toast state machine (schedule → countdown → confirm/undo) |
-| `UnsubscribeService.swift` | Parses List-Unsubscribe headers |
-| `SubscriptionsStore.swift` | Detects newsletter/subscription emails |
-| `EmailPrintService.swift` | Print formatting |
+| `HistorySyncService.swift` | Delta sync via Gmail History API with label-aware filtering |
+| `UndoActionManager.swift` | Undo toast state machine (schedule -> countdown -> confirm/undo) |
+| `UnsubscribeService.swift` | Parses List-Unsubscribe headers, RFC 8058 one-click POST |
+| `SubscriptionsStore.swift` | Detects newsletter/subscription emails, manages unsubscribe state |
+| `EmailPrintService.swift` | Print formatting via WKWebView |
+| `TrackerBlockerService.swift` | HTML sanitization, tracking pixel/domain blocking |
+| `BIMIService.swift` | BIMI logo resolution via DNS-over-HTTPS |
+| `NetworkMonitor.swift` | Online/offline detection |
+| `AttachmentDatabase.swift` | SQLite FTS5 index for attachment search |
+| `AttachmentIndexer.swift` | Async indexing with CPU throttling |
+| `AttachmentSearchService.swift` | Hybrid FTS + semantic embedding search |
+| `ContentExtractor.swift` | PDF/OCR/Word/text extraction + embedding generation |
+| `ThumbnailCache.swift` | Thumbnail generation + LRU caching |
+| `AvatarCache.swift` | Avatar image caching |
+| `CPUMonitor.swift` | Adaptive CPU throttling for background tasks |

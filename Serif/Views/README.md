@@ -16,35 +16,41 @@ SwiftUI views. UI presentation only — no business logic.
 ## Subfolders
 
 ### `Sidebar/`
-Left column — folder navigation, account switcher, labels.
+Left column — folder navigation, account switcher, labels. Context menu for label rename/delete.
 
 ### `EmailList/`
-Middle column — email rows, swipe actions, search. `SwipeableEmailRow` handles gesture state locally via `SwipeRowState`.
+Middle column — email rows, swipe actions (archive/delete), search, pull-to-refresh, multi-select with bulk actions.
 
 ### `EmailDetail/`
-Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView), attachments, reply bar.
+Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView), attachments, sender info popover, tracker blocking UI, label picker.
+- `ReplyBarView` — Inline quick reply with draft persistence, auto-save, and discard confirmation.
+- `DetailPaneView` — Contextual empty state (icon + message per folder).
 
 ### `Compose/`
-Email composer — `ComposeView` for the form, `AutocompleteTextField` for contact suggestions in To/Cc/Bcc.
+Email composer — `ComposeView` for the full compose form with rich text editor, send-as alias picker, signature management, attachment list, and discard confirmation.
+- `AutocompleteTextField` — Contact suggestions in To/Cc/Bcc fields.
+- `WebRichTextEditor` — Web-based HTML editor with formatting toolbar.
+- `FormattingToolbar` — Bold, italic, underline, font size, color, lists, headings, links.
 
 ### `Attachments/`
-Attachment gallery view.
+Attachment explorer with grid view, thumbnails, file type filtering, and search.
 
 ### `Onboarding/`
-Sign-in / welcome screen.
+Sign-in / welcome screen with OAuth flow.
 
 ### `Common/`
 Shared reusable components:
 | File | Role |
 |------|------|
-| `AvatarView` | Circular avatar with initials fallback |
-| `SearchBarView` | Search input |
+| `AvatarView` | Circular avatar with initials fallback or profile image |
+| `SearchBarView` | Search input with clear button |
 | `LabelChipView` | Colored label pill |
-| `ThemePickerView` | Theme grid + color customization |
-| `SlidePanel` | Animated side panel |
-| `FormattingToolbar` | Rich text toolbar for compose |
-| `RichTextEditor` | NSTextView wrapper for compose |
-| `UndoToastView` | Undo toast + offline toast |
+| `ThemePickerView` | Theme grid + per-color customization |
+| `SettingsCardsView` | Settings UI with behavior, signature, account cards |
+| `SlidePanel` | Animated side panel for compose |
+| `FormattingToolbar` | Rich text toolbar for compose/reply |
+| `WebRichTextEditor` | WKWebView-based HTML editor |
+| `UndoToastView` | Undo toast + offline indicator |
 | `DebugMenuView` | API logs, cache controls |
 | `ShortcutsHelpView` | Keyboard shortcuts reference |
 | `AccountsSettingsView` | Account management settings |
