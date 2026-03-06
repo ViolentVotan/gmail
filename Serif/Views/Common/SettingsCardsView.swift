@@ -321,12 +321,15 @@ struct DeveloperSettingsCard: View {
                 .font(.serifTitle)
                 .foregroundColor(theme.textPrimary)
 
-            Toggle(isOn: $showDebugMenu) {
+            HStack {
                 Text("Show Debug menu")
                     .font(.serifCaption)
                     .foregroundColor(theme.textSecondary)
+                Spacer()
+                Toggle("", isOn: $showDebugMenu)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
             }
-            .toggleStyle(.switch)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
