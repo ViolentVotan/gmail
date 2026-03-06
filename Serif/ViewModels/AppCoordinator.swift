@@ -310,8 +310,12 @@ class AppCoordinator: ObservableObject {
         let oldID = mailboxViewModel.accountID
         if !oldID.isEmpty { saveSignatures(for: oldID) }
         loadSignatures(for: id)
+        selectedFolder = .inbox
+        selectedInboxCategory = .all
+        selectedLabel = nil
         selectedEmail = nil
         selectedEmailIDs = []
+        searchResetTrigger += 1
         ThumbnailCache.shared.clearAll()
         SubscriptionsStore.shared.accountID = id
         attachmentStore.accountID = id
