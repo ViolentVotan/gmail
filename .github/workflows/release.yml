@@ -37,7 +37,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
 
       - name: Generate GoogleCredentials placeholder
         run: |
@@ -95,7 +95,7 @@ jobs:
           TAG="${{ steps.version.outputs.TAG }}"
           create-dmg \
             --volname "$APP_NAME" \
-            --volicon "build/export/$APP_NAME.app/Contents/Resources/AppIcon.icns" \
+            --volicon "build/export/$APP_NAME.app/Contents/Resources/serif_icon.icns" \
             --window-pos 200 120 \
             --window-size 600 400 \
             --icon-size 100 \
