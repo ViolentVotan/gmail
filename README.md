@@ -1,148 +1,56 @@
-# Serif
+<p align="center">
+  <img src="assets/icon.png" width="128" alt="Serif icon" />
+</p>
 
-A native macOS Gmail client built with Swift and SwiftUI. Serif delivers a clean, fast, and privacy-focused email experience with a modern 3-column layout.
+<h1 align="center">Serif</h1>
 
-## Features
+<p align="center">
+  <em>The email client Gmail deserves on macOS.</em>
+</p>
 
-### Email Management
-- **3-column layout** — Sidebar, email list, and detail pane with resizable columns
-- **Full Gmail integration** — Inbox, Starred, Sent, Drafts, Archive, Spam, Trash
-- **Inbox categories** — Primary, Social, Promotions, Updates, Forums
-- **Custom labels** — Create, rename, delete, and assign labels with color coding
-- **Thread view** — Full conversation display with inline message expansion
-- **Swipe actions** — Swipe to archive or delete from the email list
-- **Bulk operations** — Multi-select with archive, delete, star, mark read/unread
-- **Undo system** — Toast notification with configurable countdown to undo actions
+<p align="center">
+  <img src="https://img.shields.io/badge/platform-macOS%2014%2B-blue?logo=apple&logoColor=white" />
+  <img src="https://img.shields.io/badge/swift-5.9-orange?logo=swift&logoColor=white" />
+  <img src="https://img.shields.io/badge/UI-SwiftUI-purple?logo=swift&logoColor=white" />
+  <img src="https://img.shields.io/github/v/release/marshallino16/Serif?color=green" />
+  <img src="https://img.shields.io/github/license/marshallino16/Serif" />
+</p>
 
-### Compose & Drafts
-- **Rich text editor** — Bold, italic, underline, strikethrough, font size, text color, headings, lists, links, alignment
-- **Inline images** — Paste or drag-and-drop images directly into the editor
-- **File attachments** — Attach files via picker or drag-and-drop
-- **Compose modes** — New, Reply, Reply All, Forward
-- **Send-as aliases** — Switch sender address from multiple aliases
-- **Signatures** — Separate signatures for new messages and replies
-- **Auto-save drafts** — Debounced auto-save to Gmail with draft persistence
-- **Quick reply** — Inline reply bar with draft persistence across sessions
-- **Contact autocomplete** — Suggestions from cached contacts in To/Cc/Bcc fields
-- **Discard confirmation** — Alert before permanently deleting drafts
+---
 
-### Search
-- **Full-text search** — Search across all emails with Gmail query syntax support
-- **Attachment search** — Hybrid keyword (FTS5) + semantic embedding search
-- **Filter by file type** — Images, documents, PDFs, spreadsheets, archives
+Serif is a native macOS Gmail client built from scratch with Swift and SwiftUI. No Electron, no web wrapper — just a fast, beautiful, privacy-first email experience that feels right at home on your Mac.
 
-### Attachments
-- **Attachment explorer** — Dedicated grid view with thumbnails
-- **Background indexing** — CPU-throttled batch processing with adaptive concurrency
-- **Content extraction** — Text, OCR for images/PDFs, Office document parsing
-- **Semantic search** — ML-based embedding generation for intelligent search
-- **Exclusion rules** — Per-account patterns to skip during indexing
+## Why Serif?
 
-### Privacy & Security
-- **Tracker blocking** — Blocks tracking pixels, known tracker domains, and CSS background trackers
-- **HTML sanitization** — Removes malicious content from email HTML
-- **BIMI logos** — Verified sender logos via DNS-over-HTTPS
-- **Unsubscribe** — One-click RFC 8058 unsubscribe + body link detection
-- **Sandboxed** — App Sandbox with minimal entitlements
+- **Instant** — Cache-first architecture. Your inbox loads before you blink.
+- **Private** — Tracking pixels blocked by default. No telemetry. Your emails stay yours.
+- **Native** — Built with SwiftUI. Smooth animations, keyboard shortcuts, themes — the full macOS experience.
+- **Multi-account** — Switch between Gmail accounts seamlessly, each with its own settings.
 
-### Sync & Performance
-- **Delta sync** — Incremental updates via Gmail History API
-- **Cache-first** — Disk-based cache for instant offline access
-- **Stale detection** — Verifies cached messages still exist on Gmail
-- **Network monitoring** — Online/offline status detection
-- **Configurable refresh** — 2, 5, 10 minutes or 1 hour intervals
+## Highlights
 
-### Theming
-- **12 built-in themes** — Light, Dark, and various styled themes
-- **Per-theme color overrides** — Customize individual colors within any theme
-- **Design system** — Consistent typography, spacing, and component styling
+**Email, done right** — 3-column layout with resizable panes, thread view, swipe actions, bulk operations, and undo on everything.
 
-### Multi-Account
-- **Multiple Gmail accounts** — Switch between accounts with full data isolation
-- **Per-account settings** — Signatures, exclusion rules, contacts, send-as aliases
-- **Secure token storage** — OAuth tokens persisted in macOS Keychain
+**Compose like a pro** — Rich text editor with inline images, drag-and-drop attachments, signatures, send-as aliases, and auto-saved drafts.
 
-## Tech Stack
+**Search everything** — Full-text search with Gmail query syntax. Attachment search with smart keyword + semantic matching.
 
-| Component | Technology |
-|-----------|-----------|
-| Language | Swift |
-| UI Framework | SwiftUI |
-| Platform | macOS 14.0+ (Sonoma) |
-| Auth | Google OAuth 2.0 via [AppAuth](https://github.com/openid/AppAuth-iOS) |
-| Email API | Gmail REST API |
-| Email Rendering | WKWebView |
-| Rich Text Editor | Web-based HTML editor (WKWebView) |
-| Token Storage | macOS Keychain |
-| Cache | File-based JSON (`~/Library/Application Support/`) |
-| Attachment Index | SQLite with FTS5 |
-| Search | Hybrid FTS + semantic embeddings |
+**Calendar invites** — Google Calendar invitations show a clean card with event details and one-click RSVP — no need to leave the app.
 
-## Architecture
+**Unsubscribe in one click** — Detects mailing lists and offers RFC 8058 one-click unsubscribe or body link extraction.
 
-Serif follows **MVVM with a Service layer**:
+**Themes** — 12 built-in themes (light & dark) with per-color overrides. Make it yours.
 
-```
-Views (SwiftUI)
-  |
-ViewModels (@MainActor ObservableObject)
-  |
-Services (singletons — networking, business logic)
-  |
-Models (value types — data, persistence)
-```
+**Keyboard-driven** — `Cmd+F` to search, `Cmd+Return` to send, `Cmd+Z` to undo. Everything you'd expect.
 
-**Core principles:**
-- **Unidirectional data flow** — Services -> ViewModels -> Views
-- **Cache-first** — Load from disk, show instantly, refresh from API
-- **Optimistic UI** — Mutations update UI immediately, then call the API
-- **Theme via Environment** — `@Environment(\.theme)` for all colors
-- **Multi-account aware** — All data keyed by `accountID`
+## Getting Started
 
-## Project Structure
-
-```
-Serif/
-├── Configuration/     # OAuth credentials, API scopes
-├── Models/            # Data models (Email, Contact, GmailAccount, MailStore)
-├── Services/
-│   ├── Auth/          # OAuth flow, token storage (Keychain)
-│   └── Gmail/         # API client, messages, labels, send, drafts, profiles
-├── Theme/             # Theme system (12 themes, overrides, persistence)
-├── Utilities/         # Pure helpers (date formatting, MIME parsing, transformers)
-├── ViewModels/        # State management (Auth, Mailbox, EmailDetail, Compose)
-├── Views/
-│   ├── Sidebar/       # Folder navigation, account switcher, labels
-│   ├── EmailList/     # Email rows, swipe actions, search, pull-to-refresh
-│   ├── EmailDetail/   # Thread view, HTML rendering, reply bar, attachments
-│   ├── Compose/       # Rich text editor, autocomplete, formatting toolbar
-│   ├── Attachments/   # Attachment explorer grid
-│   ├── Onboarding/    # Sign-in flow
-│   └── Common/        # Shared components (Avatar, Toast, SlidePanel, etc.)
-└── Resources/         # Assets, fonts
-```
-
-## Setup
-
-1. Clone the repository
+1. Clone the repo
 2. Open `Serif.xcodeproj` in Xcode 15+
 3. Add your Google OAuth credentials in `Serif/Configuration/GoogleCredentials.swift`
 4. Build and run (macOS 14.0+)
 
-### OAuth Configuration
-
-Create a Google Cloud project with the Gmail API enabled and configure an OAuth 2.0 Desktop client. Set the redirect URI scheme to match your bundle identifier.
-
-## Keyboard Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Cmd + ,` | Settings |
-| `Cmd + F` | Focus search |
-| `Cmd + A` | Select all emails |
-| `Cmd + Z` | Undo last action |
-| `Cmd + Return` | Send email |
-| `Esc` | Close panel / Discard reply |
+> You'll need a Google Cloud project with the Gmail API enabled and an OAuth 2.0 Desktop client configured.
 
 ## License
 
