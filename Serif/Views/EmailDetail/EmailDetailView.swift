@@ -34,6 +34,7 @@ struct EmailDetailView: View {
     @State private var emailBodyHeight: CGFloat = 100
     @State private var didUnsubscribe = false
     @State private var showSenderInfo = false
+    @State private var showOriginalInviteEmail = false
     @Environment(\.theme) private var theme
 
     /// Best available unsubscribe URL: header-based (from full thread) or body-scanned.
@@ -202,14 +203,30 @@ struct EmailDetailView: View {
                                 .padding(.bottom, 12)
                             }
 
+                            if let invite = detailVM.calendarInvite {
+                                CalendarInviteCardView(
+                                    invite: invite,
+                                    isLoading: detailVM.rsvpInProgress,
+                                    showOriginalEmail: $showOriginalInviteEmail,
+                                    onAccept:  { Task { await detailVM.sendRSVP(.accepted) } },
+                                    onDecline: { Task { await detailVM.sendRSVP(.declined) } },
+                                    onMaybe:   { Task { await detailVM.sendRSVP(.maybe) } }
+                                )
+                                .padding(.horizontal, 24)
+                                .padding(.bottom, 12)
+                            }
+
                             let rawHTML = detailVM.resolvedHTML ?? detailVM.displayHTML ?? detailVM.latestMessage?.htmlBody ?? ""
                             let htmlToRender = rawHTML.isEmpty
                                 ? "<p>\(detailVM.latestMessage?.plainBody ?? email.body)</p>"
                                 : rawHTML
-                            HTMLEmailView(html: htmlToRender, contentHeight: $emailBodyHeight, onOpenLink: onOpenLink)
-                                .frame(height: emailBodyHeight)
-                                .padding(.horizontal, 24)
-                                .padding(.bottom, 20)
+
+                            if detailVM.calendarInvite == nil || showOriginalInviteEmail {
+                                HTMLEmailView(html: htmlToRender, contentHeight: $emailBodyHeight, onOpenLink: onOpenLink)
+                                    .frame(height: emailBodyHeight)
+                                    .padding(.horizontal, 24)
+                                    .padding(.bottom, 20)
+                            }
 
                             if !displayAttachments.isEmpty {
                                 attachmentsSection

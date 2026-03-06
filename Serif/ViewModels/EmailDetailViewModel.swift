@@ -11,6 +11,8 @@ final class EmailDetailViewModel: ObservableObject {
     @Published var trackerResult:   TrackerResult?
     @Published var allowTrackers    = false
     @Published var resolvedHTML:    String?
+    @Published var calendarInvite:  CalendarInvite?
+    @Published var rsvpInProgress   = false
 
     /// HTML to render: sanitized (trackers stripped) or original when user allows.
     var displayHTML: String? {
@@ -42,6 +44,7 @@ final class EmailDetailViewModel: ObservableObject {
         if let cached = MailCacheStore.shared.loadThread(accountID: accountID, threadID: id) {
             thread = cached
             analyzeTrackers()
+            detectCalendarInvite()
         }
 
         // Refresh from API
@@ -49,6 +52,7 @@ final class EmailDetailViewModel: ObservableObject {
             let fresh = try await GmailMessageService.shared.getThread(id: id, accountID: accountID)
             thread = fresh
             analyzeTrackers()
+            detectCalendarInvite()
             if let latest = fresh.messages?.last {
                 await resolveInlineImages(for: latest)
             }
@@ -82,6 +86,70 @@ final class EmailDetailViewModel: ObservableObject {
             return
         }
         trackerResult = TrackerBlockerService.shared.sanitize(html: html)
+    }
+
+    // MARK: - Calendar invite detection
+
+    private func detectCalendarInvite() {
+        guard let msg = latestMessage,
+              let html = msg.htmlBody, !html.isEmpty
+        else { calendarInvite = nil; return }
+
+        guard var invite = CalendarInviteParser.parse(
+            html: html,
+            subject: msg.subject,
+            sender: msg.from
+        ) else { calendarInvite = nil; return }
+
+        // Restore persisted RSVP status
+        if let saved = UserDefaults.standard.string(forKey: rsvpKey(for: msg.id)),
+           let status = CalendarInvite.RSVPStatus(rawValue: saved) {
+            invite.rsvpStatus = status
+        }
+        calendarInvite = invite
+    }
+
+    func sendRSVP(_ status: CalendarInvite.RSVPStatus) async {
+        guard var invite = calendarInvite else { return }
+        guard status != invite.rsvpStatus else { return }
+
+        let url: URL?
+        switch status {
+        case .accepted: url = invite.acceptURL
+        case .declined: url = invite.declineURL
+        case .maybe:    url = invite.maybeURL
+        case .pending:  return
+        }
+        guard let rsvpURL = url else { return }
+
+        rsvpInProgress = true
+        let success = await CalendarInviteParser.sendRSVP(url: rsvpURL)
+        rsvpInProgress = false
+
+        if success {
+            invite.rsvpStatus = status
+            calendarInvite = invite
+
+            // Persist
+            if let msgID = latestMessage?.id {
+                UserDefaults.standard.set(status.rawValue, forKey: rsvpKey(for: msgID))
+            }
+
+            let message: String
+            switch status {
+            case .accepted: message = "Invitation accepted"
+            case .declined: message = "Invitation declined"
+            case .maybe:    message = "Responded maybe"
+            case .pending:  return
+            }
+            ToastManager.shared.show(message: message, type: .success)
+        } else {
+            ToastManager.shared.show(message: "Failed to send RSVP", type: .error)
+        }
+    }
+
+    private func rsvpKey(for messageID: String) -> String {
+        "rsvp_\(accountID)_\(messageID)"
     }
 
     // MARK: - Inline Image Resolution

@@ -109,6 +109,8 @@
 		A100010100000000000000E4 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E4 /* AppCoordinator.swift */; };
 		A100010100000000000000E5 /* KeyboardShortcutsModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E5 /* KeyboardShortcutsModifier.swift */; };
 		A10001010000000000000201 /* SerifCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000201 /* SerifCommands.swift */; };
+		A10001010000000000000300 /* CalendarInviteParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000300 /* CalendarInviteParser.swift */; };
+		A10001010000000000000301 /* CalendarInviteCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000301 /* CalendarInviteCardView.swift */; };
 		A100010100000000000000E6 /* EmailSelectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E6 /* EmailSelectionManager.swift */; };
 		A100010100000000000000E7 /* PullToRefreshView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E7 /* PullToRefreshView.swift */; };
 		A100010100000000000000E8 /* InAppBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E8 /* InAppBrowserView.swift */; };
@@ -261,6 +263,8 @@
 		A100020100000000000000E4 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
 		A100020100000000000000E5 /* KeyboardShortcutsModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsModifier.swift; sourceTree = "<group>"; };
 		A10002010000000000000201 /* SerifCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SerifCommands.swift; sourceTree = "<group>"; };
+		A10002010000000000000300 /* CalendarInviteParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarInviteParser.swift; sourceTree = "<group>"; };
+		A10002010000000000000301 /* CalendarInviteCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarInviteCardView.swift; sourceTree = "<group>"; };
 		A100020100000000000000E6 /* EmailSelectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailSelectionManager.swift; sourceTree = "<group>"; };
 		A100020100000000000000E7 /* PullToRefreshView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullToRefreshView.swift; sourceTree = "<group>"; };
 		A100020100000000000000E8 /* InAppBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InAppBrowserView.swift; sourceTree = "<group>"; };
@@ -427,6 +431,7 @@
 				A1000201000000000000008E /* OriginalMessageView.swift */,
 				A1000201000000000000000D /* ReplyBarView.swift */,
 				A10002010000000000000093 /* TrackerBannerView.swift */,
+				A10002010000000000000301 /* CalendarInviteCardView.swift */,
 			);
 			path = EmailDetail;
 			sourceTree = "<group>";
@@ -550,6 +555,7 @@
 				A100020100000000000000F2 /* MessageFetchService.swift */,
 				A100020100000000000000F3 /* LabelSyncService.swift */,
 				A100020100000000000000F4 /* HistorySyncService.swift */,
+				A10002010000000000000300 /* CalendarInviteParser.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -859,6 +865,8 @@
 				A100010100000000000000E4 /* AppCoordinator.swift in Sources */,
 				A100010100000000000000E5 /* KeyboardShortcutsModifier.swift in Sources */,
 				A10001010000000000000201 /* SerifCommands.swift in Sources */,
+				A10001010000000000000300 /* CalendarInviteParser.swift in Sources */,
+				A10001010000000000000301 /* CalendarInviteCardView.swift in Sources */,
 				A100010100000000000000E3 /* EmailContextMenu.swift in Sources */,
 				A100010100000000000000E6 /* EmailSelectionManager.swift in Sources */,
 				A100010100000000000000E7 /* PullToRefreshView.swift in Sources */,
