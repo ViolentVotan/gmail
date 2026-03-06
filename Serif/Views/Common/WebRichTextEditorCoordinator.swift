@@ -16,7 +16,10 @@ class WebRichTextEditorCoordinator: NSObject, WKScriptMessageHandler, WKNavigati
         Task { @MainActor in
             switch type {
             case "contentChanged":
-                if let html = dict["html"] as? String {
+                let isEmpty = dict["isEmpty"] as? Bool ?? false
+                if isEmpty {
+                    parent.htmlContent = ""
+                } else if let html = dict["html"] as? String {
                     parent.htmlContent = html
                 }
 

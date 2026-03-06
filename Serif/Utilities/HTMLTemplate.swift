@@ -50,10 +50,14 @@ enum HTMLTemplate {
             word-wrap: break-word;
             overflow-wrap: break-word;
         }
+        #editor {
+            position: relative;
+        }
         #editor:empty::before {
             content: attr(data-placeholder);
             color: var(--placeholder-color);
             pointer-events: none;
+            position: absolute;
         }
         #editor a {
             color: var(--accent-color);

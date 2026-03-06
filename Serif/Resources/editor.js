@@ -240,6 +240,10 @@
     function notifyContentChanged() {
         var html = editor.innerHTML;
         var isEmpty = !editor.textContent.trim() && !editor.querySelector('img');
+        if (isEmpty) {
+            editor.innerHTML = '';
+            html = '';
+        }
         post({ type: 'contentChanged', html: html, isEmpty: isEmpty });
     }
 

@@ -50,7 +50,10 @@ struct ReplyBarView: View {
                 .strokeBorder(theme.border, lineWidth: 1)
         )
         .background(ClickOutsideDetector(isExpanded: isExpanded, onClickOutside: { minimize() }))
-        .onChange(of: replyHTML) { _ in scheduleAutoSave() }
+        .onChange(of: replyHTML) { _ in
+            scheduleAutoSave()
+        }
+        .animation(.easeInOut(duration: 0.2), value: replyBodyIsEmpty)
         .onAppear {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 isInitialLoad = false
@@ -62,6 +65,10 @@ struct ReplyBarView: View {
         } message: {
             Text("Your reply draft will be permanently deleted.")
         }
+    }
+
+    private var replyBodyIsEmpty: Bool {
+        replyHTML.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var hasSavedDraft: Bool {
@@ -161,6 +168,7 @@ struct ReplyBarView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Minimize")
+                .keyboardShortcut(.escape, modifiers: [])
 
                 Button { attachFiles() } label: {
                     Image(systemName: "paperclip")
@@ -180,38 +188,41 @@ struct ReplyBarView: View {
 
                 Spacer()
 
-                Button { showDiscardAlert = true } label: {
-                    Text("Discard")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(theme.textSecondary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(theme.buttonSecondary)
-                        .cornerRadius(6)
-                }
-                .buttonStyle(.plain)
-                .keyboardShortcut(.escape, modifiers: [])
-
-                Button { Task { await sendReply() } } label: {
-                    HStack(spacing: 4) {
-                        if isSending {
-                            ProgressView().scaleEffect(0.6).tint(.white)
-                        } else {
-                            Image(systemName: "paperplane.fill")
-                                .font(.system(size: 11))
-                        }
-                        Text(isSending ? "Sending..." : "Send")
-                            .font(.system(size: 12, weight: .semibold))
+                if !replyBodyIsEmpty {
+                    Button { discardAction() } label: {
+                        Text("Discard")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(theme.textSecondary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(theme.buttonSecondary)
+                            .cornerRadius(6)
                     }
-                    .foregroundColor(theme.textInverse)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6)
-                    .background(theme.accentPrimary.opacity(isSending ? 0.6 : 1))
-                    .cornerRadius(6)
+                    .buttonStyle(.plain)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+
+                    Button { Task { await sendReply() } } label: {
+                        HStack(spacing: 4) {
+                            if isSending {
+                                ProgressView().scaleEffect(0.6).tint(.white)
+                            } else {
+                                Image(systemName: "paperplane.fill")
+                                    .font(.system(size: 11))
+                            }
+                            Text(isSending ? "Sending..." : "Send")
+                                .font(.system(size: 12, weight: .semibold))
+                        }
+                        .foregroundColor(theme.textInverse)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(theme.accentPrimary.opacity(isSending ? 0.6 : 1))
+                        .cornerRadius(6)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isSending)
+                    .keyboardShortcut(.return, modifiers: .command)
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
                 }
-                .buttonStyle(.plain)
-                .disabled(isSending || replyHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .keyboardShortcut(.return, modifiers: .command)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
@@ -219,6 +230,14 @@ struct ReplyBarView: View {
     }
 
     // MARK: - Actions
+
+    private func discardAction() {
+        if hasSavedDraft || composeVM.gmailDraftID != nil {
+            showDiscardAlert = true
+        } else {
+            collapse()
+        }
+    }
 
     private func sendReply() async {
         isSending = true
@@ -305,7 +324,19 @@ struct ReplyBarView: View {
     }
 
     private func scheduleAutoSave() {
-        guard !isInitialLoad, !isLoadingDraft, !replyHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard !isInitialLoad, !isLoadingDraft else { return }
+        if replyHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            // Content was cleared — discard any existing draft
+            saveTask?.cancel()
+            if let threadID = email.gmailThreadID, mailStore.replyDrafts[threadID] != nil {
+                mailStore.replyDrafts.removeValue(forKey: threadID)
+                mailStore.saveReplyDrafts()
+                if composeVM.gmailDraftID != nil {
+                    Task { await composeVM.discardDraft() }
+                }
+            }
+            return
+        }
         saveTask?.cancel()
         saveTask = Task {
             try? await Task.sleep(nanoseconds: 2_000_000_000)

@@ -16,9 +16,11 @@ struct SignatureEditorView: View {
         VStack(spacing: 0) {
             header
             Divider().background(theme.divider)
-            FormattingToolbar(state: editorState)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+            ScrollView(.horizontal, showsIndicators: false) {
+                FormattingToolbar(state: editorState)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
             Divider().background(theme.divider)
             editorArea
             if let error = errorMessage {
@@ -27,6 +29,7 @@ struct SignatureEditorView: View {
         }
         .frame(width: 560, height: 420)
         .background(theme.detailBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
         .onAppear {
             htmlContent = alias.signature ?? ""
         }
