@@ -183,7 +183,8 @@ struct GmailSendAsListResponse: Codable {
     let sendAs: [GmailSendAs]
 }
 
-struct GmailSendAs: Codable {
+struct GmailSendAs: Codable, Identifiable {
+    var id: String { sendAsEmail }
     let sendAsEmail: String
     let displayName: String?
     let signature:   String?

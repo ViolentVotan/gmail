@@ -12,6 +12,7 @@ struct SlidePanelsOverlay: View {
     @Binding var signatureForNew: String
     @Binding var signatureForReply: String
     var sendAsAliases: [GmailSendAs]
+    var onAliasesUpdated: (() -> Void)?
     @ObservedObject var attachmentStore: AttachmentStore
 
     @Environment(\.theme) private var theme
@@ -44,8 +45,10 @@ struct SlidePanelsOverlay: View {
                 )
                 SignatureSettingsCard(
                     aliases: sendAsAliases,
+                    accountID: selectedAccountID ?? authViewModel.primaryAccount?.id ?? "",
                     signatureForNew: $signatureForNew,
-                    signatureForReply: $signatureForReply
+                    signatureForReply: $signatureForReply,
+                    onAliasesUpdated: { onAliasesUpdated?() }
                 )
                 StorageSettingsCard(attachmentStore: attachmentStore)
             }

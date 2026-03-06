@@ -1,7 +1,7 @@
 import AppKit
 import PDFKit
 
-/// In-memory cache of attachment thumbnails, loaded on-demand with concurrency throttling.
+/// In-memory + disk cache of attachment thumbnails, loaded on-demand with concurrency throttling.
 @MainActor
 final class ThumbnailCache: ObservableObject {
     static let shared = ThumbnailCache()
@@ -21,10 +21,20 @@ final class ThumbnailCache: ObservableObject {
 
     private let maxSize = CGSize(width: 300, height: 200)
 
+    /// Directory for disk-cached thumbnails.
+    private let cacheDirectory: URL = {
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        let dir = caches.appendingPathComponent("com.serif.thumbnails", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }()
+
     func clearAll() {
         thumbnails.removeAll()
         loading.removeAll()
         pendingQueue.removeAll()
+        try? FileManager.default.removeItem(at: cacheDirectory)
+        try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
     }
 
     func thumbnail(for id: String) -> NSImage? {
@@ -36,13 +46,19 @@ final class ThumbnailCache: ObservableObject {
         pendingQueue.removeAll { $0.id == id }
     }
 
-    /// Request a thumbnail for an attachment. Queues if at concurrency limit.
+    /// Request a thumbnail for an attachment. Loads from disk cache first, then network.
     func loadIfNeeded(attachment: IndexedAttachment, accountID: String) {
         let id = attachment.id
         guard thumbnails[id] == nil, !loading.contains(id) else { return }
 
         let fileType = Attachment.FileType(rawValue: attachment.fileType) ?? .document
         guard fileType == .image || fileType == .pdf else { return }
+
+        // Try disk cache first
+        if let diskImage = loadFromDisk(id: id) {
+            thumbnails[id] = diskImage
+            return
+        }
 
         loading.insert(id)
 
@@ -80,6 +96,7 @@ final class ThumbnailCache: ObservableObject {
                 }
                 if let thumb {
                     thumbnails[id] = thumb
+                    saveToDisk(image: thumb, id: id)
                 }
             } catch {
                 // Silently skip — will show icon fallback
@@ -97,6 +114,33 @@ final class ThumbnailCache: ObservableObject {
             return
         }
         startFetch(id: next.id, attachment: next.attachment, accountID: next.accountID)
+    }
+
+    // MARK: - Disk Cache
+
+    private func cacheFileURL(for id: String) -> URL {
+        let safeName = id.replacingOccurrences(of: "/", with: "_")
+        return cacheDirectory.appendingPathComponent(safeName + ".jpg")
+    }
+
+    private func loadFromDisk(id: String) -> NSImage? {
+        let url = cacheFileURL(for: id)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return NSImage(contentsOf: url)
+    }
+
+    private nonisolated func saveToDisk(image: NSImage, id: String) {
+        let safeName = id.replacingOccurrences(of: "/", with: "_")
+        let url = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+            .appendingPathComponent("com.serif.thumbnails", isDirectory: true)
+            .appendingPathComponent(safeName + ".jpg")
+        Task.detached(priority: .utility) {
+            guard let tiff = image.tiffRepresentation,
+                  let rep = NSBitmapImageRep(data: tiff),
+                  let jpeg = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.75])
+            else { return }
+            try? jpeg.write(to: url)
+        }
     }
 
     // MARK: - Generators

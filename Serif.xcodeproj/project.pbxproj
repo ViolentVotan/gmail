@@ -120,6 +120,7 @@
 		A100010100000000000000E6 /* EmailSelectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E6 /* EmailSelectionManager.swift */; };
 		A100010100000000000000E7 /* PullToRefreshView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E7 /* PullToRefreshView.swift */; };
 		A100010100000000000000E8 /* InAppBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E8 /* InAppBrowserView.swift */; };
+		A100010100000000000000E9 /* SignatureEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E9 /* SignatureEditorView.swift */; };
 		B10001010000000000000001 /* GmailModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000001 /* GmailModelsTests.swift */; };
 		B10001010000000000000002 /* EmailModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000002 /* EmailModelTests.swift */; };
 		B10001010000000000000003 /* GmailDataTransformerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000003 /* GmailDataTransformerTests.swift */; };
@@ -261,6 +262,7 @@
 		A100020100000000000000E6 /* EmailSelectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailSelectionManager.swift; sourceTree = "<group>"; };
 		A100020100000000000000E7 /* PullToRefreshView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullToRefreshView.swift; sourceTree = "<group>"; };
 		A100020100000000000000E8 /* InAppBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InAppBrowserView.swift; sourceTree = "<group>"; };
+		A100020100000000000000E9 /* SignatureEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignatureEditorView.swift; sourceTree = "<group>"; };
 		B10002010000000000000001 /* GmailModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailModelsTests.swift; sourceTree = "<group>"; };
 		B10002010000000000000002 /* EmailModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailModelTests.swift; sourceTree = "<group>"; };
 		B10002010000000000000003 /* GmailDataTransformerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailDataTransformerTests.swift; sourceTree = "<group>"; };
@@ -366,6 +368,7 @@
 				A1000401000000000000000B /* Attachments */,
 				A1000401000000000000000C /* Onboarding */,
 				A100040100000000000000E3 /* Components */,
+				A1000401000000000000000D /* Settings */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -477,6 +480,14 @@
 				A100020100000000000000E2 /* IconButton.swift */,
 			);
 			path = Components;
+			sourceTree = "<group>";
+		};
+		A1000401000000000000000D /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				A100020100000000000000E9 /* SignatureEditorView.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		A10004010000000000000010 /* Resources */ = {
@@ -848,6 +859,7 @@
 				A100010100000000000000FC /* HTMLTemplate.swift in Sources */,
 				A1000101000000000000101 /* InlineImageProcessor.swift in Sources */,
 				A100010100000000000000E8 /* InAppBrowserView.swift in Sources */,
+				A100010100000000000000E9 /* SignatureEditorView.swift in Sources */,
 				A10001010000000000000103 /* UpdaterViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

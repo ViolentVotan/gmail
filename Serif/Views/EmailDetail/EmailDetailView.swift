@@ -19,7 +19,7 @@ struct EmailDetailView: View {
     var onForward:     ((ComposeMode) -> Void)?
 
     var onCreateAndAddLabel: ((String, @escaping (String?) -> Void) -> Void)?
-    var onPreviewAttachment: ((Data, String, Attachment.FileType) -> Void)?
+    var onPreviewAttachment: ((Data?, String, Attachment.FileType) -> Void)?
     var onShowOriginal: ((EmailDetailViewModel) -> Void)?
     var onDownloadMessage: ((EmailDetailViewModel) -> Void)?
     var onUnsubscribe: ((URL, Bool, String?) async -> Bool)?
@@ -76,7 +76,7 @@ struct EmailDetailView: View {
         onReplyAll:            ((ComposeMode) -> Void)? = nil,
         onForward:             ((ComposeMode) -> Void)? = nil,
         onCreateAndAddLabel:   ((String, @escaping (String?) -> Void) -> Void)? = nil,
-        onPreviewAttachment:   ((Data, String, Attachment.FileType) -> Void)? = nil,
+        onPreviewAttachment:   ((Data?, String, Attachment.FileType) -> Void)? = nil,
         onShowOriginal:        ((EmailDetailViewModel) -> Void)? = nil,
         onDownloadMessage:     ((EmailDetailViewModel) -> Void)? = nil,
         onUnsubscribe:         ((URL, Bool, String?) async -> Bool)? = nil,
@@ -274,6 +274,7 @@ struct EmailDetailView: View {
     // MARK: - Attachment preview & download
 
     private func loadAndPreview(attachment: Attachment, part: GmailMessagePart) {
+        onPreviewAttachment?(nil, attachment.name, attachment.fileType)
         Task {
             guard let msgID = detailVM.latestMessage?.id else { return }
             guard let data = try? await detailVM.downloadAttachment(messageID: msgID, part: part) else { return }

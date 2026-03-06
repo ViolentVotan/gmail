@@ -35,6 +35,18 @@ final class GmailProfileService {
         return response.sendAs
     }
 
+    /// Updates the signature HTML for a specific send-as alias.
+    @discardableResult
+    func updateSignature(sendAsEmail: String, signature: String, accountID: String) async throws -> GmailSendAs {
+        struct UpdateRequest: Encodable { let signature: String }
+        let body = try JSONEncoder().encode(UpdateRequest(signature: signature))
+        return try await GmailAPIClient.shared.request(
+            path: "/users/me/settings/sendAs/\(sendAsEmail)",
+            method: "PUT", body: body, contentType: "application/json",
+            accountID: accountID
+        )
+    }
+
     /// Returns the signature HTML for the default send-as address.
     func getSignature(accountID: String) async throws -> String? {
         let aliases = try await listSendAs(accountID: accountID)

@@ -154,6 +154,8 @@ struct AttachmentExplorerView: View {
     private func loadAndPreview(_ attachment: IndexedAttachment) {
         guard downloadingAttachmentID == nil else { return }
         downloadingAttachmentID = attachment.id
+        let fileType = Attachment.FileType(rawValue: attachment.fileType) ?? .document
+        panelCoordinator.previewAttachment(data: nil, name: attachment.filename, fileType: fileType)
         Task {
             defer { downloadingAttachmentID = nil }
             do {
@@ -162,10 +164,7 @@ struct AttachmentExplorerView: View {
                     attachmentID: attachment.attachmentId,
                     accountID: accountID
                 )
-                let fileType = Attachment.FileType(rawValue: attachment.fileType) ?? .document
-                await MainActor.run {
-                    panelCoordinator.previewAttachment(data: data, name: attachment.filename, fileType: fileType)
-                }
+                panelCoordinator.previewAttachment(data: data, name: attachment.filename, fileType: fileType)
             } catch {
                 print("[AttachmentExplorer] Preview failed: \(error)")
             }

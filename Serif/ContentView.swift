@@ -105,6 +105,9 @@ struct ContentView: View {
                 signatureForNew: $coordinator.signatureForNew,
                 signatureForReply: $coordinator.signatureForReply,
                 sendAsAliases: coordinator.mailboxViewModel.sendAsAliases,
+                onAliasesUpdated: {
+                    Task { await coordinator.mailboxViewModel.loadSendAs() }
+                },
                 attachmentStore: coordinator.attachmentStore
             )
         }

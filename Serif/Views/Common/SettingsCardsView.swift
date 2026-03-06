@@ -108,8 +108,11 @@ struct ContactsSettingsCard: View {
 
 struct SignatureSettingsCard: View {
     let aliases: [GmailSendAs]
+    let accountID: String
     @Binding var signatureForNew: String
     @Binding var signatureForReply: String
+    var onAliasesUpdated: (() -> Void)?
+    @State private var editingAlias: GmailSendAs?
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -125,36 +128,46 @@ struct SignatureSettingsCard: View {
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(aliases, id: \.sendAsEmail) { alias in
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 6) {
-                                Text(alias.displayName ?? alias.sendAsEmail)
-                                    .font(.serifLabel)
-                                    .foregroundColor(theme.textPrimary)
-                                if alias.isPrimary == true {
-                                    Text("Primary")
-                                        .font(.system(size: 9, weight: .semibold))
-                                        .foregroundColor(theme.accentPrimary)
-                                        .padding(.horizontal, 5)
-                                        .padding(.vertical, 1)
-                                        .background(Capsule().fill(theme.accentPrimary.opacity(0.15)))
+                        Button {
+                            editingAlias = alias
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 6) {
+                                    Text(alias.displayName ?? alias.sendAsEmail)
+                                        .font(.serifLabel)
+                                        .foregroundColor(theme.textPrimary)
+                                    if alias.isPrimary == true {
+                                        Text("Primary")
+                                            .font(.system(size: 9, weight: .semibold))
+                                            .foregroundColor(theme.accentPrimary)
+                                            .padding(.horizontal, 5)
+                                            .padding(.vertical, 1)
+                                            .background(Capsule().fill(theme.accentPrimary.opacity(0.15)))
+                                    }
+                                    Spacer()
+                                    Image(systemName: "pencil")
+                                        .font(.serifSmall)
+                                        .foregroundColor(theme.textTertiary)
+                                }
+                                Text(alias.sendAsEmail)
+                                    .font(.serifSmall)
+                                    .foregroundColor(theme.textTertiary)
+                                if let sig = alias.signature, !sig.isEmpty {
+                                    Text(sig.strippingHTML.prefix(80) + (sig.strippingHTML.count > 80 ? "…" : ""))
+                                        .font(.serifBadge)
+                                        .foregroundColor(theme.textTertiary)
+                                        .lineLimit(2)
+                                } else {
+                                    Text("No signature")
+                                        .font(.serifBadge)
+                                        .foregroundColor(theme.textTertiary)
+                                        .italic()
                                 }
                             }
-                            Text(alias.sendAsEmail)
-                                .font(.serifSmall)
-                                .foregroundColor(theme.textTertiary)
-                            if let sig = alias.signature, !sig.isEmpty {
-                                Text(sig.strippingHTML.prefix(80) + (sig.strippingHTML.count > 80 ? "…" : ""))
-                                    .font(.serifBadge)
-                                    .foregroundColor(theme.textTertiary)
-                                    .lineLimit(2)
-                            } else {
-                                Text("No signature")
-                                    .font(.serifBadge)
-                                    .foregroundColor(theme.textTertiary)
-                                    .italic()
-                            }
+                            .padding(.vertical, 4)
+                            .contentShape(Rectangle())
                         }
-                        .padding(.vertical, 4)
+                        .buttonStyle(.plain)
                     }
                 }
 
@@ -192,6 +205,13 @@ struct SignatureSettingsCard: View {
             }
         }
         .cardStyle()
+        .sheet(item: $editingAlias) { alias in
+            SignatureEditorView(
+                alias: alias,
+                accountID: accountID,
+                onSave: { _ in onAliasesUpdated?() }
+            )
+        }
     }
 }
 

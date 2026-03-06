@@ -46,12 +46,14 @@ class PanelCoordinator: ObservableObject {
         }
     }
 
-    func previewAttachment(data: Data, name: String, fileType: Attachment.FileType) {
+    func previewAttachment(data: Data?, name: String, fileType: Attachment.FileType) {
         attachmentPreviewData = data
         attachmentPreviewName = name
         attachmentPreviewFileType = fileType
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-            showAttachmentPreview = true
+        if !showAttachmentPreview {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                showAttachmentPreview = true
+            }
         }
     }
 
