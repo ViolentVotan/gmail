@@ -93,9 +93,14 @@ jobs:
       - name: Create DMG
         run: |
           TAG="${{ steps.version.outputs.TAG }}"
+          ICON_FILE=$(find "build/export/$APP_NAME.app/Contents/Resources" -name "*.icns" | head -1)
+          VOLICON_FLAG=""
+          if [ -n "$ICON_FILE" ]; then
+            VOLICON_FLAG="--volicon $ICON_FILE"
+          fi
           create-dmg \
             --volname "$APP_NAME" \
-            --volicon "build/export/$APP_NAME.app/Contents/Resources/serif_icon.icns" \
+            $VOLICON_FLAG \
             --window-pos 200 120 \
             --window-size 600 400 \
             --icon-size 100 \
