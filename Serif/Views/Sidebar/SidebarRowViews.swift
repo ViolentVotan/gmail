@@ -22,7 +22,7 @@ struct InboxParentRow: View {
                     Text("Inbox")
                         .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
                         .foregroundColor(isSelected ? theme.sidebarText : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
-
+                        .fixedSize(horizontal: true, vertical: false)
                     Spacer()
 
                     // Chevron to expand/collapse subcategories
@@ -130,7 +130,7 @@ struct LabelsParentRow: View {
                     Text("Labels")
                         .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
                         .foregroundColor(isSelected ? theme.sidebarText : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
-
+                        .fixedSize(horizontal: true, vertical: false)
                     Spacer()
 
                     Button {
@@ -194,7 +194,7 @@ struct LabelSidebarRow: View {
                     .font(.system(size: 12, weight: isSelected ? .medium : .regular))
                     .foregroundColor(isSelected ? theme.sidebarText : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
                     .lineLimit(1)
-
+                    .fixedSize(horizontal: true, vertical: false)
                 Spacer()
 
                 if let unread = label.messagesUnread, unread > 0 {
@@ -248,7 +248,7 @@ struct SidebarItemView: View {
             Text(folder.rawValue)
                 .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
                 .foregroundColor(isSelected ? theme.sidebarText : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
-
+                .fixedSize(horizontal: true, vertical: false)
             Spacer()
 
             if folder.count > 0 {

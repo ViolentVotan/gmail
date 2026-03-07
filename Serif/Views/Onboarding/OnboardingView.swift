@@ -95,14 +95,15 @@ struct OnboardingView: View {
                     Task { await handleSignIn() }
                 } label: {
                     HStack(spacing: 12) {
-                        if isSigningIn {
-                            ProgressView()
-                                .scaleEffect(0.7)
-                                .tint(blue)
-                        } else {
-                            Text("G")
-                                .font(.system(size: 18, weight: .bold))
-                                .foregroundColor(blue)
+                        ZStack {
+                          ProgressView()
+                            .controlSize(.small)
+                            .tint(blue)
+                            .opacity(isSignedIn ? 1 : 0)
+                          Text("G")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(blue)
+                            .opacity(isSignedIn ? 0 : 1)
                         }
                         Text(isSigningIn ? "Signing in\u{2026}" : "Sign in with Google")
                             .font(.system(size: 15, weight: .medium))

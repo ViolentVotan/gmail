@@ -50,7 +50,7 @@ struct ReplyBarView: View {
                 .strokeBorder(theme.border, lineWidth: 1)
         )
         .background(ClickOutsideDetector(isExpanded: isExpanded, onClickOutside: { minimize() }))
-        .onChange(of: replyHTML) { _ in
+        .onChange(of: replyHTML) { _,_ in
             scheduleAutoSave()
         }
         .animation(.easeInOut(duration: 0.2), value: replyBodyIsEmpty)

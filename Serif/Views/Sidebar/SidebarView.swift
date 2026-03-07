@@ -54,8 +54,23 @@ struct SidebarView: View {
                 isExpanded: isExpanded,
                 onSignIn: { await authViewModel.signIn() },
                 isSigningIn: authViewModel.isSigningIn
-            )
+            ) {
+                withAnimation(.easeInOut) {
+                    isExpanded = true
+                }
+            }
             .padding(.bottom, isExpanded ? 12 : 8)
+
+            if isExpanded, let account = authViewModel.accounts.first(where: { $0.id == selectedAccountID }) {
+                HStack {
+                    Text(account.email)
+                        .font(.caption)
+                        .foregroundStyle(theme.sidebarText)
+                        .truncationMode(.tail)
+                    Spacer()
+                }
+                .padding(.horizontal, 8)
+            }
 
             // Divider
             if isExpanded {
@@ -63,6 +78,7 @@ struct SidebarView: View {
                     .fill(theme.sidebarTextMuted.opacity(0.3))
                     .frame(height: 1)
                     .padding(.horizontal, 16)
+                    .padding(.top, 4)
                     .padding(.bottom, 8)
             }
 
