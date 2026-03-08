@@ -111,43 +111,30 @@ jobs:
       - name: Re-sign embedded frameworks
         run: |
           APP_PATH="build/export/$APP_NAME.app"
-          SIGN_FLAGS="--force --timestamp --options runtime --sign \"Developer ID Application\""
+          IDENTITY="Developer ID Application"
 
-          # Sign Sparkle XPC services (inside out)
-          find "$APP_PATH/Contents/Frameworks" -name "*.xpc" -type d | while read xpc; do
-            echo "Signing XPC: $xpc"
-            eval codesign $SIGN_FLAGS "$xpc"
-          done
-
-          # Sign Sparkle helper apps
-          find "$APP_PATH/Contents/Frameworks" -name "*.app" -type d | while read app; do
-            echo "Signing helper app: $app"
-            eval codesign $SIGN_FLAGS "$app"
-          done
-
-          # Sign standalone executables in Sparkle (Autoupdate, etc.)
-          find "$APP_PATH/Contents/Frameworks/Sparkle.framework" -type f -perm +111 ! -name "*.dylib" ! -path "*.app/*" ! -path "*.xpc/*" | while read bin; do
-            if file "$bin" | grep -q "Mach-O"; then
-              echo "Signing binary: $bin"
-              eval codesign $SIGN_FLAGS "$bin"
+          # Find and sign ALL Mach-O binaries inside Frameworks (deepest first)
+          find "$APP_PATH/Contents/Frameworks" -type f | while read f; do
+            if file "$f" | grep -q "Mach-O"; then
+              echo "Signing: $f"
+              codesign --force --timestamp --options runtime --sign "$IDENTITY" "$f"
             fi
           done
 
-          # Sign all dylibs
-          find "$APP_PATH/Contents/Frameworks" -name "*.dylib" -type f | while read dylib; do
-            echo "Signing dylib: $dylib"
-            eval codesign $SIGN_FLAGS "$dylib"
+          # Sign bundles: XPC services, apps, frameworks (inside out by depth)
+          find "$APP_PATH/Contents/Frameworks" \( -name "*.xpc" -o -name "*.app" \) -type d -depth | while read bundle; do
+            echo "Signing bundle: $bundle"
+            codesign --force --timestamp --options runtime --sign "$IDENTITY" "$bundle"
           done
 
-          # Sign all frameworks
-          find "$APP_PATH/Contents/Frameworks" -name "*.framework" -type d | while read fw; do
+          find "$APP_PATH/Contents/Frameworks" -name "*.framework" -type d -depth | while read fw; do
             echo "Signing framework: $fw"
-            eval codesign $SIGN_FLAGS "$fw"
+            codesign --force --timestamp --options runtime --sign "$IDENTITY" "$fw"
           done
 
           # Re-sign the main app
           echo "Signing main app..."
-          eval codesign $SIGN_FLAGS "$APP_PATH"
+          codesign --force --timestamp --options runtime --sign "$IDENTITY" "$APP_PATH"
 
           # Verify
           codesign --verify --deep --strict "$APP_PATH"
