@@ -98,6 +98,7 @@ jobs:
             -scheme $SCHEME \
             -configuration Release \
             -archivePath build/Serif.xcarchive \
+            CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Developer ID Application" \
             DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
             OTHER_CODE_SIGN_FLAGS="--timestamp --options runtime"
