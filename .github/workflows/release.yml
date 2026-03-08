@@ -114,14 +114,30 @@ jobs:
           ditto -c -k --keepParent "build/export/$APP_NAME.app" "build/export/$APP_NAME.zip"
 
           # Submit for notarization and wait
-          xcrun notarytool submit "build/export/$APP_NAME.zip" \
+          SUBMIT_OUTPUT=$(xcrun notarytool submit "build/export/$APP_NAME.zip" \
             --apple-id "${{ secrets.APPLE_ID }}" \
             --password "${{ secrets.APPLE_ID_PASSWORD }}" \
             --team-id "${{ secrets.APPLE_TEAM_ID }}" \
-            --wait
+            --wait 2>&1) || true
+          echo "$SUBMIT_OUTPUT"
 
-          # Staple the notarization ticket
-          xcrun stapler staple "build/export/$APP_NAME.app"
+          # Extract submission ID
+          SUBMISSION_ID=$(echo "$SUBMIT_OUTPUT" | grep "id:" | head -1 | awk '{print $2}')
+
+          # Check if notarization was accepted
+          if echo "$SUBMIT_OUTPUT" | grep -q "status: Accepted"; then
+            echo "Notarization accepted! Stapling ticket..."
+            xcrun stapler staple "build/export/$APP_NAME.app"
+          else
+            echo "Notarization failed. Fetching detailed logs..."
+            xcrun notarytool log "$SUBMISSION_ID" \
+              --apple-id "${{ secrets.APPLE_ID }}" \
+              --password "${{ secrets.APPLE_ID_PASSWORD }}" \
+              --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+              developer_log.json || true
+            cat developer_log.json || true
+            exit 1
+          fi
 
       - name: Install create-dmg
         run: brew install create-dmg
