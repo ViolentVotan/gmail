@@ -89,13 +89,20 @@ jobs:
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed s/\"//g)
 
       - name: Install provisioning profile
+        id: profile
         env:
           PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
         run: |
           PP_PATH="$RUNNER_TEMP/profile.provisionprofile"
           echo "$PROVISIONING_PROFILE" | base64 --decode > "$PP_PATH"
+
+          # Extract UUID from the profile
+          PP_UUID=$(/usr/libexec/PlistBuddy -c "Print UUID" /dev/stdin <<< $(/usr/bin/security cms -D -i "$PP_PATH"))
+          echo "PP_UUID=$PP_UUID" >> $GITHUB_OUTPUT
+
+          # Install to the standard location using UUID as filename
           mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
-          cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/
+          cp "$PP_PATH" ~/Library/MobileDevice/Provisioning\ Profiles/"$PP_UUID.provisionprofile"
 
       - name: Resolve SPM dependencies
         run: xcodebuild -project $PROJECT -scheme $SCHEME -resolvePackageDependencies
@@ -110,6 +117,7 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Developer ID Application" \
             DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            PROVISIONING_PROFILE_SPECIFIER="${{ steps.profile.outputs.PP_UUID }}" \
             OTHER_CODE_SIGN_FLAGS="--timestamp --options runtime"
 
       - name: Prepare app for DMG
