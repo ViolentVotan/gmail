@@ -271,9 +271,6 @@ struct OnboardingView: View {
     private func hideTrafficLights(_ hide: Bool) {
         DispatchQueue.main.async {
             guard let window = NSApplication.shared.windows.first else { return }
-            window.standardWindowButton(.closeButton)?.isHidden = hide
-            window.standardWindowButton(.miniaturizeButton)?.isHidden = hide
-            window.standardWindowButton(.zoomButton)?.isHidden = hide
             if hide {
                 window.toolbar = nil
                 window.isMovableByWindowBackground = true
