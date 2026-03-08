@@ -109,6 +109,12 @@ jobs:
 
       - name: Build archive
         run: |
+          # Inject provisioning profile into project targets (not SPM)
+          PP_UUID="${{ steps.profile.outputs.PP_UUID }}"
+          sed -i '' "/CODE_SIGN_STYLE = Automatic;/a\\
+          				PROVISIONING_PROFILE_SPECIFIER = \"$PP_UUID\";
+          " $PROJECT/project.pbxproj
+
           xcodebuild archive \
             -project $PROJECT \
             -scheme $SCHEME \
@@ -117,7 +123,6 @@ jobs:
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Developer ID Application" \
             DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
-            PROVISIONING_PROFILE_SPECIFIER="${{ steps.profile.outputs.PP_UUID }}" \
             OTHER_CODE_SIGN_FLAGS="--timestamp --options runtime"
 
       - name: Prepare app for DMG
