@@ -101,7 +101,7 @@ final class APICache {
 
     private init() {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        cacheDir = caches.appendingPathComponent("com.serif.app/api-cache", isDirectory: true)
+        cacheDir = caches.appendingPathComponent("com.genyus.serif.app/api-cache", isDirectory: true)
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
     }
 

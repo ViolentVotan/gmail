@@ -208,13 +208,18 @@ struct ReplyBarView: View {
 
                     Button { Task { await sendReply() } } label: {
                         HStack(spacing: 4) {
-                            if isSending {
-                                ProgressView().scaleEffect(0.6).tint(.white)
-                            } else {
-                                Image(systemName: "paperplane.fill")
-                                    .font(.system(size: 11))
+                            Group {
+                                if isSending {
+                                    ProgressView()
+                                        .scaleEffect(0.5)
+                                        .tint(.white)
+                                } else {
+                                    Image(systemName: "paperplane.fill")
+                                }
                             }
-                            Text(isSending ? "Sending..." : "Send")
+                            .font(.system(size: 11))
+                            .frame(width: 12, height: 12)
+                            Text("Send")
                                 .font(.system(size: 12, weight: .semibold))
                         }
                         .foregroundColor(theme.textInverse)
@@ -247,6 +252,15 @@ struct ReplyBarView: View {
     private func sendReply() async {
         isSending = true
         sendError = nil
+        saveTask?.cancel()
+
+        // Recover draft ID so we can delete it after sending
+        if composeVM.gmailDraftID == nil,
+           let threadID = email.gmailThreadID,
+           let saved = mailStore.replyDrafts[threadID] {
+            composeVM.gmailDraftID = saved.gmailDraftID
+        }
+        let draftIDToDelete = composeVM.gmailDraftID
 
         let (processedHTML, images) = InlineImageProcessor.extractInlineImages(from: replyHTML)
         let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
@@ -266,6 +280,10 @@ struct ReplyBarView: View {
             if let threadID = email.gmailThreadID {
                 mailStore.replyDrafts.removeValue(forKey: threadID)
                 mailStore.saveReplyDrafts()
+            }
+            // Remove draft from local store so it disappears from Drafts folder
+            if let gid = draftIDToDelete {
+                mailStore.gmailDrafts.removeAll { $0.gmailDraftID == gid }
             }
             ToastManager.shared.show(message: "Reply sent", type: .success)
             collapse()

@@ -196,8 +196,12 @@ final class MailStore: ObservableObject {
     }
 
     func deleteDraft(id: UUID) {
+        let gmailDraftID = emails.first(where: { $0.id == id })?.gmailDraftID
         emails.removeAll { $0.id == id }
         gmailDrafts.removeAll { $0.id == id }
+        if let gid = gmailDraftID {
+            gmailDrafts.removeAll { $0.gmailDraftID == gid }
+        }
     }
 
     // MARK: - Attachments

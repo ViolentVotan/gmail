@@ -38,7 +38,7 @@ final class AttachmentDatabase: @unchecked Sendable {
     private func openDatabase() throws {
         let fm = FileManager.default
         let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let dir = support.appendingPathComponent("com.serif.app", isDirectory: true)
+        let dir = support.appendingPathComponent("com.genyus.serif.app", isDirectory: true)
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
 
         let path = dir.appendingPathComponent("attachment-index.sqlite").path
@@ -490,7 +490,7 @@ final class AttachmentDatabase: @unchecked Sendable {
     func databaseSizeBytes() -> Int64 {
         let fm = FileManager.default
         let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let dir = support.appendingPathComponent("com.serif.app", isDirectory: true)
+        let dir = support.appendingPathComponent("com.genyus.serif.app", isDirectory: true)
         let basePath = dir.appendingPathComponent("attachment-index.sqlite").path
         var total: Int64 = 0
         for suffix in ["", "-wal", "-shm"] {

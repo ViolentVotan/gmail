@@ -2,26 +2,26 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>ATSApplicationFontsPath</key>
+	<string>.</string>
 	<key>CFBundleIconFile</key>
 	<string>serif_icon</string>
 	<key>CFBundleIconName</key>
 	<string>serif_icon</string>
-	<key>ATSApplicationFontsPath</key>
-	<string>.</string>
-	<key>SUFeedURL</key>
-	<string>https://marshallino16.github.io/Serif/appcast.xml</string>
-	<key>SUPublicEDKey</key>
-	<string>MBf6OjclbjZHZDbipVSOkY6p7u0FZmTo3p9jOTgGK7Y=</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>com.serif.app</string>
+			<string>com.genyus.serif.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.serif.app</string>
+				<string>com.genyus.serif.app</string>
 			</array>
 		</dict>
 	</array>
+	<key>SUFeedURL</key>
+	<string>https://marshallino16.github.io/Serif/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>MBf6OjclbjZHZDbipVSOkY6p7u0FZmTo3p9jOTgGK7Y=</string>
 </dict>
 </plist>

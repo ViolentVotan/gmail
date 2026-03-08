@@ -15,7 +15,7 @@ final class MailCacheStore {
 
     private var baseDir: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("com.serif.app/mail-cache", isDirectory: true)
+            .appendingPathComponent("com.genyus.serif.app/mail-cache", isDirectory: true)
     }
 
     private func fileURL(accountID: String, folderKey: String) -> URL {

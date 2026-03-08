@@ -385,13 +385,18 @@ struct ComposeView: View {
                 Task { await sendEmail() }
             } label: {
                 HStack(spacing: 6) {
-                    if isSending {
-                        ProgressView().scaleEffect(0.6).tint(.white)
-                    } else {
-                        Image(systemName: "paperplane.fill")
-                            .font(.system(size: 11))
+                    Group {
+                        if isSending {
+                            ProgressView()
+                                .scaleEffect(0.5)
+                                .tint(.white)
+                        } else {
+                            Image(systemName: "paperplane.fill")
+                        }
                     }
-                    Text(isSending ? "Sending…" : "Send")
+                    .font(.system(size: 11))
+                    .frame(width: 12, height: 12)
+                    Text("Send")
                         .font(.system(size: 12, weight: .semibold))
                 }
                 .foregroundColor(theme.textInverse)
