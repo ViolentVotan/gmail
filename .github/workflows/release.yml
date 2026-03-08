@@ -58,6 +58,36 @@ jobs:
           }
           CREDS_EOF
 
+      - name: Install Developer ID certificate
+        env:
+          DEVELOPER_ID_CERTIFICATE: ${{ secrets.DEVELOPER_ID_CERTIFICATE }}
+          DEVELOPER_ID_PASSWORD: ${{ secrets.DEVELOPER_ID_PASSWORD }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          CERT_PATH="$RUNNER_TEMP/certificate.p12"
+
+          # Decode certificate
+          echo "$DEVELOPER_ID_CERTIFICATE" | base64 --decode > "$CERT_PATH"
+
+          # Create temporary keychain
+          security create-keychain -p "" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "" "$KEYCHAIN_PATH"
+
+          # Import certificate
+          security import "$CERT_PATH" \
+            -P "$DEVELOPER_ID_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          # Allow codesign to access the keychain
+          security set-key-partition-list -S apple-tool:,apple: -k "" "$KEYCHAIN_PATH"
+
+          # Add keychain to search list
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | sed s/\"//g)
+
       - name: Resolve SPM dependencies
         run: xcodebuild -project $PROJECT -scheme $SCHEME -resolvePackageDependencies
 
@@ -68,24 +98,29 @@ jobs:
             -scheme $SCHEME \
             -configuration Release \
             -archivePath build/Serif.xcarchive \
-            CODE_SIGN_IDENTITY="-" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGN_IDENTITY="Developer ID Application" \
+            DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
+            OTHER_CODE_SIGN_FLAGS="--timestamp --options runtime"
 
       - name: Prepare app for DMG
         run: |
           mkdir -p build/export
           cp -R "build/Serif.xcarchive/Products/Applications/$APP_NAME.app" "build/export/$APP_NAME.app"
 
-      # Uncomment when you have a Developer ID certificate:
-      # - name: Notarize
-      #   run: |
-      #     xcrun notarytool submit build/export/Serif.app.zip \
-      #       --apple-id "${{ secrets.APPLE_ID }}" \
-      #       --password "${{ secrets.NOTARY_PASSWORD }}" \
-      #       --team-id "${{ secrets.TEAM_ID }}" \
-      #       --wait
-      #     xcrun stapler staple "build/export/$APP_NAME.app"
+      - name: Notarize
+        run: |
+          # Zip the app for notarization
+          ditto -c -k --keepParent "build/export/$APP_NAME.app" "build/export/$APP_NAME.zip"
+
+          # Submit for notarization and wait
+          xcrun notarytool submit "build/export/$APP_NAME.zip" \
+            --apple-id "${{ secrets.APPLE_ID }}" \
+            --password "${{ secrets.APPLE_ID_PASSWORD }}" \
+            --team-id "${{ secrets.APPLE_TEAM_ID }}" \
+            --wait
+
+          # Staple the notarization ticket
+          xcrun stapler staple "build/export/$APP_NAME.app"
 
       - name: Install create-dmg
         run: brew install create-dmg
@@ -161,3 +196,12 @@ jobs:
           git add docs/appcast.xml
           git commit -m "Update appcast for ${TAG}" || true
           git push origin HEAD:master
+
+      - name: Cleanup keychain
+        if: always()
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
+          if [ -f "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH"
+          fi
+          rm -f "$RUNNER_TEMP/certificate.p12"
