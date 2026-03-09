@@ -5,9 +5,9 @@
 	<key>ATSApplicationFontsPath</key>
 	<string>.</string>
 	<key>CFBundleIconFile</key>
-	<string>serif_icon</string>
+	<string>AppIcon</string>
 	<key>CFBundleIconName</key>
-	<string>serif_icon</string>
+	<string>AppIcon</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
