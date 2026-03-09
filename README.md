@@ -16,6 +16,10 @@
   <img src="https://img.shields.io/github/license/marshallino16/Serif" />
 </p>
 
+<p align="center">
+  <img src="preview.png" alt="App Preview" />
+</p>
+
 ---
 
 Serif is a native macOS Gmail client built from scratch with Swift and SwiftUI. No Electron, no web wrapper — just a fast, beautiful, privacy-first email experience that feels right at home on your Mac.
