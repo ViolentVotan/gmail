@@ -54,10 +54,10 @@ enum GmailDataTransformer {
 
     // MARK: - UUID
 
-    /// Generates a stable UUID from a Gmail message ID string.
+    /// Generates a stable UUID from a Gmail message ID string using SHA256.
     static func deterministicUUID(from gmailID: String) -> UUID {
-        var bytes = [UInt8](repeating: 0, count: 16)
-        for (i, b) in gmailID.utf8.prefix(16).enumerated() { bytes[i] = b }
+        let hash = SHA256.hash(data: Data(gmailID.utf8))
+        let bytes = Array(hash)
         return UUID(uuid: (
             bytes[0],  bytes[1],  bytes[2],  bytes[3],
             bytes[4],  bytes[5],  bytes[6],  bytes[7],
