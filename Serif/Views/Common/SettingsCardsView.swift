@@ -230,6 +230,7 @@ struct SignatureSettingsCard: View {
 
 struct StorageSettingsCard: View {
     @ObservedObject var attachmentStore: AttachmentStore
+    @AppStorage("attachmentScanMonths") private var scanMonths: Int = -1
     @State private var dbSize: Int64 = 0
     @State private var showClearConfirm = false
     @State private var isClearing = false
@@ -247,6 +248,24 @@ struct StorageSettingsCard: View {
             Text("Storage")
                 .font(.serifTitle)
                 .foregroundColor(theme.textPrimary)
+
+            HStack {
+                Text("Attachment scan depth")
+                    .font(.serifCaption)
+                    .foregroundColor(theme.textSecondary)
+                Spacer()
+                Picker("", selection: $scanMonths) {
+                    Text("6 months").tag(6)
+                    Text("1 year").tag(12)
+                    Text("2 years").tag(24)
+                    Text("4 years").tag(48)
+                    Text("All time").tag(-1)
+                }
+                .pickerStyle(.menu)
+                .frame(width: 100)
+            }
+
+            Divider().background(theme.divider)
 
             HStack {
                 VStack(alignment: .leading, spacing: 4) {

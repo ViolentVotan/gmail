@@ -141,11 +141,19 @@ actor AttachmentIndexer {
 
     private var isScanning = false
 
-    /// Max messages to scan exploratively. Beyond this limit, attachments are
-    /// discovered only when the user opens an email (full-format fetch).
+    /// Max messages to scan per session (rate limiter for API calls).
     private let scanLimit = 3000
 
+    /// Computes the cutoff date based on user's `attachmentScanMonths` setting.
+    /// Returns nil if the setting is 0 (unlimited / all time).
+    private var scanCutoffDate: Date? {
+        let months = UserDefaults.standard.integer(forKey: "attachmentScanMonths")
+        guard months > 0 else { return nil } // 0 (not set) or -1 = all time
+        return Calendar.current.date(byAdding: .month, value: -months, to: Date())
+    }
+
     /// Scans the account for messages with attachments using `has:attachment` query.
+    /// Respects the user's scan depth setting (date-based cutoff).
     /// Persists scan progress so it can resume from where it left off on next launch.
     /// Safe to call multiple times — skips if already scanning.
     func scanForAttachments() async {
@@ -162,6 +170,15 @@ actor AttachmentIndexer {
         let acctID = accountID
         let db = database
         let monitor = cpuMonitor
+        let cutoffDate = scanCutoffDate
+
+        // Build query with date filter if applicable
+        var query = "has:attachment"
+        if let cutoff = cutoffDate {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy/MM/dd"
+            query += " after:\(formatter.string(from: cutoff))"
+        }
 
         // Load persisted scan state
         let scanState = db.loadScanState(accountID: acctID)
@@ -171,13 +188,14 @@ actor AttachmentIndexer {
         var pageToken: String? = previouslyComplete ? nil : scanState?.pageToken
         var totalDiscovered = 0
         var totalScanned = 0
+        var reachedCutoff = false
 
         do {
             repeat {
                 let list = try await service.listMessages(
                     accountID: acctID,
                     labelIDs: [],
-                    query: "has:attachment",
+                    query: query,
                     pageToken: pageToken
                 )
                 let refs = list.messages ?? []
@@ -214,6 +232,14 @@ actor AttachmentIndexer {
                             accountID: acctID,
                             format: "full"
                         )
+
+                        // Check if any message is older than the cutoff date
+                        if let cutoff = cutoffDate,
+                           let oldest = messages.compactMap(\.date).min(),
+                           oldest < cutoff {
+                            reachedCutoff = true
+                        }
+
                         totalDiscovered += messages.count
                         await registerFromFullMessages(messages: messages)
                         if chunkStart + chunkSize < toScan.count {
@@ -230,14 +256,15 @@ actor AttachmentIndexer {
                 await monitor.throttleIfNeeded()
                 try await Task.sleep(nanoseconds: monitor.recommendedDelay(base: 500_000_000))
 
-            } while pageToken != nil && totalScanned < scanLimit
+            } while pageToken != nil && totalScanned < scanLimit && !reachedCutoff
 
-            // Mark scan as complete if we exhausted all pages
-            let isComplete = pageToken == nil || (previouslyComplete && totalScanned > 0)
+            // Mark scan as complete if we exhausted all pages or reached date cutoff
+            let isComplete = pageToken == nil || reachedCutoff || (previouslyComplete && totalScanned > 0)
             db.saveScanState(accountID: acctID, pageToken: nil, isComplete: isComplete)
 
             if totalDiscovered > 0 {
-                print("[AttachmentIndexer] Scan complete: \(totalDiscovered) new messages out of \(totalScanned) scanned (limit: \(scanLimit))")
+                let depthLabel = cutoffDate.map { "\($0.formatted(.dateTime.month().year()))" } ?? "all time"
+                print("[AttachmentIndexer] Scan complete: \(totalDiscovered) new messages out of \(totalScanned) scanned (depth: \(depthLabel))")
             }
         } catch {
             // On error, the current pageToken is already saved from the last successful page
