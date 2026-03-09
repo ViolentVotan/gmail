@@ -35,6 +35,7 @@ struct EmailDetailView: View {
     @State private var didUnsubscribe = false
     @State private var showSenderInfo = false
     @State private var showOriginalInviteEmail = false
+    @State private var showQuotedMain = false
     @Environment(\.theme) private var theme
 
     /// Best available unsubscribe URL: header-based (from full thread) or body-scanned.
@@ -123,7 +124,8 @@ struct EmailDetailView: View {
         return email.attachments
     }
 
-    private var threadMessages: [GmailMessage] {
+    /// Older messages in the thread (everything except the latest). Empty for single messages.
+    private var olderThreadMessages: [GmailMessage] {
         let all = detailVM.messages
         guard all.count > 1 else { return [] }
         return Array(all.dropLast())
@@ -216,16 +218,37 @@ struct EmailDetailView: View {
                                 .padding(.bottom, 12)
                             }
 
-                            let rawHTML = detailVM.resolvedHTML ?? detailVM.displayHTML ?? detailVM.latestMessage?.htmlBody ?? ""
-                            let htmlToRender = rawHTML.isEmpty
-                                ? "<p>\(detailVM.latestMessage?.plainBody ?? email.body)</p>"
-                                : rawHTML
-
+                            // Latest message: full HTML rendering with quote stripping
                             if detailVM.calendarInvite == nil || showOriginalInviteEmail {
+                                let rawHTML = detailVM.resolvedHTML ?? detailVM.displayHTML ?? detailVM.latestMessage?.htmlBody ?? ""
+                                let fullHTML = rawHTML.isEmpty
+                                    ? "<p>\(detailVM.latestMessage?.plainBody ?? email.body)</p>"
+                                    : rawHTML
+                                let parts = GmailThreadMessageView.stripQuotedHTML(fullHTML)
+                                let htmlToRender = (showQuotedMain || parts.quoted == nil) ? fullHTML : parts.original
+
                                 HTMLEmailView(html: htmlToRender, contentHeight: $emailBodyHeight, onOpenLink: onOpenLink)
                                     .frame(height: emailBodyHeight)
                                     .padding(.horizontal, 24)
+                                    .padding(.bottom, parts.quoted != nil ? 4 : 20)
+
+                                if parts.quoted != nil {
+                                    Button {
+                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                            showQuotedMain.toggle()
+                                        }
+                                    } label: {
+                                        Text(showQuotedMain ? "Hide quoted" : "···")
+                                            .font(.system(size: showQuotedMain ? 11 : 14, weight: showQuotedMain ? .medium : .bold))
+                                            .foregroundColor(theme.textTertiary)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 4)
+                                            .background(Capsule().fill(theme.hoverBackground))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .padding(.horizontal, 24)
                                     .padding(.bottom, 20)
+                                }
                             }
 
                             if !displayAttachments.isEmpty {
@@ -234,9 +257,11 @@ struct EmailDetailView: View {
                                     .padding(.bottom, 20)
                             }
 
-                            if !threadMessages.isEmpty {
-                                threadSection
+                            // Older thread messages as chat bubbles
+                            if !olderThreadMessages.isEmpty {
+                                conversationSection
                                     .padding(.horizontal, 24)
+                                    .padding(.bottom, 12)
                             }
                         }
                         .padding(.bottom, 72)
@@ -394,15 +419,22 @@ struct EmailDetailView: View {
         }
     }
 
-    // MARK: - Thread (previous messages)
+    // MARK: - Conversation (older thread messages as chat bubbles)
 
-    private var threadSection: some View {
+    private var conversationSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Divider()
                 .background(theme.divider)
 
-            ForEach(threadMessages, id: \.id) { message in
-                GmailThreadMessageView(message: message)
+            VStack(spacing: 12) {
+                ForEach(olderThreadMessages, id: \.id) { message in
+                    GmailThreadMessageView(
+                        message: message,
+                        fromAddress: fromAddress,
+                        resolvedHTML: detailVM.resolvedMessageHTML[message.id],
+                        onOpenLink: onOpenLink
+                    )
+                }
             }
         }
     }

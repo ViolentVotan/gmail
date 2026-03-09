@@ -34,6 +34,14 @@ struct EmailRowView: View {
                             .foregroundColor(email.isDraft && email.recipients.isEmpty ? theme.textTertiary : theme.textPrimary)
                             .lineLimit(1)
 
+                        if email.threadMessageCount > 1 {
+                            Text("\(email.threadMessageCount)")
+                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .frame(minWidth: 18, minHeight: 18)
+                                .background(Circle().fill(theme.accentPrimary.opacity(0.75)))
+                        }
+
                         Spacer()
 
                         Text(email.date.formattedRelative)

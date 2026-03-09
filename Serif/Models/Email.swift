@@ -28,6 +28,8 @@ struct Email: Identifiable, Equatable {
     var gmailMessageID: String?
     var gmailThreadID: String?
     var gmailLabelIDs: [String]
+    // Thread grouping
+    var threadMessageCount: Int
     // Mailing-list / unsubscribe
     var isFromMailingList: Bool
     var unsubscribeURL: URL?
@@ -53,6 +55,7 @@ struct Email: Identifiable, Equatable {
         gmailMessageID: String? = nil,
         gmailThreadID: String? = nil,
         gmailLabelIDs: [String] = [],
+        threadMessageCount: Int = 1,
         isFromMailingList: Bool = false,
         unsubscribeURL: URL? = nil
     ) {
@@ -76,6 +79,7 @@ struct Email: Identifiable, Equatable {
         self.gmailMessageID = gmailMessageID
         self.gmailThreadID = gmailThreadID
         self.gmailLabelIDs = gmailLabelIDs
+        self.threadMessageCount = threadMessageCount
         self.isFromMailingList = isFromMailingList
         self.unsubscribeURL = unsubscribeURL
     }

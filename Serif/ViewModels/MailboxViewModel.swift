@@ -48,7 +48,19 @@ final class MailboxViewModel: ObservableObject {
     // MARK: - GmailMessage → Email (computed)
 
     var emails: [Email] {
-        messages.map { makeEmail(from: $0) }
+        // Group messages by threadId, keep the most recent per thread
+        let grouped = Dictionary(grouping: messages) { $0.threadId }
+        let representatives: [(GmailMessage, Int)] = grouped.map { (_, msgs) in
+            let sorted = msgs.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+            return (sorted[0], msgs.count)
+        }
+        return representatives
+            .sorted { ($0.0.date ?? .distantPast) > ($1.0.date ?? .distantPast) }
+            .map { (msg, count) in
+                var email = makeEmail(from: msg)
+                email.threadMessageCount = count
+                return email
+            }
     }
 
     // MARK: - Load
