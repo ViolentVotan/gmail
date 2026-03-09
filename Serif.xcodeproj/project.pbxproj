@@ -36,6 +36,7 @@
 		A10001010000000000000053 /* DebugMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000053 /* DebugMenuView.swift */; };
 		A10001010000000000000054 /* SlidePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000054 /* SlidePanel.swift */; };
 		A10001010000000000000060 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000060 /* OnboardingView.swift */; };
+		A10001010000000000000061 /* GoogleLogo.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000061 /* GoogleLogo.swift */; };
 		A10001010000000000000070 /* GoogleCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000070 /* GoogleCredentials.swift */; };
 		A10001010000000000000071 /* GmailAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000071 /* GmailAccount.swift */; };
 		A10001010000000000000072 /* AuthToken.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000072 /* AuthToken.swift */; };
@@ -192,6 +193,7 @@
 		A10002010000000000000053 /* DebugMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugMenuView.swift; sourceTree = "<group>"; };
 		A10002010000000000000054 /* SlidePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlidePanel.swift; sourceTree = "<group>"; };
 		A10002010000000000000060 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
+		A10002010000000000000061 /* GoogleLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleLogo.swift; sourceTree = "<group>"; };
 		A10002010000000000000070 /* GoogleCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleCredentials.swift; sourceTree = "<group>"; };
 		A10002010000000000000071 /* GmailAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailAccount.swift; sourceTree = "<group>"; };
 		A10002010000000000000072 /* AuthToken.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthToken.swift; sourceTree = "<group>"; };
@@ -492,6 +494,7 @@
 			isa = PBXGroup;
 			children = (
 				A10002010000000000000060 /* OnboardingView.swift */,
+				A10002010000000000000061 /* GoogleLogo.swift */,
 			);
 			path = Onboarding;
 			sourceTree = "<group>";
@@ -803,6 +806,7 @@
 				A10001010000000000000053 /* DebugMenuView.swift in Sources */,
 				A10001010000000000000054 /* SlidePanel.swift in Sources */,
 				A10001010000000000000060 /* OnboardingView.swift in Sources */,
+				A10001010000000000000061 /* GoogleLogo.swift in Sources */,
 				A10001010000000000000070 /* GoogleCredentials.swift in Sources */,
 				A10001010000000000000071 /* GmailAccount.swift in Sources */,
 				A10001010000000000000072 /* AuthToken.swift in Sources */,
@@ -1048,7 +1052,7 @@
 		A10009010000000000000003 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = serif_icon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Serif/Serif.entitlements;
@@ -1085,7 +1089,7 @@
 		A10009010000000000000004 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = serif_icon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = Serif/Serif.entitlements;

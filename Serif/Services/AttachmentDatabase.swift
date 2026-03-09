@@ -106,10 +106,10 @@ final class AttachmentDatabase: @unchecked Sendable {
         )
         """, nil, nil, nil)
 
-        // 2. Column migrations (silently ignored if already exist)
-        sqlite3_exec(db, "ALTER TABLE attachments ADD COLUMN retryCount INTEGER DEFAULT 0", nil, nil, nil)
-        sqlite3_exec(db, "ALTER TABLE attachments ADD COLUMN emailBody TEXT", nil, nil, nil)
-        sqlite3_exec(db, "ALTER TABLE attachments ADD COLUMN accountID TEXT", nil, nil, nil)
+        // 2. Column migrations (only if column doesn't exist yet)
+        addColumnIfMissing("attachments", column: "retryCount", definition: "INTEGER DEFAULT 0")
+        addColumnIfMissing("attachments", column: "emailBody", definition: "TEXT")
+        addColumnIfMissing("attachments", column: "accountID", definition: "TEXT")
         // Clean up pre-migration rows without accountID — they can't be attributed to any account
         sqlite3_exec(db, "DELETE FROM attachments WHERE accountID IS NULL", nil, nil, nil)
 
@@ -720,6 +720,18 @@ final class AttachmentDatabase: @unchecked Sendable {
     private func columnText(_ stmt: OpaquePointer?, _ index: Int32) -> String? {
         guard let cStr = sqlite3_column_text(stmt, index) else { return nil }
         return String(cString: cStr)
+    }
+
+    /// Adds a column only if it doesn't already exist (avoids "duplicate column" warnings).
+    private func addColumnIfMissing(_ table: String, column: String, definition: String) {
+        var stmt: OpaquePointer?
+        let sql = "PRAGMA table_info(\(table))"
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(stmt) }
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            if let name = sqlite3_column_text(stmt, 1), String(cString: name) == column { return }
+        }
+        sqlite3_exec(db, "ALTER TABLE \(table) ADD COLUMN \(column) \(definition)", nil, nil, nil)
     }
 
     /// Fire-and-forget exec (for PRAGMAs, etc).

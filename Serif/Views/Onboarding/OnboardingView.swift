@@ -16,6 +16,7 @@ struct OnboardingView: View {
     @State private var showButton = false
     @State private var iconRotation: Double = -12
     @State private var iconScale: CGFloat = 0.3
+    @State private var isButtonHovered = false
 
     // Ambient orbs
     @State private var orb1Offset: CGSize = CGSize(width: -140, height: -100)
@@ -95,32 +96,38 @@ struct OnboardingView: View {
                     Task { await handleSignIn() }
                 } label: {
                     HStack(spacing: 12) {
-                        ZStack {
-                          ProgressView()
-                            .controlSize(.small)
-                            .tint(blue)
-                            .opacity(isSignedIn ? 1 : 0)
-                          Text("G")
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundColor(blue)
-                            .opacity(isSignedIn ? 0 : 1)
+                        Group {
+                            if isSigningIn {
+                                ProgressView()
+                                    .controlSize(.small)
+                                    .tint(Color(hex: "#1C1C1E"))
+                            } else {
+                                GoogleLogo()
+                                    .frame(width: 20, height: 20)
+                            }
                         }
-                        Text(isSigningIn ? "Signing in\u{2026}" : "Sign in with Google")
+                        .frame(width: 20, height: 20)
+                        Text(isSigningIn ? "Signing in\u{2026}" : "Continue with Google")
                             .font(.system(size: 15, weight: .medium))
                             .foregroundColor(Color(hex: "#1C1C1E"))
                     }
                     .padding(.horizontal, 28)
                     .padding(.vertical, 14)
-                    .frame(minWidth: 230)
+                    .frame(minWidth: 260)
                     .background(
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: 24)
                             .fill(.white)
-                            .shadow(color: coral.opacity(0.25), radius: 20, y: 8)
-                            .shadow(color: blue.opacity(0.2), radius: 30, y: 12)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 24)
+                            .stroke(Color(hex: "#DADCE0"), lineWidth: 1)
                     )
                 }
                 .buttonStyle(.plain)
                 .disabled(isSigningIn)
+                .scaleEffect(isButtonHovered ? 1.04 : 1.0)
+                .animation(.easeOut(duration: 0.2), value: isButtonHovered)
+                .onHover { isButtonHovered = $0 }
                 .opacity(showButton ? 1 : 0)
                 .offset(y: showButton ? 0 : 24)
 
