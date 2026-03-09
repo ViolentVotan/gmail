@@ -31,21 +31,31 @@ Serif is a native macOS Gmail client built from scratch with Swift and SwiftUI. 
 - **Native** — Built with SwiftUI. Smooth animations, keyboard shortcuts, themes — the full macOS experience.
 - **Multi-account** — Switch between Gmail accounts seamlessly, each with its own settings.
 
-## Highlights
+## ✨ Highlights
 
-**Email, done right** — 3-column layout with resizable panes, thread view, swipe actions, bulk operations, and undo on everything.
+**Email, done right** — 3-column layout with resizable panes, thread grouping with chat-style bubbles, swipe actions, bulk operations, and undo on everything.
 
-**Compose like a pro** — Rich text editor with inline images, drag-and-drop attachments, signatures, send-as aliases, and auto-saved drafts.
+**Conversations that breathe** — Threaded messages displayed as a conversation with automatic quote collapsing. Your replies on the right, theirs on the left.
 
-**Search everything** — Full-text search with Gmail query syntax. Attachment search with smart keyword + semantic matching.
+**Compose like a pro** — Rich text editor with inline images, drag-and-drop attachments, signatures per alias, send-as identities, and auto-saved drafts.
 
-**Calendar invites** — Google Calendar invitations show a clean card with event details and one-click RSVP — no need to leave the app.
+**Search everything** — Full-text search with Gmail query syntax. Attachment search with smart keyword + semantic matching across your indexed emails.
 
-**Unsubscribe in one click** — Detects mailing lists and offers RFC 8058 one-click unsubscribe or body link extraction.
+**🔒 Privacy first** — Tracking pixels detected and blocked by default. Known tracker domains stripped, CSS trackers removed, tracking links rewritten. Full details in an expandable banner.
+
+**Calendar invites** — Google Calendar invitations show a clean card with event details and one-click RSVP (accept, decline, maybe) — no need to leave the app.
+
+**Unsubscribe in one click** — Detects mailing lists and offers RFC 8058 one-click unsubscribe or body link extraction. Subscriptions view lists all your mailing lists in one place.
+
+**Label management** — Create, rename, and delete labels directly from the sidebar. Apply labels in bulk with drag and drop.
 
 **Themes** — 12 built-in themes (light & dark) with per-color overrides. Make it yours.
 
 **Keyboard-driven** — `Cmd+F` to search, `Cmd+Return` to send, `Cmd+Z` to undo. Everything you'd expect.
+
+**🤖 AI summaries** — Hover any email to see a quick AI-generated summary powered by on-device Foundation Models (macOS 26+).
+
+**Auto-updates** — Built-in Sparkle updates so you're always on the latest version.
 
 ## Getting Started
 
