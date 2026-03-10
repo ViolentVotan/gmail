@@ -9,6 +9,15 @@ struct EmailRowView: View {
     @State private var popoverHolder = PopoverHolder()
     @Environment(\.theme) private var theme
 
+    private static let isAppleIntelligenceAvailable: Bool = {
+        guard #available(macOS 26.0, *) else { return false }
+        #if canImport(FoundationModels)
+        return true
+        #else
+        return false
+        #endif
+    }()
+
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
@@ -105,7 +114,7 @@ struct EmailRowView: View {
         .onHover { hovering in
             isHovered = hovering
             if hovering {
-                guard !popoverHolder.isShowing else { return }
+                guard !popoverHolder.isShowing, Self.isAppleIntelligenceAvailable else { return }
                 hoverTask?.cancel()
                 hoverTask = Task {
                     try? await Task.sleep(for: .seconds(3))
