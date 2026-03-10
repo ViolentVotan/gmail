@@ -18,6 +18,7 @@ struct ReplyBarView: View {
     @State private var showDiscardAlert = false
     @StateObject private var editorState = WebRichTextEditorState()
     @StateObject private var composeVM: ComposeViewModel
+    @State private var gradientRotation: Double = 0
     @Environment(\.theme) private var theme
 
     init(email: Email, accountID: String, fromAddress: String, mailStore: MailStore, onOpenLink: ((URL) -> Void)? = nil) {
@@ -47,8 +48,27 @@ struct ReplyBarView: View {
         .shadow(color: .black.opacity(0.03), radius: 2, x: 0, y: -1)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(theme.border, lineWidth: 1)
+                .strokeBorder(
+                    isExpanded
+                        ? AnyShapeStyle(theme.border)
+                        : AnyShapeStyle(
+                            AngularGradient(
+                                colors: [
+                                    theme.accentPrimary.opacity(0.5),
+                                    theme.border,
+                                    theme.accentPrimary.opacity(0.2),
+                                    theme.border,
+                                    theme.accentPrimary.opacity(0.5),
+                                ],
+                                center: .center,
+                                angle: .degrees(gradientRotation)
+                            )
+                        ),
+                    lineWidth: 1
+                )
         )
+        .onAppear { startGradientAnimation() }
+        .onChange(of: theme) { _, _ in startGradientAnimation() }
         .background(ClickOutsideDetector(isExpanded: isExpanded, onClickOutside: { minimize() }))
         .onChange(of: replyHTML) { _,_ in
             scheduleAutoSave()
@@ -386,6 +406,13 @@ struct ReplyBarView: View {
                 )
                 mailStore.saveReplyDrafts()
             }
+        }
+    }
+
+    private func startGradientAnimation() {
+        gradientRotation = 0
+        withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
+            gradientRotation = 360
         }
     }
 
