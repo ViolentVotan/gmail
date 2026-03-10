@@ -115,7 +115,7 @@ struct AutocompleteTextField: View {
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(isHighlighted ? theme.hoverBackground : Color.clear)
+                    .fill(isHighlighted ? theme.accentPrimary.opacity(0.15) : Color.clear)
             )
             .contentShape(Rectangle())
         }
