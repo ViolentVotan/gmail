@@ -18,6 +18,8 @@ struct ReplyBarView: View {
     @State private var showDiscardAlert = false
     @StateObject private var editorState = WebRichTextEditorState()
     @StateObject private var composeVM: ComposeViewModel
+    @State private var quickReplies: [String] = []
+    @State private var isLoadingReplies = false
     @State private var gradientRotation: Double = 0
     @Environment(\.theme) private var theme
 
@@ -79,6 +81,11 @@ struct ReplyBarView: View {
                 isInitialLoad = false
             }
         }
+        .task(id: email.id) {
+            isLoadingReplies = true
+            quickReplies = await QuickReplyService.shared.generateReplies(for: email)
+            isLoadingReplies = false
+        }
         .alert("Discard reply?", isPresented: $showDiscardAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Discard", role: .destructive) { collapse() }
@@ -120,6 +127,11 @@ struct ReplyBarView: View {
             }
         } label: {
             HStack(spacing: 10) {
+                if !quickReplies.isEmpty {
+                    Image(systemName: "apple.intelligence")
+                        .font(.system(size: 13))
+                        .foregroundStyle(appleIntelligenceGradient)
+                }
                 Text(collapsedPlaceholder)
                     .font(.system(size: 13))
                     .foregroundColor(theme.textTertiary)
@@ -140,6 +152,10 @@ struct ReplyBarView: View {
 
     private var expandedContent: some View {
         VStack(spacing: 0) {
+            if !quickReplies.isEmpty {
+                quickReplyChips
+            }
+
             WebRichTextEditor(
                 state: editorState,
                 htmlContent: $replyHTML,
@@ -256,6 +272,71 @@ struct ReplyBarView: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
+        }
+    }
+
+    // MARK: - Quick Reply Chips
+
+    private var appleIntelligenceGradient: LinearGradient {
+        LinearGradient(
+            colors: [Color(hex: "#6E6CE8"), Color(hex: "#54C0F0"), Color(hex: "#E8754A")],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+    }
+
+    @State private var visibleChipCount = 0
+
+    private var quickReplyChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                Image(systemName: "apple.intelligence")
+                    .font(.system(size: 12))
+                    .foregroundStyle(appleIntelligenceGradient)
+                    .opacity(visibleChipCount > 0 ? 1 : 0)
+                    .scaleEffect(visibleChipCount > 0 ? 1 : 0.5)
+
+                ForEach(Array(quickReplies.enumerated()), id: \.element) { index, suggestion in
+                    Button {
+                        let escaped = suggestion
+                            .replacingOccurrences(of: "&", with: "&amp;")
+                            .replacingOccurrences(of: "<", with: "&lt;")
+                            .replacingOccurrences(of: ">", with: "&gt;")
+                        editorState.setHTML("<p>\(escaped)</p>")
+                        replyHTML = "<p>\(escaped)</p>"
+                    } label: {
+                        Text(suggestion)
+                            .font(.system(size: 12))
+                            .foregroundColor(theme.textPrimary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                Capsule()
+                                    .fill(theme.cardBackground)
+                            )
+                            .overlay(
+                                Capsule()
+                                    .strokeBorder(appleIntelligenceGradient, lineWidth: 1.5)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .opacity(index < visibleChipCount ? 1 : 0)
+                    .offset(x: index < visibleChipCount ? 0 : 15)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+        }
+        .onAppear { animateChips() }
+        .onChange(of: quickReplies) { _, _ in animateChips() }
+    }
+
+    private func animateChips() {
+        visibleChipCount = 0
+        for i in 0...quickReplies.count {
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.75).delay(Double(i) * 0.1)) {
+                visibleChipCount = i + 1
+            }
         }
     }
 
