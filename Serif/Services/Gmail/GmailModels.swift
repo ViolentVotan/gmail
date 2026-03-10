@@ -157,14 +157,21 @@ extension GmailLabel {
         ("#e3f2fd", "#0277bd"),
     ]
 
+    /// Stable hash for palette index — Swift's hashValue is randomised per launch.
+    private var stablePaletteIndex: Int {
+        var hash: UInt64 = 5381
+        for byte in id.utf8 { hash = hash &* 33 &+ UInt64(byte) }
+        return Int(hash % UInt64(GmailLabel.colorPalette.count))
+    }
+
     var resolvedBgColor: String {
         if let bg = color?.backgroundColor, !bg.isEmpty { return bg }
-        return GmailLabel.colorPalette[abs(id.hashValue) % GmailLabel.colorPalette.count].bg
+        return GmailLabel.colorPalette[stablePaletteIndex].bg
     }
 
     var resolvedTextColor: String {
         if let text = color?.textColor, !text.isEmpty { return text }
-        return GmailLabel.colorPalette[abs(id.hashValue) % GmailLabel.colorPalette.count].text
+        return GmailLabel.colorPalette[stablePaletteIndex].text
     }
 }
 

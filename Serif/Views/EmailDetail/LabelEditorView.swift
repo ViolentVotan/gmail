@@ -93,57 +93,88 @@ struct LabelEditorView: View {
         return items
     }
 
-    private var autocompleteDropdown: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            let items = dropdownItems
-            ForEach(Array(items.enumerated()), id: \.offset) { index, item in
-                let isHighlighted = index == highlightedIndex
-                Button {
-                    switch item {
-                    case .existing(let label): addLabel(label)
-                    case .create: createNewLabel()
+    private static let rowHeight: CGFloat = 38
+
+    private func dropdownRow(_ item: DropdownItem, isHighlighted: Bool) -> some View {
+        Button {
+            switch item {
+            case .existing(let label): addLabel(label)
+            case .create: createNewLabel()
+            }
+        } label: {
+            HStack(spacing: 8) {
+                switch item {
+                case .existing(let label):
+                    Circle()
+                        .fill(Color(hex: label.resolvedTextColor))
+                        .frame(width: 10, height: 10)
+                    Text(label.displayName)
+                        .font(.system(size: 12))
+                        .foregroundColor(theme.textPrimary)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    if currentLabelIDs.contains(label.id) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(theme.accentPrimary)
                     }
-                } label: {
-                    Group {
-                        switch item {
-                        case .existing(let label):
-                            HStack(spacing: 8) {
-                                Circle()
-                                    .fill(Color(hex: label.resolvedBgColor))
-                                    .frame(width: 8, height: 8)
-                                Text(label.displayName)
-                                    .font(.system(size: 12))
-                                    .foregroundColor(theme.textPrimary)
-                                if currentLabelIDs.contains(label.id) {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 10, weight: .semibold))
-                                        .foregroundColor(theme.accentPrimary)
-                                }
-                            }
-                        case .create(let name):
-                            HStack(spacing: 6) {
-                                Image(systemName: "plus.circle.fill")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(theme.accentPrimary)
-                                Text("Create \"\(name)\"")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(theme.accentPrimary)
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(isHighlighted ? theme.hoverBackground : Color.clear)
-                    .contentShape(Rectangle())
+                case .create(let name):
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(theme.accentPrimary)
+                    Text("Create \"\(name)\"")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(theme.accentPrimary)
+                    Spacer(minLength: 0)
                 }
-                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(isHighlighted ? theme.accentPrimary.opacity(0.15) : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var autocompleteDropdown: some View {
+        let items = dropdownItems
+        return ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                        if index > 0 {
+                            Divider()
+                                .background(theme.divider)
+                                .padding(.leading, 28)
+                        }
+
+                        dropdownRow(item, isHighlighted: index == highlightedIndex)
+                            .id(index)
+                    }
+                }
+                .padding(4)
+            }
+            .scrollContentBackground(.hidden)
+            .frame(width: 220, height: Self.rowHeight * min(CGFloat(items.count), 5) + 8)
+            .onChange(of: highlightedIndex) { _ in
+                if highlightedIndex < items.count {
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        proxy.scrollTo(highlightedIndex, anchor: .center)
+                    }
+                }
             }
         }
-        .fixedSize(horizontal: true, vertical: true)
-        .background(theme.cardBackground.opacity(0.95))
-        .cornerRadius(8)
-        .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+        .background(theme.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .strokeBorder(theme.border, lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.12), radius: 12, y: 6)
+        .shadow(color: .black.opacity(0.04), radius: 3, y: 2)
     }
 
     private func confirmHighlighted() {
