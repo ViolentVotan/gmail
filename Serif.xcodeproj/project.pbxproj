@@ -3,142 +3,14 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		9EBEBCE92F5B21B400145F71 /* serif_icon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 9EBEBCE82F5B21B400145F71 /* serif_icon.icon */; };
-		A10001010000000000000001 /* SerifApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000001 /* SerifApp.swift */; };
-		A10001010000000000000002 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000002 /* ContentView.swift */; };
-		A10001010000000000000003 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000003 /* Theme.swift */; };
-		A10001010000000000000004 /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000004 /* ThemeManager.swift */; };
-		A10001010000000000000005 /* DefaultThemes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000005 /* DefaultThemes.swift */; };
-		A10001010000000000000006 /* Email.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000006 /* Email.swift */; };
-		A10001010000000000000008 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000008 /* SidebarView.swift */; };
-		A10001010000000000000009 /* EmailListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000009 /* EmailListView.swift */; };
-		A1000101000000000000000A /* EmailRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000000A /* EmailRowView.swift */; };
-		A1000101000000000000000B /* EmailDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000000B /* EmailDetailView.swift */; };
-		A1000101000000000000000C /* AttachmentChipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000000C /* AttachmentChipView.swift */; };
-		A1000101000000000000000D /* ReplyBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000000D /* ReplyBarView.swift */; };
-		A1000101000000000000000E /* AvatarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000000E /* AvatarView.swift */; };
-		A1000101000000000000000F /* SearchBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000000F /* SearchBarView.swift */; };
-		A10001010000000000000010 /* ThemePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000010 /* ThemePickerView.swift */; };
-		A10001010000000000000011 /* ComposeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000011 /* ComposeView.swift */; };
-		A10001010000000000000012 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000012 /* Assets.xcassets */; };
-		A10001010000000000000020 /* PPEditorialNew-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000020 /* PPEditorialNew-Regular.otf */; };
-		A10001010000000000000021 /* PPEditorialNew-Italic.otf in Resources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000021 /* PPEditorialNew-Italic.otf */; };
-		A10001010000000000000022 /* PPLocomotiveNew-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000022 /* PPLocomotiveNew-Light.ttf */; };
-		A10001010000000000000023 /* PPLocomotiveNew-Light-Italic.ttf in Resources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000023 /* PPLocomotiveNew-Light-Italic.ttf */; };
-		A10001010000000000000030 /* MailStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000030 /* MailStore.swift */; };
-		A10001010000000000000040 /* AttachmentsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000040 /* AttachmentsListView.swift */; };
-		A10001010000000000000051 /* FormattingToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000051 /* FormattingToolbar.swift */; };
-		A10001010000000000000052 /* ShortcutsHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000052 /* ShortcutsHelpView.swift */; };
-		A10001010000000000000053 /* DebugMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000053 /* DebugMenuView.swift */; };
-		A10001010000000000000054 /* SlidePanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000054 /* SlidePanel.swift */; };
-		A10001010000000000000060 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000060 /* OnboardingView.swift */; };
-		A10001010000000000000061 /* GoogleLogo.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000061 /* GoogleLogo.swift */; };
-		A10001010000000000000070 /* GoogleCredentials.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000070 /* GoogleCredentials.swift */; };
-		A10001010000000000000071 /* GmailAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000071 /* GmailAccount.swift */; };
-		A10001010000000000000072 /* AuthToken.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000072 /* AuthToken.swift */; };
-		A10001010000000000000073 /* TokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000073 /* TokenStore.swift */; };
-		A10001010000000000000074 /* OAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000074 /* OAuthService.swift */; };
-		A10001010000000000000075 /* GmailAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000075 /* GmailAPIClient.swift */; };
-		A10001010000000000000076 /* GmailModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000076 /* GmailModels.swift */; };
-		A10001010000000000000077 /* GmailMessageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000077 /* GmailMessageService.swift */; };
-		A10001010000000000000078 /* GmailLabelService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000078 /* GmailLabelService.swift */; };
-		A10001010000000000000079 /* GmailProfileService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000079 /* GmailProfileService.swift */; };
-		A1000101000000000000007A /* GmailSendService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000007A /* GmailSendService.swift */; };
-		A1000101000000000000007B /* AuthViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000007B /* AuthViewModel.swift */; };
-		A1000101000000000000007C /* MailboxViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000007C /* MailboxViewModel.swift */; };
-		A1000101000000000000007D /* EmailDetailViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000007D /* EmailDetailViewModel.swift */; };
-		A1000101000000000000007E /* ComposeViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000007E /* ComposeViewModel.swift */; };
-		A10001010000000000000080 /* AccountsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000080 /* AccountsSettingsView.swift */; };
-		A10001010000000000000081 /* APICache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000081 /* APICache.swift */; };
 		A10001010000000000000082 /* AppAuth in Frameworks */ = {isa = PBXBuildFile; productRef = A10090010000000000000001 /* AppAuth */; };
-		A10001010000000000000083 /* LabelChipView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000083 /* LabelChipView.swift */; };
-		A10001010000000000000084 /* HTMLEmailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000084 /* HTMLEmailView.swift */; };
-		A10001010000000000000085 /* AttachmentPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000085 /* AttachmentPreviewView.swift */; };
-		A10001010000000000000086 /* GmailDataTransformer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000086 /* GmailDataTransformer.swift */; };
-		A10001010000000000000087 /* DateFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000087 /* DateFormatting.swift */; };
-		A10001010000000000000088 /* FileUtils.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000088 /* FileUtils.swift */; };
-		A10001010000000000000089 /* SwipeableEmailRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000089 /* SwipeableEmailRow.swift */; };
-		A1000101000000000000008A /* UndoActionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000008A /* UndoActionManager.swift */; };
-		A1000101000000000000008B /* UndoToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000008B /* UndoToastView.swift */; };
-		A1000101000000000000008C /* UnsubscribeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000008C /* UnsubscribeService.swift */; };
-		A1000101000000000000008D /* SubscriptionsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000008D /* SubscriptionsStore.swift */; };
-		A1000101000000000000008E /* OriginalMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000008E /* OriginalMessageView.swift */; };
-		A1000101000000000000008F /* EmailPrintService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000008F /* EmailPrintService.swift */; };
-		A10001010000000000000090 /* AutocompleteTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000090 /* AutocompleteTextField.swift */; };
-		A10001010000000000000091 /* MailCacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000091 /* MailCacheStore.swift */; };
-		A10001010000000000000092 /* TrackerBlockerService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000092 /* TrackerBlockerService.swift */; };
-		A10001010000000000000093 /* TrackerBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000093 /* TrackerBannerView.swift */; };
-		A10001010000000000000094 /* GmailDraftService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000094 /* GmailDraftService.swift */; };
-		A100010100000000000000A0 /* BulkActionBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000A0 /* BulkActionBarView.swift */; };
-		A100010100000000000000C1 /* AvatarCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000C1 /* AvatarCache.swift */; };
-		A100010100000000000000C2 /* BIMIService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000C2 /* BIMIService.swift */; };
-		A100010100000000000000C3 /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000C3 /* NetworkMonitor.swift */; };
-		A100010100000000000000C4 /* StringExtensions.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000C4 /* StringExtensions.swift */; };
-		A100010100000000000000C5 /* EmailActionCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000C5 /* EmailActionCoordinator.swift */; };
-		A100010100000000000000C6 /* SettingsCardsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000C6 /* SettingsCardsView.swift */; };
-		A100010100000000000000C8 /* ComposeMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000C8 /* ComposeMode.swift */; };
-		A100010100000000000000C9 /* DetailToolbarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000C9 /* DetailToolbarView.swift */; };
-		A100010100000000000000CA /* LabelEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000CA /* LabelEditorView.swift */; };
-		A100010100000000000000CB /* SenderInfoPopover.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000CB /* SenderInfoPopover.swift */; };
-		A100010100000000000000CC /* EmailDetailSkeletonView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000CC /* EmailDetailSkeletonView.swift */; };
-		A100010100000000000000CD /* GmailThreadMessageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000CD /* GmailThreadMessageView.swift */; };
-		A100010100000000000000CE /* SidebarRowViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000CE /* SidebarRowViews.swift */; };
-		A100010100000000000000CF /* AccountSwitcherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000CF /* AccountSwitcherView.swift */; };
-		A100010100000000000000D0 /* AccountAvatarBubble.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D0 /* AccountAvatarBubble.swift */; };
-		A100010100000000000000D1 /* SlidePanelsOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D1 /* SlidePanelsOverlay.swift */; };
-		A100010100000000000000D2 /* DetailPaneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D2 /* DetailPaneView.swift */; };
-		A100010100000000000000D3 /* ListPaneView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D3 /* ListPaneView.swift */; };
-		A100010100000000000000D4 /* PanelCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D4 /* PanelCoordinator.swift */; };
-		A100010100000000000000D5 /* IndexedAttachment.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D5 /* IndexedAttachment.swift */; };
-		A100010100000000000000D6 /* AttachmentDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D6 /* AttachmentDatabase.swift */; };
-		A100010100000000000000D7 /* AttachmentSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D7 /* AttachmentSearchService.swift */; };
-		A100010100000000000000D8 /* AttachmentIndexer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D8 /* AttachmentIndexer.swift */; };
-		A100010100000000000000D9 /* ContentExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000D9 /* ContentExtractor.swift */; };
-		A100010100000000000000DA /* AttachmentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000DA /* AttachmentStore.swift */; };
-		A100010100000000000000DB /* AttachmentCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000DB /* AttachmentCardView.swift */; };
-		A100010100000000000000DC /* AttachmentExplorerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000DC /* AttachmentExplorerView.swift */; };
-		A100010100000000000000DD /* ThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000DD /* ThumbnailCache.swift */; };
-		A100010100000000000000DE /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000DE /* DesignSystem.swift */; };
-		A100010100000000000000E0 /* BadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E0 /* BadgeView.swift */; };
-		A100010100000000000000E1 /* CardContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E1 /* CardContainer.swift */; };
-		A100010100000000000000E2 /* IconButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E2 /* IconButton.swift */; };
-		A100010100000000000000E3 /* EmailContextMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E3 /* EmailContextMenu.swift */; };
-		A100010100000000000000E4 /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E4 /* AppCoordinator.swift */; };
-		A100010100000000000000E5 /* KeyboardShortcutsModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E5 /* KeyboardShortcutsModifier.swift */; };
-		A100010100000000000000E6 /* EmailSelectionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E6 /* EmailSelectionManager.swift */; };
-		A100010100000000000000E7 /* PullToRefreshView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E7 /* PullToRefreshView.swift */; };
-		A100010100000000000000E8 /* InAppBrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E8 /* InAppBrowserView.swift */; };
-		A100010100000000000000E9 /* SignatureEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000E9 /* SignatureEditorView.swift */; };
-		A100010100000000000000F0 /* SignatureResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F0 /* SignatureResolver.swift */; };
-		A100010100000000000000F1 /* ComposeModeInitializer.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F1 /* ComposeModeInitializer.swift */; };
-		A100010100000000000000F2 /* MessageFetchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F2 /* MessageFetchService.swift */; };
-		A100010100000000000000F3 /* LabelSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F3 /* LabelSyncService.swift */; };
-		A100010100000000000000F4 /* HistorySyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F4 /* HistorySyncService.swift */; };
-		A100010100000000000000F5 /* MessageFetching.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F5 /* MessageFetching.swift */; };
-		A100010100000000000000F6 /* CacheStoring.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F6 /* CacheStoring.swift */; };
-		A100010100000000000000F7 /* CPUMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F7 /* CPUMonitor.swift */; };
-		A100010100000000000000F8 /* ToastManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F8 /* ToastManager.swift */; };
-		A100010100000000000000F9 /* ToastOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000F9 /* ToastOverlayView.swift */; };
-		A100010100000000000000FB /* editor.js in Resources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000FB /* editor.js */; };
-		A100010100000000000000FC /* HTMLTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000FC /* HTMLTemplate.swift */; };
-		A100010100000000000000FD /* WebRichTextEditorState.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000FD /* WebRichTextEditorState.swift */; };
-		A100010100000000000000FE /* WebRichTextEditorCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000FE /* WebRichTextEditorCoordinator.swift */; };
 		A10001010000000000000102 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = A10090010000000000000002 /* Sparkle */; };
-		A10001010000000000000103 /* UpdaterViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A100020100000000000000FA /* UpdaterViewModel.swift */; };
 		A10001010000000000000200 /* BlossomColorPicker in Frameworks */ = {isa = PBXBuildFile; productRef = A10090010000000000000003 /* BlossomColorPicker */; };
-		A10001010000000000000201 /* SerifCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000201 /* SerifCommands.swift */; };
-		A10001010000000000000300 /* CalendarInviteParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000300 /* CalendarInviteParser.swift */; };
-		A10001010000000000000301 /* CalendarInviteCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000301 /* CalendarInviteCardView.swift */; };
-		A10001010000000000000302 /* EmailHoverSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000302 /* EmailHoverSummaryView.swift */; };
-		A10001010000000000000303 /* SummaryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000303 /* SummaryService.swift */; };
-		A10001010000000000000304 /* QuickReplyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000304 /* QuickReplyService.swift */; };
-		A10001010000000000000FF /* WebRichTextEditorRepresentable.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10002010000000000000FF /* WebRichTextEditorRepresentable.swift */; };
-		A1000101000000000000100 /* WebRichTextEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000100 /* WebRichTextEditor.swift */; };
-		A1000101000000000000101 /* InlineImageProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000201000000000000101 /* InlineImageProcessor.swift */; };
 		B10001010000000000000001 /* GmailModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000001 /* GmailModelsTests.swift */; };
 		B10001010000000000000002 /* EmailModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000002 /* EmailModelTests.swift */; };
 		B10001010000000000000003 /* GmailDataTransformerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000003 /* GmailDataTransformerTests.swift */; };
@@ -164,137 +36,7 @@
 
 /* Begin PBXFileReference section */
 		9EBEBCE82F5B21B400145F71 /* serif_icon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = serif_icon.icon; sourceTree = "<group>"; };
-		A10002010000000000000001 /* SerifApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SerifApp.swift; sourceTree = "<group>"; };
-		A10002010000000000000002 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		A10002010000000000000003 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
-		A10002010000000000000004 /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
-		A10002010000000000000005 /* DefaultThemes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DefaultThemes.swift; sourceTree = "<group>"; };
-		A10002010000000000000006 /* Email.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Email.swift; sourceTree = "<group>"; };
-		A10002010000000000000008 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
-		A10002010000000000000009 /* EmailListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailListView.swift; sourceTree = "<group>"; };
-		A1000201000000000000000A /* EmailRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailRowView.swift; sourceTree = "<group>"; };
-		A1000201000000000000000B /* EmailDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailDetailView.swift; sourceTree = "<group>"; };
-		A1000201000000000000000C /* AttachmentChipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentChipView.swift; sourceTree = "<group>"; };
-		A1000201000000000000000D /* ReplyBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReplyBarView.swift; sourceTree = "<group>"; };
-		A1000201000000000000000E /* AvatarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarView.swift; sourceTree = "<group>"; };
-		A1000201000000000000000F /* SearchBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchBarView.swift; sourceTree = "<group>"; };
-		A10002010000000000000010 /* ThemePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemePickerView.swift; sourceTree = "<group>"; };
-		A10002010000000000000011 /* ComposeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeView.swift; sourceTree = "<group>"; };
-		A10002010000000000000012 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		A10002010000000000000013 /* Serif.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Serif.entitlements; sourceTree = "<group>"; };
-		A10002010000000000000014 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		A10002010000000000000020 /* PPEditorialNew-Regular.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PPEditorialNew-Regular.otf"; sourceTree = "<group>"; };
-		A10002010000000000000021 /* PPEditorialNew-Italic.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PPEditorialNew-Italic.otf"; sourceTree = "<group>"; };
-		A10002010000000000000022 /* PPLocomotiveNew-Light.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PPLocomotiveNew-Light.ttf"; sourceTree = "<group>"; };
-		A10002010000000000000023 /* PPLocomotiveNew-Light-Italic.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "PPLocomotiveNew-Light-Italic.ttf"; sourceTree = "<group>"; };
-		A10002010000000000000030 /* MailStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailStore.swift; sourceTree = "<group>"; };
-		A10002010000000000000040 /* AttachmentsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentsListView.swift; sourceTree = "<group>"; };
-		A10002010000000000000051 /* FormattingToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormattingToolbar.swift; sourceTree = "<group>"; };
-		A10002010000000000000052 /* ShortcutsHelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutsHelpView.swift; sourceTree = "<group>"; };
-		A10002010000000000000053 /* DebugMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugMenuView.swift; sourceTree = "<group>"; };
-		A10002010000000000000054 /* SlidePanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlidePanel.swift; sourceTree = "<group>"; };
-		A10002010000000000000060 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnboardingView.swift; sourceTree = "<group>"; };
-		A10002010000000000000061 /* GoogleLogo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleLogo.swift; sourceTree = "<group>"; };
-		A10002010000000000000070 /* GoogleCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleCredentials.swift; sourceTree = "<group>"; };
-		A10002010000000000000071 /* GmailAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailAccount.swift; sourceTree = "<group>"; };
-		A10002010000000000000072 /* AuthToken.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthToken.swift; sourceTree = "<group>"; };
-		A10002010000000000000073 /* TokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenStore.swift; sourceTree = "<group>"; };
-		A10002010000000000000074 /* OAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OAuthService.swift; sourceTree = "<group>"; };
-		A10002010000000000000075 /* GmailAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailAPIClient.swift; sourceTree = "<group>"; };
-		A10002010000000000000076 /* GmailModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailModels.swift; sourceTree = "<group>"; };
-		A10002010000000000000077 /* GmailMessageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailMessageService.swift; sourceTree = "<group>"; };
-		A10002010000000000000078 /* GmailLabelService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailLabelService.swift; sourceTree = "<group>"; };
-		A10002010000000000000079 /* GmailProfileService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailProfileService.swift; sourceTree = "<group>"; };
-		A1000201000000000000007A /* GmailSendService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailSendService.swift; sourceTree = "<group>"; };
-		A1000201000000000000007B /* AuthViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthViewModel.swift; sourceTree = "<group>"; };
-		A1000201000000000000007C /* MailboxViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailboxViewModel.swift; sourceTree = "<group>"; };
-		A1000201000000000000007D /* EmailDetailViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailDetailViewModel.swift; sourceTree = "<group>"; };
-		A1000201000000000000007E /* ComposeViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeViewModel.swift; sourceTree = "<group>"; };
-		A10002010000000000000080 /* AccountsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountsSettingsView.swift; sourceTree = "<group>"; };
-		A10002010000000000000081 /* APICache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APICache.swift; sourceTree = "<group>"; };
-		A10002010000000000000083 /* LabelChipView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelChipView.swift; sourceTree = "<group>"; };
-		A10002010000000000000084 /* HTMLEmailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLEmailView.swift; sourceTree = "<group>"; };
-		A10002010000000000000085 /* AttachmentPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentPreviewView.swift; sourceTree = "<group>"; };
-		A10002010000000000000086 /* GmailDataTransformer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailDataTransformer.swift; sourceTree = "<group>"; };
-		A10002010000000000000087 /* DateFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateFormatting.swift; sourceTree = "<group>"; };
-		A10002010000000000000088 /* FileUtils.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileUtils.swift; sourceTree = "<group>"; };
-		A10002010000000000000089 /* SwipeableEmailRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeableEmailRow.swift; sourceTree = "<group>"; };
-		A1000201000000000000008A /* UndoActionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UndoActionManager.swift; sourceTree = "<group>"; };
-		A1000201000000000000008B /* UndoToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UndoToastView.swift; sourceTree = "<group>"; };
-		A1000201000000000000008C /* UnsubscribeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnsubscribeService.swift; sourceTree = "<group>"; };
-		A1000201000000000000008D /* SubscriptionsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionsStore.swift; sourceTree = "<group>"; };
-		A1000201000000000000008E /* OriginalMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OriginalMessageView.swift; sourceTree = "<group>"; };
-		A1000201000000000000008F /* EmailPrintService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailPrintService.swift; sourceTree = "<group>"; };
-		A10002010000000000000090 /* AutocompleteTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutocompleteTextField.swift; sourceTree = "<group>"; };
-		A10002010000000000000091 /* MailCacheStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MailCacheStore.swift; sourceTree = "<group>"; };
-		A10002010000000000000092 /* TrackerBlockerService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerBlockerService.swift; sourceTree = "<group>"; };
-		A10002010000000000000093 /* TrackerBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerBannerView.swift; sourceTree = "<group>"; };
-		A10002010000000000000094 /* GmailDraftService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailDraftService.swift; sourceTree = "<group>"; };
 		A10002010000000000000099 /* Serif.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Serif.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A100020100000000000000A0 /* BulkActionBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BulkActionBarView.swift; sourceTree = "<group>"; };
-		A100020100000000000000C1 /* AvatarCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarCache.swift; sourceTree = "<group>"; };
-		A100020100000000000000C2 /* BIMIService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BIMIService.swift; sourceTree = "<group>"; };
-		A100020100000000000000C3 /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
-		A100020100000000000000C4 /* StringExtensions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringExtensions.swift; sourceTree = "<group>"; };
-		A100020100000000000000C5 /* EmailActionCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailActionCoordinator.swift; sourceTree = "<group>"; };
-		A100020100000000000000C6 /* SettingsCardsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsCardsView.swift; sourceTree = "<group>"; };
-		A100020100000000000000C8 /* ComposeMode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeMode.swift; sourceTree = "<group>"; };
-		A100020100000000000000C9 /* DetailToolbarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailToolbarView.swift; sourceTree = "<group>"; };
-		A100020100000000000000CA /* LabelEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelEditorView.swift; sourceTree = "<group>"; };
-		A100020100000000000000CB /* SenderInfoPopover.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SenderInfoPopover.swift; sourceTree = "<group>"; };
-		A100020100000000000000CC /* EmailDetailSkeletonView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailDetailSkeletonView.swift; sourceTree = "<group>"; };
-		A100020100000000000000CD /* GmailThreadMessageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailThreadMessageView.swift; sourceTree = "<group>"; };
-		A100020100000000000000CE /* SidebarRowViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarRowViews.swift; sourceTree = "<group>"; };
-		A100020100000000000000CF /* AccountSwitcherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSwitcherView.swift; sourceTree = "<group>"; };
-		A100020100000000000000D0 /* AccountAvatarBubble.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountAvatarBubble.swift; sourceTree = "<group>"; };
-		A100020100000000000000D1 /* SlidePanelsOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlidePanelsOverlay.swift; sourceTree = "<group>"; };
-		A100020100000000000000D2 /* DetailPaneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailPaneView.swift; sourceTree = "<group>"; };
-		A100020100000000000000D3 /* ListPaneView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ListPaneView.swift; sourceTree = "<group>"; };
-		A100020100000000000000D4 /* PanelCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PanelCoordinator.swift; sourceTree = "<group>"; };
-		A100020100000000000000D5 /* IndexedAttachment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexedAttachment.swift; sourceTree = "<group>"; };
-		A100020100000000000000D6 /* AttachmentDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentDatabase.swift; sourceTree = "<group>"; };
-		A100020100000000000000D7 /* AttachmentSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentSearchService.swift; sourceTree = "<group>"; };
-		A100020100000000000000D8 /* AttachmentIndexer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentIndexer.swift; sourceTree = "<group>"; };
-		A100020100000000000000D9 /* ContentExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentExtractor.swift; sourceTree = "<group>"; };
-		A100020100000000000000DA /* AttachmentStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentStore.swift; sourceTree = "<group>"; };
-		A100020100000000000000DB /* AttachmentCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentCardView.swift; sourceTree = "<group>"; };
-		A100020100000000000000DC /* AttachmentExplorerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AttachmentExplorerView.swift; sourceTree = "<group>"; };
-		A100020100000000000000DD /* ThumbnailCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailCache.swift; sourceTree = "<group>"; };
-		A100020100000000000000DE /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
-		A100020100000000000000E0 /* BadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BadgeView.swift; sourceTree = "<group>"; };
-		A100020100000000000000E1 /* CardContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardContainer.swift; sourceTree = "<group>"; };
-		A100020100000000000000E2 /* IconButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IconButton.swift; sourceTree = "<group>"; };
-		A100020100000000000000E3 /* EmailContextMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailContextMenu.swift; sourceTree = "<group>"; };
-		A100020100000000000000E4 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
-		A100020100000000000000E5 /* KeyboardShortcutsModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardShortcutsModifier.swift; sourceTree = "<group>"; };
-		A100020100000000000000E6 /* EmailSelectionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailSelectionManager.swift; sourceTree = "<group>"; };
-		A100020100000000000000E7 /* PullToRefreshView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PullToRefreshView.swift; sourceTree = "<group>"; };
-		A100020100000000000000E8 /* InAppBrowserView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InAppBrowserView.swift; sourceTree = "<group>"; };
-		A100020100000000000000E9 /* SignatureEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignatureEditorView.swift; sourceTree = "<group>"; };
-		A100020100000000000000F0 /* SignatureResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SignatureResolver.swift; sourceTree = "<group>"; };
-		A100020100000000000000F1 /* ComposeModeInitializer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComposeModeInitializer.swift; sourceTree = "<group>"; };
-		A100020100000000000000F2 /* MessageFetchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageFetchService.swift; sourceTree = "<group>"; };
-		A100020100000000000000F3 /* LabelSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelSyncService.swift; sourceTree = "<group>"; };
-		A100020100000000000000F4 /* HistorySyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistorySyncService.swift; sourceTree = "<group>"; };
-		A100020100000000000000F5 /* MessageFetching.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageFetching.swift; sourceTree = "<group>"; };
-		A100020100000000000000F6 /* CacheStoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheStoring.swift; sourceTree = "<group>"; };
-		A100020100000000000000F7 /* CPUMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CPUMonitor.swift; sourceTree = "<group>"; };
-		A100020100000000000000F8 /* ToastManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastManager.swift; sourceTree = "<group>"; };
-		A100020100000000000000F9 /* ToastOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastOverlayView.swift; sourceTree = "<group>"; };
-		A100020100000000000000FA /* UpdaterViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdaterViewModel.swift; sourceTree = "<group>"; };
-		A100020100000000000000FB /* editor.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = editor.js; sourceTree = "<group>"; };
-		A100020100000000000000FC /* HTMLTemplate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLTemplate.swift; sourceTree = "<group>"; };
-		A100020100000000000000FD /* WebRichTextEditorState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRichTextEditorState.swift; sourceTree = "<group>"; };
-		A100020100000000000000FE /* WebRichTextEditorCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRichTextEditorCoordinator.swift; sourceTree = "<group>"; };
-		A10002010000000000000201 /* SerifCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SerifCommands.swift; sourceTree = "<group>"; };
-		A10002010000000000000300 /* CalendarInviteParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarInviteParser.swift; sourceTree = "<group>"; };
-		A10002010000000000000301 /* CalendarInviteCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarInviteCardView.swift; sourceTree = "<group>"; };
-		A10002010000000000000302 /* EmailHoverSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailHoverSummaryView.swift; sourceTree = "<group>"; };
-		A10002010000000000000303 /* SummaryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryService.swift; sourceTree = "<group>"; };
-		A10002010000000000000304 /* QuickReplyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickReplyService.swift; sourceTree = "<group>"; };
-		A10002010000000000000FF /* WebRichTextEditorRepresentable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRichTextEditorRepresentable.swift; sourceTree = "<group>"; };
-		A1000201000000000000100 /* WebRichTextEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRichTextEditor.swift; sourceTree = "<group>"; };
-		A1000201000000000000101 /* InlineImageProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineImageProcessor.swift; sourceTree = "<group>"; };
 		B10002010000000000000001 /* GmailModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailModelsTests.swift; sourceTree = "<group>"; };
 		B10002010000000000000002 /* EmailModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailModelTests.swift; sourceTree = "<group>"; };
 		B10002010000000000000003 /* GmailDataTransformerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailDataTransformerTests.swift; sourceTree = "<group>"; };
@@ -308,6 +50,20 @@
 		B1000201000000000000000B /* DraftLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftLifecycleTests.swift; sourceTree = "<group>"; };
 		B10002010000000000000099 /* SerifTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SerifTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		9E160B282F60CC08004784BD /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = A10005010000000000000001 /* Serif */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		9E160AA62F60CC08004784BD /* Serif */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (9E160B282F60CC08004784BD /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Serif; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		A10003010000000000000001 /* Frameworks */ = {
@@ -333,297 +89,11 @@
 		A10004010000000000000001 = {
 			isa = PBXGroup;
 			children = (
-				A10004010000000000000002 /* Serif */,
+				9E160AA62F60CC08004784BD /* Serif */,
 				B10004010000000000000001 /* SerifTests */,
 				A10004010000000000000099 /* Products */,
 				9EBEBCE82F5B21B400145F71 /* serif_icon.icon */,
 			);
-			sourceTree = "<group>";
-		};
-		A10004010000000000000002 /* Serif */ = {
-			isa = PBXGroup;
-			children = (
-				A10002010000000000000001 /* SerifApp.swift */,
-				A10002010000000000000002 /* ContentView.swift */,
-				A10004010000000000000003 /* Theme */,
-				A10004010000000000000004 /* Models */,
-				A10004010000000000000005 /* Views */,
-				A10004010000000000000010 /* Resources */,
-				A10002010000000000000013 /* Serif.entitlements */,
-				A10002010000000000000014 /* Info.plist */,
-				A10004010000000000000020 /* Configuration */,
-				A10004010000000000000021 /* Services */,
-				A10004010000000000000024 /* ViewModels */,
-				A10004010000000000000025 /* Utilities */,
-			);
-			path = Serif;
-			sourceTree = "<group>";
-		};
-		A10004010000000000000003 /* Theme */ = {
-			isa = PBXGroup;
-			children = (
-				A10002010000000000000003 /* Theme.swift */,
-				A10002010000000000000004 /* ThemeManager.swift */,
-				A10002010000000000000005 /* DefaultThemes.swift */,
-				A100020100000000000000DE /* DesignSystem.swift */,
-			);
-			path = Theme;
-			sourceTree = "<group>";
-		};
-		A10004010000000000000004 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				A10002010000000000000006 /* Email.swift */,
-				A10002010000000000000071 /* GmailAccount.swift */,
-				A10002010000000000000030 /* MailStore.swift */,
-				A100020100000000000000C8 /* ComposeMode.swift */,
-				A100020100000000000000D5 /* IndexedAttachment.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		A10004010000000000000005 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				A10004010000000000000006 /* Sidebar */,
-				A10004010000000000000007 /* EmailList */,
-				A10004010000000000000008 /* EmailDetail */,
-				A10004010000000000000009 /* Common */,
-				A1000401000000000000000A /* Compose */,
-				A1000401000000000000000B /* Attachments */,
-				A1000401000000000000000C /* Onboarding */,
-				A100040100000000000000E3 /* Components */,
-				A1000401000000000000000D /* Settings */,
-			);
-			path = Views;
-			sourceTree = "<group>";
-		};
-		A10004010000000000000006 /* Sidebar */ = {
-			isa = PBXGroup;
-			children = (
-				A10002010000000000000008 /* SidebarView.swift */,
-				A100020100000000000000CE /* SidebarRowViews.swift */,
-				A100020100000000000000CF /* AccountSwitcherView.swift */,
-			);
-			path = Sidebar;
-			sourceTree = "<group>";
-		};
-		A10004010000000000000007 /* EmailList */ = {
-			isa = PBXGroup;
-			children = (
-				A10002010000000000000009 /* EmailListView.swift */,
-				A1000201000000000000000A /* EmailRowView.swift */,
-				A10002010000000000000089 /* SwipeableEmailRow.swift */,
-				A100020100000000000000A0 /* BulkActionBarView.swift */,
-				A100020100000000000000D3 /* ListPaneView.swift */,
-				A100020100000000000000E3 /* EmailContextMenu.swift */,
-				A100020100000000000000E6 /* EmailSelectionManager.swift */,
-				A100020100000000000000E7 /* PullToRefreshView.swift */,
-				A10002010000000000000302 /* EmailHoverSummaryView.swift */,
-			);
-			path = EmailList;
-			sourceTree = "<group>";
-		};
-		A10004010000000000000008 /* EmailDetail */ = {
-			isa = PBXGroup;
-			children = (
-				A1000201000000000000000B /* EmailDetailView.swift */,
-				A100020100000000000000C9 /* DetailToolbarView.swift */,
-				A100020100000000000000CA /* LabelEditorView.swift */,
-				A100020100000000000000CB /* SenderInfoPopover.swift */,
-				A100020100000000000000CC /* EmailDetailSkeletonView.swift */,
-				A100020100000000000000CD /* GmailThreadMessageView.swift */,
-				A100020100000000000000D2 /* DetailPaneView.swift */,
-				A10002010000000000000084 /* HTMLEmailView.swift */,
-				A1000201000000000000000C /* AttachmentChipView.swift */,
-				A10002010000000000000085 /* AttachmentPreviewView.swift */,
-				A1000201000000000000008E /* OriginalMessageView.swift */,
-				A1000201000000000000000D /* ReplyBarView.swift */,
-				A10002010000000000000093 /* TrackerBannerView.swift */,
-				A10002010000000000000301 /* CalendarInviteCardView.swift */,
-			);
-			path = EmailDetail;
-			sourceTree = "<group>";
-		};
-		A10004010000000000000009 /* Common */ = {
-			isa = PBXGroup;
-			children = (
-				A1000201000000000000000E /* AvatarView.swift */,
-				A1000201000000000000000F /* SearchBarView.swift */,
-				A10002010000000000000010 /* ThemePickerView.swift */,
-				A100020100000000000000FD /* WebRichTextEditorState.swift */,
-				A100020100000000000000FE /* WebRichTextEditorCoordinator.swift */,
-				A10002010000000000000FF /* WebRichTextEditorRepresentable.swift */,
-				A1000201000000000000100 /* WebRichTextEditor.swift */,
-				A10002010000000000000051 /* FormattingToolbar.swift */,
-				A10002010000000000000052 /* ShortcutsHelpView.swift */,
-				A10002010000000000000053 /* DebugMenuView.swift */,
-				A10002010000000000000054 /* SlidePanel.swift */,
-				A10002010000000000000080 /* AccountsSettingsView.swift */,
-				A1000201000000000000008B /* UndoToastView.swift */,
-				A100020100000000000000F9 /* ToastOverlayView.swift */,
-				A10002010000000000000083 /* LabelChipView.swift */,
-				A100020100000000000000C6 /* SettingsCardsView.swift */,
-				A100020100000000000000D0 /* AccountAvatarBubble.swift */,
-				A100020100000000000000D1 /* SlidePanelsOverlay.swift */,
-				A100020100000000000000E5 /* KeyboardShortcutsModifier.swift */,
-				A10002010000000000000201 /* SerifCommands.swift */,
-				A100020100000000000000E8 /* InAppBrowserView.swift */,
-			);
-			path = Common;
-			sourceTree = "<group>";
-		};
-		A1000401000000000000000A /* Compose */ = {
-			isa = PBXGroup;
-			children = (
-				A10002010000000000000011 /* ComposeView.swift */,
-				A10002010000000000000090 /* AutocompleteTextField.swift */,
-			);
-			path = Compose;
-			sourceTree = "<group>";
-		};
-		A1000401000000000000000B /* Attachments */ = {
-			isa = PBXGroup;
-			children = (
-				A10002010000000000000040 /* AttachmentsListView.swift */,
-				A100020100000000000000DB /* AttachmentCardView.swift */,
-				A100020100000000000000DC /* AttachmentExplorerView.swift */,
-			);
-			path = Attachments;
-			sourceTree = "<group>";
-		};
-		A1000401000000000000000C /* Onboarding */ = {
-			isa = PBXGroup;
-			children = (
-				A10002010000000000000060 /* OnboardingView.swift */,
-				A10002010000000000000061 /* GoogleLogo.swift */,
-			);
-			path = Onboarding;
-			sourceTree = "<group>";
-		};
-		A1000401000000000000000D /* Settings */ = {
-			isa = PBXGroup;
-			children = (
-				A100020100000000000000E9 /* SignatureEditorView.swift */,
-			);
-			path = Settings;
-			sourceTree = "<group>";
-		};
-		A10004010000000000000010 /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				A10002010000000000000012 /* Assets.xcassets */,
-				A100020100000000000000FB /* editor.js */,
-				A10004010000000000000011 /* Fonts */,
-			);
-			path = Resources;
-			sourceTree = "<group>";
-		};
-		A10004010000000000000011 /* Fonts */ = {
-			isa = PBXGroup;
-			children = (
-				A10002010000000000000020 /* PPEditorialNew-Regular.otf */,
-				A10002010000000000000021 /* PPEditorialNew-Italic.otf */,
-				A10002010000000000000022 /* PPLocomotiveNew-Light.ttf */,
-				A10002010000000000000023 /* PPLocomotiveNew-Light-Italic.ttf */,
-			);
-			path = Fonts;
-			sourceTree = "<group>";
-		};
-		A10004010000000000000020 /* Configuration */ = {
-			isa = PBXGroup;
-			children = (
-				A10002010000000000000070 /* GoogleCredentials.swift */,
-			);
-			path = Configuration;
-			sourceTree = "<group>";
-		};
-		A10004010000000000000021 /* Services */ = {
-			isa = PBXGroup;
-			children = (
-				A10004010000000000000022 /* Auth */,
-				A10004010000000000000023 /* Gmail */,
-				A100040100000000000000F5 /* Protocols */,
-				A10002010000000000000081 /* APICache.swift */,
-				A1000201000000000000008A /* UndoActionManager.swift */,
-				A100020100000000000000F8 /* ToastManager.swift */,
-				A1000201000000000000008C /* UnsubscribeService.swift */,
-				A1000201000000000000008D /* SubscriptionsStore.swift */,
-				A1000201000000000000008F /* EmailPrintService.swift */,
-				A10002010000000000000091 /* MailCacheStore.swift */,
-				A10002010000000000000092 /* TrackerBlockerService.swift */,
-				A100020100000000000000C1 /* AvatarCache.swift */,
-				A100020100000000000000C2 /* BIMIService.swift */,
-				A100020100000000000000C3 /* NetworkMonitor.swift */,
-				A100020100000000000000F7 /* CPUMonitor.swift */,
-				A100020100000000000000D6 /* AttachmentDatabase.swift */,
-				A100020100000000000000D7 /* AttachmentSearchService.swift */,
-				A100020100000000000000D8 /* AttachmentIndexer.swift */,
-				A100020100000000000000D9 /* ContentExtractor.swift */,
-				A100020100000000000000DD /* ThumbnailCache.swift */,
-				A100020100000000000000F0 /* SignatureResolver.swift */,
-				A100020100000000000000F2 /* MessageFetchService.swift */,
-				A100020100000000000000F3 /* LabelSyncService.swift */,
-				A100020100000000000000F4 /* HistorySyncService.swift */,
-				A10002010000000000000300 /* CalendarInviteParser.swift */,
-				A10002010000000000000303 /* SummaryService.swift */,
-				A10002010000000000000304 /* QuickReplyService.swift */,
-			);
-			path = Services;
-			sourceTree = "<group>";
-		};
-		A10004010000000000000022 /* Auth */ = {
-			isa = PBXGroup;
-			children = (
-				A10002010000000000000072 /* AuthToken.swift */,
-				A10002010000000000000073 /* TokenStore.swift */,
-				A10002010000000000000074 /* OAuthService.swift */,
-			);
-			path = Auth;
-			sourceTree = "<group>";
-		};
-		A10004010000000000000023 /* Gmail */ = {
-			isa = PBXGroup;
-			children = (
-				A10002010000000000000075 /* GmailAPIClient.swift */,
-				A10002010000000000000076 /* GmailModels.swift */,
-				A10002010000000000000077 /* GmailMessageService.swift */,
-				A10002010000000000000078 /* GmailLabelService.swift */,
-				A10002010000000000000079 /* GmailProfileService.swift */,
-				A1000201000000000000007A /* GmailSendService.swift */,
-				A10002010000000000000094 /* GmailDraftService.swift */,
-			);
-			path = Gmail;
-			sourceTree = "<group>";
-		};
-		A10004010000000000000024 /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-				A1000201000000000000007B /* AuthViewModel.swift */,
-				A1000201000000000000007C /* MailboxViewModel.swift */,
-				A1000201000000000000007D /* EmailDetailViewModel.swift */,
-				A1000201000000000000007E /* ComposeViewModel.swift */,
-				A100020100000000000000C5 /* EmailActionCoordinator.swift */,
-				A100020100000000000000D4 /* PanelCoordinator.swift */,
-				A100020100000000000000DA /* AttachmentStore.swift */,
-				A100020100000000000000E4 /* AppCoordinator.swift */,
-				A100020100000000000000F1 /* ComposeModeInitializer.swift */,
-				A100020100000000000000FA /* UpdaterViewModel.swift */,
-			);
-			path = ViewModels;
-			sourceTree = "<group>";
-		};
-		A10004010000000000000025 /* Utilities */ = {
-			isa = PBXGroup;
-			children = (
-				A10002010000000000000086 /* GmailDataTransformer.swift */,
-				A10002010000000000000087 /* DateFormatting.swift */,
-				A10002010000000000000088 /* FileUtils.swift */,
-				A100020100000000000000FC /* HTMLTemplate.swift */,
-				A1000201000000000000101 /* InlineImageProcessor.swift */,
-				A100020100000000000000C4 /* StringExtensions.swift */,
-			);
-			path = Utilities;
 			sourceTree = "<group>";
 		};
 		A10004010000000000000099 /* Products */ = {
@@ -633,25 +103,6 @@
 				B10002010000000000000099 /* SerifTests.xctest */,
 			);
 			name = Products;
-			sourceTree = "<group>";
-		};
-		A100040100000000000000E3 /* Components */ = {
-			isa = PBXGroup;
-			children = (
-				A100020100000000000000E0 /* BadgeView.swift */,
-				A100020100000000000000E1 /* CardContainer.swift */,
-				A100020100000000000000E2 /* IconButton.swift */,
-			);
-			path = Components;
-			sourceTree = "<group>";
-		};
-		A100040100000000000000F5 /* Protocols */ = {
-			isa = PBXGroup;
-			children = (
-				A100020100000000000000F5 /* MessageFetching.swift */,
-				A100020100000000000000F6 /* CacheStoring.swift */,
-			);
-			path = Protocols;
 			sourceTree = "<group>";
 		};
 		B10004010000000000000001 /* SerifTests */ = {
@@ -686,6 +137,9 @@
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				9E160AA62F60CC08004784BD /* Serif */,
 			);
 			name = Serif;
 			packageProductDependencies = (
@@ -762,12 +216,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10001010000000000000012 /* Assets.xcassets in Resources */,
-				A10001010000000000000020 /* PPEditorialNew-Regular.otf in Resources */,
-				A10001010000000000000021 /* PPEditorialNew-Italic.otf in Resources */,
-				A10001010000000000000022 /* PPLocomotiveNew-Light.ttf in Resources */,
-				A10001010000000000000023 /* PPLocomotiveNew-Light-Italic.ttf in Resources */,
-				A100010100000000000000FB /* editor.js in Resources */,
 				9EBEBCE92F5B21B400145F71 /* serif_icon.icon in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -779,128 +227,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10001010000000000000001 /* SerifApp.swift in Sources */,
-				A10001010000000000000002 /* ContentView.swift in Sources */,
-				A10001010000000000000003 /* Theme.swift in Sources */,
-				A10001010000000000000004 /* ThemeManager.swift in Sources */,
-				A10001010000000000000005 /* DefaultThemes.swift in Sources */,
-				A100010100000000000000DE /* DesignSystem.swift in Sources */,
-				A10001010000000000000006 /* Email.swift in Sources */,
-				A10001010000000000000008 /* SidebarView.swift in Sources */,
-				A10001010000000000000009 /* EmailListView.swift in Sources */,
-				A1000101000000000000000A /* EmailRowView.swift in Sources */,
-				A1000101000000000000000B /* EmailDetailView.swift in Sources */,
-				A10001010000000000000084 /* HTMLEmailView.swift in Sources */,
-				A1000101000000000000000C /* AttachmentChipView.swift in Sources */,
-				A1000101000000000000000D /* ReplyBarView.swift in Sources */,
-				A1000101000000000000000E /* AvatarView.swift in Sources */,
-				A1000101000000000000000F /* SearchBarView.swift in Sources */,
-				A10001010000000000000010 /* ThemePickerView.swift in Sources */,
-				A10001010000000000000011 /* ComposeView.swift in Sources */,
-				A10001010000000000000090 /* AutocompleteTextField.swift in Sources */,
-				A10001010000000000000030 /* MailStore.swift in Sources */,
-				A10001010000000000000040 /* AttachmentsListView.swift in Sources */,
-				A100010100000000000000FD /* WebRichTextEditorState.swift in Sources */,
-				A100010100000000000000FE /* WebRichTextEditorCoordinator.swift in Sources */,
-				A10001010000000000000FF /* WebRichTextEditorRepresentable.swift in Sources */,
-				A1000101000000000000100 /* WebRichTextEditor.swift in Sources */,
-				A10001010000000000000051 /* FormattingToolbar.swift in Sources */,
-				A10001010000000000000052 /* ShortcutsHelpView.swift in Sources */,
-				A10001010000000000000053 /* DebugMenuView.swift in Sources */,
-				A10001010000000000000054 /* SlidePanel.swift in Sources */,
-				A10001010000000000000060 /* OnboardingView.swift in Sources */,
-				A10001010000000000000061 /* GoogleLogo.swift in Sources */,
-				A10001010000000000000070 /* GoogleCredentials.swift in Sources */,
-				A10001010000000000000071 /* GmailAccount.swift in Sources */,
-				A10001010000000000000072 /* AuthToken.swift in Sources */,
-				A10001010000000000000073 /* TokenStore.swift in Sources */,
-				A10001010000000000000074 /* OAuthService.swift in Sources */,
-				A10001010000000000000075 /* GmailAPIClient.swift in Sources */,
-				A10001010000000000000076 /* GmailModels.swift in Sources */,
-				A10001010000000000000077 /* GmailMessageService.swift in Sources */,
-				A10001010000000000000078 /* GmailLabelService.swift in Sources */,
-				A10001010000000000000079 /* GmailProfileService.swift in Sources */,
-				A1000101000000000000007A /* GmailSendService.swift in Sources */,
-				A10001010000000000000094 /* GmailDraftService.swift in Sources */,
-				A1000101000000000000007B /* AuthViewModel.swift in Sources */,
-				A1000101000000000000007C /* MailboxViewModel.swift in Sources */,
-				A1000101000000000000007D /* EmailDetailViewModel.swift in Sources */,
-				A1000101000000000000007E /* ComposeViewModel.swift in Sources */,
-				A10001010000000000000080 /* AccountsSettingsView.swift in Sources */,
-				A10001010000000000000083 /* LabelChipView.swift in Sources */,
-				A10001010000000000000081 /* APICache.swift in Sources */,
-				A10001010000000000000085 /* AttachmentPreviewView.swift in Sources */,
-				A10001010000000000000089 /* SwipeableEmailRow.swift in Sources */,
-				A100010100000000000000A0 /* BulkActionBarView.swift in Sources */,
-				A1000101000000000000008A /* UndoActionManager.swift in Sources */,
-				A1000101000000000000008C /* UnsubscribeService.swift in Sources */,
-				A1000101000000000000008D /* SubscriptionsStore.swift in Sources */,
-				A1000101000000000000008E /* OriginalMessageView.swift in Sources */,
-				A1000101000000000000008F /* EmailPrintService.swift in Sources */,
-				A10001010000000000000091 /* MailCacheStore.swift in Sources */,
-				A10001010000000000000092 /* TrackerBlockerService.swift in Sources */,
-				A10001010000000000000093 /* TrackerBannerView.swift in Sources */,
-				A1000101000000000000008B /* UndoToastView.swift in Sources */,
-				A10001010000000000000086 /* GmailDataTransformer.swift in Sources */,
-				A10001010000000000000087 /* DateFormatting.swift in Sources */,
-				A10001010000000000000088 /* FileUtils.swift in Sources */,
-				A100010100000000000000C1 /* AvatarCache.swift in Sources */,
-				A100010100000000000000C2 /* BIMIService.swift in Sources */,
-				A100010100000000000000C3 /* NetworkMonitor.swift in Sources */,
-				A100010100000000000000C4 /* StringExtensions.swift in Sources */,
-				A100010100000000000000C5 /* EmailActionCoordinator.swift in Sources */,
-				A100010100000000000000C6 /* SettingsCardsView.swift in Sources */,
-				A100010100000000000000C8 /* ComposeMode.swift in Sources */,
-				A100010100000000000000C9 /* DetailToolbarView.swift in Sources */,
-				A100010100000000000000CA /* LabelEditorView.swift in Sources */,
-				A100010100000000000000CB /* SenderInfoPopover.swift in Sources */,
-				A100010100000000000000CC /* EmailDetailSkeletonView.swift in Sources */,
-				A100010100000000000000CD /* GmailThreadMessageView.swift in Sources */,
-				A100010100000000000000CE /* SidebarRowViews.swift in Sources */,
-				A100010100000000000000CF /* AccountSwitcherView.swift in Sources */,
-				A100010100000000000000D0 /* AccountAvatarBubble.swift in Sources */,
-				A100010100000000000000D1 /* SlidePanelsOverlay.swift in Sources */,
-				A100010100000000000000D2 /* DetailPaneView.swift in Sources */,
-				A100010100000000000000D3 /* ListPaneView.swift in Sources */,
-				A100010100000000000000D4 /* PanelCoordinator.swift in Sources */,
-				A100010100000000000000D5 /* IndexedAttachment.swift in Sources */,
-				A100010100000000000000D6 /* AttachmentDatabase.swift in Sources */,
-				A100010100000000000000D7 /* AttachmentSearchService.swift in Sources */,
-				A100010100000000000000D8 /* AttachmentIndexer.swift in Sources */,
-				A100010100000000000000D9 /* ContentExtractor.swift in Sources */,
-				A100010100000000000000DA /* AttachmentStore.swift in Sources */,
-				A100010100000000000000DB /* AttachmentCardView.swift in Sources */,
-				A100010100000000000000DC /* AttachmentExplorerView.swift in Sources */,
-				A100010100000000000000DD /* ThumbnailCache.swift in Sources */,
-				A100010100000000000000E0 /* BadgeView.swift in Sources */,
-				A100010100000000000000E1 /* CardContainer.swift in Sources */,
-				A100010100000000000000E2 /* IconButton.swift in Sources */,
-				A100010100000000000000E4 /* AppCoordinator.swift in Sources */,
-				A100010100000000000000E5 /* KeyboardShortcutsModifier.swift in Sources */,
-				A10001010000000000000201 /* SerifCommands.swift in Sources */,
-				A10001010000000000000300 /* CalendarInviteParser.swift in Sources */,
-				A10001010000000000000301 /* CalendarInviteCardView.swift in Sources */,
-				A10001010000000000000302 /* EmailHoverSummaryView.swift in Sources */,
-				A10001010000000000000303 /* SummaryService.swift in Sources */,
-				A10001010000000000000304 /* QuickReplyService.swift in Sources */,
-				A100010100000000000000E3 /* EmailContextMenu.swift in Sources */,
-				A100010100000000000000E6 /* EmailSelectionManager.swift in Sources */,
-				A100010100000000000000E7 /* PullToRefreshView.swift in Sources */,
-				A100010100000000000000F0 /* SignatureResolver.swift in Sources */,
-				A100010100000000000000F1 /* ComposeModeInitializer.swift in Sources */,
-				A100010100000000000000F2 /* MessageFetchService.swift in Sources */,
-				A100010100000000000000F3 /* LabelSyncService.swift in Sources */,
-				A100010100000000000000F4 /* HistorySyncService.swift in Sources */,
-				A100010100000000000000F5 /* MessageFetching.swift in Sources */,
-				A100010100000000000000F6 /* CacheStoring.swift in Sources */,
-				A100010100000000000000F7 /* CPUMonitor.swift in Sources */,
-				A100010100000000000000F8 /* ToastManager.swift in Sources */,
-				A100010100000000000000F9 /* ToastOverlayView.swift in Sources */,
-				A100010100000000000000FC /* HTMLTemplate.swift in Sources */,
-				A1000101000000000000101 /* InlineImageProcessor.swift in Sources */,
-				A100010100000000000000E8 /* InAppBrowserView.swift in Sources */,
-				A100010100000000000000E9 /* SignatureEditorView.swift in Sources */,
-				A10001010000000000000103 /* UpdaterViewModel.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1063,7 +389,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = QC35MT888M;
@@ -1081,7 +407,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.7;
+				MARKETING_VERSION = 1.0.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.genyus.serif.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -1100,7 +426,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 4;
+				CURRENT_PROJECT_VERSION = 5;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "";
 				DEVELOPMENT_TEAM = QC35MT888M;
@@ -1118,7 +444,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.0.7;
+				MARKETING_VERSION = 1.0.8;
 				PRODUCT_BUNDLE_IDENTIFIER = com.genyus.serif.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
