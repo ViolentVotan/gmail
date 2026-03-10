@@ -71,6 +71,9 @@ struct ReplyBarView: View {
         )
         .onAppear { startGradientAnimation() }
         .onChange(of: theme) { _, _ in startGradientAnimation() }
+        .onChange(of: isExpanded) { _, expanded in
+            if !expanded { startGradientAnimation() }
+        }
         .background(ClickOutsideDetector(isExpanded: isExpanded, onClickOutside: { minimize() }))
         .onChange(of: replyHTML) { _,_ in
             scheduleAutoSave()
