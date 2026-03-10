@@ -24,9 +24,11 @@
 
 A native macOS Gmail client. No Electron. No web wrapper. Just Swift, SwiftUI, and speed.
 
-> **Cache-first.** Your inbox loads before you blink.
-> **Privacy-first.** Tracking pixels blocked. No telemetry. Ever.
-> **Native-first.** Feels like it shipped with your Mac.
+**Cache-first.** Your inbox loads before you blink.
+
+**Privacy-first.** Tracking pixels blocked. No telemetry. Ever.
+
+**Native-first.** Feels like it shipped with your Mac.
 
 ## ✨ Features
 
