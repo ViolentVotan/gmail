@@ -19,6 +19,7 @@ struct HTMLEmailView: NSViewRepresentable {
     let html: String
     @Binding var contentHeight: CGFloat
     var onOpenLink: ((URL) -> Void)?
+    @Environment(\.theme) private var theme
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -35,8 +36,10 @@ struct HTMLEmailView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        guard context.coordinator.lastHTML != html else { return }
-        context.coordinator.lastHTML = html
+        let textHex = theme.textPrimary.hexString
+        let cacheKey = "\(html)|\(textHex)"
+        guard context.coordinator.lastCacheKey != cacheKey else { return }
+        context.coordinator.lastCacheKey = cacheKey
         // Defer height reset so SwiftUI processes it after the current render pass.
         // This shrinks the frame before didFinish measures the new content.
         DispatchQueue.main.async {
@@ -58,7 +61,7 @@ struct HTMLEmailView: NSViewRepresentable {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
             font-size: 14px;
             line-height: 1.65;
-            color: #202124;
+            color: \(textHex);
             background-color: transparent;
             word-wrap: break-word;
             overflow-wrap: break-word;
@@ -71,7 +74,6 @@ struct HTMLEmailView: NSViewRepresentable {
         * { box-sizing: border-box; max-width: 100% !important; cursor: default !important; }
 
         @media (prefers-color-scheme: dark) {
-            body { color: #e8eaed; }
             a { color: #8ab4f8; }
             blockquote { border-left-color: #5f6368; color: #9aa0a6; }
             pre, code { background: rgba(255,255,255,0.1); color: #e8eaed; }
@@ -82,6 +84,8 @@ struct HTMLEmailView: NSViewRepresentable {
         // Walks common text elements, computes WCAG contrast ratio against the
         // dark background, and lightens only colours that fall below the threshold
         // while preserving hue and saturation as much as possible.
+        var THEME_TEXT = '\(textHex)';
+
         function fixDarkModeColors() {
             if (!window.matchMedia('(prefers-color-scheme: dark)').matches) return;
 
@@ -135,7 +139,12 @@ struct HTMLEmailView: NSViewRepresentable {
                     if (contrastWith(relativeLum(nr, ng, nb)) >= MIN_CR)
                         return 'rgb(' + nr + ',' + ng + ',' + nb + ')';
                 }
-                return 'rgb(232,234,237)'; // safe fallback
+                return THEME_TEXT; // safe fallback
+            }
+
+            function isAchromatic(r, g, b) {
+                var mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+                return (mx - mn) < 30 && mx < 80;
             }
 
             function processEl(el) {
@@ -143,7 +152,12 @@ struct HTMLEmailView: NSViewRepresentable {
                 var rgb = parseRgb(c);
                 if (!rgb) return;
                 if (contrastWith(relativeLum(rgb[0], rgb[1], rgb[2])) >= MIN_CR) return;
-                el.style.setProperty('color', lightenToContrast(rgb[0], rgb[1], rgb[2]), 'important');
+                // Near-black unsaturated text → use theme textPrimary
+                // Colored text → lighten while preserving hue
+                var replacement = isAchromatic(rgb[0], rgb[1], rgb[2])
+                    ? THEME_TEXT
+                    : lightenToContrast(rgb[0], rgb[1], rgb[2]);
+                el.style.setProperty('color', replacement, 'important');
             }
 
             document.querySelectorAll(
@@ -186,7 +200,7 @@ struct HTMLEmailView: NSViewRepresentable {
 
     class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var parent: HTMLEmailView
-        var lastHTML: String = ""
+        var lastCacheKey: String = ""
 
         init(_ parent: HTMLEmailView) { self.parent = parent }
 
