@@ -37,6 +37,11 @@ struct HTMLEmailView: NSViewRepresentable {
     func updateNSView(_ webView: WKWebView, context: Context) {
         guard context.coordinator.lastHTML != html else { return }
         context.coordinator.lastHTML = html
+        // Defer height reset so SwiftUI processes it after the current render pass.
+        // This shrinks the frame before didFinish measures the new content.
+        DispatchQueue.main.async {
+            self.contentHeight = 1
+        }
         let fullHTML = """
         <!DOCTYPE html>
         <html>
@@ -54,8 +59,7 @@ struct HTMLEmailView: NSViewRepresentable {
             font-size: 14px;
             line-height: 1.65;
             color: #202124;
-            background-color: #ffffff;
-            padding-bottom: 16px;
+            background-color: transparent;
             word-wrap: break-word;
             overflow-wrap: break-word;
         }
@@ -67,10 +71,7 @@ struct HTMLEmailView: NSViewRepresentable {
         * { box-sizing: border-box; max-width: 100% !important; cursor: default !important; }
 
         @media (prefers-color-scheme: dark) {
-            body {
-                color: #e8eaed;
-                background-color: transparent;
-            }
+            body { color: #e8eaed; }
             a { color: #8ab4f8; }
             blockquote { border-left-color: #5f6368; color: #9aa0a6; }
             pre, code { background: rgba(255,255,255,0.1); color: #e8eaed; }
@@ -175,7 +176,7 @@ struct HTMLEmailView: NSViewRepresentable {
         });
         </script>
         </head>
-        <body>\(html)</body>
+        <body><div id="emailContent" style="padding-bottom:16px">\(html)</div></body>
         </html>
         """
         webView.loadHTMLString(fullHTML, baseURL: URL(string: "https://mail.google.com/"))
@@ -219,7 +220,7 @@ struct HTMLEmailView: NSViewRepresentable {
 
         private func measureHeight(_ webView: WKWebView) {
             webView.evaluateJavaScript(
-                "Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, document.body.offsetHeight)"
+                "document.getElementById('emailContent').offsetHeight"
             ) { [weak self] result, _ in
                 DispatchQueue.main.async {
                     if let h = result as? CGFloat, h > 0 {
