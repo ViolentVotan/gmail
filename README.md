@@ -22,49 +22,37 @@
 
 ---
 
-Serif is a native macOS Gmail client built from scratch with Swift and SwiftUI. No Electron, no web wrapper — just a fast, beautiful, privacy-first email experience that feels right at home on your Mac.
+A native macOS Gmail client. No Electron. No web wrapper. Just Swift, SwiftUI, and speed.
 
-## Why Serif?
+> **Cache-first.** Your inbox loads before you blink.
+> **Privacy-first.** Tracking pixels blocked. No telemetry. Ever.
+> **Native-first.** Feels like it shipped with your Mac.
 
-- **Instant** — Cache-first architecture. Your inbox loads before you blink.
-- **Private** — Tracking pixels blocked by default. No telemetry. Your emails stay yours.
-- **Native** — Built with SwiftUI. Smooth animations, keyboard shortcuts, themes — the full macOS experience.
-- **Multi-account** — Switch between Gmail accounts seamlessly, each with its own settings.
+## ✨ Features
 
-## ✨ Highlights
-
-**Email, done right** — 3-column layout with resizable panes, thread grouping with chat-style bubbles, swipe actions, bulk operations, and undo on everything.
-
-**Conversations that breathe** — Threaded messages displayed as a conversation with automatic quote collapsing. Your replies on the right, theirs on the left.
-
-**Compose like a pro** — Rich text editor with inline images, drag-and-drop attachments, signatures per alias, send-as identities, and auto-saved drafts.
-
-**Search everything** — Full-text search with Gmail query syntax. Attachment search with smart keyword + semantic matching across your indexed emails.
-
-**🔒 Privacy first** — Tracking pixels detected and blocked by default. Known tracker domains stripped, CSS trackers removed, tracking links rewritten. Full details in an expandable banner.
-
-**Calendar invites** — Google Calendar invitations show a clean card with event details and one-click RSVP (accept, decline, maybe) — no need to leave the app.
-
-**Unsubscribe in one click** — Detects mailing lists and offers RFC 8058 one-click unsubscribe or body link extraction. Subscriptions view lists all your mailing lists in one place.
-
-**Label management** — Create, rename, and delete labels directly from the sidebar. Apply labels in bulk with drag and drop.
-
-**Themes** — 12 built-in themes (light & dark) with per-color overrides. Make it yours.
-
-**Keyboard-driven** — `Cmd+F` to search, `Cmd+Return` to send, `Cmd+Z` to undo. Everything you'd expect.
-
-**🤖 AI summaries** — Hover any email to see a quick AI-generated summary powered by on-device Foundation Models (macOS 26+).
-
-**Auto-updates** — Built-in Sparkle updates so you're always on the latest version.
+| | |
+|---|---|
+| 💬 **Chat-style threads** | Conversations with bubbles, quote collapsing, and thread grouping |
+| 🔒 **Tracker blocking** | Spy pixels, tracking links, and CSS trackers — all stripped automatically |
+| 🔍 **Smart search** | Gmail query syntax + semantic attachment search across your entire mailbox |
+| 📅 **Calendar invites** | Event cards with one-click RSVP — accept, decline, maybe |
+| ✉️ **One-click unsubscribe** | RFC 8058 compliant. See all your subscriptions in one view |
+| 🤖 **AI summaries** | Hover any email for an instant on-device summary (macOS 26+) |
+| 🎨 **12 themes** | Light & dark, with per-color overrides |
+| ⌨️ **Keyboard-first** | `⌘F` search · `⌘↩` send · `⌘Z` undo |
+| 👥 **Multi-account** | Switch accounts seamlessly, each with its own settings and signatures |
 
 ## Getting Started
 
-1. Clone the repo
-2. Open `Serif.xcodeproj` in Xcode 15+
-3. Add your Google OAuth credentials in `Serif/Configuration/GoogleCredentials.swift`
-4. Build and run (macOS 14.0+)
+```bash
+git clone https://github.com/marshallino16/Serif.git
+```
 
-> You'll need a Google Cloud project with the Gmail API enabled and an OAuth 2.0 Desktop client configured.
+1. Open `Serif.xcodeproj` in Xcode 15+
+2. Add your Google OAuth credentials in `Serif/Configuration/GoogleCredentials.swift`
+3. Build and run (macOS 14+)
+
+> Requires a Google Cloud project with Gmail API enabled and an OAuth 2.0 Desktop client.
 
 ## License
 
