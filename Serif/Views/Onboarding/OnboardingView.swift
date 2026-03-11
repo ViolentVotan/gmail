@@ -2,7 +2,7 @@ import SwiftUI
 
 struct OnboardingView: View {
     @Binding var isSignedIn: Bool
-    @StateObject private var authViewModel = AuthViewModel()
+    @State private var authViewModel = AuthViewModel()
     @State private var isSigningIn = false
     @State private var signInError: String?
 

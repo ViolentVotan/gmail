@@ -3,7 +3,7 @@ import SwiftUI
 @main
 struct SerifApp: App {
     @AppStorage("isSignedIn") private var isSignedIn: Bool = false
-    @StateObject private var updaterVM = UpdaterViewModel()
+    @State private var updaterVM = UpdaterViewModel()
 
     var body: some Scene {
         WindowGroup {

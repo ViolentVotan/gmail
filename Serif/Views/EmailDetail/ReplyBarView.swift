@@ -19,7 +19,7 @@ struct ReplyBarView: View {
     @State private var isLoadingDraft = false
     @State private var showDiscardAlert = false
     @StateObject private var editorState = WebRichTextEditorState()
-    @StateObject private var composeVM: ComposeViewModel
+    @State private var composeVM: ComposeViewModel
     @State private var quickReplies: [String] = []
     @State private var isLoadingReplies = false
     @State private var gradientRotation: Double = 0
@@ -41,11 +41,11 @@ struct ReplyBarView: View {
         self.onOpenLink = onOpenLink
         self.onGenerateQuickReplies = onGenerateQuickReplies
         self.onLoadDraft = onLoadDraft
-        self._composeVM = StateObject(wrappedValue: ComposeViewModel(
+        self.composeVM = ComposeViewModel(
             accountID: accountID,
             fromAddress: fromAddress,
             threadID: email.gmailThreadID
-        ))
+        )
     }
 
     var body: some View {

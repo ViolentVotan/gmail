@@ -30,7 +30,7 @@ struct ComposeView: View {
     @State private var currentSignatureHTML: String = ""
     @State private var showDiscardAlert = false
     @StateObject private var editorState = WebRichTextEditorState()
-    @StateObject private var composeVM: ComposeViewModel
+    @State private var composeVM: ComposeViewModel
     @Environment(\.theme) private var theme
 
     init(
@@ -58,10 +58,10 @@ struct ComposeView: View {
         self.onDiscard         = onDiscard
         self.onOpenLink        = onOpenLink
         self._selectedAliasEmail = State(initialValue: fromAddress)
-        self._composeVM        = StateObject(wrappedValue: ComposeViewModel(
+        self.composeVM         = ComposeViewModel(
             accountID: accountID,
             fromAddress: fromAddress
-        ))
+        )
     }
 
     private var draft: Email? {

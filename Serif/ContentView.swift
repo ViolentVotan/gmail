@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct ContentView: View {
-    @StateObject private var themeManager = ThemeManager.shared
-    @StateObject private var coordinator = AppCoordinator()
+    @State private var themeManager = ThemeManager.shared
+    @State private var coordinator = AppCoordinator()
 
     // MARK: - Body
 
