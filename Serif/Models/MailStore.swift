@@ -1,10 +1,12 @@
 import Foundation
+import Observation
 
+@Observable
 @MainActor
-final class MailStore: ObservableObject {
-    @Published var emails: [Email]
-    @Published var gmailDrafts: [Email] = []
-    @Published var isLoadingGmailDrafts = false
+final class MailStore {
+    var emails: [Email]
+    var gmailDrafts: [Email] = []
+    var isLoadingGmailDrafts = false
 
     /// In-progress quick reply drafts, keyed by Gmail thread ID.
     /// Only stores the link — content is always fetched fresh from Gmail.

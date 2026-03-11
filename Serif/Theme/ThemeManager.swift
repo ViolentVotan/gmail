@@ -1,9 +1,11 @@
+import Observation
 import SwiftUI
 
-final class ThemeManager: ObservableObject {
+@Observable
+final class ThemeManager {
     static let shared = ThemeManager()
 
-    @Published var currentTheme: Theme
+    var currentTheme: Theme
 
     var availableThemes: [Theme] = [
         // Dark

@@ -1,5 +1,5 @@
 import Foundation
-import Combine
+import Observation
 
 // MARK: - API Log Entry
 
@@ -71,12 +71,13 @@ struct APILogEntry: Identifiable {
 
 // MARK: - API Logger
 
+@Observable
 @MainActor
-final class APILogger: ObservableObject {
+final class APILogger {
     static let shared = APILogger()
     private init() {}
 
-    @Published private(set) var entries: [APILogEntry] = []
+    private(set) var entries: [APILogEntry] = []
     private let maxEntries = 200
 
     func log(_ entry: APILogEntry) {

@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 struct PendingUndoAction: Identifiable {
     let id = UUID()
@@ -7,15 +8,16 @@ struct PendingUndoAction: Identifiable {
     let onUndo: () -> Void
 }
 
+@Observable
 @MainActor
-final class UndoActionManager: ObservableObject {
+final class UndoActionManager {
 
     static let shared = UndoActionManager()
 
     /// Stack of pending actions (most recent = last). Max 5.
-    @Published var pendingActions: [PendingUndoAction] = []
-    @Published var progress: Double = 1.0
-    @Published var timeRemaining: Double = 0
+    var pendingActions: [PendingUndoAction] = []
+    var progress: Double = 1.0
+    var timeRemaining: Double = 0
 
     private let maxStack = 5
     private var countdownTask: Task<Void, Never>?

@@ -1,3 +1,4 @@
+import Observation
 import SwiftUI
 import WebKit
 
@@ -10,7 +11,7 @@ struct InAppBrowserView: View {
     @State private var isLoading = true
     @State private var canGoBack = false
     @State private var canGoForward = false
-    @StateObject private var webViewStore = WebViewStore()
+    @State private var webViewStore = WebViewStore()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -133,7 +134,8 @@ struct InAppBrowserView: View {
 
 // MARK: - WebView Store
 
-private class WebViewStore: ObservableObject {
+@Observable
+private class WebViewStore {
     let webView = WKWebView()
 }
 

@@ -1,10 +1,12 @@
 import Foundation
 import Network
+import Observation
 
+@Observable
 @MainActor
-final class NetworkMonitor: ObservableObject {
+final class NetworkMonitor {
     static let shared = NetworkMonitor()
-    @Published var isConnected = true
+    var isConnected = true
     private let monitor = NWPathMonitor()
 
     private init() {
