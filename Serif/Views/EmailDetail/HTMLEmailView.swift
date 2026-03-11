@@ -147,11 +147,34 @@ struct HTMLEmailView: NSViewRepresentable {
                 return (mx - mn) < 30 && mx < 80;
             }
 
+            // Walk ancestors to find the nearest explicit background
+            function effectiveBgLum(el) {
+                var node = el;
+                while (node && node !== document.documentElement) {
+                    var bg = window.getComputedStyle(node).backgroundColor;
+                    var rgba = parseRgb(bg);
+                    if (rgba) {
+                        // Check alpha — rgba(0,0,0,0) means transparent
+                        var parts = bg.slice(bg.indexOf('(') + 1).split(',');
+                        var alpha = parts.length >= 4 ? parseFloat(parts[3]) : 1;
+                        if (alpha > 0.1) return relativeLum(rgba[0], rgba[1], rgba[2]);
+                    }
+                    node = node.parentElement;
+                }
+                return BG_LUM; // no explicit bg → assume dark theme background
+            }
+
             function processEl(el) {
                 var c = window.getComputedStyle(el).color;
                 var rgb = parseRgb(c);
                 if (!rgb) return;
-                if (contrastWith(relativeLum(rgb[0], rgb[1], rgb[2])) >= MIN_CR) return;
+                var bgLum = effectiveBgLum(el);
+                // If element sits on a light background (lum > 0.4), skip — text is already readable
+                if (bgLum > 0.4) return;
+                var textLum = relativeLum(rgb[0], rgb[1], rgb[2]);
+                var hi = Math.max(textLum, bgLum), lo = Math.min(textLum, bgLum);
+                var cr = (hi + 0.05) / (lo + 0.05);
+                if (cr >= MIN_CR) return;
                 // Near-black unsaturated text → use theme textPrimary
                 // Colored text → lighten while preserving hue
                 var replacement = isAchromatic(rgb[0], rgb[1], rgb[2])
