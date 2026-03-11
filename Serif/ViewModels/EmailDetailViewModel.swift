@@ -3,7 +3,6 @@ import Observation
 
 /// Drives the email detail / thread view.
 @Observable
-@MainActor
 final class EmailDetailViewModel {
     var thread:          GmailThread?
     var isLoading        = false

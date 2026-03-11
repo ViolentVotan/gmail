@@ -13,7 +13,7 @@ class WebRichTextEditorCoordinator: NSObject, WKScriptMessageHandler, WKNavigati
         guard let dict = message.body as? [String: Any],
               let type = dict["type"] as? String else { return }
 
-        Task { @MainActor in
+        Task {
             switch type {
             case "contentChanged":
                 let isEmpty = dict["isEmpty"] as? Bool ?? false
@@ -58,7 +58,7 @@ class WebRichTextEditorCoordinator: NSObject, WKScriptMessageHandler, WKNavigati
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        Task { @MainActor in
+        Task {
             parent.state.webView = webView
             // Push existing content to the editor (e.g. when re-opening a draft)
             if !parent.htmlContent.isEmpty {
@@ -83,7 +83,7 @@ class WebRichTextEditorCoordinator: NSObject, WKScriptMessageHandler, WKNavigati
         let tempURL = tempDir.appendingPathComponent(filename)
         do {
             try data.write(to: tempURL)
-            Task { @MainActor in
+            Task {
                 parent.state.insertImage(from: tempURL)
             }
         } catch {}

@@ -6,7 +6,7 @@ final class GmailProfileService {
 
     // MARK: - Gmail Profile
 
-    func getProfile(accountID: String) async throws -> GmailProfile {
+    @concurrent func getProfile(accountID: String) async throws -> GmailProfile {
         try await GmailAPIClient.shared.request(
             path: "/users/me/profile",
             accountID: accountID
@@ -16,7 +16,7 @@ final class GmailProfileService {
     // MARK: - Google User Info (name, avatar)
 
     /// Fetches display name and profile picture from Google's userinfo endpoint.
-    func getUserInfo(accessToken: String) async throws -> GoogleUserInfo {
+    @concurrent func getUserInfo(accessToken: String) async throws -> GoogleUserInfo {
         let url = URL(string: "https://www.googleapis.com/oauth2/v2/userinfo")!
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
@@ -27,7 +27,7 @@ final class GmailProfileService {
     // MARK: - SendAs / Aliases
 
     /// Returns all SendAs aliases for the account.
-    func listSendAs(accountID: String) async throws -> [GmailSendAs] {
+    @concurrent func listSendAs(accountID: String) async throws -> [GmailSendAs] {
         let response: GmailSendAsListResponse = try await GmailAPIClient.shared.request(
             path: "/users/me/settings/sendAs",
             accountID: accountID
@@ -37,7 +37,7 @@ final class GmailProfileService {
 
     /// Updates the signature HTML for a specific send-as alias.
     @discardableResult
-    func updateSignature(sendAsEmail: String, signature: String, accountID: String) async throws -> GmailSendAs {
+    @concurrent func updateSignature(sendAsEmail: String, signature: String, accountID: String) async throws -> GmailSendAs {
         struct UpdateRequest: Encodable { let signature: String }
         let body = try JSONEncoder().encode(UpdateRequest(signature: signature))
         return try await GmailAPIClient.shared.request(
@@ -48,7 +48,7 @@ final class GmailProfileService {
     }
 
     /// Returns the signature HTML for the default send-as address.
-    func getSignature(accountID: String) async throws -> String? {
+    @concurrent func getSignature(accountID: String) async throws -> String? {
         let aliases = try await listSendAs(accountID: accountID)
         return aliases.first(where: { $0.isDefault == true })?.signature
     }

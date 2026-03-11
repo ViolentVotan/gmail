@@ -1,7 +1,6 @@
 import SwiftUI
 
 /// Handles incremental delta sync via the Gmail History API.
-@MainActor
 final class HistorySyncService {
 
     private let api: MessageFetching

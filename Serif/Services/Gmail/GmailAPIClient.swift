@@ -133,7 +133,6 @@ final class GmailAPIClient {
 
     // MARK: - Token refresh
 
-    @MainActor
     private func validToken(for accountID: String) async throws -> AuthToken {
         guard let token = try TokenStore.shared.retrieve(for: accountID) else {
             throw GmailAPIError.unauthorized
@@ -145,7 +144,7 @@ final class GmailAPIClient {
             return try await existing.value
         }
 
-        let task = Task<AuthToken, Error> { @MainActor in
+        let task = Task<AuthToken, Error> {
             defer { self.refreshTasks[accountID] = nil }
             let fresh = try await OAuthService.shared.refreshToken(token)
             try TokenStore.shared.save(fresh, for: accountID)
@@ -158,7 +157,7 @@ final class GmailAPIClient {
     // MARK: - HTTP layer
 
     /// Returns (data, httpStatusCode, responseHeaders).
-    private func perform(
+    @concurrent private func perform(
         path: String,
         method: String,
         body: Data?,

@@ -3,7 +3,6 @@ import Foundation
 import FoundationModels
 #endif
 
-@MainActor
 final class SummaryService {
     static let shared = SummaryService()
 
@@ -36,7 +35,7 @@ final class SummaryService {
 
     func summary(for email: Email) -> AsyncStream<String> {
         AsyncStream { continuation in
-            let task = Task { @MainActor in
+            let task = Task {
                 if let key = cacheKey(for: email), let cached = cache[key] {
                     continuation.yield(cached)
                     continuation.finish()

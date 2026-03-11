@@ -58,7 +58,7 @@ struct PullToRefreshDetector: NSViewRepresentable {
             DispatchQueue.main.async {
                 self.isRefreshingBinding?.wrappedValue = true
             }
-            Task { @MainActor in
+            Task {
                 async let refresh: Void = self.onRefresh?() ?? ()
                 async let minDelay: Void = { try? await Task.sleep(nanoseconds: 800_000_000) }()
                 _ = await (refresh, minDelay)

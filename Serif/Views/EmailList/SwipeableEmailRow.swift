@@ -76,7 +76,6 @@ struct SwipeableEmailRow: View {
 // MARK: - State
 
 @Observable
-@MainActor
 final class SwipeRowState {
     var dragOffset: CGFloat = 0
     var isCollapsed = false
@@ -209,7 +208,6 @@ final class SwipeRowState {
 // MARK: - SwipeCoordinator
 
 @Observable
-@MainActor
 final class SwipeCoordinator {
     static let shared = SwipeCoordinator()
     var isSwipeActive = false

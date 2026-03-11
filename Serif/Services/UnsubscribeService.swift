@@ -2,7 +2,6 @@ import Foundation
 import AppKit
 
 /// Handles all unsubscribe interactions: RFC 8058 one-click POST, browser URL, mailto, and body link scanning.
-@MainActor
 final class UnsubscribeService {
     static let shared = UnsubscribeService()
     private init() {}
@@ -46,7 +45,7 @@ final class UnsubscribeService {
     }
 
     /// RFC 8058: POST with body "List-Unsubscribe=One-Click"
-    private func performOneClickPost(url: URL) async -> Bool {
+    @concurrent private func performOneClickPost(url: URL) async -> Bool {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")

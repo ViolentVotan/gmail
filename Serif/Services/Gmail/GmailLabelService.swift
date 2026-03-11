@@ -4,7 +4,7 @@ final class GmailLabelService {
     static let shared = GmailLabelService()
     private init() {}
 
-    func listLabels(accountID: String) async throws -> [GmailLabel] {
+    @concurrent func listLabels(accountID: String) async throws -> [GmailLabel] {
         let response: GmailLabelListResponse = try await GmailAPIClient.shared.request(
             path: "/users/me/labels",
             accountID: accountID
@@ -12,14 +12,14 @@ final class GmailLabelService {
         return response.labels
     }
 
-    func getLabel(id: String, accountID: String) async throws -> GmailLabel {
+    @concurrent func getLabel(id: String, accountID: String) async throws -> GmailLabel {
         return try await GmailAPIClient.shared.request(
             path: "/users/me/labels/\(id)",
             accountID: accountID
         )
     }
 
-    func updateLabel(id: String, newName: String, accountID: String) async throws -> GmailLabel {
+    @concurrent func updateLabel(id: String, newName: String, accountID: String) async throws -> GmailLabel {
         struct UpdateRequest: Encodable { let name: String }
         let body = try JSONEncoder().encode(UpdateRequest(name: newName))
         return try await GmailAPIClient.shared.request(
@@ -29,7 +29,7 @@ final class GmailLabelService {
         )
     }
 
-    func deleteLabel(id: String, accountID: String) async throws {
+    @concurrent func deleteLabel(id: String, accountID: String) async throws {
         _ = try await GmailAPIClient.shared.rawRequest(
             path: "/users/me/labels/\(id)",
             method: "DELETE",
@@ -37,7 +37,7 @@ final class GmailLabelService {
         )
     }
 
-    func createLabel(name: String, accountID: String) async throws -> GmailLabel {
+    @concurrent func createLabel(name: String, accountID: String) async throws -> GmailLabel {
         struct CreateRequest: Encodable {
             let name: String
             let labelListVisibility: String

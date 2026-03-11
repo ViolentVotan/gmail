@@ -4,7 +4,6 @@ import PDFKit
 
 /// In-memory + disk cache of attachment thumbnails, loaded on-demand with concurrency throttling.
 @Observable
-@MainActor
 final class ThumbnailCache {
     static let shared = ThumbnailCache()
 

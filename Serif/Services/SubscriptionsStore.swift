@@ -45,7 +45,6 @@ private final class URLValidityCache: @unchecked Sendable {
 /// URL is reachable before the email surfaces in the Subscriptions folder.
 /// Validated subscription IDs are persisted per account so they survive restarts.
 @Observable
-@MainActor
 final class SubscriptionsStore {
     static let shared = SubscriptionsStore()
 

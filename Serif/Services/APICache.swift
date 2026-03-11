@@ -72,7 +72,6 @@ struct APILogEntry: Identifiable {
 // MARK: - API Logger
 
 @Observable
-@MainActor
 final class APILogger {
     static let shared = APILogger()
     private init() {}

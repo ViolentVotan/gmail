@@ -2,7 +2,6 @@ import SwiftUI
 
 // MARK: - Offline Toast
 
-@MainActor
 struct OfflineToastView: View {
     private var network = NetworkMonitor.shared
     @Environment(\.theme) private var theme

@@ -6,7 +6,7 @@ final class GmailSendService {
 
     // MARK: - Send
 
-    func send(
+    @concurrent func send(
         from: String,
         to: [String],
         cc: [String] = [],
@@ -49,7 +49,7 @@ final class GmailSendService {
 
     // MARK: - Drafts
 
-    func createDraft(
+    @concurrent func createDraft(
         from: String,
         to: [String],
         cc: [String] = [],
@@ -70,7 +70,7 @@ final class GmailSendService {
         )
     }
 
-    func updateDraft(
+    @concurrent func updateDraft(
         draftID: String,
         from: String,
         to: [String],
@@ -113,7 +113,7 @@ final class GmailSendService {
         return try JSONSerialization.data(withJSONObject: payload)
     }
 
-    func deleteDraft(draftID: String, accountID: String) async throws {
+    @concurrent func deleteDraft(draftID: String, accountID: String) async throws {
         _ = try await GmailAPIClient.shared.rawRequest(
             path: "/users/me/drafts/\(draftID)",
             method: "DELETE",

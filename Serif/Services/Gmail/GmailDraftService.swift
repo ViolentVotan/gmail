@@ -10,7 +10,7 @@ final class GmailDraftService {
     // MARK: - List Drafts
 
     /// Lists draft refs for the authenticated user.
-    func listDrafts(
+    @concurrent func listDrafts(
         accountID: String,
         pageToken: String? = nil,
         maxResults: Int = 50
@@ -23,7 +23,7 @@ final class GmailDraftService {
     // MARK: - Get Draft
 
     /// Fetches a single draft with its full message payload.
-    func getDraft(id: String, accountID: String, format: String = "metadata") async throws -> GmailDraft {
+    @concurrent func getDraft(id: String, accountID: String, format: String = "metadata") async throws -> GmailDraft {
         try await client.request(
             path: "/users/me/drafts/\(id)?format=\(format)",
             accountID: accountID
@@ -33,7 +33,7 @@ final class GmailDraftService {
     // MARK: - Batch fetch
 
     /// Fetches a batch of draft IDs in groups of 5 to avoid rate limits.
-    func getDrafts(ids: [String], accountID: String, format: String = "metadata") async throws -> [GmailDraft] {
+    @concurrent func getDrafts(ids: [String], accountID: String, format: String = "metadata") async throws -> [GmailDraft] {
         let batchSize = 5
         var all: [GmailDraft] = []
         var offset = 0

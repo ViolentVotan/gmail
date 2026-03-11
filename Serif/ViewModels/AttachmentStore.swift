@@ -24,7 +24,6 @@ struct IndexingStats: Equatable {
 // MARK: - AttachmentStore
 
 @Observable
-@MainActor
 final class AttachmentStore {
 
     // MARK: - State

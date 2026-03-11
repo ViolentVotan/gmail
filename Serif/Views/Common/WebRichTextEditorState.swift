@@ -2,7 +2,6 @@ import AppKit
 import WebKit
 import Combine
 
-@MainActor
 final class WebRichTextEditorState: ObservableObject {
     // Formatting state (updated by JS selectionChanged)
     @Published var isBold = false

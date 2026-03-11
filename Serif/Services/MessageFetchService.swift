@@ -3,7 +3,6 @@ import SwiftUI
 /// Handles message fetching, pagination, and disk caching for a mailbox.
 /// Owns the internal cache state; the MailboxViewModel orchestrates the
 /// fetch flow and applies results to its @Observable-tracked properties.
-@MainActor
 final class MessageFetchService {
 
     // MARK: - Injected dependencies

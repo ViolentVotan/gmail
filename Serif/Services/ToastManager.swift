@@ -16,7 +16,6 @@ struct ToastMessage: Identifiable, Equatable {
 }
 
 @Observable
-@MainActor
 final class ToastManager {
     static let shared = ToastManager()
     private init() {}

@@ -2,7 +2,6 @@ import Foundation
 import Observation
 
 @Observable
-@MainActor
 final class MailStore {
     var emails: [Email]
     var gmailDrafts: [Email] = []

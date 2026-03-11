@@ -8,7 +8,6 @@ struct LabelSuggestion: Equatable {
     let isNew: Bool
 }
 
-@MainActor
 final class LabelSuggestionService {
     static let shared = LabelSuggestionService()
 

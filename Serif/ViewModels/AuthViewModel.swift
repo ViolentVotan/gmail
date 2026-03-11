@@ -3,7 +3,6 @@ import Observation
 
 /// Manages account sign-in, sign-out, and the list of connected Gmail accounts.
 @Observable
-@MainActor
 final class AuthViewModel {
     var accounts: [GmailAccount] = []
     var isSigningIn = false
