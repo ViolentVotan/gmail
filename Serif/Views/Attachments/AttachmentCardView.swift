@@ -8,7 +8,7 @@ struct AttachmentCardView: View {
     var onAddExclusionRule: ((String) -> Void)?
     var onViewMessage: (() -> Void)?
     @State private var isHovered = false
-    @ObservedObject private var thumbCache = ThumbnailCache.shared
+    private var thumbCache = ThumbnailCache.shared
     @Environment(\.theme) private var theme
 
     private let thumbHeight: CGFloat = 80

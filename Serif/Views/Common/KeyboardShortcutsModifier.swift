@@ -6,7 +6,7 @@ import WebKit
 /// Cmd+A, Cmd+Z, and Cmd+F are handled via NSEvent monitor to respect the responder chain
 /// (text fields/editors get priority over global app shortcuts).
 struct KeyboardShortcutsView: View {
-    @ObservedObject var coordinator: AppCoordinator
+    var coordinator: AppCoordinator
 
     var body: some View {
         Group {

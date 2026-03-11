@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ComposeView: View {
-    @ObservedObject var mailStore: MailStore
+    var mailStore: MailStore
     let draftId: UUID
     let accountID: String
     let fromAddress: String
@@ -46,7 +46,7 @@ struct ComposeView: View {
         onDiscard: @escaping () -> Void,
         onOpenLink: ((URL) -> Void)? = nil
     ) {
-        self._mailStore        = ObservedObject(wrappedValue: mailStore)
+        self.mailStore         = mailStore
         self.draftId           = draftId
         self.accountID         = accountID
         self.fromAddress       = fromAddress

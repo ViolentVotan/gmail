@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct AttachmentsListView: View {
-    @ObservedObject var mailboxViewModel: MailboxViewModel
+    var mailboxViewModel: MailboxViewModel
     @Binding var selectedEmail: Email?
     @State private var searchText = ""
     @State private var selectedDirection: AttachmentItem.Direction? = nil

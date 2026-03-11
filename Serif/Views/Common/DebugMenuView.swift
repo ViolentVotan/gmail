@@ -3,7 +3,7 @@ import SwiftUI
 struct DebugMenuView: View {
     let accountID: String
     @AppStorage("isSignedIn") private var isSignedIn: Bool = false
-    @ObservedObject private var logger = APILogger.shared
+    private var logger = APILogger.shared
     @State private var cacheCount = 0
     @State private var expandedEntryID: UUID?
     @State private var indexingStats = IndexingStats()

@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ToastOverlayView: View {
-    @ObservedObject private var toastMgr = ToastManager.shared
+    private var toastMgr = ToastManager.shared
     @Environment(\.theme) private var theme
 
     var body: some View {

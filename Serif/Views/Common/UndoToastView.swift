@@ -4,7 +4,7 @@ import SwiftUI
 
 @MainActor
 struct OfflineToastView: View {
-    @ObservedObject private var network = NetworkMonitor.shared
+    private var network = NetworkMonitor.shared
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -42,7 +42,7 @@ struct OfflineToastView: View {
 // MARK: - Undo Toast
 
 struct UndoToastView: View {
-    @ObservedObject private var undoMgr = UndoActionManager.shared
+    private var undoMgr = UndoActionManager.shared
     @Environment(\.theme) private var theme
 
     var body: some View {

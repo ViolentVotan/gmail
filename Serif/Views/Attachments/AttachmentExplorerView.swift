@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct AttachmentExplorerView: View {
-    @ObservedObject var store: AttachmentStore
-    @ObservedObject var panelCoordinator: PanelCoordinator
+    @Bindable var store: AttachmentStore
+    var panelCoordinator: PanelCoordinator
     let accountID: String
     var onViewMessage: ((String) -> Void)?
     var onDownloadAttachment: ((String, String, String) async throws -> Data)?

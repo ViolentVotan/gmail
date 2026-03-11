@@ -9,7 +9,7 @@ struct SidebarView: View {
     @Binding var isExpanded: Bool
     @Binding var showHelp: Bool
     @Binding var showDebug: Bool
-    @ObservedObject var authViewModel: AuthViewModel
+    var authViewModel: AuthViewModel
     var categoryUnreadCounts: [InboxCategory: Int] = [:]
     var userLabels: [GmailLabel] = []
     var onRenameLabel: ((GmailLabel, String) -> Void)?
