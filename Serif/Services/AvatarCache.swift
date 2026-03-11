@@ -2,6 +2,7 @@ import AppKit
 
 /// Disk-backed image cache with a 90-day TTL.
 /// An empty on-disk file = "no image" (negative cache) to avoid re-fetching 404s.
+@MainActor
 final class AvatarCache {
     static let shared = AvatarCache()
     private init() {

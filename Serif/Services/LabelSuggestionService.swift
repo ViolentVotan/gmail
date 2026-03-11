@@ -3,11 +3,12 @@ import Foundation
 import FoundationModels
 #endif
 
-struct LabelSuggestion: Equatable {
+struct LabelSuggestion: Equatable, Sendable {
     let name: String
     let isNew: Bool
 }
 
+@MainActor
 final class LabelSuggestionService {
     static let shared = LabelSuggestionService()
 

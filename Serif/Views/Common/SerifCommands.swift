@@ -2,8 +2,19 @@ import SwiftUI
 
 // MARK: - Commands
 
+struct AppCoordinatorFocusedKey: FocusedValueKey {
+    typealias Value = AppCoordinator
+}
+
+extension FocusedValues {
+    var appCoordinator: AppCoordinator? {
+        get { self[AppCoordinatorFocusedKey.self] }
+        set { self[AppCoordinatorFocusedKey.self] = newValue }
+    }
+}
+
 struct SerifCommands: Commands {
-    @FocusedObject private var coordinator: AppCoordinator?
+    @FocusedValue(\.appCoordinator) private var coordinator
 
     private var selectedEmail: Email? { coordinator?.selectedEmail }
     private var hasSelection: Bool { selectedEmail != nil }

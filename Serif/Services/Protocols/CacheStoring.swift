@@ -2,6 +2,7 @@ import Foundation
 
 /// Abstracts the mail cache read/write interface so services
 /// can be tested with in-memory mock caches.
+@MainActor
 protocol CacheStoring {
     // MARK: - Folder cache (messages + pagination metadata)
     func loadFolderCache(accountID: String, folderKey: String) -> FolderCache

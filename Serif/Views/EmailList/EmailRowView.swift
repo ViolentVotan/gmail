@@ -143,6 +143,7 @@ struct EmailRowView: View {
 
 // MARK: - NSPopover wrapper
 
+@MainActor
 private class PopoverHolder {
     private var popover: NSPopover?
     weak var anchorView: NSView?

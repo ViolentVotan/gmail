@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - Model
 
-struct CalendarInvite: Equatable {
+struct CalendarInvite: Equatable, Sendable {
     let summary: String
     let dateText: String
     let location: String?
@@ -12,7 +12,7 @@ struct CalendarInvite: Equatable {
     var maybeURL: URL?
     var rsvpStatus: RSVPStatus = .pending
 
-    enum RSVPStatus: String, Equatable { case accepted, declined, maybe, pending }
+    enum RSVPStatus: String, Equatable, Sendable { case accepted, declined, maybe, pending }
 }
 
 // MARK: - Parser

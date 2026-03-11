@@ -1,6 +1,6 @@
 import Foundation
 
-struct IndexedAttachment: Identifiable {
+struct IndexedAttachment: Identifiable, Sendable {
     let id: String                  // "{messageId}_{attachmentId}"
     let messageId: String
     let attachmentId: String        // Gmail attachment ID for re-download
@@ -19,22 +19,22 @@ struct IndexedAttachment: Identifiable {
     let emailBody: String?          // plain-text email body (for FTS search context)
     let accountID: String
 
-    enum Direction: String {
+    enum Direction: String, Sendable {
         case received, sent
     }
 
-    enum IndexingStatus: String {
+    enum IndexingStatus: String, Sendable {
         case pending, indexed, failed, unsupported
     }
 }
 
-struct AttachmentSearchResult: Identifiable {
+struct AttachmentSearchResult: Identifiable, Sendable {
     let id: String
     let attachment: IndexedAttachment
     let score: Double               // 0.0 - 1.0 relevance
     let matchSource: MatchSource
 
-    enum MatchSource {
+    enum MatchSource: Sendable {
         case fts          // keyword match
         case semantic     // embedding similarity
         case combined     // both matched

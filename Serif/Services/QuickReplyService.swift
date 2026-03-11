@@ -3,6 +3,7 @@ import Foundation
 import FoundationModels
 #endif
 
+@MainActor
 final class QuickReplyService {
     static let shared = QuickReplyService()
 

@@ -213,7 +213,8 @@ struct ComposeView: View {
 
         // Delay clearing isInitialLoad so the WebView's didFinish → setHTML → contentChanged
         // cycle doesn't trigger a spurious auto-save that could corrupt inline images.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(0.5))
             isInitialLoad = false
         }
     }

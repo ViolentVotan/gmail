@@ -2,6 +2,7 @@ import Foundation
 
 /// Base HTTP client for all Gmail API requests.
 /// Automatically refreshes expired tokens before each call.
+@MainActor
 final class GmailAPIClient {
     static let shared = GmailAPIClient()
     private init() {}
@@ -36,7 +37,7 @@ final class GmailAPIClient {
     ) async throws -> Data {
         #if DEBUG
         if method == "GET", let cached = APICache.shared.get(path: path, accountID: accountID) {
-            await APILogger.shared.log(APILogEntry(
+            APILogger.shared.log(APILogEntry(
                 method: method, path: path, statusCode: 200, errorMessage: nil,
                 responseBodyData: cached, responseSize: cached.count, durationMs: 0, fromCache: true
             ))
@@ -57,7 +58,7 @@ final class GmailAPIClient {
         do {
             let (data, code, respHeaders) = try await perform(path: path, method: method, body: body, contentType: contentType, accessToken: token.accessToken)
             let ms = Int(Date().timeIntervalSince(t0) * 1000)
-            await APILogger.shared.log(APILogEntry(
+            APILogger.shared.log(APILogEntry(
                 method: method, path: path, statusCode: code, errorMessage: nil,
                 requestHeaders: reqHeaders, requestBody: reqBody,
                 responseHeaders: respHeaders,
@@ -67,7 +68,7 @@ final class GmailAPIClient {
             return data
         } catch GmailAPIError.httpError(let code, let errData) {
             let ms = Int(Date().timeIntervalSince(t0) * 1000)
-            await APILogger.shared.log(APILogEntry(
+            APILogger.shared.log(APILogEntry(
                 method: method, path: path, statusCode: code, errorMessage: "HTTP \(code)",
                 requestHeaders: reqHeaders, requestBody: reqBody,
                 responseBodyData: errData, responseSize: errData.count, durationMs: ms, fromCache: false
@@ -75,7 +76,7 @@ final class GmailAPIClient {
             throw GmailAPIError.httpError(code, errData)
         } catch {
             let ms = Int(Date().timeIntervalSince(t0) * 1000)
-            await APILogger.shared.log(APILogEntry(
+            APILogger.shared.log(APILogEntry(
                 method: method, path: path, statusCode: nil, errorMessage: error.localizedDescription,
                 requestHeaders: reqHeaders, requestBody: reqBody,
                 responseBodyData: Data(), responseSize: 0, durationMs: ms, fromCache: false

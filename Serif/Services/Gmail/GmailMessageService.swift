@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 final class GmailMessageService {
     static let shared = GmailMessageService()
     private init() {}

@@ -276,15 +276,13 @@ struct OnboardingView: View {
     // MARK: - Window Chrome
 
     private func hideTrafficLights(_ hide: Bool) {
-        DispatchQueue.main.async {
-            guard let window = NSApplication.shared.windows.first else { return }
-            if hide {
-                window.toolbar = nil
-                window.isMovableByWindowBackground = true
-                window.titlebarAppearsTransparent = true
-                window.titleVisibility = .hidden
-                window.backgroundColor = NSColor(red: 0.031, green: 0.035, blue: 0.047, alpha: 1)
-            }
+        guard let window = NSApplication.shared.windows.first else { return }
+        if hide {
+            window.toolbar = nil
+            window.isMovableByWindowBackground = true
+            window.titlebarAppearsTransparent = true
+            window.titleVisibility = .hidden
+            window.backgroundColor = NSColor(red: 0.031, green: 0.035, blue: 0.047, alpha: 1)
         }
     }
 }

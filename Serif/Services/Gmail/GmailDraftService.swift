@@ -1,6 +1,7 @@
 import Foundation
 
 /// Fetches drafts from the Gmail Drafts API for display in the Drafts folder.
+@MainActor
 final class GmailDraftService {
     static let shared = GmailDraftService()
     private init() {}

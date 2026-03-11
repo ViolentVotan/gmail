@@ -92,7 +92,8 @@ struct ReplyBarView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: replyBodyIsEmpty)
         .onAppear {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(0.5))
                 isInitialLoad = false
             }
         }
@@ -444,7 +445,8 @@ struct ReplyBarView: View {
                     replyHTML = body
                     editorState.setHTML(body)
                     isLoadingDraft = false
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .seconds(0.5))
                         isInitialLoad = false
                     }
                 } else {
@@ -584,9 +586,9 @@ private struct ClickOutsideDetector: NSViewRepresentable {
             }
             let clickInAnchor = anchor.convert(event.locationInWindow, from: nil)
             if !anchor.bounds.contains(clickInAnchor) {
-                DispatchQueue.main.async { [weak self] in
-                    self?.onClickOutside?()
-                }
+                // NSEvent monitors fire on the main thread
+                nonisolated(unsafe) let action = onClickOutside
+                MainActor.assumeIsolated { action?() }
             }
         }
 

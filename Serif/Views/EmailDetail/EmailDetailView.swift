@@ -403,13 +403,11 @@ struct EmailDetailView: View {
     }
 
     private func saveAttachmentData(_ data: Data, named name: String) {
-        DispatchQueue.main.async {
-            let panel = NSSavePanel()
-            panel.nameFieldStringValue = name
-            panel.canCreateDirectories = true
-            guard panel.runModal() == .OK, let url = panel.url else { return }
-            try? data.write(to: url)
-        }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = name
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? data.write(to: url)
     }
 
     // MARK: - Sender Header

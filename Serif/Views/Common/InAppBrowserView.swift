@@ -135,6 +135,7 @@ struct InAppBrowserView: View {
 // MARK: - WebView Store
 
 @Observable
+@MainActor
 private class WebViewStore {
     let webView = WKWebView()
 }
@@ -170,7 +171,7 @@ private struct BrowserWebView: NSViewRepresentable {
             super.init()
 
             observation = parent.webView.observe(\.isLoading) { [weak self] webView, _ in
-                DispatchQueue.main.async {
+                Task { @MainActor [weak self] in
                     self?.parent.onLoadingChange(webView.isLoading)
                     self?.parent.onNavigationChange(webView.canGoBack, webView.canGoForward)
                 }

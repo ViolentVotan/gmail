@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 final class GmailSendService {
     static let shared = GmailSendService()
     private init() {}
@@ -92,7 +93,7 @@ final class GmailSendService {
         )
     }
 
-    private func buildDraftPayload(
+    nonisolated private func buildDraftPayload(
         from: String,
         to: [String],
         cc: [String],
@@ -123,7 +124,7 @@ final class GmailSendService {
 
     // MARK: - RFC 2822 Builder (plain / HTML)
 
-    private func buildRaw(
+    nonisolated private func buildRaw(
         from: String,
         to: [String],
         cc: [String],
@@ -180,7 +181,7 @@ final class GmailSendService {
 
     // MARK: - RFC 2822 Builder (multipart/mixed + multipart/related)
 
-    private func buildRawMultipart(
+    nonisolated private func buildRawMultipart(
         from: String,
         to: [String],
         cc: [String],
@@ -310,14 +311,14 @@ final class GmailSendService {
     // MARK: - Helpers
 
     /// RFC 2047 encode a header value when it contains non-ASCII characters (e.g. emojis).
-    private func mimeEncodeHeader(_ value: String) -> String {
+    nonisolated private func mimeEncodeHeader(_ value: String) -> String {
         let needsEncoding = value.unicodeScalars.contains { !$0.isASCII }
         guard needsEncoding, let data = value.data(using: .utf8) else { return value }
         let encoded = data.base64EncodedString()
         return "=?UTF-8?B?\(encoded)?="
     }
 
-    private func base64URLEncode(_ string: String) -> String {
+    nonisolated private func base64URLEncode(_ string: String) -> String {
         guard let data = string.data(using: .utf8) else { return "" }
         return data.base64EncodedString()
             .replacingOccurrences(of: "+", with: "-")

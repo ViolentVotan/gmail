@@ -14,7 +14,7 @@ extension String {
 
 // MARK: - IndexingStats
 
-struct IndexingStats: Equatable {
+struct IndexingStats: Equatable, Sendable {
     var total: Int = 0
     var indexed: Int = 0
     var pending: Int = 0
@@ -24,6 +24,7 @@ struct IndexingStats: Equatable {
 // MARK: - AttachmentStore
 
 @Observable
+@MainActor
 final class AttachmentStore {
 
     // MARK: - State

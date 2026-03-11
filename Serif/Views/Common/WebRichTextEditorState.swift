@@ -83,7 +83,7 @@ final class WebRichTextEditorState: ObservableObject {
         eval("insertHTML(\(escaped))")
     }
 
-    func getHTMLAsync() async -> String {
+    @MainActor func getHTMLAsync() async -> String {
         guard let webView else { return "" }
         do {
             let result = try await webView.evaluateJavaScript("getHTML()")

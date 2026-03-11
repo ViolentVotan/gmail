@@ -3,6 +3,7 @@ import Foundation
 import FoundationModels
 #endif
 
+@MainActor
 final class SummaryService {
     static let shared = SummaryService()
 

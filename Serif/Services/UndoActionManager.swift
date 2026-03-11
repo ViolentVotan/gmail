@@ -9,6 +9,7 @@ struct PendingUndoAction: Identifiable {
 }
 
 @Observable
+@MainActor
 final class UndoActionManager {
 
     static let shared = UndoActionManager()

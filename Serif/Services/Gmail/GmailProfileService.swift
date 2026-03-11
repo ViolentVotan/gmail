@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 final class GmailProfileService {
     static let shared = GmailProfileService()
     private init() {}
@@ -139,7 +140,7 @@ final class GmailProfileService {
 
 // MARK: - Stored Contact
 
-struct StoredContact: Codable, Identifiable, Hashable {
+struct StoredContact: Codable, Identifiable, Hashable, Sendable {
     var id: String { email }
     let name: String
     let email: String
@@ -148,6 +149,7 @@ struct StoredContact: Codable, Identifiable, Hashable {
 
 // MARK: - Contact Store (UserDefaults persistence)
 
+@MainActor
 final class ContactStore {
     static let shared = ContactStore()
     private init() {}
@@ -174,7 +176,9 @@ final class ContactStore {
 // MARK: - Contact Photo Cache
 
 /// In-memory cache of email → Google profile photo URL, populated from People API at login.
-final class ContactPhotoCache {
+/// Thread-safe via NSLock – deliberately `@unchecked Sendable` so callers on any isolation
+/// domain can read/write without awaiting.
+final class ContactPhotoCache: @unchecked Sendable {
     static let shared = ContactPhotoCache()
     private init() {}
 
@@ -223,7 +227,7 @@ private struct PersonName: Decodable {
 
 // MARK: - Google User Info Model
 
-struct GoogleUserInfo: Decodable {
+struct GoogleUserInfo: Decodable, Sendable {
     let id:        String
     let email:     String
     let name:      String?

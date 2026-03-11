@@ -3,7 +3,7 @@ import Observation
 
 // MARK: - API Log Entry
 
-struct APILogEntry: Identifiable {
+struct APILogEntry: Identifiable, Sendable {
     let id              = UUID()
     let date            = Date()
     let method          : String
@@ -72,6 +72,7 @@ struct APILogEntry: Identifiable {
 // MARK: - API Logger
 
 @Observable
+@MainActor
 final class APILogger {
     static let shared = APILogger()
     private init() {}
@@ -91,6 +92,7 @@ final class APILogger {
 
 /// Debug-only disk cache for Gmail API responses.
 /// Disabled by default — enable via the Debug menu toggle.
+@MainActor
 final class APICache {
     static let shared = APICache()
 

@@ -1,6 +1,7 @@
 import Foundation
 
 /// Handles label loading, sendAs aliases, and category unread counts.
+@MainActor
 final class LabelSyncService {
 
     private let cache: CacheStoring

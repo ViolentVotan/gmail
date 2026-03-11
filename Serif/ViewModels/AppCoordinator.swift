@@ -2,6 +2,7 @@ import SwiftUI
 import Observation
 
 @Observable
+@MainActor
 final class AppCoordinator {
 
     // MARK: - Child ViewModels

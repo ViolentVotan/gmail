@@ -211,7 +211,7 @@ final class MailStore {
 
 // MARK: - Attachment Item (attachment with email context)
 
-struct AttachmentItem: Identifiable {
+struct AttachmentItem: Identifiable, Sendable {
     let id: UUID
     let attachment: Attachment
     let emailId: UUID
@@ -221,7 +221,7 @@ struct AttachmentItem: Identifiable {
     let date: Date
     let direction: Direction
 
-    enum Direction: String, CaseIterable {
+    enum Direction: String, CaseIterable, Sendable {
         case received = "Received"
         case sent = "Sent"
     }

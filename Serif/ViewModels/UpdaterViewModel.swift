@@ -4,6 +4,7 @@ import Combine
 import Observation
 
 @Observable
+@MainActor
 final class UpdaterViewModel {
     @ObservationIgnored private let updaterController: SPUStandardUpdaterController
     @ObservationIgnored private var cancellable: AnyCancellable?

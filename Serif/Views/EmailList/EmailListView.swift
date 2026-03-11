@@ -33,7 +33,7 @@ struct EmailListView: View {
     @State private var selectionAnchorID: String?
     @State private var isRefreshing = false
     @State private var sortedEmails: [Email] = []
-    private var swipeCoordinator = SwipeCoordinator.shared
+    private let swipeCoordinator = SwipeCoordinator.shared
     @Environment(\.theme) private var theme
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }

@@ -1,11 +1,11 @@
 import Foundation
 import Observation
 
-enum ToastType {
+enum ToastType: Sendable {
     case success, error, info
 }
 
-struct ToastMessage: Identifiable, Equatable {
+struct ToastMessage: Identifiable, Equatable, Sendable {
     let id = UUID()
     let message: String
     let type: ToastType
@@ -16,6 +16,7 @@ struct ToastMessage: Identifiable, Equatable {
 }
 
 @Observable
+@MainActor
 final class ToastManager {
     static let shared = ToastManager()
     private init() {}

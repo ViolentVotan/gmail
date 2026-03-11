@@ -45,7 +45,7 @@ struct HTMLEmailView: NSViewRepresentable {
         context.coordinator.isLoadingContent = true
         // Defer height reset so SwiftUI processes it after the current render pass.
         // This shrinks the frame before didFinish measures the new content.
-        DispatchQueue.main.async {
+        Task { @MainActor in
             self.contentHeight = 1
         }
 
@@ -245,7 +245,7 @@ struct HTMLEmailView: NSViewRepresentable {
                                    didReceive message: WKScriptMessage) {
             guard let body = message.body as? String else { return }
             if body == "REMEASURE" {
-                DispatchQueue.main.async { [weak self] in
+                Task { @MainActor [weak self] in
                     // Re-measure when any image finishes loading
                     self?.remeasureIfNeeded()
                 }
@@ -264,7 +264,8 @@ struct HTMLEmailView: NSViewRepresentable {
             measureHeight(webView)
             // Re-measure after delays to catch lazy/slow images
             for delay in [0.5, 1.5, 3.0] {
-                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak webView] in
+                Task { @MainActor [weak self, weak webView] in
+                    try? await Task.sleep(for: .seconds(delay))
                     guard let webView else { return }
                     self?.measureHeight(webView)
                 }
@@ -275,7 +276,7 @@ struct HTMLEmailView: NSViewRepresentable {
             webView.evaluateJavaScript(
                 "document.getElementById('emailContent').offsetHeight"
             ) { [weak self] result, _ in
-                DispatchQueue.main.async {
+                Task { @MainActor [weak self] in
                     if let h = result as? CGFloat, h > 0 {
                         self?.parent.contentHeight = h
                     }

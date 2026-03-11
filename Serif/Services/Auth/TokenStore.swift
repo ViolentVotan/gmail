@@ -4,6 +4,7 @@ import Security
 
 /// Persists OAuth tokens in UserDefaults, encrypted with AES-256-GCM.
 /// The symmetric key is stored in the macOS Keychain, tokens stay in UserDefaults.
+@MainActor
 final class TokenStore {
     static let shared = TokenStore()
     private init() {

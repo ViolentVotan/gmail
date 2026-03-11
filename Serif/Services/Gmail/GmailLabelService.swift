@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 final class GmailLabelService {
     static let shared = GmailLabelService()
     private init() {}

@@ -2,6 +2,7 @@ import Foundation
 
 /// Resolves BIMI logo URLs for organizational sender domains via DNS-over-HTTPS (Cloudflare).
 /// Personal/freemail domains are skipped immediately.
+@MainActor
 final class BIMIService {
     static let shared = BIMIService()
     private init() {}

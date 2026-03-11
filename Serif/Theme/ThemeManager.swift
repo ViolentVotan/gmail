@@ -2,12 +2,13 @@ import Observation
 import SwiftUI
 
 @Observable
+@MainActor
 final class ThemeManager {
     static let shared = ThemeManager()
 
     var currentTheme: Theme
 
-    var availableThemes: [Theme] = [
+    static let defaultThemes: [Theme] = [
         // Dark
         .midnight,
         .ocean,
@@ -28,6 +29,8 @@ final class ThemeManager {
         .ivory,
     ]
 
+    var availableThemes: [Theme] = ThemeManager.defaultThemes
+
     /// The currently selected base theme ID.
     private(set) var selectedBaseID: String
 
@@ -36,19 +39,21 @@ final class ThemeManager {
 
     private init() {
         let savedId = UserDefaults.standard.string(forKey: UserDefaultsKey.selectedThemeId) ?? "midnight"
-        let base = availableThemes.first { $0.id == savedId } ?? .midnight
         self.selectedBaseID = savedId
 
         // Load overrides
+        let overrides: [String: [String: String]]
         if let data = UserDefaults.standard.data(forKey: UserDefaultsKey.themeOverrides),
            let decoded = try? JSONDecoder().decode([String: [String: String]].self, from: data) {
-            self.allOverrides = decoded
+            overrides = decoded
         } else {
-            self.allOverrides = [:]
+            overrides = [:]
         }
+        self.allOverrides = overrides
 
-        let overrides = self.allOverrides[savedId] ?? [:]
-        self.currentTheme = overrides.isEmpty ? base : base.applying(overrides: overrides)
+        let base = Self.defaultThemes.first { $0.id == savedId } ?? .midnight
+        let themeOverrides = overrides[savedId] ?? [:]
+        self.currentTheme = themeOverrides.isEmpty ? base : base.applying(overrides: themeOverrides)
     }
 
     func selectTheme(_ theme: Theme) {

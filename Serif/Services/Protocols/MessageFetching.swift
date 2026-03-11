@@ -2,7 +2,8 @@ import Foundation
 
 /// Abstracts the Gmail message API surface so services and view models
 /// can be tested with mock implementations.
-protocol MessageFetching {
+@MainActor
+protocol MessageFetching: Sendable {
     @concurrent func listMessages(accountID: String, labelIDs: [String], query: String?, pageToken: String?, maxResults: Int) async throws -> GmailMessageListResponse
     @concurrent func getMessage(id: String, accountID: String, format: String) async throws -> GmailMessage
     @concurrent func getMessages(ids: [String], accountID: String, format: String) async throws -> [GmailMessage]

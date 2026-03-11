@@ -2,8 +2,13 @@ import SwiftUI
 
 struct DebugMenuView: View {
     let accountID: String
+
+    init(accountID: String) {
+        self.accountID = accountID
+    }
+
     @AppStorage("isSignedIn") private var isSignedIn: Bool = false
-    private var logger = APILogger.shared
+    private let logger = APILogger.shared
     @State private var cacheCount = 0
     @State private var expandedEntryID: UUID?
     @State private var indexingStats = IndexingStats()

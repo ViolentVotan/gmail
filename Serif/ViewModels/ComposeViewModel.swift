@@ -3,6 +3,7 @@ import Observation
 
 /// Drives the compose / reply / draft editing flow.
 @Observable
+@MainActor
 final class ComposeViewModel {
     var to:        String = ""
     var cc:        String = ""

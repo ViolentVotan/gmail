@@ -3,6 +3,7 @@ import Observation
 
 /// Drives the email list for a given account and folder.
 @Observable
+@MainActor
 final class MailboxViewModel {
     var messages:      [GmailMessage] = [] { didSet { recomputeEmails() } }
     var isLoading      = false
