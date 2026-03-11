@@ -1,6 +1,7 @@
 .DS_STORE
 .claude/*
 .xcodebuildmcp/*
+docs/plans/
 Serif/Configuration/GoogleCredentials.swift
 
 ## User settings
