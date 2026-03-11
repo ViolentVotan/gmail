@@ -1,26 +1,28 @@
 import SwiftUI
+import Observation
 
 /// Drives the compose / reply / draft editing flow.
+@Observable
 @MainActor
-final class ComposeViewModel: ObservableObject {
-    @Published var to:        String = ""
-    @Published var cc:        String = ""
-    @Published var bcc:       String = ""
-    @Published var subject:   String = ""
-    @Published var body:      String = ""
-    var isHTML = false
-    var inlineImages: [InlineImageAttachment] = []
-    @Published var isSending  = false
-    @Published var isSent     = false
-    @Published var error:     String?
+final class ComposeViewModel {
+    var to:        String = ""
+    var cc:        String = ""
+    var bcc:       String = ""
+    var subject:   String = ""
+    var body:      String = ""
+    @ObservationIgnored var isHTML = false
+    @ObservationIgnored var inlineImages: [InlineImageAttachment] = []
+    var isSending  = false
+    var isSent     = false
+    var error:     String?
 
-    let accountID:   String
-    var fromAddress: String
-    var gmailDraftID:     String?   // set once we've created a remote draft
-    private var saveDraftTask: Task<Void, Never>?
-    var threadID:         String?   // for replies
-    var replyToMessageID: String?   // for In-Reply-To / References headers
-    var attachmentURLs:   [URL] = []
+    @ObservationIgnored let accountID:   String
+    @ObservationIgnored var fromAddress: String
+    @ObservationIgnored var gmailDraftID:     String?   // set once we've created a remote draft
+    @ObservationIgnored private var saveDraftTask: Task<Void, Never>?
+    @ObservationIgnored var threadID:         String?   // for replies
+    @ObservationIgnored var replyToMessageID: String?   // for In-Reply-To / References headers
+    @ObservationIgnored var attachmentURLs:   [URL] = []
 
     init(accountID: String, fromAddress: String, threadID: String? = nil) {
         self.accountID   = accountID

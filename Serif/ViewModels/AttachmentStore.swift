@@ -1,5 +1,5 @@
 import Foundation
-import Combine
+import Observation
 
 // MARK: - Glob Matching
 
@@ -23,29 +23,32 @@ struct IndexingStats: Equatable {
 
 // MARK: - AttachmentStore
 
+@Observable
 @MainActor
-final class AttachmentStore: ObservableObject {
+final class AttachmentStore {
 
-    // MARK: - Published State
+    // MARK: - State
 
-    @Published var searchQuery = ""
-    @Published var searchResults: [AttachmentSearchResult] = []
-    @Published var allAttachments: [IndexedAttachment] = []
-    @Published var stats = IndexingStats()
-    @Published var isSearching = false
-    @Published var filterFileType: Attachment.FileType?
-    @Published var filterDirection: IndexedAttachment.Direction?
-    @Published var exclusionRules: [String] = []
+    var searchQuery = "" {
+        didSet { debouncedSearch() }
+    }
+    var searchResults: [AttachmentSearchResult] = []
+    var allAttachments: [IndexedAttachment] = []
+    var stats = IndexingStats()
+    var isSearching = false
+    var filterFileType: Attachment.FileType?
+    var filterDirection: IndexedAttachment.Direction?
+    var exclusionRules: [String] = []
 
     // MARK: - Dependencies
 
-    private let database: AttachmentDatabase
-    private let searchService: AttachmentSearchService
-    private var searchTask: Task<Void, Never>?
-    private var cancellables = Set<AnyCancellable>()
-    var accountID: String = ""
+    @ObservationIgnored private let database: AttachmentDatabase
+    @ObservationIgnored private let searchService: AttachmentSearchService
+    @ObservationIgnored private var searchTask: Task<Void, Never>?
+    @ObservationIgnored private var debounceTask: Task<Void, Never>?
+    @ObservationIgnored var accountID: String = ""
 
-    var indexer: AttachmentIndexer?
+    @ObservationIgnored var indexer: AttachmentIndexer?
 
     // MARK: - Computed
 
@@ -86,19 +89,18 @@ final class AttachmentStore: ObservableObject {
     init(database: AttachmentDatabase = .shared) {
         self.database = database
         self.searchService = AttachmentSearchService(database: database)
-        setupSearchDebounce()
     }
 
     // MARK: - Search Debounce
 
-    private func setupSearchDebounce() {
-        $searchQuery
-            .debounce(for: .milliseconds(300), scheduler: RunLoop.main)
-            .removeDuplicates()
-            .sink { [weak self] query in
-                self?.performSearch(query: query)
-            }
-            .store(in: &cancellables)
+    private func debouncedSearch() {
+        debounceTask?.cancel()
+        let query = searchQuery
+        debounceTask = Task {
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            performSearch(query: query)
+        }
     }
 
     // MARK: - Refresh
