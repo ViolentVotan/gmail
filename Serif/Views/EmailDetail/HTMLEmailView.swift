@@ -1,19 +1,33 @@
-import WebKit
+@preconcurrency import WebKit
 import SwiftUI
 
-// Forwards all scroll events to the parent responder so the SwiftUI
-// ScrollView (not the WebView) handles vertical scrolling.
-private class PassthroughWebView: WKWebView {
+// NOTE: Native SwiftUI WebView (macOS 26) cannot replace WKWebView here because
+// HTMLEmailView requires capabilities not exposed by the native API:
+//   1. User scripts — dark mode color-fixing JS that walks the DOM
+//   2. Script message handlers — image-load notifications for re-measurement
+//   3. evaluateJavaScript — content height measurement for sizing the frame
+//   4. WKNavigationDelegate — link interception with custom onOpenLink callback
+//
+// WebRichTextEditorRepresentable and InAppBrowserView also remain WKWebView
+// for similar reasons (JS evaluation, script message handlers).
+
+// MARK: - PassthroughWebView
+
+/// Forwards scroll events to the parent responder so the SwiftUI
+/// ScrollView (not the WebView) handles vertical scrolling.
+private final class PassthroughWebView: WKWebView {
     override func scrollWheel(with event: NSEvent) {
         nextResponder?.scrollWheel(with: event)
     }
 
-    // Prevent this read-only WebView from setting a text cursor,
-    // which causes flickering when overlapping with the reply editor.
+    /// Prevent this read-only WebView from showing a text cursor,
+    /// which causes flickering when overlapping with the reply editor.
     override func cursorUpdate(with event: NSEvent) {
         NSCursor.arrow.set()
     }
 }
+
+// MARK: - HTMLEmailView
 
 struct HTMLEmailView: NSViewRepresentable {
     let html: String
@@ -25,7 +39,7 @@ struct HTMLEmailView: NSViewRepresentable {
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
-        config.userContentController.add(context.coordinator, name: "imageLog")
+        config.userContentController.add(context.coordinator, name: "heightChanged")
         config.defaultWebpagePreferences.allowsContentJavaScript = false
         #if DEBUG
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
@@ -100,11 +114,16 @@ struct HTMLEmailView: NSViewRepresentable {
     }
 
     static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
-        webView.configuration.userContentController.removeScriptMessageHandler(forName: "imageLog")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "heightChanged")
     }
 
     // MARK: - User Script
 
+    /// JavaScript injected at document-end to fix dark mode colors and observe image loads.
+    ///
+    /// Posts `heightChanged` messages to the native side instead of requiring periodic
+    /// `evaluateJavaScript` polling. A `ResizeObserver` on `#emailContent` fires whenever
+    /// the content box changes (e.g., after an image loads and expands the layout).
     private static func userScriptSource(textHex: String) -> String {
         """
         var THEME_TEXT = '\(textHex)';
@@ -169,21 +188,19 @@ struct HTMLEmailView: NSViewRepresentable {
                 return (mx - mn) < 30 && mx < 80;
             }
 
-            // Walk ancestors to find the nearest explicit background
             function effectiveBgLum(el) {
                 var node = el;
                 while (node && node !== document.documentElement) {
                     var bg = window.getComputedStyle(node).backgroundColor;
                     var rgba = parseRgb(bg);
                     if (rgba) {
-                        // Check alpha — rgba(0,0,0,0) means transparent
                         var parts = bg.slice(bg.indexOf('(') + 1).split(',');
                         var alpha = parts.length >= 4 ? parseFloat(parts[3]) : 1;
                         if (alpha > 0.1) return relativeLum(rgba[0], rgba[1], rgba[2]);
                     }
                     node = node.parentElement;
                 }
-                return BG_LUM; // no explicit bg → assume dark theme background
+                return BG_LUM;
             }
 
             function processEl(el) {
@@ -191,7 +208,6 @@ struct HTMLEmailView: NSViewRepresentable {
                 var rgb = parseRgb(c);
                 if (!rgb) return;
                 var bgLum = effectiveBgLum(el);
-                // If element sits on a light background (lum > 0.4), skip — text is already readable
                 if (bgLum > 0.4) return;
                 var textLum = relativeLum(rgb[0], rgb[1], rgb[2]);
                 var hi = Math.max(textLum, bgLum), lo = Math.min(textLum, bgLum);
@@ -210,78 +226,57 @@ struct HTMLEmailView: NSViewRepresentable {
 
         fixDarkModeColors();
 
-        var imgs = document.querySelectorAll('img');
-        imgs.forEach(function(img) {
-            window.webkit.messageHandlers.imageLog.postMessage(
-                'img src=' + img.src.substring(0,80) + ' complete=' + img.complete + ' naturalW=' + img.naturalWidth
-            );
-            if (!img.complete) {
-                img.addEventListener('load', function() {
-                    window.webkit.messageHandlers.imageLog.postMessage('LOADED: ' + this.src.substring(0,80));
-                    window.webkit.messageHandlers.imageLog.postMessage('REMEASURE');
-                });
-                img.addEventListener('error', function() {
-                    window.webkit.messageHandlers.imageLog.postMessage('FAILED: ' + this.src.substring(0,80));
-                });
+        // Observe content size changes via ResizeObserver — fires when images load,
+        // fonts render, or any layout shift occurs. Replaces the old approach of
+        // periodic evaluateJavaScript polling + image-load event listeners.
+        var content = document.getElementById('emailContent');
+        if (content) {
+            var lastH = 0;
+            new ResizeObserver(function(entries) {
+                var h = Math.ceil(entries[0].contentRect.height);
+                if (h > 0 && h !== lastH) {
+                    lastH = h;
+                    window.webkit.messageHandlers.heightChanged.postMessage(h);
+                }
+            }).observe(content);
+            // Send initial height
+            var initH = content.offsetHeight;
+            if (initH > 0) {
+                window.webkit.messageHandlers.heightChanged.postMessage(initH);
             }
-        });
-        window.webkit.messageHandlers.imageLog.postMessage(
-            'Total imgs: ' + imgs.length + ', already complete: ' + Array.from(imgs).filter(function(i){return i.complete;}).length
-        );
+        }
         """
     }
 
     // MARK: - Coordinator
 
-    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var parent: HTMLEmailView
-        var lastCacheKey: String = ""
+        var lastCacheKey = ""
         var isLoadingContent = false
         weak var webView: WKWebView?
 
         init(_ parent: HTMLEmailView) { self.parent = parent }
 
-        func userContentController(_ userContentController: WKUserContentController,
-                                   didReceive message: WKScriptMessage) {
-            guard let body = message.body as? String else { return }
-            if body == "REMEASURE" {
-                Task { @MainActor [weak self] in
-                    // Re-measure when any image finishes loading
-                    self?.remeasureIfNeeded()
-                }
-            } else {
-                print("[HTMLEmailView] \(body)")
+        // MARK: WKScriptMessageHandler
+
+        func userContentController(
+            _ userContentController: WKUserContentController,
+            didReceive message: WKScriptMessage
+        ) {
+            guard message.name == "heightChanged",
+                  let height = message.body as? CGFloat,
+                  height > 0
+            else { return }
+            Task { @MainActor [weak self] in
+                self?.parent.contentHeight = height
             }
         }
 
-        private func remeasureIfNeeded() {
-            guard let webView else { return }
-            measureHeight(webView)
-        }
+        // MARK: WKNavigationDelegate
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             isLoadingContent = false
-            measureHeight(webView)
-            // Re-measure after delays to catch lazy/slow images
-            for delay in [0.5, 1.5, 3.0] {
-                Task { @MainActor [weak self, weak webView] in
-                    try? await Task.sleep(for: .seconds(delay))
-                    guard let webView else { return }
-                    self?.measureHeight(webView)
-                }
-            }
-        }
-
-        private func measureHeight(_ webView: WKWebView) {
-            webView.evaluateJavaScript(
-                "document.getElementById('emailContent').offsetHeight"
-            ) { [weak self] result, _ in
-                Task { @MainActor [weak self] in
-                    if let h = result as? CGFloat, h > 0 {
-                        self?.parent.contentHeight = h
-                    }
-                }
-            }
         }
 
         func webView(
@@ -289,6 +284,7 @@ struct HTMLEmailView: NSViewRepresentable {
             decidePolicyFor navigationAction: WKNavigationAction,
             decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
         ) {
+            // Open clicked links externally (or via the provided callback)
             if navigationAction.navigationType == .linkActivated,
                let url = navigationAction.request.url {
                 if let onOpenLink = parent.onOpenLink {
@@ -300,6 +296,7 @@ struct HTMLEmailView: NSViewRepresentable {
                 return
             }
 
+            // Only allow the initial HTML load (about:blank from loadHTMLString)
             guard isLoadingContent,
                   navigationAction.navigationType == .other,
                   navigationAction.request.url?.scheme == "about"
