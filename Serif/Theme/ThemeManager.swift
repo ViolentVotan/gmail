@@ -109,13 +109,6 @@ final class ThemeManager {
 
 // MARK: - Environment Key
 
-private struct ThemeKey: EnvironmentKey {
-    static let defaultValue: Theme = .midnight
-}
-
 extension EnvironmentValues {
-    var theme: Theme {
-        get { self[ThemeKey.self] }
-        set { self[ThemeKey.self] = newValue }
-    }
+    @Entry var theme: Theme = .midnight
 }
