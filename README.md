@@ -50,17 +50,6 @@ A native macOS Gmail client. No Electron. No web wrapper. Just Swift, SwiftUI, a
 | 🔄 **Auto-update** | Built-in Sparkle updates with appcast |
 | 👤 **Contact avatars** | Google Contacts, Gravatar, and BIMI brand logos |
 
-## Architecture
-
-```
-Serif/
-├── Views/              # SwiftUI views (3-column layout)
-├── ViewModels/         # Observable state & business logic
-├── Models/             # Email, Contact, Attachment, Theme
-├── Services/           # Gmail API, sync, search, AI, tracking
-├── Theme/              # 15 built-in themes + custom overrides
-└── Configuration/      # OAuth credentials & app config
-```
 
 ## Getting Started
 
