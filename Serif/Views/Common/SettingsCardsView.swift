@@ -320,6 +320,38 @@ struct StorageSettingsCard: View {
     }
 }
 
+// MARK: - Apple Intelligence Settings
+
+struct AppleIntelligenceSettingsCard: View {
+    @AppStorage("aiLabelSuggestions") private var labelSuggestions = true
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Apple Intelligence")
+                .font(.serifTitle)
+                .foregroundColor(theme.textPrimary)
+
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Label suggestions")
+                        .font(.serifCaption)
+                        .foregroundColor(theme.textSecondary)
+                    Text("Suggest labels for emails using on-device AI")
+                        .font(.serifSmall)
+                        .foregroundColor(theme.textTertiary)
+                }
+                Spacer()
+                Toggle("", isOn: $labelSuggestions)
+                    .toggleStyle(.switch)
+                    .labelsHidden()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .cardStyle()
+    }
+}
+
 // MARK: - Developer Settings
 
 struct DeveloperSettingsCard: View {
