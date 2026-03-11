@@ -30,7 +30,7 @@ extension String {
     /// removes quoted replies and signature noise, truncates to `maxLength`.
     ///
     /// Shared by QuickReplyService and SummaryService.
-    /// SummaryService still has its own copy — migrate it to use this method next.
+    /// SummaryService has been migrated to use this shared method.
     func cleanedForAI(maxLength: Int = 500) -> String {
         var text = self
 
@@ -111,5 +111,29 @@ extension String {
             .trimmingCharacters(in: .whitespacesAndNewlines)
 
         return String(collapsed.prefix(maxLength))
+    }
+}
+
+// MARK: - Stable Hashing
+
+/// DJB2 hash — deterministic, stable across runs. Used for avatar colors, label palettes, cache keys.
+func stableHash(_ string: String) -> UInt64 {
+    var hash: UInt64 = 5381
+    for byte in string.utf8 {
+        hash = (hash &* 33) &+ UInt64(byte)
+    }
+    return hash
+}
+
+// MARK: - Base64URL Decoding
+
+extension Data {
+    /// Decode a base64url-encoded string (RFC 4648 §5) to Data.
+    init?(base64URLEncoded string: String) {
+        var base64 = string
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        while base64.count % 4 != 0 { base64 += "=" }
+        self.init(base64Encoded: base64)
     }
 }

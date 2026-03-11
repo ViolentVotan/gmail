@@ -9,6 +9,8 @@ struct FolderCache: Codable {
 /// File-based cache for mails, labels, and threads — per account + folder.
 final class MailCacheStore {
     static let shared = MailCacheStore()
+    private var createdDirs: Set<String> = []
+
     private init() {
         try? FileManager.default.createDirectory(at: baseDir, withIntermediateDirectories: true)
     }
@@ -20,7 +22,10 @@ final class MailCacheStore {
 
     private func fileURL(accountID: String, folderKey: String) -> URL {
         let accountDir = baseDir.appendingPathComponent(accountID, isDirectory: true)
-        try? FileManager.default.createDirectory(at: accountDir, withIntermediateDirectories: true)
+        if !createdDirs.contains(accountID) {
+            try? FileManager.default.createDirectory(at: accountDir, withIntermediateDirectories: true)
+            createdDirs.insert(accountID)
+        }
         let safe = folderKey.replacingOccurrences(of: "/", with: "_")
         return accountDir.appendingPathComponent("\(safe).json")
     }
@@ -94,9 +99,13 @@ final class MailCacheStore {
     // MARK: - Threads (full format, for offline HTML)
 
     private func threadURL(accountID: String, threadID: String) -> URL {
+        let key = "\(accountID)/threads"
         let dir = baseDir.appendingPathComponent(accountID, isDirectory: true)
             .appendingPathComponent("threads", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        if !createdDirs.contains(key) {
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            createdDirs.insert(key)
+        }
         return dir.appendingPathComponent("\(threadID).json")
     }
 

@@ -6,6 +6,7 @@ import Combine
 private final class URLValidityCache: @unchecked Sendable {
     private var cache: [URL: Bool] = [:]
     private let lock = NSLock()
+    private let maxCacheSize = 500
 
     func get(_ url: URL) -> Bool? {
         lock.lock(); defer { lock.unlock() }
@@ -13,6 +14,7 @@ private final class URLValidityCache: @unchecked Sendable {
     }
     func set(_ url: URL, valid: Bool) {
         lock.lock(); defer { lock.unlock() }
+        if cache.count >= maxCacheSize { cache.removeAll() }
         cache[url] = valid
     }
 
@@ -119,6 +121,11 @@ final class SubscriptionsStore: ObservableObject {
         isAnalyzing   = true
 
         analysisTask = Task {
+            defer {
+                pendingCount -= 1
+                if pendingCount == 0 { isAnalyzing = false }
+            }
+
             var newValidated = false
             await withTaskGroup(of: (Email, Bool).self) { [urlCache] group in
                 for email in candidates {
@@ -143,9 +150,6 @@ final class SubscriptionsStore: ObservableObject {
             guard !Task.isCancelled else { return }
             entries.sort { $0.date > $1.date }
             if newValidated { saveValidatedIDs() }
-
-            pendingCount -= 1
-            if pendingCount == 0 { isAnalyzing = false }
         }
     }
 

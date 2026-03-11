@@ -7,7 +7,7 @@ final class GmailAPIClient {
     private init() {}
 
     private let baseURL = "https://gmail.googleapis.com/gmail/v1"
-    private var refreshTask: Task<AuthToken, Error>?
+    private var refreshTasks: [String: Task<AuthToken, Error>] = [:]
 
     // MARK: - Decoded requests
 
@@ -140,18 +140,18 @@ final class GmailAPIClient {
         }
         guard token.isExpired else { return token }
 
-        // Coalesce concurrent refresh calls — only one refresh in flight at a time
-        if let existing = refreshTask {
+        // Coalesce concurrent refresh calls per account
+        if let existing = refreshTasks[accountID] {
             return try await existing.value
         }
 
         let task = Task<AuthToken, Error> { @MainActor in
-            defer { self.refreshTask = nil }
+            defer { self.refreshTasks[accountID] = nil }
             let fresh = try await OAuthService.shared.refreshToken(token)
             try TokenStore.shared.save(fresh, for: accountID)
             return fresh
         }
-        refreshTask = task
+        refreshTasks[accountID] = task
         return try await task.value
     }
 

@@ -155,7 +155,6 @@ struct ContentView: View {
                 Button { coordinator.composeNewEmail() } label: {
                     Image(systemName: "square.and.pencil").foregroundColor(themeManager.currentTheme.textPrimary)
                 }
-                .keyboardShortcut("n", modifiers: .command)
                 .help("Compose (\u{2318}N)")
             }
         }

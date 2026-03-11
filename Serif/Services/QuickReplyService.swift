@@ -68,6 +68,7 @@ final class QuickReplyService {
 
             if let key = cacheKey(for: email) {
                 cache[key] = replies
+                if cache.count > 200 { cache.removeAll() }
             }
             return replies
         } catch {

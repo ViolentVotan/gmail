@@ -251,10 +251,10 @@ final class EmailDetailViewModel: ObservableObject {
     /// Optimistically toggles the STARRED label on the latest message.
     func toggleStar() {
         guard var labelIDs = latestMessage?.labelIds else { return }
-        if labelIDs.contains("STARRED") {
-            labelIDs.removeAll { $0 == "STARRED" }
+        if labelIDs.contains(GmailSystemLabel.starred) {
+            labelIDs.removeAll { $0 == GmailSystemLabel.starred }
         } else {
-            labelIDs.append("STARRED")
+            labelIDs.append(GmailSystemLabel.starred)
         }
         updateLabelIDs(labelIDs)
     }

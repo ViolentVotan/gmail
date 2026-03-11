@@ -45,10 +45,10 @@ enum GmailDataTransformer {
     // MARK: - Folder
 
     static func folderFor(labelIDs: [String]) -> Folder {
-        if labelIDs.contains("SENT")  { return .sent }
-        if labelIDs.contains("DRAFT") { return .drafts }
-        if labelIDs.contains("SPAM")  { return .spam }
-        if labelIDs.contains("TRASH") { return .trash }
+        if labelIDs.contains(GmailSystemLabel.sent)  { return .sent }
+        if labelIDs.contains(GmailSystemLabel.draft) { return .drafts }
+        if labelIDs.contains(GmailSystemLabel.spam)  { return .spam }
+        if labelIDs.contains(GmailSystemLabel.trash) { return .trash }
         return .inbox
     }
 
@@ -88,12 +88,6 @@ enum GmailDataTransformer {
         "#6C5CE7", "#00B894", "#E17055", "#0984E3",
         "#FDCB6E", "#E84393", "#00CEC9", "#A29BFE"
     ]
-
-    private static func stableHash(_ string: String) -> UInt64 {
-        var hash: UInt64 = 5381
-        for byte in string.utf8 { hash = (hash &* 33) &+ UInt64(byte) }
-        return hash
-    }
 
     private static func gravatarURL(for email: String) -> String {
         let normalized = email.lowercased().trimmingCharacters(in: .whitespaces)

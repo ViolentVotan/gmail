@@ -65,9 +65,9 @@ final class AccountStore {
         UnsubscribeService.shared.clearAccount(id)
         ContactStore.shared.deleteAccount(id)
         // Clean per-account UserDefaults
-        UserDefaults.standard.removeObject(forKey: "signatureForNew.\(id)")
-        UserDefaults.standard.removeObject(forKey: "signatureForReply.\(id)")
-        UserDefaults.standard.removeObject(forKey: "attachmentExclusionRules.\(id)")
+        UserDefaults.standard.removeObject(forKey: UserDefaultsKey.signatureForNew(id))
+        UserDefaults.standard.removeObject(forKey: UserDefaultsKey.signatureForReply(id))
+        UserDefaults.standard.removeObject(forKey: UserDefaultsKey.attachmentExclusionRules(id))
         // Purge avatar disk cache
         AvatarCache.shared.clearAll()
     }

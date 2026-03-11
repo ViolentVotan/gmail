@@ -37,7 +37,10 @@ final class EmailPrintService {
     }
 
     private func showPrintDialog(webView: WKWebView) {
-        let printInfo = NSPrintInfo.shared.copy() as! NSPrintInfo
+        guard let printInfo = NSPrintInfo.shared.copy() as? NSPrintInfo else {
+            cleanup()
+            return
+        }
         printInfo.topMargin = 36
         printInfo.bottomMargin = 36
         printInfo.leftMargin = 36

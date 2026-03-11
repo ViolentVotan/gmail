@@ -33,6 +33,7 @@ struct HTMLEmailView: NSViewRepresentable {
         let webView = PassthroughWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
         webView.setValue(false, forKey: "drawsBackground")
+        context.coordinator.webView = webView
         return webView
     }
 
@@ -236,6 +237,7 @@ struct HTMLEmailView: NSViewRepresentable {
         var parent: HTMLEmailView
         var lastCacheKey: String = ""
         var isLoadingContent = false
+        weak var webView: WKWebView?
 
         init(_ parent: HTMLEmailView) { self.parent = parent }
 
@@ -253,7 +255,8 @@ struct HTMLEmailView: NSViewRepresentable {
         }
 
         private func remeasureIfNeeded() {
-            // Will be called with the webView on next cycle
+            guard let webView else { return }
+            measureHeight(webView)
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
