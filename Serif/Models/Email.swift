@@ -65,7 +65,7 @@ struct Email: Identifiable, Equatable {
         self.cc = cc
         self.subject = subject
         self.body = body
-        self.preview = preview.isEmpty ? String(body.prefix(120)) : preview
+        self.preview = preview.isEmpty ? String(body.prefix(120)) : Self.decodeHTMLEntities(preview)
         self.date = date
         self.isRead = isRead
         self.isStarred = isStarred
@@ -82,6 +82,30 @@ struct Email: Identifiable, Equatable {
         self.threadMessageCount = threadMessageCount
         self.isFromMailingList = isFromMailingList
         self.unsubscribeURL = unsubscribeURL
+    }
+
+    /// Decodes HTML entities (e.g. `&#39;` → `'`, `&amp;` → `&`) from Gmail snippets.
+    private static func decodeHTMLEntities(_ string: String) -> String {
+        guard string.contains("&") else { return string }
+        var result = string
+        // Named entities
+        let named: [(String, String)] = [
+            ("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">"),
+            ("&quot;", "\""), ("&apos;", "'"), ("&nbsp;", " "),
+        ]
+        for (entity, char) in named {
+            result = result.replacingOccurrences(of: entity, with: char)
+        }
+        // Numeric entities: &#39; &#169; etc.
+        while let range = result.range(of: "&#\\d+;", options: .regularExpression) {
+            let digits = result[range].dropFirst(2).dropLast()
+            if let code = UInt32(digits), let scalar = Unicode.Scalar(code) {
+                result.replaceSubrange(range, with: String(scalar))
+            } else {
+                break
+            }
+        }
+        return result
     }
 }
 

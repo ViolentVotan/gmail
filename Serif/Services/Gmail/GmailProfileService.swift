@@ -60,7 +60,12 @@ final class GmailProfileService {
         let local = ContactStore.shared.contacts(for: accountID)
         if !local.isEmpty {
             print("[Serif] Using \(local.count) cached contacts for \(accountID)")
-            // Still populate the photo cache from local contacts (in-memory only)
+            // Repopulate in-memory photo cache from persisted contacts
+            for contact in local {
+                if let url = contact.photoURL {
+                    ContactPhotoCache.shared.set(url, for: contact.email)
+                }
+            }
             return
         }
         await fetchAndStoreContacts(accountID: accountID)
@@ -84,17 +89,14 @@ final class GmailProfileService {
                 if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
                 let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
                 for person in response.connections ?? [] {
-                    if let photo = person.photos?.first(where: { $0.default != true }),
-                       let photoURL = photo.url {
-                        for addr in person.emailAddresses ?? [] {
-                            guard let email = addr.value, !email.isEmpty else { continue }
-                            ContactPhotoCache.shared.set(photoURL, for: email)
-                        }
-                    }
                     let displayName = person.names?.first?.displayName ?? ""
+                    let photoURL = person.photos?.first(where: { $0.default != true })?.url
                     for addr in person.emailAddresses ?? [] {
                         guard let email = addr.value, !email.isEmpty else { continue }
-                        allContacts.append(StoredContact(name: displayName, email: email.lowercased()))
+                        if let url = photoURL {
+                            ContactPhotoCache.shared.set(url, for: email)
+                        }
+                        allContacts.append(StoredContact(name: displayName, email: email.lowercased(), photoURL: photoURL))
                     }
                 }
                 pageToken = response.nextPageToken
@@ -141,6 +143,7 @@ struct StoredContact: Codable, Identifiable, Hashable {
     var id: String { email }
     let name: String
     let email: String
+    var photoURL: String?
 }
 
 // MARK: - Contact Store (UserDefaults persistence)
