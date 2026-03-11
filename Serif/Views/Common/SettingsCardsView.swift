@@ -302,7 +302,7 @@ struct StorageSettingsCard: View {
             attachmentStore.refresh()
             dbSize = AttachmentDatabase.shared.databaseSizeBytes()
         }
-        .onChange(of: attachmentStore.stats.total) { _ in
+        .onChange(of: attachmentStore.stats.total) { _, _ in
             dbSize = AttachmentDatabase.shared.databaseSizeBytes()
         }
         .alert("Clear attachment index?", isPresented: $showClearConfirm) {

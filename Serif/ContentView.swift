@@ -179,16 +179,16 @@ struct ContentView: View {
     private func withLifecycle<V: View>(_ view: V) -> some View {
         view
             .onAppear(perform: coordinator.handleAppear)
-            .onChange(of: coordinator.selectedFolder, perform: coordinator.handleFolderChange)
-            .onChange(of: coordinator.selectedInboxCategory, perform: coordinator.handleCategoryChange)
-            .onChange(of: coordinator.selectedLabel?.id) { _ in coordinator.handleLabelChange() }
-            .onChange(of: coordinator.selectedAccountID, perform: coordinator.handleAccountChange)
-            .onChange(of: coordinator.authViewModel.accounts, perform: coordinator.handleAccountsChange)
-            .onChange(of: coordinator.mailboxViewModel.messages.count) { _ in }
-            .onChange(of: coordinator.selectedEmail, perform: coordinator.handleSelectedEmailChange)
-            .onChange(of: coordinator.signatureForNew) { _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
-            .onChange(of: coordinator.signatureForReply) { _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
-            .onChange(of: coordinator.mailboxViewModel.lastRestoredMessageID) { msgID in
+            .onChange(of: coordinator.selectedFolder) { _, newValue in coordinator.handleFolderChange(newValue) }
+            .onChange(of: coordinator.selectedInboxCategory) { _, newValue in coordinator.handleCategoryChange(newValue) }
+            .onChange(of: coordinator.selectedLabel?.id) { _, _ in coordinator.handleLabelChange() }
+            .onChange(of: coordinator.selectedAccountID) { _, newValue in coordinator.handleAccountChange(newValue) }
+            .onChange(of: coordinator.authViewModel.accounts) { _, newValue in coordinator.handleAccountsChange(newValue) }
+            .onChange(of: coordinator.mailboxViewModel.messages.count) { _, _ in }
+            .onChange(of: coordinator.selectedEmail) { _, newValue in coordinator.handleSelectedEmailChange(newValue) }
+            .onChange(of: coordinator.signatureForNew) { _, _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
+            .onChange(of: coordinator.signatureForReply) { _, _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
+            .onChange(of: coordinator.mailboxViewModel.lastRestoredMessageID) { _, msgID in
                 guard let msgID else { return }
                 coordinator.mailboxViewModel.lastRestoredMessageID = nil
                 if let restoredEmail = coordinator.mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgID }) {

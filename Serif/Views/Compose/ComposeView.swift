@@ -151,12 +151,12 @@ struct ComposeView: View {
         }
         .background(theme.detailBackground)
         .onAppear { loadDraft() }
-        .onChange(of: to)       { _ in scheduleAutoSave() }
-        .onChange(of: cc)       { _ in scheduleAutoSave() }
-        .onChange(of: bcc)      { _ in scheduleAutoSave() }
-        .onChange(of: subject)  { _ in scheduleAutoSave() }
-        .onChange(of: bodyHTML) { _ in scheduleAutoSave() }
-        .onChange(of: selectedAliasEmail) { newEmail in
+        .onChange(of: to)       { _, _ in scheduleAutoSave() }
+        .onChange(of: cc)       { _, _ in scheduleAutoSave() }
+        .onChange(of: bcc)      { _, _ in scheduleAutoSave() }
+        .onChange(of: subject)  { _, _ in scheduleAutoSave() }
+        .onChange(of: bodyHTML) { _, _ in scheduleAutoSave() }
+        .onChange(of: selectedAliasEmail) { _, newEmail in
             composeVM.fromAddress = newEmail
             replaceSignature(for: newEmail)
         }

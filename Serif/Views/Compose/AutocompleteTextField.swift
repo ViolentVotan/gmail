@@ -41,7 +41,7 @@ struct AutocompleteTextField: View {
             .textFieldStyle(.plain)
             .font(.system(size: 13))
             .foregroundColor(theme.textPrimary)
-            .onChange(of: text) { _ in highlightedIndex = 0 }
+            .onChange(of: text) { _, _ in highlightedIndex = 0 }
             .onKeyPress(.return) {
                 guard showDropdown, highlightedIndex < suggestions.count else { return .ignored }
                 selectContact(suggestions[highlightedIndex])
@@ -144,7 +144,7 @@ struct AutocompleteTextField: View {
             }
             .scrollContentBackground(.hidden)
             .frame(width: 300, height: Self.rowHeight * min(CGFloat(suggestions.count), 5) + 8)
-            .onChange(of: highlightedIndex) { _ in
+            .onChange(of: highlightedIndex) { _, _ in
                 if highlightedIndex < suggestions.count {
                     withAnimation(.easeOut(duration: 0.15)) {
                         proxy.scrollTo(suggestions[highlightedIndex].id, anchor: .center)

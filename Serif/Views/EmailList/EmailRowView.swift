@@ -130,7 +130,7 @@ struct EmailRowView: View {
                 popoverHolder.close()
             }
         }
-        .onChange(of: isSelected) {
+        .onChange(of: isSelected) { _, _ in
             hoverTask?.cancel()
             popoverHolder.close()
         }
