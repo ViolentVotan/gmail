@@ -39,10 +39,28 @@ A native macOS Gmail client. No Electron. No web wrapper. Just Swift, SwiftUI, a
 | 🔍 **Smart search** | Gmail query syntax + semantic attachment search across your entire mailbox |
 | 📅 **Calendar invites** | Event cards with one-click RSVP — accept, decline, maybe |
 | ✉️ **One-click unsubscribe** | RFC 8058 compliant. See all your subscriptions in one view |
-| 🤖 **AI summaries** | Hover any email for an instant on-device summary (macOS 26+) |
-| 🎨 **12 themes** | Light & dark, with per-color overrides |
-| ⌨️ **Keyboard-first** | `⌘F` search · `⌘↩` send · `⌘Z` undo |
-| 👥 **Multi-account** | Switch accounts seamlessly, each with its own settings and signatures |
+| 🤖 **AI-powered** | On-device email summaries and quick reply suggestions (Apple Intelligence, macOS 26+) |
+| 🏷️ **Label management** | Create, rename, delete, and sync Gmail labels |
+| 📎 **Attachment search** | Browse, search, and preview all attachments with thumbnail caching |
+| 🖨️ **Print** | Clean HTML-based email printing |
+| ✍️ **Signatures** | Per-account signature management synced with Gmail |
+| 🎨 **15 themes** | 10 dark + 5 light, with per-color overrides |
+| ⌨️ **Keyboard-first** | `⌘F` search · `⌘↩` send · `⌘Z` undo send |
+| 👥 **Multi-account** | Switch accounts seamlessly, each with its own settings |
+| 🔄 **Auto-update** | Built-in Sparkle updates with appcast |
+| 👤 **Contact avatars** | Google Contacts, Gravatar, and BIMI brand logos |
+
+## Architecture
+
+```
+Serif/
+├── Views/              # SwiftUI views (3-column layout)
+├── ViewModels/         # Observable state & business logic
+├── Models/             # Email, Contact, Attachment, Theme
+├── Services/           # Gmail API, sync, search, AI, tracking
+├── Theme/              # 15 built-in themes + custom overrides
+└── Configuration/      # OAuth credentials & app config
+```
 
 ## Getting Started
 
