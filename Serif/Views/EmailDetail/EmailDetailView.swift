@@ -195,34 +195,33 @@ struct EmailDetailView: View {
                                 onCreateAndAddLabel: onCreateAndAddLabel
                             )
                             .padding(.horizontal, 24)
-                            .padding(.bottom, labelSuggestions.isEmpty ? 20 : 8)
+                            .padding(.bottom, labelSuggestions.isEmpty ? 20 : 6)
                             .zIndex(1)
 
                             if !labelSuggestions.isEmpty {
-                                HStack(spacing: 6) {
+                                HStack(spacing: 4) {
                                     ForEach(labelSuggestions, id: \.name) { suggestion in
                                         Button {
                                             applyLabelSuggestion(suggestion)
                                         } label: {
-                                            HStack(spacing: 4) {
+                                            HStack(spacing: 3) {
                                                 Image(systemName: suggestion.isNew ? "plus.circle" : "plus")
-                                                    .font(.system(size: 9, weight: .semibold))
+                                                    .font(.system(size: 7, weight: .semibold))
                                                 Text(suggestion.name)
-                                                    .font(.system(size: 11, weight: .medium))
+                                                    .font(.system(size: 10))
                                             }
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(theme.accentPrimary.opacity(0.1))
-                                            .foregroundColor(theme.accentPrimary)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 3)
+                                            .background(theme.accentPrimary.opacity(0.08))
+                                            .foregroundColor(theme.accentPrimary.opacity(0.7))
                                             .clipShape(Capsule())
-                                            .overlay(Capsule().strokeBorder(theme.accentPrimary.opacity(0.3), lineWidth: 0.5))
                                         }
                                         .buttonStyle(.plain)
                                         .transition(.opacity.combined(with: .scale(scale: 0.9)))
                                     }
                                 }
                                 .padding(.horizontal, 24)
-                                .padding(.bottom, 12)
+                                .padding(.bottom, 16)
                                 .animation(.easeOut(duration: 0.25), value: labelSuggestions.map(\.name))
                             }
 
