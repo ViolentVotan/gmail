@@ -148,14 +148,11 @@ struct AttachmentsListView: View {
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "paperclip")
-                .font(.system(size: 28))
-                .foregroundColor(theme.textTertiary)
-            Text("No attachments found")
-                .font(.system(size: 13))
-                .foregroundColor(theme.textTertiary)
-        }
+        ContentUnavailableView(
+            "No Attachments",
+            systemImage: "paperclip",
+            description: Text("No attachments found matching your filters")
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }

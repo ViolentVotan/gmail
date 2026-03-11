@@ -142,14 +142,11 @@ struct AttachmentExplorerView: View {
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: 8) {
-            Image(systemName: store.searchQuery.isEmpty ? "paperclip" : "magnifyingglass")
-                .font(.system(size: 28))
-                .foregroundColor(theme.textTertiary)
-            Text(store.searchQuery.isEmpty ? "No attachments" : "No results for \"\(store.searchQuery)\"")
-                .font(.system(size: 13))
-                .foregroundColor(theme.textTertiary)
-        }
+        ContentUnavailableView(
+            store.searchQuery.isEmpty ? "No Attachments" : "No Results",
+            systemImage: store.searchQuery.isEmpty ? "paperclip" : "magnifyingglass",
+            description: Text(store.searchQuery.isEmpty ? "Attachments will appear here as emails are indexed" : "No results for \"\(store.searchQuery)\"")
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
