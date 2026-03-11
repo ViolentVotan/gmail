@@ -1,8 +1,9 @@
 import SwiftUI
-import Combine
+import Observation
 
+@Observable
 @MainActor
-final class AppCoordinator: ObservableObject {
+final class AppCoordinator {
 
     // MARK: - Child ViewModels
 
@@ -14,39 +15,38 @@ final class AppCoordinator: ObservableObject {
     let attachmentStore: AttachmentStore
     let subscriptionsStore = SubscriptionsStore.shared
 
-    private var cancellables: Set<AnyCancellable> = []
     private var pendingDraftSelection: Email?
 
     // MARK: - Selection State
 
-    @Published var selectedAccountID: String?
-    @Published var selectedFolder: Folder = .inbox
-    @Published var selectedInboxCategory: InboxCategory? = .all
-    @Published var selectedLabel: GmailLabel?
-    @Published var selectedEmail: Email?
-    @Published var selectedEmailIDs: Set<String> = []
+    var selectedAccountID: String?
+    var selectedFolder: Folder = .inbox
+    var selectedInboxCategory: InboxCategory? = .all
+    var selectedLabel: GmailLabel?
+    var selectedEmail: Email?
+    var selectedEmailIDs: Set<String> = []
 
     // MARK: - UI State
 
-    @Published var sidebarExpanded = false
-    @Published var searchResetTrigger = 0
-    @Published var searchFocusTrigger = false
-    @Published var composeMode: ComposeMode = .new
-    @Published var signatureForNew: String = ""
-    @Published var signatureForReply: String = ""
-    @Published var lastRefreshedAt: Date?
-    @Published var showEmptyTrashConfirm = false
-    @Published var trashTotalCount = 0
-    @Published var showEmptySpamConfirm = false
-    @Published var spamTotalCount = 0
-    @Published var attachmentIndexer: AttachmentIndexer?
+    var sidebarExpanded = false
+    var searchResetTrigger = 0
+    var searchFocusTrigger = false
+    var composeMode: ComposeMode = .new
+    var signatureForNew: String = ""
+    var signatureForReply: String = ""
+    var lastRefreshedAt: Date?
+    var showEmptyTrashConfirm = false
+    var trashTotalCount = 0
+    var showEmptySpamConfirm = false
+    var spamTotalCount = 0
+    var attachmentIndexer: AttachmentIndexer?
 
     // MARK: - AppStorage
 
-    @Published var undoDuration: Int = UserDefaults.standard.integer(forKey: UserDefaultsKey.undoDuration).nonZeroOr(5) {
+    var undoDuration: Int = UserDefaults.standard.integer(forKey: UserDefaultsKey.undoDuration).nonZeroOr(5) {
         didSet { UserDefaults.standard.set(undoDuration, forKey: UserDefaultsKey.undoDuration) }
     }
-    @Published var refreshInterval: Int = UserDefaults.standard.integer(forKey: UserDefaultsKey.refreshInterval).nonZeroOr(120) {
+    var refreshInterval: Int = UserDefaults.standard.integer(forKey: UserDefaultsKey.refreshInterval).nonZeroOr(120) {
         didSet { UserDefaults.standard.set(refreshInterval, forKey: UserDefaultsKey.refreshInterval) }
     }
 
@@ -60,20 +60,6 @@ final class AppCoordinator: ObservableObject {
         self.authViewModel = AuthViewModel()
         self.actionCoordinator = EmailActionCoordinator(mailboxViewModel: vm, mailStore: store)
         self.attachmentStore = AttachmentStore(database: .shared)
-
-        // Forward child objectWillChange so SwiftUI re-renders when nested models update
-        vm.objectWillChange
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.objectWillChange.send() }
-            .store(in: &cancellables)
-        store.objectWillChange
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.objectWillChange.send() }
-            .store(in: &cancellables)
-        panelCoordinator.objectWillChange
-            .receive(on: DispatchQueue.main)
-            .sink { [weak self] _ in self?.objectWillChange.send() }
-            .store(in: &cancellables)
     }
 
     // MARK: - Computed Properties
