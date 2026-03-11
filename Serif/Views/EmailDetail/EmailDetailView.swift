@@ -36,6 +36,8 @@ struct EmailDetailView: View {
     @State private var showSenderInfo = false
     @State private var showOriginalInviteEmail = false
     @State private var showQuotedMain = false
+    @State private var labelSuggestions: [LabelSuggestion] = []
+    @AppStorage("aiLabelSuggestions") private var aiLabelSuggestionsEnabled = true
     @Environment(\.theme) private var theme
 
     /// Best available unsubscribe URL: header-based (from full thread) or body-scanned.
@@ -193,8 +195,36 @@ struct EmailDetailView: View {
                                 onCreateAndAddLabel: onCreateAndAddLabel
                             )
                             .padding(.horizontal, 24)
-                            .padding(.bottom, 20)
+                            .padding(.bottom, labelSuggestions.isEmpty ? 20 : 8)
                             .zIndex(1)
+
+                            if !labelSuggestions.isEmpty {
+                                HStack(spacing: 6) {
+                                    ForEach(labelSuggestions, id: \.name) { suggestion in
+                                        Button {
+                                            applyLabelSuggestion(suggestion)
+                                        } label: {
+                                            HStack(spacing: 4) {
+                                                Image(systemName: suggestion.isNew ? "plus.circle" : "plus")
+                                                    .font(.system(size: 9, weight: .semibold))
+                                                Text(suggestion.name)
+                                                    .font(.system(size: 11, weight: .medium))
+                                            }
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(theme.accentPrimary.opacity(0.1))
+                                            .foregroundColor(theme.accentPrimary)
+                                            .clipShape(Capsule())
+                                            .overlay(Capsule().strokeBorder(theme.accentPrimary.opacity(0.3), lineWidth: 0.5))
+                                        }
+                                        .buttonStyle(.plain)
+                                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                                    }
+                                }
+                                .padding(.horizontal, 24)
+                                .padding(.bottom, 12)
+                                .animation(.easeOut(duration: 0.25), value: labelSuggestions.map(\.name))
+                            }
 
                             if detailVM.hasBlockedTrackers {
                                 TrackerBannerView(
@@ -266,6 +296,15 @@ struct EmailDetailView: View {
                         }
                         .padding(.bottom, 72)
                     }
+                    .task(id: email.id) {
+                        labelSuggestions = []
+                        guard aiLabelSuggestionsEnabled else { return }
+                        let suggestions = await LabelSuggestionService.shared.generateSuggestions(
+                            for: email,
+                            existingLabels: allLabels
+                        )
+                        withAnimation { labelSuggestions = suggestions }
+                    }
                 }
 
                 // Floating reply bar
@@ -311,6 +350,18 @@ struct EmailDetailView: View {
         guard let threadID = email.gmailThreadID else { return }
         detailVM.attachmentIndexer = attachmentIndexer
         Task { await detailVM.loadThread(id: threadID) }
+    }
+
+    private func applyLabelSuggestion(_ suggestion: LabelSuggestion) {
+        withAnimation { labelSuggestions.removeAll { $0.name == suggestion.name } }
+        if suggestion.isNew {
+            onCreateAndAddLabel?(suggestion.name) { _ in }
+        } else if let label = allLabels.first(where: { $0.displayName == suggestion.name }) {
+            var newIDs = currentLabelIDs
+            newIDs.append(label.id)
+            detailVM.updateLabelIDs(newIDs)
+            onAddLabel?(label.id)
+        }
     }
 
     // MARK: - Attachment preview & download
