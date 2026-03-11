@@ -20,6 +20,25 @@ struct ToastOverlayView: View {
     }
 
     private func toastCard(_ toast: ToastMessage) -> some View {
+        Group {
+            if #available(macOS 26.0, *) {
+                toastContent(toast)
+                    .glassEffect(.regular, in: .rect(cornerRadius: 12))
+                    .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+            } else {
+                toastContent(toast)
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(theme.cardBackground)
+                            .shadow(color: .black.opacity(0.2), radius: 12, x: 0, y: 4)
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            }
+        }
+        .frame(width: 320)
+    }
+
+    private func toastContent(_ toast: ToastMessage) -> some View {
         HStack(spacing: 10) {
             Image(systemName: iconName(toast.type))
                 .font(.system(size: 13, weight: .medium))
@@ -32,13 +51,6 @@ struct ToastOverlayView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(theme.cardBackground)
-                .shadow(color: .black.opacity(0.2), radius: 12, x: 0, y: 4)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .frame(width: 320)
     }
 
     private func iconName(_ type: ToastType) -> String {
