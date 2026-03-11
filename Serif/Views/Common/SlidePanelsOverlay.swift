@@ -49,6 +49,7 @@ struct SlidePanelsOverlay: View {
                     signatureForReply: $signatureForReply,
                     onAliasesUpdated: { onAliasesUpdated?() }
                 )
+                AppleIntelligenceSettingsCard()
                 StorageSettingsCard(attachmentStore: attachmentStore)
                 DeveloperSettingsCard()
             }
