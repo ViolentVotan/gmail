@@ -7,6 +7,7 @@ enum UserDefaultsKey {
     static let refreshInterval = "refreshInterval"
     static let selectedThemeId = "selectedThemeId"
     static let themeOverrides = "themeOverrides"
+    static let appearancePreference = "appearancePreference"
     static let attachmentScanMonths = "attachmentScanMonths"
 
     static func signatureForNew(_ accountID: String) -> String {

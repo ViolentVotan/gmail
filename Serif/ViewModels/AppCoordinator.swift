@@ -41,10 +41,10 @@ final class AppCoordinator {
 
     // MARK: - AppStorage
 
-    var undoDuration: Int = UserDefaults.standard.integer(forKey: UserDefaultsKey.undoDuration).nonZeroOr(5) {
+    var undoDuration: Int = { let v = UserDefaults.standard.integer(forKey: UserDefaultsKey.undoDuration); return v != 0 ? v : 5 }() {
         didSet { UserDefaults.standard.set(undoDuration, forKey: UserDefaultsKey.undoDuration) }
     }
-    var refreshInterval: Int = UserDefaults.standard.integer(forKey: UserDefaultsKey.refreshInterval).nonZeroOr(120) {
+    var refreshInterval: Int = { let v = UserDefaults.standard.integer(forKey: UserDefaultsKey.refreshInterval); return v != 0 ? v : 120 }() {
         didSet { UserDefaults.standard.set(refreshInterval, forKey: UserDefaultsKey.refreshInterval) }
     }
 
