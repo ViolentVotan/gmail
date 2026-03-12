@@ -12,6 +12,21 @@ struct LabelEditorView: View {
     @State private var isLabelFieldFocused = false
     @State private var highlightedIndex: Int = 0
 
+    /// Comma-separated label IDs that the user has dismissed from suggestions.
+    @AppStorage("dismissedLabelSuggestions") private var dismissedLabelSuggestionsRaw = ""
+
+    /// The set of label IDs the user has dismissed so they are not re-shown.
+    private var dismissedLabelSuggestions: Set<String> {
+        Set(dismissedLabelSuggestionsRaw.split(separator: ",").map(String.init))
+    }
+
+    /// Records a label suggestion dismissal so it is excluded from future suggestions.
+    func dismissSuggestion(labelID: String) {
+        var ids = dismissedLabelSuggestions
+        ids.insert(labelID)
+        dismissedLabelSuggestionsRaw = ids.joined(separator: ",")
+    }
+
     private var currentUserLabels: [GmailLabel] {
         let ids = Set(currentLabelIDs)
         return allLabels.filter { !$0.isSystemLabel && ids.contains($0.id) }
