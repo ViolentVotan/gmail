@@ -37,7 +37,7 @@ final class EmailActionCoordinator {
         if email.isDraft {
             if let gid = email.gmailDraftID {
                 let accountID = mailboxViewModel.accountID
-                Task { try? await GmailSendService.shared.deleteDraft(draftID: gid, accountID: accountID) }
+                Task { try? await GmailDraftService.shared.deleteDraft(draftID: gid, accountID: accountID) }
             }
             mailStore.deleteDraft(id: email.id)
             selectNext(nil)

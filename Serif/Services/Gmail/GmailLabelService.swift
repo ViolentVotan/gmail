@@ -3,10 +3,11 @@ import Foundation
 @MainActor
 final class GmailLabelService {
     static let shared = GmailLabelService()
+    private let client = GmailAPIClient.shared
     private init() {}
 
     @concurrent func listLabels(accountID: String) async throws(GmailAPIError) -> [GmailLabel] {
-        let response: GmailLabelListResponse = try await GmailAPIClient.shared.request(
+        let response: GmailLabelListResponse = try await client.request(
             path: "/users/me/labels",
             fields: "labels(id,name,type,messagesTotal,messagesUnread,threadsTotal,threadsUnread,color,labelListVisibility,messageListVisibility)",
             accountID: accountID
@@ -15,7 +16,7 @@ final class GmailLabelService {
     }
 
     @concurrent func getLabel(id: String, accountID: String) async throws(GmailAPIError) -> GmailLabel {
-        return try await GmailAPIClient.shared.request(
+        return try await client.request(
             path: "/users/me/labels/\(id)",
             accountID: accountID
         )
@@ -29,7 +30,7 @@ final class GmailLabelService {
         } catch {
             throw .encodingError(error)
         }
-        return try await GmailAPIClient.shared.request(
+        return try await client.request(
             path: "/users/me/labels/\(id)",
             method: "PATCH", body: body, contentType: "application/json",
             accountID: accountID
@@ -37,7 +38,7 @@ final class GmailLabelService {
     }
 
     @concurrent func deleteLabel(id: String, accountID: String) async throws(GmailAPIError) {
-        _ = try await GmailAPIClient.shared.rawRequest(
+        _ = try await client.rawRequest(
             path: "/users/me/labels/\(id)",
             method: "DELETE",
             accountID: accountID
@@ -58,7 +59,7 @@ final class GmailLabelService {
         } catch {
             throw .encodingError(error)
         }
-        return try await GmailAPIClient.shared.request(
+        return try await client.request(
             path: "/users/me/labels",
             method: "POST", body: body, contentType: "application/json",
             accountID: accountID

@@ -3,12 +3,13 @@ import Foundation
 @MainActor
 final class GmailProfileService {
     static let shared = GmailProfileService()
+    private let client = GmailAPIClient.shared
     private init() {}
 
     // MARK: - Gmail Profile
 
     @concurrent func getProfile(accountID: String) async throws(GmailAPIError) -> GmailProfile {
-        try await GmailAPIClient.shared.request(
+        try await client.request(
             path: "/users/me/profile",
             accountID: accountID
         )
@@ -49,7 +50,7 @@ final class GmailProfileService {
 
     /// Returns all SendAs aliases for the account.
     @concurrent func listSendAs(accountID: String) async throws(GmailAPIError) -> [GmailSendAs] {
-        let response: GmailSendAsListResponse = try await GmailAPIClient.shared.request(
+        let response: GmailSendAsListResponse = try await client.request(
             path: "/users/me/settings/sendAs",
             fields: "sendAs(sendAsEmail,displayName,signature,isDefault,isPrimary)",
             accountID: accountID
@@ -67,7 +68,7 @@ final class GmailProfileService {
         } catch {
             throw .encodingError(error)
         }
-        return try await GmailAPIClient.shared.request(
+        return try await client.request(
             path: GmailPathBuilder.sendAsPath(sendAsEmail),
             method: "PUT", body: body, contentType: "application/json",
             accountID: accountID

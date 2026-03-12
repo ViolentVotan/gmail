@@ -26,6 +26,24 @@ final class PeopleAPIService {
         await fetchAndStoreContacts(accountID: accountID)
     }
 
+    /// Extracts StoredContacts from a PersonResource array, updating the photo cache.
+    private func parseContacts(from persons: [PersonResource]) -> [StoredContact] {
+        var contacts: [StoredContact] = []
+        for person in persons {
+            let displayName = person.names?.first?.displayName ?? ""
+            let photoURL = person.photos?.first(where: { $0.default != true })?.url
+            for addr in person.emailAddresses ?? [] {
+                guard let email = addr.value, !email.isEmpty else { continue }
+                let lowered = email.lowercased()
+                if let url = photoURL {
+                    ContactPhotoCache.shared.set(url, for: lowered)
+                }
+                contacts.append(StoredContact(name: displayName, email: lowered, photoURL: photoURL))
+            }
+        }
+        return contacts
+    }
+
     /// Fetches contacts from People API and persists them.
     /// Uses sync tokens for incremental updates when available.
     private func fetchAndStoreContacts(accountID: String) async {
@@ -38,34 +56,28 @@ final class PeopleAPIService {
             var needsFullFetch = syncToken == nil
 
             if let syncToken, !needsFullFetch {
-                // Incremental sync — only changed contacts since last sync
                 allContacts = ContactStore.shared.contacts(for: accountID)
                 do {
-                    let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(
-                        "https://people.googleapis.com/v1/people/me/connections"
-                        + "?personFields=names,emailAddresses,photos&syncToken=\(syncToken)",
-                        accountID: accountID
-                    )
-                    for person in response.connections ?? [] {
-                        let displayName = person.names?.first?.displayName ?? ""
-                        let photoURL = person.photos?.first(where: { $0.default != true })?.url
-                        for addr in person.emailAddresses ?? [] {
-                            guard let email = addr.value, !email.isEmpty else { continue }
-                            let lowered = email.lowercased()
-                            if let idx = allContacts.firstIndex(where: { $0.email == lowered }) {
-                                allContacts[idx] = StoredContact(name: displayName, email: lowered, photoURL: photoURL)
+                    var incPageToken: String? = nil
+                    repeat {
+                        var urlStr = "https://people.googleapis.com/v1/people/me/connections"
+                            + "?personFields=names,emailAddresses,photos&syncToken=\(syncToken)"
+                            + "&pageSize=1000"
+                        if let pt = incPageToken { urlStr += "&pageToken=\(pt)" }
+                        let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
+                        let parsed = parseContacts(from: response.connections ?? [])
+                        for contact in parsed {
+                            if let idx = allContacts.firstIndex(where: { $0.email == contact.email }) {
+                                allContacts[idx] = contact
                             } else {
-                                allContacts.append(StoredContact(name: displayName, email: lowered, photoURL: photoURL))
-                            }
-                            if let url = photoURL {
-                                ContactPhotoCache.shared.set(url, for: lowered)
+                                allContacts.append(contact)
                             }
                         }
-                    }
-                    newSyncToken = response.nextSyncToken
-                    print("[Serif] Incremental sync: \(response.connections?.count ?? 0) changed contacts")
+                        incPageToken = response.nextPageToken
+                        newSyncToken = response.nextSyncToken ?? newSyncToken
+                    } while incPageToken != nil
+                    print("[Serif] Incremental sync completed")
                 } catch {
-                    // 410 GONE means sync token expired — fall through to full re-fetch
                     let isGone = if case GmailAPIError.httpError(410, _) = error { true } else { false }
                     if isGone {
                         print("[Serif] Sync token expired, performing full re-fetch")
@@ -88,17 +100,7 @@ final class PeopleAPIService {
                         + "&requestSyncToken=true"
                     if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
                     let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
-                    for person in response.connections ?? [] {
-                        let displayName = person.names?.first?.displayName ?? ""
-                        let photoURL = person.photos?.first(where: { $0.default != true })?.url
-                        for addr in person.emailAddresses ?? [] {
-                            guard let email = addr.value, !email.isEmpty else { continue }
-                            if let url = photoURL {
-                                ContactPhotoCache.shared.set(url, for: email)
-                            }
-                            allContacts.append(StoredContact(name: displayName, email: email.lowercased(), photoURL: photoURL))
-                        }
-                    }
+                    allContacts.append(contentsOf: parseContacts(from: response.connections ?? []))
                     pageToken = response.nextPageToken
                     newSyncToken = response.nextSyncToken ?? newSyncToken
                 } while pageToken != nil
@@ -121,13 +123,7 @@ final class PeopleAPIService {
                 if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
                 let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
                 let beforeCount = allContacts.count
-                for person in response.otherContacts ?? [] {
-                    let displayName = person.names?.first?.displayName ?? ""
-                    for addr in person.emailAddresses ?? [] {
-                        guard let email = addr.value, !email.isEmpty else { continue }
-                        allContacts.append(StoredContact(name: displayName, email: email.lowercased()))
-                    }
-                }
+                allContacts.append(contentsOf: parseContacts(from: response.otherContacts ?? []))
                 print("[Serif] Loaded \(allContacts.count - beforeCount) from Other Contacts page")
                 pageToken = response.nextPageToken
             } while pageToken != nil

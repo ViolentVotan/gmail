@@ -73,7 +73,7 @@ final class ComposeViewModel {
                 accountID:          accountID
             )
             if let draftID = gmailDraftID {
-                try? await GmailSendService.shared.deleteDraft(draftID: draftID, accountID: accountID)
+                try? await GmailDraftService.shared.deleteDraft(draftID: draftID, accountID: accountID)
             }
             isSent = true
         } catch {
@@ -119,7 +119,7 @@ final class ComposeViewModel {
                 let allImages = extractedImages + inlineImages
 
                 if let draftID = gmailDraftID {
-                    let draft = try await GmailSendService.shared.updateDraft(
+                    let draft = try await GmailDraftService.shared.updateDraft(
                         draftID:      draftID,
                         from:         fromAddress,
                         to:           splitAddresses(to),
@@ -133,7 +133,7 @@ final class ComposeViewModel {
                     guard !Task.isCancelled else { return }
                     gmailDraftID = draft.id
                 } else {
-                    let draft = try await GmailSendService.shared.createDraft(
+                    let draft = try await GmailDraftService.shared.createDraft(
                         from:         fromAddress,
                         to:           splitAddresses(to),
                         cc:           splitAddresses(cc),
@@ -160,7 +160,7 @@ final class ComposeViewModel {
         saveDraftTask?.cancel()
         saveDraftTask = nil
         guard let draftID = gmailDraftID else { return }
-        try? await GmailSendService.shared.deleteDraft(draftID: draftID, accountID: accountID)
+        try? await GmailDraftService.shared.deleteDraft(draftID: draftID, accountID: accountID)
         gmailDraftID = nil
     }
 

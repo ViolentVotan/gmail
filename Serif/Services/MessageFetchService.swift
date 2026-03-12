@@ -269,18 +269,28 @@ final class MessageFetchService {
         accountID: String,
         api: MessageFetching
     ) async -> [String: GmailMessage] {
-        await withTaskGroup(of: (String, GmailMessage?).self) { group in
-            for id in ids {
-                group.addTask {
-                    let msg = try? await api.getMessage(id: id, accountID: accountID, format: "minimal")
-                    return (id, msg)
-                }
-            }
+        guard !ids.isEmpty else { return [:] }
+        // Prefer batch API for efficiency (single HTTP call vs N)
+        do {
+            let messages = try await api.getMessages(ids: ids, accountID: accountID, format: "minimal")
             var result: [String: GmailMessage] = [:]
-            for await (id, msg) in group {
-                if let msg { result[id] = msg }
-            }
+            for msg in messages { result[msg.id] = msg }
             return result
+        } catch {
+            // Fall back to individual fetches if batch fails
+            return await withTaskGroup(of: (String, GmailMessage?).self) { group in
+                for id in ids {
+                    group.addTask {
+                        let msg = try? await api.getMessage(id: id, accountID: accountID, format: "minimal")
+                        return (id, msg)
+                    }
+                }
+                var result: [String: GmailMessage] = [:]
+                for await (id, msg) in group {
+                    if let msg { result[id] = msg }
+                }
+                return result
+            }
         }
     }
 

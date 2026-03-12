@@ -61,6 +61,66 @@ final class GmailDraftService {
         )
     }
 
+    // MARK: - Draft mutations
+
+    func createDraft(
+        from: String, to: [String], cc: [String] = [],
+        subject: String, body: String, isHTML: Bool = false,
+        inlineImages: [InlineImageAttachment] = [],
+        accountID: String
+    ) async throws(GmailAPIError) -> GmailDraft {
+        let raw = try GmailSendService.shared.buildRawMessage(
+            from: from, to: to, cc: cc,
+            subject: subject, body: body, isHTML: isHTML,
+            inlineImages: inlineImages
+        )
+        let payload: [String: Any] = ["message": ["raw": raw]]
+        let encoded: Data
+        do {
+            encoded = try JSONSerialization.data(withJSONObject: payload)
+        } catch {
+            throw .encodingError(error)
+        }
+        return try await client.request(
+            path: "/users/me/drafts",
+            method: "POST", body: encoded, contentType: "application/json",
+            accountID: accountID
+        )
+    }
+
+    func updateDraft(
+        draftID: String, from: String, to: [String], cc: [String] = [],
+        subject: String, body: String, isHTML: Bool = false,
+        inlineImages: [InlineImageAttachment] = [],
+        accountID: String
+    ) async throws(GmailAPIError) -> GmailDraft {
+        let raw = try GmailSendService.shared.buildRawMessage(
+            from: from, to: to, cc: cc,
+            subject: subject, body: body, isHTML: isHTML,
+            inlineImages: inlineImages
+        )
+        let payload: [String: Any] = ["message": ["raw": raw]]
+        let encoded: Data
+        do {
+            encoded = try JSONSerialization.data(withJSONObject: payload)
+        } catch {
+            throw .encodingError(error)
+        }
+        return try await client.request(
+            path: "/users/me/drafts/\(draftID)",
+            method: "PUT", body: encoded, contentType: "application/json",
+            accountID: accountID
+        )
+    }
+
+    @concurrent func deleteDraft(draftID: String, accountID: String) async throws(GmailAPIError) {
+        _ = try await client.rawRequest(
+            path: "/users/me/drafts/\(draftID)",
+            method: "DELETE",
+            accountID: accountID
+        )
+    }
+
     // MARK: - Batch fetch
 
     /// Fetches a batch of drafts using Gmail's batch API (up to 50 per request).

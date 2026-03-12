@@ -53,82 +53,27 @@ final class GmailSendService {
         )
     }
 
-    // MARK: - Drafts
+    // MARK: - MIME Building (used by GmailDraftService)
 
-    @concurrent func createDraft(
-        from: String,
-        to: [String],
-        cc: [String] = [],
-        subject: String,
-        body: String,
-        isHTML: Bool = false,
+    /// Builds a base64url-encoded RFC 2822 message. Used by GmailDraftService for draft payloads.
+    nonisolated func buildRawMessage(
+        from: String, to: [String], cc: [String], bcc: [String] = [],
+        subject: String, body: String, isHTML: Bool,
+        referencesHeader: String? = nil,
         inlineImages: [InlineImageAttachment] = [],
-        accountID: String
-    ) async throws(GmailAPIError) -> GmailDraft {
-        let encoded = try buildDraftPayload(
-            from: from, to: to, cc: cc, subject: subject,
-            body: body, isHTML: isHTML, inlineImages: inlineImages
-        )
-        return try await GmailAPIClient.shared.request(
-            path: "/users/me/drafts",
-            method: "POST", body: encoded, contentType: "application/json",
-            accountID: accountID
-        )
-    }
-
-    @concurrent func updateDraft(
-        draftID: String,
-        from: String,
-        to: [String],
-        cc: [String] = [],
-        subject: String,
-        body: String,
-        isHTML: Bool = false,
-        inlineImages: [InlineImageAttachment] = [],
-        accountID: String
-    ) async throws(GmailAPIError) -> GmailDraft {
-        let encoded = try buildDraftPayload(
-            from: from, to: to, cc: cc, subject: subject,
-            body: body, isHTML: isHTML, inlineImages: inlineImages
-        )
-        return try await GmailAPIClient.shared.request(
-            path: "/users/me/drafts/\(draftID)",
-            method: "PUT", body: encoded, contentType: "application/json",
-            accountID: accountID
-        )
-    }
-
-    nonisolated private func buildDraftPayload(
-        from: String,
-        to: [String],
-        cc: [String],
-        subject: String,
-        body: String,
-        isHTML: Bool,
-        inlineImages: [InlineImageAttachment]
-    ) throws(GmailAPIError) -> Data {
-        let raw: String
-        if !inlineImages.isEmpty {
-            raw = try buildRawMultipart(from: from, to: to, cc: cc, bcc: [],
-                                    subject: subject, body: body, isHTML: isHTML,
-                                    inlineImages: inlineImages, attachments: [])
-        } else {
-            raw = buildRaw(from: from, to: to, cc: cc, bcc: [], subject: subject, body: body, isHTML: isHTML)
+        attachments: [URL] = []
+    ) throws(GmailAPIError) -> String {
+        if !attachments.isEmpty || !inlineImages.isEmpty {
+            return try buildRawMultipart(
+                from: from, to: to, cc: cc, bcc: bcc,
+                subject: subject, body: body, isHTML: isHTML,
+                referencesHeader: referencesHeader,
+                inlineImages: inlineImages, attachments: attachments
+            )
         }
-        let payload: [String: Any] = ["message": ["raw": raw]]
-        do {
-            return try JSONSerialization.data(withJSONObject: payload)
-        } catch {
-            throw .encodingError(error)
-        }
-    }
-
-    @concurrent func deleteDraft(draftID: String, accountID: String) async throws(GmailAPIError) {
-        _ = try await GmailAPIClient.shared.rawRequest(
-            path: "/users/me/drafts/\(draftID)",
-            method: "DELETE",
-            accountID: accountID
-        )
+        return buildRaw(from: from, to: to, cc: cc, bcc: bcc,
+                        subject: subject, body: body, isHTML: isHTML,
+                        referencesHeader: referencesHeader)
     }
 
     // MARK: - RFC 2822 Builder (plain / HTML)

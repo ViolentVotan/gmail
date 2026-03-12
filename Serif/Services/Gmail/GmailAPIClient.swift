@@ -95,8 +95,6 @@ final class GmailAPIClient {
     }
 
     /// Generic batch fetch: chunks IDs into batches of 50, decodes each successful response.
-    /// Callers provide a `pathBuilder` closure to construct the per-item GET path.
-    /// Generic batch fetch: chunks IDs into batches of 50, decodes each successful response.
     /// `pathBuilder` must return full API paths starting with `/gmail/v1/...` (not relative to baseURL).
     func batchFetch<T: Decodable>(
         ids: [String],
@@ -162,7 +160,7 @@ final class GmailAPIClient {
         return data
     }
 
-    /// Executes batch HTTP call off the main actor. Mirrors the `perform()` pattern.
+    /// Executes batch HTTP call off the main actor with retry logic matching `perform()`.
     @concurrent private func performBatch(
         requests: [(id: String, method: String, path: String, body: Data?)],
         accessToken: String
@@ -189,34 +187,45 @@ final class GmailAPIClient {
         guard let bodyData = fullBody.data(using: .utf8) else { throw .encodingError(URLError(.cannotParseResponse)) }
 
         guard let url = URL(string: "https://www.googleapis.com/batch/gmail/v1") else { throw .invalidURL }
-        var urlRequest = URLRequest(url: url)
-        urlRequest.httpMethod = "POST"
-        urlRequest.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        urlRequest.setValue("multipart/mixed; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
-        urlRequest.httpBody = bodyData
 
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await URLSession.shared.data(for: urlRequest)
-        } catch {
-            throw .networkError(error)
-        }
-        guard let http = response as? HTTPURLResponse else {
-            throw .invalidURL
-        }
-        if http.statusCode == 401 { throw .unauthorized }
-        guard (200...299).contains(http.statusCode) else {
-            throw .httpError(http.statusCode, data)
-        }
+        for attempt in 0...RetryPolicy.maxRetries {
+            var urlRequest = URLRequest(url: url)
+            urlRequest.httpMethod = "POST"
+            urlRequest.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+            urlRequest.setValue("multipart/mixed; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+            urlRequest.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+            urlRequest.httpBody = bodyData
 
-        guard let contentType = http.value(forHTTPHeaderField: "Content-Type"),
-              let responseBoundary = contentType.components(separatedBy: "boundary=").last?.trimmingCharacters(in: .whitespaces) else {
-            throw .decodingError(URLError(.cannotParseResponse))
-        }
+            let data: Data
+            let response: URLResponse
+            do {
+                (data, response) = try await URLSession.shared.data(for: urlRequest)
+            } catch {
+                throw .networkError(error)
+            }
+            guard let http = response as? HTTPURLResponse else {
+                throw .invalidURL
+            }
 
-        return try Self.parseBatchResponse(data: data, boundary: responseBoundary)
+            switch http.statusCode {
+            case 200...299:
+                guard let contentType = http.value(forHTTPHeaderField: "Content-Type"),
+                      let responseBoundary = contentType.components(separatedBy: "boundary=").last?.trimmingCharacters(in: .whitespaces) else {
+                    throw .decodingError(URLError(.cannotParseResponse))
+                }
+                return try Self.parseBatchResponse(data: data, boundary: responseBoundary)
+            case 401:
+                throw .unauthorized
+            default:
+                if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
+                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
+                    continue
+                }
+                throw .httpError(http.statusCode, data)
+            }
+        }
+        throw .httpError(0, Data())
     }
 
     nonisolated private static func parseBatchResponse(data: Data, boundary: String) throws(GmailAPIError) -> [(id: String, statusCode: Int, data: Data)] {
@@ -268,12 +277,20 @@ final class GmailAPIClient {
         } catch {
             throw .networkError(error)
         }
-        guard let token else {
-            throw .unauthorized
-        }
+        guard let token else { throw .unauthorized }
         guard token.isExpired else { return token }
+        return try await performRefresh(for: accountID)
+    }
 
-        // Coalesce concurrent refresh calls per account
+    /// Forces a token refresh (invalidates cached token). Used for 401 auto-retry.
+    private func refreshAndRetry(accountID: String) async throws(GmailAPIError) -> AuthToken {
+        refreshTasks[accountID] = nil
+        return try await performRefresh(for: accountID)
+    }
+
+    /// Creates (or reuses) a refresh task for the given account and awaits it.
+    /// Coalesces concurrent refresh calls — only one network request per account at a time.
+    private func performRefresh(for accountID: String) async throws(GmailAPIError) -> AuthToken {
         if let existing = refreshTasks[accountID] {
             do {
                 return try await existing.value
@@ -284,6 +301,13 @@ final class GmailAPIClient {
 
         let task = Task<AuthToken, Error> {
             defer { self.refreshTasks[accountID] = nil }
+            let token: AuthToken?
+            do {
+                token = try TokenStore.shared.retrieve(for: accountID)
+            } catch {
+                throw GmailAPIError.networkError(error)
+            }
+            guard let token else { throw GmailAPIError.unauthorized }
             let fresh = try await OAuthService.shared.refreshToken(token)
             try TokenStore.shared.save(fresh, for: accountID)
             return fresh
@@ -293,30 +317,6 @@ final class GmailAPIClient {
             return try await task.value
         } catch {
             throw .wrap(error)
-        }
-    }
-
-    /// Forces a token refresh (invalidates cached token). Used for 401 auto-retry.
-    private func refreshAndRetry(accountID: String) async throws(GmailAPIError) -> AuthToken {
-        refreshTasks[accountID] = nil
-        let token: AuthToken?
-        do {
-            token = try TokenStore.shared.retrieve(for: accountID)
-        } catch {
-            throw .networkError(error)
-        }
-        guard let token else { throw .unauthorized }
-        let task = Task<AuthToken, Error> {
-            defer { self.refreshTasks[accountID] = nil }
-            let fresh = try await OAuthService.shared.refreshToken(token)
-            try TokenStore.shared.save(fresh, for: accountID)
-            return fresh
-        }
-        refreshTasks[accountID] = task
-        do {
-            return try await task.value
-        } catch {
-            throw GmailAPIError.wrap(error)
         }
     }
 
@@ -476,7 +476,7 @@ enum RetryPolicy {
 
     static func isRetriable(statusCode: Int) -> Bool {
         switch statusCode {
-        case 429, 500, 503: return true
+        case 429, 500, 502, 503, 504: return true
         default: return false
         }
     }
