@@ -247,7 +247,7 @@ Note: `.isSelected` indicates the currently focused/chosen row, not read state. 
 **Toast views:**
 ```swift
 .accessibilityAddTraits(.isStatusElement)
-.accessibilityAnnouncement(message) // announce on appear
+.onAppear { AccessibilityNotification.Announcement(message).post() }
 ```
 
 **General patterns:**
@@ -311,7 +311,7 @@ This gives us: system haptics, Liquid Glass swipe appearance, VoiceOver support,
 - **Scroll-disable lock** via `scrollDisabled(swipeCoordinator.isSwipeActive)` → Remove (system swipe handles this)
 - **Keyboard navigation** via `onKeyPress` for up/down/enter → `List(selection:)` provides this natively
 - **Infinite scroll** via `Color.clear.onAppear` sentinel at bottom → Keep as `.onAppear` on the last row, or use `List` with `.task` modifier
-- **Multi-select** with shift-click anchor logic → `List(selection: $selectedIDs)` with `.listSelectionGesture(.multipleItems)` on macOS
+- **Multi-select** with shift-click anchor logic → `List(selection: $selectedIDs)` where `selectedIDs` is `Set<String>` — multi-select is automatic, no additional modifier needed
 - **Sort ordering** with debounced search → Stays as-is (data source logic, not view concern)
 - **Custom row spacing** (2pt) → `.listRowSpacing(2)` or `.listStyle(.plain)` with row insets
 
