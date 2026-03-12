@@ -39,9 +39,7 @@ struct EmailEntity: IndexedEntity {
 
 struct EmailEntityQuery: EntityStringQuery {
     func entities(matching string: String) async throws -> [EmailEntity] {
-        let messages = await MainActor.run {
-            allCachedMessages()
-        }
+        let messages = await allCachedMessages()
         let lower = string.lowercased()
         return messages.filter {
             $0.subject.lowercased().contains(lower) || $0.senderName.lowercased().contains(lower)
@@ -49,28 +47,24 @@ struct EmailEntityQuery: EntityStringQuery {
     }
 
     func entities(for identifiers: [String]) async throws -> [EmailEntity] {
-        let messages = await MainActor.run {
-            allCachedMessages()
-        }
+        let messages = await allCachedMessages()
         let idSet = Set(identifiers)
         return messages.filter { idSet.contains($0.id) }
     }
 
     func suggestedEntities() async throws -> [EmailEntity] {
-        return await MainActor.run {
-            Array(allCachedMessages().prefix(20))
-        }
+        return await Array(allCachedMessages().prefix(20))
     }
 
     // MARK: - Private
 
     @MainActor
-    private func allCachedMessages() -> [EmailEntity] {
+    private func allCachedMessages() async -> [EmailEntity] {
         let accounts = AccountStore.shared.accounts
         var entities: [EmailEntity] = []
         for account in accounts {
             let inboxKey = MailCacheStore.folderKey(labelIDs: ["INBOX"], query: nil)
-            let cache = MailCacheStore.shared.loadFolderCache(accountID: account.id, folderKey: inboxKey)
+            let cache = await MailCacheStore.shared.loadFolderCache(accountID: account.id, folderKey: inboxKey)
             for message in cache.messages {
                 let dateMs = Double(message.internalDate ?? "0") ?? 0
                 let date = Date(timeIntervalSince1970: dateMs / 1000)

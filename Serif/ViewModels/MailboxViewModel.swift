@@ -185,7 +185,7 @@ final class MailboxViewModel {
         error         = nil
         fetchService.resetState()
         // Load disk cache for default folder (paginated)
-        let cached = fetchService.loadCacheForAccountSwitch(
+        let cached = await fetchService.loadCacheForAccountSwitch(
             accountID: id,
             currentLabelIDs: currentLabelIDs,
             currentQuery: currentQuery
@@ -532,7 +532,7 @@ final class MailboxViewModel {
 
         // ── Local-first: load from disk cache and paginate locally ──
         if reset {
-            let (firstPage, hasCached) = fetchService.loadDiskCache(accountID: accountID, folderKey: folderKey, filterLabelIDs: currentLabelIDs)
+            let (firstPage, hasCached) = await fetchService.loadDiskCache(accountID: accountID, folderKey: folderKey, filterLabelIDs: currentLabelIDs)
             if hasCached {
                 if clearFirst || messages.isEmpty {
                     messages = firstPage

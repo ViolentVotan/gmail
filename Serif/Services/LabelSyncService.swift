@@ -18,7 +18,7 @@ final class LabelSyncService {
     ) async -> (labels: [GmailLabel], error: String?) {
         var labels = currentLabels
         // Load from disk cache first
-        let cached = cache.loadLabels(accountID: accountID)
+        let cached = await cache.loadLabels(accountID: accountID)
         if !cached.isEmpty && labels.isEmpty {
             labels = cached
         }

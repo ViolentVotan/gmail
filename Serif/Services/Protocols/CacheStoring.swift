@@ -5,19 +5,19 @@ import Foundation
 @MainActor
 protocol CacheStoring {
     // MARK: - Folder cache (messages + pagination metadata)
-    func loadFolderCache(accountID: String, folderKey: String) -> FolderCache
+    func loadFolderCache(accountID: String, folderKey: String) async -> FolderCache
     func saveFolderCache(_ cache: FolderCache, accountID: String, folderKey: String)
 
     // MARK: - Legacy message accessors
-    func load(accountID: String, folderKey: String) -> [GmailMessage]
+    func load(accountID: String, folderKey: String) async -> [GmailMessage]
     func save(_ messages: [GmailMessage], accountID: String, folderKey: String)
 
     // MARK: - Labels
-    func loadLabels(accountID: String) -> [GmailLabel]
+    func loadLabels(accountID: String) async -> [GmailLabel]
     func saveLabels(_ labels: [GmailLabel], accountID: String)
 
     // MARK: - Threads
-    func loadThread(accountID: String, threadID: String) -> GmailThread?
+    func loadThread(accountID: String, threadID: String) async -> GmailThread?
     func saveThread(_ thread: GmailThread, accountID: String)
 
     // MARK: - Account deletion
@@ -27,7 +27,7 @@ protocol CacheStoring {
     func saveTags(_ tags: EmailTags, for messageId: String, accountID: String)
     func saveTagsBatch(_ batch: [(messageId: String, tags: EmailTags)], accountID: String)
     func loadTags(for messageId: String) -> EmailTags?
-    func loadTagsFromDisk(accountID: String)
+    func loadTagsFromDisk(accountID: String) async
 }
 
 // MARK: - MailCacheStore conformance

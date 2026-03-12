@@ -32,6 +32,22 @@ final class MailCacheStore {
         return accountDir.appendingPathComponent("\(safe).json")
     }
 
+    /// Computes file URL without creating directories — safe to call from any isolation domain.
+    nonisolated private func readFileURL(accountID: String, folderKey: String) -> URL {
+        let safe = folderKey.replacingOccurrences(of: "/", with: "_")
+        return baseDir
+            .appendingPathComponent(accountID, isDirectory: true)
+            .appendingPathComponent("\(safe).json")
+    }
+
+    /// Computes thread file URL without creating directories.
+    nonisolated private func readThreadURL(accountID: String, threadID: String) -> URL {
+        baseDir
+            .appendingPathComponent(accountID, isDirectory: true)
+            .appendingPathComponent("threads", isDirectory: true)
+            .appendingPathComponent("\(threadID).json")
+    }
+
     /// Builds a stable cache key from label IDs and optional query.
     static func folderKey(labelIDs: [String], query: String?) -> String {
         let base = labelIDs.sorted().joined(separator: "+")
@@ -44,14 +60,12 @@ final class MailCacheStore {
 
     // MARK: - Messages (FolderCache — with pagination metadata)
 
-    func loadFolderCache(accountID: String, folderKey: String) -> FolderCache {
-        let url = fileURL(accountID: accountID, folderKey: folderKey)
+    @concurrent func loadFolderCache(accountID: String, folderKey: String) async -> FolderCache {
+        let url = readFileURL(accountID: accountID, folderKey: folderKey)
         guard let data = try? Data(contentsOf: url) else { return FolderCache(messages: []) }
-        // Try new FolderCache format first
         if let cache = try? JSONDecoder().decode(FolderCache.self, from: data) {
             return cache
         }
-        // Backward compat: old format was plain [GmailMessage]
         if let messages = try? JSONDecoder().decode([GmailMessage].self, from: data) {
             return FolderCache(messages: messages)
         }
@@ -68,8 +82,8 @@ final class MailCacheStore {
 
     // MARK: - Messages (legacy — used by switchAccount and other non-folder code)
 
-    func load(accountID: String, folderKey: String) -> [GmailMessage] {
-        loadFolderCache(accountID: accountID, folderKey: folderKey).messages
+    @concurrent func load(accountID: String, folderKey: String) async -> [GmailMessage] {
+        await loadFolderCache(accountID: accountID, folderKey: folderKey).messages
     }
 
     func save(_ messages: [GmailMessage], accountID: String, folderKey: String) {
@@ -82,8 +96,8 @@ final class MailCacheStore {
 
     // MARK: - Labels
 
-    func loadLabels(accountID: String) -> [GmailLabel] {
-        let url = fileURL(accountID: accountID, folderKey: "_labels")
+    @concurrent func loadLabels(accountID: String) async -> [GmailLabel] {
+        let url = readFileURL(accountID: accountID, folderKey: "_labels")
         guard let data = try? Data(contentsOf: url),
               let labels = try? JSONDecoder().decode([GmailLabel].self, from: data)
         else { return [] }
@@ -111,8 +125,8 @@ final class MailCacheStore {
         return dir.appendingPathComponent("\(threadID).json")
     }
 
-    func loadThread(accountID: String, threadID: String) -> GmailThread? {
-        let url = threadURL(accountID: accountID, threadID: threadID)
+    @concurrent func loadThread(accountID: String, threadID: String) async -> GmailThread? {
+        let url = readThreadURL(accountID: accountID, threadID: threadID)
         guard let data = try? Data(contentsOf: url),
               let thread = try? JSONDecoder().decode(GmailThread.self, from: data)
         else { return nil }
@@ -154,12 +168,19 @@ final class MailCacheStore {
         tagStore[messageId]
     }
 
-    func loadTagsFromDisk(accountID: String) {
-        let url = fileURL(accountID: accountID, folderKey: "_tags")
+    func loadTagsFromDisk(accountID: String) async {
+        let tags = await readTagsFromDisk(accountID: accountID)
+        if let tags {
+            tagStore.merge(tags) { _, new in new }
+        }
+    }
+
+    @concurrent private func readTagsFromDisk(accountID: String) async -> [String: EmailTags]? {
+        let url = readFileURL(accountID: accountID, folderKey: "_tags")
         guard let data = try? Data(contentsOf: url),
               let tags = try? JSONDecoder().decode([String: EmailTags].self, from: data)
-        else { return }
-        tagStore.merge(tags) { _, new in new }
+        else { return nil }
+        return tags
     }
 
     /// Debounces tag saves: waits 500ms for additional writes before flushing to disk.

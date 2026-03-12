@@ -68,7 +68,7 @@ final class MessageFetchService {
         Task.isCancelled || generation != fetchGeneration
     }
 
-    // MARK: - Cache loading (synchronous, for local-first display)
+    // MARK: - Cache loading (async, runs disk I/O off main actor)
 
     /// Loads the disk cache for a folder and returns the first page for display.
     /// Updates internal cache state (allCachedMessages, savedPageToken, localOffset).
@@ -78,8 +78,8 @@ final class MessageFetchService {
         accountID: String,
         folderKey: String,
         filterLabelIDs: [String] = []
-    ) -> (firstPage: [GmailMessage], hasCachedMessages: Bool) {
-        let diskCache = cache.loadFolderCache(accountID: accountID, folderKey: folderKey)
+    ) async -> (firstPage: [GmailMessage], hasCachedMessages: Bool) {
+        let diskCache = await cache.loadFolderCache(accountID: accountID, folderKey: folderKey)
         // Deduplicate by message ID and filter out stale labels
         let labelSet = Set(filterLabelIDs)
         var seen = Set<String>()
@@ -328,9 +328,9 @@ final class MessageFetchService {
         accountID: String,
         currentLabelIDs: [String],
         currentQuery: String?
-    ) -> [GmailMessage] {
+    ) async -> [GmailMessage] {
         let folderKey = MailCacheStore.folderKey(labelIDs: currentLabelIDs, query: currentQuery)
-        let (firstPage, hasCached) = loadDiskCache(
+        let (firstPage, hasCached) = await loadDiskCache(
             accountID: accountID,
             folderKey: folderKey,
             filterLabelIDs: currentLabelIDs

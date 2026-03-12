@@ -11,23 +11,22 @@ struct MarkAsReadIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         let messageId = email.id
         // Find which account owns this message by scanning caches
-        let accountID: String? = await MainActor.run {
-            for account in AccountStore.shared.accounts {
-                let key = MailCacheStore.folderKey(labelIDs: ["INBOX"], query: nil)
-                let cache = MailCacheStore.shared.loadFolderCache(accountID: account.id, folderKey: key)
-                if cache.messages.contains(where: { $0.id == messageId }) {
-                    return account.id
-                }
-            }
-            return nil
-        }
+        let accountID = await findOwnerAccount(for: messageId)
         if let accountID {
-            await MainActor.run {
-                Task {
-                    try? await GmailMessageService.shared.markAsRead(id: messageId, accountID: accountID)
-                }
-            }
+            try? await GmailMessageService.shared.markAsRead(id: messageId, accountID: accountID)
         }
         return .result()
+    }
+
+    @MainActor
+    private func findOwnerAccount(for messageId: String) async -> String? {
+        for account in AccountStore.shared.accounts {
+            let key = MailCacheStore.folderKey(labelIDs: ["INBOX"], query: nil)
+            let cache = await MailCacheStore.shared.loadFolderCache(accountID: account.id, folderKey: key)
+            if cache.messages.contains(where: { $0.id == messageId }) {
+                return account.id
+            }
+        }
+        return nil
     }
 }

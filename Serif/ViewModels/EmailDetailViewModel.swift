@@ -43,7 +43,7 @@ final class EmailDetailViewModel {
         resolvedHTML = nil
 
         // Load from disk cache first (instant + offline)
-        if let cached = MailCacheStore.shared.loadThread(accountID: accountID, threadID: id) {
+        if let cached = await MailCacheStore.shared.loadThread(accountID: accountID, threadID: id) {
             thread = cached
             await analyzeTrackers()
             detectCalendarInvite()
