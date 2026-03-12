@@ -29,6 +29,9 @@ final class OAuthService: NSObject {
         self.redirectHandler = handler
         let redirectURI = handler.startHTTPListener(nil)
 
+        // PKCE S256 is applied automatically: this convenience initializer (the clientSecret
+        // variant) generates a secure state parameter and a PKCE code_challenge with
+        // S256 as the code_challenge_method without requiring manual codeVerifier construction.
         let request = OIDAuthorizationRequest(
             configuration: config,
             clientId: GoogleCredentials.clientID,
