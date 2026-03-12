@@ -284,6 +284,9 @@ struct ContentView: View {
             .onChange(of: coordinator.selectedAccountID) { _, newValue in coordinator.handleAccountChange(newValue) }
             .onChange(of: coordinator.authViewModel.accounts) { _, newValue in coordinator.handleAccountsChange(newValue) }
             .onChange(of: coordinator.mailboxViewModel.messages.count) { _, _ in }
+            .onChange(of: NetworkMonitor.shared.isConnected) { _, connected in
+                if connected { OfflineActionQueue.shared.startDraining() }
+            }
             .onChange(of: coordinator.selectedEmail) { _, newValue in coordinator.handleSelectedEmailChange(newValue) }
             .onChange(of: coordinator.signatureForNew) { _, _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
             .onChange(of: coordinator.signatureForReply) { _, _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
