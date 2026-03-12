@@ -21,6 +21,11 @@ final class EmailClassifier {
                 guard SystemLanguageModel.default.availability == .available else { return }
                 for email in emails.prefix(10) {
                     guard let msgId = email.gmailMessageID, tagCache[msgId] == nil else { continue }
+                    // Check disk cache before invoking the model
+                    if let persisted = MailCacheStore.shared.loadTags(for: msgId) {
+                        tagCache[msgId] = persisted
+                        continue
+                    }
                     let instructions = Instructions("Classify this email with boolean tags.")
                     let session = LanguageModelSession(instructions: instructions)
                     let body = String(email.body.cleanedForAI().prefix(5000))

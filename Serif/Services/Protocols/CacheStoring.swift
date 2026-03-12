@@ -22,6 +22,11 @@ protocol CacheStoring {
 
     // MARK: - Account deletion
     func deleteAccount(_ accountID: String)
+
+    // MARK: - Email Tags (AI classification)
+    func saveTags(_ tags: EmailTags, for messageId: String, accountID: String)
+    func loadTags(for messageId: String) -> EmailTags?
+    func loadTagsFromDisk(accountID: String)
 }
 
 // MARK: - MailCacheStore conformance

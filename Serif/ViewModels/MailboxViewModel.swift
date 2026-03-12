@@ -48,6 +48,7 @@ final class MailboxViewModel {
             }
             return self.makeEmail(from: msg)
         }
+        fetchService.accountID = accountID
     }
 
     // MARK: - GmailMessage → Email (cached)
@@ -177,7 +178,8 @@ final class MailboxViewModel {
 
     func switchAccount(_ id: String) async {
         cancelActiveFetch()
-        accountID     = id
+        accountID              = id
+        fetchService.accountID = id
         nextPageToken = nil
         readIDs       = []
         error         = nil

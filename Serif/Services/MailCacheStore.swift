@@ -11,6 +11,7 @@ struct FolderCache: Codable, Sendable {
 final class MailCacheStore {
     static let shared = MailCacheStore()
     private var createdDirs: Set<String> = []
+    private var tagStore: [String: EmailTags] = [:]
 
     private init() {
         try? FileManager.default.createDirectory(at: baseDir, withIntermediateDirectories: true)
@@ -129,5 +130,33 @@ final class MailCacheStore {
     func deleteAccount(_ accountID: String) {
         let accountDir = baseDir.appendingPathComponent(accountID, isDirectory: true)
         try? FileManager.default.removeItem(at: accountDir)
+    }
+
+    // MARK: - Email Tags (AI classification results)
+
+    func saveTags(_ tags: EmailTags, for messageId: String, accountID: String) {
+        tagStore[messageId] = tags
+        saveTagsToDisk(accountID: accountID)
+    }
+
+    func loadTags(for messageId: String) -> EmailTags? {
+        tagStore[messageId]
+    }
+
+    func loadTagsFromDisk(accountID: String) {
+        let url = fileURL(accountID: accountID, folderKey: "_tags")
+        guard let data = try? Data(contentsOf: url),
+              let tags = try? JSONDecoder().decode([String: EmailTags].self, from: data)
+        else { return }
+        tagStore = tags
+    }
+
+    private func saveTagsToDisk(accountID: String) {
+        let url = fileURL(accountID: accountID, folderKey: "_tags")
+        let snapshot = tagStore
+        Task.detached(priority: .utility) {
+            guard let data = try? JSONEncoder().encode(snapshot) else { return }
+            try? data.write(to: url, options: .atomic)
+        }
     }
 }

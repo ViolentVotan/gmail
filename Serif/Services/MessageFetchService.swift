@@ -17,6 +17,8 @@ final class MessageFetchService {
     var makeEmail: ((GmailMessage) -> Email)?
     /// Reference to the attachment indexer (if configured).
     var attachmentIndexer: AttachmentIndexer?
+    /// Account ID used when persisting AI classification tags.
+    var accountID: String = ""
 
     // MARK: - Internal cache state
 
@@ -242,6 +244,17 @@ final class MessageFetchService {
             let withAttachments = msgs.filter { $0.hasPartsWithFilenames }
             if !withAttachments.isEmpty {
                 Task { await indexer.registerFromMetadata(messages: withAttachments) }
+            }
+        }
+        // AI classification — runs after subscription detection
+        let emails = msgs.compactMap { makeEmail($0) }
+        let acctID = accountID
+        Task {
+            await EmailClassifier.shared.classifyBatch(emails)
+            for email in emails {
+                guard let msgId = email.gmailMessageID,
+                      let tags = EmailClassifier.shared.cachedTags(for: msgId) else { continue }
+                cache.saveTags(tags, for: msgId, accountID: acctID)
             }
         }
     }
