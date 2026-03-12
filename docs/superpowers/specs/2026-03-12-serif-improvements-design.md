@@ -1,14 +1,14 @@
 # Serif Improvements Design Spec
 
 **Date:** 2026-03-12
-**Status:** Draft
+**Status:** Reviewed
 **Scope:** Comprehensive improvement plan across 4 phases
 
 ## Constraints
 
 - **No push notifications** (Pub/Sub) — out of scope
 - **Gmail API only** — no third-party services; leverage native server-side features (categories, importance, spam, filters, search)
-- **Apple Intelligence only** — Foundation Models framework, Smart Reply (`UISmartReplySuggestion`), Writing Tools (automatic). No third-party AI/LLM
+- **Apple Intelligence only** — Foundation Models framework, Writing Tools (automatic). No third-party AI/LLM
 - **Native Swift/SwiftUI** — all UI in SwiftUI; WKWebView stays for HTML email body rendering (SwiftUI `WebView` unsuitable for email bodies)
 - **macOS 26+** — target current SDK; use Liquid Glass, App Intents, Foundation Models
 
@@ -27,7 +27,7 @@ Before building anything, we verified what's already provided for free:
 | Notification summaries | Apple Intelligence | Automatic, zero code |
 | Priority notifications | Apple Intelligence | Automatic, zero code |
 | Inline predictive text | Apple Intelligence | Automatic, zero code |
-| Smart Reply suggestions | Apple `UISmartReplySuggestion` | Bridge to SwiftUI |
+| Smart Reply suggestions | Foundation Models (`@Generable`) | Custom on-device generation |
 | Email summarization | Foundation Models (4K context) | Custom code (enhance existing) |
 | Snooze | Not in Gmail API | Fully custom client-side |
 | Scheduled send | Not in Gmail API | Fully custom client-side |
@@ -52,6 +52,7 @@ Before building anything, we verified what's already provided for free:
 - `GmailMessageService.getMessages(ids:, format:)` calls `batchRequest` instead of chunked loop
 - Batch size: 50 (Google's recommended max for rate limit safety)
 - Quota: identical to individual calls (N batched = N quota units)
+- **Batch endpoint:** `POST https://www.googleapis.com/batch/gmail/v1` (different from standard base URL `https://gmail.googleapis.com/gmail/v1`). `GmailAPIClient` needs a secondary endpoint constant
 - Error handling: individual parts may fail independently — collect successes, report failures
 
 **Files affected:**
@@ -76,16 +77,14 @@ Before building anything, we verified what's already provided for free:
 - `Serif/Services/Gmail/GmailAPIClient.swift` — `request()` gains `fields: String?` parameter
 - All service files — pass appropriate `fields` values
 
-### 1.3 Gzip Compression Headers
+### 1.3 Verify Compression
 
-**Design:** Set explicit headers on all requests in `GmailAPIClient`:
-- `Accept-Encoding: gzip`
-- `User-Agent: Serif/1.0 (gzip)`
+**Design:** `URLSession` on modern macOS already sends `Accept-Encoding: gzip, deflate, br` and handles decompression transparently (including Brotli). Do **not** override `Accept-Encoding` as this would remove Brotli support.
 
-URLSession may handle decompression implicitly, but Gmail API docs require these headers for guaranteed server-side gzip.
+**Action:** Verify compression is active by logging response `Content-Encoding` headers in debug builds. Set a descriptive `User-Agent: Serif/1.0` header if not already set (the Google-specific `(gzip)` suffix is a legacy hint for older client libraries and is not required with URLSession).
 
 **Files affected:**
-- `Serif/Services/Gmail/GmailAPIClient.swift` — add headers to URLRequest construction
+- `Serif/Services/Gmail/GmailAPIClient.swift` — verify User-Agent header, add debug logging for Content-Encoding
 
 ### 1.4 PKCE for OAuth
 
@@ -137,9 +136,9 @@ AppAuth-iOS supports PKCE natively — likely just needs configuration flag. Ver
 3. `SnoozeMonitor` (background timer) checks every 60 seconds for expired snoozes
 4. On expiry → call `messages.modify` to re-add `INBOX` label
 5. On app launch → immediately check and unsnooze any expired items
-6. Register `NSBackgroundActivityScheduler` for periodic wake when app is backgrounded
+6. **Timing limitation:** `NSBackgroundActivityScheduler` is unreliable for time-critical operations (macOS may defer by hours). Primary strategy: in-app timer + aggressive check on launch. Snooze timing is best-effort when app is not running. Future: consider a lightweight LaunchAgent for precise timing
 
-**Persistence:** JSON file per account at `~/Library/Application Support/com.genyus.serif.app/mail-cache/{accountId}/snoozed.json`
+**Persistence:** JSON file per account at `~/Library/Application Support/com.genyus.serif.app/mail-cache/{accountId}/snoozed.json`. Include a `version: Int` field at the JSON root. All stored struct properties should have default values via `CodingKeys` so old data decodes safely into new schemas on app update.
 
 **UI specification:**
 - Snooze button: `DetailToolbarView` toolbar button + `EmailContextMenu` menu item
@@ -160,12 +159,12 @@ AppAuth-iOS supports PKCE natively — likely just needs configuration flag. Ver
 
 **New files:**
 - `Serif/Services/SnoozeStore.swift` — persistence + CRUD
-- `Serif/Services/SnoozeMonitor.swift` — background timer + NSBackgroundActivityScheduler
+- `Serif/Services/SnoozeMonitor.swift` — in-app timer (60s interval) + launch-time check
 - `Serif/Views/Common/SnoozePickerView.swift` — time preset popover
-- `Serif/Views/Sidebar/SnoozedFolderView.swift` — snoozed items list
+- Snoozed folder sidebar row added to existing `SidebarView` (no separate file — follows existing sidebar row pattern)
 
 **Modified files:**
-- `Serif/Models/Folder.swift` — add `.snoozed` case
+- `Serif/Models/Email.swift` — add `.snoozed` case
 - `Serif/Views/EmailDetail/DetailToolbarView.swift` — add snooze button
 - `Serif/Views/EmailList/EmailContextMenu.swift` — add snooze menu item
 - `Serif/Views/Sidebar/SidebarView.swift` — add snoozed folder
@@ -181,9 +180,9 @@ AppAuth-iOS supports PKCE natively — likely just needs configuration flag. Ver
 4. `ScheduledSendMonitor` checks every 60 seconds (shares timer with `SnoozeMonitor`)
 5. On scheduled time → call `drafts.send` via API
 6. On app launch → check for past-due scheduled sends, execute immediately, notify user of delay
-7. `NSBackgroundActivityScheduler` for periodic wake
+7. Same timing limitation as snooze — best-effort when app is not running, sends on next launch with user notification of delay
 
-**Persistence:** JSON file per account at `~/Library/Application Support/com.genyus.serif.app/mail-cache/{accountId}/scheduled.json`
+**Persistence:** JSON file per account at `~/Library/Application Support/com.genyus.serif.app/mail-cache/{accountId}/scheduled.json`. Same versioning strategy as snooze store.
 
 **UI specification:**
 - Split send button in compose: primary "Send" + dropdown chevron revealing "Schedule Send"
@@ -204,7 +203,7 @@ AppAuth-iOS supports PKCE natively — likely just needs configuration flag. Ver
 - `Serif/Views/Compose/ScheduleSendButton.swift` — split button UI
 
 **Modified files:**
-- `Serif/Models/Folder.swift` — add `.scheduled` case
+- `Serif/Models/Email.swift` — add `.scheduled` case
 - `Serif/ViewModels/ComposeViewModel.swift` — add `scheduleSend(at:)` method
 - `Serif/Views/Sidebar/SidebarView.swift` — add scheduled folder
 
@@ -235,8 +234,8 @@ AppAuth-iOS supports PKCE natively — likely just needs configuration flag. Ver
 
 **Keyboard handling:**
 - Global `Cmd+K` registered in `SerifCommands` `.commands` modifier
-- When compose rich text editor is focused, Cmd+K falls through to link insertion (existing behavior)
-- `@FocusState` determines whether palette or editor gets the shortcut
+- The global handler checks a shared `@Environment` or `@FocusState` value: if compose rich text editor is focused, the handler no-ops (returns without opening palette), allowing the WKWebView's native Cmd+K link insertion to fire
+- The compose window's WKWebView handles Cmd+K via its own JavaScript key handler (existing behavior)
 
 **New files:**
 - `Serif/Views/Common/CommandPaletteView.swift` — overlay UI
@@ -244,7 +243,7 @@ AppAuth-iOS supports PKCE natively — likely just needs configuration flag. Ver
 - `Serif/Models/Command.swift` — command model (title, icon, shortcut, action closure)
 
 **Modified files:**
-- `Serif/Views/ContentView.swift` — add palette overlay + Cmd+K binding
+- `Serif/ContentView.swift` — add palette overlay + Cmd+K binding
 - `Serif/Views/Common/SerifCommands.swift` — register global shortcut
 
 ### 2.4 Offline Action Queue
@@ -259,7 +258,7 @@ AppAuth-iOS supports PKCE natively — likely just needs configuration flag. Ver
 - Each action stored as: `{id: UUID, action: ActionType, messageIds: [String], accountId: String, timestamp: Date, params: [String: String]}`
 - On `NetworkMonitor` connectivity change to `.connected` → drain queue FIFO
 - Per-action error handling: 404 (message gone) → skip silently; 401 → stop queue, trigger re-auth; other → retry with backoff (max 3 attempts)
-- Queue persisted at `~/Library/Application Support/com.genyus.serif.app/offline-queue/{accountId}.json`
+- Queue persisted at `~/Library/Application Support/com.genyus.serif.app/offline-queue/{accountId}.json`. Same versioning strategy as snooze/scheduled stores.
 
 **UI specification:**
 - Small badge on toolbar: "3 pending" when actions are queued
@@ -296,22 +295,31 @@ AppAuth-iOS supports PKCE natively — likely just needs configuration flag. Ver
 
 **Goal:** Leverage Apple Intelligence APIs and Gmail's server-side filter system.
 
-### 3.1 Smart Reply via `UISmartReplySuggestion`
+### 3.1 Smart Reply via Foundation Models
 
-**Apple API:** `UISmartReplySuggestion` (UIKit). Available on Apple Intelligence-capable hardware. Requires conversation context.
+**Note:** `UISmartReplySuggestion` is a UIKit/iOS API — not available on macOS. We use Foundation Models `@Generable` instead, which runs on-device and works offline.
 
 **Design:**
-- New `SmartReplyProvider` service wrapping UIKit API via UIViewRepresentable bridge
-- Feed thread messages as conversation context (sender, body text, timestamps)
-- Returns 2-3 contextual reply suggestions as strings
+```swift
+@Generable
+struct SmartReplies {
+    @Guide(description: "2-3 short, contextual reply options for this email. Each should be a complete sentence or two, matching a professional tone.")
+    var replies: [String]
+}
+```
+
+- New `SmartReplyProvider` service using `LanguageModelSession`
+- Feed last 2-3 thread messages as context (subject + sender + body, truncated to fit 4K token window)
+- Generate 2-3 reply suggestions via `session.respond(to:, generating: SmartReplies.self)`
 - Suggestions displayed as tappable chips above the reply bar
 - Tapping a chip: opens reply composer pre-filled with the suggestion text
-- Availability check: only show chips on supported hardware; fall back gracefully
+- Availability check: `SystemLanguageModel.default.availability` — hide chips if unavailable
+- Cache: store suggestions per thread ID, invalidate on new message in thread
 
-**Context formatting:** Convert thread messages to the format expected by UISmartReplySuggestion — chronological conversation with sender/body pairs.
+**Context window management:** Email threads can be long. Feed only: subject line + sender name + last message body (truncated to ~2,500 tokens). This leaves room for the prompt instructions and output.
 
 **New files:**
-- `Serif/Services/SmartReplyProvider.swift` — UIKit bridge + context formatting
+- `Serif/Services/SmartReplyProvider.swift` — Foundation Models generation + caching
 - `Serif/Views/EmailDetail/SmartReplyChipsView.swift` — suggestion chip UI
 
 **Modified files:**
@@ -439,20 +447,16 @@ struct EmailTags {
 
 ### 3.5 Enable Label Suggestions
 
-**Current state:** `aiLabelSuggestionsEnabled` defaults to `false` in settings. `LabelSuggestionService` exists.
+**Current state:** `aiLabelSuggestionsEnabled` already defaults to `true`. `LabelSuggestionService` exists and shows suggestions in `LabelEditorView`.
 
-**Design:**
-- Enable by default (`aiLabelSuggestionsEnabled = true`)
-- Verify it uses Foundation Models (not a removed/broken backend)
-- When viewing an email, suggest 1-2 relevant user labels based on content
-- Show as subtle chips in `LabelEditorView` with "Suggested" prefix
-- User taps to apply; dismiss to ignore
-- Learn from dismissals: don't re-suggest the same label for similar content (simple blocklist in cache)
+**Enhancements:**
+- Verify it uses Foundation Models (not a removed/broken backend) — update if needed
+- Learn from dismissals: don't re-suggest the same label for similar content (simple blocklist persisted in cache per account)
+- Improve suggestion quality by including email body context (not just subject)
 
 **Modified files:**
-- `Serif/ViewModels/MailboxViewModel.swift` or relevant settings — flip default
-- `Serif/Services/LabelSuggestionService.swift` — verify/update to use Foundation Models
-- `Serif/Views/EmailDetail/LabelEditorView.swift` — verify suggestion chip UI works
+- `Serif/Services/LabelSuggestionService.swift` — verify Foundation Models, add dismissal learning
+- `Serif/Views/EmailDetail/LabelEditorView.swift` — add dismiss tracking
 
 ---
 
@@ -486,7 +490,7 @@ struct EmailTags {
 - Add `.windowResizeAnchor(.top)` for fluid resize animation
 
 **Modified files:**
-- `Serif/Views/ContentView.swift` — background extension, window modifiers
+- `Serif/ContentView.swift` — background extension, window modifiers
 - `Serif/Views/Sidebar/SidebarView.swift` — remove custom backgrounds
 - `Serif/Views/EmailDetail/DetailToolbarView.swift` — toolbar grouping
 - `Serif/Views/EmailList/ListPaneView.swift` — scroll edge effects
@@ -546,7 +550,7 @@ struct EmailEntity: IndexedEntity {
 **Modified files:**
 - `Serif/ViewModels/EmailDetailViewModel.swift` — create NSUserActivity on thread load
 - `Serif/ViewModels/ComposeViewModel.swift` — create NSUserActivity on compose
-- `Serif/Views/ContentView.swift` — handle `onContinueUserActivity`
+- `Serif/ContentView.swift` — handle `onContinueUserActivity`
 - `Info.plist` — register activity types
 
 ### 4.4 Actionable Local Notifications
@@ -683,20 +687,9 @@ Phase 4 items are all independent of each other and can be parallelized.
 
 ## File Impact Summary
 
-**New files (estimated 22):**
-- Services: 8 (SnoozeStore, SnoozeMonitor, ScheduledSendStore, ScheduledSendMonitor, OfflineActionQueue, SmartReplyProvider, EmailClassifier, NotificationService, GmailFilterService)
-- Views: 8 (CategoryTabBar, SnoozePickerView, CommandPaletteView, ScheduleSendButton, SmartReplyChipsView, FiltersSettingsView, FilterEditorView, SnoozedFolderView)
-- ViewModels: 1 (CommandPaletteViewModel)
-- Models: 4 (Command, OfflineAction, EmailTags, EmailDragItem, EmailInsight)
-- Intents: 5 (EmailEntity, OpenEmailIntent, ComposeEmailIntent, SearchEmailIntent, MarkAsReadIntent)
+**New files:** See per-section "New files" lists — approximately 25 new files across Services, Views, ViewModels, Models, and Intents.
 
-**Modified files (estimated 25):**
-- Services: 6 (GmailAPIClient, GmailMessageService, MessageFetchService, MailCacheStore, SummaryService, HistorySyncService, SpotlightIndexer, OAuthService)
-- Views: 12 (ContentView, SidebarView, ListPaneView, DetailToolbarView, EmailRowView, EmailContextMenu, EmailListView, ReplyBarView, ComposeView, SettingsView, EmailDetailView, AttachmentChipView)
-- ViewModels: 4 (MailboxViewModel, ComposeViewModel, EmailDetailViewModel, EmailActionCoordinator)
-- Models: 1 (Folder)
-- Config: 1 (Info.plist)
-- Commands: 1 (SerifCommands)
+**Modified files:** See per-section "Modified files" lists — approximately 27 existing files touched across all layers.
 
 ## Out of Scope
 
