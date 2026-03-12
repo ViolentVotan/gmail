@@ -5,8 +5,6 @@ import Foundation
 enum UserDefaultsKey {
     static let undoDuration = "undoDuration"
     static let refreshInterval = "refreshInterval"
-    static let selectedThemeId = "selectedThemeId"
-    static let themeOverrides = "themeOverrides"
     static let appearancePreference = "appearancePreference"
     static let attachmentScanMonths = "attachmentScanMonths"
 
