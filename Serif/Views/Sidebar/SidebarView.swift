@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SidebarView: View {
     @Binding var selectedFolder: Folder
@@ -146,6 +147,24 @@ struct SidebarView: View {
                     .frame(width: 20)
             }
         }
+        .dropDestination(for: EmailDragItem.self) { items, _ in
+            for item in items {
+                for msgId in item.messageIds {
+                    Task {
+                        switch folder {
+                        case .trash:
+                            try? await GmailMessageService.shared.trashMessage(id: msgId, accountID: item.accountID)
+                        case .archive:
+                            try? await GmailMessageService.shared.archiveMessage(id: msgId, accountID: item.accountID)
+                        case .spam:
+                            try? await GmailMessageService.shared.spamMessage(id: msgId, accountID: item.accountID)
+                        default: break
+                        }
+                    }
+                }
+            }
+            return true
+        }
     }
 
     // MARK: - Labels Section
@@ -176,6 +195,18 @@ struct SidebarView: View {
                     .frame(width: 8, height: 8)
                     .frame(width: 20)
             }
+        }
+        .dropDestination(for: EmailDragItem.self) { items, _ in
+            for item in items {
+                for msgId in item.messageIds {
+                    Task {
+                        try? await GmailMessageService.shared.modifyLabels(
+                            id: msgId, add: [label.id], remove: [], accountID: item.accountID
+                        )
+                    }
+                }
+            }
+            return true
         }
         .contextMenu {
             Button("Rename...") {

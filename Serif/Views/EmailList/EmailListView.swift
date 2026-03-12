@@ -3,6 +3,7 @@ import SwiftUI
 struct EmailListView: View {
     let emails: [Email]
     let isLoading: Bool
+    let accountID: String
     let onLoadMore: () -> Void
     let onSearch: (String) -> Void
     let onArchive: ((Email) -> Void)?
@@ -189,6 +190,7 @@ struct EmailListView: View {
                 EmailRowView(
                     email: email,
                     isSelected: selectedEmailIDs.contains(email.id.uuidString),
+                    accountID: accountID,
                     action: { handleTap(email: email) }
                 )
                 .tag(email.id.uuidString)

@@ -3,6 +3,7 @@ import SwiftUI
 struct EmailRowView: View {
     let email: Email
     let isSelected: Bool
+    let accountID: String
     let action: () -> Void
     @State private var isHovered = false
     @State private var hoverTask: Task<Void, Never>?
@@ -144,6 +145,10 @@ struct EmailRowView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .draggable(EmailDragItem(
+            messageIds: [email.gmailMessageID ?? ""],
+            accountID: accountID
+        ))
         .background(PopoverAnchor(holder: popoverHolder))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(email.sender.name), \(email.subject), \(email.preview), \(email.date.formatted())")

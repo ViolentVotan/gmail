@@ -66,6 +66,7 @@ struct ListPaneView: View {
         EmailListView(
             emails: emails,
             isLoading: isLoading,
+            accountID: mailboxViewModel.accountID,
             onLoadMore: { Task { await mailboxViewModel.loadMore() } },
             onSearch: { query in
                 if query.isEmpty {

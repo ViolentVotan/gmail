@@ -28,5 +28,20 @@
 	<string>https://marshallino16.github.io/Serif/appcast.xml</string>
 	<key>SUPublicEDKey</key>
 	<string>MBf6OjclbjZHZDbipVSOkY6p7u0FZmTo3p9jOTgGK7Y=</string>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.genyus.serif.email-drag-item</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Serif Email Drag Item</string>
+			<key>UTTypeTagSpecification</key>
+			<dict/>
+		</dict>
+	</array>
 </dict>
 </plist>
