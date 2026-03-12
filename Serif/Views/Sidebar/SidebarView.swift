@@ -82,6 +82,11 @@ struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: 200, ideal: 240)
+        .accessibilityRotor("Folders") {
+            ForEach(Folder.allCases.filter { $0 != .labels }) { folder in
+                AccessibilityRotorEntry(folder.rawValue, id: folder.id)
+            }
+        }
     }
 
     // MARK: - Mailbox Section

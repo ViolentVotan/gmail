@@ -267,6 +267,7 @@ struct EmailDetailView: View {
                                     .frame(height: emailBodyHeight)
                                     .padding(.horizontal, 24)
                                     .padding(.bottom, parts.quoted != nil ? 4 : 20)
+                                    .accessibilityLabel("Email from \(email.sender.name): \(email.subject)")
 
                                 if parts.quoted != nil {
                                     Button {
@@ -473,6 +474,7 @@ struct EmailDetailView: View {
                         onPreview: part.map { p in { loadAndPreview(attachment: attachment, part: p) } },
                         onDownload: part.map { p in { downloadAttachment(attachment: attachment, part: p) } }
                     )
+                    .accessibilityLabel("Attachment: \(attachment.name), \(attachment.size)")
                 }
             }
         }
