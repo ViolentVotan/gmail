@@ -39,42 +39,52 @@ struct SerifCommands: Commands {
 
     private var messageMenu: some Commands {
         CommandMenu("Message") {
-            Button("Archive") {
+            Button {
                 guard let coordinator, let email = selectedEmail else { return }
                 coordinator.actionCoordinator.archiveEmail(email, selectNext: { coordinator.selectNext($0) })
+            } label: {
+                Label("Archive", systemImage: "archivebox")
             }
             .keyboardShortcut("e", modifiers: .command)
             .disabled(!hasSelection)
 
-            Button("Delete") {
+            Button {
                 guard let coordinator, let email = selectedEmail else { return }
                 coordinator.actionCoordinator.deleteEmail(email, selectNext: { coordinator.selectNext($0) })
+            } label: {
+                Label("Delete", systemImage: "trash")
             }
             .keyboardShortcut(.delete, modifiers: .command)
             .disabled(!hasSelection)
 
-            Button("Move to Inbox") {
+            Button {
                 guard let coordinator, let email = selectedEmail else { return }
                 coordinator.actionCoordinator.moveToInboxEmail(email, selectedFolder: coordinator.selectedFolder, selectNext: { coordinator.selectNext($0) })
+            } label: {
+                Label("Move to Inbox", systemImage: "tray.and.arrow.down")
             }
             .disabled(!hasSelection || coordinator?.selectedFolder == .inbox)
 
             Divider()
 
-            Button(isStarred ? "Remove Star" : "Add Star") {
+            Button {
                 guard let coordinator, let msgID = selectedEmail?.gmailMessageID else { return }
                 Task { await coordinator.mailboxViewModel.toggleStar(msgID, isStarred: isStarred) }
+            } label: {
+                Label(isStarred ? "Remove Star" : "Add Star", systemImage: isStarred ? "star.slash" : "star")
             }
             .keyboardShortcut("l", modifiers: .command)
             .disabled(!hasSelection)
 
-            Button(isRead ? "Mark as Unread" : "Mark as Read") {
+            Button {
                 guard let coordinator, let email = selectedEmail, let msgID = email.gmailMessageID else { return }
                 if isRead {
                     coordinator.actionCoordinator.markUnreadEmail(email)
                 } else if let message = coordinator.mailboxViewModel.messages.first(where: { $0.id == msgID }) {
                     Task { await coordinator.mailboxViewModel.markAsRead(message) }
                 }
+            } label: {
+                Label(isRead ? "Mark as Unread" : "Mark as Read", systemImage: isRead ? "envelope.badge" : "envelope.open")
             }
             .keyboardShortcut("u", modifiers: [.command, .shift])
             .disabled(!hasSelection)
@@ -85,21 +95,27 @@ struct SerifCommands: Commands {
 
     private var mailboxMenu: some Commands {
         CommandMenu("Mailbox") {
-            Button("Compose New Message") {
+            Button {
                 coordinator?.composeNewEmail()
+            } label: {
+                Label("Compose New Message", systemImage: "square.and.pencil")
             }
             .keyboardShortcut("n", modifiers: .command)
 
             Divider()
 
-            Button("Refresh") {
+            Button {
                 guard let coordinator else { return }
                 Task { await coordinator.loadCurrentFolder() }
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
             }
             .keyboardShortcut("r", modifiers: [.command, .shift])
 
-            Button("Search") {
+            Button {
                 coordinator?.searchFocusTrigger = true
+            } label: {
+                Label("Search", systemImage: "magnifyingglass")
             }
             .keyboardShortcut("f", modifiers: .command)
         }
