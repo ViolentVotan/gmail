@@ -39,11 +39,21 @@ Serif/
 └── Utilities/      # Helpers
 ```
 
-**Patterns:** MVVM with coordinator navigation (`AppCoordinator`, `EmailActionCoordinator`). `MailStore` handles persistence via JSON. See `.claude/rules/swift.md` for code style and architecture rules.
+**Patterns:** MVVM with coordinator navigation (`AppCoordinator`, `EmailActionCoordinator`). `MailStore` handles persistence via JSON. See `.claude/rules/swift.md` for code style and architecture rules. No auto-update framework — updates are distributed manually.
+
+## LSP Tool Routing
+
+This project has the `swift-lsp` Claude Code plugin enabled alongside Serena (see global CLAUDE.md § Serena for the full routing table). The Claude Code `LSP` tool adds these capabilities Serena lacks:
+
+| Task | Tool | Why |
+|------|------|-----|
+| **Call hierarchy** (who calls X, what does X call) | `LSP` `incomingCalls`/`outgoingCalls` | Serena has no equivalent |
+| **Protocol implementations** (who conforms to X) | `LSP` `goToImplementation` | Direct lookup |
+| **Quick type check** on a specific line:col | `LSP` `hover` | Lightweight, no activation needed |
+
+Both share the same `sourcekit-lsp` server and Xcode build index — build in Xcode to refresh.
 
 ## Gotchas
 
 - TokenStore encryption key stored alongside ciphertext (known security issue from review)
 - Some computed properties re-sort on every render (performance — see tasks/review.md)
-- `WebRichTextEditorState` stays as `ObservableObject` — exception to @Observable migration (NSViewRepresentable bridge)
-- `UpdaterViewModel` keeps `import Combine` for Sparkle KVO interop
