@@ -259,6 +259,8 @@ enum Folder: String, CaseIterable, Identifiable, Sendable {
     case labels = "Labels"
     case spam = "Spam"
     case trash = "Trash"
+    case snoozed = "Snoozed"
+    case scheduled = "Scheduled"
 
     var id: String { rawValue }
 
@@ -274,6 +276,8 @@ enum Folder: String, CaseIterable, Identifiable, Sendable {
         case .labels:        return "tag.fill"
         case .spam:          return "exclamationmark.shield.fill"
         case .trash:         return "trash.fill"
+        case .snoozed:       return "clock.fill"
+        case .scheduled:     return "calendar.badge.clock"
         }
     }
 
@@ -289,6 +293,7 @@ enum Folder: String, CaseIterable, Identifiable, Sendable {
         case .spam:        return GmailSystemLabel.spam
         case .trash:       return GmailSystemLabel.trash
         case .archive, .attachments, .subscriptions, .labels: return nil
+        case .snoozed, .scheduled: return nil
         }
     }
 
@@ -298,6 +303,7 @@ enum Folder: String, CaseIterable, Identifiable, Sendable {
         case .archive:       return "-in:inbox -in:trash -in:spam -in:drafts"
         case .attachments:   return "has:attachment"
         case .subscriptions, .labels: return nil
+        case .snoozed, .scheduled:    return nil
         default:                      return nil
         }
     }
