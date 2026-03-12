@@ -11,10 +11,10 @@ struct OfflineToastView: View {
             if !network.isConnected {
                 HStack(spacing: 10) {
                     Image(systemName: "wifi.slash")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.body.weight(.medium))
                         .foregroundColor(.orange)
                     Text("No internet connection")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.body.weight(.medium))
                         .foregroundStyle(.primary)
                     Spacer()
                 }
@@ -61,19 +61,19 @@ struct UndoToastView: View {
         VStack(spacing: 0) {
             HStack(spacing: 14) {
                 Text(action.label)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.body.weight(.medium))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
                 Spacer()
 
                 Button("Undo") { undoMgr.undo() }
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(.body.weight(.semibold))
                     .foregroundStyle(.tint)
                     .buttonStyle(.plain)
 
                 Text("\(max(1, Int(ceil(undoMgr.timeRemaining))))s")
-                    .font(.system(size: 11, weight: .medium).monospacedDigit())
+                    .font(.caption.weight(.medium).monospacedDigit())
                     .foregroundStyle(.tertiary)
                     .frame(width: 26, alignment: .trailing)
             }

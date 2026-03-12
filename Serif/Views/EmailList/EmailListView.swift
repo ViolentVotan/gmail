@@ -85,7 +85,7 @@ struct EmailListView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text(selectedFolder.rawValue)
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.title2.bold())
                     .foregroundStyle(.primary)
 
                 Spacer()
@@ -97,7 +97,7 @@ struct EmailListView: View {
                             unsubscribable.forEach { onUnsubscribe($0) }
                         } label: {
                             Text("Unsubscribe All (\(unsubscribable.count))")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(.subheadline.weight(.medium))
                                 .foregroundStyle(.red)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
@@ -113,7 +113,7 @@ struct EmailListView: View {
                         onEmptyTrash()
                     } label: {
                         Text("Empty Trash")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                             .foregroundStyle(.red)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
@@ -128,7 +128,7 @@ struct EmailListView: View {
                         onEmptySpam()
                     } label: {
                         Text("Empty Spam")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                             .foregroundStyle(.red)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
@@ -146,9 +146,9 @@ struct EmailListView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Text(sortOrder.label)
-                            .font(.system(size: 12))
+                            .font(.subheadline)
                         Image(systemName: "chevron.down")
-                            .font(.system(size: 9))
+                            .font(.caption2)
                     }
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 10)

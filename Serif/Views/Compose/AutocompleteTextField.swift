@@ -29,7 +29,7 @@ struct AutocompleteTextField: View {
     var body: some View {
         HStack(spacing: 10) {
             Text(label)
-                .font(.system(size: 12, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.tertiary)
                 .frame(width: 50, alignment: .leading)
 
@@ -38,7 +38,7 @@ struct AutocompleteTextField: View {
                 if editing { highlightedIndex = 0 }
             })
             .textFieldStyle(.plain)
-            .font(.system(size: 13))
+            .font(.body)
             .foregroundStyle(.primary)
             .onChange(of: text) { _, _ in highlightedIndex = 0 }
             .onKeyPress(.return) {
@@ -98,12 +98,12 @@ struct AutocompleteTextField: View {
                 VStack(alignment: .leading, spacing: 1) {
                     if !contact.name.isEmpty {
                         Text(contact.name)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                             .foregroundStyle(.primary)
                             .lineLimit(1)
                     }
                     Text(contact.email)
-                        .font(.system(size: 11))
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }

@@ -16,11 +16,11 @@ struct BulkActionBarView: View {
             Spacer()
 
             Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 36))
+                .font(.largeTitle)
                 .foregroundStyle(.tint)
 
             Text("\(count) emails selected")
-                .font(.system(size: 16, weight: .semibold))
+                .font(.title3.weight(.semibold))
                 .foregroundStyle(.primary)
 
             HStack(spacing: 12) {
@@ -42,7 +42,7 @@ struct BulkActionBarView: View {
                 onDeselectAll()
             } label: {
                 Text("Deselect All")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 6)
@@ -67,9 +67,9 @@ struct BulkActionBarView: View {
         } label: {
             VStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.system(size: 16))
+                    .font(.title3)
                 Text(label)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.caption.weight(.medium))
             }
             .foregroundStyle(destructive ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
             .frame(width: 64, height: 56)

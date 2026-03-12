@@ -63,7 +63,7 @@ struct GmailThreadMessageView: View {
             VStack(alignment: isSentByMe ? .trailing : .leading, spacing: 4) {
                 if !isSentByMe {
                     Text(sender.name)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(.primary)
                 }
 
@@ -79,7 +79,7 @@ struct GmailThreadMessageView: View {
                             }
                         } label: {
                             Text(showQuoted ? "Hide" : "···")
-                                .font(.system(size: showQuoted ? 10 : 14, weight: showQuoted ? .medium : .bold))
+                                .font(showQuoted ? .caption2.weight(.medium) : .callout.bold())
                                 .foregroundStyle(.tertiary)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
@@ -98,7 +98,7 @@ struct GmailThreadMessageView: View {
 
                 if let date = message.date {
                     Text(date.formattedRelative)
-                        .font(.system(size: 10))
+                        .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
             }

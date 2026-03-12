@@ -150,16 +150,16 @@ struct ReplyBarView: View {
             HStack(spacing: 10) {
                 if !quickReplies.isEmpty {
                     Image(systemName: "apple.intelligence")
-                        .font(.system(size: 13))
+                        .font(.body)
                         .foregroundStyle(appleIntelligenceGradient)
                 }
                 Text(collapsedPlaceholder)
-                    .font(.system(size: 13))
+                    .font(.body)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
                 Spacer()
                 Image(systemName: hasSavedDraft ? "arrow.uturn.forward" : "square.and.pencil")
-                    .font(.system(size: 13))
+                    .font(.body)
                     .foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 16)
@@ -196,13 +196,13 @@ struct ReplyBarView: View {
                     Spacer()
                     Button { withAnimation { showCc.toggle() } } label: {
                         Text("Cc")
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.caption.weight(.medium))
                             .foregroundStyle(showCc ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
                     }
                     .buttonStyle(.plain)
                     Button { withAnimation { showBcc.toggle() } } label: {
                         Text("Bcc")
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.caption.weight(.medium))
                             .foregroundStyle(showBcc ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
                     }
                     .buttonStyle(.plain)
@@ -233,12 +233,12 @@ struct ReplyBarView: View {
                         ForEach(attachments, id: \.self) { url in
                             HStack(spacing: 4) {
                                 Image(systemName: url.sfSymbolIcon)
-                                    .font(.system(size: 11))
+                                    .font(.caption)
                                 Text(url.lastPathComponent)
-                                    .font(.system(size: 11))
+                                    .font(.caption)
                                     .lineLimit(1)
                                 Button { attachments.removeAll { $0 == url } } label: {
-                                    Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
+                                    Image(systemName: "xmark").font(.caption2.weight(.bold))
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -260,7 +260,7 @@ struct ReplyBarView: View {
             HStack(spacing: 12) {
                 Button { minimize() } label: {
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                         .frame(width: 30, height: 30)
                 }
@@ -270,7 +270,7 @@ struct ReplyBarView: View {
 
                 Button { attachFiles() } label: {
                     Image(systemName: "paperclip")
-                        .font(.system(size: 12))
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .frame(width: 30, height: 30)
                 }
@@ -279,7 +279,7 @@ struct ReplyBarView: View {
 
                 if let err = sendError {
                     Text(err)
-                        .font(.system(size: 11))
+                        .font(.caption)
                         .foregroundColor(.red)
                         .lineLimit(1)
                 }
@@ -289,7 +289,7 @@ struct ReplyBarView: View {
                 if !replyBodyIsEmpty {
                     Button { discardAction() } label: {
                         Text("Discard")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
@@ -310,10 +310,10 @@ struct ReplyBarView: View {
                                     Image(systemName: "paperplane.fill")
                                 }
                             }
-                            .font(.system(size: 11))
+                            .font(.caption)
                             .frame(width: 12, height: 12)
                             Text("Send")
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.subheadline.weight(.semibold))
                         }
                         .foregroundStyle(.white)
                         .padding(.horizontal, 14)
@@ -356,7 +356,7 @@ struct ReplyBarView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 Image(systemName: "apple.intelligence")
-                    .font(.system(size: 12))
+                    .font(.subheadline)
                     .foregroundStyle(appleIntelligenceGradient)
                     .opacity(visibleChipCount > 0 ? 1 : 0)
                     .scaleEffect(visibleChipCount > 0 ? 1 : 0.5)
@@ -371,7 +371,7 @@ struct ReplyBarView: View {
                         replyHTML = "<p>\(escaped)</p>"
                     } label: {
                         Text(suggestion)
-                            .font(.system(size: 12))
+                            .font(.subheadline)
                             .foregroundStyle(.primary)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
@@ -411,13 +411,13 @@ struct ReplyBarView: View {
     private func recipientField(label: String, text: Binding<String>) -> some View {
         HStack(spacing: 8) {
             Text(label)
-                .font(.system(size: 12, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.tertiary)
                 .frame(width: 28, alignment: .leading)
 
             TextField("", text: text)
                 .textFieldStyle(.plain)
-                .font(.system(size: 12))
+                .font(.subheadline)
                 .foregroundStyle(.primary)
         }
         .padding(.horizontal, 16)

@@ -98,9 +98,9 @@ struct OriginalMessageView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.down.doc")
-                            .font(.system(size: 11))
+                            .font(.caption)
                         Text("Download Original")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                     }
                     .foregroundStyle(.tint)
                 }
@@ -122,9 +122,9 @@ struct OriginalMessageView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                            .font(.system(size: 11))
+                            .font(.caption)
                         Text(copied ? "Copied!" : "Copy to Clipboard")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                     }
                     .foregroundStyle(.tint)
                     .padding(.horizontal, 12)
@@ -147,7 +147,7 @@ struct OriginalMessageView: View {
                     ProgressView()
                         .tint(.gray)
                     Text("Loading original message…")
-                        .font(.system(size: 12))
+                        .font(.subheadline)
                         .foregroundStyle(.tertiary)
                         .padding(.top, 8)
                     Spacer()
@@ -156,7 +156,7 @@ struct OriginalMessageView: View {
             } else if let source = rawSource {
                 ScrollView(.horizontal, showsIndicators: true) {
                     Text(source)
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                         .padding(20)
@@ -165,7 +165,7 @@ struct OriginalMessageView: View {
                 VStack {
                     Spacer()
                     Text("Could not load original message")
-                        .font(.system(size: 12))
+                        .font(.subheadline)
                         .foregroundStyle(.tertiary)
                     Spacer()
                 }
@@ -202,14 +202,14 @@ struct OriginalMessageView: View {
     private func metadataRow(label: String, value: String) -> some View {
         HStack(alignment: .top, spacing: 0) {
             Text(label)
-                .font(.system(size: 12, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.tertiary)
                 .frame(width: 100, alignment: .leading)
                 .padding(.vertical, 10)
                 .padding(.leading, 14)
 
             Text(value)
-                .font(.system(size: 12))
+                .font(.subheadline)
                 .foregroundStyle(.primary)
                 .textSelection(.enabled)
                 .padding(.vertical, 10)
@@ -222,7 +222,7 @@ struct OriginalMessageView: View {
     private func authRow(label: String, value: String?) -> some View {
         HStack(alignment: .top, spacing: 0) {
             Text(label)
-                .font(.system(size: 12, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.tertiary)
                 .frame(width: 100, alignment: .leading)
                 .padding(.vertical, 10)
@@ -230,12 +230,12 @@ struct OriginalMessageView: View {
 
             HStack(spacing: 6) {
                 Text(authStatusLabel(value))
-                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .font(.caption.weight(.semibold).monospaced())
                     .foregroundColor(authStatusColor(value))
 
                 if let v = value {
                     Text(v)
-                        .font(.system(size: 11))
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }

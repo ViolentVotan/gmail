@@ -17,17 +17,17 @@ struct EmailHoverSummaryView: View {
                 )
                 VStack(alignment: .leading, spacing: 2) {
                     Text(email.sender.name)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     Text(email.subject)
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
                 Spacer(minLength: 0)
                 Text(email.date.formatted(date: .abbreviated, time: .shortened))
-                    .font(.system(size: 10))
+                    .font(.caption2)
                     .foregroundStyle(.tertiary)
             }
 
@@ -61,12 +61,12 @@ struct EmailHoverSummaryView: View {
                     ProgressView()
                         .controlSize(.small)
                     Text("Summarizing...")
-                        .font(.system(size: 11))
+                        .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
             } else {
                 Text(summaryVM.displayedText)
-                    .font(.system(size: 12))
+                    .font(.subheadline)
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
                     .animation(.easeIn(duration: 0.05), value: summaryVM.displayedText)
@@ -105,9 +105,9 @@ struct EmailHoverSummaryView: View {
     private func metadataPill(icon: String, text: String) -> some View {
         HStack(spacing: 3) {
             Image(systemName: icon)
-                .font(.system(size: 8))
+                .font(.caption2)
             Text(text)
-                .font(.system(size: 10))
+                .font(.caption2)
                 .lineLimit(1)
         }
         .foregroundStyle(.tertiary)
@@ -125,7 +125,7 @@ struct EmailHoverSummaryView: View {
             if summaryVM.isAISummary, #available(macOS 26.0, *) {
                 #if canImport(FoundationModels)
                 Label("Apple Intelligence", systemImage: "apple.intelligence")
-                    .font(.system(size: 9))
+                    .font(.caption2)
                     .foregroundStyle(.tertiary)
                 #endif
             }

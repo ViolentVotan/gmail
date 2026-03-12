@@ -39,7 +39,7 @@ struct AttachmentExplorerView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Attachments")
-                    .font(.system(size: 22, weight: .bold))
+                    .font(.title2.bold())
                     .foregroundStyle(.primary)
 
                 Spacer()
@@ -48,7 +48,7 @@ struct AttachmentExplorerView: View {
                     ProgressView()
                         .controlSize(.small)
                     Text("\(store.stats.indexed)/\(store.stats.total) indexed")
-                        .font(.system(size: 11))
+                        .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
                 .opacity(store.isIndexing ? 1 : 0)
@@ -171,9 +171,9 @@ struct AttachmentExplorerView: View {
         Button { showRulesPopover.toggle() } label: {
             HStack(spacing: 4) {
                 Image(systemName: "eye.slash")
-                    .font(.system(size: 10))
+                    .font(.caption2)
                 Text(store.exclusionRules.isEmpty ? "Rules" : "Rules (\(store.exclusionRules.count))")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.caption.weight(.medium))
             }
             .foregroundStyle(.secondary)
             .padding(.horizontal, 10)
@@ -189,26 +189,26 @@ struct AttachmentExplorerView: View {
     private var rulesPopoverContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Exclusion Rules")
-                .font(.system(size: 13, weight: .semibold))
+                .font(.body.weight(.semibold))
                 .foregroundStyle(.primary)
 
             if store.exclusionRules.isEmpty {
                 Text("Right-click an attachment to add a rule")
-                    .font(.system(size: 11))
+                    .font(.caption)
                     .foregroundStyle(.tertiary)
             } else {
                 VStack(spacing: 4) {
                     ForEach(store.exclusionRules, id: \.self) { rule in
                         HStack {
                             Text(rule)
-                                .font(.system(size: 12, design: .monospaced))
+                                .font(.subheadline.monospaced())
                                 .foregroundStyle(.primary)
                             Spacer()
                             Button {
                                 store.removeExclusionRule(rule)
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 12))
+                                    .font(.subheadline)
                                     .foregroundStyle(.tertiary)
                             }
                             .buttonStyle(.plain)
@@ -223,7 +223,7 @@ struct AttachmentExplorerView: View {
             HStack(spacing: 6) {
                 TextField("Pattern (e.g. image-*)", text: $newRuleText)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 12))
+                    .font(.subheadline)
                     .frame(minWidth: 140)
                     .onSubmit {
                         guard !newRuleText.isEmpty else { return }
@@ -236,7 +236,7 @@ struct AttachmentExplorerView: View {
                     newRuleText = ""
                 } label: {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 14))
+                        .font(.callout)
                         .foregroundStyle(.tint)
                 }
                 .buttonStyle(.plain)
@@ -254,10 +254,10 @@ struct AttachmentExplorerView: View {
             HStack(spacing: 4) {
                 if let icon = icon {
                     Image(systemName: icon)
-                        .font(.system(size: 10))
+                        .font(.caption2)
                 }
                 Text(label)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.caption.weight(.medium))
             }
             .foregroundStyle(isSelected ? Color.white : Color.secondary)
             .padding(.horizontal, 10)

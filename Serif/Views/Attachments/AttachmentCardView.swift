@@ -143,11 +143,11 @@ struct AttachmentCardView: View {
             } else {
                 VStack(spacing: 4) {
                     Image(systemName: fileTypeIcon)
-                        .font(.system(size: 28))
+                        .font(.largeTitle)
                         .foregroundStyle(iconForegroundColor)
                     if !formattedSize.isEmpty {
                         Text(formattedSize)
-                            .font(.system(size: 9, weight: .medium, design: .monospaced))
+                            .font(.caption2.weight(.medium).monospaced())
                             .foregroundStyle(.tertiary)
                     }
                 }
@@ -160,7 +160,7 @@ struct AttachmentCardView: View {
 
     private var filenameArea: some View {
         Text(result.attachment.filename)
-            .font(.system(size: 12, weight: .medium))
+            .font(.subheadline.weight(.medium))
             .foregroundStyle(.primary)
             .lineLimit(2)
             .multilineTextAlignment(.center)
@@ -171,11 +171,11 @@ struct AttachmentCardView: View {
     private var metadataArea: some View {
         VStack(spacing: 2) {
             Text(result.attachment.senderName ?? result.attachment.senderEmail ?? "")
-                .font(.system(size: 10))
+                .font(.caption2)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             Text(formattedDate)
-                .font(.system(size: 10))
+                .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity)
@@ -188,7 +188,7 @@ struct AttachmentCardView: View {
                 .fill(scoreColor)
                 .frame(width: 6, height: 6)
             Text("\(Int(result.score * 100))%")
-                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                .font(.caption2.weight(.medium).monospaced())
                 .foregroundStyle(.secondary)
         }
         .frame(height: 14)

@@ -9,7 +9,7 @@ struct LabelChipView: View {
     var body: some View {
         HStack(spacing: 3) {
             Text(label.name)
-                .font(.system(size: 10, weight: .medium))
+                .font(.caption2.weight(.medium))
                 .foregroundColor(Color(hex: label.textColor))
                 .lineLimit(1)
 
@@ -18,7 +18,7 @@ struct LabelChipView: View {
                     onRemove?()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 7, weight: .bold))
+                        .font(.caption2.weight(.bold))
                         .foregroundColor(Color(hex: label.textColor).opacity(0.7))
                 }
                 .buttonStyle(.plain)
@@ -44,14 +44,14 @@ struct LabelPickerRow: View {
                     .frame(width: 10, height: 10)
 
                 Text(label.name)
-                    .font(.system(size: 13))
+                    .font(.body)
                     .foregroundStyle(.primary)
 
                 Spacer()
 
                 if isSelected {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(.tint)
                 }
             }

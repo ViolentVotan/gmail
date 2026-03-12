@@ -45,9 +45,9 @@ struct SwipeableEmailRow: View {
             .overlay(
                 HStack(spacing: 6) {
                     Image(systemName: "archivebox.fill")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.callout.weight(.semibold))
                     Text("Archive")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                     Spacer()
                 }
                 .foregroundStyle(.white)
@@ -61,9 +61,9 @@ struct SwipeableEmailRow: View {
                 HStack(spacing: 6) {
                     Spacer()
                     Text("Delete")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                     Image(systemName: "trash.fill")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.callout.weight(.semibold))
                 }
                 .foregroundStyle(.white)
                 .padding(.trailing, 20)

@@ -140,7 +140,7 @@ struct SignatureSettingsCard: View {
                                         .foregroundStyle(.primary)
                                     if alias.isPrimary == true {
                                         Text("Primary")
-                                            .font(.system(size: 10, weight: .semibold))
+                                            .font(.caption2.weight(.semibold))
                                             .foregroundStyle(.tint)
                                             .padding(.horizontal, 5)
                                             .padding(.vertical, 1)

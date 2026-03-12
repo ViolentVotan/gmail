@@ -37,17 +37,17 @@ struct DebugMenuView: View {
                     if !unsupportedTypes.isEmpty {
                         Divider().padding(.horizontal, 12).padding(.vertical, 4)
                         Text("Unsupported MIME types")
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.caption2.weight(.semibold))
                             .foregroundStyle(.tertiary)
                             .padding(.horizontal, 12)
                         ForEach(unsupportedTypes, id: \.mimeType) { entry in
                             HStack {
                                 Text(entry.mimeType)
-                                    .font(.system(size: 11, design: .monospaced))
+                                    .font(.caption.monospaced())
                                     .foregroundStyle(.secondary)
                                 Spacer()
                                 Text("×\(entry.count)")
-                                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                                    .font(.caption.weight(.medium).monospaced())
                                     .foregroundStyle(.tertiary)
                             }
                             .padding(.horizontal, 12)
@@ -72,7 +72,7 @@ struct DebugMenuView: View {
             debugSection(title: "API Request Log (\(logger.entries.count))") {
                 if logger.entries.isEmpty {
                     Text("No requests yet")
-                        .font(.system(size: 12))
+                        .font(.subheadline)
                         .foregroundStyle(.tertiary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
@@ -108,11 +108,11 @@ struct DebugMenuView: View {
     private func indexerStatRow(_ label: String, value: Int, color: Color) -> some View {
         HStack {
             Text(label)
-                .font(.system(size: 12))
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
             Spacer()
             Text("\(value)")
-                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                .font(.subheadline.weight(.semibold).monospaced())
                 .foregroundStyle(color)
         }
         .padding(.horizontal, 12)
@@ -144,7 +144,7 @@ struct DebugMenuView: View {
             } label: {
                 HStack(spacing: 6) {
                     Text(entry.fromCache ? "CACHE" : entry.method)
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
+                        .font(.caption2.weight(.bold).monospaced())
                         .foregroundColor(.white)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
@@ -152,7 +152,7 @@ struct DebugMenuView: View {
                         .cornerRadius(3)
 
                     Text(entry.shortPath)
-                        .font(.system(size: 11, design: .monospaced))
+                        .font(.caption.monospaced())
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -161,17 +161,17 @@ struct DebugMenuView: View {
 
                     if !entry.fromCache {
                         Text("\(entry.durationMs)ms")
-                            .font(.system(size: 10))
+                            .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
 
                     Text(entry.statusLabel)
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .font(.caption2.weight(.semibold).monospaced())
                         .foregroundStyle(statusColor(for: entry.statusLevel))
                         .frame(width: 40, alignment: .trailing)
 
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 8))
+                        .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
                 .padding(.horizontal, 10)
@@ -215,12 +215,12 @@ struct DebugMenuView: View {
                         detailSectionLabel("RESPONSE")
                         if let err = entry.errorMessage {
                             Text(err)
-                                .font(.system(size: 10, weight: .semibold))
+                                .font(.caption2.weight(.semibold))
                                 .foregroundColor(.red)
                         }
                         Spacer()
                         Text("\(entry.responseSize) bytes · \(entry.date.formatted(.dateTime.hour().minute().second()))")
-                            .font(.system(size: 10))
+                            .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
 
@@ -241,7 +241,7 @@ struct DebugMenuView: View {
                         HStack {
                             if entry.bodyTruncated {
                                 Text("Body truncated at 200 KB")
-                                    .font(.system(size: 10))
+                                    .font(.caption2)
                                     .foregroundColor(.orange)
                             }
                             Spacer()
@@ -250,7 +250,7 @@ struct DebugMenuView: View {
                                 NSPasteboard.general.setString(entry.responseBody, forType: .string)
                             } label: {
                                 Label("Copy body", systemImage: "doc.on.doc")
-                                    .font(.system(size: 10))
+                                    .font(.caption2)
                                     .foregroundStyle(.tint)
                             }
                             .buttonStyle(.plain)
@@ -271,7 +271,7 @@ struct DebugMenuView: View {
 
     private func detailSectionLabel(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 9, weight: .bold, design: .monospaced))
+            .font(.caption2.weight(.bold).monospaced())
             .foregroundStyle(.tertiary)
             .tracking(1)
             .padding(.horizontal, 10)
@@ -283,7 +283,7 @@ struct DebugMenuView: View {
         VStack(alignment: .leading, spacing: 1) {
             content()
         }
-        .font(.system(size: 10, design: .monospaced))
+        .font(.caption2.monospaced())
         .textSelection(.enabled)
         .padding(.horizontal, 10)
         .padding(.vertical, 4)
@@ -292,7 +292,7 @@ struct DebugMenuView: View {
     private func scrollableMonoBlock(_ text: String, maxHeight: CGFloat) -> some View {
         ScrollView([.vertical, .horizontal]) {
             Text(text)
-                .font(.system(size: 10, design: .monospaced))
+                .font(.caption2.monospaced())
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -309,7 +309,7 @@ struct DebugMenuView: View {
     private func debugSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.system(size: 11, weight: .semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.tertiary)
                 .textCase(.uppercase)
                 .tracking(0.5)
@@ -330,11 +330,11 @@ struct DebugMenuView: View {
         Button(action: action) {
             HStack(spacing: 10) {
                 Image(systemName: icon)
-                    .font(.system(size: 13))
+                    .font(.body)
                     .foregroundStyle(.tint)
                     .frame(width: 20)
                 Text(label)
-                    .font(.system(size: 13))
+                    .font(.body)
                     .foregroundStyle(.secondary)
                 Spacer()
             }

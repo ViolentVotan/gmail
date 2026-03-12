@@ -14,12 +14,12 @@ struct InboxParentRow: View {
             if isExpanded {
                 HStack(spacing: 10) {
                     Image(systemName: "tray.fill")
-                        .font(.system(size: 14))
+                        .font(.callout)
                         .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                         .frame(width: 20)
 
                     Text("Inbox")
-                        .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                        .font(.body.weight(isSelected ? .semibold : .regular))
                         .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                         .fixedSize(horizontal: true, vertical: false)
                     Spacer()
@@ -29,7 +29,7 @@ struct InboxParentRow: View {
                         withAnimation(.easeInOut(duration: 0.2)) { inboxExpanded.toggle() }
                     } label: {
                         Image(systemName: inboxExpanded ? "chevron.down" : "chevron.right")
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.caption2.weight(.medium))
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
@@ -48,7 +48,7 @@ struct InboxParentRow: View {
                         RoundedRectangle(cornerRadius: 10).fill(.tint.opacity(0.15))
                     }
                     Image(systemName: "tray.fill")
-                        .font(.system(size: 16))
+                        .font(.title3)
                         .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                 }
                 .frame(width: 40, height: 40)
@@ -79,12 +79,12 @@ struct InboxCategoryRow: View {
                     .frame(width: 16)
 
                 Image(systemName: category.icon)
-                    .font(.system(size: 12))
+                    .font(.subheadline)
                     .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                     .frame(width: 16)
 
                 Text(category.displayName)
-                    .font(.system(size: 12, weight: isSelected ? .medium : .regular))
+                    .font(.subheadline.weight(isSelected ? .medium : .regular))
                     .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
 
                 Spacer()
@@ -120,12 +120,12 @@ struct LabelsParentRow: View {
             if isExpanded {
                 HStack(spacing: 10) {
                     Image(systemName: "tag.fill")
-                        .font(.system(size: 14))
+                        .font(.callout)
                         .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                         .frame(width: 20)
 
                     Text("Labels")
-                        .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                        .font(.body.weight(isSelected ? .semibold : .regular))
                         .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                         .fixedSize(horizontal: true, vertical: false)
                     Spacer()
@@ -134,7 +134,7 @@ struct LabelsParentRow: View {
                         withAnimation(.easeInOut(duration: 0.2)) { labelsExpanded.toggle() }
                     } label: {
                         Image(systemName: labelsExpanded ? "chevron.down" : "chevron.right")
-                            .font(.system(size: 10, weight: .medium))
+                            .font(.caption2.weight(.medium))
                             .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
@@ -152,7 +152,7 @@ struct LabelsParentRow: View {
                         RoundedRectangle(cornerRadius: 10).fill(.tint.opacity(0.15))
                     }
                     Image(systemName: "tag.fill")
-                        .font(.system(size: 16))
+                        .font(.title3)
                         .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                 }
                 .frame(width: 40, height: 40)
@@ -187,7 +187,7 @@ struct LabelSidebarRow: View {
                     .frame(width: 8, height: 8)
 
                 Text(label.displayName)
-                    .font(.system(size: 12, weight: isSelected ? .medium : .regular))
+                    .font(.subheadline.weight(isSelected ? .medium : .regular))
                     .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
@@ -236,12 +236,12 @@ struct SidebarItemView: View {
     private var expandedContent: some View {
         HStack(spacing: 10) {
             Image(systemName: folder.icon)
-                .font(.system(size: 14))
+                .font(.callout)
                 .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                 .frame(width: 20)
 
             Text(folder.rawValue)
-                .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
+                .font(.body.weight(isSelected ? .semibold : .regular))
                 .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                 .fixedSize(horizontal: true, vertical: false)
             Spacer()
@@ -271,7 +271,7 @@ struct SidebarItemView: View {
             }
             ZStack(alignment: .topTrailing) {
                 Image(systemName: folder.icon)
-                    .font(.system(size: 16))
+                    .font(.title3)
                     .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                 if folder.count > 0 {
                     Circle().fill(.tint).frame(width: 8, height: 8).offset(x: 4, y: -2)

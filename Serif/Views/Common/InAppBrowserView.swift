@@ -18,7 +18,7 @@ struct InAppBrowserView: View {
                 // Close button
                 Button { onClose() } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
                         .frame(width: 28, height: 28)
                         .background(.regularMaterial)
@@ -31,7 +31,7 @@ struct InAppBrowserView: View {
                 // Navigation
                 Button { webViewStore.webView.goBack() } label: {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.subheadline.weight(.medium))
                         .foregroundStyle(canGoBack ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
                         .frame(width: 28, height: 28)
                 }
@@ -41,7 +41,7 @@ struct InAppBrowserView: View {
 
                 Button { webViewStore.webView.goForward() } label: {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.subheadline.weight(.medium))
                         .foregroundStyle(canGoForward ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
                         .frame(width: 28, height: 28)
                 }
@@ -57,11 +57,11 @@ struct InAppBrowserView: View {
                             .frame(width: 12, height: 12)
                     } else {
                         Image(systemName: "lock.fill")
-                            .font(.system(size: 9))
+                            .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
                     Text(displayURL)
-                        .font(.system(size: 12))
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -83,9 +83,9 @@ struct InAppBrowserView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "safari")
-                            .font(.system(size: 12))
+                            .font(.subheadline)
                         Text("Open in Browser")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                     }
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 10)

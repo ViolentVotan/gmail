@@ -40,7 +40,7 @@ struct ShortcutsHelpView: View {
             ForEach(sections, id: \.title) { section in
                 VStack(alignment: .leading, spacing: 8) {
                     Text(section.title)
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(.tertiary)
                         .textCase(.uppercase)
                         .tracking(0.5)
@@ -49,11 +49,11 @@ struct ShortcutsHelpView: View {
                         ForEach(section.shortcuts, id: \.keys) { shortcut in
                             HStack {
                                 Text(shortcut.description)
-                                    .font(.system(size: 13))
+                                    .font(.body)
                                     .foregroundStyle(.secondary)
                                 Spacer()
                                 Text(shortcut.keys)
-                                    .font(.system(size: 12, weight: .medium))
+                                    .font(.subheadline.weight(.medium))
                                     .foregroundStyle(.primary)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 3)

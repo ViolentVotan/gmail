@@ -27,12 +27,12 @@ struct SlidePanel<Content: View>: View {
                 // Header
                 HStack {
                     Text(title)
-                        .font(.system(size: 18, weight: .bold))
+                        .font(.title3.bold())
                         .foregroundStyle(.primary)
                     Spacer()
                     Button { isPresented = false } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.subheadline.weight(.medium))
                             .foregroundStyle(.secondary)
                             .frame(width: 24, height: 24)
                             .background(.regularMaterial)

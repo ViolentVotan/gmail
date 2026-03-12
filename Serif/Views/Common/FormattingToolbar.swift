@@ -53,9 +53,9 @@ struct FormattingToolbar: View {
             } label: {
                 HStack(spacing: 3) {
                     Text("\(Int(state.fontSize))")
-                        .font(.system(size: 11))
+                        .font(.caption)
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 7))
+                        .font(.caption2)
                 }
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 6)
@@ -91,7 +91,7 @@ struct FormattingToolbar: View {
             } label: {
                 VStack(spacing: 1) {
                     Text("A")
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.body.bold())
                         .foregroundColor(Color(nsColor: state.textColor))
                     RoundedRectangle(cornerRadius: 1)
                         .fill(Color(nsColor: state.textColor))
@@ -148,7 +148,7 @@ struct FormattingToolbar: View {
                 showLinkPopover.toggle()
             } label: {
                 Image(systemName: "link")
-                    .font(.system(size: 12))
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(width: 26, height: 26)
                     .contentShape(Rectangle())
@@ -159,28 +159,28 @@ struct FormattingToolbar: View {
                 VStack(spacing: 10) {
                     HStack(spacing: 6) {
                         Text("URL")
-                            .font(.system(size: 11))
+                            .font(.caption)
                             .foregroundColor(.secondary)
                             .frame(width: 30, alignment: .leading)
                         TextField("https://", text: $linkURL)
                             .textFieldStyle(.roundedBorder)
-                            .font(.system(size: 12))
+                            .font(.subheadline)
                     }
                     HStack(spacing: 6) {
                         Text("Text")
-                            .font(.system(size: 11))
+                            .font(.caption)
                             .foregroundColor(.secondary)
                             .frame(width: 30, alignment: .leading)
                         TextField("Display text (optional)", text: $linkText)
                             .textFieldStyle(.roundedBorder)
-                            .font(.system(size: 12))
+                            .font(.subheadline)
                     }
                     HStack {
                         Spacer()
                         Button("Cancel") {
                             showLinkPopover = false
                         }
-                        .font(.system(size: 11))
+                        .font(.caption)
                         .buttonStyle(.plain)
 
                         Button("Insert") {
@@ -188,7 +188,7 @@ struct FormattingToolbar: View {
                             state.insertLink(url: linkURL, text: text)
                             showLinkPopover = false
                         }
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.caption.weight(.medium))
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
                         .disabled(linkURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
@@ -216,7 +216,7 @@ struct FormattingToolbar: View {
     private func toolbarButton(icon: String, tooltip: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 12))
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .frame(width: 26, height: 26)
                 .contentShape(Rectangle())
@@ -228,7 +228,7 @@ struct FormattingToolbar: View {
     private func toggleButton(icon: String, tooltip: String, isActive: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 12, weight: isActive ? .bold : .regular))
+                .font(.subheadline.weight(isActive ? .bold : .regular))
                 .foregroundStyle(isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                 .frame(width: 26, height: 26)
                 .background(
@@ -247,7 +247,7 @@ struct FormattingToolbar: View {
             state.setAlignment(alignment)
         } label: {
             Image(systemName: icon)
-                .font(.system(size: 12, weight: isActive ? .bold : .regular))
+                .font(.subheadline.weight(isActive ? .bold : .regular))
                 .foregroundStyle(isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                 .frame(width: 26, height: 26)
                 .background(
@@ -304,7 +304,7 @@ struct ColorGridPopover: View {
                     .frame(width: 24, height: 24)
 
                 Text("Custom")
-                    .font(.system(size: 11))
+                    .font(.caption)
                     .foregroundColor(.secondary)
 
                 Spacer()
@@ -313,7 +313,7 @@ struct ColorGridPopover: View {
                     state.setTextColor(NSColor(customColor))
                     showPopover = false
                 }
-                .font(.system(size: 11, weight: .medium))
+                .font(.caption.weight(.medium))
                 .buttonStyle(.plain)
             }
         }

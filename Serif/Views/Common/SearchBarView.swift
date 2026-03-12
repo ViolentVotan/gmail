@@ -12,11 +12,11 @@ struct SearchBarView: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 13, weight: .medium))
+                .font(.body.weight(.medium))
                 .foregroundStyle(.tertiary)
 
             NonAutoFocusTextField(text: $text, placeholder: "Search", focusTrigger: $focusTrigger)
-                .font(.system(size: 13))
+                .font(.body)
                 .foregroundStyle(.primary)
 
             if !text.isEmpty {
@@ -24,7 +24,7 @@ struct SearchBarView: View {
                     text = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 12))
+                        .font(.subheadline)
                         .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)

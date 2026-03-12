@@ -118,12 +118,12 @@ struct ComposeView: View {
                         ForEach(attachments, id: \.self) { url in
                             HStack(spacing: 4) {
                                 Image(systemName: url.sfSymbolIcon)
-                                    .font(.system(size: 11))
+                                    .font(.caption)
                                 Text(url.lastPathComponent)
-                                    .font(.system(size: 11))
+                                    .font(.caption)
                                     .lineLimit(1)
                                 Button { attachments.removeAll { $0 == url } } label: {
-                                    Image(systemName: "xmark").font(.system(size: 8, weight: .bold))
+                                    Image(systemName: "xmark").font(.caption2.weight(.bold))
                                 }
                                 .buttonStyle(.plain)
                             }
@@ -302,7 +302,7 @@ struct ComposeView: View {
                 showCc.toggle()
             } label: {
                 Text("Cc")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(showCc ? Color.accentColor : Color.secondary)
                     .frame(width: 28, height: 28)
                     .contentShape(Rectangle())
@@ -314,7 +314,7 @@ struct ComposeView: View {
                 showBcc.toggle()
             } label: {
                 Text("Bcc")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(showBcc ? Color.accentColor : Color.secondary)
                     .frame(height: 28)
                     .contentShape(Rectangle())
@@ -335,7 +335,7 @@ struct ComposeView: View {
     private func toolbarButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 13))
+                .font(.body)
                 .foregroundStyle(.secondary)
                 .frame(width: 28, height: 28)
                 .contentShape(Rectangle())
@@ -352,7 +352,7 @@ struct ComposeView: View {
                 showDiscardAlert = true
             } label: {
                 Text("Discard")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
@@ -363,7 +363,7 @@ struct ComposeView: View {
 
             if let err = sendError {
                 Text(err)
-                    .font(.system(size: 11))
+                    .font(.caption)
                     .foregroundColor(.red)
                     .lineLimit(1)
             }
@@ -383,10 +383,10 @@ struct ComposeView: View {
                             Image(systemName: "paperplane.fill")
                         }
                     }
-                    .font(.system(size: 11))
+                    .font(.caption)
                     .frame(width: 12, height: 12)
                     Text("Send")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.subheadline.weight(.semibold))
                 }
                 .foregroundStyle(.white)
                 .padding(.horizontal, 16)
@@ -407,7 +407,7 @@ struct ComposeView: View {
     private var fromField: some View {
         HStack(spacing: 10) {
             Text("From")
-                .font(.system(size: 12, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.tertiary)
                 .frame(width: 50, alignment: .leading)
 
@@ -418,7 +418,7 @@ struct ComposeView: View {
             }
             .pickerStyle(.menu)
             .labelsHidden()
-            .font(.system(size: 13))
+            .font(.body)
             .fixedSize()
 
             Spacer()
@@ -464,13 +464,13 @@ struct ComposeView: View {
     private func composeField(label: String, text: Binding<String>, placeholder: String = "") -> some View {
         HStack(spacing: 10) {
             Text(label)
-                .font(.system(size: 12, weight: .medium))
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.tertiary)
                 .frame(width: 50, alignment: .leading)
 
             TextField(placeholder, text: text)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .font(.body)
                 .foregroundStyle(.primary)
         }
         .padding(.horizontal, 24)

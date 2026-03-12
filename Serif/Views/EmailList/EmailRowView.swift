@@ -38,13 +38,13 @@ struct EmailRowView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack {
                         Text(email.isDraft && email.recipients.isEmpty ? "Draft" : email.sender.name)
-                            .font(.system(size: 13, weight: email.isRead ? .medium : .semibold))
+                            .font(.body.weight(email.isRead ? .medium : .semibold))
                             .foregroundStyle(email.isDraft && email.recipients.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
                             .lineLimit(1)
 
                         if email.threadMessageCount > 1 {
                             Text("\(email.threadMessageCount)")
-                                .font(.system(size: 11, weight: .bold, design: .rounded))
+                                .font(.caption.bold())
                                 .foregroundColor(.white)
                                 .frame(minWidth: 18, minHeight: 18)
                                 .background(Circle().fill(Color.accentColor.opacity(0.75)))
@@ -53,17 +53,17 @@ struct EmailRowView: View {
                         Spacer()
 
                         Text(email.date.formattedRelative)
-                            .font(.system(size: 11))
+                            .font(.caption)
                             .foregroundStyle(.tertiary)
                     }
 
                     Text(email.subject)
-                        .font(.system(size: 12, weight: email.isRead ? .regular : .medium))
+                        .font(.subheadline.weight(email.isRead ? .regular : .medium))
                         .foregroundStyle(email.isRead ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                         .lineLimit(1)
 
                     Text(email.preview)
-                        .font(.system(size: 11))
+                        .font(.caption)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
 
@@ -74,7 +74,7 @@ struct EmailRowView: View {
                             }
                             if email.labels.count > 3 {
                                 Text("+\(email.labels.count - 3)")
-                                    .font(.system(size: 9, weight: .medium))
+                                    .font(.caption2.weight(.medium))
                                     .foregroundStyle(.tertiary)
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 2)
@@ -89,12 +89,12 @@ struct EmailRowView: View {
                 VStack(spacing: 4) {
                     if email.isStarred {
                         Image(systemName: "star.fill")
-                            .font(.system(size: 10))
+                            .font(.caption2)
                             .foregroundStyle(.tint)
                     }
                     if email.hasAttachments {
                         Image(systemName: "paperclip")
-                            .font(.system(size: 10))
+                            .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
                 }

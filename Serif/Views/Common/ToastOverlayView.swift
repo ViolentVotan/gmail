@@ -40,10 +40,10 @@ struct ToastOverlayView: View {
     private func toastContent(_ toast: ToastMessage) -> some View {
         HStack(spacing: 10) {
             Image(systemName: iconName(toast.type))
-                .font(.system(size: 13, weight: .medium))
+                .font(.body.weight(.medium))
                 .foregroundColor(iconColor(toast.type))
             Text(toast.message)
-                .font(.system(size: 13, weight: .medium))
+                .font(.body.weight(.medium))
                 .foregroundStyle(.primary)
                 .lineLimit(2)
             Spacer()

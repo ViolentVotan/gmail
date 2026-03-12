@@ -9,7 +9,7 @@ struct BadgeView: View {
     let isSelected: Bool
     var body: some View {
         Text(count < 100 ? "\(count)" : "99+")
-            .font(.system(size: 10, weight: .semibold, design: .rounded))
+            .font(.caption2.weight(.semibold))
             .foregroundStyle(isSelected ? Color.primary : Color.primary.opacity(0.7))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)

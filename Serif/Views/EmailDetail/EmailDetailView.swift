@@ -178,7 +178,7 @@ struct EmailDetailView: View {
                                 .padding(.bottom, 16)
 
                             Text(detailVM.latestMessage?.subject ?? email.subject)
-                                .font(.system(size: 20, weight: .bold))
+                                .font(.title3.bold())
                                 .foregroundStyle(.primary)
                                 .padding(.horizontal, 24)
                                 .padding(.bottom, 10)
@@ -203,9 +203,9 @@ struct EmailDetailView: View {
                                         } label: {
                                             HStack(spacing: 3) {
                                                 Image(systemName: suggestion.isNew ? "plus.circle" : "plus")
-                                                    .font(.system(size: 7, weight: .semibold))
+                                                    .font(.caption2.weight(.semibold))
                                                 Text(suggestion.name)
-                                                    .font(.system(size: 10))
+                                                    .font(.caption2)
                                             }
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 3)
@@ -265,7 +265,7 @@ struct EmailDetailView: View {
                                         }
                                     } label: {
                                         Text(showQuotedMain ? "Hide quoted" : "···")
-                                            .font(.system(size: showQuotedMain ? 11 : 14, weight: showQuotedMain ? .medium : .bold))
+                                            .font(showQuotedMain ? .caption.weight(.medium) : .callout.bold())
                                             .foregroundStyle(.tertiary)
                                             .padding(.horizontal, 10)
                                             .padding(.vertical, 4)
@@ -400,11 +400,11 @@ struct EmailDetailView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(email.sender.name)
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(.callout.weight(.semibold))
                     .foregroundStyle(.primary)
 
                 Text(email.sender.email)
-                    .font(.system(size: 12))
+                    .font(.subheadline)
                     .foregroundStyle(.tertiary)
                     .underline(showSenderInfo, color: .gray)
                     .onHover { hovering in
@@ -420,7 +420,7 @@ struct EmailDetailView: View {
             Spacer()
 
             Text(email.date.formattedFull)
-                .font(.system(size: 12))
+                .font(.subheadline)
                 .foregroundStyle(.tertiary)
         }
     }
@@ -435,9 +435,9 @@ struct EmailDetailView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: "paperclip")
-                    .font(.system(size: 12))
+                    .font(.subheadline)
                 Text("\(displayAttachments.count) Attachment\(displayAttachments.count > 1 ? "s" : "")")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.subheadline.weight(.medium))
             }
             .foregroundStyle(.secondary)
 
