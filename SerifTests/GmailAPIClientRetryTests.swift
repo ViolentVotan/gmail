@@ -31,4 +31,18 @@ import Foundation
     @Test func maxRetriesIsCapped() {
         #expect(RetryPolicy.maxRetries == 3)
     }
+
+    @Test func retriableNetworkErrors() {
+        let timeout = NSError(domain: NSURLErrorDomain, code: NSURLErrorTimedOut)
+        #expect(RetryPolicy.isRetriableNetworkError(timeout) == true)
+
+        let connectionLost = NSError(domain: NSURLErrorDomain, code: NSURLErrorNetworkConnectionLost)
+        #expect(RetryPolicy.isRetriableNetworkError(connectionLost) == true)
+
+        let badURL = NSError(domain: NSURLErrorDomain, code: NSURLErrorBadURL)
+        #expect(RetryPolicy.isRetriableNetworkError(badURL) == false)
+
+        let nonURLError = NSError(domain: "com.custom", code: 1)
+        #expect(RetryPolicy.isRetriableNetworkError(nonURLError) == false)
+    }
 }

@@ -12,6 +12,18 @@ final class GmailAPIClient {
     nonisolated private static let logger = Logger(subsystem: "com.genyus.serif", category: "GmailAPI")
     private var refreshTasks: [String: Task<AuthToken, Error>] = [:]
 
+    /// Configured session for Google API calls: appropriate timeouts,
+    /// connection pooling, and connectivity waiting.
+    nonisolated private static let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 120
+        config.httpMaximumConnectionsPerHost = 6
+        config.waitsForConnectivity = true
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return URLSession(configuration: config)
+    }()
+
     // MARK: - Decoded requests
 
     func request<T: Decodable>(
@@ -138,24 +150,45 @@ final class GmailAPIClient {
         accessToken: String
     ) async throws(GmailAPIError) -> Data {
         guard let url = URL(string: urlString) else { throw .invalidURL }
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
 
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await URLSession.shared.data(for: request)
-        } catch {
-            throw .networkError(error)
+        for attempt in 0...RetryPolicy.maxRetries {
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+
+            let data: Data
+            let response: URLResponse
+            do {
+                (data, response) = try await URLSession.shared.data(for: request)
+            } catch {
+                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
+                    continue
+                }
+                throw .networkError(error)
+            }
+            guard let http = response as? HTTPURLResponse else { throw .invalidURL }
+
+            switch http.statusCode {
+            case 200...299:
+                return data
+            case 401:
+                throw .unauthorized
+            case 403 where RetryPolicy.isRateLimited403(data) && attempt < RetryPolicy.maxRetries:
+                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
+                continue
+            default:
+                if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
+                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
+                    continue
+                }
+                throw .httpError(http.statusCode, data)
+            }
         }
-        guard let http = response as? HTTPURLResponse else { throw .invalidURL }
-        if http.statusCode == 401 { throw .unauthorized }
-        guard (200...299).contains(http.statusCode) else {
-            throw .httpError(http.statusCode, data)
-        }
-        return data
+        throw .httpError(0, Data())
     }
 
     /// Executes batch HTTP call off the main actor with retry logic matching `perform()`.
