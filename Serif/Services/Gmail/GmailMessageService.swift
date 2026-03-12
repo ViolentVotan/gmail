@@ -23,14 +23,27 @@ final class GmailMessageService {
             path += "&q=\(q.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? q)"
         }
         if let token = pageToken { path += "&pageToken=\(token)" }
-        return try await client.request(path: path, accountID: accountID)
+        return try await client.request(
+            path: path,
+            fields: "messages(id,threadId),nextPageToken,resultSizeEstimate",
+            accountID: accountID
+        )
     }
 
     // MARK: - Fetch single message
 
     /// Fetches a single message. Use format "full" for detail view, "metadata" for list.
     @concurrent func getMessage(id: String, accountID: String, format: String = "full") async throws(GmailAPIError) -> GmailMessage {
-        try await client.request(path: "/users/me/messages/\(id)?format=\(format)", accountID: accountID)
+        let messageFields: String? = switch format {
+        case "metadata": "id,threadId,labelIds,snippet,payload/headers,internalDate,sizeEstimate"
+        case "full": "id,threadId,labelIds,snippet,payload,internalDate"
+        default: nil
+        }
+        return try await client.request(
+            path: "/users/me/messages/\(id)?format=\(format)",
+            fields: messageFields,
+            accountID: accountID
+        )
     }
 
     /// Fetches the raw RFC 2822 source of a message.
@@ -78,7 +91,11 @@ final class GmailMessageService {
     // MARK: - Threads
 
     @concurrent func getThread(id: String, accountID: String) async throws(GmailAPIError) -> GmailThread {
-        try await client.request(path: "/users/me/threads/\(id)?format=full", accountID: accountID)
+        try await client.request(
+            path: "/users/me/threads/\(id)?format=full",
+            fields: "id,messages(id,threadId,labelIds,snippet,payload,internalDate)",
+            accountID: accountID
+        )
     }
 
     // MARK: - History
@@ -97,7 +114,11 @@ final class GmailMessageService {
         path += "&historyTypes=labelAdded&historyTypes=labelRemoved"
         if let labelId { path += "&labelId=\(labelId)" }
         if let token = pageToken { path += "&pageToken=\(token)" }
-        return try await client.request(path: path, accountID: accountID)
+        return try await client.request(
+            path: path,
+            fields: "history(id,messages(id,labelIds),messagesAdded,messagesDeleted,labelsAdded,labelsRemoved),historyId,nextPageToken",
+            accountID: accountID
+        )
     }
 
     // MARK: - Mutations

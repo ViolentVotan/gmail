@@ -8,6 +8,7 @@ final class GmailLabelService {
     @concurrent func listLabels(accountID: String) async throws(GmailAPIError) -> [GmailLabel] {
         let response: GmailLabelListResponse = try await GmailAPIClient.shared.request(
             path: "/users/me/labels",
+            fields: "labels(id,name,type,messagesTotal,messagesUnread,threadsTotal,threadsUnread,color,labelListVisibility,messageListVisibility)",
             accountID: accountID
         )
         return response.labels
