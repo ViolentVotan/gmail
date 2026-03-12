@@ -93,6 +93,28 @@ final class HistorySyncService {
                         return msg.labelIds?.contains(labelId) == true
                     }
                     .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+
+                // Fire local notifications for new inbox messages (rate-limited to 5 per sync)
+                let inboxMessages = result.newMessages
+                    .filter { $0.labelIds?.contains(GmailSystemLabel.inbox) == true }
+                    .prefix(5)
+                for msg in inboxMessages {
+                    let fromRaw = msg.from
+                    let senderName = fromRaw
+                        .components(separatedBy: "<")
+                        .first?
+                        .trimmingCharacters(in: .whitespaces)
+                        .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+                        ?? fromRaw
+                    NotificationService.shared.notifyNewEmail(
+                        messageId: msg.id,
+                        threadId: msg.threadId,
+                        senderName: senderName.isEmpty ? fromRaw : senderName,
+                        subject: msg.subject,
+                        snippet: msg.snippet ?? "",
+                        accountID: accountID
+                    )
+                }
             }
 
             // Re-fetch messages with label changes to update their labelIds

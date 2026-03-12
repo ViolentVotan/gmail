@@ -4,6 +4,10 @@ import SwiftUI
 struct SerifApp: App {
     @AppStorage("isSignedIn") private var isSignedIn: Bool = false
 
+    init() {
+        NotificationService.shared.setup()
+    }
+
     var body: some Scene {
         WindowGroup {
             Group {

@@ -4,6 +4,7 @@ struct SettingsView: View {
     var accountID: String = ""
 
     // Use the same @AppStorage keys as AppCoordinator and UndoActionManager
+    @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("undoDuration") private var undoDuration = 5
     @AppStorage("refreshInterval") private var refreshInterval = 120
     @AppStorage("showDebugMenu") private var showDebugMenu = false
@@ -39,6 +40,8 @@ struct SettingsView: View {
             }
 
             Section("Behavior") {
+                Toggle("Enable notifications", isOn: $notificationsEnabled)
+
                 Picker("Undo duration", selection: $undoDuration) {
                     Text("5 seconds").tag(5)
                     Text("10 seconds").tag(10)
