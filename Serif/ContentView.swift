@@ -5,6 +5,14 @@ struct ContentView: View {
     @State private var coordinator = AppCoordinator()
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
+    enum AppFocus: Hashable {
+        case sidebar
+        case list
+        case detail
+    }
+
+    @FocusState private var appFocus: AppFocus?
+
     // MARK: - Body
 
     var body: some View {
@@ -51,6 +59,7 @@ struct ContentView: View {
                     onRenameLabel: { label, newName in Task { await coordinator.renameLabel(label, to: newName) } },
                     onDeleteLabel: { label in Task { await coordinator.deleteLabel(label) } }
                 )
+                .focused($appFocus, equals: .sidebar)
             } content: {
                 if coordinator.selectedFolder == .attachments {
                     AttachmentExplorerView(
@@ -77,6 +86,7 @@ struct ContentView: View {
                         searchFocusTrigger: $coordinator.searchFocusTrigger,
                         coordinator: coordinator
                     )
+                    .focused($appFocus, equals: .list)
                 }
             } detail: {
                 if coordinator.selectedFolder != .attachments {
@@ -87,7 +97,27 @@ struct ContentView: View {
                         displayedEmails: coordinator.displayedEmails,
                         coordinator: coordinator
                     )
+                    .focused($appFocus, equals: .detail)
                 }
+            }
+            .onKeyPress(.tab, phases: .down) { keyPress in
+                guard keyPress.modifiers.contains(.option) else { return .ignored }
+                if keyPress.modifiers.contains(.shift) {
+                    switch appFocus {
+                    case .sidebar: appFocus = .detail
+                    case .list:    appFocus = .sidebar
+                    case .detail:  appFocus = .list
+                    case nil:      appFocus = .list
+                    }
+                } else {
+                    switch appFocus {
+                    case .sidebar: appFocus = .list
+                    case .list:    appFocus = .detail
+                    case .detail:  appFocus = .sidebar
+                    case nil:      appFocus = .list
+                    }
+                }
+                return .handled
             }
             .userActivity("com.serif.viewEmail", isActive: coordinator.selectedEmail != nil) { activity in
                 guard let email = coordinator.selectedEmail else { return }
