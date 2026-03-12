@@ -3,62 +3,18 @@ import SwiftUI
 struct SlidePanelsOverlay: View {
     @Bindable var panels: PanelCoordinator
 
-    var appearanceManager: AppearanceManager
     var authViewModel: AuthViewModel
     @Binding var selectedAccountID: String?
-    @Binding var undoDuration: Int
-    @Binding var refreshInterval: Int
-    var lastRefreshedAt: Date?
-    @Binding var signatureForNew: String
-    @Binding var signatureForReply: String
-    var sendAsAliases: [GmailSendAs]
-    var onAliasesUpdated: (() -> Void)?
-    var onRefreshContacts: ((String) async -> Void)?
-    var onSaveSignature: ((String, String, String) async throws -> GmailSendAs)?
     var attachmentStore: AttachmentStore
     var mailStore: MailStore
 
     var body: some View {
-        settingsPanel
         helpPanel
         debugPanel
         originalPanel
         attachmentPanel
         emailPreviewPanel
         webBrowserOverlay
-    }
-
-    // MARK: - Settings
-
-    private var settingsPanel: some View {
-        SlidePanel(isPresented: $panels.showSettings, title: "Settings") {
-            VStack(alignment: .leading, spacing: 16) {
-                ThemePickerView(appearanceManager: appearanceManager)
-                AccountsSettingsView(authViewModel: authViewModel, selectedAccountID: $selectedAccountID)
-                BehaviorSettingsCard(
-                    undoDuration: $undoDuration,
-                    refreshInterval: $refreshInterval,
-                    lastRefreshedAt: lastRefreshedAt
-                )
-                ContactsSettingsCard(
-                    accountID: selectedAccountID ?? authViewModel.primaryAccount?.id ?? "",
-                    onRefreshContacts: onRefreshContacts
-                )
-                SignatureSettingsCard(
-                    aliases: sendAsAliases,
-                    accountID: selectedAccountID ?? authViewModel.primaryAccount?.id ?? "",
-                    signatureForNew: $signatureForNew,
-                    signatureForReply: $signatureForReply,
-                    onAliasesUpdated: { onAliasesUpdated?() },
-                    onSaveSignature: onSaveSignature
-                )
-                AppleIntelligenceSettingsCard()
-                StorageSettingsCard(attachmentStore: attachmentStore)
-                DeveloperSettingsCard()
-            }
-            .padding(20)
-        }
-        .zIndex(10)
     }
 
     // MARK: - Help

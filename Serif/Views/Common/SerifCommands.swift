@@ -33,7 +33,7 @@ struct SerifCommands: Commands {
         messageMenu
         mailboxMenu
         viewMenu
-        settingsMenu
+        helpMenu
     }
 
     // MARK: - Message
@@ -115,14 +115,15 @@ struct SerifCommands: Commands {
         }
     }
 
-    // MARK: - Settings
+    // MARK: - Help
 
-    private var settingsMenu: some Commands {
-        CommandGroup(replacing: .appSettings) {
-            Button("Settings...") {
-                coordinator?.panelCoordinator.openSettings()
+    private var helpMenu: some Commands {
+        CommandGroup(replacing: .help) {
+            Button {
+                coordinator?.panelCoordinator.showHelp = true
+            } label: {
+                Label("Keyboard Shortcuts", systemImage: "keyboard")
             }
-            .keyboardShortcut(",", modifiers: .command)
         }
     }
 }

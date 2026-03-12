@@ -24,5 +24,9 @@ struct SerifApp: App {
             CommandGroup(replacing: .textEditing) {}
             SerifCommands()
         }
+
+        Settings {
+            SettingsView()
+        }
     }
 }

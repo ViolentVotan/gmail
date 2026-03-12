@@ -10,8 +10,6 @@ struct KeyboardShortcutsView: View {
 
     var body: some View {
         Group {
-            Button("") { coordinator.panelCoordinator.openSettings() }
-                .keyboardShortcut(",", modifiers: .command)
             Button("") { coordinator.panelCoordinator.closeAll() }
                 .keyboardShortcut(.escape, modifiers: []).disabled(!coordinator.panelCoordinator.isAnyOpen)
         }

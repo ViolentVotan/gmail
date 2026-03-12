@@ -103,26 +103,8 @@ struct ContentView: View {
 
             SlidePanelsOverlay(
                 panels: coordinator.panelCoordinator,
-                appearanceManager: appearanceManager,
                 authViewModel: coordinator.authViewModel,
                 selectedAccountID: $coordinator.selectedAccountID,
-                undoDuration: $coordinator.undoDuration,
-                refreshInterval: $coordinator.refreshInterval,
-                lastRefreshedAt: coordinator.lastRefreshedAt,
-                signatureForNew: $coordinator.signatureForNew,
-                signatureForReply: $coordinator.signatureForReply,
-                sendAsAliases: coordinator.mailboxViewModel.sendAsAliases,
-                onAliasesUpdated: {
-                    Task { await coordinator.mailboxViewModel.loadSendAs() }
-                },
-                onRefreshContacts: { accountID in
-                    await GmailProfileService.shared.refreshContacts(accountID: accountID)
-                },
-                onSaveSignature: { sendAsEmail, signature, accountID in
-                    try await GmailProfileService.shared.updateSignature(
-                        sendAsEmail: sendAsEmail, signature: signature, accountID: accountID
-                    )
-                },
                 attachmentStore: coordinator.attachmentStore,
                 mailStore: coordinator.mailStore
             )

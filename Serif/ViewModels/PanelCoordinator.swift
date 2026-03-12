@@ -5,7 +5,6 @@ import SwiftUI
 final class PanelCoordinator {
     // MARK: - Panel visibility
 
-    var showSettings = false
     var showHelp = false
     var showDebug = false
     var showOriginal = false
@@ -35,23 +34,16 @@ final class PanelCoordinator {
     var attachmentPreviewFileType: Attachment.FileType = .document
 
     var isAnyOpen: Bool {
-        showSettings || showHelp || showDebug || showAttachmentPreview || showOriginal || showWebBrowser || showEmailPreview
+        showHelp || showDebug || showAttachmentPreview || showOriginal || showWebBrowser || showEmailPreview
     }
 
     func closeAll() {
-        showSettings = false
         showHelp = false
         showDebug = false
         showAttachmentPreview = false
         showOriginal = false
         showWebBrowser = false
         showEmailPreview = false
-    }
-
-    func openSettings() {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-            showSettings = true
-        }
     }
 
     func previewAttachment(data: Data?, name: String, fileType: Attachment.FileType) {
