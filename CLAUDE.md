@@ -1,6 +1,6 @@
 # Serif — Native macOS Gmail Client
 
-Swift 6.2 / SwiftUI / macOS 26+ — a native Gmail client with threading, tracker blocking, multi-account, and Apple Intelligence summaries.
+Swift 6.2 / SwiftUI / macOS 26+ — a native Gmail client with threading, tracker blocking, multi-account, Apple Intelligence (summaries, classification, smart replies), snooze, schedule-send, offline queue, App Intents, command palette, Gmail filters, and push notifications.
 
 ## Fork & Upstream
 
@@ -33,13 +33,17 @@ Serif/
 ├── Views/          # SwiftUI views
 ├── ViewModels/     # MVVM view models (one per feature)
 ├── Models/         # Data models
-├── Services/       # Business logic (Gmail auth, mail ops, tracking protection)
-├── Theme/          # Appearance management (system/light/dark)
+├── Services/       # Business logic & API
+│   ├── Auth/       # OAuth & token management
+│   ├── Gmail/      # Gmail REST API clients (one per domain)
+│   └── Protocols/  # Service protocols for testability
+├── Intents/        # App Intents (Shortcuts, Spotlight, Siri)
+├── Theme/          # AppearanceManager (system/light/dark)
 ├── Configuration/  # OAuth credentials (gitignored)
 └── Utilities/      # Helpers
 ```
 
-**Patterns:** MVVM with coordinator navigation (`AppCoordinator`, `EmailActionCoordinator`). `MailStore` handles persistence via JSON. See `.claude/rules/swift.md` for code style and architecture rules. No auto-update framework — updates are distributed manually.
+**Patterns:** MVVM with coordinator navigation (`AppCoordinator`, `EmailActionCoordinator`). `MailStore` handles persistence via JSON. See `.claude/rules/swift.md` for code style and architecture rules.
 
 ## LSP Tool Routing
 
@@ -56,4 +60,6 @@ Both share the same `sourcekit-lsp` server and Xcode build index — build in Xc
 ## Gotchas
 
 - TokenStore encryption key stored alongside ciphertext (known security issue from review)
-- Some computed properties re-sort on every render (performance — see tasks/review.md)
+- Some computed properties re-sort on every render (performance issue — known)
+- `WebRichTextEditorState` is the sole `ObservableObject` — cannot migrate to `@Observable` (NSViewRepresentable bridge)
+- Multi-account stores (`SnoozeStore`, `ScheduledSendStore`, `OfflineActionQueue`) use per-account file persistence — `load()` merges, not replaces
