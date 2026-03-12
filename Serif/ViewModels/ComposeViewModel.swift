@@ -1,5 +1,4 @@
 import SwiftUI
-import Observation
 
 /// Drives the compose / reply / draft editing flow.
 @Observable

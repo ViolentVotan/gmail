@@ -1,5 +1,4 @@
 import SwiftUI
-import Observation
 
 /// Manages account sign-in, sign-out, and the list of connected Gmail accounts.
 @Observable

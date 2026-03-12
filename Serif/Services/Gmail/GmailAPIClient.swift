@@ -35,16 +35,6 @@ final class GmailAPIClient {
         contentType: String? = nil,
         accountID: String
     ) async throws(GmailAPIError) -> Data {
-        #if DEBUG
-        if method == "GET", let cached = APICache.shared.get(path: path, accountID: accountID) {
-            APILogger.shared.log(APILogEntry(
-                method: method, path: path, statusCode: 200, errorMessage: nil,
-                responseBodyData: cached, responseSize: cached.count, durationMs: 0, fromCache: true
-            ))
-            return cached
-        }
-        #endif
-
         let token = try await validToken(for: accountID)
 
         #if DEBUG
@@ -64,7 +54,6 @@ final class GmailAPIClient {
                 responseHeaders: respHeaders,
                 responseBodyData: data, responseSize: data.count, durationMs: ms, fromCache: false
             ))
-            if method == "GET" { APICache.shared.set(data, path: path, accountID: accountID) }
             return data
         } catch {
             let ms = Int(Date().timeIntervalSince(t0) * 1000)

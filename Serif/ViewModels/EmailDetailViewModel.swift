@@ -1,5 +1,4 @@
 import SwiftUI
-import Observation
 
 /// Drives the email detail / thread view.
 @Observable

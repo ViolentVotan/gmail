@@ -1,5 +1,4 @@
 import SwiftUI
-import Observation
 
 /// Drives the email list for a given account and folder.
 @Observable

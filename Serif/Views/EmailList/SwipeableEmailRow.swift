@@ -1,5 +1,4 @@
 import AppKit
-import Observation
 import SwiftUI
 
 // MARK: - View

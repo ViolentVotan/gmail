@@ -1,7 +1,6 @@
 import SwiftUI
 private import Sparkle
 import Combine
-import Observation
 
 @Observable
 @MainActor
