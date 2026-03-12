@@ -67,6 +67,7 @@ struct ListPaneView: View {
             onMoveToInbox:       { actionCoordinator.moveToInboxEmail($0, selectedFolder: selectedFolder, selectNext: { coordinator.selectNext($0) }) },
             onDeletePermanently: { actionCoordinator.deletePermanentlyEmail($0, selectNext: { coordinator.selectNext($0) }) },
             onMarkNotSpam:       { actionCoordinator.markNotSpamEmail($0, selectNext: { coordinator.selectNext($0) }) },
+            onSnooze:            { actionCoordinator.snoozeEmail($0, until: $1, selectNext: { coordinator.selectNext($0) }) },
             onEmptyTrash: {
                 actionCoordinator.emptyTrash(accountID: mailboxViewModel.accountID) { count in
                     coordinator.emptyTrashRequested(count: count)
