@@ -15,6 +15,13 @@ final class EmailActionCoordinator {
 
     func archiveEmail(_ email: Email, selectNext: (Email?) -> Void) {
         guard let msgID = email.gmailMessageID else { return }
+        guard NetworkMonitor.shared.isConnected else {
+            OfflineActionQueue.shared.enqueue(OfflineAction(
+                actionType: .archive, messageIds: [msgID], accountID: mailboxViewModel.accountID
+            ))
+            ToastManager.shared.show(message: "Archived (will sync when online)")
+            return
+        }
         let vm = mailboxViewModel
         let removed = vm.removeOptimistically(msgID)
         selectNext(nil)
@@ -37,6 +44,13 @@ final class EmailActionCoordinator {
             return
         }
         guard let msgID = email.gmailMessageID else { return }
+        guard NetworkMonitor.shared.isConnected else {
+            OfflineActionQueue.shared.enqueue(OfflineAction(
+                actionType: .trash, messageIds: [msgID], accountID: mailboxViewModel.accountID
+            ))
+            ToastManager.shared.show(message: "Moved to Trash (will sync when online)")
+            return
+        }
         let vm = mailboxViewModel
         let removed = vm.removeOptimistically(msgID)
         selectNext(nil)
