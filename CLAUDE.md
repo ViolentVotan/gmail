@@ -34,7 +34,7 @@ Serif/
 ├── ViewModels/     # MVVM view models (one per feature)
 ├── Models/         # Data models
 ├── Services/       # Business logic (Gmail auth, mail ops, tracking protection)
-├── Theme/          # 15 themes (10 dark, 5 light)
+├── Theme/          # 16 themes (11 dark, 5 light)
 ├── Configuration/  # OAuth credentials (gitignored)
 └── Utilities/      # Helpers
 ```
@@ -46,7 +46,6 @@ Serif/
 - `GoogleCredentials.swift` must exist locally — app won't build without it
 - TokenStore encryption key stored alongside ciphertext (known security issue from review)
 - Some computed properties re-sort on every render (performance — see tasks/review.md)
-- WKWebView navigation policy is too permissive (security — see tasks/review.md)
 - Views calling Services directly (architecture violation — should go through ViewModels)
 - `WebRichTextEditorState` stays as `ObservableObject` — exception to @Observable migration (NSViewRepresentable bridge)
 - `UpdaterViewModel` keeps `import Combine` for Sparkle KVO interop

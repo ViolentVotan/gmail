@@ -21,5 +21,5 @@ Color theming system with customization and persistence.
 | File | Role |
 |------|------|
 | `Theme.swift` | `Theme` struct, `Color` extensions (hex init/export), color lookup helpers |
-| `DefaultThemes.swift` | All 12 built-in theme definitions |
-| `ThemeManager.swift` | Theme selection, overrides, persistence, `EnvironmentKey` |
+| `DefaultThemes.swift` | All 16 built-in theme definitions |
+| `ThemeManager.swift` | Theme selection, overrides, persistence, `@Entry` macro for environment |

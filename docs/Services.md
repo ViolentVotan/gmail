@@ -30,7 +30,7 @@ Gmail REST API wrappers. One service per domain:
 ### Root-level files
 | File | Role |
 |------|------|
-| `APICache.swift` | Generic ETag-based HTTP response caching |
+| `APILogger.swift` | API request/response debug logging |
 | `AttachmentDatabase.swift` | SQLite FTS5 index for attachment search |
 | `AttachmentIndexer.swift` | Async indexing with CPU throttling |
 | `AttachmentSearchService.swift` | Hybrid FTS + semantic embedding search |
