@@ -17,9 +17,10 @@ final class GmailAPIClient {
         method: String = "GET",
         body: Data? = nil,
         contentType: String? = nil,
+        fields: String? = nil,
         accountID: String
     ) async throws(GmailAPIError) -> T {
-        let data = try await rawRequest(path: path, method: method, body: body, contentType: contentType, accountID: accountID)
+        let data = try await rawRequest(path: path, method: method, body: body, contentType: contentType, fields: fields, accountID: accountID)
         do {
             return try JSONDecoder().decode(T.self, from: data)
         } catch {
@@ -33,6 +34,7 @@ final class GmailAPIClient {
         method: String = "GET",
         body: Data? = nil,
         contentType: String? = nil,
+        fields: String? = nil,
         accountID: String
     ) async throws(GmailAPIError) -> Data {
         guard NetworkMonitor.shared.isConnected else { throw .offline }
@@ -47,7 +49,7 @@ final class GmailAPIClient {
         let reqBody: String? = body.flatMap { String(data: $0, encoding: .utf8) }
         let t0 = Date()
         do {
-            let (data, code, respHeaders) = try await perform(path: path, method: method, body: body, contentType: contentType, accessToken: token.accessToken)
+            let (data, code, respHeaders) = try await perform(path: path, method: method, body: body, contentType: contentType, fields: fields, accessToken: token.accessToken)
             let ms = Int(Date().timeIntervalSince(t0) * 1000)
             APILogger.shared.log(APILogEntry(
                 method: method, path: path, statusCode: code, errorMessage: nil,
@@ -55,6 +57,9 @@ final class GmailAPIClient {
                 responseHeaders: respHeaders,
                 responseBodyData: data, responseSize: data.count, durationMs: ms, fromCache: false
             ))
+            if let encoding = respHeaders["Content-Encoding"] {
+                print("[GmailAPI] Compression: \(encoding) for \(path)")
+            }
             return data
         } catch {
             let ms = Int(Date().timeIntervalSince(t0) * 1000)
@@ -74,7 +79,7 @@ final class GmailAPIClient {
             throw error
         }
         #else
-        let (data, _, _) = try await perform(path: path, method: method, body: body, contentType: contentType, accessToken: token.accessToken)
+        let (data, _, _) = try await perform(path: path, method: method, body: body, contentType: contentType, fields: fields, accessToken: token.accessToken)
         return data
         #endif
     }
@@ -284,12 +289,20 @@ final class GmailAPIClient {
         method: String,
         body: Data?,
         contentType: String?,
+        fields: String?,
         accessToken: String
     ) async throws(GmailAPIError) -> (Data, Int, [String: String]) {
-        guard let url = URL(string: baseURL + path) else { throw .invalidURL }
+        var fullPath = path
+        if let fields {
+            let separator = fullPath.contains("?") ? "&" : "?"
+            let encoded = fields.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? fields
+            fullPath += "\(separator)fields=\(encoded)"
+        }
+        guard let url = URL(string: baseURL + fullPath) else { throw .invalidURL }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("Serif/1.0", forHTTPHeaderField: "User-Agent")
         if let contentType { request.setValue(contentType, forHTTPHeaderField: "Content-Type") }
         request.httpBody = body
 
