@@ -1,30 +1,32 @@
+import AppIntents
 import CoreSpotlight
-import UniformTypeIdentifiers
 
 @MainActor
 final class SpotlightIndexer {
     static let shared = SpotlightIndexer()
-    private let index = CSSearchableIndex.default()
     private var indexedCount = 0
     private let maxIndexed = 1000
+    private var legacyCleaned = false
+
+    private init() {
+        cleanLegacyItemsIfNeeded()
+    }
 
     func indexEmail(_ email: Email) {
-        let attributes = CSSearchableItemAttributeSet(contentType: .emailMessage)
-        attributes.subject = email.subject
-        attributes.authorNames = [email.sender.name]
-        attributes.textContent = email.preview
-        attributes.contentCreationDate = email.date
-        attributes.contentDescription = email.folder.rawValue
+        guard let messageID = email.gmailMessageID else { return }
 
-        let item = CSSearchableItem(
-            uniqueIdentifier: "email-\(email.id)",
-            domainIdentifier: "com.serif.emails",
-            attributeSet: attributes
+        // Clean up legacy CSSearchableItem entries on first run after migration
+        cleanLegacyItemsIfNeeded()
+
+        let entity = EmailEntity(
+            id: messageID,
+            subject: email.subject,
+            senderName: email.sender.name,
+            date: email.date
         )
-        item.expirationDate = Calendar.current.date(byAdding: .day, value: 30, to: Date())
 
-        Task.detached {
-            try? await CSSearchableIndex.default().indexSearchableItems([item])
+        Task {
+            try? await CSSearchableIndex.default().indexAppEntities([entity])
         }
 
         indexedCount += 1
@@ -34,9 +36,22 @@ final class SpotlightIndexer {
     }
 
     private func pruneAllEntries() {
-        Task.detached {
-            try? await CSSearchableIndex.default().deleteSearchableItems(withDomainIdentifiers: ["com.serif.emails"])
+        Task {
+            try? await CSSearchableIndex.default().deleteAllSearchableItems()
         }
         indexedCount = 0
+    }
+
+    // MARK: - Legacy migration
+
+    private func cleanLegacyItemsIfNeeded() {
+        guard !legacyCleaned else { return }
+        legacyCleaned = true
+        Task.detached {
+            // Remove legacy items indexed as CSSearchableItem with domain "com.serif.emails"
+            try? await CSSearchableIndex.default().deleteSearchableItems(
+                withDomainIdentifiers: ["com.serif.emails"]
+            )
+        }
     }
 }
