@@ -131,6 +131,44 @@ final class EmailActionCoordinator {
         )
     }
 
+    func snoozeEmail(_ email: Email, until date: Date, selectNext: (Email?) -> Void) {
+        guard let msgID = email.gmailMessageID else { return }
+        let vm = mailboxViewModel
+        let removed = vm.removeOptimistically(msgID)
+        selectNext(nil)
+
+        let item = SnoozedItem(
+            messageId: msgID,
+            threadId: email.gmailThreadID,
+            accountID: vm.accountID,
+            snoozeUntil: date,
+            originalLabelIds: email.gmailLabelIDs,
+            subject: email.subject,
+            senderName: email.sender.name
+        )
+
+        UndoActionManager.shared.schedule(
+            label: "Snoozed",
+            onConfirm: {
+                SnoozeStore.shared.add(item)
+                Task { await vm.archive(msgID) }
+            },
+            onUndo: { if let msg = removed { vm.restoreOptimistically(msg) } }
+        )
+    }
+
+    func unsnoozeEmail(messageId: String, accountID: String) {
+        SnoozeStore.shared.remove(messageId: messageId, accountID: accountID)
+        Task {
+            try? await GmailMessageService.shared.modifyLabels(
+                id: messageId,
+                add: [GmailSystemLabel.inbox],
+                remove: [],
+                accountID: accountID
+            )
+        }
+    }
+
     func emptyTrash(accountID: String, onConfirm: @escaping (Int) -> Void) {
         confirmEmptyFolder(labelID: GmailSystemLabel.trash, accountID: accountID, onConfirm: onConfirm)
     }
