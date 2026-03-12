@@ -111,9 +111,9 @@ final class GmailAPIClient {
     /// Generic batch fetch: chunks IDs into batches of 50, decodes each successful response.
     /// `pathBuilder` must return full API paths starting with `/gmail/v1/...` (not relative to baseURL).
     /// Runs up to 3 chunks concurrently to reduce latency for large ID sets.
-    func batchFetch<T: Decodable>(
+    func batchFetch<T: Decodable & Sendable>(
         ids: [String],
-        pathBuilder: @Sendable (String) -> String,
+        pathBuilder: @escaping @Sendable (String) -> String,
         accountID: String
     ) async throws(GmailAPIError) -> [T] {
         guard !ids.isEmpty else { return [] }
@@ -186,7 +186,7 @@ final class GmailAPIClient {
     }
 
     /// Fetches a single batch of IDs and decodes results.
-    private func fetchSingleBatch<T: Decodable>(
+    private func fetchSingleBatch<T: Decodable & Sendable>(
         chunk: [String],
         pathBuilder: @Sendable (String) -> String,
         accountID: String
