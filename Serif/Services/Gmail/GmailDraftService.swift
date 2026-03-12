@@ -31,6 +31,26 @@ final class GmailDraftService {
         )
     }
 
+    // MARK: - Send Draft
+
+    /// Sends an existing draft immediately via the Gmail Drafts/send endpoint.
+    @concurrent func sendDraft(draftId: String, accountID: String) async throws(GmailAPIError) {
+        struct SendDraftRequest: Encodable { let id: String }
+        let body: Data
+        do {
+            body = try JSONEncoder().encode(SendDraftRequest(id: draftId))
+        } catch {
+            throw .encodingError(error)
+        }
+        let _: GmailMessage = try await GmailAPIClient.shared.request(
+            path: "/users/me/drafts/send",
+            method: "POST",
+            body: body,
+            contentType: "application/json",
+            accountID: accountID
+        )
+    }
+
     // MARK: - Batch fetch
 
     /// Fetches a batch of draft IDs in groups of 5 to avoid rate limits.

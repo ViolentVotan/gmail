@@ -9,6 +9,7 @@ struct DetailToolbarView: View {
     let alreadyUnsubscribed: Bool
     var onArchive: (() -> Void)?
     var onDelete: (() -> Void)?
+    var onSnooze: ((Date) -> Void)?
     var onMoveToInbox: (() -> Void)?
     var onDeletePermanently: (() -> Void)?
     var onMarkNotSpam: (() -> Void)?
@@ -26,6 +27,7 @@ struct DetailToolbarView: View {
     let forwardMode: () -> ComposeMode
 
     @State private var isUnsubscribing = false
+    @State private var showSnoozePicker = false
     @Binding var didUnsubscribe: Bool
 
     var body: some View {
@@ -85,6 +87,25 @@ struct DetailToolbarView: View {
             }
             if let onMoveToInbox {
                 toolbarButton(icon: "tray.and.arrow.down", label: "Move to Inbox") { onMoveToInbox() }
+            }
+            if let onSnooze {
+                Button {
+                    showSnoozePicker = true
+                } label: {
+                    Image(systemName: "clock")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Snooze")
+                .popover(isPresented: $showSnoozePicker) {
+                    SnoozePickerView { date in
+                        showSnoozePicker = false
+                        onSnooze(date)
+                    }
+                }
             }
 
             Divider().frame(height: 16)
