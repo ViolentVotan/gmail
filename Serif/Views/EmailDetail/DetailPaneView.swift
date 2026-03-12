@@ -103,6 +103,7 @@ struct DetailPaneView: View {
                 Task { await mailboxViewModel.toggleStar(msgID, isStarred: isCurrentlyStarred) }
             },
             onMarkUnread: { actionCoordinator.markUnreadEmail(email) },
+            onSnooze: { date in actionCoordinator.snoozeEmail(email, until: date, selectNext: { coordinator.selectNext($0) }) },
             allLabels: mailboxViewModel.labels,
             onAddLabel: { labelID in
                 guard let msgID = email.gmailMessageID else { return }

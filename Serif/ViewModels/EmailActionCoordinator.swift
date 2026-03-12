@@ -213,6 +213,13 @@ final class EmailActionCoordinator {
         let msgIDs = emails.compactMap(\.gmailMessageID)
         let removed = msgIDs.compactMap { vm.removeOptimistically($0) }
         onClear()
+        guard NetworkMonitor.shared.isConnected else {
+            OfflineActionQueue.shared.enqueue(OfflineAction(
+                actionType: .archive, messageIds: msgIDs, accountID: vm.accountID
+            ))
+            ToastManager.shared.show(message: "Archived \(msgIDs.count) emails (will sync when online)")
+            return
+        }
         UndoActionManager.shared.schedule(
             label: "Archived \(msgIDs.count) emails",
             onConfirm: { Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.archive(id) } } } } },
@@ -225,6 +232,13 @@ final class EmailActionCoordinator {
         let msgIDs = emails.compactMap(\.gmailMessageID)
         let removed = msgIDs.compactMap { vm.removeOptimistically($0) }
         onClear()
+        guard NetworkMonitor.shared.isConnected else {
+            OfflineActionQueue.shared.enqueue(OfflineAction(
+                actionType: .trash, messageIds: msgIDs, accountID: vm.accountID
+            ))
+            ToastManager.shared.show(message: "Moved \(msgIDs.count) emails to Trash (will sync when online)")
+            return
+        }
         UndoActionManager.shared.schedule(
             label: "Trashed \(msgIDs.count) emails",
             onConfirm: { Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.trash(id) } } } } },

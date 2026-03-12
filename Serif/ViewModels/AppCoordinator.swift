@@ -69,6 +69,35 @@ final class AppCoordinator {
     var displayedEmails: [Email] {
         if selectedFolder == .drafts { return mailStore.emails(for: .drafts) }
         if selectedFolder == .subscriptions { return SubscriptionsStore.shared.entries }
+        if selectedFolder == .snoozed {
+            return SnoozeStore.shared.items.map { item in
+                Email(
+                    sender: Contact(name: item.senderName, email: ""),
+                    subject: item.subject,
+                    body: "",
+                    date: item.snoozeUntil,
+                    isRead: true,
+                    folder: .snoozed,
+                    gmailMessageID: item.messageId,
+                    gmailThreadID: item.threadId,
+                    gmailLabelIDs: item.originalLabelIds
+                )
+            }
+        }
+        if selectedFolder == .scheduled {
+            return ScheduledSendStore.shared.items.map { item in
+                Email(
+                    sender: Contact(name: fromAddress, email: fromAddress),
+                    recipients: item.recipients.map { Contact(name: $0, email: $0) },
+                    subject: item.subject,
+                    body: "",
+                    date: item.scheduledTime,
+                    isRead: true,
+                    folder: .scheduled,
+                    isDraft: true
+                )
+            }
+        }
         return mailboxViewModel.emails
     }
 

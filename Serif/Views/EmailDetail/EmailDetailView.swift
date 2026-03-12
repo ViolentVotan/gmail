@@ -11,6 +11,7 @@ struct EmailDetailView: View {
     var onMarkNotSpam:        (() -> Void)?
     var onToggleStar:         ((Bool) -> Void)?
     var onMarkUnread:         (() -> Void)?
+    var onSnooze:             ((Date) -> Void)?
     var allLabels:     [GmailLabel]
     var onAddLabel:    ((String) -> Void)?
     var onRemoveLabel: ((String) -> Void)?
@@ -77,6 +78,7 @@ struct EmailDetailView: View {
         onMarkNotSpam:        (() -> Void)? = nil,
         onToggleStar:         ((Bool) -> Void)? = nil,
         onMarkUnread:         (() -> Void)? = nil,
+        onSnooze:             ((Date) -> Void)? = nil,
         allLabels:             [GmailLabel] = [],
         onAddLabel:            ((String) -> Void)? = nil,
         onRemoveLabel:         ((String) -> Void)? = nil,
@@ -104,6 +106,7 @@ struct EmailDetailView: View {
         self.onMarkNotSpam      = onMarkNotSpam
         self.onToggleStar       = onToggleStar
         self.onMarkUnread       = onMarkUnread
+        self.onSnooze           = onSnooze
         self.allLabels    = allLabels
         self.onAddLabel   = onAddLabel
         self.onRemoveLabel = onRemoveLabel
@@ -147,6 +150,7 @@ struct EmailDetailView: View {
                 alreadyUnsubscribed: alreadyUnsubscribed,
                 onArchive: onArchive,
                 onDelete: onDelete,
+                onSnooze: onSnooze,
                 onMoveToInbox: onMoveToInbox,
                 onDeletePermanently: onDeletePermanently,
                 onMarkNotSpam: onMarkNotSpam,

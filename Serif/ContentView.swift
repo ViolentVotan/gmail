@@ -300,6 +300,13 @@ struct ContentView: View {
             .onChange(of: coordinator.selectedEmail) { _, newValue in coordinator.handleSelectedEmailChange(newValue) }
             .onChange(of: coordinator.signatureForNew) { _, _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
             .onChange(of: coordinator.signatureForReply) { _, _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
+            .onReceive(NotificationCenter.default.publisher(for: .composeEmailFromIntent)) { _ in
+                coordinator.composeNewEmail()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .searchEmailFromIntent)) { _ in
+                coordinator.selectedFolder = .inbox
+                coordinator.searchFocusTrigger = true
+            }
             .onChange(of: coordinator.mailboxViewModel.lastRestoredMessageID) { _, msgID in
                 guard let msgID else { return }
                 coordinator.mailboxViewModel.lastRestoredMessageID = nil
