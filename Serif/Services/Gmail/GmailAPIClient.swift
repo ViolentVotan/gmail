@@ -129,6 +129,116 @@ final class GmailAPIClient {
         #endif
     }
 
+    // MARK: - Batch requests
+
+    /// Sends up to 50 individual API requests in a single HTTP call using Gmail's batch endpoint.
+    /// Each part is a standalone HTTP request encoded in `multipart/mixed`.
+    /// Returns an array of (contentID, responseData) tuples. Individual parts may fail independently.
+    func batchRequest(
+        requests: [(id: String, method: String, path: String, body: Data?)],
+        accountID: String
+    ) async throws(GmailAPIError) -> [(id: String, statusCode: Int, data: Data)] {
+        guard NetworkMonitor.shared.isConnected else { throw .offline }
+        let token = try await validToken(for: accountID)
+
+        // Delegate network I/O + parsing to @concurrent helper (mirrors rawRequest → perform pattern)
+        return try await performBatch(requests: requests, accessToken: token.accessToken)
+    }
+
+    /// Executes batch HTTP call off the main actor. Mirrors the `perform()` pattern.
+    @concurrent private func performBatch(
+        requests: [(id: String, method: String, path: String, body: Data?)],
+        accessToken: String
+    ) async throws(GmailAPIError) -> [(id: String, statusCode: Int, data: Data)] {
+        let boundary = "batch_serif_\(UUID().uuidString)"
+        var bodyParts: [String] = []
+
+        for req in requests {
+            var part = "--\(boundary)\r\n"
+            part += "Content-Type: application/http\r\n"
+            part += "Content-ID: <\(req.id)>\r\n\r\n"
+            part += "\(req.method) \(req.path) HTTP/1.1\r\n"
+            part += "Content-Type: application/json\r\n"
+            if let bodyData = req.body, let bodyStr = String(data: bodyData, encoding: .utf8) {
+                part += "Content-Length: \(bodyData.count)\r\n\r\n"
+                part += bodyStr
+            } else {
+                part += "\r\n"
+            }
+            bodyParts.append(part)
+        }
+
+        let fullBody = bodyParts.joined(separator: "\r\n") + "\r\n--\(boundary)--"
+        guard let bodyData = fullBody.data(using: .utf8) else { throw .encodingError(URLError(.cannotParseResponse)) }
+
+        guard let url = URL(string: "https://www.googleapis.com/batch/gmail/v1") else { throw .invalidURL }
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        urlRequest.setValue("multipart/mixed; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("Serif/1.0", forHTTPHeaderField: "User-Agent")
+        urlRequest.httpBody = bodyData
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: urlRequest)
+        } catch {
+            throw .networkError(error)
+        }
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
+            throw .httpError(code, data)
+        }
+
+        guard let contentType = http.value(forHTTPHeaderField: "Content-Type"),
+              let responseBoundary = contentType.components(separatedBy: "boundary=").last?.trimmingCharacters(in: .whitespaces) else {
+            throw .decodingError(URLError(.cannotParseResponse))
+        }
+
+        return try parseBatchResponse(data: data, boundary: responseBoundary)
+    }
+
+    nonisolated private func parseBatchResponse(data: Data, boundary: String) throws(GmailAPIError) -> [(id: String, statusCode: Int, data: Data)] {
+        guard let responseString = String(data: data, encoding: .utf8) else {
+            throw .decodingError(URLError(.cannotParseResponse))
+        }
+
+        var results: [(id: String, statusCode: Int, data: Data)] = []
+        let parts = responseString.components(separatedBy: "--\(boundary)")
+
+        for part in parts {
+            let trimmed = part.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, trimmed != "--" else { continue }
+
+            // Extract Content-ID
+            var contentID = ""
+            if let idRange = trimmed.range(of: "Content-ID: <") {
+                let afterID = trimmed[idRange.upperBound...]
+                if let endRange = afterID.range(of: ">") {
+                    contentID = String(afterID[..<endRange.lowerBound])
+                }
+            }
+
+            // Find the HTTP response line and body
+            guard let httpRange = trimmed.range(of: "HTTP/1.1 ") else { continue }
+            let httpPart = trimmed[httpRange.upperBound...]
+            let statusEnd = httpPart.index(httpPart.startIndex, offsetBy: 3, limitedBy: httpPart.endIndex) ?? httpPart.endIndex
+            let statusCode = Int(httpPart[..<statusEnd]) ?? 0
+
+            // Body is after double CRLF in the HTTP response part
+            let httpFull = trimmed[httpRange.lowerBound...]
+            if let bodyStart = httpFull.range(of: "\r\n\r\n") ?? httpFull.range(of: "\n\n") {
+                let bodyString = String(httpFull[bodyStart.upperBound...])
+                results.append((id: contentID, statusCode: statusCode, data: Data(bodyString.utf8)))
+            } else {
+                results.append((id: contentID, statusCode: statusCode, data: Data()))
+            }
+        }
+
+        return results
+    }
+
     // MARK: - Token refresh
 
     private func validToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
