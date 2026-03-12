@@ -134,11 +134,98 @@ struct ContentView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         if !coordinator.panelCoordinator.isAnyOpen {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
                 Button { coordinator.composeNewEmail() } label: {
                     Label("Compose", systemImage: "square.and.pencil")
                 }
                 .help("Compose (\u{2318}N)")
+
+                if let email = coordinator.selectedEmail {
+                    Button {
+                        let vm = EmailDetailViewModel(accountID: coordinator.accountID)
+                        coordinator.startCompose(mode: vm.replyMode(email: email))
+                    } label: {
+                        Label("Reply", systemImage: "arrowshape.turn.up.left")
+                    }
+                    .help("Reply")
+
+                    if coordinator.selectedFolder != .archive {
+                        Button {
+                            coordinator.actionCoordinator.archiveEmail(email, selectNext: { coordinator.selectNext($0) })
+                        } label: {
+                            Label("Archive", systemImage: "archivebox")
+                        }
+                        .help("Archive (\u{2318}E)")
+                    }
+
+                    if coordinator.selectedFolder != .trash {
+                        Button {
+                            coordinator.actionCoordinator.deleteEmail(email, selectNext: { coordinator.selectNext($0) })
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        .help("Delete (\u{2318}\u{232B})")
+                    }
+                }
+            }
+
+            if let email = coordinator.selectedEmail {
+                ToolbarItemGroup(placement: .automatic) {
+                    Button {
+                        let vm = EmailDetailViewModel(accountID: coordinator.accountID)
+                        coordinator.startCompose(mode: vm.forwardMode(email: email))
+                    } label: {
+                        Label("Forward", systemImage: "arrowshape.turn.up.right")
+                    }
+                    .help("Forward")
+
+                    Button {
+                        guard let msgID = email.gmailMessageID else { return }
+                        let starred = coordinator.mailboxViewModel.messages.first(where: { $0.id == msgID })?.isStarred ?? email.isStarred
+                        Task { await coordinator.mailboxViewModel.toggleStar(msgID, isStarred: starred) }
+                    } label: {
+                        let starred = coordinator.mailboxViewModel.messages.first(where: { $0.id == email.gmailMessageID })?.isStarred ?? email.isStarred
+                        Label(starred ? "Unstar" : "Star", systemImage: starred ? "star.fill" : "star")
+                    }
+                    .help("Toggle Star (\u{2318}L)")
+
+                    Button {
+                        coordinator.actionCoordinator.markUnreadEmail(email)
+                    } label: {
+                        Label("Mark Unread", systemImage: "envelope.badge")
+                    }
+                    .help("Mark Unread (\u{21E7}\u{2318}U)")
+
+                    Menu {
+                        Button {
+                            let vm = EmailDetailViewModel(accountID: coordinator.accountID)
+                            coordinator.startCompose(mode: vm.replyAllMode(email: email))
+                        } label: { Label("Reply All", systemImage: "arrowshape.turn.up.left.2") }
+
+                        if coordinator.selectedFolder == .archive || coordinator.selectedFolder == .trash {
+                            Button {
+                                coordinator.actionCoordinator.moveToInboxEmail(email, selectedFolder: coordinator.selectedFolder, selectNext: { coordinator.selectNext($0) })
+                            } label: { Label("Move to Inbox", systemImage: "tray.and.arrow.down") }
+                        }
+
+                        Divider()
+
+                        Button {
+                            if let msg = coordinator.mailboxViewModel.messages.first(where: { $0.id == email.gmailMessageID }) {
+                                EmailPrintService.shared.printEmail(message: msg, email: email)
+                            }
+                        } label: { Label("Print", systemImage: "printer") }
+
+                        Divider()
+
+                        Button(role: .destructive) {
+                            coordinator.actionCoordinator.markSpamEmail(email, selectNext: { coordinator.selectNext($0) })
+                        } label: { Label("Report as Spam", systemImage: "exclamationmark.shield") }
+                    } label: {
+                        Label("More", systemImage: "ellipsis.circle")
+                    }
+                    .help("More actions")
+                }
             }
         }
     }
