@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct SettingsView: View {
+    var accountID: String = ""
+
     // Use the same @AppStorage keys as AppCoordinator and UndoActionManager
     @AppStorage("undoDuration") private var undoDuration = 5
     @AppStorage("refreshInterval") private var refreshInterval = 120
@@ -12,6 +14,10 @@ struct SettingsView: View {
         TabView {
             Tab("General", systemImage: "gearshape") {
                 generalTab
+            }
+
+            Tab("Filters", systemImage: "line.3.horizontal.decrease.circle") {
+                FiltersSettingsView(accountID: accountID)
             }
 
             Tab("Advanced", systemImage: "wrench.and.screwdriver") {
