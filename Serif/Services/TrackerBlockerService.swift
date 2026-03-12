@@ -27,8 +27,7 @@ struct TrackerResult: Sendable {
 
 // MARK: - Service
 
-@MainActor
-final class TrackerBlockerService {
+final class TrackerBlockerService: Sendable {
     static let shared = TrackerBlockerService()
     private init() {}
 
@@ -44,9 +43,12 @@ final class TrackerBlockerService {
         options: .caseInsensitive
     )
 
+    /// Pre-built suffix set for O(1) tracker domain lookups.
+    private static let trackerSuffixSet: Set<String> = Set(trackerDomainMap.keys)
+
     // MARK: - Public API
 
-    func sanitize(html: String) -> TrackerResult {
+    nonisolated func sanitize(html: String) -> TrackerResult {
         var output = html
         var trackers: [TrackerInfo] = []
 
@@ -64,8 +66,10 @@ final class TrackerBlockerService {
         let nsHTML = html as NSString
         let matches = regex.matches(in: html, range: NSRange(location: 0, length: nsHTML.length))
 
-        // Process in reverse to preserve indices
-        for match in matches.reversed() {
+        // Collect ranges to remove, then do a single-pass replacement
+        var rangesToRemove: [NSRange] = []
+
+        for match in matches {
             let tag = nsHTML.substring(with: match.range)
             guard let src = extractAttribute("src", from: tag) else { continue }
 
@@ -73,10 +77,9 @@ final class TrackerBlockerService {
             if isAllowlisted(src) { continue }
 
             guard let url = URL(string: src), let host = url.host?.lowercased() else {
-                // Check for spy pixel without valid URL
                 if isSpyPixel(tag: tag) {
                     trackers.append(TrackerInfo(kind: .pixel, source: "hidden pixel", serviceName: nil))
-                    html = (html as NSString).replacingCharacters(in: match.range, with: "")
+                    rangesToRemove.append(match.range)
                 }
                 continue
             }
@@ -87,11 +90,20 @@ final class TrackerBlockerService {
 
             if isDomain || isPathTracker {
                 trackers.append(TrackerInfo(kind: .knownTracker, source: host, serviceName: serviceName))
-                html = (html as NSString).replacingCharacters(in: match.range, with: "")
+                rangesToRemove.append(match.range)
             } else if isPixel {
                 trackers.append(TrackerInfo(kind: .pixel, source: host, serviceName: nil))
-                html = (html as NSString).replacingCharacters(in: match.range, with: "")
+                rangesToRemove.append(match.range)
             }
+        }
+
+        // Single-pass removal (reverse order to preserve indices)
+        if !rangesToRemove.isEmpty {
+            let mutable = NSMutableString(string: html)
+            for range in rangesToRemove.reversed() {
+                mutable.replaceCharacters(in: range, with: "")
+            }
+            html = mutable as String
         }
     }
 
@@ -102,7 +114,10 @@ final class TrackerBlockerService {
         let nsHTML = html as NSString
         let matches = regex.matches(in: html, range: NSRange(location: 0, length: nsHTML.length))
 
-        for match in matches.reversed() {
+        // Collect replacements, then apply in a single pass
+        var replacements: [(NSRange, String)] = []
+
+        for match in matches {
             guard match.numberOfRanges > 1 else { continue }
             let urlStr = nsHTML.substring(with: match.range(at: 1))
             guard let url = URL(string: urlStr), let host = url.host?.lowercased() else { continue }
@@ -118,8 +133,16 @@ final class TrackerBlockerService {
                     with: "url(about:blank)",
                     options: .regularExpression
                 )
-                html = (html as NSString).replacingCharacters(in: match.range, with: replaced)
+                replacements.append((match.range, replaced))
             }
+        }
+
+        if !replacements.isEmpty {
+            let mutable = NSMutableString(string: html)
+            for (range, replacement) in replacements.reversed() {
+                mutable.replaceCharacters(in: range, with: replacement)
+            }
+            html = mutable as String
         }
     }
 
@@ -130,7 +153,10 @@ final class TrackerBlockerService {
         let nsHTML = html as NSString
         let matches = regex.matches(in: html, range: NSRange(location: 0, length: nsHTML.length))
 
-        for match in matches.reversed() {
+        // Collect replacements, then apply in a single pass
+        var replacements: [(NSRange, String)] = []
+
+        for match in matches {
             guard match.numberOfRanges > 1 else { continue }
             let href = nsHTML.substring(with: match.range(at: 1))
             guard let url = URL(string: href), let host = url.host?.lowercased() else { continue }
@@ -138,28 +164,43 @@ final class TrackerBlockerService {
             let (isDomain, serviceName) = isTrackerDomain(host)
             guard isDomain else { continue }
 
-            // Try to extract the real destination URL from query params
             if let destination = extractRedirectDestination(from: href) {
                 trackers.append(TrackerInfo(kind: .trackingLink, source: host, serviceName: serviceName))
-                let hrefRange = match.range(at: 1)
-                html = (html as NSString).replacingCharacters(in: hrefRange, with: destination)
+                replacements.append((match.range(at: 1), destination))
             } else {
-                // Can't extract destination — just record it
                 trackers.append(TrackerInfo(kind: .trackingLink, source: host, serviceName: serviceName))
             }
+        }
+
+        if !replacements.isEmpty {
+            let mutable = NSMutableString(string: html)
+            for (range, replacement) in replacements.reversed() {
+                mutable.replaceCharacters(in: range, with: replacement)
+            }
+            html = mutable as String
         }
     }
 
     // MARK: - Helpers
 
-    private static let attrRegexCache = NSCache<NSString, NSRegularExpression>()
+    private static let attrRegexCache: [String: NSRegularExpression] = {
+        // Pre-compile attribute extraction patterns used by extractAttribute/extractDimension
+        let patterns = [
+            "\\bsrc\\s*=\\s*[\"']([^\"']+)[\"']",
+            "\\bwidth\\s*=\\s*[\"']?(\\d+)",
+            "\\bheight\\s*=\\s*[\"']?(\\d+)",
+        ]
+        var cache: [String: NSRegularExpression] = [:]
+        for p in patterns {
+            cache[p] = try? NSRegularExpression(pattern: p, options: .caseInsensitive)
+        }
+        return cache
+    }()
 
     private func cachedRegex(for pattern: String) -> NSRegularExpression? {
-        let key = pattern as NSString
-        if let cached = Self.attrRegexCache.object(forKey: key) { return cached }
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else { return nil }
-        Self.attrRegexCache.setObject(regex, forKey: key)
-        return regex
+        if let cached = Self.attrRegexCache[pattern] { return cached }
+        // Fallback: compile on demand (rare — only for unexpected attribute names)
+        return try? NSRegularExpression(pattern: pattern, options: .caseInsensitive)
     }
 
     private func extractAttribute(_ name: String, from tag: String) -> String? {
@@ -198,10 +239,12 @@ final class TrackerBlockerService {
         if let name = Self.trackerDomainMap[host] {
             return (true, name)
         }
-        // Subdomain check only on miss
-        for (domain, name) in Self.trackerDomainMap {
-            if host.hasSuffix("." + domain) {
-                return (true, name)
+        // Walk up subdomains: "a.b.track.hubspot.com" → "b.track.hubspot.com" → "track.hubspot.com" → …
+        var remaining = host
+        while let dotIdx = remaining.firstIndex(of: ".") {
+            remaining = String(remaining[remaining.index(after: dotIdx)...])
+            if Self.trackerSuffixSet.contains(remaining) {
+                return (true, Self.trackerDomainMap[remaining] ?? nil)
             }
         }
         return (false, nil)

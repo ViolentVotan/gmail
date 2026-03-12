@@ -8,6 +8,8 @@ struct GmailThreadMessageView: View {
     @State private var showQuoted = false
     @State private var contentHeight: CGFloat = 60
 
+    /// Cached full HTML — computed once at init to avoid redundant recomputation on every render.
+    private let cachedFullHTML: String
     /// Cached result of `stripQuotedHTML` — computed once at init to avoid
     /// repeated regex work (10 passes) on every render cycle.
     private let cachedHTMLParts: (original: String, quoted: String?)
@@ -19,6 +21,7 @@ struct GmailThreadMessageView: View {
         self.onOpenLink = onOpenLink
 
         let html = Self.computeFullHTML(message: message, resolvedHTML: resolvedHTML)
+        self.cachedFullHTML = html
         self.cachedHTMLParts = Self.stripQuotedHTML(html)
     }
 
@@ -46,7 +49,7 @@ struct GmailThreadMessageView: View {
     /// Which HTML to actually render: stripped or full.
     private var renderedHTML: String {
         if showQuoted || cachedHTMLParts.quoted == nil {
-            return fullHTML
+            return cachedFullHTML
         }
         return cachedHTMLParts.original
     }

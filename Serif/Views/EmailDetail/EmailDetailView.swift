@@ -38,6 +38,8 @@ struct EmailDetailView: View {
     @State private var showSenderInfo = false
     @State private var showOriginalInviteEmail = false
     @State private var showQuotedMain = false
+    @State private var cachedMainHTMLParts: (original: String, quoted: String?)?
+    @State private var cachedMainHTMLSource: String?
     @State private var labelSuggestions: [LabelSuggestion] = []
     @AppStorage("aiLabelSuggestions") private var aiLabelSuggestionsEnabled = true
 
@@ -250,7 +252,7 @@ struct EmailDetailView: View {
                                 let fullHTML = rawHTML.isEmpty
                                     ? "<p>\(detailVM.latestMessage?.plainBody ?? email.body)</p>"
                                     : rawHTML
-                                let parts = GmailThreadMessageView.stripQuotedHTML(fullHTML)
+                                let parts = mainHTMLParts(for: fullHTML)
                                 let htmlToRender = (showQuotedMain || parts.quoted == nil) ? fullHTML : parts.original
 
                                 HTMLEmailView(html: htmlToRender, contentHeight: $emailBodyHeight, onOpenLink: onOpenLink)
@@ -345,6 +347,17 @@ struct EmailDetailView: View {
         detailVM.attachmentIndexer = attachmentIndexer
         detailVM.onMessagesRead = onMessagesRead
         await detailVM.loadThread(id: threadID)
+    }
+
+    /// Returns cached quote-stripped parts for the latest message HTML, recomputing only when the source changes.
+    private func mainHTMLParts(for html: String) -> (original: String, quoted: String?) {
+        if html == cachedMainHTMLSource, let cached = cachedMainHTMLParts {
+            return cached
+        }
+        let parts = GmailThreadMessageView.stripQuotedHTML(html)
+        cachedMainHTMLSource = html
+        cachedMainHTMLParts = parts
+        return parts
     }
 
     private func applyLabelSuggestion(_ suggestion: LabelSuggestion) {
@@ -460,7 +473,7 @@ struct EmailDetailView: View {
             Divider()
                 .background(Color(.separatorColor))
 
-            VStack(spacing: 12) {
+            LazyVStack(spacing: 12) {
                 ForEach(olderThreadMessages, id: \.id) { message in
                     GmailThreadMessageView(
                         message: message,

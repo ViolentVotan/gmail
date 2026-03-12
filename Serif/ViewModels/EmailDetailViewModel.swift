@@ -45,7 +45,7 @@ final class EmailDetailViewModel {
         // Load from disk cache first (instant + offline)
         if let cached = MailCacheStore.shared.loadThread(accountID: accountID, threadID: id) {
             thread = cached
-            analyzeTrackers()
+            await analyzeTrackers()
             detectCalendarInvite()
         }
 
@@ -53,7 +53,7 @@ final class EmailDetailViewModel {
         do {
             let fresh = try await GmailMessageService.shared.getThread(id: id, accountID: accountID)
             thread = fresh
-            analyzeTrackers()
+            await analyzeTrackers()
             detectCalendarInvite()
             if let latest = fresh.messages?.last {
                 await resolveInlineImages(for: latest)
@@ -94,12 +94,15 @@ final class EmailDetailViewModel {
 
     // MARK: - Tracker analysis
 
-    private func analyzeTrackers() {
+    private func analyzeTrackers() async {
         guard let html = latestMessage?.htmlBody, !html.isEmpty else {
             trackerResult = nil
             return
         }
-        trackerResult = TrackerBlockerService.shared.sanitize(html: html)
+        let result = await Task.detached {
+            TrackerBlockerService.shared.sanitize(html: html)
+        }.value
+        trackerResult = result
     }
 
     // MARK: - Calendar invite detection

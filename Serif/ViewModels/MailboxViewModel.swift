@@ -238,7 +238,10 @@ final class MailboxViewModel {
             }
         }
         suppressRecompute = false
-        recomputeEmails()
+        // In-place update instead of full list rebuild — only the read flag changed
+        for id in messageIDs {
+            updateEmailInPlace(id) { $0.isRead = true }
+        }
     }
 
     func markAsUnread(_ messageID: String) async {
