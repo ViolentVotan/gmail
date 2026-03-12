@@ -115,6 +115,7 @@ final class PeopleAPIService {
         }
 
         // 2. Fetch "Other Contacts" (auto-created from email interactions)
+        // Note: readMask omits "photos" — Other Contacts don't support photo fields.
         do {
             var pageToken: String? = nil
             repeat {

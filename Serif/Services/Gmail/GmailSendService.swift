@@ -23,21 +23,13 @@ final class GmailSendService {
     ) async throws(GmailAPIError) -> GmailMessage {
         let raw: String
         let hasAttachments = attachments != nil && !attachments!.isEmpty
-        if hasAttachments || !inlineImages.isEmpty {
-            raw = try buildRawMultipart(
-                from: from, to: to, cc: cc, bcc: bcc,
-                subject: subject, body: body, isHTML: isHTML,
-                referencesHeader: referencesHeader,
-                inlineImages: inlineImages,
-                attachments: attachments ?? []
-            )
-        } else {
-            raw = buildRaw(
-                from: from, to: to, cc: cc, bcc: bcc,
-                subject: subject, body: body, isHTML: isHTML,
-                referencesHeader: referencesHeader
-            )
-        }
+        raw = try Self.buildRawMessage(
+            from: from, to: to, cc: cc, bcc: bcc,
+            subject: subject, body: body, isHTML: isHTML,
+            referencesHeader: referencesHeader,
+            inlineImages: inlineImages,
+            attachments: attachments ?? []
+        )
         var payload: [String: Any] = ["raw": raw]
         if let threadID { payload["threadId"] = threadID }
         let encoded: Data
@@ -56,7 +48,8 @@ final class GmailSendService {
     // MARK: - MIME Building (used by GmailDraftService)
 
     /// Builds a base64url-encoded RFC 2822 message. Used by GmailDraftService for draft payloads.
-    nonisolated func buildRawMessage(
+    /// Static so callers don't need MainActor access to the `shared` singleton.
+    nonisolated static func buildRawMessage(
         from: String, to: [String], cc: [String], bcc: [String] = [],
         subject: String, body: String, isHTML: Bool,
         referencesHeader: String? = nil,
@@ -78,7 +71,7 @@ final class GmailSendService {
 
     // MARK: - RFC 2822 Builder (plain / HTML)
 
-    nonisolated private func buildRaw(
+    nonisolated private static func buildRaw(
         from: String,
         to: [String],
         cc: [String],
@@ -135,7 +128,7 @@ final class GmailSendService {
 
     // MARK: - RFC 2822 Builder (multipart/mixed + multipart/related)
 
-    nonisolated private func buildRawMultipart(
+    nonisolated private static func buildRawMultipart(
         from: String,
         to: [String],
         cc: [String],
@@ -229,7 +222,7 @@ final class GmailSendService {
     // MARK: - MIME Part Encoding Helpers
 
     /// Encodes inline images as MIME parts with Content-ID for HTML `cid:` references.
-    nonisolated private func encodeInlineImages(_ images: [InlineImageAttachment], boundary: String) -> String {
+    nonisolated private static func encodeInlineImages(_ images: [InlineImageAttachment], boundary: String) -> String {
         var mime = ""
         for img in images {
             let encoded = img.data.base64EncodedString(options: .lineLength76Characters)
@@ -244,7 +237,7 @@ final class GmailSendService {
     }
 
     /// Encodes file attachments as MIME parts. Throws if any file cannot be read.
-    nonisolated private func encodeFileAttachments(_ urls: [URL], boundary: String) throws(GmailAPIError) -> String {
+    nonisolated private static func encodeFileAttachments(_ urls: [URL], boundary: String) throws(GmailAPIError) -> String {
         var mime = ""
         var failedFilenames: [String] = []
         for url in urls {
@@ -266,14 +259,14 @@ final class GmailSendService {
     // MARK: - Helpers
 
     /// RFC 2047 encode a header value when it contains non-ASCII characters (e.g. emojis).
-    nonisolated private func mimeEncodeHeader(_ value: String) -> String {
+    nonisolated private static func mimeEncodeHeader(_ value: String) -> String {
         let needsEncoding = value.unicodeScalars.contains { !$0.isASCII }
         guard needsEncoding, let data = value.data(using: .utf8) else { return value }
         let encoded = data.base64EncodedString()
         return "=?UTF-8?B?\(encoded)?="
     }
 
-    nonisolated private func base64URLEncode(_ string: String) -> String {
+    nonisolated private static func base64URLEncode(_ string: String) -> String {
         guard let data = string.data(using: .utf8) else { return "" }
         return data.base64EncodedString()
             .replacingOccurrences(of: "+", with: "-")

@@ -63,13 +63,13 @@ final class GmailDraftService {
 
     // MARK: - Draft mutations
 
-    func createDraft(
+    @concurrent func createDraft(
         from: String, to: [String], cc: [String] = [],
         subject: String, body: String, isHTML: Bool = false,
         inlineImages: [InlineImageAttachment] = [],
         accountID: String
     ) async throws(GmailAPIError) -> GmailDraft {
-        let raw = try GmailSendService.shared.buildRawMessage(
+        let raw = try GmailSendService.buildRawMessage(
             from: from, to: to, cc: cc,
             subject: subject, body: body, isHTML: isHTML,
             inlineImages: inlineImages
@@ -88,13 +88,13 @@ final class GmailDraftService {
         )
     }
 
-    func updateDraft(
+    @concurrent func updateDraft(
         draftID: String, from: String, to: [String], cc: [String] = [],
         subject: String, body: String, isHTML: Bool = false,
         inlineImages: [InlineImageAttachment] = [],
         accountID: String
     ) async throws(GmailAPIError) -> GmailDraft {
-        let raw = try GmailSendService.shared.buildRawMessage(
+        let raw = try GmailSendService.buildRawMessage(
             from: from, to: to, cc: cc,
             subject: subject, body: body, isHTML: isHTML,
             inlineImages: inlineImages

@@ -277,6 +277,9 @@ final class MessageFetchService {
             for msg in messages { result[msg.id] = msg }
             return result
         } catch {
+            #if DEBUG
+            print("[Serif] Batch verify failed, falling back to individual fetches: \(error)")
+            #endif
             // Fall back to individual fetches if batch fails
             return await withTaskGroup(of: (String, GmailMessage?).self) { group in
                 for id in ids {
