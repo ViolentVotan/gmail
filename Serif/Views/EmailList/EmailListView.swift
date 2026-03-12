@@ -259,7 +259,22 @@ struct EmailListView: View {
         .onKeyPress(characters: CharacterSet(charactersIn: "s")) { _ in handleKeyS() }
         .onKeyPress(characters: CharacterSet(charactersIn: "u")) { _ in handleKeyU() }
         .onKeyPress(characters: CharacterSet(charactersIn: "r")) { _ in handleKeyR() }
-        .scrollEdgeEffectStyle(.automatic)
+        .scrollEdgeEffectStyle(.automatic, for: .all)
+        .accessibilityRotor("Unread Emails") {
+            ForEach(emails.filter { !$0.isRead }) { email in
+                AccessibilityRotorEntry(email.subject, id: email.id)
+            }
+        }
+        .accessibilityRotor("Starred") {
+            ForEach(emails.filter { $0.isStarred }) { email in
+                AccessibilityRotorEntry(email.subject, id: email.id)
+            }
+        }
+        .accessibilityRotor("Has Attachments") {
+            ForEach(emails.filter { $0.hasAttachments }) { email in
+                AccessibilityRotorEntry(email.subject, id: email.id)
+            }
+        }
     }
 
     // MARK: - Hidden buttons
