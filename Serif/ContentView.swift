@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     @State private var appearanceManager = AppearanceManager()
     @State private var coordinator = AppCoordinator()
+    @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     // MARK: - Body
 
@@ -38,23 +39,19 @@ struct ContentView: View {
 
     private var mainLayout: some View {
         ZStack {
-            HStack(spacing: 0) {
+            NavigationSplitView(columnVisibility: $columnVisibility) {
                 SidebarView(
                     selectedFolder: $coordinator.selectedFolder,
                     selectedInboxCategory: $coordinator.selectedInboxCategory,
                     selectedLabel: $coordinator.selectedLabel,
                     selectedAccountID: $coordinator.selectedAccountID,
-                    showSettings: panelBinding(\.showSettings),
-                    isExpanded: $coordinator.sidebarExpanded,
-                    showHelp: panelBinding(\.showHelp),
-                    showDebug: panelBinding(\.showDebug),
                     authViewModel: coordinator.authViewModel,
                     categoryUnreadCounts: coordinator.mailboxViewModel.categoryUnreadCounts,
                     userLabels: coordinator.mailboxViewModel.labels.filter { !$0.isSystemLabel },
                     onRenameLabel: { label, newName in Task { await coordinator.renameLabel(label, to: newName) } },
                     onDeleteLabel: { label in Task { await coordinator.deleteLabel(label) } }
                 )
-
+            } content: {
                 if coordinator.selectedFolder == .attachments {
                     AttachmentExplorerView(
                         store: coordinator.attachmentStore,
@@ -80,7 +77,9 @@ struct ContentView: View {
                         searchFocusTrigger: $coordinator.searchFocusTrigger,
                         coordinator: coordinator
                     )
-
+                }
+            } detail: {
+                if coordinator.selectedFolder != .attachments {
                     DetailPaneView(
                         selectedEmail: coordinator.selectedEmail,
                         selectedEmailIDs: coordinator.selectedEmailIDs,
@@ -134,39 +133,14 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        #if compiler(>=6.2)
-        if #available(macOS 26.0, *) {
-            ToolbarItem(placement: .navigation) { sidebarToggleButton }
-                .sharedBackgroundVisibility(.hidden)
-        } else {
-            ToolbarItem(placement: .navigation) { sidebarToggleButton }
-        }
-        #else
-        ToolbarItem(placement: .navigation) { sidebarToggleButton }
-        #endif
-
         if !coordinator.panelCoordinator.isAnyOpen {
             ToolbarItem(placement: .primaryAction) {
                 Button { coordinator.composeNewEmail() } label: {
-                    Image(systemName: "square.and.pencil")
+                    Label("Compose", systemImage: "square.and.pencil")
                 }
                 .help("Compose (\u{2318}N)")
             }
         }
-    }
-
-    private var sidebarToggleButton: some View {
-        Button {
-            withAnimation(.easeInOut(duration: 0.2)) { coordinator.sidebarExpanded.toggle() }
-        } label: {
-            Image(systemName: "sidebar.left")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(.secondary)
-        }
-        .buttonStyle(.plain)
-        .help("Toggle sidebar")
-        .opacity(coordinator.panelCoordinator.isAnyOpen ? 0 : 1)
-        .disabled(coordinator.panelCoordinator.isAnyOpen)
     }
 
     // MARK: - Lifecycle
@@ -201,12 +175,4 @@ struct ContentView: View {
             }
     }
 
-    // MARK: - Helpers
-
-    private func panelBinding(_ keyPath: ReferenceWritableKeyPath<PanelCoordinator, Bool>) -> Binding<Bool> {
-        Binding(
-            get: { coordinator.panelCoordinator[keyPath: keyPath] },
-            set: { coordinator.panelCoordinator[keyPath: keyPath] = $0 }
-        )
-    }
 }

@@ -27,7 +27,6 @@ final class AppCoordinator {
 
     // MARK: - UI State
 
-    var sidebarExpanded = false
     var searchResetTrigger = 0
     var searchFocusTrigger = false
     var composeMode: ComposeMode = .new

@@ -17,8 +17,6 @@ struct SerifApp: App {
             }
             .animation(.easeInOut(duration: 0.5), value: isSignedIn)
         }
-        .windowStyle(.titleBar)
-        .windowToolbarStyle(.unifiedCompact)
         .defaultSize(width: 1200, height: 750)
         .commands {
             // Remove system Edit menu handlers so our hidden buttons can intercept ⌘Z and ⌘A

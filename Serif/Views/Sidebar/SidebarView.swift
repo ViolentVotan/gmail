@@ -5,107 +5,21 @@ struct SidebarView: View {
     @Binding var selectedInboxCategory: InboxCategory?
     @Binding var selectedLabel: GmailLabel?
     @Binding var selectedAccountID: String?
-    @Binding var showSettings: Bool
-    @Binding var isExpanded: Bool
-    @Binding var showHelp: Bool
-    @Binding var showDebug: Bool
     var authViewModel: AuthViewModel
     var categoryUnreadCounts: [InboxCategory: Int] = [:]
     var userLabels: [GmailLabel] = []
     var onRenameLabel: ((GmailLabel, String) -> Void)?
     var onDeleteLabel: ((GmailLabel) -> Void)?
-    @AppStorage("showDebugMenu") private var showDebugMenu = false
 
-    @State private var inboxExpanded = true
-    @State private var labelsExpanded = false
     @State private var labelToRename: GmailLabel?
     @State private var labelToDelete: GmailLabel?
     @State private var renameText = ""
-    @State private var contentHeight: CGFloat = 0
-    @State private var frameHeight: CGFloat = 0
-
-    private var sidebarWidth: CGFloat { isExpanded ? 200 : 60 }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Logo
-            if isExpanded {
-                HStack {
-                    Image("SerifLogo")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(height: 12)
-                    Spacer()
-                }
-                .padding(.horizontal, 16)
-                .padding(.top, 16)
-                .padding(.bottom, 16)
-                Spacer()
-                    .frame(height: 10)
-            } else {
-                Spacer().frame(height: 52)
-            }
-
-            // Account switcher
-            AccountSwitcherView(
-                accounts: authViewModel.accounts,
-                selectedAccountID: $selectedAccountID,
-                isExpanded: isExpanded,
-                onSignIn: { await authViewModel.signIn() },
-                isSigningIn: authViewModel.isSigningIn
-            ) {
-                withAnimation(.easeInOut) {
-                    isExpanded = true
-                }
-            }
-            .padding(.bottom, isExpanded ? 12 : 8)
-
-            if isExpanded, let account = authViewModel.accounts.first(where: { $0.id == selectedAccountID }) {
-                HStack {
-                    Text(account.email)
-                        .font(.caption)
-                        .foregroundStyle(.primary)
-                        .truncationMode(.tail)
-                    Spacer()
-                }
-                .padding(.horizontal, 8)
-            }
-
-            // Divider
-            if isExpanded {
-                Rectangle()
-                    .fill(Color.secondary.opacity(0.3))
-                    .frame(height: 1)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                    .padding(.bottom, 8)
-            }
-
-            // Folder navigation
-            folderList
-
-            // Bottom actions
-            VStack(spacing: 2) {
-                if showDebugMenu {
-                    sidebarButton(icon: "ladybug.fill", label: "Debug") {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showDebug = true }
-                    }
-                }
-                sidebarButton(icon: "gearshape.fill", label: "Settings") {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showSettings = true }
-                }
-                sidebarButton(icon: "questionmark.circle", label: "Help") {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { showHelp = true }
-                }
-            }
-            .padding(.horizontal, isExpanded ? 8 : 0)
-            .padding(.bottom, 16)
+            accountHeader
+            sidebarList
         }
-        .frame(width: sidebarWidth)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
-        .padding(.vertical, 8)
-        .padding(.horizontal, 8)
-        .animation(.easeInOut(duration: 0.25), value: isExpanded)
         .alert("Rename Label", isPresented: Binding(
             get: { labelToRename != nil },
             set: { if !$0 { labelToRename = nil } }
@@ -135,138 +49,117 @@ struct SidebarView: View {
         }
     }
 
-    // MARK: - Folder list
+    // MARK: - Account Header
 
-    private var folderList: some View {
-        ZStack(alignment: .bottom) {
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 2) {
-                    ForEach(Folder.allCases) { folder in
-                        if folder == .inbox {
-                            inboxSection
-                        } else if folder == .labels {
-                            labelsSection
-                        } else {
-                            SidebarItemView(
-                                folder: folder,
-                                isSelected: selectedFolder == folder,
-                                isExpanded: isExpanded
-                            ) {
-                                selectedFolder = folder
-                                selectedInboxCategory = nil
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal, isExpanded ? 8 : 0)
-                .padding(.bottom, 24)
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { contentHeight = $0 }
-            }
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { frameHeight = $0 }
+    private var accountHeader: some View {
+        VStack(spacing: 0) {
+            AccountSwitcherView(
+                accounts: authViewModel.accounts,
+                selectedAccountID: $selectedAccountID,
+                isExpanded: true,
+                onSignIn: { await authViewModel.signIn() },
+                isSigningIn: authViewModel.isSigningIn
+            ) { }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 12)
 
-            if contentHeight > frameHeight + 1 {
-                Rectangle()
-                    .fill(.regularMaterial)
-                    .mask(
-                        LinearGradient(
-                            colors: [.clear, .white],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .frame(height: 32)
-                    .allowsHitTesting(false)
+            if let account = authViewModel.accounts.first(where: { $0.id == selectedAccountID }) {
+                Text(account.email)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 8)
             }
         }
     }
 
-    // MARK: - Inbox super-category
+    // MARK: - Sidebar List
 
-    private var inboxSection: some View {
-        VStack(spacing: 2) {
-            InboxParentRow(
-                isSelected: selectedFolder == .inbox,
-                isExpanded: isExpanded,
-                inboxExpanded: $inboxExpanded
-            ) {
+    private var sidebarList: some View {
+        List {
+            mailboxSection
+            labelsSection
+        }
+        .listStyle(.sidebar)
+    }
+
+    // MARK: - Mailbox Section
+
+    private var mailboxSection: some View {
+        Section("Mailbox") {
+            ForEach(Folder.allCases.filter { $0 != .labels }) { folder in
+                if folder == .inbox {
+                    inboxDisclosureGroup(folder: folder)
+                } else {
+                    folderButton(folder: folder)
+                }
+            }
+        }
+    }
+
+    private func inboxDisclosureGroup(folder: Folder) -> some View {
+        DisclosureGroup {
+            ForEach(InboxCategory.allCases) { category in
+                Button {
+                    selectedFolder = .inbox
+                    selectedInboxCategory = category
+                } label: {
+                    Label(category.displayName, systemImage: category.icon)
+                }
+                .badge(categoryUnreadCounts[category] ?? 0)
+            }
+        } label: {
+            Button {
                 selectedFolder = .inbox
                 selectedInboxCategory = .all
-                withAnimation(.easeInOut(duration: 0.2)) { inboxExpanded.toggle() }
-            }
-
-            if isExpanded && inboxExpanded {
-                ForEach(InboxCategory.allCases) { category in
-                    InboxCategoryRow(
-                        category: category,
-                        isSelected: selectedFolder == .inbox && selectedInboxCategory == category,
-                        unreadCount: categoryUnreadCounts[category] ?? 0
-                    ) {
-                        selectedFolder = .inbox
-                        selectedInboxCategory = category
-                    }
-                }
+            } label: {
+                Label(folder.rawValue, systemImage: folder.icon)
             }
         }
     }
 
-    // MARK: - Labels section
+    private func folderButton(folder: Folder) -> some View {
+        Button {
+            selectedFolder = folder
+            selectedInboxCategory = nil
+        } label: {
+            Label(folder.rawValue, systemImage: folder.icon)
+        }
+    }
 
+    // MARK: - Labels Section
+
+    @ViewBuilder
     private var labelsSection: some View {
-        VStack(spacing: 2) {
-            LabelsParentRow(
-                isSelected: selectedFolder == .labels,
-                isExpanded: isExpanded,
-                labelsExpanded: $labelsExpanded
-            ) {
-                selectedFolder = .labels
-                if let first = userLabels.first, selectedLabel == nil {
-                    selectedLabel = first
-                }
-                withAnimation(.easeInOut(duration: 0.2)) { labelsExpanded.toggle() }
-            }
-
-            if isExpanded && labelsExpanded {
+        if !userLabels.isEmpty {
+            Section("Labels") {
                 ForEach(userLabels) { label in
-                    LabelSidebarRow(
-                        label: label,
-                        isSelected: selectedFolder == .labels && selectedLabel?.id == label.id,
-                        onRename: { labelToRename = $0; renameText = $0.name },
-                        onDelete: { labelToDelete = $0 }
-                    ) {
-                        selectedFolder = .labels
-                        selectedLabel = label
-                    }
+                    labelButton(label: label)
                 }
             }
         }
     }
 
-    // MARK: - Generic bottom button
-
-    private func sidebarButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            if isExpanded {
-                HStack(spacing: 10) {
-                    Image(systemName: icon)
-                        .font(.system(size: 14))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 20)
-                    Text(label)
-                        .font(.system(size: 13))
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                }
-                .padding(.horizontal, 10)
-                .frame(height: 34)
-                .contentShape(Rectangle())
-            } else {
-                Image(systemName: icon)
-                    .font(.system(size: 16))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 40, height: 40)
-                    .contentShape(Rectangle())
+    private func labelButton(label: GmailLabel) -> some View {
+        Button {
+            selectedFolder = .labels
+            selectedLabel = label
+        } label: {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(Color(hex: label.color?.backgroundColor ?? "#888888"))
+                    .frame(width: 8, height: 8)
+                Text(label.name)
             }
         }
-        .buttonStyle(.plain)
+        .contextMenu {
+            Button("Rename...") {
+                labelToRename = label
+                renameText = label.name
+            }
+            Button("Delete", role: .destructive) {
+                labelToDelete = label
+            }
+        }
     }
 }

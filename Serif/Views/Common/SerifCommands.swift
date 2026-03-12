@@ -110,12 +110,8 @@ struct SerifCommands: Commands {
 
     private var viewMenu: some Commands {
         CommandGroup(after: .toolbar) {
-            Button("Toggle Sidebar") {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    coordinator?.sidebarExpanded.toggle()
-                }
-            }
-            .keyboardShortcut("s", modifiers: [.command, .control])
+            Button("Toggle Sidebar") { }
+                .keyboardShortcut("s", modifiers: [.command, .control])
         }
     }
 

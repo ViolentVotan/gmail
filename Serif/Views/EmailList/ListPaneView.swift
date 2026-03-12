@@ -27,7 +27,7 @@ struct ListPaneView: View {
 
     var body: some View {
         emailList
-            .frame(minWidth: 280, idealWidth: 320, maxWidth: 380)
+            .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 400)
     }
 
     private var emailList: some View {
