@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var themeManager = ThemeManager.shared
+    @State private var appearanceManager = AppearanceManager()
     @State private var coordinator = AppCoordinator()
 
     // MARK: - Body
@@ -9,9 +9,7 @@ struct ContentView: View {
     var body: some View {
         withLifecycle(
             mainLayout
-                .environment(\.theme, themeManager.currentTheme)
-                .preferredColorScheme(themeManager.currentTheme.isLight ? .light : .dark)
-                .background(themeManager.currentTheme.detailBackground)
+                .preferredColorScheme(appearanceManager.colorScheme)
                 .frame(minWidth: 900, minHeight: 600)
                 .focusedSceneValue(\.appCoordinator, coordinator)
                 .toolbar { toolbarContent }
@@ -96,20 +94,17 @@ struct ContentView: View {
             KeyboardShortcutsView(coordinator: coordinator)
 
             OfflineToastView()
-                .environment(\.theme, themeManager.currentTheme)
                 .zIndex(4)
 
             UndoToastView()
-                .environment(\.theme, themeManager.currentTheme)
                 .zIndex(5)
 
             ToastOverlayView()
-                .environment(\.theme, themeManager.currentTheme)
                 .zIndex(6)
 
             SlidePanelsOverlay(
                 panels: coordinator.panelCoordinator,
-                themeManager: themeManager,
+                appearanceManager: appearanceManager,
                 authViewModel: coordinator.authViewModel,
                 selectedAccountID: $coordinator.selectedAccountID,
                 undoDuration: $coordinator.undoDuration,
@@ -153,7 +148,7 @@ struct ContentView: View {
         if !coordinator.panelCoordinator.isAnyOpen {
             ToolbarItem(placement: .primaryAction) {
                 Button { coordinator.composeNewEmail() } label: {
-                    Image(systemName: "square.and.pencil").foregroundColor(themeManager.currentTheme.textPrimary)
+                    Image(systemName: "square.and.pencil")
                 }
                 .help("Compose (\u{2318}N)")
             }
@@ -166,7 +161,7 @@ struct ContentView: View {
         } label: {
             Image(systemName: "sidebar.left")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(themeManager.currentTheme.textSecondary)
+                .foregroundStyle(.secondary)
         }
         .buttonStyle(.plain)
         .help("Toggle sidebar")

@@ -3,7 +3,7 @@ import SwiftUI
 struct SlidePanelsOverlay: View {
     @Bindable var panels: PanelCoordinator
 
-    var themeManager: ThemeManager
+    var appearanceManager: AppearanceManager
     var authViewModel: AuthViewModel
     @Binding var selectedAccountID: String?
     @Binding var undoDuration: Int
@@ -17,8 +17,6 @@ struct SlidePanelsOverlay: View {
     var onSaveSignature: ((String, String, String) async throws -> GmailSendAs)?
     var attachmentStore: AttachmentStore
     var mailStore: MailStore
-
-    @Environment(\.theme) private var theme
 
     var body: some View {
         settingsPanel
@@ -35,7 +33,7 @@ struct SlidePanelsOverlay: View {
     private var settingsPanel: some View {
         SlidePanel(isPresented: $panels.showSettings, title: "Settings") {
             VStack(alignment: .leading, spacing: 16) {
-                ThemePickerView(themeManager: themeManager)
+                ThemePickerView(appearanceManager: appearanceManager)
                 AccountsSettingsView(authViewModel: authViewModel, selectedAccountID: $selectedAccountID)
                 BehaviorSettingsCard(
                     undoDuration: $undoDuration,
@@ -60,7 +58,6 @@ struct SlidePanelsOverlay: View {
             }
             .padding(20)
         }
-        .environment(\.theme, theme)
         .zIndex(10)
     }
 
@@ -70,7 +67,6 @@ struct SlidePanelsOverlay: View {
         SlidePanel(isPresented: $panels.showHelp, title: "Keyboard Shortcuts") {
             ShortcutsHelpView()
         }
-        .environment(\.theme, theme)
         .zIndex(10)
     }
 
@@ -80,7 +76,6 @@ struct SlidePanelsOverlay: View {
         SlidePanel(isPresented: $panels.showDebug, title: "Debug") {
             DebugMenuView(accountID: selectedAccountID ?? authViewModel.primaryAccount?.id ?? "")
         }
-        .environment(\.theme, theme)
         .zIndex(10)
     }
 
@@ -97,13 +92,12 @@ struct SlidePanelsOverlay: View {
             } else {
                 VStack {
                     Spacer()
-                    ProgressView().tint(theme.textTertiary)
+                    ProgressView()
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .environment(\.theme, theme)
         .zIndex(10)
     }
 
@@ -122,13 +116,12 @@ struct SlidePanelsOverlay: View {
             } else {
                 VStack {
                     Spacer()
-                    ProgressView().tint(theme.textTertiary)
+                    ProgressView()
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .environment(\.theme, theme)
         .zIndex(10)
     }
 
@@ -147,7 +140,6 @@ struct SlidePanelsOverlay: View {
                 )
             }
         }
-        .environment(\.theme, theme)
         .zIndex(10)
     }
 
