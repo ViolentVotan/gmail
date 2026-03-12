@@ -59,6 +59,29 @@ final class ComposeViewModel {
         }
     }
 
+    func scheduleSend(at scheduledDate: Date) async {
+        isSending = true
+        error = nil
+        defer { isSending = false }
+
+        await saveDraft()
+        guard let draftID = gmailDraftID else {
+            error = "Failed to save draft for scheduling"
+            return
+        }
+
+        let item = ScheduledSendItem(
+            draftId: draftID,
+            accountID: accountID,
+            scheduledTime: scheduledDate,
+            subject: subject,
+            recipients: splitAddresses(to)
+        )
+        ScheduledSendStore.shared.add(item)
+        isSent = true
+        ToastManager.shared.show(message: "Email scheduled")
+    }
+
     // MARK: - Draft
 
     func saveDraft() async {
