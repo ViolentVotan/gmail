@@ -20,6 +20,17 @@ struct SerifApp: App {
                 }
             }
             .animation(.easeInOut(duration: 0.5), value: isSignedIn)
+            .task {
+                // Start background monitors
+                SnoozeMonitor.shared.start()
+
+                // Load snooze/scheduled data for all accounts
+                for account in AccountStore.shared.accounts {
+                    SnoozeStore.shared.load(accountID: account.id)
+                    ScheduledSendStore.shared.load(accountID: account.id)
+                    OfflineActionQueue.shared.load(accountID: account.id)
+                }
+            }
         }
         .defaultSize(width: 1200, height: 750)
         .commands {
