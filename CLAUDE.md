@@ -1,38 +1,58 @@
-## Workflow Orchestration
+# Serif — Native macOS Gmail Client
 
-### 1. Plan Mode Default
-- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
-- If something goes sideways, STOP and re-plan immediately - don't keep pushing
-- Use plan mode for verification steps, not just building
-- Write detailed specs upfront to reduce ambiguity
+Swift 6.2 / SwiftUI / macOS 26+ — a native Gmail client with threading, tracker blocking, multi-account, and Apple Intelligence summaries.
 
-### 2. Subagent Strategy to keep main context window clean
-- Offload research, exploration, and parallel analysis to subagents
-- For complex problems, throw more compute at it via subagents
-- One task per subagent for focused execution
+## Fork & Upstream
 
-### 3. Self-Improvement Loop
-- After ANY correction from the user: update 'tasks/lessons.md' with the pattern
-- Write rules for yourself that prevent the same mistake
-- Ruthlessly iterate on these lessons until mistake rate drops
-- Review lessons at session start for relevant project
+- **Origin (our fork):** `https://github.com/ViolentVotan/gmail.git`
+- **Upstream:** `https://github.com/marshallino16/Serif.git`
+- When contributing back upstream, **NEVER include CLAUDE.md** (or any `.claude*` files) in a PR.
+- Sync: `git fetch upstream && git merge upstream/master`
 
-### 4. Verification Before Done
-- Never mark a task complete without proving it works
-- Build with XcodeBuildMCP pour verifier la compilation
-- Ask yourself: "Would a staff engineer approve this?"
+## Build & Test
 
-### 5. Demand Elegance (Balanced)
-- For non-trivial changes: pause and ask "is there a more elegant way?"
-- Skip this for simple, obvious fixes - don't over-engineer
-- Challenge your own work before presenting it
+Requires **Xcode 26+** (full IDE, not just command-line tools).
 
-### 6. Autonomous Bug Fixing
-- When given a bug report: just fix it. Don't ask for hand-holding
-- Point at logs, errors, failing tests -> then resolve them
-- Zero context switching required from the user
+| Action | Command |
+|--------|---------|
+| Build | `xcodebuild -scheme Serif -configuration Debug build` |
+| Test | `xcodebuild -scheme Serif -destination 'platform=macOS' test` |
+| Release | `./scripts/release.sh` |
+| Verify in IDE | Use XcodeBuildMCP to verify compilation |
+
+## Setup
+
+1. Google Cloud project with Gmail API enabled + OAuth 2.0 Desktop credentials
+2. Create `Serif/Configuration/GoogleCredentials.swift` (gitignored) with OAuth client ID/secret
+3. Open `Serif.xcodeproj` in Xcode, build and run
+
+## Architecture
+
+```
+Serif/
+├── Views/          # SwiftUI views
+├── ViewModels/     # MVVM view models (one per feature)
+├── Models/         # Data models
+├── Services/       # Business logic (Gmail auth, mail ops, tracking protection)
+├── Theme/          # 15 themes (10 dark, 5 light)
+├── Configuration/  # OAuth credentials (gitignored)
+└── Utilities/      # Helpers
+```
+
+**Patterns:** MVVM with coordinator navigation (`AppCoordinator`, `EmailActionCoordinator`). Views talk to ViewModels, not Services directly. `MailStore` handles persistence via JSON. ViewModels and observable classes use `@Observable` macro (not `ObservableObject`). Approachable concurrency with default `MainActor` isolation; `@concurrent` for I/O-bound service methods. Tests use Swift Testing (`import Testing`, `@Test`, `#expect`).
+
+## Gotchas
+
+- `GoogleCredentials.swift` must exist locally — app won't build without it
+- TokenStore encryption key stored alongside ciphertext (known security issue from review)
+- Some computed properties re-sort on every render (performance — see tasks/review.md)
+- WKWebView navigation policy is too permissive (security — see tasks/review.md)
+- Views calling Services directly (architecture violation — should go through ViewModels)
+- `WebRichTextEditorState` stays as `ObservableObject` — exception to @Observable migration (NSViewRepresentable bridge)
+- `UpdaterViewModel` keeps `import Combine` for Sparkle KVO interop
 
 ## Task Management
+
 1. **Plan First**: Write plan to 'tasks/todo.md' with checkable items
 2. **Verify Plan**: Check in before starting implementation
 3. **Track Progress**: Mark items complete as you go
@@ -41,6 +61,8 @@
 6. **Capture Lessons**: Update 'tasks/lessons.md' after corrections
 
 ## Core Principles
+
 - **Simplicity First**: Make every change as simple as possible. Impact minimal code.
 - **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.
 - **Minimal Impact**: Changes should only touch what's necessary. Avoid introducing bugs.
+- **Autonomous Bug Fixing**: Given a bug report, just fix it — no hand-holding needed.

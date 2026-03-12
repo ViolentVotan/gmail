@@ -6,7 +6,7 @@ Color theming system with customization and persistence.
 
 - `Theme` is a **value type** (`struct`). It holds all color properties. No logic beyond color lookup.
 - Themes are accessed in Views exclusively via `@Environment(\.theme)`. Never instantiate or hardcode colors.
-- `ThemeManager` is the single `ObservableObject` that owns the current theme. It handles:
+- `ThemeManager` is the single `@Observable` class that owns the current theme. It handles:
   - Base theme selection (persisted to UserDefaults)
   - Per-theme color overrides (persisted to UserDefaults as `[themeID: [colorKey: hex]]`)
   - `currentTheme` = base theme + overrides applied

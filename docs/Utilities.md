@@ -5,7 +5,7 @@ Pure helper functions, extensions, and constants. Zero state, zero side effects.
 ## Guidelines
 
 - **Pure functions only**: input -> output. No singletons, no persistence, no network.
-- No SwiftUI view code. No `@Published`, no `ObservableObject`.
+- No SwiftUI view code. No `@Observable` classes — if a utility needs observable state, move it to `Services/` or `ViewModels/`.
 - If a utility grows to need state or persistence, move it to `Services/` or `Models/`.
 - Keep utilities small and focused. One file per concern.
 

@@ -12,6 +12,8 @@ SwiftUI views. UI presentation only — no business logic.
 - **Callbacks over direct ViewModel access.** Views receive `onDelete`, `onArchive`, etc. as closures. Only top-level views (ContentView) wire these to ViewModels.
 - **Small, composable views.** Extract reusable components into `Common/`. One concern per file.
 - **Animations belong in views**, not in ViewModels or Services.
+- **Property wrappers**: `@State` for owning `@Observable` objects (not `@StateObject`). `@Bindable` for write access to bindings on `@Observable` objects (not `@ObservedObject`). `@Environment` with `@Entry` macro for custom environment keys.
+- **onChange syntax**: use `onChange(of:) { oldValue, newValue in }` (two-parameter closure).
 
 ## Subfolders
 
