@@ -31,10 +31,32 @@ final class ComposeViewModel {
 
     // MARK: - Send
 
+    var isAwaitingUndoSend = false
+
     func send() async {
+        error = nil
+        isAwaitingUndoSend = true
         isSending = true
-        error     = nil
-        defer { isSending = false }
+
+        UndoActionManager.shared.schedule(
+            label: "Sending...",
+            onConfirm: {
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    self.isAwaitingUndoSend = false
+                    await self.executeSend()
+                }
+            },
+            onUndo: {
+                Task { @MainActor [weak self] in
+                    self?.isAwaitingUndoSend = false
+                    self?.isSending = false
+                }
+            }
+        )
+    }
+
+    private func executeSend() async {
         do {
             _ = try await GmailSendService.shared.send(
                 from:               fromAddress,
@@ -57,6 +79,7 @@ final class ComposeViewModel {
         } catch {
             self.error = error.localizedDescription
         }
+        isSending = false
     }
 
     func scheduleSend(at scheduledDate: Date) async {

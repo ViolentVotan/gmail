@@ -20,7 +20,6 @@ struct ComposeView: View {
     @State private var bodyHTML = ""
     @State private var showCc = false
     @State private var showBcc = false
-    @State private var isSending = false
     @State private var sendError: String?
     @State private var saveTask: Task<Void, Never>?
     @State private var attachments: [URL] = []
@@ -142,9 +141,34 @@ struct ComposeView: View {
 
             Divider()
 
+            if composeVM.isSending, let _ = UndoActionManager.shared.currentAction {
+                HStack {
+                    Text("Sending in \(Int(UndoActionManager.shared.timeRemaining))s...")
+                        .font(.subheadline)
+                    Spacer()
+                    Button("Undo") {
+                        UndoActionManager.shared.undo()
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+                .background(.yellow.opacity(0.1))
+
+                Divider()
+            }
+
             composeActions
         }
         .onAppear { loadDraft() }
+        .onChange(of: composeVM.isSent) { _, isSent in
+            guard isSent else { return }
+            saveTask?.cancel()
+            onDiscard()
+        }
+        .onChange(of: composeVM.error) { _, err in
+            sendError = err
+        }
         .onChange(of: to)       { _, _ in scheduleAutoSave() }
         .onChange(of: cc)       { _, _ in scheduleAutoSave() }
         .onChange(of: bcc)      { _, _ in scheduleAutoSave() }
@@ -248,7 +272,6 @@ struct ComposeView: View {
 
     private func sendEmail() async {
         guard !to.isEmpty, !subject.isEmpty else { return }
-        isSending = true
         sendError = nil
 
         // Extract inline images from HTML (data: → cid:)
@@ -262,13 +285,9 @@ struct ComposeView: View {
         composeVM.inlineImages   = images + editorState.pendingInlineImages
         composeVM.attachmentURLs = attachments
         await composeVM.send()
-        isSending = false
-        if composeVM.isSent {
-            saveTask?.cancel()
-            onDiscard()
-        } else {
-            sendError = composeVM.error
-        }
+        // send() returns immediately after scheduling the undo action.
+        // Dismissal and error handling are driven by onChange(of: composeVM.isSent)
+        // and onChange(of: composeVM.error) below.
     }
 
     // MARK: - File Drop & Attachments
@@ -375,7 +394,7 @@ struct ComposeView: View {
             } label: {
                 HStack(spacing: 6) {
                     Group {
-                        if isSending {
+                        if composeVM.isSending {
                             ProgressView()
                                 .scaleEffect(0.5)
                                 .tint(.white)
@@ -391,11 +410,11 @@ struct ComposeView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 7)
-                .background(Color.accentColor.opacity(isSending ? 0.6 : 1))
+                .background(Color.accentColor.opacity(composeVM.isSending ? 0.6 : 1))
                 .cornerRadius(6)
             }
             .buttonStyle(.plain)
-            .disabled(isSending || to.isEmpty)
+            .disabled(composeVM.isSending || to.isEmpty)
             .keyboardShortcut(.return, modifiers: .command)
         }
         .padding(.horizontal, 20)
