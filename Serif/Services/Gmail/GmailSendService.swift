@@ -21,9 +21,7 @@ final class GmailSendService {
         attachments: [URL]? = nil,
         accountID: String
     ) async throws(GmailAPIError) -> GmailMessage {
-        let raw: String
-        let hasAttachments = attachments != nil && !attachments!.isEmpty
-        raw = try Self.buildRawMessage(
+        let raw = try Self.buildRawMessage(
             from: from, to: to, cc: cc, bcc: bcc,
             subject: subject, body: body, isHTML: isHTML,
             referencesHeader: referencesHeader,

@@ -1,4 +1,5 @@
 import Foundation
+import os.log
 
 /// Base HTTP client for all Gmail API requests.
 /// Automatically refreshes expired tokens before each call.
@@ -8,6 +9,7 @@ final class GmailAPIClient {
     private init() {}
 
     private let baseURL = "https://gmail.googleapis.com/gmail/v1"
+    nonisolated private static let logger = Logger(subsystem: "com.genyus.serif", category: "GmailAPI")
     private var refreshTasks: [String: Task<AuthToken, Error>] = [:]
 
     // MARK: - Decoded requests
@@ -114,18 +116,14 @@ final class GmailAPIClient {
             let results = try await batchRequest(requests: requests, accountID: accountID)
             for result in results {
                 guard (200...299).contains(result.statusCode) else {
-                    #if DEBUG
-                    print("[GmailAPI] Batch part \(result.id) failed: HTTP \(result.statusCode)")
-                    #endif
+                    Self.logger.warning("Batch part \(result.id) failed: HTTP \(result.statusCode)")
                     continue
                 }
                 do {
                     let item = try decoder.decode(T.self, from: result.data)
                     all.append(item)
                 } catch {
-                    #if DEBUG
-                    print("[GmailAPI] Batch decode failed for \(result.id): \(error)")
-                    #endif
+                    Self.logger.error("Batch decode failed for \(result.id): \(error.localizedDescription)")
                 }
             }
         }
@@ -201,6 +199,10 @@ final class GmailAPIClient {
             do {
                 (data, response) = try await URLSession.shared.data(for: urlRequest)
             } catch {
+                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
+                    continue
+                }
                 throw .networkError(error)
             }
             guard let http = response as? HTTPURLResponse else {
@@ -216,6 +218,10 @@ final class GmailAPIClient {
                 return try Self.parseBatchResponse(data: data, boundary: responseBoundary)
             case 401:
                 throw .unauthorized
+            case 403 where RetryPolicy.isRateLimited403(data) && attempt < RetryPolicy.maxRetries:
+                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
+                continue
             default:
                 if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
                     let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
@@ -407,6 +413,10 @@ final class GmailAPIClient {
             do {
                 (data, response) = try await URLSession.shared.data(for: request)
             } catch {
+                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
+                    continue
+                }
                 throw .networkError(error)
             }
             guard let http = response as? HTTPURLResponse else { throw .invalidURL }
@@ -420,6 +430,10 @@ final class GmailAPIClient {
                 return (data, http.statusCode, headers)
             case 401:
                 throw .unauthorized
+            case 403 where RetryPolicy.isRateLimited403(data) && attempt < RetryPolicy.maxRetries:
+                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
+                continue
             default:
                 if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
                     let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
@@ -478,6 +492,29 @@ enum RetryPolicy {
         switch statusCode {
         case 429, 500, 502, 503, 504: return true
         default: return false
+        }
+    }
+
+    /// Returns true if a 403 response body contains a Google rate-limit reason
+    /// (`rateLimitExceeded` or `userRateLimitExceeded`), which should be retried.
+    static func isRateLimited403(_ data: Data) -> Bool {
+        guard let body = String(data: data, encoding: .utf8) else { return false }
+        return body.contains("rateLimitExceeded") || body.contains("userRateLimitExceeded")
+    }
+
+    /// Returns true for transient network errors worth retrying (timeout, connection lost, etc.).
+    static func isRetriableNetworkError(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        guard nsError.domain == NSURLErrorDomain else { return false }
+        switch nsError.code {
+        case NSURLErrorTimedOut,
+             NSURLErrorCannotConnectToHost,
+             NSURLErrorNetworkConnectionLost,
+             NSURLErrorNotConnectedToInternet,
+             NSURLErrorSecureConnectionFailed:
+            return true
+        default:
+            return false
         }
     }
 

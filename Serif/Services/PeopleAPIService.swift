@@ -60,8 +60,9 @@ final class PeopleAPIService {
                 do {
                     var incPageToken: String? = nil
                     repeat {
+                        let encodedSyncToken = syncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? syncToken
                         var urlStr = "https://people.googleapis.com/v1/people/me/connections"
-                            + "?personFields=names,emailAddresses,photos&syncToken=\(syncToken)"
+                            + "?personFields=names,emailAddresses,photos&syncToken=\(encodedSyncToken)"
                             + "&pageSize=1000"
                         if let pt = incPageToken { urlStr += "&pageToken=\(pt)" }
                         let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)

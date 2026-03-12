@@ -188,10 +188,10 @@ final class GmailMessageService {
 
         guard !allIDs.isEmpty else { return }
 
-        // Batch delete in groups of 100 (API limit), accumulating failures
+        // Batch delete in groups of 1000 (API limit), accumulating failures
         var failedIDs: [String] = []
-        for batch in stride(from: 0, to: allIDs.count, by: 100) {
-            let ids = Array(allIDs[batch..<min(batch + 100, allIDs.count)])
+        for batch in stride(from: 0, to: allIDs.count, by: 1000) {
+            let ids = Array(allIDs[batch..<min(batch + 1000, allIDs.count)])
             do {
                 struct BatchDeleteRequest: Encodable { let ids: [String] }
                 let body = try JSONEncoder().encode(BatchDeleteRequest(ids: ids))
