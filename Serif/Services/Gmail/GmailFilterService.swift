@@ -34,7 +34,7 @@ final class GmailFilterService {
     private init() {}
     private let client = GmailAPIClient.shared
 
-    func listFilters(accountID: String) async throws(GmailAPIError) -> [GmailFilter] {
+    @concurrent func listFilters(accountID: String) async throws(GmailAPIError) -> [GmailFilter] {
         let response: GmailFilterListResponse = try await client.request(
             path: "/users/me/settings/filters",
             fields: "filter(id,criteria,action)",
@@ -43,7 +43,7 @@ final class GmailFilterService {
         return response.filter ?? []
     }
 
-    func createFilter(criteria: GmailFilter.FilterCriteria, action: GmailFilter.FilterAction, accountID: String) async throws(GmailAPIError) -> GmailFilter {
+    @concurrent func createFilter(criteria: GmailFilter.FilterCriteria, action: GmailFilter.FilterAction, accountID: String) async throws(GmailAPIError) -> GmailFilter {
         struct CreateRequest: Encodable {
             let criteria: GmailFilter.FilterCriteria
             let action: GmailFilter.FilterAction
@@ -57,7 +57,7 @@ final class GmailFilterService {
         return try await client.request(path: "/users/me/settings/filters", method: "POST", body: body, contentType: "application/json", accountID: accountID)
     }
 
-    func deleteFilter(id: String, accountID: String) async throws(GmailAPIError) {
+    @concurrent func deleteFilter(id: String, accountID: String) async throws(GmailAPIError) {
         _ = try await client.rawRequest(path: "/users/me/settings/filters/\(id)", method: "DELETE", accountID: accountID)
     }
 }

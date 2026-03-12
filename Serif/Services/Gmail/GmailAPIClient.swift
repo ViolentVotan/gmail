@@ -55,53 +55,16 @@ final class GmailAPIClient {
     func requestURL<T: Decodable>(_ urlString: String, accountID: String) async throws(GmailAPIError) -> T {
         guard NetworkMonitor.shared.isConnected else { throw .offline }
         let token = try await validToken(for: accountID)
-        guard let url = URL(string: urlString) else { throw .invalidURL }
-
-        let path = url.path + (url.query.map { "?\($0)" } ?? "")
 
         let doRequest = { (accessToken: String) async throws(GmailAPIError) -> T in
-            var req = URLRequest(url: url)
-            req.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-
-            #if DEBUG
-            let t0 = Date()
+            let data = try await self.performURL(urlString, accessToken: accessToken)
             do {
-                let (data, response) = try await URLSession.shared.data(for: req)
-                guard let http = response as? HTTPURLResponse else { throw GmailAPIError.invalidURL }
-                let ms = Int(Date().timeIntervalSince(t0) * 1000)
-                APILogger.shared.log(APILogEntry(
-                    method: "GET", path: path, statusCode: http.statusCode, errorMessage: nil,
-                    responseBodyData: data, responseSize: data.count, durationMs: ms, fromCache: false
-                ))
-                guard (200...299).contains(http.statusCode) else { throw GmailAPIError.httpError(http.statusCode, data) }
-                do { return try JSONDecoder().decode(T.self, from: data) }
-                catch { throw GmailAPIError.decodingError(error) }
-            } catch let error as GmailAPIError {
-                throw error
+                return try JSONDecoder().decode(T.self, from: data)
             } catch {
-                let ms = Int(Date().timeIntervalSince(t0) * 1000)
-                APILogger.shared.log(APILogEntry(
-                    method: "GET", path: path, statusCode: nil, errorMessage: error.localizedDescription,
-                    responseBodyData: Data(), responseSize: 0, durationMs: ms, fromCache: false
-                ))
-                throw GmailAPIError.networkError(error)
+                throw GmailAPIError.decodingError(error)
             }
-            #else
-            let data: Data
-            let response: URLResponse
-            do {
-                (data, response) = try await URLSession.shared.data(for: req)
-            } catch {
-                throw GmailAPIError.networkError(error)
-            }
-            guard let http = response as? HTTPURLResponse else { throw GmailAPIError.invalidURL }
-            guard (200...299).contains(http.statusCode) else { throw GmailAPIError.httpError(http.statusCode, data) }
-            do { return try JSONDecoder().decode(T.self, from: data) }
-            catch { throw GmailAPIError.decodingError(error) }
-            #endif
         }
 
-        // First attempt + 401 auto-retry
         do {
             return try await doRequest(token.accessToken)
         } catch .unauthorized {
@@ -122,8 +85,81 @@ final class GmailAPIClient {
         guard NetworkMonitor.shared.isConnected else { throw .offline }
         let token = try await validToken(for: accountID)
 
-        // Delegate network I/O + parsing to @concurrent helper (mirrors rawRequest → perform pattern)
-        return try await performBatch(requests: requests, accessToken: token.accessToken)
+        // First attempt + 401 auto-retry (mirrors rawRequest pattern)
+        do {
+            return try await performBatch(requests: requests, accessToken: token.accessToken)
+        } catch .unauthorized {
+            let fresh = try await refreshAndRetry(accountID: accountID)
+            return try await performBatch(requests: requests, accessToken: fresh.accessToken)
+        }
+    }
+
+    /// Generic batch fetch: chunks IDs into batches of 50, decodes each successful response.
+    /// Callers provide a `pathBuilder` closure to construct the per-item GET path.
+    /// Generic batch fetch: chunks IDs into batches of 50, decodes each successful response.
+    /// `pathBuilder` must return full API paths starting with `/gmail/v1/...` (not relative to baseURL).
+    func batchFetch<T: Decodable>(
+        ids: [String],
+        pathBuilder: @Sendable (String) -> String,
+        accountID: String
+    ) async throws(GmailAPIError) -> [T] {
+        guard !ids.isEmpty else { return [] }
+        let batchSize = 50
+        var all: [T] = []
+        let decoder = JSONDecoder()
+
+        for offset in stride(from: 0, to: ids.count, by: batchSize) {
+            let batch = Array(ids[offset..<min(offset + batchSize, ids.count)])
+            let requests = batch.map { id in
+                (id: id, method: "GET", path: pathBuilder(id), body: nil as Data?)
+            }
+            let results = try await batchRequest(requests: requests, accountID: accountID)
+            for result in results {
+                guard (200...299).contains(result.statusCode) else {
+                    #if DEBUG
+                    print("[GmailAPI] Batch part \(result.id) failed: HTTP \(result.statusCode)")
+                    #endif
+                    continue
+                }
+                do {
+                    let item = try decoder.decode(T.self, from: result.data)
+                    all.append(item)
+                } catch {
+                    #if DEBUG
+                    print("[GmailAPI] Batch decode failed for \(result.id): \(error)")
+                    #endif
+                }
+            }
+        }
+        return all
+    }
+
+    // MARK: - Perform for arbitrary Google API URLs
+
+    /// Executes an authenticated GET to any full URL (not limited to Gmail base URL).
+    @concurrent private func performURL(
+        _ urlString: String,
+        accessToken: String
+    ) async throws(GmailAPIError) -> Data {
+        guard let url = URL(string: urlString) else { throw .invalidURL }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw .networkError(error)
+        }
+        guard let http = response as? HTTPURLResponse else { throw .invalidURL }
+        if http.statusCode == 401 { throw .unauthorized }
+        guard (200...299).contains(http.statusCode) else {
+            throw .httpError(http.statusCode, data)
+        }
+        return data
     }
 
     /// Executes batch HTTP call off the main actor. Mirrors the `perform()` pattern.
@@ -157,7 +193,7 @@ final class GmailAPIClient {
         urlRequest.httpMethod = "POST"
         urlRequest.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         urlRequest.setValue("multipart/mixed; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue("Serif/1.0", forHTTPHeaderField: "User-Agent")
+        urlRequest.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
         urlRequest.httpBody = bodyData
 
         let data: Data
@@ -167,9 +203,12 @@ final class GmailAPIClient {
         } catch {
             throw .networkError(error)
         }
-        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            let code = (response as? HTTPURLResponse)?.statusCode ?? 0
-            throw .httpError(code, data)
+        guard let http = response as? HTTPURLResponse else {
+            throw .invalidURL
+        }
+        if http.statusCode == 401 { throw .unauthorized }
+        guard (200...299).contains(http.statusCode) else {
+            throw .httpError(http.statusCode, data)
         }
 
         guard let contentType = http.value(forHTTPHeaderField: "Content-Type"),
@@ -359,7 +398,7 @@ final class GmailAPIClient {
             var request = URLRequest(url: url)
             request.httpMethod = method
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-            request.setValue("Serif/1.0", forHTTPHeaderField: "User-Agent")
+            request.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
             if let contentType { request.setValue(contentType, forHTTPHeaderField: "Content-Type") }
             request.httpBody = body
 
@@ -383,9 +422,10 @@ final class GmailAPIClient {
                 throw .unauthorized
             default:
                 if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
+                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
                     // Intentionally use try? — if task is cancelled, the next iteration's
                     // URLSession call will throw, which we convert to .networkError.
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
                     continue
                 }
                 throw .httpError(http.statusCode, data)
@@ -441,7 +481,12 @@ enum RetryPolicy {
         }
     }
 
-    static func delay(forAttempt attempt: Int) -> TimeInterval {
+    /// Computes retry delay. Honors `Retry-After` header from Google on 429 responses,
+    /// otherwise falls back to exponential backoff with jitter.
+    static func delay(forAttempt attempt: Int, retryAfter: String? = nil) -> TimeInterval {
+        if let retryAfter, let seconds = TimeInterval(retryAfter) {
+            return seconds
+        }
         let base = pow(2.0, Double(attempt))
         let jitter = Double.random(in: 0...(base * 0.5))
         return base + jitter

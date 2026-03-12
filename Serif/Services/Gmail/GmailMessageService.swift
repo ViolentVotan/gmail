@@ -52,40 +52,13 @@ final class GmailMessageService {
     }
 
     /// Fetches a batch of messages using Gmail's batch API (up to 50 per request).
-    @concurrent func getMessages(ids: [String], accountID: String, format: String = "metadata") async throws -> [GmailMessage] {
-        guard !ids.isEmpty else { return [] }
-
-        let batchSize = 50
-        var all: [GmailMessage] = []
-        let decoder = JSONDecoder()
-
-        for offset in stride(from: 0, to: ids.count, by: batchSize) {
-            let batch = Array(ids[offset..<min(offset + batchSize, ids.count)])
-            let requests = batch.map { id in
-                (id: id, method: "GET", path: "/gmail/v1/users/me/messages/\(id)?format=\(format)", body: nil as Data?)
-            }
-
-            let results = try await GmailAPIClient.shared.batchRequest(requests: requests, accountID: accountID)
-
-            for result in results {
-                guard (200...299).contains(result.statusCode) else {
-                    #if DEBUG
-                    print("[GmailAPI] Batch part \(result.id) failed: HTTP \(result.statusCode)")
-                    #endif
-                    continue
-                }
-                do {
-                    let msg = try decoder.decode(GmailMessage.self, from: result.data)
-                    all.append(msg)
-                } catch {
-                    #if DEBUG
-                    print("[GmailAPI] Batch decode failed for \(result.id): \(error)")
-                    #endif
-                }
-            }
-        }
-
-        return all.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+    @concurrent func getMessages(ids: [String], accountID: String, format: String = "metadata") async throws(GmailAPIError) -> [GmailMessage] {
+        let messages: [GmailMessage] = try await client.batchFetch(
+            ids: ids,
+            pathBuilder: { "/gmail/v1/users/me/messages/\($0)?format=\(format)" },
+            accountID: accountID
+        )
+        return messages.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
     }
 
     // MARK: - Threads

@@ -17,12 +17,32 @@ final class GmailProfileService {
     // MARK: - Google User Info (name, avatar)
 
     /// Fetches display name and profile picture from Google's userinfo endpoint.
-    @concurrent func getUserInfo(accessToken: String) async throws -> GoogleUserInfo {
-        let url = URL(string: "https://www.googleapis.com/oauth2/v2/userinfo")!
+    /// Takes an access token directly because this is called during initial sign-in
+    /// before the account ID (email) is known.
+    @concurrent func getUserInfo(accessToken: String) async throws(GmailAPIError) -> GoogleUserInfo {
+        guard let url = URL(string: "https://www.googleapis.com/oauth2/v2/userinfo") else {
+            throw .invalidURL
+        }
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        let (data, _) = try await URLSession.shared.data(for: request)
-        return try JSONDecoder().decode(GoogleUserInfo.self, from: data)
+        request.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await URLSession.shared.data(for: request)
+        } catch {
+            throw .networkError(error)
+        }
+        guard let http = response as? HTTPURLResponse else { throw .invalidURL }
+        guard (200...299).contains(http.statusCode) else {
+            throw .httpError(http.statusCode, data)
+        }
+        do {
+            return try JSONDecoder().decode(GoogleUserInfo.self, from: data)
+        } catch {
+            throw .decodingError(error)
+        }
     }
 
     // MARK: - SendAs / Aliases
@@ -60,75 +80,4 @@ final class GmailProfileService {
         return aliases.first(where: { $0.isDefault == true })?.signature
     }
 
-}
-
-// MARK: - Stored Contact
-
-struct StoredContact: Codable, Identifiable, Hashable, Sendable {
-    var id: String { email }
-    let name: String
-    let email: String
-    var photoURL: String?
-}
-
-// MARK: - Contact Store (UserDefaults persistence)
-
-@MainActor
-final class ContactStore {
-    static let shared = ContactStore()
-    private init() {}
-
-    func contacts(for accountID: String) -> [StoredContact] {
-        let key = "com.serif.contacts.\(accountID)"
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let decoded = try? JSONDecoder().decode([StoredContact].self, from: data)
-        else { return [] }
-        return decoded
-    }
-
-    func setContacts(_ contacts: [StoredContact], for accountID: String) {
-        let key = "com.serif.contacts.\(accountID)"
-        let data = try? JSONEncoder().encode(contacts)
-        UserDefaults.standard.set(data, forKey: key)
-    }
-
-    func deleteAccount(_ accountID: String) {
-        UserDefaults.standard.removeObject(forKey: "com.serif.contacts.\(accountID)")
-    }
-}
-
-// MARK: - Contact Photo Cache
-
-/// In-memory cache of email → Google profile photo URL, populated from People API at login.
-/// Thread-safe via NSLock – deliberately `@unchecked Sendable` so callers on any isolation
-/// domain can read/write without awaiting.
-final class ContactPhotoCache: @unchecked Sendable {
-    static let shared = ContactPhotoCache()
-    private init() {}
-
-    private var cache: [String: String] = [:]
-    private let lock = NSLock()
-
-    func set(_ url: String, for email: String) {
-        lock.withLock { cache[email.lowercased()] = url }
-    }
-
-    func get(_ email: String) -> String? {
-        lock.withLock { cache[email.lowercased()] }
-    }
-}
-
-// MARK: - Google User Info Model
-
-struct GoogleUserInfo: Decodable, Sendable {
-    let id:        String
-    let email:     String
-    let name:      String?
-    let givenName: String?
-    let picture:   String?
-
-    enum CodingKeys: String, CodingKey {
-        case id, email, name, picture
-        case givenName = "given_name"
-    }
 }

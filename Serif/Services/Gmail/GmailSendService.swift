@@ -262,69 +262,60 @@ final class GmailSendService {
             mime += "--\(boundaryMixed)\r\n"
             mime += "Content-Type: multipart/related; boundary=\"\(boundaryRelated)\"\r\n\r\n"
             mime += bodyPart(boundary: boundaryRelated)
-
-            for img in inlineImages {
-                let encoded = img.data.base64EncodedString(options: .lineLength76Characters)
-                mime += "--\(boundaryRelated)\r\n"
-                mime += "Content-Type: \(img.mimeType)\r\n"
-                mime += "Content-ID: <\(img.contentID)>\r\n"
-                mime += "Content-Disposition: inline; filename=\"\(img.filename)\"\r\n"
-                mime += "Content-Transfer-Encoding: base64\r\n\r\n"
-                mime += encoded + "\r\n"
-            }
+            mime += encodeInlineImages(inlineImages, boundary: boundaryRelated)
             mime += "--\(boundaryRelated)--\r\n"
-
-            var failedFilenames: [String] = []
-            for url in attachments {
-                guard let data = try? Data(contentsOf: url) else {
-                    failedFilenames.append(url.lastPathComponent)
-                    continue
-                }
-                let encoded = data.base64EncodedString(options: .lineLength76Characters)
-                mime += "--\(boundaryMixed)\r\n"
-                mime += "Content-Type: \(url.mimeType)\r\n"
-                mime += "Content-Disposition: attachment; filename=\"\(url.lastPathComponent)\"\r\n"
-                mime += "Content-Transfer-Encoding: base64\r\n\r\n"
-                mime += encoded + "\r\n"
-            }
-            if !failedFilenames.isEmpty { throw .attachmentReadFailed(failedFilenames) }
+            mime += try encodeFileAttachments(attachments, boundary: boundaryMixed)
             mime += "--\(boundaryMixed)--"
 
         } else if hasInline {
             mime += bodyPart(boundary: boundaryRelated)
-
-            for img in inlineImages {
-                let encoded = img.data.base64EncodedString(options: .lineLength76Characters)
-                mime += "--\(boundaryRelated)\r\n"
-                mime += "Content-Type: \(img.mimeType)\r\n"
-                mime += "Content-ID: <\(img.contentID)>\r\n"
-                mime += "Content-Disposition: inline; filename=\"\(img.filename)\"\r\n"
-                mime += "Content-Transfer-Encoding: base64\r\n\r\n"
-                mime += encoded + "\r\n"
-            }
+            mime += encodeInlineImages(inlineImages, boundary: boundaryRelated)
             mime += "--\(boundaryRelated)--"
 
         } else {
             mime += bodyPart(boundary: boundaryMixed)
-
-            var failedFilenames: [String] = []
-            for url in attachments {
-                guard let data = try? Data(contentsOf: url) else {
-                    failedFilenames.append(url.lastPathComponent)
-                    continue
-                }
-                let encoded = data.base64EncodedString(options: .lineLength76Characters)
-                mime += "--\(boundaryMixed)\r\n"
-                mime += "Content-Type: \(url.mimeType)\r\n"
-                mime += "Content-Disposition: attachment; filename=\"\(url.lastPathComponent)\"\r\n"
-                mime += "Content-Transfer-Encoding: base64\r\n\r\n"
-                mime += encoded + "\r\n"
-            }
-            if !failedFilenames.isEmpty { throw .attachmentReadFailed(failedFilenames) }
+            mime += try encodeFileAttachments(attachments, boundary: boundaryMixed)
             mime += "--\(boundaryMixed)--"
         }
 
         return base64URLEncode(mime)
+    }
+
+    // MARK: - MIME Part Encoding Helpers
+
+    /// Encodes inline images as MIME parts with Content-ID for HTML `cid:` references.
+    nonisolated private func encodeInlineImages(_ images: [InlineImageAttachment], boundary: String) -> String {
+        var mime = ""
+        for img in images {
+            let encoded = img.data.base64EncodedString(options: .lineLength76Characters)
+            mime += "--\(boundary)\r\n"
+            mime += "Content-Type: \(img.mimeType)\r\n"
+            mime += "Content-ID: <\(img.contentID)>\r\n"
+            mime += "Content-Disposition: inline; filename=\"\(img.filename)\"\r\n"
+            mime += "Content-Transfer-Encoding: base64\r\n\r\n"
+            mime += encoded + "\r\n"
+        }
+        return mime
+    }
+
+    /// Encodes file attachments as MIME parts. Throws if any file cannot be read.
+    nonisolated private func encodeFileAttachments(_ urls: [URL], boundary: String) throws(GmailAPIError) -> String {
+        var mime = ""
+        var failedFilenames: [String] = []
+        for url in urls {
+            guard let data = try? Data(contentsOf: url) else {
+                failedFilenames.append(url.lastPathComponent)
+                continue
+            }
+            let encoded = data.base64EncodedString(options: .lineLength76Characters)
+            mime += "--\(boundary)\r\n"
+            mime += "Content-Type: \(url.mimeType)\r\n"
+            mime += "Content-Disposition: attachment; filename=\"\(url.lastPathComponent)\"\r\n"
+            mime += "Content-Transfer-Encoding: base64\r\n\r\n"
+            mime += encoded + "\r\n"
+        }
+        if !failedFilenames.isEmpty { throw .attachmentReadFailed(failedFilenames) }
+        return mime
     }
 
     // MARK: - Helpers

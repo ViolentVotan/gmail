@@ -64,40 +64,13 @@ final class GmailDraftService {
     // MARK: - Batch fetch
 
     /// Fetches a batch of drafts using Gmail's batch API (up to 50 per request).
-    @concurrent func getDrafts(ids: [String], accountID: String, format: String = "metadata") async throws -> [GmailDraft] {
-        guard !ids.isEmpty else { return [] }
-
-        let batchSize = 50
-        var all: [GmailDraft] = []
-        let decoder = JSONDecoder()
-
-        for offset in stride(from: 0, to: ids.count, by: batchSize) {
-            let batch = Array(ids[offset..<min(offset + batchSize, ids.count)])
-            let requests = batch.map { id in
-                (id: id, method: "GET", path: "/gmail/v1/users/me/drafts/\(id)?format=\(format)", body: nil as Data?)
-            }
-
-            let results = try await GmailAPIClient.shared.batchRequest(requests: requests, accountID: accountID)
-
-            for result in results {
-                guard (200...299).contains(result.statusCode) else {
-                    #if DEBUG
-                    print("[GmailAPI] Batch draft \(result.id) failed: HTTP \(result.statusCode)")
-                    #endif
-                    continue
-                }
-                do {
-                    let draft = try decoder.decode(GmailDraft.self, from: result.data)
-                    all.append(draft)
-                } catch {
-                    #if DEBUG
-                    print("[GmailAPI] Batch draft decode failed for \(result.id): \(error)")
-                    #endif
-                }
-            }
-        }
-
-        return all.sorted {
+    @concurrent func getDrafts(ids: [String], accountID: String, format: String = "metadata") async throws(GmailAPIError) -> [GmailDraft] {
+        let drafts: [GmailDraft] = try await client.batchFetch(
+            ids: ids,
+            pathBuilder: { "/gmail/v1/users/me/drafts/\($0)?format=\(format)" },
+            accountID: accountID
+        )
+        return drafts.sorted {
             ($0.message?.date ?? .distantPast) > ($1.message?.date ?? .distantPast)
         }
     }
