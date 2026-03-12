@@ -3,6 +3,28 @@ import Foundation
 import FoundationModels
 #endif
 
+#if canImport(FoundationModels)
+@available(macOS 26.0, *)
+@Generable
+struct EmailInsight {
+    @Guide(description: "2-3 sentence summary of the email content")
+    var summary: String
+    @Guide(description: "Required action from the recipient, if any. nil if purely informational")
+    var actionNeeded: String?
+    @Guide(description: "Deadline or time-sensitive date mentioned, if any")
+    var deadline: String?
+    @Guide(description: "Sentiment: positive, neutral, negative, or urgent")
+    var sentiment: String
+}
+#endif
+
+struct EmailInsightSnapshot: Sendable {
+    var summary: String?
+    var actionNeeded: String?
+    var deadline: String?
+    var sentiment: String?
+}
+
 @MainActor
 final class SummaryService {
     static let shared = SummaryService()
@@ -139,4 +161,35 @@ final class SummaryService {
             aiGenerated.removeAll()
         }
     }
+
+    #if canImport(FoundationModels)
+    @available(macOS 26.0, *)
+    func insight(for email: Email) -> AsyncStream<EmailInsightSnapshot> {
+        AsyncStream { continuation in
+            let task = Task {
+                do {
+                    let instructions = Instructions("""
+                    Analyze this email and provide a structured summary. \
+                    Focus on what matters: what is it about, what action is needed, any deadlines.
+                    """)
+                    let session = LanguageModelSession(instructions: instructions)
+                    let body = cleanedPreview(from: email)
+                    let truncated = String(body.prefix(10000))
+                    let prompt = "From: \(email.sender.name)\nSubject: \(email.subject)\n\n\(truncated)"
+                    let response = session.streamResponse(to: prompt, generating: EmailInsight.self)
+                    for try await partial in response {
+                        continuation.yield(EmailInsightSnapshot(
+                            summary: partial.content.summary,
+                            actionNeeded: partial.content.actionNeeded,
+                            deadline: partial.content.deadline,
+                            sentiment: partial.content.sentiment
+                        ))
+                    }
+                    continuation.finish()
+                } catch { continuation.finish() }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+    #endif
 }
