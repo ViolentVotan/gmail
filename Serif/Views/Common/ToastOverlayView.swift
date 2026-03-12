@@ -50,6 +50,12 @@ struct ToastOverlayView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+        .accessibilityAddTraits(.updatesFrequently)
+        .onAppear {
+            if let toast = toastMgr.currentToast {
+                AccessibilityNotification.Announcement(toast.message).post()
+            }
+        }
     }
 
     private func iconName(_ type: ToastType) -> String {

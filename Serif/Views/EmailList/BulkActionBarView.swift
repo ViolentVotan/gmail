@@ -54,6 +54,7 @@ struct BulkActionBarView: View {
                     )
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Deselect All")
 
             Spacer()
         }
@@ -80,5 +81,6 @@ struct BulkActionBarView: View {
             )
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
     }
 }

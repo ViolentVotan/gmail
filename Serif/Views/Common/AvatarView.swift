@@ -27,6 +27,8 @@ struct AvatarView: View {
             }
         }
         .frame(width: size, height: size)
+        .accessibilityLabel("\(initials) avatar")
+        .accessibilityAddTraits(.isImage)
         .task(id: avatarURL) {
             image = nil
 

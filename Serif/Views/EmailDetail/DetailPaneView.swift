@@ -44,7 +44,7 @@ struct DetailPaneView: View {
                 emptyState
             }
         }
-        .frame(minWidth: 400)
+        .navigationSplitViewColumnWidth(min: 400, ideal: 600)
     }
 
     // MARK: - Bulk Actions

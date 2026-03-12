@@ -32,7 +32,6 @@ struct SerifCommands: Commands {
     var body: some Commands {
         messageMenu
         mailboxMenu
-        viewMenu
         helpMenu
     }
 
@@ -106,14 +105,6 @@ struct SerifCommands: Commands {
         }
     }
 
-    // MARK: - View
-
-    private var viewMenu: some Commands {
-        CommandGroup(after: .toolbar) {
-            Button("Toggle Sidebar") { }
-                .keyboardShortcut("s", modifiers: [.command, .control])
-        }
-    }
 
     // MARK: - Help
 

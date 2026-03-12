@@ -110,6 +110,11 @@ struct EmailRowView: View {
         }
         .buttonStyle(.plain)
         .background(PopoverAnchor(holder: popoverHolder))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(email.sender.name), \(email.subject), \(email.preview)")
+        .accessibilityValue(email.isRead ? "Read" : "Unread")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityHint("Double-tap to read")
         .onHover { hovering in
             isHovered = hovering
             if hovering {

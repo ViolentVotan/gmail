@@ -14,5 +14,6 @@ struct BadgeView: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
             .background(Capsule().fill(Color.primary.opacity(isSelected ? 0.2 : 0.12)))
+            .accessibilityLabel("\(count) unread")
     }
 }
