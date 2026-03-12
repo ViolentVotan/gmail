@@ -4,6 +4,7 @@ struct ContentView: View {
     @State private var appearanceManager = AppearanceManager()
     @State private var coordinator = AppCoordinator()
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var commandPalette = CommandPaletteViewModel()
 
     enum AppFocus: Hashable {
         case sidebar
@@ -21,6 +22,7 @@ struct ContentView: View {
                 .preferredColorScheme(appearanceManager.colorScheme)
                 .frame(minWidth: 900, minHeight: 600)
                 .focusedSceneValue(\.appCoordinator, coordinator)
+                .focusedSceneValue(\.commandPalette, commandPalette)
                 .toolbar { toolbarContent }
                 .alert("Empty Trash", isPresented: $coordinator.showEmptyTrashConfirm) {
                     Button("Cancel", role: .cancel) {}
@@ -153,6 +155,17 @@ struct ContentView: View {
                 attachmentStore: coordinator.attachmentStore,
                 mailStore: coordinator.mailStore
             )
+
+            if commandPalette.isVisible {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .onTapGesture { commandPalette.dismiss() }
+                    .zIndex(10)
+
+                CommandPaletteView(viewModel: commandPalette)
+                    .zIndex(11)
+                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
         }
     }
 
@@ -261,7 +274,10 @@ struct ContentView: View {
 
     private func withLifecycle<V: View>(_ view: V) -> some View {
         view
-            .onAppear(perform: coordinator.handleAppear)
+            .onAppear {
+                coordinator.handleAppear()
+                commandPalette.buildCommands(coordinator: coordinator)
+            }
             .onChange(of: coordinator.selectedFolder) { _, newValue in coordinator.handleFolderChange(newValue) }
             .onChange(of: coordinator.selectedInboxCategory) { _, newValue in coordinator.handleCategoryChange(newValue) }
             .onChange(of: coordinator.selectedLabel?.id) { _, _ in coordinator.handleLabelChange() }

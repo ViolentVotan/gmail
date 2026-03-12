@@ -13,8 +13,20 @@ extension FocusedValues {
     }
 }
 
+struct CommandPaletteFocusedKey: FocusedValueKey {
+    typealias Value = CommandPaletteViewModel
+}
+
+extension FocusedValues {
+    var commandPalette: CommandPaletteViewModel? {
+        get { self[CommandPaletteFocusedKey.self] }
+        set { self[CommandPaletteFocusedKey.self] = newValue }
+    }
+}
+
 struct SerifCommands: Commands {
     @FocusedValue(\.appCoordinator) private var coordinator
+    @FocusedValue(\.commandPalette) private var commandPalette
 
     private var selectedEmail: Email? { coordinator?.selectedEmail }
     private var hasSelection: Bool { selectedEmail != nil }
@@ -101,6 +113,13 @@ struct SerifCommands: Commands {
                 Label("Compose New Message", systemImage: "square.and.pencil")
             }
             .keyboardShortcut("n", modifiers: .command)
+
+            Button {
+                commandPalette?.toggle()
+            } label: {
+                Label("Command Palette", systemImage: "magnifyingglass")
+            }
+            .keyboardShortcut("k", modifiers: .command)
 
             Divider()
 
