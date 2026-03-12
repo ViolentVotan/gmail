@@ -15,7 +15,11 @@ Pure data structures and local persistence stores.
 | File | Role |
 |------|------|
 | `Email.swift` | UI-facing email model (computed from GmailMessage). Synthesized `Equatable` over all stored properties. |
+| `Command.swift` | Command palette action model — name, icon, keyboard shortcut, closure |
 | `ComposeMode.swift` | Compose mode enum (new, reply, replyAll, forward) |
+| `EmailDragItem.swift` | `Transferable` drag item for email rows (custom `UTType` `com.genyus.serif.email-drag-item`) |
+| `EmailTags.swift` | AI classification tags (category, priority, sentiment) for emails |
 | `GmailAccount.swift` | Account model + `AccountStore` (UserDefaults persistence) |
 | `IndexedAttachment.swift` | Indexed attachment model for the attachment vault |
 | `MailStore.swift` | `@Observable @MainActor` local draft store, Gmail draft sync, reply draft persistence (`ReplyDraftInfo`) |
+| `OfflineAction.swift` | Queued mutation model for offline actions (archive, trash) with account + message IDs |

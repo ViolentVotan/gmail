@@ -25,6 +25,7 @@ Gmail REST API wrappers. One service per domain:
 - `GmailProfileService` — Profile info, contacts, send-as aliases, photos
 - `GmailSendService` — Compose, send, draft CRUD (RFC 2822 MIME encoding with RFC 2047 header encoding)
 - `GmailDraftService` — Draft fetch (single + batch), used for quick reply draft loading
+- `GmailFilterService` — Gmail filter CRUD (list, create, update, delete filters)
 - `GmailModels` — All API response/request types (`Codable` structs)
 
 ### Root-level files
@@ -39,13 +40,21 @@ Gmail REST API wrappers. One service per domain:
 | `CalendarInviteParser.swift` | iCalendar (.ics) parsing for calendar invite cards |
 | `ContentExtractor.swift` | PDF/OCR/Word/text extraction + embedding generation |
 | `CPUMonitor.swift` | Adaptive CPU throttling for background tasks |
+| `EmailClassifier.swift` | Apple Foundation Models classification — categorizes emails by priority, sentiment, category |
 | `EmailPrintService.swift` | Print formatting via WKWebView |
 | `HistorySyncService.swift` | Delta sync via Gmail History API with label-aware filtering |
 | `LabelSyncService.swift` | Label + category unread count syncing |
 | `MailCacheStore.swift` | File-based JSON cache for messages/threads, keyed by accountID |
 | `MessageFetchService.swift` | Pagination, cache management, generation tracking for stale detection |
+| `LabelSuggestionService.swift` | AI-powered Gmail label suggestions via Foundation Models |
 | `NetworkMonitor.swift` | `@MainActor` online/offline detection via NWPathMonitor |
+| `NotificationService.swift` | `UNUserNotificationCenter` push notifications with reply/archive/mark-read actions |
+| `OfflineActionQueue.swift` | Queues email mutations (archive, trash) when offline; drains FIFO on reconnect |
 | `QuickReplyService.swift` | AI-powered quick reply suggestions with bounded cache |
+| `ScheduledSendStore.swift` | Persists scheduled-send items per account (file-based JSON) with send-time monitoring |
+| `SmartReplyProvider.swift` | Foundation Models smart reply chip generation (contextual reply suggestions) |
+| `SnoozeMonitor.swift` | Background timer that un-snoozes emails when their snooze-until date arrives |
+| `SnoozeStore.swift` | Persists snoozed email items per account (file-based JSON) |
 | `SignatureResolver.swift` | Signature HTML lookup per alias, signature replacement in body |
 | `SpotlightIndexer.swift` | CoreSpotlight email indexing for Spotlight search (indexes viewed emails, prunes at 1000) |
 | `SubscriptionsStore.swift` | Detects newsletter/subscription emails, manages unsubscribe state |

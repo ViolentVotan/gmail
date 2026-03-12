@@ -22,23 +22,32 @@ Left column — `List(.sidebar)` with folder navigation, account switcher, label
 
 ### `EmailList/`
 Middle column — email rows with native `.swipeActions()` (archive/delete), search, `.refreshable` pull-to-refresh, multi-select with bulk actions. Uses `List(selection:)` for row rendering.
+- `CategoryTabBar` — Horizontal tab bar for inbox category filtering (Primary, Social, Updates, etc.).
+- `EmailHoverSummaryView` — AI-generated summary tooltip on email row hover.
+- `EmailContextMenu` — Right-click context menu with archive, delete, star, snooze, labels.
 
 ### `EmailDetail/`
 Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView), attachments, sender info popover, tracker blocking UI, label picker.
 - `ReplyBarView` — Inline quick reply with To/Cc/Bcc fields, draft persistence, auto-save, and discard confirmation.
 - `DetailPaneView` — Contextual empty state (icon + message per folder).
+- `InsightCardView` — Apple Intelligence insight card (summary, action items, key dates) via Foundation Models.
+- `SmartReplyChipsView` — AI-generated reply suggestion chips below the thread.
+- `LabelEditorView` — Label picker with AI-suggested labels and manual search.
 
 ### `Compose/`
 Email composer — `ComposeView` for the full compose form with rich text editor, send-as alias picker, signature management, attachment list, and discard confirmation.
 - `AutocompleteTextField` — Contact suggestions in To/Cc/Bcc fields.
 - `WebRichTextEditor` — Web-based HTML editor with formatting toolbar.
 - `FormattingToolbar` — Bold, italic, underline, font size, color, lists, headings, links.
+- `ScheduleSendButton` — Send button with schedule-send popover (date picker for deferred delivery).
 
 ### `Attachments/`
 Attachment explorer with grid view, thumbnails, file type filtering, and search.
 
 ### `Settings/`
 Tabbed settings view (General, Advanced) registered as a macOS `Settings` scene — opens via Cmd+,. Uses `@AppStorage` with the same keys as `AppCoordinator` for shared state.
+- `FiltersSettingsView` — Gmail filter list with create/edit/delete actions.
+- `FilterEditorView` — Filter rule editor (criteria + actions) for creating/editing Gmail filters.
 
 ### `Onboarding/`
 Sign-in / welcome screen with OAuth flow.
@@ -56,6 +65,28 @@ Shared reusable components:
 | `FormattingToolbar` | Rich text toolbar for compose/reply |
 | `WebRichTextEditor` | WKWebView-based HTML editor |
 | `UndoToastView` | Undo toast + offline indicator |
+| `CommandPaletteView` | ⌘K command palette with fuzzy search, keyboard navigation, recent commands |
+| `SnoozePickerView` | Snooze date/time picker with preset options (tonight, tomorrow, next week) |
 | `DebugMenuView` | API logs, cache controls |
 | `ShortcutsHelpView` | Keyboard shortcuts reference |
 | `AccountsSettingsView` | Account management settings |
+| `SerifCommands` | macOS menu bar commands (File, Edit, View custom menus) |
+
+### `Components/`
+Shared styled components:
+| File | Role |
+|------|------|
+| `CardStyle` | Reusable card container style for settings and detail cards |
+| `BadgeView` | Numeric badge pill (unread counts) |
+
+## Intents (App Intents)
+
+`Serif/Intents/` — App Intents for Shortcuts, Spotlight, and Siri integration.
+
+| File | Role |
+|------|------|
+| `EmailEntity.swift` | `AppEntity` + `IndexedEntity` representing an email for Shortcuts / Spotlight |
+| `OpenEmailIntent.swift` | Opens an email in Serif by message ID |
+| `ComposeEmailIntent.swift` | Opens a new compose window with optional pre-filled fields |
+| `SearchEmailIntent.swift` | Searches emails by query string |
+| `MarkAsReadIntent.swift` | Marks an email as read (resolves account via cache scanning) |
