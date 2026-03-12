@@ -30,6 +30,22 @@ struct ListPaneView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if !NetworkMonitor.shared.isConnected {
+                HStack {
+                    Image(systemName: "wifi.slash")
+                    Text("You're offline. Changes will sync when connected.")
+                    if OfflineActionQueue.shared.pendingCount > 0 {
+                        Text("(\(OfflineActionQueue.shared.pendingCount) pending)")
+                            .fontWeight(.medium)
+                    }
+                    Spacer()
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(.yellow.opacity(0.1))
+            }
             if selectedFolder == .inbox {
                 CategoryTabBar(
                     selectedCategory: $selectedCategory,
