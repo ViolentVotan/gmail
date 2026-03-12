@@ -71,6 +71,22 @@ final class EmailActionCoordinator {
         Task { await UnsubscribeService.shared.unsubscribe(url: url, oneClick: false) }
     }
 
+    func unsubscribe(url: URL, oneClick: Bool, messageID: String?, accountID: String) async -> Bool {
+        await UnsubscribeService.shared.unsubscribe(url: url, oneClick: oneClick, messageID: messageID, accountID: accountID)
+    }
+
+    func isUnsubscribed(messageID: String, accountID: String) -> Bool {
+        UnsubscribeService.shared.isUnsubscribed(messageID: messageID, accountID: accountID)
+    }
+
+    func extractBodyUnsubscribeURL(from html: String) -> URL? {
+        UnsubscribeService.extractBodyUnsubscribeURL(from: html)
+    }
+
+    func loadDraft(id: String, accountID: String, format: String = "full") async throws -> GmailDraft? {
+        try await GmailDraftService.shared.getDraft(id: id, accountID: accountID, format: format)
+    }
+
     func moveToInboxEmail(_ email: Email, selectedFolder: Folder, selectNext: (Email?) -> Void) {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel

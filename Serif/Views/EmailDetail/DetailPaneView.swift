@@ -133,26 +133,23 @@ struct DetailPaneView: View {
             onShowOriginal: { vm in panelCoordinator.showOriginalMessage(from: vm) },
             onDownloadMessage: { vm in panelCoordinator.downloadMessage(from: vm) },
             onUnsubscribe: { url, oneClick, msgID in
-                await UnsubscribeService.shared.unsubscribe(url: url, oneClick: oneClick, messageID: msgID, accountID: accountID)
+                await actionCoordinator.unsubscribe(url: url, oneClick: oneClick, messageID: msgID, accountID: accountID)
             },
             onPrint: { msg, email in
                 EmailPrintService.shared.printEmail(message: msg, email: email)
             },
             checkUnsubscribed: { msgID in
-                UnsubscribeService.shared.isUnsubscribed(messageID: msgID, accountID: accountID)
+                actionCoordinator.isUnsubscribed(messageID: msgID, accountID: accountID)
             },
             extractBodyUnsubscribeURL: { html in
-                UnsubscribeService.extractBodyUnsubscribeURL(from: html)
+                actionCoordinator.extractBodyUnsubscribeURL(from: html)
             },
             fromAddress: fromAddress
         )
         view.onOpenLink = { url in panelCoordinator.openInAppBrowser(url: url) }
         view.onMessagesRead = { messageIDs in mailboxViewModel.applyReadLocally(messageIDs) }
-        view.onGenerateQuickReplies = { email in
-            await QuickReplyService.shared.generateReplies(for: email)
-        }
         view.onLoadDraft = { draftID, acctID in
-            try await GmailDraftService.shared.getDraft(id: draftID, accountID: acctID, format: "full")
+            try await actionCoordinator.loadDraft(id: draftID, accountID: acctID)
         }
         return view.id(email.id)
     }

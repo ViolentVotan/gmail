@@ -7,8 +7,6 @@ final class EmailDetailViewModel {
     var thread:          GmailThread?
     var isLoading        = false
     var error:           String?
-    var rawSource:       String?
-    var isLoadingRaw     = false
     var trackerResult:   TrackerResult?
     var allowTrackers    = false
     var resolvedHTML:    String?
@@ -260,19 +258,16 @@ final class EmailDetailViewModel {
         updateLabelIDs(labelIDs)
     }
 
-    // MARK: - Raw source
+    // MARK: - Quick Replies
 
-    func fetchRawSource() async {
-        guard let msgID = latestMessage?.id else { return }
-        guard rawSource == nil else { return }
-        isLoadingRaw = true
-        defer { isLoadingRaw = false }
-        do {
-            let raw = try await GmailMessageService.shared.getRawMessage(id: msgID, accountID: accountID)
-            rawSource = raw.rawSource
-        } catch {
-            rawSource = nil
-        }
+    func generateQuickReplies(for email: Email) async -> [String] {
+        await QuickReplyService.shared.generateReplies(for: email)
+    }
+
+    // MARK: - Label Suggestions
+
+    func generateLabelSuggestions(for email: Email, existingLabels: [GmailLabel]) async -> [LabelSuggestion] {
+        await LabelSuggestionService.shared.generateSuggestions(for: email, existingLabels: existingLabels)
     }
 
     // MARK: - Convenience

@@ -124,5 +124,4 @@ final class ComposeViewModel {
         raw.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
     }
 
-    var canSend: Bool { !to.isEmpty && !subject.isEmpty }
 }

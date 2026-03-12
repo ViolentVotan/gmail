@@ -12,7 +12,6 @@ final class AppCoordinator {
     let actionCoordinator: EmailActionCoordinator
     let panelCoordinator = PanelCoordinator()
     let attachmentStore: AttachmentStore
-    let subscriptionsStore = SubscriptionsStore.shared
 
     private var pendingDraftSelection: Email?
 
@@ -69,12 +68,12 @@ final class AppCoordinator {
 
     var displayedEmails: [Email] {
         if selectedFolder == .drafts { return mailStore.emails(for: .drafts) }
-        if selectedFolder == .subscriptions { return subscriptionsStore.entries }
+        if selectedFolder == .subscriptions { return SubscriptionsStore.shared.entries }
         return mailboxViewModel.emails
     }
 
     var listIsLoading: Bool {
-        selectedFolder == .subscriptions ? subscriptionsStore.isAnalyzing
+        selectedFolder == .subscriptions ? SubscriptionsStore.shared.isAnalyzing
         : selectedFolder == .drafts ? mailStore.isLoadingGmailDrafts
         : mailboxViewModel.isLoading
     }
@@ -226,7 +225,7 @@ final class AppCoordinator {
             loadSignatures(for: account.id)
             let indexer = AttachmentIndexer(
                 database: .shared,
-                messageService: .shared,
+                messageService: GmailMessageService.shared,
                 accountID: account.id
             )
             attachmentIndexer = indexer
@@ -310,7 +309,7 @@ final class AppCoordinator {
         attachmentStore.refresh()
         let indexer = AttachmentIndexer(
             database: .shared,
-            messageService: .shared,
+            messageService: GmailMessageService.shared,
             accountID: id
         )
         attachmentIndexer = indexer

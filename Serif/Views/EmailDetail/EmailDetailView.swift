@@ -28,7 +28,6 @@ struct EmailDetailView: View {
     var extractBodyUnsubscribeURL: ((String) -> URL?)?
     var onOpenLink: ((URL) -> Void)?
     var onMessagesRead: (([String]) -> Void)?
-    var onGenerateQuickReplies: ((Email) async -> [String])?
     var onLoadDraft: ((String, String) async throws -> GmailDraft?)?
     var fromAddress: String = ""
     var mailStore: MailStore
@@ -303,7 +302,7 @@ struct EmailDetailView: View {
                     .task(id: email.id) {
                         labelSuggestions = []
                         guard aiLabelSuggestionsEnabled else { return }
-                        let suggestions = await LabelSuggestionService.shared.generateSuggestions(
+                        let suggestions = await detailVM.generateLabelSuggestions(
                             for: email,
                             existingLabels: allLabels
                         )
@@ -318,7 +317,9 @@ struct EmailDetailView: View {
                     fromAddress: fromAddress,
                     mailStore: mailStore,
                     onOpenLink: onOpenLink,
-                    onGenerateQuickReplies: onGenerateQuickReplies,
+                    onGenerateQuickReplies: { [detailVM] email in
+                        await detailVM.generateQuickReplies(for: email)
+                    },
                     onLoadDraft: onLoadDraft
                 )
                     .padding(.horizontal, 16)

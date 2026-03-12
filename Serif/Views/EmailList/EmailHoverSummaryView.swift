@@ -3,10 +3,7 @@ import SwiftUI
 struct EmailHoverSummaryView: View {
     let email: Email
     @Environment(\.theme) private var theme
-    @State private var displayedText = ""
-    @State private var streamTask: Task<Void, Never>?
-    @State private var isStreaming = true
-    @State private var isAISummary = false
+    @State private var summaryVM = EmailSummaryViewModel()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -60,7 +57,7 @@ struct EmailHoverSummaryView: View {
                 .background(theme.divider)
 
             // Summary body
-            if displayedText.isEmpty && isStreaming {
+            if summaryVM.displayedText.isEmpty && summaryVM.isStreaming {
                 HStack(spacing: 6) {
                     ProgressView()
                         .controlSize(.small)
@@ -69,21 +66,21 @@ struct EmailHoverSummaryView: View {
                         .foregroundColor(theme.textTertiary)
                 }
             } else {
-                Text(displayedText)
+                Text(summaryVM.displayedText)
                     .font(.system(size: 12))
                     .foregroundColor(theme.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .animation(.easeIn(duration: 0.05), value: displayedText)
+                    .animation(.easeIn(duration: 0.05), value: summaryVM.displayedText)
             }
 
             // Footer
-            if !isStreaming {
+            if !summaryVM.isStreaming {
                 footerView
             }
         }
         .padding(14)
-        .onAppear { startStreaming() }
-        .onDisappear { streamTask?.cancel() }
+        .onAppear { summaryVM.startStreaming(for: email) }
+        .onDisappear { summaryVM.cancelStreaming() }
     }
 
     // MARK: - Metadata
@@ -126,7 +123,7 @@ struct EmailHoverSummaryView: View {
     private var footerView: some View {
         HStack {
             Spacer()
-            if isAISummary, #available(macOS 26.0, *) {
+            if summaryVM.isAISummary, #available(macOS 26.0, *) {
                 #if canImport(FoundationModels)
                 Label("Apple Intelligence", systemImage: "apple.intelligence")
                     .font(.system(size: 9))
@@ -136,17 +133,4 @@ struct EmailHoverSummaryView: View {
         }
     }
 
-    // MARK: - Streaming
-
-    private func startStreaming() {
-        streamTask = Task {
-            let stream = SummaryService.shared.summary(for: email)
-            for await text in stream {
-                guard !Task.isCancelled else { return }
-                displayedText = text
-            }
-            isStreaming = false
-            isAISummary = SummaryService.shared.isAIGenerated(for: email)
-        }
-    }
 }

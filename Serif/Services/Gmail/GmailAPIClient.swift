@@ -35,6 +35,7 @@ final class GmailAPIClient {
         contentType: String? = nil,
         accountID: String
     ) async throws(GmailAPIError) -> Data {
+        guard NetworkMonitor.shared.isConnected else { throw .offline }
         let token = try await validToken(for: accountID)
 
         #if DEBUG
@@ -82,6 +83,7 @@ final class GmailAPIClient {
 
     /// Makes an authenticated GET request to any Google API (not limited to the Gmail base URL).
     func requestURL<T: Decodable>(_ urlString: String, accountID: String) async throws(GmailAPIError) -> T {
+        guard NetworkMonitor.shared.isConnected else { throw .offline }
         let token = try await validToken(for: accountID)
         guard let url = URL(string: urlString) else { throw .invalidURL }
         var req = URLRequest(url: url)
@@ -207,6 +209,7 @@ final class GmailAPIClient {
 enum GmailAPIError: Error, LocalizedError {
     case invalidURL
     case unauthorized
+    case offline
     case httpError(Int, Data)
     case decodingError(Error)
     case encodingError(Error)
@@ -217,6 +220,7 @@ enum GmailAPIError: Error, LocalizedError {
         switch self {
         case .invalidURL:                return "Invalid API URL"
         case .unauthorized:              return "Unauthorized — please sign in again"
+        case .offline:                   return "You're offline — please check your connection"
         case .httpError(let c, _):       return "HTTP \(c)"
         case .decodingError(let e):      return "Decode failed: \(e.localizedDescription)"
         case .encodingError(let e):      return "Encode failed: \(e.localizedDescription)"

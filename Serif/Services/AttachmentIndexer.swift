@@ -2,7 +2,7 @@ import Foundation
 
 actor AttachmentIndexer {
     private let database: AttachmentDatabase
-    private let messageService: GmailMessageService
+    private let messageService: any MessageFetching
     private let accountID: String
     private var isProcessing = false
     private let maxConcurrent = 3
@@ -18,7 +18,7 @@ actor AttachmentIndexer {
         onProgressUpdate = handler
     }
 
-    init(database: AttachmentDatabase, messageService: GmailMessageService, accountID: String) {
+    init(database: AttachmentDatabase, messageService: any MessageFetching, accountID: String) {
         self.database = database
         self.messageService = messageService
         self.accountID = accountID
@@ -106,7 +106,7 @@ actor AttachmentIndexer {
     private static func indexAttachment(
         _ att: IndexedAttachment,
         database: AttachmentDatabase,
-        messageService: GmailMessageService,
+        messageService: any MessageFetching,
         accountID: String
     ) async {
         do {
@@ -196,7 +196,8 @@ actor AttachmentIndexer {
                     accountID: acctID,
                     labelIDs: [],
                     query: query,
-                    pageToken: pageToken
+                    pageToken: pageToken,
+                    maxResults: 50
                 )
                 let refs = list.messages ?? []
                 pageToken = list.nextPageToken
