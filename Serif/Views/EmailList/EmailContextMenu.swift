@@ -14,6 +14,7 @@ struct EmailContextMenu: View {
     let onDeletePermanently: ((Email) -> Void)?
     let onMarkNotSpam: ((Email) -> Void)?
     let onSnooze: ((Email, Date) -> Void)?
+    let onCreateFilter: ((Email) -> Void)?
 
     var body: some View {
         Button { } label: { Label("Reply",     systemImage: "arrowshape.turn.up.left") }
@@ -83,6 +84,14 @@ struct EmailContextMenu: View {
         }
 
         Divider()
+
+        if let onCreateFilter {
+            Button {
+                onCreateFilter(email)
+            } label: {
+                Label("Create Filter...", systemImage: "line.3.horizontal.decrease.circle")
+            }
+        }
 
         if selectedFolder != .spam {
             Button(role: .destructive) { onMarkSpam?(email) } label: {

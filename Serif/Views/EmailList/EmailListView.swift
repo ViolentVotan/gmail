@@ -223,7 +223,8 @@ struct EmailListView: View {
                         onMoveToInbox: onMoveToInbox,
                         onDeletePermanently: onDeletePermanently,
                         onMarkNotSpam: onMarkNotSpam,
-                        onSnooze: onSnooze
+                        onSnooze: onSnooze,
+                        onCreateFilter: nil
                     )
                 }
             }
