@@ -110,6 +110,7 @@ final class GmailAPIClient {
 
     /// Generic batch fetch: chunks IDs into batches of 50, decodes each successful response.
     /// `pathBuilder` must return full API paths starting with `/gmail/v1/...` (not relative to baseURL).
+    /// Runs up to 3 chunks concurrently to reduce latency for large ID sets.
     func batchFetch<T: Decodable>(
         ids: [String],
         pathBuilder: @Sendable (String) -> String,
@@ -117,29 +118,98 @@ final class GmailAPIClient {
     ) async throws(GmailAPIError) -> [T] {
         guard !ids.isEmpty else { return [] }
         let batchSize = 50
-        var all: [T] = []
-        let decoder = JSONDecoder()
+        let maxConcurrentBatches = 3
 
-        for offset in stride(from: 0, to: ids.count, by: batchSize) {
-            let batch = Array(ids[offset..<min(offset + batchSize, ids.count)])
-            let requests = batch.map { id in
-                (id: id, method: "GET", path: pathBuilder(id), body: nil as Data?)
-            }
-            let results = try await batchRequest(requests: requests, accountID: accountID)
-            for result in results {
-                guard (200...299).contains(result.statusCode) else {
-                    Self.logger.warning("Batch part \(result.id) failed: HTTP \(result.statusCode)")
-                    continue
+        // Split into chunks of 50
+        let chunks: [[String]] = stride(from: 0, to: ids.count, by: batchSize).map { offset in
+            Array(ids[offset..<min(offset + batchSize, ids.count)])
+        }
+
+        // Single chunk — no TaskGroup overhead needed
+        if chunks.count == 1 {
+            return try await fetchSingleBatch(chunk: chunks[0], pathBuilder: pathBuilder, accountID: accountID)
+        }
+
+        // Multiple chunks — run up to maxConcurrentBatches in parallel.
+        // Use non-throwing TaskGroup with Result to satisfy typed throws.
+        let (all, firstError): ([T], GmailAPIError?) = await withTaskGroup(of: Result<[T], GmailAPIError>.self) { group in
+            var chunkIterator = chunks.makeIterator()
+            var collected: [T] = []
+            var error: GmailAPIError?
+
+            // Seed initial batch
+            for _ in 0..<min(maxConcurrentBatches, chunks.count) {
+                if let chunk = chunkIterator.next() {
+                    group.addTask {
+                        do {
+                            let items: [T] = try await self.fetchSingleBatch(chunk: chunk, pathBuilder: pathBuilder, accountID: accountID)
+                            return .success(items)
+                        } catch let err as GmailAPIError {
+                            return .failure(err)
+                        } catch {
+                            return .failure(.networkError(error))
+                        }
+                    }
                 }
-                do {
-                    let item = try decoder.decode(T.self, from: result.data)
-                    all.append(item)
-                } catch {
-                    Self.logger.error("Batch decode failed for \(result.id): \(error.localizedDescription)")
+            }
+
+            // As each completes, add the next
+            for await result in group {
+                switch result {
+                case .success(let items):
+                    collected.append(contentsOf: items)
+                case .failure(let err):
+                    if error == nil { error = err }
+                }
+                if let nextChunk = chunkIterator.next() {
+                    group.addTask {
+                        do {
+                            let items: [T] = try await self.fetchSingleBatch(chunk: nextChunk, pathBuilder: pathBuilder, accountID: accountID)
+                            return .success(items)
+                        } catch let err as GmailAPIError {
+                            return .failure(err)
+                        } catch {
+                            return .failure(.networkError(error))
+                        }
+                    }
                 }
             }
+
+            return (collected, error)
+        }
+
+        // Only throw if we got zero results AND there was an error
+        if let firstError, all.isEmpty {
+            throw firstError
         }
         return all
+    }
+
+    /// Fetches a single batch of IDs and decodes results.
+    private func fetchSingleBatch<T: Decodable>(
+        chunk: [String],
+        pathBuilder: @Sendable (String) -> String,
+        accountID: String
+    ) async throws(GmailAPIError) -> [T] {
+        let requests = chunk.map { id in
+            (id: id, method: "GET", path: pathBuilder(id), body: nil as Data?)
+        }
+        let results = try await batchRequest(requests: requests, accountID: accountID)
+        let decoder = JSONDecoder()
+        var items: [T] = []
+        for result in results {
+            guard (200...299).contains(result.statusCode) else {
+                Self.logger.warning("Batch part \(result.id) failed: HTTP \(result.statusCode)")
+                continue
+            }
+            do {
+                let item = try decoder.decode(T.self, from: result.data)
+                items.append(item)
+            } catch {
+                Self.logger.error("Batch decode failed for \(result.id): \(error.localizedDescription)")
+            }
+        }
+        return items
     }
 
     // MARK: - Perform for arbitrary Google API URLs
