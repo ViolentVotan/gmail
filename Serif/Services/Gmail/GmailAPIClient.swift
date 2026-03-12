@@ -160,7 +160,7 @@ final class GmailAPIClient {
             let data: Data
             let response: URLResponse
             do {
-                (data, response) = try await URLSession.shared.data(for: request)
+                (data, response) = try await Self.session.data(for: request)
             } catch {
                 if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
                     try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
@@ -230,7 +230,7 @@ final class GmailAPIClient {
             let data: Data
             let response: URLResponse
             do {
-                (data, response) = try await URLSession.shared.data(for: urlRequest)
+                (data, response) = try await Self.session.data(for: urlRequest)
             } catch {
                 if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
                     try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
@@ -444,7 +444,7 @@ final class GmailAPIClient {
             let data: Data
             let response: URLResponse
             do {
-                (data, response) = try await URLSession.shared.data(for: request)
+                (data, response) = try await Self.session.data(for: request)
             } catch {
                 if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
                     try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
