@@ -21,6 +21,7 @@
 		B10001010000000000000009 /* CPUMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000009 /* CPUMonitorTests.swift */; };
 		B1000101000000000000000A /* EmailActionCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000201000000000000000A /* EmailActionCoordinatorTests.swift */; };
 		B1000101000000000000000B /* DraftLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000201000000000000000B /* DraftLifecycleTests.swift */; };
+		B1000101000000000000000C /* GmailAPIClientRetryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000201000000000000000C /* GmailAPIClientRetryTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -47,6 +48,7 @@
 		B10002010000000000000009 /* CPUMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CPUMonitorTests.swift; sourceTree = "<group>"; };
 		B1000201000000000000000A /* EmailActionCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailActionCoordinatorTests.swift; sourceTree = "<group>"; };
 		B1000201000000000000000B /* DraftLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftLifecycleTests.swift; sourceTree = "<group>"; };
+		B1000201000000000000000C /* GmailAPIClientRetryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailAPIClientRetryTests.swift; sourceTree = "<group>"; };
 		B10002010000000000000099 /* SerifTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SerifTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -117,6 +119,7 @@
 				B10002010000000000000009 /* CPUMonitorTests.swift */,
 				B1000201000000000000000A /* EmailActionCoordinatorTests.swift */,
 				B1000201000000000000000B /* DraftLifecycleTests.swift */,
+				B1000201000000000000000C /* GmailAPIClientRetryTests.swift */,
 			);
 			path = SerifTests;
 			sourceTree = "<group>";
@@ -241,6 +244,7 @@
 				B10001010000000000000009 /* CPUMonitorTests.swift in Sources */,
 				B1000101000000000000000A /* EmailActionCoordinatorTests.swift in Sources */,
 				B1000101000000000000000B /* DraftLifecycleTests.swift in Sources */,
+				B1000101000000000000000C /* GmailAPIClientRetryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

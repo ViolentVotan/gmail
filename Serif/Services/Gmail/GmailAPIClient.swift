@@ -40,48 +40,13 @@ final class GmailAPIClient {
         guard NetworkMonitor.shared.isConnected else { throw .offline }
         let token = try await validToken(for: accountID)
 
-        #if DEBUG
-        let reqHeaders: [String: String] = {
-            var h = ["Authorization": "Bearer [hidden]"]
-            if let ct = contentType { h["Content-Type"] = ct }
-            return h
-        }()
-        let reqBody: String? = body.flatMap { String(data: $0, encoding: .utf8) }
-        let t0 = Date()
+        // First attempt + 401 auto-retry
         do {
-            let (data, code, respHeaders) = try await perform(path: path, method: method, body: body, contentType: contentType, fields: fields, accessToken: token.accessToken)
-            let ms = Int(Date().timeIntervalSince(t0) * 1000)
-            APILogger.shared.log(APILogEntry(
-                method: method, path: path, statusCode: code, errorMessage: nil,
-                requestHeaders: reqHeaders, requestBody: reqBody,
-                responseHeaders: respHeaders,
-                responseBodyData: data, responseSize: data.count, durationMs: ms, fromCache: false
-            ))
-            if let encoding = respHeaders["Content-Encoding"] {
-                print("[GmailAPI] Compression: \(encoding) for \(path)")
-            }
-            return data
-        } catch {
-            let ms = Int(Date().timeIntervalSince(t0) * 1000)
-            if case .httpError(let code, let errData) = error {
-                APILogger.shared.log(APILogEntry(
-                    method: method, path: path, statusCode: code, errorMessage: "HTTP \(code)",
-                    requestHeaders: reqHeaders, requestBody: reqBody,
-                    responseBodyData: errData, responseSize: errData.count, durationMs: ms, fromCache: false
-                ))
-            } else {
-                APILogger.shared.log(APILogEntry(
-                    method: method, path: path, statusCode: nil, errorMessage: error.localizedDescription,
-                    requestHeaders: reqHeaders, requestBody: reqBody,
-                    responseBodyData: Data(), responseSize: 0, durationMs: ms, fromCache: false
-                ))
-            }
-            throw error
+            return try await doPerform(path: path, method: method, body: body, contentType: contentType, fields: fields, accessToken: token.accessToken)
+        } catch .unauthorized {
+            let fresh = try await refreshAndRetry(accountID: accountID)
+            return try await doPerform(path: path, method: method, body: body, contentType: contentType, fields: fields, accessToken: fresh.accessToken)
         }
-        #else
-        let (data, _, _) = try await perform(path: path, method: method, body: body, contentType: contentType, fields: fields, accessToken: token.accessToken)
-        return data
-        #endif
     }
 
     // MARK: - Authenticated request to any Google API URL
@@ -281,6 +246,85 @@ final class GmailAPIClient {
         }
     }
 
+    /// Forces a token refresh (invalidates cached token). Used for 401 auto-retry.
+    private func refreshAndRetry(accountID: String) async throws(GmailAPIError) -> AuthToken {
+        refreshTasks[accountID] = nil
+        let token: AuthToken?
+        do {
+            token = try TokenStore.shared.retrieve(for: accountID)
+        } catch {
+            throw .networkError(error)
+        }
+        guard let token else { throw .unauthorized }
+        let task = Task<AuthToken, Error> {
+            defer { self.refreshTasks[accountID] = nil }
+            let fresh = try await OAuthService.shared.refreshToken(token)
+            try TokenStore.shared.save(fresh, for: accountID)
+            return fresh
+        }
+        refreshTasks[accountID] = task
+        do {
+            return try await task.value
+        } catch {
+            throw GmailAPIError.wrap(error)
+        }
+    }
+
+    // MARK: - Perform with logging
+
+    /// Wraps `perform()` with DEBUG logging. Extracted to allow 401 retry without duplicating logic.
+    private func doPerform(
+        path: String,
+        method: String,
+        body: Data?,
+        contentType: String?,
+        fields: String?,
+        accessToken: String
+    ) async throws(GmailAPIError) -> Data {
+        #if DEBUG
+        let reqHeaders: [String: String] = {
+            var h = ["Authorization": "Bearer [hidden]"]
+            if let ct = contentType { h["Content-Type"] = ct }
+            return h
+        }()
+        let reqBody: String? = body.flatMap { String(data: $0, encoding: .utf8) }
+        let t0 = Date()
+        do {
+            let (data, code, respHeaders) = try await perform(path: path, method: method, body: body, contentType: contentType, fields: fields, accessToken: accessToken)
+            let ms = Int(Date().timeIntervalSince(t0) * 1000)
+            APILogger.shared.log(APILogEntry(
+                method: method, path: path, statusCode: code, errorMessage: nil,
+                requestHeaders: reqHeaders, requestBody: reqBody,
+                responseHeaders: respHeaders,
+                responseBodyData: data, responseSize: data.count, durationMs: ms, fromCache: false
+            ))
+            if let encoding = respHeaders["Content-Encoding"] {
+                print("[GmailAPI] Compression: \(encoding) for \(path)")
+            }
+            return data
+        } catch {
+            let ms = Int(Date().timeIntervalSince(t0) * 1000)
+            if case .httpError(let code, let errData) = error {
+                APILogger.shared.log(APILogEntry(
+                    method: method, path: path, statusCode: code, errorMessage: "HTTP \(code)",
+                    requestHeaders: reqHeaders, requestBody: reqBody,
+                    responseBodyData: errData, responseSize: errData.count, durationMs: ms, fromCache: false
+                ))
+            } else {
+                APILogger.shared.log(APILogEntry(
+                    method: method, path: path, statusCode: nil, errorMessage: error.localizedDescription,
+                    requestHeaders: reqHeaders, requestBody: reqBody,
+                    responseBodyData: Data(), responseSize: 0, durationMs: ms, fromCache: false
+                ))
+            }
+            throw error
+        }
+        #else
+        let (data, _, _) = try await perform(path: path, method: method, body: body, contentType: contentType, fields: fields, accessToken: accessToken)
+        return data
+        #endif
+    }
+
     // MARK: - HTTP layer
 
     /// Returns (data, httpStatusCode, responseHeaders).
@@ -299,31 +343,44 @@ final class GmailAPIClient {
             fullPath += "\(separator)fields=\(encoded)"
         }
         guard let url = URL(string: baseURL + fullPath) else { throw .invalidURL }
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("Serif/1.0", forHTTPHeaderField: "User-Agent")
-        if let contentType { request.setValue(contentType, forHTTPHeaderField: "Content-Type") }
-        request.httpBody = body
 
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await URLSession.shared.data(for: request)
-        } catch {
-            throw .networkError(error)
-        }
-        guard let http = response as? HTTPURLResponse else { throw .invalidURL }
+        for attempt in 0...RetryPolicy.maxRetries {
+            var request = URLRequest(url: url)
+            request.httpMethod = method
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("Serif/1.0", forHTTPHeaderField: "User-Agent")
+            if let contentType { request.setValue(contentType, forHTTPHeaderField: "Content-Type") }
+            request.httpBody = body
 
-        let headers = http.allHeaderFields.reduce(into: [String: String]()) { result, pair in
-            if let key = pair.key as? String, let val = pair.value as? String { result[key] = val }
-        }
+            let data: Data
+            let response: URLResponse
+            do {
+                (data, response) = try await URLSession.shared.data(for: request)
+            } catch {
+                throw .networkError(error)
+            }
+            guard let http = response as? HTTPURLResponse else { throw .invalidURL }
 
-        switch http.statusCode {
-        case 200...299: return (data, http.statusCode, headers)
-        case 401:       throw .unauthorized
-        default:        throw .httpError(http.statusCode, data)
+            let headers = http.allHeaderFields.reduce(into: [String: String]()) { result, pair in
+                if let key = pair.key as? String, let val = pair.value as? String { result[key] = val }
+            }
+
+            switch http.statusCode {
+            case 200...299:
+                return (data, http.statusCode, headers)
+            case 401:
+                throw .unauthorized
+            default:
+                if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
+                    // Intentionally use try? — if task is cancelled, the next iteration's
+                    // URLSession call will throw, which we convert to .networkError.
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
+                    continue
+                }
+                throw .httpError(http.statusCode, data)
+            }
         }
+        throw .httpError(0, Data())
     }
 }
 
@@ -358,5 +415,24 @@ enum GmailAPIError: Error, LocalizedError {
     static func wrap(_ error: Error) -> GmailAPIError {
         if let apiError = error as? GmailAPIError { return apiError }
         return .networkError(error)
+    }
+}
+
+// MARK: - Retry Policy
+
+enum RetryPolicy {
+    static let maxRetries = 3
+
+    static func isRetriable(statusCode: Int) -> Bool {
+        switch statusCode {
+        case 429, 500, 503: return true
+        default: return false
+        }
+    }
+
+    static func delay(forAttempt attempt: Int) -> TimeInterval {
+        let base = pow(2.0, Double(attempt))
+        let jitter = Double.random(in: 0...(base * 0.5))
+        return base + jitter
     }
 }
