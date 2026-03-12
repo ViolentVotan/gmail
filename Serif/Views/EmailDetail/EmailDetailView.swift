@@ -315,10 +315,14 @@ struct EmailDetailView: View {
                     onGenerateQuickReplies: { [detailVM] email in
                         await detailVM.generateQuickReplies(for: email)
                     },
-                    onLoadDraft: onLoadDraft
+                    onLoadDraft: onLoadDraft,
+                    smartReplySuggestions: detailVM.smartReplySuggestions
                 )
                     .padding(.horizontal, 16)
                     .padding(.bottom, 16)
+                    .task(id: email.id) {
+                        detailVM.loadSmartReplies(for: email)
+                    }
             }
         }
         .task(id: email.id) {

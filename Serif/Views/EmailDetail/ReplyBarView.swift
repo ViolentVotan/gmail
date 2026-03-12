@@ -8,6 +8,8 @@ struct ReplyBarView: View {
     var onOpenLink: ((URL) -> Void)?
     var onGenerateQuickReplies: ((Email) async -> [String])?
     var onLoadDraft: ((String, String) async throws -> GmailDraft?)?
+    var smartReplySuggestions: [String] = []
+    var onSmartReplySelect: ((String) -> Void)?
 
     @State private var replyHTML = ""
     @State private var isExpanded = false
@@ -35,7 +37,9 @@ struct ReplyBarView: View {
         mailStore: MailStore,
         onOpenLink: ((URL) -> Void)? = nil,
         onGenerateQuickReplies: ((Email) async -> [String])? = nil,
-        onLoadDraft: ((String, String) async throws -> GmailDraft?)? = nil
+        onLoadDraft: ((String, String) async throws -> GmailDraft?)? = nil,
+        smartReplySuggestions: [String] = [],
+        onSmartReplySelect: ((String) -> Void)? = nil
     ) {
         self.email = email
         self.accountID = accountID
@@ -44,6 +48,8 @@ struct ReplyBarView: View {
         self.onOpenLink = onOpenLink
         self.onGenerateQuickReplies = onGenerateQuickReplies
         self.onLoadDraft = onLoadDraft
+        self.smartReplySuggestions = smartReplySuggestions
+        self.onSmartReplySelect = onSmartReplySelect
         self.composeVM = ComposeViewModel(
             accountID: accountID,
             fromAddress: fromAddress,
@@ -53,6 +59,11 @@ struct ReplyBarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if !isExpanded && !smartReplySuggestions.isEmpty {
+                SmartReplyChipsView(suggestions: smartReplySuggestions) { suggestion in
+                    onSmartReplySelect?(suggestion)
+                }
+            }
             if isExpanded {
                 expandedContent
             } else {

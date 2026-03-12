@@ -267,6 +267,27 @@ final class EmailDetailViewModel {
         await QuickReplyService.shared.generateReplies(for: email)
     }
 
+    // MARK: - Smart Reply Suggestions
+
+    var smartReplySuggestions: [String] = []
+
+    func loadSmartReplies(for email: Email) {
+        guard let threadId = email.gmailThreadID else { return }
+        if let cached = SmartReplyProvider.shared.cachedReplies(for: threadId) {
+            smartReplySuggestions = cached
+            return
+        }
+        Task {
+            let replies = await SmartReplyProvider.shared.generateReplies(
+                subject: email.subject,
+                senderName: email.sender.name,
+                body: email.body,
+                threadId: threadId
+            )
+            smartReplySuggestions = replies
+        }
+    }
+
     // MARK: - Label Suggestions
 
     func generateLabelSuggestions(for email: Email, existingLabels: [GmailLabel]) async -> [LabelSuggestion] {
