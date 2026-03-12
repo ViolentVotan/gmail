@@ -100,8 +100,10 @@ struct ContentView: View {
                         coordinator: coordinator
                     )
                     .focused($appFocus, equals: .detail)
+                    .backgroundExtensionEffect()
                 }
             }
+            .windowResizeAnchor(.top)
             .onKeyPress(.tab, phases: .down) { keyPress in
                 guard keyPress.modifiers.contains(.option) else { return .ignored }
                 if keyPress.modifiers.contains(.shift) {
@@ -121,20 +123,28 @@ struct ContentView: View {
                 }
                 return .handled
             }
-            .userActivity("com.serif.viewEmail", isActive: coordinator.selectedEmail != nil) { activity in
+            .userActivity("com.genyus.serif.viewEmail", isActive: coordinator.selectedEmail != nil) { activity in
                 guard let email = coordinator.selectedEmail else { return }
                 activity.title = email.subject
                 activity.isEligibleForHandoff = true
                 activity.isEligibleForSearch = true
-                activity.userInfo = ["emailID": email.id.uuidString]
+                activity.userInfo = [
+                    "emailID": email.id.uuidString,
+                    "threadID": email.gmailThreadID ?? "",
+                    "accountID": coordinator.accountID
+                ]
             }
-            .onContinueUserActivity("com.serif.viewEmail") { activity in
+            .onContinueUserActivity("com.genyus.serif.viewEmail") { activity in
                 guard let emailID = activity.userInfo?["emailID"] as? String,
                       let uuid = UUID(uuidString: emailID),
                       let email = coordinator.mailboxViewModel.emails.first(where: { $0.id == uuid })
                 else { return }
                 coordinator.selectedEmail = email
                 coordinator.selectedEmailIDs = [emailID]
+            }
+            .userActivity("com.genyus.serif.composeEmail", isActive: coordinator.isComposeActive) { activity in
+                activity.title = "Composing email"
+                activity.isEligibleForHandoff = true
             }
 
             KeyboardShortcutsView(coordinator: coordinator)

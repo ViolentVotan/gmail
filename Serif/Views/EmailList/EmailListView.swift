@@ -177,6 +177,7 @@ struct EmailListView: View {
                 }
             }
             .listStyle(.plain)
+            .scrollEdgeEffectStyle(.automatic, for: .all)
         } else {
             emailScrollView
         }
@@ -258,6 +259,7 @@ struct EmailListView: View {
         .onKeyPress(characters: CharacterSet(charactersIn: "s")) { _ in handleKeyS() }
         .onKeyPress(characters: CharacterSet(charactersIn: "u")) { _ in handleKeyU() }
         .onKeyPress(characters: CharacterSet(charactersIn: "r")) { _ in handleKeyR() }
+        .scrollEdgeEffectStyle(.automatic)
     }
 
     // MARK: - Hidden buttons
