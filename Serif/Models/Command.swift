@@ -1,5 +1,14 @@
 import Foundation
 
+extension Command {
+    func matches(_ query: String) -> Bool {
+        let q = query.lowercased()
+        return title.lowercased().contains(q)
+            || (subtitle?.lowercased().contains(q) ?? false)
+            || id.lowercased().contains(q)
+    }
+}
+
 struct Command: Identifiable {
     let id: String  // Stable ID like "action.compose", "folder.inbox"
     let title: String
