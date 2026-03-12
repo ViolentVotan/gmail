@@ -12,7 +12,6 @@ struct DebugMenuView: View {
     @State private var expandedEntryID: UUID?
     @State private var indexingStats = IndexingStats()
     @State private var unsupportedTypes: [(mimeType: String, count: Int)] = []
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -20,17 +19,17 @@ struct DebugMenuView: View {
             // MARK: - Attachment Indexer
             debugSection(title: "Attachment Indexer") {
                 VStack(alignment: .leading, spacing: 6) {
-                    indexerStatRow("Total", value: indexingStats.total, color: theme.textPrimary)
-                    indexerStatRow("Indexed", value: indexingStats.indexed, color: theme.accentSecondary)
-                    indexerStatRow("Pending", value: indexingStats.pending, color: theme.unreadIndicator)
-                    indexerStatRow("Failed", value: indexingStats.failed, color: theme.destructive)
+                    indexerStatRow("Total", value: indexingStats.total, color: .primary)
+                    indexerStatRow("Indexed", value: indexingStats.indexed, color: .secondary)
+                    indexerStatRow("Pending", value: indexingStats.pending, color: .blue)
+                    indexerStatRow("Failed", value: indexingStats.failed, color: .red)
 
                     if indexingStats.total > 0 {
                         let progress = indexingStats.total > 0
                             ? Double(indexingStats.indexed) / Double(indexingStats.total)
                             : 0
                         ProgressView(value: progress)
-                            .tint(theme.accentPrimary)
+                            .tint(.accentColor)
                             .padding(.top, 4)
                             .padding(.horizontal, 12)
                     }
@@ -39,17 +38,17 @@ struct DebugMenuView: View {
                         Divider().padding(.horizontal, 12).padding(.vertical, 4)
                         Text("Unsupported MIME types")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(theme.textTertiary)
+                            .foregroundStyle(.tertiary)
                             .padding(.horizontal, 12)
                         ForEach(unsupportedTypes, id: \.mimeType) { entry in
                             HStack {
                                 Text(entry.mimeType)
                                     .font(.system(size: 11, design: .monospaced))
-                                    .foregroundColor(theme.textSecondary)
+                                    .foregroundStyle(.secondary)
                                 Spacer()
                                 Text("×\(entry.count)")
                                     .font(.system(size: 11, weight: .medium, design: .monospaced))
-                                    .foregroundColor(theme.textTertiary)
+                                    .foregroundStyle(.tertiary)
                             }
                             .padding(.horizontal, 12)
                         }
@@ -74,7 +73,7 @@ struct DebugMenuView: View {
                 if logger.entries.isEmpty {
                     Text("No requests yet")
                         .font(.system(size: 12))
-                        .foregroundColor(theme.textTertiary)
+                        .foregroundStyle(.tertiary)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                 } else {
@@ -82,11 +81,11 @@ struct DebugMenuView: View {
                         ForEach(logger.entries.reversed()) { entry in
                             logEntryRow(entry)
                             if entry.id != logger.entries.first?.id {
-                                Divider().background(theme.divider)
+                                Divider()
                             }
                         }
                     }
-                    .background(theme.cardBackground)
+                    .background(.regularMaterial)
                     .cornerRadius(8)
                 }
 
@@ -110,11 +109,11 @@ struct DebugMenuView: View {
         HStack {
             Text(label)
                 .font(.system(size: 12))
-                .foregroundColor(theme.textSecondary)
+                .foregroundStyle(.secondary)
             Spacer()
             Text("\(value)")
                 .font(.system(size: 12, weight: .semibold, design: .monospaced))
-                .foregroundColor(color)
+                .foregroundStyle(color)
         }
         .padding(.horizontal, 12)
     }
@@ -154,7 +153,7 @@ struct DebugMenuView: View {
 
                     Text(entry.shortPath)
                         .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(theme.textSecondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
 
@@ -163,17 +162,17 @@ struct DebugMenuView: View {
                     if !entry.fromCache {
                         Text("\(entry.durationMs)ms")
                             .font(.system(size: 10))
-                            .foregroundColor(theme.textTertiary)
+                            .foregroundStyle(.tertiary)
                     }
 
                     Text(entry.statusLabel)
                         .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                        .foregroundColor(statusColor(for: entry.statusLevel))
+                        .foregroundStyle(statusColor(for: entry.statusLevel))
                         .frame(width: 40, alignment: .trailing)
 
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.system(size: 8))
-                        .foregroundColor(theme.textTertiary)
+                        .foregroundStyle(.tertiary)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 7)
@@ -190,7 +189,7 @@ struct DebugMenuView: View {
 
                     monoBlock {
                         Text("\(entry.method) \(entry.path)")
-                            .foregroundColor(theme.textPrimary)
+                            .foregroundStyle(.primary)
                     }
 
                     if !entry.requestHeaders.isEmpty {
@@ -198,9 +197,9 @@ struct DebugMenuView: View {
                             ForEach(entry.requestHeaders.keys.sorted(), id: \.self) { key in
                                 HStack(alignment: .top, spacing: 0) {
                                     Text(key + ": ")
-                                        .foregroundColor(theme.textTertiary)
+                                        .foregroundStyle(.tertiary)
                                     Text(entry.requestHeaders[key] ?? "")
-                                        .foregroundColor(theme.textSecondary)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                         }
@@ -222,7 +221,7 @@ struct DebugMenuView: View {
                         Spacer()
                         Text("\(entry.responseSize) bytes · \(entry.date.formatted(.dateTime.hour().minute().second()))")
                             .font(.system(size: 10))
-                            .foregroundColor(theme.textTertiary)
+                            .foregroundStyle(.tertiary)
                     }
 
                     if !entry.responseHeaders.isEmpty {
@@ -230,9 +229,9 @@ struct DebugMenuView: View {
                             ForEach(entry.responseHeaders.keys.sorted(), id: \.self) { key in
                                 HStack(alignment: .top, spacing: 0) {
                                     Text(key + ": ")
-                                        .foregroundColor(theme.textTertiary)
+                                        .foregroundStyle(.tertiary)
                                     Text(entry.responseHeaders[key] ?? "")
-                                        .foregroundColor(theme.textSecondary)
+                                        .foregroundStyle(.secondary)
                                 }
                             }
                         }
@@ -252,7 +251,7 @@ struct DebugMenuView: View {
                             } label: {
                                 Label("Copy body", systemImage: "doc.on.doc")
                                     .font(.system(size: 10))
-                                    .foregroundColor(theme.accentPrimary)
+                                    .foregroundStyle(.tint)
                             }
                             .buttonStyle(.plain)
                         }
@@ -263,7 +262,7 @@ struct DebugMenuView: View {
                     }
                 }
                 .padding(.bottom, 8)
-                .background(theme.detailBackground.opacity(0.6))
+                .background(.opacity(0.6))
             }
         }
     }
@@ -273,7 +272,7 @@ struct DebugMenuView: View {
     private func detailSectionLabel(_ title: String) -> some View {
         Text(title)
             .font(.system(size: 9, weight: .bold, design: .monospaced))
-            .foregroundColor(theme.textTertiary)
+            .foregroundStyle(.tertiary)
             .tracking(1)
             .padding(.horizontal, 10)
             .padding(.top, 8)
@@ -294,13 +293,12 @@ struct DebugMenuView: View {
         ScrollView([.vertical, .horizontal]) {
             Text(text)
                 .font(.system(size: 10, design: .monospaced))
-                .foregroundColor(theme.textSecondary)
+                .foregroundStyle(.secondary)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(8)
         }
         .frame(maxHeight: maxHeight)
-        .background(theme.listBackground)
         .cornerRadius(4)
         .padding(.horizontal, 10)
         .padding(.bottom, 4)
@@ -312,7 +310,7 @@ struct DebugMenuView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
                 .font(.system(size: 11, weight: .semibold))
-                .foregroundColor(theme.textTertiary)
+                .foregroundStyle(.tertiary)
                 .textCase(.uppercase)
                 .tracking(0.5)
             content()
@@ -321,10 +319,10 @@ struct DebugMenuView: View {
 
     private func statusColor(for level: APILogEntry.StatusLevel) -> Color {
         switch level {
-        case .success: return theme.accentSecondary
-        case .cached:  return theme.textTertiary
-        case .warning: return theme.unreadIndicator
-        case .error:   return theme.destructive
+        case .success: return .secondary
+        case .cached:  return .gray
+        case .warning: return .blue
+        case .error:   return .red
         }
     }
 
@@ -333,16 +331,16 @@ struct DebugMenuView: View {
             HStack(spacing: 10) {
                 Image(systemName: icon)
                     .font(.system(size: 13))
-                    .foregroundColor(theme.accentPrimary)
+                    .foregroundStyle(.tint)
                     .frame(width: 20)
                 Text(label)
                     .font(.system(size: 13))
-                    .foregroundColor(theme.textSecondary)
+                    .foregroundStyle(.secondary)
                 Spacer()
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(theme.cardBackground)
+            .background(.regularMaterial)
             .cornerRadius(8)
         }
         .buttonStyle(.plain)

@@ -14,7 +14,6 @@ struct SidebarView: View {
     var userLabels: [GmailLabel] = []
     var onRenameLabel: ((GmailLabel, String) -> Void)?
     var onDeleteLabel: ((GmailLabel) -> Void)?
-    @Environment(\.theme) private var theme
     @AppStorage("showDebugMenu") private var showDebugMenu = false
 
     @State private var inboxExpanded = true
@@ -65,7 +64,7 @@ struct SidebarView: View {
                 HStack {
                     Text(account.email)
                         .font(.caption)
-                        .foregroundStyle(theme.sidebarText)
+                        .foregroundStyle(.primary)
                         .truncationMode(.tail)
                     Spacer()
                 }
@@ -75,7 +74,7 @@ struct SidebarView: View {
             // Divider
             if isExpanded {
                 Rectangle()
-                    .fill(theme.sidebarTextMuted.opacity(0.3))
+                    .fill(Color.secondary.opacity(0.3))
                     .frame(height: 1)
                     .padding(.horizontal, 16)
                     .padding(.top, 4)
@@ -103,8 +102,7 @@ struct SidebarView: View {
             .padding(.bottom, 16)
         }
         .frame(width: sidebarWidth)
-        .background(theme.sidebarBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
         .padding(.vertical, 8)
         .padding(.horizontal, 8)
         .animation(.easeInOut(duration: 0.25), value: isExpanded)
@@ -168,7 +166,7 @@ struct SidebarView: View {
 
             if contentHeight > frameHeight + 1 {
                 LinearGradient(
-                    colors: [theme.sidebarBackground.opacity(0), theme.sidebarBackground],
+                    colors: [Color.clear, Color(.windowBackgroundColor)],
                     startPoint: .top,
                     endPoint: .bottom
                 )
@@ -185,8 +183,7 @@ struct SidebarView: View {
             InboxParentRow(
                 isSelected: selectedFolder == .inbox,
                 isExpanded: isExpanded,
-                inboxExpanded: $inboxExpanded,
-                theme: theme
+                inboxExpanded: $inboxExpanded
             ) {
                 selectedFolder = .inbox
                 selectedInboxCategory = .all
@@ -198,8 +195,7 @@ struct SidebarView: View {
                     InboxCategoryRow(
                         category: category,
                         isSelected: selectedFolder == .inbox && selectedInboxCategory == category,
-                        unreadCount: categoryUnreadCounts[category] ?? 0,
-                        theme: theme
+                        unreadCount: categoryUnreadCounts[category] ?? 0
                     ) {
                         selectedFolder = .inbox
                         selectedInboxCategory = category
@@ -216,8 +212,7 @@ struct SidebarView: View {
             LabelsParentRow(
                 isSelected: selectedFolder == .labels,
                 isExpanded: isExpanded,
-                labelsExpanded: $labelsExpanded,
-                theme: theme
+                labelsExpanded: $labelsExpanded
             ) {
                 selectedFolder = .labels
                 if let first = userLabels.first, selectedLabel == nil {
@@ -231,7 +226,6 @@ struct SidebarView: View {
                     LabelSidebarRow(
                         label: label,
                         isSelected: selectedFolder == .labels && selectedLabel?.id == label.id,
-                        theme: theme,
                         onRename: { labelToRename = $0; renameText = $0.name },
                         onDelete: { labelToDelete = $0 }
                     ) {
@@ -251,11 +245,11 @@ struct SidebarView: View {
                 HStack(spacing: 10) {
                     Image(systemName: icon)
                         .font(.system(size: 14))
-                        .foregroundColor(theme.sidebarTextMuted)
+                        .foregroundStyle(.secondary)
                         .frame(width: 20)
                     Text(label)
                         .font(.system(size: 13))
-                        .foregroundColor(theme.sidebarTextMuted)
+                        .foregroundStyle(.secondary)
                     Spacer()
                 }
                 .padding(.horizontal, 10)
@@ -264,7 +258,7 @@ struct SidebarView: View {
             } else {
                 Image(systemName: icon)
                     .font(.system(size: 16))
-                    .foregroundColor(theme.sidebarTextMuted)
+                    .foregroundStyle(.secondary)
                     .frame(width: 40, height: 40)
                     .contentShape(Rectangle())
             }

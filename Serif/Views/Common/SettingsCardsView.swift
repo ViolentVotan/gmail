@@ -6,18 +6,17 @@ struct BehaviorSettingsCard: View {
     @Binding var undoDuration: Int
     @Binding var refreshInterval: Int
     let lastRefreshedAt: Date?
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Behavior")
-                .font(.serifTitle)
-                .foregroundColor(theme.textPrimary)
+                .font(.headline)
+                .foregroundStyle(.primary)
 
             HStack {
                 Text("Undo duration")
-                    .font(.serifCaption)
-                    .foregroundColor(theme.textSecondary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Picker("", selection: $undoDuration) {
                     Text("5s").tag(5)
@@ -29,12 +28,12 @@ struct BehaviorSettingsCard: View {
                 .frame(width: 80)
             }
 
-            Divider().background(theme.divider)
+            Divider()
 
             HStack {
                 Text("Refresh interval")
-                    .font(.serifCaption)
-                    .foregroundColor(theme.textSecondary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Picker("", selection: $refreshInterval) {
                     Text("2 min").tag(120)
@@ -59,18 +58,17 @@ struct ContactsSettingsCard: View {
     var onRefreshContacts: ((String) async -> Void)?
     @State private var isRefreshingContacts = false
     @State private var contactCount = 0
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Contacts")
-                .font(.serifTitle)
-                .foregroundColor(theme.textPrimary)
+                .font(.headline)
+                .foregroundStyle(.primary)
 
             HStack {
                 Text("\(contactCount) contacts cached")
-                    .font(.serifCaption)
-                    .foregroundColor(theme.textSecondary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 Spacer()
 
@@ -90,12 +88,12 @@ struct ContactsSettingsCard: View {
                                 .frame(width: 12, height: 12)
                         } else {
                             Image(systemName: "arrow.clockwise")
-                                .font(.serifSmall)
+                                .font(.footnote)
                         }
                         Text(isRefreshingContacts ? "Refreshing…" : "Refresh")
-                            .font(.serifLabel)
+                            .font(.callout)
                     }
-                    .foregroundColor(theme.accentPrimary)
+                    .foregroundStyle(.tint)
                 }
                 .buttonStyle(.plain)
                 .disabled(isRefreshingContacts)
@@ -118,18 +116,17 @@ struct SignatureSettingsCard: View {
     var onAliasesUpdated: (() -> Void)?
     var onSaveSignature: ((String, String, String) async throws -> GmailSendAs)?
     @State private var editingAlias: GmailSendAs?
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Signatures")
-                .font(.serifTitle)
-                .foregroundColor(theme.textPrimary)
+                .font(.headline)
+                .foregroundStyle(.primary)
 
             if aliases.isEmpty {
                 Text("No aliases found")
-                    .font(.serifCaption)
-                    .foregroundColor(theme.textTertiary)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             } else {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(aliases, id: \.sendAsEmail) { alias in
@@ -139,33 +136,33 @@ struct SignatureSettingsCard: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 6) {
                                     Text(alias.displayName ?? alias.sendAsEmail)
-                                        .font(.serifLabel)
-                                        .foregroundColor(theme.textPrimary)
+                                        .font(.callout)
+                                        .foregroundStyle(.primary)
                                     if alias.isPrimary == true {
                                         Text("Primary")
                                             .font(.system(size: 9, weight: .semibold))
-                                            .foregroundColor(theme.accentPrimary)
+                                            .foregroundStyle(.tint)
                                             .padding(.horizontal, 5)
                                             .padding(.vertical, 1)
-                                            .background(Capsule().fill(theme.accentPrimary.opacity(0.15)))
+                                            .background(Capsule().fill(Color.accentColor.opacity(0.15)))
                                     }
                                     Spacer()
                                     Image(systemName: "pencil")
-                                        .font(.serifSmall)
-                                        .foregroundColor(theme.textTertiary)
+                                        .font(.footnote)
+                                        .foregroundStyle(.tertiary)
                                 }
                                 Text(alias.sendAsEmail)
-                                    .font(.serifSmall)
-                                    .foregroundColor(theme.textTertiary)
+                                    .font(.footnote)
+                                    .foregroundStyle(.tertiary)
                                 if let sig = alias.signature, !sig.isEmpty {
                                     Text(sig.strippingHTML.prefix(80) + (sig.strippingHTML.count > 80 ? "…" : ""))
-                                        .font(.serifBadge)
-                                        .foregroundColor(theme.textTertiary)
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(.tertiary)
                                         .lineLimit(2)
                                 } else {
                                     Text("No signature")
-                                        .font(.serifBadge)
-                                        .foregroundColor(theme.textTertiary)
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(.tertiary)
                                         .italic()
                                 }
                             }
@@ -176,12 +173,12 @@ struct SignatureSettingsCard: View {
                     }
                 }
 
-                Divider().background(theme.divider)
+                Divider()
 
                 HStack {
                     Text("New emails")
-                        .font(.serifCaption)
-                        .foregroundColor(theme.textSecondary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     Spacer()
                     Picker("", selection: $signatureForNew) {
                         Text("Default").tag("")
@@ -195,8 +192,8 @@ struct SignatureSettingsCard: View {
 
                 HStack {
                     Text("Replies & forwards")
-                        .font(.serifCaption)
-                        .foregroundColor(theme.textSecondary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     Spacer()
                     Picker("", selection: $signatureForReply) {
                         Text("Default").tag("")
@@ -229,7 +226,6 @@ struct StorageSettingsCard: View {
     @State private var dbSize: Int64 = 0
     @State private var showClearConfirm = false
     @State private var isClearing = false
-    @Environment(\.theme) private var theme
 
     private var formattedSize: String {
         GmailDataTransformer.sizeString(dbSize)
@@ -238,13 +234,13 @@ struct StorageSettingsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Storage")
-                .font(.serifTitle)
-                .foregroundColor(theme.textPrimary)
+                .font(.headline)
+                .foregroundStyle(.primary)
 
             HStack {
                 Text("Attachment scan depth")
-                    .font(.serifCaption)
-                    .foregroundColor(theme.textSecondary)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Picker("", selection: $scanMonths) {
                     Text("6 months").tag(6)
@@ -257,20 +253,20 @@ struct StorageSettingsCard: View {
                 .frame(width: 100)
             }
 
-            Divider().background(theme.divider)
+            Divider()
 
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Attachment index")
-                        .font(.serifCaption)
-                        .foregroundColor(theme.textSecondary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     HStack(spacing: 8) {
                         Text(formattedSize)
-                            .font(.serifMono)
-                            .foregroundColor(theme.textPrimary)
+                            .font(.caption.monospaced().weight(.medium))
+                            .foregroundStyle(.primary)
                         Text("\(attachmentStore.stats.total) attachments")
-                            .font(.serifSmall)
-                            .foregroundColor(theme.textTertiary)
+                            .font(.footnote)
+                            .foregroundStyle(.tertiary)
                     }
                 }
 
@@ -286,10 +282,10 @@ struct StorageSettingsCard: View {
                                 .frame(width: 12, height: 12)
                         } else {
                             Image(systemName: "trash")
-                                .font(.serifSmall)
+                                .font(.footnote)
                         }
                         Text(isClearing ? "Clearing..." : "Clear")
-                            .font(.serifLabel)
+                            .font(.callout)
                     }
                     .foregroundColor(.red)
                 }
@@ -324,22 +320,21 @@ struct StorageSettingsCard: View {
 
 struct AppleIntelligenceSettingsCard: View {
     @AppStorage("aiLabelSuggestions") private var labelSuggestions = true
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Apple Intelligence")
-                .font(.serifTitle)
-                .foregroundColor(theme.textPrimary)
+                .font(.headline)
+                .foregroundStyle(.primary)
 
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Label suggestions")
-                        .font(.serifCaption)
-                        .foregroundColor(theme.textSecondary)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                     Text("Suggest labels for emails using on-device AI")
-                        .font(.serifSmall)
-                        .foregroundColor(theme.textTertiary)
+                        .font(.footnote)
+                        .foregroundStyle(.tertiary)
                 }
                 Spacer()
                 Toggle("", isOn: $labelSuggestions)
@@ -356,18 +351,17 @@ struct AppleIntelligenceSettingsCard: View {
 
 struct DeveloperSettingsCard: View {
     @AppStorage("showDebugMenu") private var showDebugMenu = false
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Developer")
-                .font(.serifTitle)
-                .foregroundColor(theme.textPrimary)
+                .font(.headline)
+                .foregroundStyle(.primary)
 
             HStack {
                 Text("Show Debug menu")
-                    .font(.serifCaption)
-                    .foregroundColor(theme.textSecondary)
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Toggle("", isOn: $showDebugMenu)
                     .toggleStyle(.switch)
@@ -385,7 +379,6 @@ struct RefreshStatusView: View {
     let lastRefreshedAt: Date?
     let refreshInterval: Int
     @State private var now: Date = Date()
-    @Environment(\.theme) private var theme
 
     private var timer: Timer.TimerPublisher {
         Timer.publish(every: 1, on: .main, in: .common)
@@ -395,20 +388,20 @@ struct RefreshStatusView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Image(systemName: "clock.arrow.2.circlepath")
-                    .font(.serifBadge)
-                    .foregroundColor(theme.textTertiary)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.tertiary)
                 Text(lastRefreshLabel)
-                    .font(.serifSmall)
-                    .foregroundColor(theme.textTertiary)
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
                 Spacer()
             }
             HStack {
                 Image(systemName: "arrow.clockwise")
-                    .font(.serifBadge)
-                    .foregroundColor(theme.textTertiary)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.tertiary)
                 Text(nextRefreshLabel)
-                    .font(.serifSmall)
-                    .foregroundColor(theme.textTertiary)
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
                 Spacer()
             }
         }

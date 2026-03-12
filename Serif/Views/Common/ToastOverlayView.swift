@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ToastOverlayView: View {
     private var toastMgr = ToastManager.shared
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack {
@@ -29,7 +28,7 @@ struct ToastOverlayView: View {
                 toastContent(toast)
                     .background(
                         RoundedRectangle(cornerRadius: 12)
-                            .fill(theme.cardBackground)
+                            .fill(.regularMaterial)
                             .shadow(color: .black.opacity(0.2), radius: 12, x: 0, y: 4)
                     )
                     .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -45,7 +44,7 @@ struct ToastOverlayView: View {
                 .foregroundColor(iconColor(toast.type))
             Text(toast.message)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundColor(theme.textPrimary)
+                .foregroundStyle(.primary)
                 .lineLimit(2)
             Spacer()
         }

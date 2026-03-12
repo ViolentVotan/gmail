@@ -7,7 +7,6 @@ struct AccountSwitcherView: View {
     let onSignIn: () async -> Void
     let isSigningIn: Bool
     var onExpandSidebar: (() -> Void)?
-    @Environment(\.theme) private var theme
 
     private var selectedAccount: GmailAccount? {
         accounts.first { $0.id == selectedAccountID } ?? accounts.first
@@ -56,10 +55,10 @@ struct AccountSwitcherView: View {
             ZStack {
                 Circle()
                     .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
-                    .foregroundColor(theme.sidebarTextMuted)
+                    .foregroundStyle(.secondary)
                 Image(systemName: "plus")
                     .font(.system(size: size * 0.32, weight: .medium))
-                    .foregroundColor(theme.sidebarTextMuted)
+                    .foregroundStyle(.secondary)
             }
             .frame(width: size, height: size)
             .contentShape(Circle())

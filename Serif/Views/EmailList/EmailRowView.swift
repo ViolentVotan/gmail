@@ -7,7 +7,6 @@ struct EmailRowView: View {
     @State private var isHovered = false
     @State private var hoverTask: Task<Void, Never>?
     @State private var popoverHolder = PopoverHolder()
-    @Environment(\.theme) private var theme
 
     private static let isAppleIntelligenceAvailable: Bool = {
         guard #available(macOS 26.0, *) else { return false }
@@ -23,7 +22,7 @@ struct EmailRowView: View {
             HStack(spacing: 12) {
                 // Unread indicator
                 Circle()
-                    .fill(email.isRead ? Color.clear : theme.unreadIndicator)
+                    .fill(email.isRead ? Color.clear : Color.blue)
                     .frame(width: 6, height: 6)
 
                 // Avatar
@@ -40,7 +39,7 @@ struct EmailRowView: View {
                     HStack {
                         Text(email.isDraft && email.recipients.isEmpty ? "Draft" : email.sender.name)
                             .font(.system(size: 13, weight: email.isRead ? .medium : .semibold))
-                            .foregroundColor(email.isDraft && email.recipients.isEmpty ? theme.textTertiary : theme.textPrimary)
+                            .foregroundStyle(email.isDraft && email.recipients.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
                             .lineLimit(1)
 
                         if email.threadMessageCount > 1 {
@@ -48,24 +47,24 @@ struct EmailRowView: View {
                                 .font(.system(size: 11, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
                                 .frame(minWidth: 18, minHeight: 18)
-                                .background(Circle().fill(theme.accentPrimary.opacity(0.75)))
+                                .background(Circle().fill(Color.accentColor.opacity(0.75)))
                         }
 
                         Spacer()
 
                         Text(email.date.formattedRelative)
                             .font(.system(size: 11))
-                            .foregroundColor(theme.textTertiary)
+                            .foregroundStyle(.tertiary)
                     }
 
                     Text(email.subject)
                         .font(.system(size: 12, weight: email.isRead ? .regular : .medium))
-                        .foregroundColor(email.isRead ? theme.textSecondary : theme.textPrimary)
+                        .foregroundStyle(email.isRead ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                         .lineLimit(1)
 
                     Text(email.preview)
                         .font(.system(size: 11))
-                        .foregroundColor(theme.textTertiary)
+                        .foregroundStyle(.tertiary)
                         .lineLimit(1)
 
                     if !email.labels.isEmpty {
@@ -76,10 +75,10 @@ struct EmailRowView: View {
                             if email.labels.count > 3 {
                                 Text("+\(email.labels.count - 3)")
                                     .font(.system(size: 9, weight: .medium))
-                                    .foregroundColor(theme.textTertiary)
+                                    .foregroundStyle(.tertiary)
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 2)
-                                    .background(Capsule().fill(theme.hoverBackground))
+                                    .background(Capsule().fill(.fill.quaternary))
                             }
                         }
                         .padding(.top, 2)
@@ -91,12 +90,12 @@ struct EmailRowView: View {
                     if email.isStarred {
                         Image(systemName: "star.fill")
                             .font(.system(size: 10))
-                            .foregroundColor(theme.avatarRing)
+                            .foregroundStyle(.tint)
                     }
                     if email.hasAttachments {
                         Image(systemName: "paperclip")
                             .font(.system(size: 10))
-                            .foregroundColor(theme.textTertiary)
+                            .foregroundStyle(.tertiary)
                     }
                 }
             }
@@ -104,7 +103,7 @@ struct EmailRowView: View {
             .padding(.vertical, 10)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(isSelected ? theme.selectedCardBackground : (isHovered ? theme.hoverBackground : Color.clear))
+                    .fill(isSelected ? AnyShapeStyle(.tint.opacity(0.1)) : (isHovered ? AnyShapeStyle(.fill.quaternary) : AnyShapeStyle(Color.clear)))
             )
             .padding(.horizontal, 8)
             .contentShape(Rectangle())
@@ -121,7 +120,6 @@ struct EmailRowView: View {
                     guard !Task.isCancelled else { return }
                     let content = EmailHoverSummaryView(email: email)
                         .frame(width: 340)
-                        .environment(\.theme, theme)
                     popoverHolder.show(content: content)
                 }
             } else {

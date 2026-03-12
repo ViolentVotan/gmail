@@ -35,7 +35,6 @@ struct LabelPickerRow: View {
     let label: EmailLabel
     let isSelected: Bool
     let action: () -> Void
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Button(action: action) {
@@ -46,14 +45,14 @@ struct LabelPickerRow: View {
 
                 Text(label.name)
                     .font(.system(size: 13))
-                    .foregroundColor(theme.textPrimary)
+                    .foregroundStyle(.primary)
 
                 Spacer()
 
                 if isSelected {
                     Image(systemName: "checkmark")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(theme.accentPrimary)
+                        .foregroundStyle(.tint)
                 }
             }
             .padding(.horizontal, 12)

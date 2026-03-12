@@ -6,7 +6,6 @@ struct OriginalMessageView: View {
     let isLoading: Bool
 
     @State private var copied = false
-    @Environment(\.theme) private var theme
 
     // MARK: - Parsed metadata
 
@@ -65,7 +64,7 @@ struct OriginalMessageView: View {
     }
 
     private func authStatusColor(_ value: String?) -> Color {
-        guard let v = value?.lowercased() else { return theme.textSecondary }
+        guard let v = value?.lowercased() else { return Color.secondary }
         if v.contains("=pass") { return .green }
         if v.contains("=fail") || v.contains("=softfail") { return .red }
         return .orange
@@ -88,7 +87,7 @@ struct OriginalMessageView: View {
             metadataTable
                 .padding(20)
 
-            Divider().background(theme.divider)
+            Divider().background(Color(.separatorColor))
 
             // Action buttons
             HStack(spacing: 16) {
@@ -103,7 +102,7 @@ struct OriginalMessageView: View {
                         Text("Download Original")
                             .font(.system(size: 12, weight: .medium))
                     }
-                    .foregroundColor(theme.accentPrimary)
+                    .foregroundStyle(.tint)
                 }
                 .buttonStyle(.plain)
                 .disabled(rawSource == nil)
@@ -127,10 +126,10 @@ struct OriginalMessageView: View {
                         Text(copied ? "Copied!" : "Copy to Clipboard")
                             .font(.system(size: 12, weight: .medium))
                     }
-                    .foregroundColor(theme.accentPrimary)
+                    .foregroundStyle(.tint)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(theme.accentPrimary.opacity(0.1))
+                    .background(Color.accentColor.opacity(0.1))
                     .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
@@ -139,17 +138,17 @@ struct OriginalMessageView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
 
-            Divider().background(theme.divider)
+            Divider().background(Color(.separatorColor))
 
             // Raw source
             if isLoading {
                 VStack {
                     Spacer()
                     ProgressView()
-                        .tint(theme.textTertiary)
+                        .tint(.gray)
                     Text("Loading original message…")
                         .font(.system(size: 12))
-                        .foregroundColor(theme.textTertiary)
+                        .foregroundStyle(.tertiary)
                         .padding(.top, 8)
                     Spacer()
                 }
@@ -158,7 +157,7 @@ struct OriginalMessageView: View {
                 ScrollView(.horizontal, showsIndicators: true) {
                     Text(source)
                         .font(.system(size: 11, design: .monospaced))
-                        .foregroundColor(theme.textSecondary)
+                        .foregroundStyle(.secondary)
                         .textSelection(.enabled)
                         .padding(20)
                 }
@@ -167,7 +166,7 @@ struct OriginalMessageView: View {
                     Spacer()
                     Text("Could not load original message")
                         .font(.system(size: 12))
-                        .foregroundColor(theme.textTertiary)
+                        .foregroundStyle(.tertiary)
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, minHeight: 200)
@@ -180,38 +179,38 @@ struct OriginalMessageView: View {
     private var metadataTable: some View {
         VStack(spacing: 0) {
             metadataRow(label: "Message ID", value: messageIDValue)
-            Divider().background(theme.divider)
+            Divider().background(Color(.separatorColor))
             metadataRow(label: "Created at", value: dateValue + (deliveryDelay.map { " (\($0))" } ?? ""))
-            Divider().background(theme.divider)
+            Divider().background(Color(.separatorColor))
             metadataRow(label: "From", value: fromValue)
-            Divider().background(theme.divider)
+            Divider().background(Color(.separatorColor))
             metadataRow(label: "To", value: toValue)
-            Divider().background(theme.divider)
+            Divider().background(Color(.separatorColor))
             metadataRow(label: "Subject", value: subjectValue)
-            Divider().background(theme.divider)
+            Divider().background(Color(.separatorColor))
             authRow(label: "SPF", value: spfValue)
-            Divider().background(theme.divider)
+            Divider().background(Color(.separatorColor))
             authRow(label: "DKIM", value: dkimValue)
-            Divider().background(theme.divider)
+            Divider().background(Color(.separatorColor))
             authRow(label: "DMARC", value: dmarcValue)
         }
-        .background(theme.cardBackground)
+        .background(.regularMaterial)
         .cornerRadius(10)
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(theme.divider, lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(.separatorColor), lineWidth: 1))
     }
 
     private func metadataRow(label: String, value: String) -> some View {
         HStack(alignment: .top, spacing: 0) {
             Text(label)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(theme.textTertiary)
+                .foregroundStyle(.tertiary)
                 .frame(width: 100, alignment: .leading)
                 .padding(.vertical, 10)
                 .padding(.leading, 14)
 
             Text(value)
                 .font(.system(size: 12))
-                .foregroundColor(theme.textPrimary)
+                .foregroundStyle(.primary)
                 .textSelection(.enabled)
                 .padding(.vertical, 10)
                 .padding(.trailing, 14)
@@ -224,7 +223,7 @@ struct OriginalMessageView: View {
         HStack(alignment: .top, spacing: 0) {
             Text(label)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(theme.textTertiary)
+                .foregroundStyle(.tertiary)
                 .frame(width: 100, alignment: .leading)
                 .padding(.vertical, 10)
                 .padding(.leading, 14)
@@ -237,7 +236,7 @@ struct OriginalMessageView: View {
                 if let v = value {
                     Text(v)
                         .font(.system(size: 11))
-                        .foregroundColor(theme.textSecondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
             }

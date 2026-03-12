@@ -11,7 +11,6 @@ struct AttachmentPreviewView: View {
     var onDownload: (() -> Void)?
     var onClose: (() -> Void)?
 
-    @Environment(\.theme) private var theme
     @State private var zoomScale: CGFloat = 1.0
 
     private var fileExtension: String {
@@ -21,10 +20,9 @@ struct AttachmentPreviewView: View {
     var body: some View {
         VStack(spacing: 0) {
             previewToolbar
-            Divider().background(theme.divider)
+            Divider().background(Color(.separatorColor))
             previewContent
         }
-        .background(theme.detailBackground)
     }
 
     // MARK: - Toolbar
@@ -34,11 +32,11 @@ struct AttachmentPreviewView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(fileName)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(theme.textPrimary)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
                 Text(fileType.label)
                     .font(.system(size: 11))
-                    .foregroundColor(theme.textTertiary)
+                    .foregroundStyle(.tertiary)
             }
 
             Spacer()
@@ -52,7 +50,7 @@ struct AttachmentPreviewView: View {
                     } label: {
                         Image(systemName: "minus.magnifyingglass")
                             .font(.system(size: 13))
-                            .foregroundColor(theme.textSecondary)
+                            .foregroundStyle(.secondary)
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
                     }
@@ -61,7 +59,7 @@ struct AttachmentPreviewView: View {
 
                     Text("\(Int(zoomScale * 100))%")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(theme.textTertiary)
+                        .foregroundStyle(.tertiary)
                         .frame(minWidth: 36)
 
                     Button {
@@ -71,7 +69,7 @@ struct AttachmentPreviewView: View {
                     } label: {
                         Image(systemName: "plus.magnifyingglass")
                             .font(.system(size: 13))
-                            .foregroundColor(theme.textSecondary)
+                            .foregroundStyle(.secondary)
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
                     }
@@ -83,7 +81,7 @@ struct AttachmentPreviewView: View {
                     } label: {
                         Image(systemName: "1.magnifyingglass")
                             .font(.system(size: 13))
-                            .foregroundColor(theme.textSecondary)
+                            .foregroundStyle(.secondary)
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
                     }
@@ -99,10 +97,10 @@ struct AttachmentPreviewView: View {
             } label: {
                 Label("Save", systemImage: "arrow.down.circle")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Capsule().fill(theme.accentPrimary))
+                    .background(Capsule().fill(Color.accentColor))
             }
             .buttonStyle(.plain)
             .help("Save to disk")
@@ -155,7 +153,6 @@ struct AttachmentPreviewView: View {
                 }
             }
         }
-        .background(theme.listBackground)
     }
 
     // MARK: - PDF
@@ -172,7 +169,7 @@ struct AttachmentPreviewView: View {
             if let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) {
                 Text(text)
                     .font(.system(size: 12, design: .monospaced))
-                    .foregroundColor(theme.textPrimary)
+                    .foregroundStyle(.primary)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(24)
@@ -180,7 +177,6 @@ struct AttachmentPreviewView: View {
                 corruptedFileView
             }
         }
-        .background(theme.listBackground)
     }
 
     // MARK: - Unsupported
@@ -191,30 +187,30 @@ struct AttachmentPreviewView: View {
 
             ZStack {
                 Circle()
-                    .fill(theme.hoverBackground)
+                    .fill(.quaternary)
                     .frame(width: 72, height: 72)
                 Image(systemName: fileType.rawValue)
                     .font(.system(size: 28))
-                    .foregroundColor(theme.textTertiary)
+                    .foregroundStyle(.tertiary)
             }
 
             Text("This file type cannot be previewed")
                 .font(.system(size: 14, weight: .medium))
-                .foregroundColor(theme.textSecondary)
+                .foregroundStyle(.secondary)
 
             Text(fileName)
                 .font(.system(size: 12))
-                .foregroundColor(theme.textTertiary)
+                .foregroundStyle(.tertiary)
 
             Button {
                 onDownload?()
             } label: {
                 Label("Download file", systemImage: "arrow.down.circle.fill")
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
-                    .background(Capsule().fill(theme.accentPrimary))
+                    .background(Capsule().fill(Color.accentColor))
             }
             .buttonStyle(.plain)
             .padding(.top, 4)
@@ -231,10 +227,10 @@ struct AttachmentPreviewView: View {
             Spacer()
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 32))
-                .foregroundColor(theme.textTertiary)
+                .foregroundStyle(.tertiary)
             Text("Could not render this file")
                 .font(.system(size: 14))
-                .foregroundColor(theme.textSecondary)
+                .foregroundStyle(.secondary)
             Spacer()
         }
         .frame(maxWidth: .infinity)

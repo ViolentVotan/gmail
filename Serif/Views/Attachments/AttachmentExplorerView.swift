@@ -11,18 +11,16 @@ struct AttachmentExplorerView: View {
     @State private var exclusionRulePattern = ""
     @State private var showRulesPopover = false
     @State private var newRuleText = ""
-    @Environment(\.theme) private var theme
 
     private let columns = [GridItem(.adaptive(minimum: 150, maximum: 200), spacing: 16)]
 
     var body: some View {
         VStack(spacing: 0) {
             header
-            Divider().background(theme.divider)
+            Divider()
             filterBar
             content
         }
-        .background(theme.listBackground)
         .onAppear { store.refresh() }
         .alert("Add exclusion rule", isPresented: $showExclusionRuleAlert) {
             TextField("Pattern (e.g. Outlook-*)", text: $exclusionRulePattern)
@@ -42,17 +40,16 @@ struct AttachmentExplorerView: View {
             HStack {
                 Text("Attachments")
                     .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(theme.textPrimary)
+                    .foregroundStyle(.primary)
 
                 Spacer()
 
                 HStack(spacing: 6) {
                     ProgressView()
                         .controlSize(.small)
-                        .tint(theme.textTertiary)
                     Text("\(store.stats.indexed)/\(store.stats.total) indexed")
                         .font(.system(size: 11))
-                        .foregroundColor(theme.textTertiary)
+                        .foregroundStyle(.tertiary)
                 }
                 .opacity(store.isIndexing ? 1 : 0)
             }
@@ -178,10 +175,10 @@ struct AttachmentExplorerView: View {
                 Text(store.exclusionRules.isEmpty ? "Rules" : "Rules (\(store.exclusionRules.count))")
                     .font(.system(size: 11, weight: .medium))
             }
-            .foregroundColor(theme.textSecondary)
+            .foregroundStyle(.secondary)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(Capsule().fill(theme.cardBackground))
+            .background(Capsule().fill(.regularMaterial))
         }
         .buttonStyle(.plain)
         .popover(isPresented: $showRulesPopover, arrowEdge: .bottom) {
@@ -193,26 +190,26 @@ struct AttachmentExplorerView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Exclusion Rules")
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(theme.textPrimary)
+                .foregroundStyle(.primary)
 
             if store.exclusionRules.isEmpty {
                 Text("Right-click an attachment to add a rule")
                     .font(.system(size: 11))
-                    .foregroundColor(theme.textTertiary)
+                    .foregroundStyle(.tertiary)
             } else {
                 VStack(spacing: 4) {
                     ForEach(store.exclusionRules, id: \.self) { rule in
                         HStack {
                             Text(rule)
                                 .font(.system(size: 12, design: .monospaced))
-                                .foregroundColor(theme.textPrimary)
+                                .foregroundStyle(.primary)
                             Spacer()
                             Button {
                                 store.removeExclusionRule(rule)
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.system(size: 12))
-                                    .foregroundColor(theme.textTertiary)
+                                    .foregroundStyle(.tertiary)
                             }
                             .buttonStyle(.plain)
                         }
@@ -240,7 +237,7 @@ struct AttachmentExplorerView: View {
                 } label: {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 14))
-                        .foregroundColor(theme.accentPrimary)
+                        .foregroundStyle(.tint)
                 }
                 .buttonStyle(.plain)
                 .disabled(newRuleText.isEmpty)
@@ -262,10 +259,10 @@ struct AttachmentExplorerView: View {
                 Text(label)
                     .font(.system(size: 11, weight: .medium))
             }
-            .foregroundColor(isSelected ? theme.textInverse : theme.textSecondary)
+            .foregroundStyle(isSelected ? Color.white : Color.secondary)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(Capsule().fill(isSelected ? theme.accentPrimary : theme.cardBackground))
+            .background(Capsule().fill(isSelected ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.regularMaterial)))
         }
         .buttonStyle(.plain)
     }

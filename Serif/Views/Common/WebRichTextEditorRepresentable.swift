@@ -4,11 +4,20 @@ import WebKit
 struct WebRichTextEditorRepresentable: NSViewRepresentable {
     @ObservedObject var state: WebRichTextEditorState
     @Binding var htmlContent: String
-    var theme: Theme
+    @Environment(\.colorScheme) private var colorScheme
     var placeholder: String
     var autoFocus: Bool
     var onFileDrop: ((URL) -> Void)?
     var onOpenLink: ((URL) -> Void)?
+
+    private func resolvedHex(_ nsColor: NSColor) -> String {
+        nsColor.usingColorSpace(.sRGB).map {
+            String(format: "#%02X%02X%02X",
+                Int($0.redComponent * 255),
+                Int($0.greenComponent * 255),
+                Int($0.blueComponent * 255))
+        } ?? "#000000"
+    }
 
     func makeCoordinator() -> WebRichTextEditorCoordinator {
         WebRichTextEditorCoordinator(self)
@@ -26,10 +35,10 @@ struct WebRichTextEditorRepresentable: NSViewRepresentable {
         webView.setValue(false, forKey: "drawsBackground")
 
         let html = HTMLTemplate.editorHTML(
-            textColor: theme.textPrimary.hexString,
+            textColor: resolvedHex(.textColor),
             backgroundColor: "transparent",
-            accentColor: theme.accentPrimary.hexString,
-            placeholderColor: theme.textTertiary.hexString,
+            accentColor: resolvedHex(.controlAccentColor),
+            placeholderColor: resolvedHex(.tertiaryLabelColor),
             placeholderText: placeholder,
             initialHTML: htmlContent
         )
@@ -43,10 +52,10 @@ struct WebRichTextEditorRepresentable: NSViewRepresentable {
 
         // Update theme colors dynamically
         state.updateTheme(
-            textColor: theme.textPrimary.hexString,
+            textColor: resolvedHex(.textColor),
             bgColor: "transparent",
-            accentColor: theme.accentPrimary.hexString,
-            placeholderColor: theme.textTertiary.hexString
+            accentColor: resolvedHex(.controlAccentColor),
+            placeholderColor: resolvedHex(.tertiaryLabelColor)
         )
     }
 

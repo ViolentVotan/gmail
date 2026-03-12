@@ -4,7 +4,6 @@ import WebKit
 struct InAppBrowserView: View {
     let url: URL
     let onClose: () -> Void
-    @Environment(\.theme) private var theme
     @State private var currentURL: URL?
     @State private var pageTitle: String = ""
     @State private var isLoading = true
@@ -20,9 +19,9 @@ struct InAppBrowserView: View {
                 Button { onClose() } label: {
                     Image(systemName: "xmark")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(theme.textSecondary)
+                        .foregroundStyle(.secondary)
                         .frame(width: 28, height: 28)
-                        .background(theme.cardBackground)
+                        .background(.regularMaterial)
                         .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
@@ -33,7 +32,7 @@ struct InAppBrowserView: View {
                 Button { webViewStore.webView.goBack() } label: {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(canGoBack ? theme.textSecondary : theme.textTertiary)
+                        .foregroundStyle(canGoBack ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
                         .frame(width: 28, height: 28)
                 }
                 .buttonStyle(.plain)
@@ -43,7 +42,7 @@ struct InAppBrowserView: View {
                 Button { webViewStore.webView.goForward() } label: {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(canGoForward ? theme.textSecondary : theme.textTertiary)
+                        .foregroundStyle(canGoForward ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
                         .frame(width: 28, height: 28)
                 }
                 .buttonStyle(.plain)
@@ -59,22 +58,22 @@ struct InAppBrowserView: View {
                     } else {
                         Image(systemName: "lock.fill")
                             .font(.system(size: 9))
-                            .foregroundColor(theme.textTertiary)
+                            .foregroundStyle(.tertiary)
                     }
                     Text(displayURL)
                         .font(.system(size: 12))
-                        .foregroundColor(theme.textSecondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 5)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(theme.cardBackground)
+                .background(.regularMaterial)
                 .cornerRadius(6)
                 .overlay(
                     RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(theme.border, lineWidth: 1)
+                        .strokeBorder(.separator, lineWidth: 1)
                 )
 
                 // Open in browser
@@ -88,14 +87,14 @@ struct InAppBrowserView: View {
                         Text("Open in Browser")
                             .font(.system(size: 12, weight: .medium))
                     }
-                    .foregroundColor(theme.textSecondary)
+                    .foregroundStyle(.secondary)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(theme.cardBackground)
+                    .background(.regularMaterial)
                     .cornerRadius(6)
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
-                            .strokeBorder(theme.border, lineWidth: 1)
+                            .strokeBorder(.separator, lineWidth: 1)
                     )
                 }
                 .buttonStyle(.plain)
@@ -104,7 +103,7 @@ struct InAppBrowserView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
 
-            Divider().background(theme.divider)
+            Divider()
 
             // WebView
             BrowserWebView(
@@ -119,7 +118,6 @@ struct InAppBrowserView: View {
                 }
             )
         }
-        .background(theme.detailBackground)
     }
 
     private var displayURL: String {

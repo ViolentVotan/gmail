@@ -6,7 +6,6 @@ struct AccountAvatarBubble: View {
     let isSelected: Bool
     var size: CGFloat = 34
     let action: () -> Void
-    @Environment(\.theme) private var theme
     @State private var image: NSImage?
 
     private var initial: String {
@@ -17,9 +16,9 @@ struct AccountAvatarBubble: View {
         Button(action: action) {
             ZStack {
                 // Base circle
-                Circle().fill(isSelected ? theme.sidebarTextMuted : theme.hoverBackground)
+                Circle().fill(isSelected ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(.quaternary))
                 if !isSelected && image == nil && account.profilePictureURL == nil {
-                    Circle().strokeBorder(theme.divider, lineWidth: 1)
+                    Circle().strokeBorder(.separator, lineWidth: 1)
                 }
 
                 if let image {
@@ -30,7 +29,7 @@ struct AccountAvatarBubble: View {
                 } else {
                     Text(initial)
                         .font(.system(size: size * 0.38, weight: .semibold))
-                        .foregroundColor(isSelected ? .white : theme.textSecondary)
+                        .foregroundStyle(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
                 }
 
                 // Accent color ring when selected

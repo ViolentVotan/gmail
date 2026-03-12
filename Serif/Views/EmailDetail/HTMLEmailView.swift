@@ -33,7 +33,7 @@ struct HTMLEmailView: NSViewRepresentable {
     let html: String
     @Binding var contentHeight: CGFloat
     var onOpenLink: ((URL) -> Void)?
-    @Environment(\.theme) private var theme
+    @Environment(\.colorScheme) private var colorScheme
 
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
@@ -52,8 +52,13 @@ struct HTMLEmailView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        let textHex = theme.textPrimary.hexString
-        let cacheKey = "\(html)|\(textHex)"
+        let textHex = NSColor.textColor.usingColorSpace(.sRGB).map {
+            String(format: "#%02X%02X%02X",
+                Int($0.redComponent * 255),
+                Int($0.greenComponent * 255),
+                Int($0.blueComponent * 255))
+        } ?? "#FFFFFF"
+        let cacheKey = "\(html)|\(colorScheme)"
         guard context.coordinator.lastCacheKey != cacheKey else { return }
         context.coordinator.lastCacheKey = cacheKey
         context.coordinator.isLoadingContent = true

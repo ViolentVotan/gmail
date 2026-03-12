@@ -2,7 +2,6 @@ import SwiftUI
 
 struct EmailHoverSummaryView: View {
     let email: Email
-    @Environment(\.theme) private var theme
     @State private var summaryVM = EmailSummaryViewModel()
 
     var body: some View {
@@ -19,17 +18,17 @@ struct EmailHoverSummaryView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(email.sender.name)
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(theme.textPrimary)
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
                     Text(email.subject)
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(theme.textSecondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
                 Spacer(minLength: 0)
                 Text(email.date.formatted(date: .abbreviated, time: .shortened))
                     .font(.system(size: 10))
-                    .foregroundColor(theme.textTertiary)
+                    .foregroundStyle(.tertiary)
             }
 
             // Metadata pills
@@ -54,7 +53,7 @@ struct EmailHoverSummaryView: View {
             }
 
             Divider()
-                .background(theme.divider)
+                .background(.separator)
 
             // Summary body
             if summaryVM.displayedText.isEmpty && summaryVM.isStreaming {
@@ -63,12 +62,12 @@ struct EmailHoverSummaryView: View {
                         .controlSize(.small)
                     Text("Summarizing...")
                         .font(.system(size: 11))
-                        .foregroundColor(theme.textTertiary)
+                        .foregroundStyle(.tertiary)
                 }
             } else {
                 Text(summaryVM.displayedText)
                     .font(.system(size: 12))
-                    .foregroundColor(theme.textPrimary)
+                    .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
                     .animation(.easeIn(duration: 0.05), value: summaryVM.displayedText)
             }
@@ -111,10 +110,10 @@ struct EmailHoverSummaryView: View {
                 .font(.system(size: 10))
                 .lineLimit(1)
         }
-        .foregroundColor(theme.textTertiary)
+        .foregroundStyle(.tertiary)
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
-        .background(Capsule().fill(theme.hoverBackground))
+        .background(Capsule().fill(.fill.quaternary))
     }
 
     // MARK: - Footer
@@ -127,7 +126,7 @@ struct EmailHoverSummaryView: View {
                 #if canImport(FoundationModels)
                 Label("Apple Intelligence", systemImage: "apple.intelligence")
                     .font(.system(size: 9))
-                    .foregroundColor(theme.textTertiary)
+                    .foregroundStyle(.tertiary)
                 #endif
             }
         }

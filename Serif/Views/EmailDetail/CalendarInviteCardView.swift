@@ -8,18 +8,16 @@ struct CalendarInviteCardView: View {
     var onDecline: () -> Void
     var onMaybe:   () -> Void
 
-    @Environment(\.theme) private var theme
-
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             // Title
             HStack(spacing: 8) {
                 Image(systemName: "calendar")
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(theme.accentPrimary)
+                    .foregroundStyle(.tint)
                 Text(invite.summary)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(theme.textPrimary)
+                    .foregroundStyle(.primary)
                     .lineLimit(2)
             }
 
@@ -28,11 +26,11 @@ struct CalendarInviteCardView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "clock")
                         .font(.system(size: 12))
-                        .foregroundColor(theme.textTertiary)
+                        .foregroundStyle(.tertiary)
                         .frame(width: 16)
                     Text(invite.dateText)
                         .font(.system(size: 13))
-                        .foregroundColor(theme.textSecondary)
+                        .foregroundStyle(.secondary)
                 }
             }
 
@@ -41,11 +39,11 @@ struct CalendarInviteCardView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "mappin.and.ellipse")
                         .font(.system(size: 12))
-                        .foregroundColor(theme.textTertiary)
+                        .foregroundStyle(.tertiary)
                         .frame(width: 16)
                     Text(location)
                         .font(.system(size: 13))
-                        .foregroundColor(theme.textSecondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
             }
@@ -55,16 +53,16 @@ struct CalendarInviteCardView: View {
                 HStack(spacing: 8) {
                     Image(systemName: "person")
                         .font(.system(size: 12))
-                        .foregroundColor(theme.textTertiary)
+                        .foregroundStyle(.tertiary)
                         .frame(width: 16)
                     Text(organizer)
                         .font(.system(size: 13))
-                        .foregroundColor(theme.textSecondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
             }
 
-            Divider().background(theme.divider)
+            Divider().background(Color(.separatorColor))
 
             // RSVP buttons + show original
             HStack {
@@ -90,17 +88,17 @@ struct CalendarInviteCardView: View {
                         Text(showOriginalEmail ? "Hide original" : "Show original")
                             .font(.system(size: 11, weight: .medium))
                     }
-                    .foregroundColor(theme.textTertiary)
+                    .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(16)
-        .background(theme.cardBackground)
+        .background(.regularMaterial)
         .cornerRadius(10)
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(theme.divider, lineWidth: 1)
+                .stroke(Color(.separatorColor), lineWidth: 1)
         )
     }
 
@@ -125,13 +123,13 @@ struct CalendarInviteCardView: View {
             .padding(.vertical, 7)
             .background(
                 isSelected
-                    ? theme.accentPrimary
-                    : theme.accentPrimary.opacity(0.12)
+                    ? Color.accentColor
+                    : Color.accentColor.opacity(0.12)
             )
             .foregroundColor(
                 isSelected
                     ? .white
-                    : theme.accentPrimary
+                    : Color.accentColor
             )
             .cornerRadius(6)
         }

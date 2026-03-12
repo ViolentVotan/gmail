@@ -8,7 +8,6 @@ struct AutocompleteTextField: View {
 
     @State private var isFocused = false
     @State private var highlightedIndex = 0
-    @Environment(\.theme) private var theme
 
     private var currentSegment: String {
         let parts = text.components(separatedBy: ",")
@@ -31,7 +30,7 @@ struct AutocompleteTextField: View {
         HStack(spacing: 10) {
             Text(label)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(theme.textTertiary)
+                .foregroundStyle(.tertiary)
                 .frame(width: 50, alignment: .leading)
 
             TextField(placeholder, text: $text, onEditingChanged: { editing in
@@ -40,7 +39,7 @@ struct AutocompleteTextField: View {
             })
             .textFieldStyle(.plain)
             .font(.system(size: 13))
-            .foregroundColor(theme.textPrimary)
+            .foregroundStyle(.primary)
             .onChange(of: text) { _, _ in highlightedIndex = 0 }
             .onKeyPress(.return) {
                 guard showDropdown, highlightedIndex < suggestions.count else { return .ignored }
@@ -100,12 +99,12 @@ struct AutocompleteTextField: View {
                     if !contact.name.isEmpty {
                         Text(contact.name)
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(theme.textPrimary)
+                            .foregroundStyle(.primary)
                             .lineLimit(1)
                     }
                     Text(contact.email)
                         .font(.system(size: 11))
-                        .foregroundColor(theme.textSecondary)
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
 
@@ -115,7 +114,7 @@ struct AutocompleteTextField: View {
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(isHighlighted ? theme.accentPrimary.opacity(0.15) : Color.clear)
+                    .fill(isHighlighted ? Color.accentColor.opacity(0.1) : Color.clear)
             )
             .contentShape(Rectangle())
         }
@@ -132,7 +131,6 @@ struct AutocompleteTextField: View {
                     ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, contact in
                         if index > 0 {
                             Divider()
-                                .background(theme.divider)
                                 .padding(.leading, 44)
                         }
 
@@ -152,11 +150,11 @@ struct AutocompleteTextField: View {
                 }
             }
         }
-        .background(theme.cardBackground)
+        .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(theme.border, lineWidth: 1)
+                .strokeBorder(.separator, lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.12), radius: 12, y: 6)
         .shadow(color: .black.opacity(0.04), radius: 3, y: 2)

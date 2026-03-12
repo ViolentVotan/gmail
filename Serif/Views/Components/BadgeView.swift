@@ -7,14 +7,12 @@ import SwiftUI
 struct BadgeView: View {
     let count: Int
     let isSelected: Bool
-    @Environment(\.theme) private var theme
-
     var body: some View {
         Text(count < 100 ? "\(count)" : "99+")
             .font(.system(size: 10, weight: .semibold, design: .rounded))
-            .foregroundColor(isSelected ? theme.sidebarBadgeText : theme.sidebarText.opacity(0.7))
+            .foregroundStyle(isSelected ? Color.primary : Color.primary.opacity(0.7))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .background(Capsule().fill(theme.sidebarText.opacity(isSelected ? 0.2 : 0.12)))
+            .background(Capsule().fill(Color.primary.opacity(isSelected ? 0.2 : 0.12)))
     }
 }

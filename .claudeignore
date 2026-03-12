@@ -1,0 +1,28 @@
+# Binary assets
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.icns
+*.pdf
+*.dmg
+*.zip
+*.dSYM
+
+# Xcode internals
+*.xcodeproj/project.pbxproj
+*.xcodeproj/project.xcworkspace/xcshareddata/
+xcuserdata/
+
+# Build artifacts
+.build/
+DerivedData/
+*.hmap
+*.ipa
+
+# XcodeBuildMCP cache
+.xcodebuildmcp/
+
+# Fonts
+Serif/Resources/Fonts/

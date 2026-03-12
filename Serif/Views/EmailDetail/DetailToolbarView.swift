@@ -27,7 +27,6 @@ struct DetailToolbarView: View {
 
     @State private var isUnsubscribing = false
     @Binding var didUnsubscribe: Bool
-    @Environment(\.theme) private var theme
 
     var body: some View {
         HStack(spacing: 12) {
@@ -42,10 +41,10 @@ struct DetailToolbarView: View {
                         Text("Unsubscribed")
                             .font(.system(size: 12, weight: .medium))
                     }
-                    .foregroundColor(theme.textTertiary)
+                    .foregroundStyle(.tertiary)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(theme.hoverBackground)
+                    .background(.quaternary)
                     .cornerRadius(6)
                 } else {
                     Button {
@@ -64,10 +63,10 @@ struct DetailToolbarView: View {
                             Text("Unsubscribe")
                                 .font(.system(size: 12, weight: .medium))
                         }
-                        .foregroundColor(theme.destructive)
+                        .foregroundStyle(Color.red)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
-                        .background(theme.destructive.opacity(0.1))
+                        .background(Color.red.opacity(0.1))
                         .cornerRadius(6)
                     }
                     .buttonStyle(.plain)
@@ -135,7 +134,7 @@ struct DetailToolbarView: View {
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.system(size: 13))
-                    .foregroundColor(theme.textSecondary)
+                    .foregroundStyle(.secondary)
                     .frame(width: 28, height: 28)
                     .contentShape(Rectangle())
             }
@@ -150,7 +149,7 @@ struct DetailToolbarView: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 13))
-                .foregroundColor(theme.textSecondary)
+                .foregroundStyle(.secondary)
                 .frame(width: 28, height: 28)
                 .contentShape(Rectangle())
         }

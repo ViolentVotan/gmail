@@ -34,7 +34,6 @@ struct EmailListView: View {
     @State private var isRefreshing = false
     @State private var sortedEmails: [Email] = []
     private let swipeCoordinator = SwipeCoordinator.shared
-    @Environment(\.theme) private var theme
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
@@ -49,11 +48,10 @@ struct EmailListView: View {
     var body: some View {
         VStack(spacing: 0) {
             headerSection
-            Divider().background(theme.divider)
+            Divider().background(.separator)
             emailListSection
             hiddenButtons
         }
-        .background(theme.listBackground)
         .onAppear { recomputeSortedEmails() }
         .onChange(of: emails) { _, _ in recomputeSortedEmails() }
         .onChange(of: searchResetTrigger) { _, _ in
@@ -88,7 +86,7 @@ struct EmailListView: View {
             HStack {
                 Text(selectedFolder.rawValue)
                     .font(.system(size: 22, weight: .bold))
-                    .foregroundColor(theme.textPrimary)
+                    .foregroundStyle(.primary)
 
                 Spacer()
 
@@ -100,10 +98,10 @@ struct EmailListView: View {
                         } label: {
                             Text("Unsubscribe All (\(unsubscribable.count))")
                                 .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(theme.destructive)
+                                .foregroundStyle(.red)
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 5)
-                                .background(theme.destructive.opacity(0.1))
+                                .background(Color.red.opacity(0.1))
                                 .cornerRadius(6)
                         }
                         .buttonStyle(.plain)
@@ -116,10 +114,10 @@ struct EmailListView: View {
                     } label: {
                         Text("Empty Trash")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(theme.destructive)
+                            .foregroundStyle(.red)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
-                            .background(theme.destructive.opacity(0.1))
+                            .background(Color.red.opacity(0.1))
                             .cornerRadius(6)
                     }
                     .buttonStyle(.plain)
@@ -131,10 +129,10 @@ struct EmailListView: View {
                     } label: {
                         Text("Empty Spam")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(theme.destructive)
+                            .foregroundStyle(.red)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
-                            .background(theme.destructive.opacity(0.1))
+                            .background(Color.red.opacity(0.1))
                             .cornerRadius(6)
                     }
                     .buttonStyle(.plain)
@@ -152,10 +150,10 @@ struct EmailListView: View {
                         Image(systemName: "chevron.down")
                             .font(.system(size: 9))
                     }
-                    .foregroundColor(theme.textSecondary)
+                    .foregroundStyle(.secondary)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(theme.cardBackground)
+                    .background(.regularMaterial)
                     .cornerRadius(6)
                 }
                 .buttonStyle(.plain)
@@ -192,7 +190,7 @@ struct EmailListView: View {
                 if isRefreshing {
                     ProgressView()
                         .controlSize(.small)
-                        .tint(theme.textTertiary)
+                        .tint(.gray)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
                         .transition(.opacity.combined(with: .move(edge: .top)))
@@ -238,7 +236,7 @@ struct EmailListView: View {
                     if isLoading && !emails.isEmpty {
                         ProgressView()
                             .scaleEffect(0.7)
-                            .tint(theme.textTertiary)
+                            .tint(.gray)
                             .padding(.vertical, 8)
                     }
                 }
@@ -354,35 +352,34 @@ enum EmailSortOrder {
 // MARK: - Skeleton Row
 
 private struct EmailSkeletonRowView: View {
-    @Environment(\.theme) private var theme
     @State private var animate = false
 
     var body: some View {
         HStack(spacing: 12) {
             Circle()
-                .fill(theme.textTertiary.opacity(0.12))
+                .fill(.tertiary.opacity(0.12))
                 .frame(width: 6, height: 6)
 
             Circle()
-                .fill(theme.textTertiary.opacity(animate ? 0.1 : 0.2))
+                .fill(.tertiary.opacity(animate ? 0.1 : 0.2))
                 .frame(width: 36, height: 36)
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
                     RoundedRectangle(cornerRadius: 3)
-                        .fill(theme.textTertiary.opacity(animate ? 0.1 : 0.2))
+                        .fill(.tertiary.opacity(animate ? 0.1 : 0.2))
                         .frame(width: 120, height: 10)
                     Spacer()
                     RoundedRectangle(cornerRadius: 3)
-                        .fill(theme.textTertiary.opacity(animate ? 0.1 : 0.2))
+                        .fill(.tertiary.opacity(animate ? 0.1 : 0.2))
                         .frame(width: 38, height: 9)
                 }
                 RoundedRectangle(cornerRadius: 3)
-                    .fill(theme.textTertiary.opacity(animate ? 0.1 : 0.2))
+                    .fill(.tertiary.opacity(animate ? 0.1 : 0.2))
                     .frame(height: 9)
                     .padding(.trailing, 40)
                 RoundedRectangle(cornerRadius: 3)
-                    .fill(theme.textTertiary.opacity(animate ? 0.1 : 0.2))
+                    .fill(.tertiary.opacity(animate ? 0.1 : 0.2))
                     .frame(height: 8)
                     .padding(.trailing, 16)
             }

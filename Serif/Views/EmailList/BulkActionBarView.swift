@@ -11,19 +11,17 @@ struct BulkActionBarView: View {
     let onMoveToInbox: () -> Void
     let onDeselectAll: () -> Void
 
-    @Environment(\.theme) private var theme
-
     var body: some View {
         VStack(spacing: 20) {
             Spacer()
 
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 36))
-                .foregroundColor(theme.accentPrimary)
+                .foregroundStyle(.tint)
 
             Text("\(count) emails selected")
                 .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(theme.textPrimary)
+                .foregroundStyle(.primary)
 
             HStack(spacing: 12) {
                 if selectedFolder != .archive {
@@ -45,14 +43,14 @@ struct BulkActionBarView: View {
             } label: {
                 Text("Deselect All")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(theme.textSecondary)
+                    .foregroundStyle(.secondary)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 6)
-                    .background(theme.cardBackground)
+                    .background(.regularMaterial)
                     .cornerRadius(6)
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
-                            .stroke(theme.border, lineWidth: 1)
+                            .stroke(.separator, lineWidth: 1)
                     )
             }
             .buttonStyle(.plain)
@@ -60,7 +58,6 @@ struct BulkActionBarView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.detailBackground)
     }
 
     private func actionButton(icon: String, label: String, action: @escaping () -> Void, destructive: Bool = false) -> some View {
@@ -73,13 +70,13 @@ struct BulkActionBarView: View {
                 Text(label)
                     .font(.system(size: 11, weight: .medium))
             }
-            .foregroundColor(destructive ? theme.destructive : theme.textSecondary)
+            .foregroundStyle(destructive ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
             .frame(width: 64, height: 56)
-            .background(theme.cardBackground)
+            .background(.regularMaterial)
             .cornerRadius(10)
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(theme.border, lineWidth: 1)
+                    .stroke(.separator, lineWidth: 1)
             )
         }
         .buttonStyle(.plain)

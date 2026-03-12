@@ -9,7 +9,6 @@ struct AttachmentCardView: View {
     var onViewMessage: (() -> Void)?
     @State private var isHovered = false
     private let thumbCache = ThumbnailCache.shared
-    @Environment(\.theme) private var theme
 
     private let thumbHeight: CGFloat = 80
 
@@ -117,10 +116,10 @@ struct AttachmentCardView: View {
         .padding(12)
         .frame(maxWidth: .infinity)
         .frame(height: 190)
-        .background(RoundedRectangle(cornerRadius: 12).fill(theme.detailBackground))
+        .background(RoundedRectangle(cornerRadius: 12).fill(.background))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(isHovered ? iconForegroundColor.opacity(0.5) : theme.divider, lineWidth: isHovered ? 1.5 : 1)
+                .strokeBorder(isHovered ? iconForegroundColor.opacity(0.5) : Color(.separatorColor), lineWidth: isHovered ? 1.5 : 1)
         )
         .contentShape(Rectangle())
         .scaleEffect(isHovered ? 1.03 : 1.0)
@@ -149,7 +148,7 @@ struct AttachmentCardView: View {
                     if !formattedSize.isEmpty {
                         Text(formattedSize)
                             .font(.system(size: 9, weight: .medium, design: .monospaced))
-                            .foregroundStyle(theme.textTertiary)
+                            .foregroundStyle(.tertiary)
                     }
                 }
             }
@@ -162,7 +161,7 @@ struct AttachmentCardView: View {
     private var filenameArea: some View {
         Text(result.attachment.filename)
             .font(.system(size: 12, weight: .medium))
-            .foregroundStyle(theme.textPrimary)
+            .foregroundStyle(.primary)
             .lineLimit(2)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
@@ -173,11 +172,11 @@ struct AttachmentCardView: View {
         VStack(spacing: 2) {
             Text(result.attachment.senderName ?? result.attachment.senderEmail ?? "")
                 .font(.system(size: 10))
-                .foregroundStyle(theme.textSecondary)
+                .foregroundStyle(.secondary)
                 .lineLimit(1)
             Text(formattedDate)
                 .font(.system(size: 10))
-                .foregroundStyle(theme.textTertiary)
+                .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 28)
@@ -190,7 +189,7 @@ struct AttachmentCardView: View {
                 .frame(width: 6, height: 6)
             Text("\(Int(result.score * 100))%")
                 .font(.system(size: 9, weight: .medium, design: .monospaced))
-                .foregroundStyle(theme.textSecondary)
+                .foregroundStyle(.secondary)
         }
         .frame(height: 14)
     }

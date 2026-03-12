@@ -31,7 +31,6 @@ struct ComposeView: View {
     @State private var showDiscardAlert = false
     @StateObject private var editorState = WebRichTextEditorState()
     @State private var composeVM: ComposeViewModel
-    @Environment(\.theme) private var theme
 
     init(
         mailStore: MailStore,
@@ -74,30 +73,29 @@ struct ComposeView: View {
             composeToolbar
 
             Divider()
-                .background(theme.divider)
 
             ZStack(alignment: .top) {
                 VStack(spacing: 0) {
                     if sendAsAliases.count > 1 {
                         fromField
-                        Divider().background(theme.divider).padding(.horizontal, 24)
+                        Divider().padding(.horizontal, 24)
                     }
 
                     AutocompleteTextField(label: "To", placeholder: "Recipients", text: $to, contacts: contacts)
-                    Divider().background(theme.divider).padding(.horizontal, 24)
+                    Divider().padding(.horizontal, 24)
 
                     if showCc {
                         AutocompleteTextField(label: "Cc", placeholder: "Cc recipients", text: $cc, contacts: contacts)
-                        Divider().background(theme.divider).padding(.horizontal, 24)
+                        Divider().padding(.horizontal, 24)
                     }
 
                     if showBcc {
                         AutocompleteTextField(label: "Bcc", placeholder: "Bcc recipients", text: $bcc, contacts: contacts)
-                        Divider().background(theme.divider).padding(.horizontal, 24)
+                        Divider().padding(.horizontal, 24)
                     }
 
                     composeField(label: "Subject", text: $subject, placeholder: "Subject")
-                    Divider().background(theme.divider).padding(.horizontal, 24)
+                    Divider().padding(.horizontal, 24)
                 }
             }
             .zIndex(10)
@@ -114,7 +112,7 @@ struct ComposeView: View {
             .padding(.top, 4)
 
             if !attachments.isEmpty {
-                Divider().background(theme.divider)
+                Divider()
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(attachments, id: \.self) { url in
@@ -130,8 +128,8 @@ struct ComposeView: View {
                                 .buttonStyle(.plain)
                             }
                             .padding(.horizontal, 8).padding(.vertical, 4)
-                            .background(RoundedRectangle(cornerRadius: 6).fill(theme.cardBackground))
-                            .foregroundColor(theme.textSecondary)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(.regularMaterial))
+                            .foregroundStyle(.secondary)
                         }
                     }
                     .padding(.horizontal, 20).padding(.vertical, 8)
@@ -139,17 +137,13 @@ struct ComposeView: View {
             }
 
             Divider()
-                .background(theme.divider)
 
             FormattingToolbar(state: editorState)
-                .background(theme.detailBackground)
 
             Divider()
-                .background(theme.divider)
 
             composeActions
         }
-        .background(theme.detailBackground)
         .onAppear { loadDraft() }
         .onChange(of: to)       { _, _ in scheduleAutoSave() }
         .onChange(of: cc)       { _, _ in scheduleAutoSave() }
@@ -315,7 +309,7 @@ struct ComposeView: View {
             } label: {
                 Text("Cc")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(showCc ? theme.accentPrimary : theme.textSecondary)
+                    .foregroundStyle(showCc ? Color.accentColor : Color.secondary)
                     .frame(width: 28, height: 28)
                     .contentShape(Rectangle())
             }
@@ -327,7 +321,7 @@ struct ComposeView: View {
             } label: {
                 Text("Bcc")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(showBcc ? theme.accentPrimary : theme.textSecondary)
+                    .foregroundStyle(showBcc ? Color.accentColor : Color.secondary)
                     .frame(height: 28)
                     .contentShape(Rectangle())
             }
@@ -348,7 +342,7 @@ struct ComposeView: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 13))
-                .foregroundColor(theme.textSecondary)
+                .foregroundStyle(.secondary)
                 .frame(width: 28, height: 28)
                 .contentShape(Rectangle())
         }
@@ -365,10 +359,10 @@ struct ComposeView: View {
             } label: {
                 Text("Discard")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(theme.textSecondary)
+                    .foregroundStyle(.secondary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 7)
-                    .background(theme.buttonSecondary)
+                    .background(.secondary)
                     .cornerRadius(6)
             }
             .buttonStyle(.plain)
@@ -400,10 +394,10 @@ struct ComposeView: View {
                     Text("Send")
                         .font(.system(size: 12, weight: .semibold))
                 }
-                .foregroundColor(theme.textInverse)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 7)
-                .background(theme.accentPrimary.opacity(isSending ? 0.6 : 1))
+                .background(Color.accentColor.opacity(isSending ? 0.6 : 1))
                 .cornerRadius(6)
             }
             .buttonStyle(.plain)
@@ -420,7 +414,7 @@ struct ComposeView: View {
         HStack(spacing: 10) {
             Text("From")
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(theme.textTertiary)
+                .foregroundStyle(.tertiary)
                 .frame(width: 50, alignment: .leading)
 
             Picker("", selection: $selectedAliasEmail) {
@@ -477,13 +471,13 @@ struct ComposeView: View {
         HStack(spacing: 10) {
             Text(label)
                 .font(.system(size: 12, weight: .medium))
-                .foregroundColor(theme.textTertiary)
+                .foregroundStyle(.tertiary)
                 .frame(width: 50, alignment: .leading)
 
             TextField(placeholder, text: text)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
-                .foregroundColor(theme.textPrimary)
+                .foregroundStyle(.primary)
         }
         .padding(.horizontal, 24)
         .padding(.vertical, 10)

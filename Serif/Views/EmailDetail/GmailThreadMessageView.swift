@@ -5,7 +5,6 @@ struct GmailThreadMessageView: View {
     let fromAddress: String
     var resolvedHTML: String?
     var onOpenLink: ((URL) -> Void)?
-    @Environment(\.theme) private var theme
     @State private var showQuoted = false
     @State private var contentHeight: CGFloat = 60
 
@@ -65,7 +64,7 @@ struct GmailThreadMessageView: View {
                 if !isSentByMe {
                     Text(sender.name)
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(theme.textPrimary)
+                        .foregroundStyle(.primary)
                 }
 
                 // Bubble
@@ -81,10 +80,10 @@ struct GmailThreadMessageView: View {
                         } label: {
                             Text(showQuoted ? "Hide" : "···")
                                 .font(.system(size: showQuoted ? 10 : 14, weight: showQuoted ? .medium : .bold))
-                                .foregroundColor(theme.textTertiary)
+                                .foregroundStyle(.tertiary)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
-                                .background(Capsule().fill(theme.hoverBackground))
+                                .background(Capsule().fill(.quaternary))
                         }
                         .buttonStyle(.plain)
                         .padding(.top, 4)
@@ -94,17 +93,13 @@ struct GmailThreadMessageView: View {
                 }
                 .padding(10)
                 .frame(maxWidth: 500, alignment: .leading)
-                .background(
-                    isSentByMe
-                        ? theme.accentPrimary.opacity(0.12)
-                        : theme.cardBackground
-                )
+                .background(isSentByMe ? AnyShapeStyle(Color.accentColor.opacity(0.12)) : AnyShapeStyle(.regularMaterial))
                 .clipShape(ChatBubbleShape(isSentByMe: isSentByMe))
 
                 if let date = message.date {
                     Text(date.formattedRelative)
                         .font(.system(size: 10))
-                        .foregroundColor(theme.textTertiary)
+                        .foregroundStyle(.tertiary)
                 }
             }
 

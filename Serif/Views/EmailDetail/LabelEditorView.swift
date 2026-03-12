@@ -11,7 +11,6 @@ struct LabelEditorView: View {
     @State private var labelSearchText = ""
     @State private var isLabelFieldFocused = false
     @State private var highlightedIndex: Int = 0
-    @Environment(\.theme) private var theme
 
     private var currentUserLabels: [GmailLabel] {
         let ids = Set(currentLabelIDs)
@@ -49,14 +48,14 @@ struct LabelEditorView: View {
             HStack(spacing: 4) {
                 Image(systemName: "tag")
                     .font(.system(size: 10))
-                    .foregroundColor(theme.textTertiary)
+                    .foregroundStyle(.tertiary)
                 TextField("Add label…", text: $labelSearchText, onEditingChanged: { editing in
                     isLabelFieldFocused = editing
                     if editing { highlightedIndex = 0 }
                 })
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
-                .foregroundColor(theme.textPrimary)
+                .foregroundStyle(.primary)
                 .onChange(of: labelSearchText) { _, _ in highlightedIndex = 0 }
                 .onSubmit { confirmHighlighted() }
                 .onKeyPress(.downArrow) {
@@ -110,21 +109,21 @@ struct LabelEditorView: View {
                         .frame(width: 10, height: 10)
                     Text(label.displayName)
                         .font(.system(size: 12))
-                        .foregroundColor(theme.textPrimary)
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
                     Spacer(minLength: 0)
                     if currentLabelIDs.contains(label.id) {
                         Image(systemName: "checkmark")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(theme.accentPrimary)
+                            .foregroundStyle(.tint)
                     }
                 case .create(let name):
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 12))
-                        .foregroundColor(theme.accentPrimary)
+                        .foregroundStyle(.tint)
                     Text("Create \"\(name)\"")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(theme.accentPrimary)
+                        .foregroundStyle(.tint)
                     Spacer(minLength: 0)
                 }
             }
@@ -132,7 +131,7 @@ struct LabelEditorView: View {
             .padding(.vertical, 8)
             .background(
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(isHighlighted ? theme.accentPrimary.opacity(0.15) : Color.clear)
+                    .fill(isHighlighted ? Color.accentColor.opacity(0.15) : Color.clear)
             )
             .contentShape(Rectangle())
         }
@@ -147,7 +146,7 @@ struct LabelEditorView: View {
                     ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                         if index > 0 {
                             Divider()
-                                .background(theme.divider)
+                                .background(Color(.separatorColor))
                                 .padding(.leading, 28)
                         }
 
@@ -167,11 +166,11 @@ struct LabelEditorView: View {
                 }
             }
         }
-        .background(theme.cardBackground)
+        .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(theme.border, lineWidth: 1)
+                .strokeBorder(Color(.separatorColor), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.12), radius: 12, y: 6)
         .shadow(color: .black.opacity(0.04), radius: 3, y: 2)

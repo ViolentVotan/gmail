@@ -5,7 +5,6 @@ struct AccountsSettingsView: View {
     var authViewModel: AuthViewModel
     @Binding var selectedAccountID: String?
     @AppStorage("isSignedIn") private var isSignedIn: Bool = false
-    @Environment(\.theme) private var theme
     @State private var colorBindings: [String: Color] = [:]
 
     // Drag state
@@ -17,12 +16,12 @@ struct AccountsSettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Connected Accounts")
                 .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(theme.textPrimary)
+                .foregroundStyle(.primary)
 
             if authViewModel.accounts.isEmpty {
                 Text("No accounts connected")
                     .font(.system(size: 12))
-                    .foregroundColor(theme.textTertiary)
+                    .foregroundStyle(.tertiary)
                     .padding(.vertical, 4)
             } else {
                 let rowHeight: CGFloat = 50
@@ -68,7 +67,7 @@ struct AccountsSettingsView: View {
                     Text(authViewModel.isSigningIn ? "Signing in…" : "Add account")
                         .font(.system(size: 13))
                 }
-                .foregroundColor(theme.accentPrimary)
+                .foregroundStyle(.tint)
             }
             .buttonStyle(.plain)
             .disabled(authViewModel.isSigningIn)
@@ -132,7 +131,7 @@ struct AccountsSettingsView: View {
             if authViewModel.accounts.count > 1 {
                 Image(systemName: "line.3.horizontal")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(theme.textTertiary.opacity(0.5))
+                    .foregroundStyle(.tertiary.opacity(0.5))
                     .frame(width: 18)
                     .contentShape(.rect)
             }
@@ -151,21 +150,21 @@ struct AccountsSettingsView: View {
                 HStack(spacing: 6) {
                     Text(account.displayName)
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(theme.textPrimary)
+                        .foregroundStyle(.primary)
                         .lineLimit(1)
                     if isFirst {
                         Text("Default")
                             .font(.system(size: 9, weight: .semibold))
-                            .foregroundColor(theme.accentPrimary)
+                            .foregroundStyle(.tint)
                             .padding(.horizontal, 5)
                             .padding(.vertical, 1)
-                            .background(theme.accentPrimary.opacity(0.12))
+                            .background(Color.accentColor.opacity(0.12))
                             .cornerRadius(3)
                     }
                 }
                 Text(account.email)
                     .font(.system(size: 11))
-                    .foregroundColor(theme.textTertiary)
+                    .foregroundStyle(.tertiary)
                     .lineLimit(1)
             }
 
@@ -207,7 +206,7 @@ struct AccountsSettingsView: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? theme.accentPrimary.opacity(0.07) : Color.clear)
+                .fill(isSelected ? Color.accentColor.opacity(0.07) : Color.clear)
         )
     }
 }

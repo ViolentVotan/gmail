@@ -4,7 +4,6 @@ import SwiftUI
 
 struct OfflineToastView: View {
     private var network = NetworkMonitor.shared
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack {
@@ -16,14 +15,14 @@ struct OfflineToastView: View {
                         .foregroundColor(.orange)
                     Text("No internet connection")
                         .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(theme.textPrimary)
+                        .foregroundStyle(.primary)
                     Spacer()
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(theme.cardBackground)
+                        .fill(.regularMaterial)
                         .shadow(color: .black.opacity(0.2), radius: 12, x: 0, y: 4)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -42,7 +41,6 @@ struct OfflineToastView: View {
 
 struct UndoToastView: View {
     private var undoMgr = UndoActionManager.shared
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack {
@@ -64,19 +62,19 @@ struct UndoToastView: View {
             HStack(spacing: 14) {
                 Text(action.label)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(theme.textPrimary)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
 
                 Spacer()
 
                 Button("Undo") { undoMgr.undo() }
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(theme.accentPrimary)
+                    .foregroundStyle(.tint)
                     .buttonStyle(.plain)
 
                 Text("\(max(1, Int(ceil(undoMgr.timeRemaining))))s")
                     .font(.system(size: 11, weight: .medium).monospacedDigit())
-                    .foregroundColor(theme.textTertiary)
+                    .foregroundStyle(.tertiary)
                     .frame(width: 26, alignment: .trailing)
             }
             .padding(.horizontal, 16)
@@ -84,9 +82,9 @@ struct UndoToastView: View {
 
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
-                    Rectangle().fill(theme.divider)
+                    Rectangle().fill(.separator)
                     Rectangle()
-                        .fill(theme.accentPrimary.opacity(0.7))
+                        .fill(Color.accentColor.opacity(0.7))
                         .frame(width: geo.size.width * undoMgr.progress)
                         .animation(.linear(duration: 0.06), value: undoMgr.progress)
                 }
@@ -95,7 +93,7 @@ struct UndoToastView: View {
         }
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(theme.cardBackground)
+                .fill(.regularMaterial)
                 .shadow(color: .black.opacity(0.2), radius: 12, x: 0, y: 4)
         )
         .clipShape(RoundedRectangle(cornerRadius: 12))

@@ -23,8 +23,6 @@ struct ReplyBarView: View {
     @State private var quickReplies: [String] = []
     @State private var isLoadingReplies = false
     @State private var gradientRotation: Double = 0
-    @Environment(\.theme) private var theme
-
     init(
         email: Email,
         accountID: String,
@@ -56,7 +54,7 @@ struct ReplyBarView: View {
                 collapsedContent
             }
         }
-        .background(theme.cardBackground)
+        .background(.regularMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: -2)
         .shadow(color: .black.opacity(0.03), radius: 2, x: 0, y: -1)
@@ -64,15 +62,15 @@ struct ReplyBarView: View {
             RoundedRectangle(cornerRadius: 16)
                 .strokeBorder(
                     isExpanded
-                        ? AnyShapeStyle(theme.border)
+                        ? AnyShapeStyle(Color(.separatorColor))
                         : AnyShapeStyle(
                             AngularGradient(
                                 colors: [
-                                    theme.accentPrimary.opacity(0.5),
-                                    theme.border,
-                                    theme.accentPrimary.opacity(0.2),
-                                    theme.border,
-                                    theme.accentPrimary.opacity(0.5),
+                                    Color.accentColor.opacity(0.5),
+                                    Color(.separatorColor),
+                                    Color.accentColor.opacity(0.2),
+                                    Color(.separatorColor),
+                                    Color.accentColor.opacity(0.5),
                                 ],
                                 center: .center,
                                 angle: .degrees(gradientRotation)
@@ -82,7 +80,6 @@ struct ReplyBarView: View {
                 )
         )
         .onAppear { startGradientAnimation() }
-        .onChange(of: theme) { _, _ in startGradientAnimation() }
         .onChange(of: isExpanded) { _, expanded in
             if !expanded { startGradientAnimation() }
         }
@@ -150,12 +147,12 @@ struct ReplyBarView: View {
                 }
                 Text(collapsedPlaceholder)
                     .font(.system(size: 13))
-                    .foregroundColor(theme.textTertiary)
+                    .foregroundStyle(.tertiary)
                     .lineLimit(1)
                 Spacer()
                 Image(systemName: hasSavedDraft ? "arrow.uturn.forward" : "square.and.pencil")
                     .font(.system(size: 13))
-                    .foregroundColor(theme.textTertiary)
+                    .foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 14)
@@ -186,7 +183,7 @@ struct ReplyBarView: View {
             .padding(.bottom, 8)
 
             if !attachments.isEmpty {
-                Divider().background(theme.divider)
+                Divider().background(Color(.separatorColor))
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(attachments, id: \.self) { url in
@@ -202,25 +199,25 @@ struct ReplyBarView: View {
                                 .buttonStyle(.plain)
                             }
                             .padding(.horizontal, 8).padding(.vertical, 4)
-                            .background(RoundedRectangle(cornerRadius: 6).fill(theme.cardBackground))
-                            .foregroundColor(theme.textSecondary)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(.regularMaterial))
+                            .foregroundStyle(.secondary)
                         }
                     }
                     .padding(.horizontal, 16).padding(.vertical, 6)
                 }
             }
 
-            Divider().background(theme.divider)
+            Divider().background(Color(.separatorColor))
 
             FormattingToolbar(state: editorState)
 
-            Divider().background(theme.divider)
+            Divider().background(Color(.separatorColor))
 
             HStack(spacing: 12) {
                 Button { minimize() } label: {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(theme.textSecondary)
+                        .foregroundStyle(.secondary)
                         .frame(width: 30, height: 30)
                 }
                 .buttonStyle(.plain)
@@ -230,7 +227,7 @@ struct ReplyBarView: View {
                 Button { attachFiles() } label: {
                     Image(systemName: "paperclip")
                         .font(.system(size: 12))
-                        .foregroundColor(theme.textSecondary)
+                        .foregroundStyle(.secondary)
                         .frame(width: 30, height: 30)
                 }
                 .buttonStyle(.plain)
@@ -249,10 +246,10 @@ struct ReplyBarView: View {
                     Button { discardAction() } label: {
                         Text("Discard")
                             .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(theme.textSecondary)
+                            .foregroundStyle(.secondary)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .background(theme.buttonSecondary)
+                            .background(Color.secondary)
                             .cornerRadius(6)
                     }
                     .buttonStyle(.plain)
@@ -274,10 +271,10 @@ struct ReplyBarView: View {
                             Text("Send")
                                 .font(.system(size: 12, weight: .semibold))
                         }
-                        .foregroundColor(theme.textInverse)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 6)
-                        .background(theme.accentPrimary.opacity(isSending ? 0.6 : 1))
+                        .background(Color.accentColor.opacity(isSending ? 0.6 : 1))
                         .cornerRadius(6)
                     }
                     .buttonStyle(.plain)
@@ -323,12 +320,12 @@ struct ReplyBarView: View {
                     } label: {
                         Text(suggestion)
                             .font(.system(size: 12))
-                            .foregroundColor(theme.textPrimary)
+                            .foregroundStyle(.primary)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
                             .background(
                                 Capsule()
-                                    .fill(theme.cardBackground)
+                                    .fill(.regularMaterial)
                             )
                             .overlay(
                                 Capsule()

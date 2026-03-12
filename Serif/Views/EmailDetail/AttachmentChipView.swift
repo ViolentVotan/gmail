@@ -7,24 +7,23 @@ struct AttachmentChipView: View {
 
     @State private var isHovered = false
     @State private var isDownloadHovered = false
-    @Environment(\.theme) private var theme
 
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: attachment.fileType.rawValue)
                 .font(.system(size: 13))
-                .foregroundColor(theme.accentPrimary)
+                .foregroundStyle(.tint)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(attachment.name)
                     .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(theme.textPrimary)
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
 
                 if !attachment.size.isEmpty {
                     Text(attachment.size)
                         .font(.system(size: 10))
-                        .foregroundColor(theme.textTertiary)
+                        .foregroundStyle(.tertiary)
                 }
             }
 
@@ -36,10 +35,10 @@ struct AttachmentChipView: View {
         .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(isHovered ? theme.hoverBackground : theme.attachmentBackground)
+                .fill(.quaternary)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(theme.border, lineWidth: 1)
+                        .stroke(Color(.separatorColor), lineWidth: 1)
                 )
         )
         .contentShape(Rectangle())
@@ -56,7 +55,7 @@ struct AttachmentChipView: View {
             } label: {
                 Image(systemName: "arrow.down.circle")
                     .font(.system(size: 12))
-                    .foregroundColor(isDownloadHovered ? theme.accentPrimary : theme.textTertiary)
+                    .foregroundStyle(isDownloadHovered ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
                     .frame(width: 28, height: 28)
                     .contentShape(Rectangle())
             }

@@ -11,25 +11,23 @@ struct SignatureEditorView: View {
     @State private var isSaving = false
     @State private var errorMessage: String?
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(spacing: 0) {
             header
-            Divider().background(theme.divider)
+            Divider()
             ScrollView(.horizontal, showsIndicators: false) {
                 FormattingToolbar(state: editorState)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 6)
-            Divider().background(theme.divider)
+            Divider()
             editorArea
             if let error = errorMessage {
                 errorBanner(error)
             }
         }
         .frame(width: 560, height: 420)
-        .background(theme.detailBackground)
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .onAppear {
             htmlContent = alias.signature ?? ""
@@ -42,17 +40,17 @@ struct SignatureEditorView: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Edit Signature")
-                    .font(.serifTitle)
-                    .foregroundColor(theme.textPrimary)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
                 Text(alias.sendAsEmail)
-                    .font(.serifSmall)
-                    .foregroundColor(theme.textTertiary)
+                    .font(.footnote)
+                    .foregroundStyle(.tertiary)
             }
             Spacer()
             Button("Cancel") { dismiss() }
                 .buttonStyle(.plain)
-                .foregroundColor(theme.textSecondary)
-                .font(.serifLabel)
+                .foregroundStyle(.secondary)
+                .font(.callout)
             saveButton
         }
         .padding(16)
@@ -71,12 +69,12 @@ struct SignatureEditorView: View {
                         .frame(width: 12, height: 12)
                 }
                 Text(isSaving ? "Saving…" : "Save")
-                    .font(.serifLabel)
+                    .font(.callout)
             }
-            .foregroundColor(.white)
+            .foregroundStyle(.white)
             .padding(.horizontal, 14)
             .padding(.vertical, 6)
-            .background(Capsule().fill(theme.accentPrimary))
+            .background(Capsule().fill(Color.accentColor))
         }
         .buttonStyle(.plain)
         .disabled(isSaving)
@@ -100,17 +98,17 @@ struct SignatureEditorView: View {
         HStack {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundColor(.red)
-                .font(.serifSmall)
+                .font(.footnote)
             Text(message)
-                .font(.serifSmall)
+                .font(.footnote)
                 .foregroundColor(.red)
             Spacer()
             Button {
                 errorMessage = nil
             } label: {
                 Image(systemName: "xmark")
-                    .font(.serifBadge)
-                    .foregroundColor(theme.textTertiary)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.tertiary)
             }
             .buttonStyle(.plain)
         }

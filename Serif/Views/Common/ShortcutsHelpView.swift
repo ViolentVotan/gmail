@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct ShortcutsHelpView: View {
-    @Environment(\.theme) private var theme
 
     private struct Shortcut {
         let keys: String
@@ -42,7 +41,7 @@ struct ShortcutsHelpView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(section.title)
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(theme.textTertiary)
+                        .foregroundStyle(.tertiary)
                         .textCase(.uppercase)
                         .tracking(0.5)
 
@@ -51,23 +50,23 @@ struct ShortcutsHelpView: View {
                             HStack {
                                 Text(shortcut.description)
                                     .font(.system(size: 13))
-                                    .foregroundColor(theme.textSecondary)
+                                    .foregroundStyle(.secondary)
                                 Spacer()
                                 Text(shortcut.keys)
                                     .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(theme.textPrimary)
+                                    .foregroundStyle(.primary)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 3)
-                                    .background(theme.cardBackground)
+                                    .background(.regularMaterial)
                                     .cornerRadius(5)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 5)
-                                            .stroke(theme.border, lineWidth: 1)
+                                            .stroke(.separator, lineWidth: 1)
                                     )
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 7)
-                            .background(theme.hoverBackground.opacity(0.5))
+                            .background(.fill.quaternary.opacity(0.5))
                             .cornerRadius(7)
                         }
                     }

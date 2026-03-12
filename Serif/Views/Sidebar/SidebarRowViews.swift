@@ -6,7 +6,6 @@ struct InboxParentRow: View {
     let isSelected: Bool
     let isExpanded: Bool
     @Binding var inboxExpanded: Bool
-    let theme: Theme
     let action: () -> Void
     @State private var isHovered = false
 
@@ -16,12 +15,12 @@ struct InboxParentRow: View {
                 HStack(spacing: 10) {
                     Image(systemName: "tray.fill")
                         .font(.system(size: 14))
-                        .foregroundColor(isSelected ? theme.sidebarAccent : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
+                        .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                         .frame(width: 20)
 
                     Text("Inbox")
                         .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                        .foregroundColor(isSelected ? theme.sidebarText : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
+                        .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                         .fixedSize(horizontal: true, vertical: false)
                     Spacer()
 
@@ -31,7 +30,7 @@ struct InboxParentRow: View {
                     } label: {
                         Image(systemName: inboxExpanded ? "chevron.down" : "chevron.right")
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(theme.sidebarTextMuted)
+                            .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -39,18 +38,18 @@ struct InboxParentRow: View {
                 .frame(height: 34)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(isSelected ? theme.sidebarSelectedBg : (isHovered ? theme.sidebarHover : Color.clear))
+                        .fill(isSelected ? AnyShapeStyle(.tint.opacity(0.15)) : (isHovered ? AnyShapeStyle(.fill.quaternary) : AnyShapeStyle(Color.clear)))
                 )
                 .contentShape(Rectangle())
             } else {
                 // Collapsed: just the icon with dot if needed
                 ZStack {
                     if isSelected {
-                        RoundedRectangle(cornerRadius: 10).fill(theme.sidebarSelectedBg)
+                        RoundedRectangle(cornerRadius: 10).fill(.tint.opacity(0.15))
                     }
                     Image(systemName: "tray.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(isSelected ? theme.sidebarAccent : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
+                        .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                 }
                 .frame(width: 40, height: 40)
                 .contentShape(Rectangle())
@@ -68,7 +67,6 @@ struct InboxCategoryRow: View {
     let category: InboxCategory
     let isSelected: Bool
     let unreadCount: Int
-    let theme: Theme
     let action: () -> Void
     @State private var isHovered = false
 
@@ -82,12 +80,12 @@ struct InboxCategoryRow: View {
 
                 Image(systemName: category.icon)
                     .font(.system(size: 12))
-                    .foregroundColor(isSelected ? theme.sidebarAccent : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
+                    .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                     .frame(width: 16)
 
                 Text(category.displayName)
                     .font(.system(size: 12, weight: isSelected ? .medium : .regular))
-                    .foregroundColor(isSelected ? theme.sidebarText : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
+                    .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
 
                 Spacer()
 
@@ -99,7 +97,7 @@ struct InboxCategoryRow: View {
             .frame(height: 28)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(isSelected ? theme.sidebarSelectedBg : (isHovered ? theme.sidebarHover : Color.clear))
+                    .fill(isSelected ? AnyShapeStyle(.tint.opacity(0.15)) : (isHovered ? AnyShapeStyle(.fill.quaternary) : AnyShapeStyle(Color.clear)))
             )
             .contentShape(Rectangle())
         }
@@ -114,7 +112,6 @@ struct LabelsParentRow: View {
     let isSelected: Bool
     let isExpanded: Bool
     @Binding var labelsExpanded: Bool
-    let theme: Theme
     let action: () -> Void
     @State private var isHovered = false
 
@@ -124,12 +121,12 @@ struct LabelsParentRow: View {
                 HStack(spacing: 10) {
                     Image(systemName: "tag.fill")
                         .font(.system(size: 14))
-                        .foregroundColor(isSelected ? theme.sidebarAccent : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
+                        .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                         .frame(width: 20)
 
                     Text("Labels")
                         .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                        .foregroundColor(isSelected ? theme.sidebarText : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
+                        .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                         .fixedSize(horizontal: true, vertical: false)
                     Spacer()
 
@@ -138,7 +135,7 @@ struct LabelsParentRow: View {
                     } label: {
                         Image(systemName: labelsExpanded ? "chevron.down" : "chevron.right")
                             .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(theme.sidebarTextMuted)
+                            .foregroundStyle(.secondary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -146,17 +143,17 @@ struct LabelsParentRow: View {
                 .frame(height: 34)
                 .background(
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(isSelected ? theme.sidebarSelectedBg : (isHovered ? theme.sidebarHover : Color.clear))
+                        .fill(isSelected ? AnyShapeStyle(.tint.opacity(0.15)) : (isHovered ? AnyShapeStyle(.fill.quaternary) : AnyShapeStyle(Color.clear)))
                 )
                 .contentShape(Rectangle())
             } else {
                 ZStack {
                     if isSelected {
-                        RoundedRectangle(cornerRadius: 10).fill(theme.sidebarSelectedBg)
+                        RoundedRectangle(cornerRadius: 10).fill(.tint.opacity(0.15))
                     }
                     Image(systemName: "tag.fill")
                         .font(.system(size: 16))
-                        .foregroundColor(isSelected ? theme.sidebarAccent : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
+                        .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                 }
                 .frame(width: 40, height: 40)
                 .contentShape(Rectangle())
@@ -173,7 +170,6 @@ struct LabelsParentRow: View {
 struct LabelSidebarRow: View {
     let label: GmailLabel
     let isSelected: Bool
-    let theme: Theme
     var onRename: ((GmailLabel) -> Void)?
     var onDelete: ((GmailLabel) -> Void)?
     let action: () -> Void
@@ -192,7 +188,7 @@ struct LabelSidebarRow: View {
 
                 Text(label.displayName)
                     .font(.system(size: 12, weight: isSelected ? .medium : .regular))
-                    .foregroundColor(isSelected ? theme.sidebarText : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
+                    .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
                 Spacer()
@@ -205,7 +201,7 @@ struct LabelSidebarRow: View {
             .frame(height: 28)
             .background(
                 RoundedRectangle(cornerRadius: 6)
-                    .fill(isSelected ? theme.sidebarSelectedBg : (isHovered ? theme.sidebarHover : Color.clear))
+                    .fill(isSelected ? AnyShapeStyle(.tint.opacity(0.15)) : (isHovered ? AnyShapeStyle(.fill.quaternary) : AnyShapeStyle(Color.clear)))
             )
             .contentShape(Rectangle())
         }
@@ -227,7 +223,6 @@ struct SidebarItemView: View {
     let isExpanded: Bool
     let action: () -> Void
     @State private var isHovered = false
-    @Environment(\.theme) private var theme
 
     var body: some View {
         Button(action: action) {
@@ -242,29 +237,29 @@ struct SidebarItemView: View {
         HStack(spacing: 10) {
             Image(systemName: folder.icon)
                 .font(.system(size: 14))
-                .foregroundColor(isSelected ? theme.sidebarAccent : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
+                .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                 .frame(width: 20)
 
             Text(folder.rawValue)
                 .font(.system(size: 13, weight: isSelected ? .semibold : .regular))
-                .foregroundColor(isSelected ? theme.sidebarText : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
+                .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                 .fixedSize(horizontal: true, vertical: false)
             Spacer()
 
             if folder.count > 0 {
                 Text("\(folder.count)")
-                    .font(.serifSmallMedium)
-                    .foregroundColor(isSelected ? theme.sidebarBadgeText : theme.sidebarTextMuted)
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(isSelected ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary))
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Capsule().fill(isSelected ? theme.sidebarBadge : theme.sidebarBadge))
+                    .background(Capsule().fill(.fill.quaternary))
             }
         }
         .padding(.horizontal, 10)
         .frame(height: 34)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(isSelected ? theme.sidebarSelectedBg : (isHovered ? theme.sidebarHover : Color.clear))
+                .fill(isSelected ? AnyShapeStyle(.tint.opacity(0.15)) : (isHovered ? AnyShapeStyle(.fill.quaternary) : AnyShapeStyle(Color.clear)))
         )
         .contentShape(Rectangle())
     }
@@ -272,14 +267,14 @@ struct SidebarItemView: View {
     private var collapsedContent: some View {
         ZStack {
             if isSelected {
-                RoundedRectangle(cornerRadius: 10).fill(theme.sidebarSelectedBg)
+                RoundedRectangle(cornerRadius: 10).fill(.tint.opacity(0.15))
             }
             ZStack(alignment: .topTrailing) {
                 Image(systemName: folder.icon)
                     .font(.system(size: 16))
-                    .foregroundColor(isSelected ? theme.sidebarAccent : (isHovered ? theme.sidebarTextHover : theme.sidebarTextMuted))
+                    .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
                 if folder.count > 0 {
-                    Circle().fill(theme.sidebarAccent).frame(width: 8, height: 8).offset(x: 4, y: -2)
+                    Circle().fill(.tint).frame(width: 8, height: 8).offset(x: 4, y: -2)
                 }
             }
         }

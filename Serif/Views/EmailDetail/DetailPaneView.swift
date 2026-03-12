@@ -8,8 +8,6 @@ struct DetailPaneView: View {
 
     let coordinator: AppCoordinator
 
-    @Environment(\.theme) private var theme
-
     // MARK: - Convenience Accessors
 
     private var actionCoordinator: EmailActionCoordinator { coordinator.actionCoordinator }
@@ -163,7 +161,6 @@ struct DetailPaneView: View {
             description: Text(emptyStateDescription)
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(theme.detailBackground)
     }
 
     private var emptyStateIcon: String {

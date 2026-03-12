@@ -3,7 +3,6 @@ import SwiftUI
 struct SearchBarView: View {
     @Binding var text: String
     @Binding var focusTrigger: Bool
-    @Environment(\.theme) private var theme
 
     init(text: Binding<String>, focusTrigger: Binding<Bool> = .constant(false)) {
         self._text = text
@@ -14,11 +13,11 @@ struct SearchBarView: View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 13, weight: .medium))
-                .foregroundColor(theme.textTertiary)
+                .foregroundStyle(.tertiary)
 
             NonAutoFocusTextField(text: $text, placeholder: "Search", focusTrigger: $focusTrigger)
                 .font(.system(size: 13))
-                .foregroundColor(theme.textPrimary)
+                .foregroundStyle(.primary)
 
             if !text.isEmpty {
                 Button {
@@ -26,14 +25,14 @@ struct SearchBarView: View {
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 12))
-                        .foregroundColor(theme.textTertiary)
+                        .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(theme.searchBarBackground)
+        .background(.quinary)
         .cornerRadius(8)
     }
 }

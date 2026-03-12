@@ -9,7 +9,6 @@ struct AvatarView: View {
     var senderDomain: String? = nil
 
     @State private var image: NSImage? = nil
-    @Environment(\.theme) private var theme
 
     var body: some View {
         ZStack {

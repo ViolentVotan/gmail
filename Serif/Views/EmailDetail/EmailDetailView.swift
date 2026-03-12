@@ -40,7 +40,6 @@ struct EmailDetailView: View {
     @State private var showQuotedMain = false
     @State private var labelSuggestions: [LabelSuggestion] = []
     @AppStorage("aiLabelSuggestions") private var aiLabelSuggestionsEnabled = true
-    @Environment(\.theme) private var theme
 
     /// Best available unsubscribe URL: header-based (from full thread) or body-scanned.
     private var resolvedUnsubscribeURL: URL? {
@@ -171,7 +170,7 @@ struct EmailDetailView: View {
             )
 
             Divider()
-                .background(theme.divider)
+                .background(Color(.separatorColor))
 
             ZStack(alignment: .bottom) {
                 if detailVM.isLoading && detailVM.thread == nil {
@@ -186,7 +185,7 @@ struct EmailDetailView: View {
 
                             Text(detailVM.latestMessage?.subject ?? email.subject)
                                 .font(.system(size: 20, weight: .bold))
-                                .foregroundColor(theme.textPrimary)
+                                .foregroundStyle(.primary)
                                 .padding(.horizontal, 24)
                                 .padding(.bottom, 10)
 
@@ -216,8 +215,8 @@ struct EmailDetailView: View {
                                             }
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 3)
-                                            .background(theme.accentPrimary.opacity(0.08))
-                                            .foregroundColor(theme.accentPrimary.opacity(0.7))
+                                            .background(Color.accentColor.opacity(0.08))
+                                            .foregroundStyle(Color.accentColor.opacity(0.7))
                                             .clipShape(Capsule())
                                         }
                                         .buttonStyle(.plain)
@@ -273,10 +272,10 @@ struct EmailDetailView: View {
                                     } label: {
                                         Text(showQuotedMain ? "Hide quoted" : "···")
                                             .font(.system(size: showQuotedMain ? 11 : 14, weight: showQuotedMain ? .medium : .bold))
-                                            .foregroundColor(theme.textTertiary)
+                                            .foregroundStyle(.tertiary)
                                             .padding(.horizontal, 10)
                                             .padding(.vertical, 4)
-                                            .background(Capsule().fill(theme.hoverBackground))
+                                            .background(Capsule().fill(.quaternary))
                                     }
                                     .buttonStyle(.plain)
                                     .padding(.horizontal, 24)
@@ -326,7 +325,6 @@ struct EmailDetailView: View {
                     .padding(.bottom, 16)
             }
         }
-        .background(theme.detailBackground)
         .onAppear { loadThread() }
     }
 
@@ -426,19 +424,18 @@ struct EmailDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(email.sender.name)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(theme.textPrimary)
+                    .foregroundStyle(.primary)
 
                 Text(email.sender.email)
                     .font(.system(size: 12))
-                    .foregroundColor(theme.textTertiary)
-                    .underline(showSenderInfo, color: theme.textTertiary)
+                    .foregroundStyle(.tertiary)
+                    .underline(showSenderInfo, color: .gray)
                     .onHover { hovering in
                         showSenderInfo = hovering
                     }
                     .popover(isPresented: $showSenderInfo, arrowEdge: .bottom) {
                         if let msg = detailVM.latestMessage {
                             SenderInfoPopover(message: msg, email: email)
-                                .environment(\.theme, theme)
                         }
                     }
             }
@@ -447,7 +444,7 @@ struct EmailDetailView: View {
 
             Text(email.date.formattedFull)
                 .font(.system(size: 12))
-                .foregroundColor(theme.textTertiary)
+                .foregroundStyle(.tertiary)
         }
     }
 
@@ -470,7 +467,7 @@ struct EmailDetailView: View {
                 Text("\(displayAttachments.count) Attachment\(displayAttachments.count > 1 ? "s" : "")")
                     .font(.system(size: 12, weight: .medium))
             }
-            .foregroundColor(theme.textSecondary)
+            .foregroundStyle(.secondary)
 
             HStack(spacing: 8) {
                 ForEach(attachmentPairs, id: \.0.id) { (attachment, part) in
@@ -489,7 +486,7 @@ struct EmailDetailView: View {
     private var conversationSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             Divider()
-                .background(theme.divider)
+                .background(Color(.separatorColor))
 
             VStack(spacing: 12) {
                 ForEach(olderThreadMessages, id: \.id) { message in

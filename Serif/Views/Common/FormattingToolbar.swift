@@ -2,7 +2,6 @@ import SwiftUI
 
 struct FormattingToolbar: View {
     @ObservedObject var state: WebRichTextEditorState
-    @Environment(\.theme) private var theme
     @State private var showColorPopover = false
     @State private var showLinkPopover = false
     @State private var linkURL = ""
@@ -58,10 +57,10 @@ struct FormattingToolbar: View {
                     Image(systemName: "chevron.down")
                         .font(.system(size: 7))
                 }
-                .foregroundColor(theme.textSecondary)
+                .foregroundStyle(.secondary)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
-                .background(theme.cardBackground)
+                .background(.regularMaterial)
                 .cornerRadius(4)
             }
             .buttonStyle(.plain)
@@ -150,7 +149,7 @@ struct FormattingToolbar: View {
             } label: {
                 Image(systemName: "link")
                     .font(.system(size: 12))
-                    .foregroundColor(theme.textSecondary)
+                    .foregroundStyle(.secondary)
                     .frame(width: 26, height: 26)
                     .contentShape(Rectangle())
             }
@@ -218,7 +217,7 @@ struct FormattingToolbar: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 12))
-                .foregroundColor(theme.textSecondary)
+                .foregroundStyle(.secondary)
                 .frame(width: 26, height: 26)
                 .contentShape(Rectangle())
         }
@@ -230,11 +229,11 @@ struct FormattingToolbar: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 12, weight: isActive ? .bold : .regular))
-                .foregroundColor(isActive ? theme.accentPrimary : theme.textSecondary)
+                .foregroundStyle(isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                 .frame(width: 26, height: 26)
                 .background(
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(isActive ? theme.accentPrimary.opacity(0.12) : Color.clear)
+                        .fill(isActive ? Color.accentColor.opacity(0.12) : Color.clear)
                 )
                 .contentShape(Rectangle())
         }
@@ -249,11 +248,11 @@ struct FormattingToolbar: View {
         } label: {
             Image(systemName: icon)
                 .font(.system(size: 12, weight: isActive ? .bold : .regular))
-                .foregroundColor(isActive ? theme.accentPrimary : theme.textSecondary)
+                .foregroundStyle(isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
                 .frame(width: 26, height: 26)
                 .background(
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(isActive ? theme.accentPrimary.opacity(0.12) : Color.clear)
+                        .fill(isActive ? Color.accentColor.opacity(0.12) : Color.clear)
                 )
                 .contentShape(Rectangle())
         }
@@ -269,7 +268,6 @@ struct ColorGridPopover: View {
     @Binding var showPopover: Bool
     let colorGrid: [[NSColor]]
     @State private var customColor: Color = .white
-    @Environment(\.theme) private var theme
 
     var body: some View {
         VStack(spacing: 12) {
@@ -288,7 +286,7 @@ struct ColorGridPopover: View {
                                     .frame(width: 22, height: 22)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 3)
-                                            .stroke(isSelected(color) ? theme.textInverse : theme.textInverse.opacity(0.15), lineWidth: isSelected(color) ? 2 : 1)
+                                            .stroke(isSelected(color) ? Color.white : Color.white.opacity(0.15), lineWidth: isSelected(color) ? 2 : 1)
                                     )
                             }
                             .buttonStyle(.plain)

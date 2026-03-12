@@ -3,7 +3,6 @@ import SwiftUI
 struct SenderInfoPopover: View {
     let message: GmailMessage
     let email: Email
-    @Environment(\.theme) private var theme
 
     private var fromDisplay: String {
         let name = email.sender.name
@@ -39,7 +38,7 @@ struct SenderInfoPopover: View {
             // Security section
             if message.mailedBy != nil || message.signedBy != nil || message.encryptionInfo != nil {
                 Divider()
-                    .background(theme.divider)
+                    .background(Color(.separatorColor))
                     .padding(.vertical, 6)
 
                 VStack(spacing: 0) {
@@ -63,13 +62,13 @@ struct SenderInfoPopover: View {
         HStack(alignment: multiline ? .top : .center, spacing: 0) {
             Text(label)
                 .font(.system(size: 11))
-                .foregroundColor(theme.textSecondary)
+                .foregroundStyle(.secondary)
                 .frame(width: 72, alignment: .trailing)
                 .padding(.trailing, 8)
 
             Text(value)
                 .font(.system(size: 11, weight: suspicious ? .semibold : .regular))
-                .foregroundColor(suspicious ? .red : theme.textPrimary)
+                .foregroundStyle(suspicious ? AnyShapeStyle(Color.red) : AnyShapeStyle(Color.primary))
                 .lineLimit(multiline ? 3 : 1)
                 .textSelection(.enabled)
 
@@ -82,17 +81,17 @@ struct SenderInfoPopover: View {
         HStack(alignment: .center, spacing: 0) {
             Text(label)
                 .font(.system(size: 11))
-                .foregroundColor(theme.textSecondary)
+                .foregroundStyle(.secondary)
                 .frame(width: 72, alignment: .trailing)
                 .padding(.trailing, 8)
 
             HStack(spacing: 4) {
                 Image(systemName: "lock.fill")
                     .font(.system(size: 9))
-                    .foregroundColor(.green)
+                    .foregroundStyle(.green)
                 Text(value)
                     .font(.system(size: 11))
-                    .foregroundColor(theme.textPrimary)
+                    .foregroundStyle(.primary)
             }
 
             Spacer()
