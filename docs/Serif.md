@@ -9,7 +9,7 @@ macOS Gmail client built with Swift/SwiftUI. 3-column layout (sidebar, email lis
 | `Configuration/` | App-level config (API keys, scopes) |
 | `Models/` | Data models and local stores |
 | `Services/` | Network, auth, business logic |
-| `Theme/` | Theming system (colors, persistence) |
+| `Theme/` | Appearance management (system/light/dark) |
 | `Utilities/` | Pure helper functions (no state, no side effects) |
 | `ViewModels/` | State management layer between Services and Views |
 | `Views/` | SwiftUI views (UI only) |
@@ -21,7 +21,7 @@ macOS Gmail client built with Swift/SwiftUI. 3-column layout (sidebar, email lis
 2. **Cache-first**: Contacts, labels, mails, and threads are loaded from disk cache first, then refreshed from API.
 3. **Multi-account**: All persistence is keyed by `accountID`. Never assume a single account.
 4. **Optimistic UI**: Mutations (archive, trash, star) update the UI immediately, then call the API.
-5. **Theme via Environment**: `@Environment(\.theme)` is the single source of truth for colors in all Views.
+5. **Semantic colors**: Views use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`) and materials — no custom color definitions.
 
 ## Entry Point
 

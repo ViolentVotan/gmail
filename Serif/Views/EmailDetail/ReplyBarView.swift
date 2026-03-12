@@ -23,6 +23,11 @@ struct ReplyBarView: View {
     @State private var quickReplies: [String] = []
     @State private var isLoadingReplies = false
     @State private var gradientRotation: Double = 0
+    @State private var replyTo = ""
+    @State private var replyCc = ""
+    @State private var replyBcc = ""
+    @State private var showCc = false
+    @State private var showBcc = false
     init(
         email: Email,
         accountID: String,
@@ -134,6 +139,9 @@ struct ReplyBarView: View {
 
     private var collapsedContent: some View {
         Button {
+            if replyTo.isEmpty {
+                replyTo = email.sender.email
+            }
             loadExistingDraft()
             withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                 isExpanded = true
@@ -167,6 +175,42 @@ struct ReplyBarView: View {
         VStack(spacing: 0) {
             if !quickReplies.isEmpty {
                 quickReplyChips
+            }
+
+            // Recipient fields
+            VStack(spacing: 0) {
+                recipientField(label: "To", text: $replyTo)
+                Divider().padding(.horizontal, 16)
+
+                if showCc {
+                    recipientField(label: "Cc", text: $replyCc)
+                    Divider().padding(.horizontal, 16)
+                }
+
+                if showBcc {
+                    recipientField(label: "Bcc", text: $replyBcc)
+                    Divider().padding(.horizontal, 16)
+                }
+
+                HStack(spacing: 8) {
+                    Spacer()
+                    Button { withAnimation { showCc.toggle() } } label: {
+                        Text("Cc")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(showCc ? Color.accentColor : .tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    Button { withAnimation { showBcc.toggle() } } label: {
+                        Text("Bcc")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(showBcc ? Color.accentColor : .tertiary)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 6)
+
+                Divider().padding(.horizontal, 16)
             }
 
             WebRichTextEditor(
@@ -354,6 +398,24 @@ struct ReplyBarView: View {
         }
     }
 
+    // MARK: - Recipient Field
+
+    private func recipientField(label: String, text: Binding<String>) -> some View {
+        HStack(spacing: 8) {
+            Text(label)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(.tertiary)
+                .frame(width: 28, alignment: .leading)
+
+            TextField("", text: text)
+                .textFieldStyle(.plain)
+                .font(.system(size: 12))
+                .foregroundStyle(.primary)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+
     // MARK: - Actions
 
     private func discardAction() {
@@ -380,7 +442,9 @@ struct ReplyBarView: View {
         let (processedHTML, images) = InlineImageProcessor.extractInlineImages(from: replyHTML)
         let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
 
-        composeVM.to = email.sender.email
+        composeVM.to = replyTo
+        composeVM.cc = replyCc
+        composeVM.bcc = replyBcc
         composeVM.subject = sub
         composeVM.body = processedHTML
         composeVM.isHTML = true
@@ -485,7 +549,9 @@ struct ReplyBarView: View {
                 composeVM.gmailDraftID = saved.gmailDraftID
             }
             let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
-            composeVM.to = email.sender.email
+            composeVM.to = replyTo
+            composeVM.cc = replyCc
+            composeVM.bcc = replyBcc
             composeVM.subject = sub
             composeVM.body = replyHTML
             composeVM.isHTML = true
@@ -528,6 +594,11 @@ struct ReplyBarView: View {
         withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
             isExpanded = false
             replyHTML = ""
+            replyTo = ""
+            replyCc = ""
+            replyBcc = ""
+            showCc = false
+            showBcc = false
             attachments = []
             sendError = nil
         }

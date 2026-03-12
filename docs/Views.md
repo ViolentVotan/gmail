@@ -8,7 +8,7 @@ SwiftUI views. UI presentation only — no business logic.
   - Call Services or APIs directly
   - Perform data transformations beyond simple formatting
   - Contain persistence logic
-- **No hardcoded colors.** Always use `@Environment(\.theme)` for theming.
+- **No hardcoded colors.** Use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`, `Color.accentColor`) and materials (`.regularMaterial`, `.ultraThinMaterial`).
 - **Callbacks over direct ViewModel access.** Views receive `onDelete`, `onArchive`, etc. as closures. Only top-level views (ContentView) wire these to ViewModels.
 - **Small, composable views.** Extract reusable components into `Common/`. One concern per file.
 - **Animations belong in views**, not in ViewModels or Services.
@@ -25,7 +25,7 @@ Middle column — email rows, swipe actions (archive/delete), search, pull-to-re
 
 ### `EmailDetail/`
 Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView), attachments, sender info popover, tracker blocking UI, label picker.
-- `ReplyBarView` — Inline quick reply with draft persistence, auto-save, and discard confirmation.
+- `ReplyBarView` — Inline quick reply with To/Cc/Bcc fields, draft persistence, auto-save, and discard confirmation.
 - `DetailPaneView` — Contextual empty state (icon + message per folder).
 
 ### `Compose/`
@@ -47,9 +47,9 @@ Shared reusable components:
 | `AvatarView` | Circular avatar with initials fallback or profile image |
 | `SearchBarView` | Search input with clear button |
 | `LabelChipView` | Colored label pill |
-| `ThemePickerView` | Theme grid + per-color customization |
+| `ThemePickerView` | Segmented picker for System / Light / Dark appearance |
 | `SettingsCardsView` | Settings UI with behavior, signature, account cards |
-| `SlidePanel` | Animated side panel for compose |
+| `SlidePanel` | Animated side panel overlay (settings, help, debug, previews) with frosted glass background |
 | `FormattingToolbar` | Rich text toolbar for compose/reply |
 | `WebRichTextEditor` | WKWebView-based HTML editor |
 | `UndoToastView` | Undo toast + offline indicator |

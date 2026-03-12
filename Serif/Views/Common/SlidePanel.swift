@@ -52,6 +52,7 @@ struct SlidePanel<Content: View>: View {
                 }
                 .frame(width: panelWidth)
                 .frame(maxHeight: .infinity)
+                .background(.ultraThinMaterial)
                 .shadow(color: .black.opacity(0.12), radius: 20, x: 8, y: 0)
                 .offset(x: isPresented ? 0 : -(panelWidth + 60))
                 .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isPresented)
