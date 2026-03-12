@@ -338,6 +338,7 @@ final class AppCoordinator {
 
     func handleSelectedEmailChange(_ email: Email?) {
         guard let email else { return }
+        SpotlightIndexer.shared.indexEmail(email)
         guard let msgID = email.gmailMessageID,
               let message = mailboxViewModel.messages.first(where: { $0.id == msgID }),
               message.isUnread else { return }

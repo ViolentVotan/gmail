@@ -89,6 +89,21 @@ struct ContentView: View {
                     )
                 }
             }
+            .userActivity("com.serif.viewEmail", isActive: coordinator.selectedEmail != nil) { activity in
+                guard let email = coordinator.selectedEmail else { return }
+                activity.title = email.subject
+                activity.isEligibleForHandoff = true
+                activity.isEligibleForSearch = true
+                activity.userInfo = ["emailID": email.id.uuidString]
+            }
+            .onContinueUserActivity("com.serif.viewEmail") { activity in
+                guard let emailID = activity.userInfo?["emailID"] as? String,
+                      let uuid = UUID(uuidString: emailID),
+                      let email = coordinator.mailboxViewModel.emails.first(where: { $0.id == uuid })
+                else { return }
+                coordinator.selectedEmail = email
+                coordinator.selectedEmailIDs = [emailID]
+            }
 
             KeyboardShortcutsView(coordinator: coordinator)
 
