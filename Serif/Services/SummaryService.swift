@@ -191,5 +191,60 @@ final class SummaryService {
             continuation.onTermination = { _ in task.cancel() }
         }
     }
+
+    @available(macOS 26.0, *)
+    func threadInsight(messages: [Email]) -> AsyncStream<EmailInsightSnapshot> {
+        AsyncStream { continuation in
+            let task = Task {
+                do {
+                    let instructions = Instructions("""
+                    Analyze this email thread and provide a structured summary. \
+                    Focus on the most recent developments and any required actions. \
+                    Use the same language as the emails.
+                    """)
+                    let session = LanguageModelSession(instructions: instructions)
+
+                    // Chain summarization: if >3 messages, summarize older ones first
+                    let context: String
+                    if messages.count > 3 {
+                        let olderMessages = messages.dropLast(2)
+                        let olderText = olderMessages.map { msg in
+                            "From: \(msg.sender.name)\n\(msg.body.cleanedForAI().prefix(2000))"
+                        }.joined(separator: "\n---\n")
+
+                        // Summarize older messages into a paragraph
+                        let summaryResponse = try await session.respond(
+                            to: "Summarize this email history in one paragraph:\n\n\(String(olderText.prefix(8000)))"
+                        )
+                        let recentText = messages.suffix(2).map { msg in
+                            "From: \(msg.sender.name)\nSubject: \(msg.subject)\n\(msg.body.cleanedForAI().prefix(3000))"
+                        }.joined(separator: "\n---\n")
+
+                        context = "Earlier context: \(summaryResponse.content)\n\nRecent messages:\n\(recentText)"
+                    } else {
+                        context = messages.map { msg in
+                            "From: \(msg.sender.name)\nSubject: \(msg.subject)\n\(msg.body.cleanedForAI().prefix(3000))"
+                        }.joined(separator: "\n---\n")
+                    }
+
+                    // Truncate to fit context window
+                    let truncated = String(context.prefix(10000))
+                    let response = session.streamResponse(to: truncated, generating: EmailInsight.self)
+                    for try await partial in response {
+                        continuation.yield(EmailInsightSnapshot(
+                            summary: partial.content.summary,
+                            actionNeeded: partial.content.actionNeeded,
+                            deadline: partial.content.deadline,
+                            sentiment: partial.content.sentiment
+                        ))
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish()
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
     #endif
 }
