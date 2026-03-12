@@ -31,9 +31,7 @@ struct EmailListView: View {
     @State private var searchDebounceTask: Task<Void, Never>?
     @State private var sortOrder: EmailSortOrder = .dateNewest
     @State private var selectionAnchorID: String?
-    @State private var isRefreshing = false
     @State private var sortedEmails: [Email] = []
-    private let swipeCoordinator = SwipeCoordinator.shared
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
@@ -171,80 +169,84 @@ struct EmailListView: View {
     @ViewBuilder
     private var emailListSection: some View {
         if isLoading && emails.isEmpty {
-            ScrollView {
-                LazyVStack(spacing: 2) {
-                    ForEach(0..<9, id: \.self) { _ in
-                        EmailSkeletonRowView()
-                    }
+            List {
+                ForEach(0..<9, id: \.self) { _ in
+                    EmailSkeletonRowView()
+                        .listRowSeparator(.hidden)
                 }
-                .padding(.vertical, 4)
             }
+            .listStyle(.plain)
         } else {
             emailScrollView
         }
     }
 
     private var emailScrollView: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                if isRefreshing {
-                    ProgressView()
-                        .controlSize(.small)
-                        .tint(.gray)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
-
-                LazyVStack(spacing: 2) {
-                    ForEach(sortedEmails) { email in
-                        SwipeableEmailRow(
-                            email: email,
-                            isSelected: selectedEmailIDs.contains(email.id.uuidString),
-                            onTap: { handleTap(email: email) },
-                            onArchive: selectedFolder == .archive ? nil : onArchive.map { action in { action(email) } },
-                            onDelete:  selectedFolder == .trash   ? nil : onDelete.map  { action in { action(email) } }
-                        )
-                        .id(email.id)
-                        .contextMenu {
-                            EmailContextMenu(
-                                email: email,
-                                selectedFolder: selectedFolder,
-                                onArchive: onArchive,
-                                onDelete: onDelete,
-                                onToggleStar: onToggleStar,
-                                onMarkUnread: onMarkUnread,
-                                onMarkSpam: onMarkSpam,
-                                onUnsubscribe: onUnsubscribe,
-                                onMoveToInbox: onMoveToInbox,
-                                onDeletePermanently: onDeletePermanently,
-                                onMarkNotSpam: onMarkNotSpam
-                            )
+        List(selection: $selectedEmailIDs) {
+            ForEach(sortedEmails) { email in
+                EmailRowView(
+                    email: email,
+                    isSelected: selectedEmailIDs.contains(email.id.uuidString),
+                    action: { handleTap(email: email) }
+                )
+                .tag(email.id.uuidString)
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    if selectedFolder != .archive {
+                        Button {
+                            onArchive?(email)
+                        } label: {
+                            Label("Archive", systemImage: "archivebox")
                         }
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .scale(scale: 0.97, anchor: .top)),
-                            removal:   .opacity
-                        ))
-                    }
-
-                    if !emails.isEmpty && searchText.isEmpty {
-                        Color.clear
-                            .frame(height: 1)
-                            .onAppear { onLoadMore() }
-                    }
-
-                    if isLoading && !emails.isEmpty {
-                        ProgressView()
-                            .scaleEffect(0.7)
-                            .tint(.gray)
-                            .padding(.vertical, 8)
+                        .tint(.gray)
                     }
                 }
-                .padding(.vertical, 4)
+                .swipeActions(edge: .leading, allowsFullSwipe: true) {
+                    if selectedFolder != .trash {
+                        Button(role: .destructive) {
+                            onDelete?(email)
+                        } label: {
+                            Label("Delete", systemImage: "trash")
+                        }
+                    }
+                }
+                .contextMenu {
+                    EmailContextMenu(
+                        email: email,
+                        selectedFolder: selectedFolder,
+                        onArchive: onArchive,
+                        onDelete: onDelete,
+                        onToggleStar: onToggleStar,
+                        onMarkUnread: onMarkUnread,
+                        onMarkSpam: onMarkSpam,
+                        onUnsubscribe: onUnsubscribe,
+                        onMoveToInbox: onMoveToInbox,
+                        onDeletePermanently: onDeletePermanently,
+                        onMarkNotSpam: onMarkNotSpam
+                    )
+                }
             }
-            .background(PullToRefreshDetector(isRefreshing: $isRefreshing, onRefresh: onRefresh))
+
+            if !emails.isEmpty && searchText.isEmpty {
+                Color.clear
+                    .frame(height: 1)
+                    .onAppear { onLoadMore() }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+            }
+
+            if isLoading && !emails.isEmpty {
+                ProgressView()
+                    .scaleEffect(0.7)
+                    .tint(.gray)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .listRowSeparator(.hidden)
+            }
         }
-        .scrollDisabled(swipeCoordinator.isSwipeActive)
+        .listStyle(.plain)
+        .refreshable {
+            await onRefresh?()
+        }
         .focusable()
         .focusEffectDisabled(true)
         .onKeyPress(.upArrow) { navigateToPrevious(); return .handled }
