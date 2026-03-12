@@ -389,31 +389,11 @@ struct ComposeView: View {
 
             Spacer()
 
-            Button {
-                Task { await sendEmail() }
-            } label: {
-                HStack(spacing: 6) {
-                    Group {
-                        if composeVM.isSending {
-                            ProgressView()
-                                .scaleEffect(0.5)
-                                .tint(.white)
-                        } else {
-                            Image(systemName: "paperplane.fill")
-                        }
-                    }
-                    .font(.caption)
-                    .frame(width: 12, height: 12)
-                    Text("Send")
-                        .font(.subheadline.weight(.semibold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 7)
-                .background(Color.accentColor.opacity(composeVM.isSending ? 0.6 : 1))
-                .cornerRadius(6)
-            }
-            .buttonStyle(.plain)
+            ScheduleSendButton(
+                onSend: { Task { await sendEmail() } },
+                onSchedule: { date in Task { await composeVM.scheduleSend(at: date) } },
+                isSending: composeVM.isSending
+            )
             .disabled(composeVM.isSending || to.isEmpty)
             .keyboardShortcut(.return, modifiers: .command)
         }
