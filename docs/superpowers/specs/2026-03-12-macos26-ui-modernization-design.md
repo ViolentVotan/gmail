@@ -6,7 +6,7 @@ Modernize Serif's UI to fully adopt Apple's macOS 26 (Tahoe) design system — L
 
 ## Scope
 
-10 changes organized in 3 layers (built in dependency order):
+9 changes organized in 3 layers (built in dependency order):
 
 ### Layer 1: Foundation (everything else builds on this)
 
@@ -18,14 +18,17 @@ Modernize Serif's UI to fully adopt Apple's macOS 26 (Tahoe) design system — L
 3. **Settings scene** — replaces SlidePanel settings with a proper `Settings` scene
 4. **Accessibility** — adds labels, hints, traits, and element grouping throughout
 5. **Semantic typography** — replaces all hardcoded `.system(size:)` with semantic text styles
-6. **SwipeActions** — replaces custom NSEvent-based swipe with `.swipeActions()`
+6. **SwipeActions** — replaces custom NSEvent-based swipe with `.swipeActions()` (requires ScrollView→List conversion)
 7. **Menu icons** — adds SF Symbols to all `SerifCommands` menu items
 
 ### Layer 3: New Capabilities (independent, depend on Layer 1)
 
-8. **Native WebView** — replaces `WKWebView` wrapper with SwiftUI `WebView`
-9. **Spotlight & Handoff** — adds `NSUserActivity` and Core Spotlight indexing
-10. **Focus management** — adds `@FocusState` pane navigation
+8. **Spotlight & Handoff** — adds `NSUserActivity` and Core Spotlight indexing
+9. **Focus management** — adds `@FocusState` pane navigation
+
+### Dropped
+
+- ~~**Native WebView**~~ — `HTMLEmailView.swift` documents why the native SwiftUI `WebView` cannot replace `WKWebView`: it requires user scripts (dark-mode DOM walking), script message handlers (image-load notifications for re-measurement), `evaluateJavaScript` (content height), and `WKNavigationDelegate` (link interception). None of these are exposed by the native API.
 
 ---
 
@@ -67,10 +70,10 @@ NavigationSplitView(columnVisibility: $columnVisibility) {
 - Remove `.windowStyle(.titleBar)` and `.windowToolbarStyle(.unifiedCompact)` — let NavigationSplitView manage chrome
 - Keep default window size (1200x750) and minimum (900x600)
 
-**ContentView.swift:**
-- Replace `HStack(spacing: 0)` with `NavigationSplitView(columnVisibility:)`
-- Replace `@State private var sidebarExpanded: Bool` (via coordinator) with `@State private var columnVisibility: NavigationSplitViewVisibility = .all`
-- Sidebar toggle uses `columnVisibility` instead of custom animation
+**Serif/ContentView.swift** (root-level, not in Views/):
+- Replace `HStack(spacing: 0)` in `mainLayout` (lines 39-92) with `NavigationSplitView(columnVisibility:)`
+- Replace coordinator's `sidebarExpanded` binding with `@State private var columnVisibility: NavigationSplitViewVisibility = .all`
+- Remove custom sidebar toggle toolbar button — `NavigationSplitView` provides one automatically
 - Overlays (toasts, panels) remain in a ZStack wrapping the NavigationSplitView
 - Attachments mode: when `selectedFolder == .attachments`, the content+detail columns show `AttachmentExplorerView`
 
@@ -92,7 +95,7 @@ NavigationSplitView(columnVisibility: $columnVisibility) {
 - Remove `.padding(.vertical, 8).padding(.trailing, 8)` — no manual edge spacing
 
 **AppCoordinator.swift:**
-- Remove `sidebarExpanded` property if it exists (column visibility is now local SwiftUI state)
+- Remove `sidebarExpanded` property (line 30). This is passed as `@Binding var isExpanded: Bool` to `SidebarView` and used in ~15 places for collapsed-vs-expanded rendering. Since `SidebarView` is being rewritten as a `List`-based sidebar (no collapsed mode), all those conditional branches are removed along with the binding.
 - All other navigation state unchanged
 
 ### Sidebar List Conversion
@@ -137,33 +140,26 @@ Move all email actions to the window `.toolbar {}` with Apple HIG placements:
 
 ```swift
 .toolbar {
-    // Leading group — navigation
-    ToolbarItem(placement: .navigation) {
-        // System sidebar toggle (automatic with NavigationSplitView)
-    }
+    // Navigation — system sidebar toggle is automatic with NavigationSplitView
 
-    // Primary actions — most-used email operations
+    // Primary actions — most-used email operations (trailing, glass-styled)
     ToolbarItemGroup(placement: .primaryAction) {
+        Button("Compose", systemImage: "square.and.pencil") { ... }
         Button("Reply", systemImage: "arrowshape.turn.up.left") { ... }
         Button("Archive", systemImage: "archivebox") { ... }
         Button("Delete", systemImage: "trash") { ... }
     }
 
-    ToolbarSpacer(.flexible)
-
-    // Secondary actions
-    ToolbarItemGroup(placement: .secondaryAction) {
+    // Additional actions — less frequent operations
+    ToolbarItemGroup(placement: .automatic) {
         Button("Forward", systemImage: "arrowshape.turn.up.right") { ... }
         Button("Star", systemImage: "star") { ... }
         Button("Mark Unread", systemImage: "envelope.badge") { ... }
     }
-
-    // Compose — confirmation action for glass prominent styling
-    ToolbarItem(placement: .confirmationAction) {
-        Button("Compose", systemImage: "square.and.pencil") { ... }
-    }
 }
 ```
+
+Note: `ToolbarSpacer` and `.secondaryAction` are not standard macOS SwiftUI APIs. Use `.primaryAction` for prominent trailing items and `.automatic` for others. The system handles grouping and glass styling.
 
 ### Changes
 
@@ -209,6 +205,8 @@ Settings are shown in a `SlidePanel` (25% window width) overlaid on the main con
 - `SerifCommands` settings command group no longer needs custom `panelCoordinator.openSettings()` — the system handles it
 - All `SettingsCards` become tab content views with proper Form/GroupBox layouts instead of `.cardStyle()`
 - ContactsSettingsCard stays in the Accounts tab
+- **Help button** moves to `SerifCommands` as a Help menu command (standard macOS location)
+- **Debug button** moves to `SerifCommands` as a menu item under a Debug menu (only shown when `showDebugMenu` is enabled), or stays as a `.safeAreaInset(edge: .bottom)` in the sidebar if the developer toggle is on
 
 ---
 
@@ -222,9 +220,11 @@ Add throughout the view hierarchy:
 ```swift
 .accessibilityElement(children: .combine)
 .accessibilityLabel("\(email.sender.name), \(email.subject), \(email.preview)")
-.accessibilityAddTraits(email.isUnread ? [] : .isSelected)
+.accessibilityValue(email.isUnread ? "Unread" : "Read")
+.accessibilityAddTraits(isSelected ? .isSelected : [])
 .accessibilityHint("Double-tap to read")
 ```
+Note: `.isSelected` indicates the currently focused/chosen row, not read state. Read/unread is communicated via `.accessibilityValue`.
 
 **Sidebar folders:**
 ```swift
@@ -303,9 +303,19 @@ ForEach(emails) { email in
 
 This gives us: system haptics, Liquid Glass swipe appearance, VoiceOver support, and correct List integration — all for free.
 
-### Prerequisite
+### Prerequisite — ScrollView to List Conversion (Major)
 
-The email list must be a `List` (not a `ScrollView` with manual `VStack`). If `EmailListView` currently uses `ScrollView`, it needs to become a `List` to support `.swipeActions()`.
+`EmailListView` currently uses `ScrollView + LazyVStack(spacing: 2)` (line 199 of `EmailListView.swift`). Converting to `List` is required for `.swipeActions()` but is a significant change because the current implementation includes:
+
+- **Pull-to-refresh** via `PullToRefreshDetector` (custom `NSViewRepresentable` over-scroll detection) → Replace with `.refreshable { }` on `List`
+- **Scroll-disable lock** via `scrollDisabled(swipeCoordinator.isSwipeActive)` → Remove (system swipe handles this)
+- **Keyboard navigation** via `onKeyPress` for up/down/enter → `List(selection:)` provides this natively
+- **Infinite scroll** via `Color.clear.onAppear` sentinel at bottom → Keep as `.onAppear` on the last row, or use `List` with `.task` modifier
+- **Multi-select** with shift-click anchor logic → `List(selection: $selectedIDs)` with `.listSelectionGesture(.multipleItems)` on macOS
+- **Sort ordering** with debounced search → Stays as-is (data source logic, not view concern)
+- **Custom row spacing** (2pt) → `.listRowSpacing(2)` or `.listStyle(.plain)` with row insets
+
+This is the highest-risk change in the spec. The `List` conversion must preserve all existing functionality while adopting system behaviors.
 
 ---
 
@@ -341,36 +351,7 @@ Icon choices follow SF Symbols conventions used in Apple Mail:
 
 ---
 
-## 8. Native WebView
-
-### Current State
-
-Email body HTML is rendered via a `WKWebView` wrapped in `NSViewRepresentable` (likely `EmailWebView` or similar).
-
-### Target State
-
-Replace with SwiftUI's native `WebView` (macOS 26+):
-
-```swift
-import WebKit
-
-WebView(html: emailBodyHTML, baseURL: nil)
-    .webViewAllowsLinkPreview(true)
-    .webViewConfiguration { config in
-        config.preferences.isElementFullscreenEnabled = false
-    }
-```
-
-### Changes
-
-- Remove the `NSViewRepresentable` wrapper
-- Remove manual `WKNavigationDelegate` bridging for link interception — use SwiftUI modifiers
-- Keep tracker-blocking content rules (these work with native WebView too)
-- Keep the "open links in in-app browser" behavior via navigation policy
-
----
-
-## 9. Spotlight & Handoff
+## 8. Spotlight & Handoff
 
 ### NSUserActivity (Handoff)
 
@@ -410,14 +391,14 @@ func indexEmail(_ email: Email) {
 
 ### Changes
 
-- Add a `SpotlightIndexer` service class
-- Call `indexEmail()` when an email is viewed
-- Handle `NSUserActivity` continuation in `SerifApp` to navigate to the email
+- Add a `SpotlightIndexer` service class in `Serif/Services/`
+- Call `indexEmail()` from `AppCoordinator.handleSelectedEmailChange(_:)` when an email is viewed
+- Handle `NSUserActivity` continuation via `.onContinueUserActivity("com.serif.viewEmail")` on the `NavigationSplitView` in `ContentView` — this has access to the `AppCoordinator` instance and can set `coordinator.selectedEmail` directly. No structural changes needed since `ContentView` already owns the coordinator.
 - Limit index to last 1000 viewed emails to avoid unbounded growth
 
 ---
 
-## 10. Focus Management
+## 9. Focus Management
 
 ### Changes
 
@@ -445,25 +426,24 @@ The sidebar `List`, email `List`, and detail `ScrollView` each declare their foc
 
 | File | Changes |
 |------|---------|
-| `SerifApp.swift` | Add `Settings` scene, remove window style overrides |
-| `ContentView.swift` | Replace HStack with NavigationSplitView, add toolbar, add FocusState |
-| `SidebarView.swift` | Remove manual width/collapse/material, convert to List-based sidebar |
-| `ListPaneView.swift` | Remove frame constraints, wire swipeActions |
-| `DetailPaneView.swift` | Remove frame/clip/padding, remove DetailToolbarView usage |
-| `DetailToolbarView.swift` | Remove (actions move to window toolbar) |
-| `EmailRowView.swift` | Add accessibility, semantic fonts |
-| `SwipeableEmailRow.swift` | Remove entirely |
-| `EmailListView.swift` | Convert to List if ScrollView, add swipeActions |
-| `SlidePanelsOverlay.swift` | Remove settings panel |
-| `SettingsCardsView.swift` | Restructure into tabbed SettingsView |
-| `SerifCommands.swift` | Add SF Symbol icons to all menu items |
-| `AppCoordinator.swift` | Remove sidebarExpanded, minor cleanup |
-| `PanelCoordinator.swift` | Remove showSettings |
+| `Serif/SerifApp.swift` | Add `Settings` scene, remove window style overrides |
+| `Serif/ContentView.swift` | Replace HStack with NavigationSplitView, add toolbar, add FocusState, add `.onContinueUserActivity` |
+| `Serif/Views/Sidebar/SidebarView.swift` | Remove manual width/collapse/material, convert to List-based sidebar, remove Settings/Help/Debug buttons |
+| `Serif/Views/EmailList/ListPaneView.swift` | Remove frame constraints |
+| `Serif/Views/EmailDetail/DetailPaneView.swift` | Remove frame/clip/padding, remove DetailToolbarView usage |
+| `Serif/Views/EmailDetail/DetailToolbarView.swift` | Remove (actions move to window toolbar) |
+| `Serif/Views/EmailList/EmailRowView.swift` | Add accessibility, semantic fonts |
+| `Serif/Views/EmailList/SwipeableEmailRow.swift` | Remove entirely |
+| `Serif/Views/EmailList/EmailListView.swift` | Convert ScrollView+LazyVStack to List (major — see Section 6), add swipeActions |
+| `Serif/Views/Common/SlidePanelsOverlay.swift` | Remove settings panel |
+| `Serif/Views/Common/SettingsCardsView.swift` | Restructure into tabbed SettingsView |
+| `Serif/Views/Common/SerifCommands.swift` | Add SF Symbol icons to all menu items, add Help command |
+| `Serif/ViewModels/AppCoordinator.swift` | Remove sidebarExpanded, call SpotlightIndexer on email view |
+| `Serif/ViewModels/PanelCoordinator.swift` | Remove showSettings |
 | All views with text | Replace `.system(size:)` with semantic fonts |
 | All interactive views | Add accessibility modifiers |
-| Email web view wrapper | Replace with native WebView |
-| New: `SpotlightIndexer.swift` | Core Spotlight + NSUserActivity |
-| New: `SettingsView.swift` | Tabbed settings scene root |
+| New: `Serif/Services/SpotlightIndexer.swift` | Core Spotlight indexing + NSUserActivity support |
+| New: `Serif/Views/Settings/SettingsView.swift` | Tabbed settings scene root |
 
 ## Non-Goals
 
