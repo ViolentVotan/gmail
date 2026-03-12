@@ -11,6 +11,9 @@ struct ListPaneView: View {
 
     let coordinator: AppCoordinator
 
+    @State private var selectedCategory: InboxCategory = .all
+    @State private var priorityFilterOn: Bool = false
+
     // MARK: - Convenience Accessors
 
     private var actionCoordinator: EmailActionCoordinator { coordinator.actionCoordinator }
@@ -26,8 +29,21 @@ struct ListPaneView: View {
     }
 
     var body: some View {
-        emailList
-            .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 400)
+        VStack(spacing: 0) {
+            if selectedFolder == .inbox {
+                CategoryTabBar(
+                    selectedCategory: $selectedCategory,
+                    priorityFilterOn: $priorityFilterOn,
+                    unreadCounts: coordinator.mailboxViewModel.categoryUnreadCounts
+                )
+                Divider()
+            }
+            emailList
+        }
+        .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 400)
+        .onChange(of: selectedCategory) { _, newCategory in
+            coordinator.selectedInboxCategory = newCategory
+        }
     }
 
     private var emailList: some View {
