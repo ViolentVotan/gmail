@@ -15,7 +15,7 @@ final class GmailDraftService {
         accountID: String,
         pageToken: String? = nil,
         maxResults: Int = 50
-    ) async throws -> GmailDraftListResponse {
+    ) async throws(GmailAPIError) -> GmailDraftListResponse {
         var path = "/users/me/drafts?maxResults=\(maxResults)"
         if let token = pageToken { path += "&pageToken=\(token)" }
         return try await client.request(path: path, accountID: accountID)
@@ -24,7 +24,7 @@ final class GmailDraftService {
     // MARK: - Get Draft
 
     /// Fetches a single draft with its full message payload.
-    @concurrent func getDraft(id: String, accountID: String, format: String = "metadata") async throws -> GmailDraft {
+    @concurrent func getDraft(id: String, accountID: String, format: String = "metadata") async throws(GmailAPIError) -> GmailDraft {
         try await client.request(
             path: "/users/me/drafts/\(id)?format=\(format)",
             accountID: accountID

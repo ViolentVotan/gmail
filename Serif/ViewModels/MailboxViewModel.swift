@@ -340,17 +340,8 @@ final class MailboxViewModel {
         saveCacheToDisk()
         do {
             try await api.emptyTrash(accountID: accountID)
-        } catch let error as GmailAPIError {
-            if case .partialFailure = error {
-                self.error = error.localizedDescription  // inform but don't revert
-            } else {
-                messages = backup
-                fetchService.messageCache = cacheBackup
-                fetchService.allCachedMessages = cachedBackup
-                fetchService.localOffset = offsetBackup
-                saveCacheToDisk()
-                self.error = error.localizedDescription
-            }
+        } catch GmailAPIError.partialFailure {
+            self.error = "Some messages could not be deleted"  // inform but don't revert
         } catch {
             messages = backup
             fetchService.messageCache = cacheBackup
@@ -373,17 +364,8 @@ final class MailboxViewModel {
         saveCacheToDisk()
         do {
             try await api.emptySpam(accountID: accountID)
-        } catch let error as GmailAPIError {
-            if case .partialFailure = error {
-                self.error = error.localizedDescription  // inform but don't revert
-            } else {
-                messages = backup
-                fetchService.messageCache = cacheBackup
-                fetchService.allCachedMessages = cachedBackup
-                fetchService.localOffset = offsetBackup
-                saveCacheToDisk()
-                self.error = error.localizedDescription
-            }
+        } catch GmailAPIError.partialFailure {
+            self.error = "Some messages could not be deleted"  // inform but don't revert
         } catch {
             messages = backup
             fetchService.messageCache = cacheBackup

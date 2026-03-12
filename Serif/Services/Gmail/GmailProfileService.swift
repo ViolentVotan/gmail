@@ -7,7 +7,7 @@ final class GmailProfileService {
 
     // MARK: - Gmail Profile
 
-    @concurrent func getProfile(accountID: String) async throws -> GmailProfile {
+    @concurrent func getProfile(accountID: String) async throws(GmailAPIError) -> GmailProfile {
         try await GmailAPIClient.shared.request(
             path: "/users/me/profile",
             accountID: accountID
@@ -28,7 +28,7 @@ final class GmailProfileService {
     // MARK: - SendAs / Aliases
 
     /// Returns all SendAs aliases for the account.
-    @concurrent func listSendAs(accountID: String) async throws -> [GmailSendAs] {
+    @concurrent func listSendAs(accountID: String) async throws(GmailAPIError) -> [GmailSendAs] {
         let response: GmailSendAsListResponse = try await GmailAPIClient.shared.request(
             path: "/users/me/settings/sendAs",
             accountID: accountID
@@ -38,9 +38,14 @@ final class GmailProfileService {
 
     /// Updates the signature HTML for a specific send-as alias.
     @discardableResult
-    @concurrent func updateSignature(sendAsEmail: String, signature: String, accountID: String) async throws -> GmailSendAs {
+    @concurrent func updateSignature(sendAsEmail: String, signature: String, accountID: String) async throws(GmailAPIError) -> GmailSendAs {
         struct UpdateRequest: Encodable { let signature: String }
-        let body = try JSONEncoder().encode(UpdateRequest(signature: signature))
+        let body: Data
+        do {
+            body = try JSONEncoder().encode(UpdateRequest(signature: signature))
+        } catch {
+            throw .encodingError(error)
+        }
         return try await GmailAPIClient.shared.request(
             path: "/users/me/settings/sendAs/\(sendAsEmail)",
             method: "PUT", body: body, contentType: "application/json",
@@ -49,7 +54,7 @@ final class GmailProfileService {
     }
 
     /// Returns the signature HTML for the default send-as address.
-    @concurrent func getSignature(accountID: String) async throws -> String? {
+    @concurrent func getSignature(accountID: String) async throws(GmailAPIError) -> String? {
         let aliases = try await listSendAs(accountID: accountID)
         return aliases.first(where: { $0.isDefault == true })?.signature
     }

@@ -20,7 +20,7 @@ final class GmailSendService {
         inlineImages: [InlineImageAttachment] = [],
         attachments: [URL]? = nil,
         accountID: String
-    ) async throws -> GmailMessage {
+    ) async throws(GmailAPIError) -> GmailMessage {
         let raw: String
         let hasAttachments = attachments != nil && !attachments!.isEmpty
         if hasAttachments || !inlineImages.isEmpty {
@@ -40,7 +40,12 @@ final class GmailSendService {
         }
         var payload: [String: Any] = ["raw": raw]
         if let threadID { payload["threadId"] = threadID }
-        let encoded = try JSONSerialization.data(withJSONObject: payload)
+        let encoded: Data
+        do {
+            encoded = try JSONSerialization.data(withJSONObject: payload)
+        } catch {
+            throw .encodingError(error)
+        }
         return try await GmailAPIClient.shared.request(
             path: "/users/me/messages/send",
             method: "POST", body: encoded, contentType: "application/json",
@@ -59,7 +64,7 @@ final class GmailSendService {
         isHTML: Bool = false,
         inlineImages: [InlineImageAttachment] = [],
         accountID: String
-    ) async throws -> GmailDraft {
+    ) async throws(GmailAPIError) -> GmailDraft {
         let encoded = try buildDraftPayload(
             from: from, to: to, cc: cc, subject: subject,
             body: body, isHTML: isHTML, inlineImages: inlineImages
@@ -81,7 +86,7 @@ final class GmailSendService {
         isHTML: Bool = false,
         inlineImages: [InlineImageAttachment] = [],
         accountID: String
-    ) async throws -> GmailDraft {
+    ) async throws(GmailAPIError) -> GmailDraft {
         let encoded = try buildDraftPayload(
             from: from, to: to, cc: cc, subject: subject,
             body: body, isHTML: isHTML, inlineImages: inlineImages
@@ -101,7 +106,7 @@ final class GmailSendService {
         body: String,
         isHTML: Bool,
         inlineImages: [InlineImageAttachment]
-    ) throws -> Data {
+    ) throws(GmailAPIError) -> Data {
         let raw: String
         if !inlineImages.isEmpty {
             raw = buildRawMultipart(from: from, to: to, cc: cc, bcc: [],
@@ -111,10 +116,14 @@ final class GmailSendService {
             raw = buildRaw(from: from, to: to, cc: cc, bcc: [], subject: subject, body: body, isHTML: isHTML)
         }
         let payload: [String: Any] = ["message": ["raw": raw]]
-        return try JSONSerialization.data(withJSONObject: payload)
+        do {
+            return try JSONSerialization.data(withJSONObject: payload)
+        } catch {
+            throw .encodingError(error)
+        }
     }
 
-    @concurrent func deleteDraft(draftID: String, accountID: String) async throws {
+    @concurrent func deleteDraft(draftID: String, accountID: String) async throws(GmailAPIError) {
         _ = try await GmailAPIClient.shared.rawRequest(
             path: "/users/me/drafts/\(draftID)",
             method: "DELETE",
