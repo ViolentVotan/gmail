@@ -8,6 +8,12 @@ struct EmailRowView: View {
     @State private var hoverTask: Task<Void, Never>?
     @State private var popoverHolder = PopoverHolder()
 
+    private var nudgeText: String? {
+        let daysAgo = Calendar.current.dateComponents([.day], from: email.date, to: Date()).day ?? 0
+        guard daysAgo >= 3 else { return nil }
+        return "Received \(daysAgo) days ago"
+    }
+
     private static let isAppleIntelligenceAvailable: Bool = {
         guard #available(macOS 26.0, *) else { return false }
         #if canImport(FoundationModels)
@@ -66,6 +72,12 @@ struct EmailRowView: View {
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
+
+                    if let nudge = nudgeText {
+                        Text(nudge)
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
 
                     if !email.labels.isEmpty {
                         HStack(spacing: 4) {
