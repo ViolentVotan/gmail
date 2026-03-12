@@ -17,6 +17,6 @@ Pure helper functions, extensions, and constants. Zero state, zero side effects.
 | `DateFormatting.swift` | Date display helpers (relative time, formatted dates) |
 | `FileUtils.swift` | File system helpers (temp dirs, file size formatting) |
 | `GmailDataTransformer.swift` | Transforms raw Gmail data (MIME parsing, header extraction, deterministic UUID) |
-| `HTMLTemplate.swift` | HTML email rendering templates |
+| `HTMLTemplate.swift` | HTML email rendering templates with input sanitization (strips `<script>`, `<iframe>`, event handlers, `javascript:` URLs) and Content-Security-Policy |
 | `InlineImageProcessor.swift` | Extracts inline data: images from HTML, converts to CID attachments |
 | `StringExtensions.swift` | String/Data helpers: HTML stripping, `cleanedForAI`, `stableHash`, `Data(base64URLEncoded:)` |

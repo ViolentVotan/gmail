@@ -18,50 +18,50 @@ struct SlidePanel<Content: View>: View {
         self.content = content()
     }
 
+    @State private var panelWidth: CGFloat = 0
+
     var body: some View {
-        GeometryReader { geo in
-            let panelWidth = geo.size.width * 0.5
-            HStack(spacing: 0) {
-                // Panel
-                VStack(spacing: 0) {
-                    // Header
-                    HStack {
-                        Text(title)
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        Button { isPresented = false } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(.secondary)
-                                .frame(width: 24, height: 24)
-                                .background(.regularMaterial)
-                                .cornerRadius(6)
-                        }
-                        .buttonStyle(.plain)
+        HStack(spacing: 0) {
+            // Panel
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Text(title)
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.primary)
+                    Spacer()
+                    Button { isPresented = false } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 24, height: 24)
+                            .background(.regularMaterial)
+                            .cornerRadius(6)
                     }
-                    .padding(20)
-
-                    Divider()
-
-                    if scrollable {
-                        ScrollView { content }
-                    } else {
-                        content
-                    }
+                    .buttonStyle(.plain)
                 }
-                .frame(width: panelWidth)
-                .frame(maxHeight: .infinity)
-                .background(.ultraThinMaterial)
-                .shadow(color: .black.opacity(0.12), radius: 20, x: 8, y: 0)
-                .offset(x: isPresented ? 0 : -(panelWidth + 60))
-                .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isPresented)
+                .padding(20)
 
-                // Tap outside to dismiss
-                Color.clear
-                    .contentShape(Rectangle())
-                    .onTapGesture { isPresented = false }
+                Divider()
+
+                if scrollable {
+                    ScrollView { content }
+                } else {
+                    content
+                }
             }
+            .containerRelativeFrame(.horizontal) { length, _ in length * 0.5 }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { panelWidth = $0 }
+            .frame(maxHeight: .infinity)
+            .background(.ultraThinMaterial)
+            .shadow(color: .black.opacity(0.12), radius: 20, x: 8, y: 0)
+            .offset(x: isPresented ? 0 : -(panelWidth + 60))
+            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isPresented)
+
+            // Tap outside to dismiss
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture { isPresented = false }
         }
         .allowsHitTesting(isPresented)
     }

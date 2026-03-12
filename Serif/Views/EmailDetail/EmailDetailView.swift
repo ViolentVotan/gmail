@@ -120,24 +120,18 @@ struct EmailDetailView: View {
         self.detailVM              = EmailDetailViewModel(accountID: accountID)
     }
 
-    // MARK: - Derived content
+    // MARK: - Derived content (delegated to ViewModel)
 
     private var displayAttachments: [Attachment] {
-        if let latest = detailVM.latestMessage {
-            return latest.attachmentParts.map { GmailDataTransformer.makeAttachment(from: $0, messageId: latest.id) }
-        }
-        return email.attachments
+        detailVM.displayAttachments(fallback: email.attachments)
     }
 
-    /// Older messages in the thread (everything except the latest). Empty for single messages.
     private var olderThreadMessages: [GmailMessage] {
-        let all = detailVM.messages
-        guard all.count > 1 else { return [] }
-        return Array(all.dropLast())
+        detailVM.olderThreadMessages
     }
 
     private var currentLabelIDs: [String] {
-        detailVM.latestMessage?.labelIds ?? email.gmailLabelIDs
+        detailVM.currentLabelIDs(fallback: email.gmailLabelIDs)
     }
 
     var body: some View {
@@ -325,82 +319,65 @@ struct EmailDetailView: View {
                     .padding(.bottom, 16)
             }
         }
-        .onAppear { loadThread() }
+        .task(id: email.id) {
+            await loadThread()
+        }
     }
 
-    // MARK: - Compose helpers
-
-    private var quotedHTML: String {
-        let original = detailVM.latestMessage?.htmlBody ?? email.body
-        return "<br><br><blockquote style='border-left:2px solid #ccc;margin-left:4px;padding-left:8px;color:#555;'><p><b>\(email.sender.name)</b> wrote:</p>\(original)</blockquote>"
-    }
+    // MARK: - Compose helpers (delegated to ViewModel)
 
     private func replyMode() -> ComposeMode {
-        let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
-        return .reply(to: email.sender.email, subject: sub, quotedBody: quotedHTML,
-                      replyToMessageID: email.gmailMessageID ?? "", threadID: email.gmailThreadID ?? "")
+        detailVM.replyMode(email: email)
     }
 
     private func replyAllMode() -> ComposeMode {
-        let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
-        let extras = email.recipients.map(\.email).filter { $0 != (detailVM.latestMessage?.to ?? email.recipients.first?.email ?? "") }
-        let toField = ([email.sender.email] + extras).joined(separator: ", ")
-        return .replyAll(to: toField, cc: email.cc.map(\.email).joined(separator: ", "),
-                         subject: sub, quotedBody: quotedHTML,
-                         replyToMessageID: email.gmailMessageID ?? "", threadID: email.gmailThreadID ?? "")
+        detailVM.replyAllMode(email: email)
     }
 
     private func forwardMode() -> ComposeMode {
-        let sub = email.subject.hasPrefix("Fwd:") ? email.subject : "Fwd: \(email.subject)"
-        return .forward(subject: sub, quotedBody: quotedHTML)
+        detailVM.forwardMode(email: email)
     }
 
     // MARK: - Load
 
-    private func loadThread() {
+    private func loadThread() async {
         guard let threadID = email.gmailThreadID else { return }
         detailVM.attachmentIndexer = attachmentIndexer
         detailVM.onMessagesRead = onMessagesRead
-        Task { await detailVM.loadThread(id: threadID) }
+        await detailVM.loadThread(id: threadID)
     }
 
     private func applyLabelSuggestion(_ suggestion: LabelSuggestion) {
         withAnimation { labelSuggestions.removeAll { $0.name == suggestion.name } }
-        if suggestion.isNew {
-            onCreateAndAddLabel?(suggestion.name) { _ in }
-        } else if let label = allLabels.first(where: { $0.displayName == suggestion.name }) {
-            var newIDs = currentLabelIDs
-            newIDs.append(label.id)
-            detailVM.updateLabelIDs(newIDs)
-            onAddLabel?(label.id)
-        }
+        detailVM.applyLabelSuggestion(
+            suggestion,
+            allLabels: allLabels,
+            fallbackLabelIDs: email.gmailLabelIDs,
+            onCreateAndAddLabel: onCreateAndAddLabel,
+            onAddLabel: onAddLabel
+        )
     }
 
-    // MARK: - Attachment preview & download
+    // MARK: - Attachment preview & download (delegated to ViewModel)
 
     private func loadAndPreview(attachment: Attachment, part: GmailMessagePart) {
-        onPreviewAttachment?(nil, attachment.name, attachment.fileType)
         Task {
-            guard let msgID = detailVM.latestMessage?.id else { return }
-            guard let data = try? await detailVM.downloadAttachment(messageID: msgID, part: part) else { return }
-            await MainActor.run {
-                onPreviewAttachment?(data, attachment.name, attachment.fileType)
-            }
+            await detailVM.loadAndPreview(
+                attachment: attachment,
+                part: part,
+                onPreviewAttachment: onPreviewAttachment
+            )
         }
     }
 
     private func downloadAttachment(attachment: Attachment, part: GmailMessagePart) {
         Task {
-            do {
-                guard let msgID = detailVM.latestMessage?.id else { return }
-                let data = try await detailVM.downloadAttachment(messageID: msgID, part: part)
-                await MainActor.run { saveAttachmentData(data, named: attachment.name) }
-            } catch {
-                ToastManager.shared.show(message: "Download failed: \(error.localizedDescription)", type: .error)
-            }
+            guard let data = await detailVM.downloadAndSave(attachment: attachment, part: part) else { return }
+            saveAttachmentData(data, named: attachment.name)
         }
     }
 
+    /// Thin view-layer wrapper -- NSSavePanel must run on the main thread.
     private func saveAttachmentData(_ data: Data, named name: String) {
         let panel = NSSavePanel()
         panel.nameFieldStringValue = name
@@ -451,12 +428,7 @@ struct EmailDetailView: View {
     // MARK: - Attachments
 
     private var attachmentPairs: [(Attachment, GmailMessagePart?)] {
-        if let latest = detailVM.latestMessage {
-            return latest.attachmentParts.map { part in
-                (GmailDataTransformer.makeAttachment(from: part, messageId: latest.id), part)
-            }
-        }
-        return email.attachments.map { ($0, nil) }
+        detailVM.attachmentPairs(fallback: email.attachments)
     }
 
     private var attachmentsSection: some View {

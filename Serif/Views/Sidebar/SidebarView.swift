@@ -165,13 +165,17 @@ struct SidebarView: View {
             .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { frameHeight = $0 }
 
             if contentHeight > frameHeight + 1 {
-                LinearGradient(
-                    colors: [Color.clear, Color(.windowBackgroundColor)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 32)
-                .allowsHitTesting(false)
+                Rectangle()
+                    .fill(.regularMaterial)
+                    .mask(
+                        LinearGradient(
+                            colors: [.clear, .white],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .frame(height: 32)
+                    .allowsHitTesting(false)
             }
         }
     }

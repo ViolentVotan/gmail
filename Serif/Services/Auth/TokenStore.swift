@@ -54,8 +54,13 @@ final class TokenStore {
         ]
         let status = SecItemAdd(query as CFDictionary, nil)
         if status == errSecDuplicateItem {
+            let searchQuery: [String: Any] = [
+                kSecClass as String:       kSecClassGenericPassword,
+                kSecAttrService as String: keychainService,
+                kSecAttrAccount as String: keychainAccount,
+            ]
             let update: [String: Any] = [kSecValueData as String: data]
-            SecItemUpdate(query as CFDictionary, update as CFDictionary)
+            SecItemUpdate(searchQuery as CFDictionary, update as CFDictionary)
         }
     }
 

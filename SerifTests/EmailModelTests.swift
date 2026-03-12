@@ -94,26 +94,38 @@ import Foundation
 
     // MARK: - Email Equatable
 
-    @Test func emailEquatable_SameID() {
+    @Test func emailEquatable_AllFieldsMatch() {
         let id = UUID()
+        let sender = Contact(name: "A", email: "a@a.com")
+        let date = Date()
         let email1 = Email(
             id: id,
-            sender: Contact(name: "A", email: "a@a.com"),
-            subject: "S1",
-            body: "B1",
+            sender: sender,
+            subject: "S",
+            body: "B",
+            date: date,
             isRead: false,
             isStarred: false
         )
         let email2 = Email(
             id: id,
-            sender: Contact(name: "B", email: "b@b.com"),
-            subject: "S2",
-            body: "B2",
+            sender: sender,
+            subject: "S",
+            body: "B",
+            date: date,
             isRead: false,
             isStarred: false
         )
-        // Equatable only checks id, isRead, isStarred, gmailLabelIDs
         #expect(email1 == email2)
+    }
+
+    @Test func emailEquatable_DifferentSubject() {
+        let id = UUID()
+        let sender = Contact(name: "A", email: "a@a.com")
+        let email1 = Email(id: id, sender: sender, subject: "S1", body: "B")
+        let email2 = Email(id: id, sender: sender, subject: "S2", body: "B")
+        // Synthesized Equatable checks all fields
+        #expect(email1 != email2)
     }
 
     @Test func emailEquatable_DifferentReadState() {

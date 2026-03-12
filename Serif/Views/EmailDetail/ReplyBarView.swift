@@ -332,11 +332,19 @@ struct ReplyBarView: View {
         }
     }
 
+    // MARK: - Apple Intelligence Colors
+
+    private enum AppleIntelligenceColors {
+        static let purple = Color(hex: "#6E6CE8")
+        static let blue = Color(hex: "#54C0F0")
+        static let orange = Color(hex: "#E8754A")
+    }
+
     // MARK: - Quick Reply Chips
 
     private var appleIntelligenceGradient: LinearGradient {
         LinearGradient(
-            colors: [Color(hex: "#6E6CE8"), Color(hex: "#54C0F0"), Color(hex: "#E8754A")],
+            colors: [AppleIntelligenceColors.purple, AppleIntelligenceColors.blue, AppleIntelligenceColors.orange],
             startPoint: .leading,
             endPoint: .trailing
         )
@@ -431,39 +439,20 @@ struct ReplyBarView: View {
         sendError = nil
         saveTask?.cancel()
 
-        // Recover draft ID so we can delete it after sending
-        if composeVM.gmailDraftID == nil,
-           let threadID = email.gmailThreadID,
-           let saved = mailStore.replyDrafts[threadID] {
-            composeVM.gmailDraftID = saved.gmailDraftID
-        }
-        let draftIDToDelete = composeVM.gmailDraftID
-
-        let (processedHTML, images) = InlineImageProcessor.extractInlineImages(from: replyHTML)
-        let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
-
-        composeVM.to = replyTo
-        composeVM.cc = replyCc
-        composeVM.bcc = replyBcc
-        composeVM.subject = sub
-        composeVM.body = processedHTML
-        composeVM.isHTML = true
-        composeVM.inlineImages = images + editorState.pendingInlineImages
-        composeVM.replyToMessageID = email.gmailMessageID
-        composeVM.attachmentURLs = attachments
-
-        await composeVM.send()
+        await composeVM.sendReplyMessage(
+            replyHTML: replyHTML,
+            to: replyTo,
+            cc: replyCc,
+            bcc: replyBcc,
+            emailSubject: email.subject,
+            replyToMessageID: email.gmailMessageID,
+            attachmentURLs: attachments,
+            editorInlineImages: editorState.pendingInlineImages,
+            mailStore: mailStore
+        )
         isSending = false
 
         if composeVM.isSent {
-            if let threadID = email.gmailThreadID {
-                mailStore.replyDrafts.removeValue(forKey: threadID)
-                mailStore.saveReplyDrafts()
-            }
-            // Remove draft from local store so it disappears from Drafts folder
-            if let gid = draftIDToDelete {
-                mailStore.gmailDrafts.removeAll { $0.gmailDraftID == gid }
-            }
             ToastManager.shared.show(message: "Reply sent", type: .success)
             collapse()
         } else {
@@ -472,53 +461,43 @@ struct ReplyBarView: View {
     }
 
     private func handleFileDrop(_ url: URL) {
-        if !url.isEmailCompatible {
-            ToastManager.shared.show(message: "Format non support\u{00E9}: .\(url.pathExtension)", type: .error)
-        } else if url.isImage {
+        switch composeVM.handleFileDrop(url) {
+        case .image:
             editorState.insertImage(from: url)
-        } else {
+        case .attachment:
             attachments.append(url)
+        case .unsupported(let message):
+            ToastManager.shared.show(message: message, type: .error)
         }
     }
 
     private func attachFiles() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = true
-        panel.canChooseDirectories = false
-        panel.begin { response in
-            if response == .OK {
-                attachments += panel.urls
-            }
+        composeVM.openAttachmentPicker { urls in
+            attachments += urls
         }
     }
 
     private func loadExistingDraft() {
-        guard let threadID = email.gmailThreadID,
-              let saved = mailStore.replyDrafts[threadID] else { return }
-        // Block all auto-saves until the draft content is loaded
+        guard email.gmailThreadID != nil,
+              mailStore.replyDrafts[email.gmailThreadID!] != nil else { return }
         isLoadingDraft = true
         Task {
-            do {
-                let draft = try await onLoadDraft?(saved.gmailDraftID, accountID)
-                if let body = draft?.message?.body, !body.isEmpty {
-                    composeVM.gmailDraftID = saved.gmailDraftID
-                    isInitialLoad = true
-                    replyHTML = body
-                    editorState.setHTML(body)
-                    isLoadingDraft = false
-                    Task { @MainActor in
-                        try? await Task.sleep(for: .seconds(0.5))
-                        isInitialLoad = false
-                    }
-                } else {
-                    // Draft exists but body is empty — treat as valid, let user type
-                    composeVM.gmailDraftID = saved.gmailDraftID
-                    isLoadingDraft = false
+            let result = await composeVM.loadExistingDraft(
+                mailStore: mailStore,
+                loader: onLoadDraft
+            )
+            if let body = result, !body.isEmpty {
+                isInitialLoad = true
+                replyHTML = body
+                editorState.setHTML(body)
+                isLoadingDraft = false
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(0.5))
+                    isInitialLoad = false
                 }
-            } catch {
-                // Draft no longer exists on Gmail — clean up the link
-                mailStore.replyDrafts.removeValue(forKey: threadID)
-                mailStore.saveReplyDrafts()
+            } else if result != nil {
+                isLoadingDraft = false
+            } else {
                 isLoadingDraft = false
             }
         }
@@ -526,47 +505,16 @@ struct ReplyBarView: View {
 
     private func scheduleAutoSave() {
         guard !isInitialLoad, !isLoadingDraft else { return }
-        if replyHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            // Content was cleared — discard any existing draft
-            saveTask?.cancel()
-            if let threadID = email.gmailThreadID, mailStore.replyDrafts[threadID] != nil {
-                mailStore.replyDrafts.removeValue(forKey: threadID)
-                mailStore.saveReplyDrafts()
-                if composeVM.gmailDraftID != nil {
-                    Task { await composeVM.discardDraft() }
-                }
-            }
-            return
-        }
-        saveTask?.cancel()
-        saveTask = Task {
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
-            guard !Task.isCancelled else { return }
-            // Recover draft ID if view was recreated but draft exists on Gmail
-            if composeVM.gmailDraftID == nil,
-               let threadID = email.gmailThreadID,
-               let saved = mailStore.replyDrafts[threadID] {
-                composeVM.gmailDraftID = saved.gmailDraftID
-            }
-            let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
-            composeVM.to = replyTo
-            composeVM.cc = replyCc
-            composeVM.bcc = replyBcc
-            composeVM.subject = sub
-            composeVM.body = replyHTML
-            composeVM.isHTML = true
-            composeVM.replyToMessageID = email.gmailMessageID
-            await composeVM.saveDraft()
-            // Store the link so the draft can be restored when coming back
-            if let threadID = email.gmailThreadID, let draftID = composeVM.gmailDraftID {
-                let plain = replyHTML.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines)
-                mailStore.replyDrafts[threadID] = .init(
-                    gmailDraftID: draftID,
-                    preview: String(plain.prefix(50))
-                )
-                mailStore.saveReplyDrafts()
-            }
-        }
+        saveTask = composeVM.scheduleReplyAutoSave(
+            replyHTML: replyHTML,
+            to: replyTo,
+            cc: replyCc,
+            bcc: replyBcc,
+            emailSubject: email.subject,
+            replyToMessageID: email.gmailMessageID,
+            mailStore: mailStore,
+            previousTask: saveTask
+        )
     }
 
     private func startGradientAnimation() {

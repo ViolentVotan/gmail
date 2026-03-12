@@ -25,6 +25,7 @@ enum HTMLTemplate {
         <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; frame-src 'none';">
         <style>
         :root {
             --text-color: \(textColor);
@@ -99,12 +100,55 @@ enum HTMLTemplate {
         </style>
         </head>
         <body>
-        <div id="editor" contenteditable="true" data-placeholder="\(placeholderText.replacingOccurrences(of: "\"", with: "&quot;"))">\(initialHTML)</div>
+        <div id="editor" contenteditable="true" data-placeholder="\(placeholderText.replacingOccurrences(of: "\"", with: "&quot;"))">\(Self.sanitizeHTML(initialHTML))</div>
         <script>
         \(jsSource)
         </script>
         </body>
         </html>
         """
+    }
+
+    // MARK: - HTML Sanitization
+
+    /// Strips dangerous HTML constructs from email content before embedding in the editor.
+    private static func sanitizeHTML(_ html: String) -> String {
+        guard !html.isEmpty else { return html }
+        var result = html
+        // Remove <script> tags and their content
+        result = result.replacingOccurrences(
+            of: "<script[^>]*>[\\s\\S]*?</script>",
+            with: "",
+            options: .regularExpression
+        )
+        // Remove <iframe> tags
+        result = result.replacingOccurrences(
+            of: "<iframe[^>]*>[\\s\\S]*?</iframe>",
+            with: "",
+            options: .regularExpression
+        )
+        result = result.replacingOccurrences(
+            of: "<iframe[^>]*/>",
+            with: "",
+            options: .regularExpression
+        )
+        // Remove javascript: URLs from attributes
+        result = result.replacingOccurrences(
+            of: "javascript\\s*:",
+            with: "blocked:",
+            options: [.regularExpression, .caseInsensitive]
+        )
+        // Remove event handler attributes (on*=)
+        result = result.replacingOccurrences(
+            of: "\\bon\\w+\\s*=\\s*([\"']).*?\\1",
+            with: "",
+            options: .regularExpression
+        )
+        result = result.replacingOccurrences(
+            of: "\\bon\\w+\\s*=\\s*[^\\s>]+",
+            with: "",
+            options: .regularExpression
+        )
+        return result
     }
 }

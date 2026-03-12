@@ -35,7 +35,7 @@ struct SwipeableEmailRow: View {
             if state.isCollapsed || state.dragOffset != 0 {
                 state.undoDismiss()
             }
-            state.attach()
+            // Monitor is installed lazily via isHovered didSet — no eager attach here.
         }
         .onDisappear { state.detach() }
     }
@@ -81,7 +81,12 @@ final class SwipeRowState {
 
     let threshold: CGFloat = 80
 
-    var isHovered    = false
+    var isHovered = false {
+        didSet {
+            if isHovered, monitor == nil { attach() }
+            else if !isHovered, isHoriz != true { detach() }
+        }
+    }
     var onArchive: (() -> Void)?
     var onDelete:  (() -> Void)?
 
@@ -147,6 +152,8 @@ final class SwipeRowState {
                 finalize()
                 accumX  = 0
                 isHoriz = nil
+                // Detach monitor if no longer hovered (lazy monitor management)
+                if !isHovered { detach() }
                 return nil
             }
             accumX  = 0

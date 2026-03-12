@@ -271,28 +271,22 @@ struct ComposeView: View {
         }
     }
 
-    // MARK: - File Drop
+    // MARK: - File Drop & Attachments
 
     private func handleFileDrop(_ url: URL) {
-        if !url.isEmailCompatible {
-            ToastManager.shared.show(message: "Format non support\u{00E9}: .\(url.pathExtension)", type: .error)
-        } else if url.isImage {
+        switch composeVM.handleFileDrop(url) {
+        case .image:
             editorState.insertImage(from: url)
-        } else {
+        case .attachment:
             attachments.append(url)
+        case .unsupported(let message):
+            ToastManager.shared.show(message: message, type: .error)
         }
     }
 
-    // MARK: - Attachments
-
     private func attachFiles() {
-        let panel = NSOpenPanel()
-        panel.allowsMultipleSelection = true
-        panel.canChooseDirectories = false
-        panel.begin { response in
-            if response == .OK {
-                attachments += panel.urls
-            }
+        composeVM.openAttachmentPicker { urls in
+            attachments += urls
         }
     }
 

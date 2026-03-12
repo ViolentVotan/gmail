@@ -1,12 +1,6 @@
 import Foundation
 
 struct Email: Identifiable, Equatable, Sendable {
-    static func == (lhs: Email, rhs: Email) -> Bool {
-        lhs.id == rhs.id &&
-        lhs.isRead == rhs.isRead &&
-        lhs.isStarred == rhs.isStarred &&
-        lhs.gmailLabelIDs == rhs.gmailLabelIDs
-    }
     let id: UUID
     var sender: Contact
     var recipients: [Contact]
@@ -90,8 +84,9 @@ struct Email: Identifiable, Equatable, Sendable {
         var result = string
         // Named entities
         let named: [(String, String)] = [
-            ("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">"),
+            ("&lt;", "<"), ("&gt;", ">"),
             ("&quot;", "\""), ("&apos;", "'"), ("&nbsp;", " "),
+            ("&amp;", "&"),
         ]
         for (entity, char) in named {
             result = result.replacingOccurrences(of: entity, with: char)
@@ -139,7 +134,7 @@ struct Contact: Identifiable, Hashable, Sendable {
     }
 }
 
-struct Attachment: Identifiable, Sendable {
+struct Attachment: Identifiable, Equatable, Sendable {
     let id: UUID
     let name: String
     let fileType: FileType
@@ -194,7 +189,7 @@ struct Attachment: Identifiable, Sendable {
     }
 }
 
-struct EmailLabel: Identifiable, Sendable {
+struct EmailLabel: Identifiable, Equatable, Sendable {
     let id: UUID
     let name: String
     let color: String

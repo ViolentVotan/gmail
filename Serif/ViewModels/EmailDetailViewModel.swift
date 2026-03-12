@@ -270,6 +270,107 @@ final class EmailDetailViewModel {
         await LabelSuggestionService.shared.generateSuggestions(for: email, existingLabels: existingLabels)
     }
 
+    // MARK: - Derived content
+
+    /// Attachments from the latest full message, falling back to the email summary.
+    func displayAttachments(fallback: [Attachment]) -> [Attachment] {
+        guard let latest = latestMessage else { return fallback }
+        return latest.attachmentParts.map { GmailDataTransformer.makeAttachment(from: $0, messageId: latest.id) }
+    }
+
+    /// Older messages in the thread (everything except the latest). Empty for single messages.
+    var olderThreadMessages: [GmailMessage] {
+        guard messages.count > 1 else { return [] }
+        return Array(messages.dropLast())
+    }
+
+    /// Current label IDs from the latest full message, falling back to email summary.
+    func currentLabelIDs(fallback: [String]) -> [String] {
+        latestMessage?.labelIds ?? fallback
+    }
+
+    /// Attachment + part tuples for rendering.
+    func attachmentPairs(fallback: [Attachment]) -> [(Attachment, GmailMessagePart?)] {
+        if let latest = latestMessage {
+            return latest.attachmentParts.map { part in
+                (GmailDataTransformer.makeAttachment(from: part, messageId: latest.id), part)
+            }
+        }
+        return fallback.map { ($0, nil) }
+    }
+
+    // MARK: - Compose helpers
+
+    func quotedHTML(email: Email) -> String {
+        let original = latestMessage?.htmlBody ?? email.body
+        return "<br><br><blockquote style='border-left:2px solid #ccc;margin-left:4px;padding-left:8px;color:#555;'><p><b>\(email.sender.name)</b> wrote:</p>\(original)</blockquote>"
+    }
+
+    func replyMode(email: Email) -> ComposeMode {
+        let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
+        return .reply(to: email.sender.email, subject: sub, quotedBody: quotedHTML(email: email),
+                      replyToMessageID: email.gmailMessageID ?? "", threadID: email.gmailThreadID ?? "")
+    }
+
+    func replyAllMode(email: Email) -> ComposeMode {
+        let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
+        let extras = email.recipients.map(\.email).filter { $0 != (latestMessage?.to ?? email.recipients.first?.email ?? "") }
+        let toField = ([email.sender.email] + extras).joined(separator: ", ")
+        return .replyAll(to: toField, cc: email.cc.map(\.email).joined(separator: ", "),
+                         subject: sub, quotedBody: quotedHTML(email: email),
+                         replyToMessageID: email.gmailMessageID ?? "", threadID: email.gmailThreadID ?? "")
+    }
+
+    func forwardMode(email: Email) -> ComposeMode {
+        let sub = email.subject.hasPrefix("Fwd:") ? email.subject : "Fwd: \(email.subject)"
+        return .forward(subject: sub, quotedBody: quotedHTML(email: email))
+    }
+
+    // MARK: - Label suggestion application
+
+    func applyLabelSuggestion(
+        _ suggestion: LabelSuggestion,
+        allLabels: [GmailLabel],
+        fallbackLabelIDs: [String],
+        onCreateAndAddLabel: ((String, @escaping (String?) -> Void) -> Void)?,
+        onAddLabel: ((String) -> Void)?
+    ) {
+        if suggestion.isNew {
+            onCreateAndAddLabel?(suggestion.name) { _ in }
+        } else if let label = allLabels.first(where: { $0.displayName == suggestion.name }) {
+            var newIDs = currentLabelIDs(fallback: fallbackLabelIDs)
+            newIDs.append(label.id)
+            updateLabelIDs(newIDs)
+            onAddLabel?(label.id)
+        }
+    }
+
+    // MARK: - Attachment preview & download (orchestration)
+
+    func loadAndPreview(
+        attachment: Attachment,
+        part: GmailMessagePart,
+        onPreviewAttachment: ((Data?, String, Attachment.FileType) -> Void)?
+    ) async {
+        onPreviewAttachment?(nil, attachment.name, attachment.fileType)
+        guard let msgID = latestMessage?.id else { return }
+        guard let data = try? await downloadAttachment(messageID: msgID, part: part) else { return }
+        onPreviewAttachment?(data, attachment.name, attachment.fileType)
+    }
+
+    func downloadAndSave(
+        attachment: Attachment,
+        part: GmailMessagePart
+    ) async -> Data? {
+        do {
+            guard let msgID = latestMessage?.id else { return nil }
+            return try await downloadAttachment(messageID: msgID, part: part)
+        } catch {
+            ToastManager.shared.show(message: "Download failed: \(error.localizedDescription)", type: .error)
+            return nil
+        }
+    }
+
     // MARK: - Convenience
 
     var messages: [GmailMessage] { thread?.messages ?? [] }

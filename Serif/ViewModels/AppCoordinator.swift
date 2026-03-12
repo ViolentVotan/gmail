@@ -14,6 +14,7 @@ final class AppCoordinator {
     let attachmentStore: AttachmentStore
 
     private var pendingDraftSelection: Email?
+    private var lifecycleTask: Task<Void, Never>?
 
     // MARK: - Selection State
 
@@ -259,17 +260,18 @@ final class AppCoordinator {
         selectedEmailIDs = []
         searchResetTrigger += 1
         if folder != .labels { selectedLabel = nil }
+        lifecycleTask?.cancel()
         if folder == .attachments {
             attachmentStore.refresh()
             if let indexer = attachmentIndexer {
-                Task {
+                lifecycleTask = Task {
                     await indexer.scanForAttachments()
                 }
             }
         } else if folder == .drafts {
-            Task { await mailStore.syncGmailDrafts(accountID: accountID) }
+            lifecycleTask = Task { await mailStore.syncGmailDrafts(accountID: accountID) }
         } else {
-            Task { await loadCurrentFolder() }
+            lifecycleTask = Task { await loadCurrentFolder() }
         }
     }
 
@@ -314,7 +316,8 @@ final class AppCoordinator {
         )
         attachmentIndexer = indexer
         mailboxViewModel.attachmentIndexer = indexer
-        Task {
+        lifecycleTask?.cancel()
+        lifecycleTask = Task {
             await indexer.setProgressUpdate { [weak attachmentStore] in
                 attachmentStore?.refresh()
             }

@@ -18,9 +18,9 @@ extension String {
         result = result.replacingOccurrences(of: "&nbsp;",  with: " ")
         result = result.replacingOccurrences(of: "&lt;",    with: "<")
         result = result.replacingOccurrences(of: "&gt;",    with: ">")
-        result = result.replacingOccurrences(of: "&amp;",   with: "&")
         result = result.replacingOccurrences(of: "&quot;",  with: "\"")
         result = result.replacingOccurrences(of: "&#39;",   with: "'")
+        result = result.replacingOccurrences(of: "&amp;",   with: "&")
         // Collapse multiple blank lines
         result = result.replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -71,7 +71,7 @@ extension String {
 
         // Decode named HTML entities
         let entities: [String: String] = [
-            "&nbsp;": " ", "&amp;": "&", "&lt;": "<", "&gt;": ">",
+            "&nbsp;": " ", "&lt;": "<", "&gt;": ">",
             "&quot;": "\"", "&apos;": "'", "&rsquo;": "\u{2019}",
             "&lsquo;": "\u{2018}", "&rdquo;": "\u{201D}", "&ldquo;": "\u{201C}",
             "&ndash;": "\u{2013}", "&mdash;": "\u{2014}", "&hellip;": "\u{2026}",
@@ -81,6 +81,8 @@ extension String {
         for (entity, replacement) in entities {
             text = text.replacingOccurrences(of: entity, with: replacement)
         }
+        // Decode &amp; last to prevent double-decoding (e.g. &amp;lt; → &lt; → <)
+        text = text.replacingOccurrences(of: "&amp;", with: "&")
 
         // Split into lines and filter noise
         let lines = text.components(separatedBy: .newlines)

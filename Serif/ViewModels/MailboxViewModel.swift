@@ -229,6 +229,7 @@ final class MailboxViewModel {
 
     /// Updates local state for messages already marked as read by another component (e.g. EmailDetailVM).
     func applyReadLocally(_ messageIDs: [String]) {
+        suppressRecompute = true
         for id in messageIDs {
             readIDs.insert(id)
             if let idx = messages.firstIndex(where: { $0.id == id }) {
@@ -236,6 +237,8 @@ final class MailboxViewModel {
                 fetchService.messageCache[id] = messages[idx]
             }
         }
+        suppressRecompute = false
+        recomputeEmails()
     }
 
     func markAsUnread(_ messageID: String) async {
@@ -322,6 +325,10 @@ final class MailboxViewModel {
         withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
             messages.insert(message, at: insertIdx)
         }
+        // Also restore into the authoritative cache so the message survives the next refresh
+        let cacheIdx = fetchService.allCachedMessages.firstIndex { ($0.date ?? .distantPast) < date }
+            ?? fetchService.allCachedMessages.endIndex
+        fetchService.allCachedMessages.insert(message, at: cacheIdx)
         saveCacheToDisk()
         // Signal the UI to re-select this email
         lastRestoredMessageID = message.id

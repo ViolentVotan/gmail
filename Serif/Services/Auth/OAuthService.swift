@@ -112,7 +112,10 @@ final class OAuthService: NSObject {
             .map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0.value)" }
             .joined(separator: "&")
             .data(using: .utf8)
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
+        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+            throw OAuthError.httpError(http.statusCode, data)
+        }
         return try JSONDecoder().decode(T.self, from: data)
     }
 }
@@ -142,13 +145,15 @@ enum OAuthError: Error, LocalizedError {
     case noAuthCode
     case noRefreshToken
     case listenerFailed
+    case httpError(Int, Data)
 
     var errorDescription: String? {
         switch self {
-        case .invalidURL:      return "Invalid OAuth URL"
-        case .noAuthCode:      return "No authorization code received"
-        case .noRefreshToken:  return "No refresh token received"
-        case .listenerFailed:  return "Failed to start local HTTP redirect listener"
+        case .invalidURL:              return "Invalid OAuth URL"
+        case .noAuthCode:              return "No authorization code received"
+        case .noRefreshToken:          return "No refresh token received"
+        case .listenerFailed:          return "Failed to start local HTTP redirect listener"
+        case .httpError(let code, _):  return "OAuth request failed with HTTP \(code)"
         }
     }
 }

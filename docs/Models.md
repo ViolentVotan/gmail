@@ -14,8 +14,8 @@ Pure data structures and local persistence stores.
 
 | File | Role |
 |------|------|
-| `Email.swift` | UI-facing email model (computed from GmailMessage) |
+| `Email.swift` | UI-facing email model (computed from GmailMessage). Synthesized `Equatable` over all stored properties. |
 | `ComposeMode.swift` | Compose mode enum (new, reply, replyAll, forward) |
 | `GmailAccount.swift` | Account model + `AccountStore` (UserDefaults persistence) |
 | `IndexedAttachment.swift` | Indexed attachment model for the attachment vault |
-| `MailStore.swift` | `@Observable` local draft store, Gmail draft sync, reply draft persistence (`ReplyDraftInfo`) |
+| `MailStore.swift` | `@Observable @MainActor` local draft store, Gmail draft sync, reply draft persistence (`ReplyDraftInfo`) |

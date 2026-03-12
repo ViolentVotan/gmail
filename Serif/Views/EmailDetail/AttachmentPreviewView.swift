@@ -127,6 +127,9 @@ struct AttachmentPreviewView: View {
 
     // MARK: - Image
 
+    // GeometryReader is intentionally used here instead of containerRelativeFrame because
+    // the image fitting calculation requires both width and height of the viewport simultaneously
+    // to compute the aspect-ratio-preserving fittedScale, which containerRelativeFrame cannot express.
     private var imagePreview: some View {
         GeometryReader { geo in
             ScrollView([.horizontal, .vertical]) {

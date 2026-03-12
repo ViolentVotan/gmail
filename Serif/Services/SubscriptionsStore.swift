@@ -121,10 +121,13 @@ final class SubscriptionsStore {
         pendingCount += 1
         isAnalyzing   = true
 
+        let expectedAccountID = accountID
         analysisTask = Task {
             defer {
-                pendingCount -= 1
-                if pendingCount == 0 { isAnalyzing = false }
+                if accountID == expectedAccountID {
+                    pendingCount -= 1
+                    if pendingCount == 0 { isAnalyzing = false }
+                }
             }
 
             var newValidated = false

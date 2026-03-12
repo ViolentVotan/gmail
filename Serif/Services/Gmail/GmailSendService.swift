@@ -24,7 +24,7 @@ final class GmailSendService {
         let raw: String
         let hasAttachments = attachments != nil && !attachments!.isEmpty
         if hasAttachments || !inlineImages.isEmpty {
-            raw = buildRawMultipart(
+            raw = try buildRawMultipart(
                 from: from, to: to, cc: cc, bcc: bcc,
                 subject: subject, body: body, isHTML: isHTML,
                 referencesHeader: referencesHeader,
@@ -109,7 +109,7 @@ final class GmailSendService {
     ) throws(GmailAPIError) -> Data {
         let raw: String
         if !inlineImages.isEmpty {
-            raw = buildRawMultipart(from: from, to: to, cc: cc, bcc: [],
+            raw = try buildRawMultipart(from: from, to: to, cc: cc, bcc: [],
                                     subject: subject, body: body, isHTML: isHTML,
                                     inlineImages: inlineImages, attachments: [])
         } else {
@@ -201,7 +201,7 @@ final class GmailSendService {
         referencesHeader: String? = nil,
         inlineImages: [InlineImageAttachment] = [],
         attachments: [URL]
-    ) -> String {
+    ) throws(GmailAPIError) -> String {
         let boundaryMixed = "BM_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
         let boundaryRelated = "BR_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
         let boundaryAlt = "BA_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
@@ -274,8 +274,12 @@ final class GmailSendService {
             }
             mime += "--\(boundaryRelated)--\r\n"
 
+            var failedFilenames: [String] = []
             for url in attachments {
-                guard let data = try? Data(contentsOf: url) else { continue }
+                guard let data = try? Data(contentsOf: url) else {
+                    failedFilenames.append(url.lastPathComponent)
+                    continue
+                }
                 let encoded = data.base64EncodedString(options: .lineLength76Characters)
                 mime += "--\(boundaryMixed)\r\n"
                 mime += "Content-Type: \(url.mimeType)\r\n"
@@ -283,6 +287,7 @@ final class GmailSendService {
                 mime += "Content-Transfer-Encoding: base64\r\n\r\n"
                 mime += encoded + "\r\n"
             }
+            if !failedFilenames.isEmpty { throw .attachmentReadFailed(failedFilenames) }
             mime += "--\(boundaryMixed)--"
 
         } else if hasInline {
@@ -302,8 +307,12 @@ final class GmailSendService {
         } else {
             mime += bodyPart(boundary: boundaryMixed)
 
+            var failedFilenames: [String] = []
             for url in attachments {
-                guard let data = try? Data(contentsOf: url) else { continue }
+                guard let data = try? Data(contentsOf: url) else {
+                    failedFilenames.append(url.lastPathComponent)
+                    continue
+                }
                 let encoded = data.base64EncodedString(options: .lineLength76Characters)
                 mime += "--\(boundaryMixed)\r\n"
                 mime += "Content-Type: \(url.mimeType)\r\n"
@@ -311,6 +320,7 @@ final class GmailSendService {
                 mime += "Content-Transfer-Encoding: base64\r\n\r\n"
                 mime += encoded + "\r\n"
             }
+            if !failedFilenames.isEmpty { throw .attachmentReadFailed(failedFilenames) }
             mime += "--\(boundaryMixed)--"
         }
 

@@ -215,17 +215,19 @@ enum GmailAPIError: Error, LocalizedError {
     case encodingError(Error)
     case partialFailure(failedCount: Int)
     case networkError(Error)
+    case attachmentReadFailed([String])
 
     var errorDescription: String? {
         switch self {
-        case .invalidURL:                return "Invalid API URL"
-        case .unauthorized:              return "Unauthorized — please sign in again"
-        case .offline:                   return "You're offline — please check your connection"
-        case .httpError(let c, _):       return "HTTP \(c)"
-        case .decodingError(let e):      return "Decode failed: \(e.localizedDescription)"
-        case .encodingError(let e):      return "Encode failed: \(e.localizedDescription)"
-        case .partialFailure(let count): return "Failed to delete \(count) messages"
-        case .networkError(let e):       return "Network error: \(e.localizedDescription)"
+        case .invalidURL:                      return "Invalid API URL"
+        case .unauthorized:                    return "Unauthorized — please sign in again"
+        case .offline:                         return "You're offline — please check your connection"
+        case .httpError(let c, _):             return "HTTP \(c)"
+        case .decodingError(let e):            return "Decode failed: \(e.localizedDescription)"
+        case .encodingError(let e):            return "Encode failed: \(e.localizedDescription)"
+        case .partialFailure(let count):       return "Failed to delete \(count) messages"
+        case .networkError(let e):             return "Network error: \(e.localizedDescription)"
+        case .attachmentReadFailed(let names): return "Could not read attachments: \(names.joined(separator: ", "))"
         }
     }
 
