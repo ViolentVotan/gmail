@@ -63,25 +63,40 @@ final class GmailDraftService {
 
     // MARK: - Batch fetch
 
-    /// Fetches a batch of draft IDs in groups of 5 to avoid rate limits.
+    /// Fetches a batch of drafts using Gmail's batch API (up to 50 per request).
     @concurrent func getDrafts(ids: [String], accountID: String, format: String = "metadata") async throws -> [GmailDraft] {
-        let batchSize = 5
+        guard !ids.isEmpty else { return [] }
+
+        let batchSize = 50
         var all: [GmailDraft] = []
-        var offset = 0
-        while offset < ids.count {
+        let decoder = JSONDecoder()
+
+        for offset in stride(from: 0, to: ids.count, by: batchSize) {
             let batch = Array(ids[offset..<min(offset + batchSize, ids.count)])
-            let batchResult = try await withThrowingTaskGroup(of: GmailDraft.self) { group in
-                for id in batch {
-                    group.addTask { try await self.getDraft(id: id, accountID: accountID, format: format) }
-                }
-                var drafts: [GmailDraft] = []
-                for try await draft in group { drafts.append(draft) }
-                return drafts
+            let requests = batch.map { id in
+                (id: id, method: "GET", path: "/gmail/v1/users/me/drafts/\(id)?format=\(format)", body: nil as Data?)
             }
-            all.append(contentsOf: batchResult)
-            offset += batchSize
+
+            let results = try await GmailAPIClient.shared.batchRequest(requests: requests, accountID: accountID)
+
+            for result in results {
+                guard (200...299).contains(result.statusCode) else {
+                    #if DEBUG
+                    print("[GmailAPI] Batch draft \(result.id) failed: HTTP \(result.statusCode)")
+                    #endif
+                    continue
+                }
+                do {
+                    let draft = try decoder.decode(GmailDraft.self, from: result.data)
+                    all.append(draft)
+                } catch {
+                    #if DEBUG
+                    print("[GmailAPI] Batch draft decode failed for \(result.id): \(error)")
+                    #endif
+                }
+            }
         }
-        // Sort by message date, newest first
+
         return all.sorted {
             ($0.message?.date ?? .distantPast) > ($1.message?.date ?? .distantPast)
         }
