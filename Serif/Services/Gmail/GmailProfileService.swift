@@ -31,6 +31,7 @@ final class GmailProfileService {
     @concurrent func listSendAs(accountID: String) async throws(GmailAPIError) -> [GmailSendAs] {
         let response: GmailSendAsListResponse = try await GmailAPIClient.shared.request(
             path: "/users/me/settings/sendAs",
+            fields: "sendAs(sendAsEmail,displayName,signature,isDefault,isPrimary)",
             accountID: accountID
         )
         return response.sendAs

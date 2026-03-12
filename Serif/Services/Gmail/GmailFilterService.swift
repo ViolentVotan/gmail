@@ -35,7 +35,11 @@ final class GmailFilterService {
     private let client = GmailAPIClient.shared
 
     func listFilters(accountID: String) async throws(GmailAPIError) -> [GmailFilter] {
-        let response: GmailFilterListResponse = try await client.request(path: "/users/me/settings/filters", accountID: accountID)
+        let response: GmailFilterListResponse = try await client.request(
+            path: "/users/me/settings/filters",
+            fields: "filter(id,criteria,action)",
+            accountID: accountID
+        )
         return response.filter ?? []
     }
 
