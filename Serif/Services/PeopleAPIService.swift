@@ -131,17 +131,75 @@ final class PeopleAPIService {
         // 2. Fetch "Other Contacts" (auto-created from email interactions)
         // Note: readMask omits "photos" — Other Contacts don't support photo fields.
         do {
-            var pageToken: String? = nil
-            repeat {
-                var urlStr = "https://people.googleapis.com/v1/otherContacts"
-                    + "?readMask=names,emailAddresses&pageSize=1000"
-                if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
-                let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
-                let beforeCount = allContacts.count
-                allContacts.append(contentsOf: parseContacts(from: response.otherContacts ?? []))
-                print("[Serif] Loaded \(allContacts.count - beforeCount) from Other Contacts page")
-                pageToken = response.nextPageToken
-            } while pageToken != nil
+            let otherSyncToken = ContactStore.shared.otherContactsSyncToken(for: accountID)
+            var newOtherSyncToken: String?
+            var needsFullOtherFetch = otherSyncToken == nil
+
+            if let otherSyncToken, !needsFullOtherFetch {
+                // Incremental sync for Other Contacts
+                do {
+                    var incPageToken: String? = nil
+                    repeat {
+                        let encodedToken = otherSyncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? otherSyncToken
+                        var urlStr = "https://people.googleapis.com/v1/otherContacts"
+                            + "?readMask=metadata,names,emailAddresses&syncToken=\(encodedToken)"
+                            + "&pageSize=1000"
+                        if let pt = incPageToken { urlStr += "&pageToken=\(pt)" }
+                        let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
+
+                        // Handle deletions
+                        let deletedEmails = Set(
+                            (response.otherContacts ?? [])
+                                .filter { $0.metadata?.deleted == true }
+                                .flatMap { $0.emailAddresses?.compactMap { $0.value?.lowercased() } ?? [] }
+                        )
+                        allContacts.removeAll { deletedEmails.contains($0.email) }
+
+                        // Merge non-deleted
+                        let nonDeleted = (response.otherContacts ?? []).filter { $0.metadata?.deleted != true }
+                        let parsed = parseContacts(from: nonDeleted)
+                        for contact in parsed {
+                            if let idx = allContacts.firstIndex(where: { $0.email == contact.email }) {
+                                allContacts[idx] = contact
+                            } else {
+                                allContacts.append(contact)
+                            }
+                        }
+                        incPageToken = response.nextPageToken
+                        newOtherSyncToken = response.nextSyncToken ?? newOtherSyncToken
+                    } while incPageToken != nil
+                    print("[Serif] Other Contacts incremental sync completed")
+                } catch {
+                    let isGone = if case GmailAPIError.httpError(410, _) = error { true } else { false }
+                    if isGone {
+                        print("[Serif] Other Contacts sync token expired, performing full re-fetch")
+                        ContactStore.shared.setOtherContactsSyncToken(nil, for: accountID)
+                        needsFullOtherFetch = true
+                    } else {
+                        throw error
+                    }
+                }
+            }
+
+            if needsFullOtherFetch {
+                var pageToken: String? = nil
+                repeat {
+                    var urlStr = "https://people.googleapis.com/v1/otherContacts"
+                        + "?readMask=metadata,names,emailAddresses&pageSize=1000"
+                        + "&requestSyncToken=true"
+                    if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
+                    let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
+                    let beforeCount = allContacts.count
+                    allContacts.append(contentsOf: parseContacts(from: response.otherContacts ?? []))
+                    print("[Serif] Loaded \(allContacts.count - beforeCount) from Other Contacts page")
+                    pageToken = response.nextPageToken
+                    newOtherSyncToken = response.nextSyncToken ?? newOtherSyncToken
+                } while pageToken != nil
+            }
+
+            if let newOtherSyncToken {
+                ContactStore.shared.setOtherContactsSyncToken(newOtherSyncToken, for: accountID)
+            }
         } catch {
             print("[Serif] Other Contacts fetch error: \(error)")
         }
@@ -165,6 +223,7 @@ struct PeopleConnectionsResponse: Decodable {
 struct OtherContactsResponse: Decodable {
     let otherContacts: [PersonResource]?
     let nextPageToken: String?
+    let nextSyncToken: String?
 }
 
 struct PersonMetadata: Decodable {

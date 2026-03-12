@@ -39,9 +39,18 @@ final class ContactStore {
         UserDefaults.standard.set(token, forKey: "com.serif.contacts.syncToken.\(accountID)")
     }
 
+    func otherContactsSyncToken(for accountID: String) -> String? {
+        UserDefaults.standard.string(forKey: "com.serif.contacts.otherSyncToken.\(accountID)")
+    }
+
+    func setOtherContactsSyncToken(_ token: String?, for accountID: String) {
+        UserDefaults.standard.set(token, forKey: "com.serif.contacts.otherSyncToken.\(accountID)")
+    }
+
     func deleteAccount(_ accountID: String) {
         UserDefaults.standard.removeObject(forKey: "com.serif.contacts.\(accountID)")
         UserDefaults.standard.removeObject(forKey: "com.serif.contacts.syncToken.\(accountID)")
+        UserDefaults.standard.removeObject(forKey: "com.serif.contacts.otherSyncToken.\(accountID)")
     }
 }
 
@@ -66,7 +75,7 @@ final class ContactPhotoCache: @unchecked Sendable {
     }
 
     func remove(_ email: String) {
-        lock.withLock { cache.removeValue(forKey: email.lowercased()) }
+        lock.withLock { _ = cache.removeValue(forKey: email.lowercased()) }
     }
 }
 
