@@ -196,10 +196,10 @@ final class GmailAPIClient {
             throw .decodingError(URLError(.cannotParseResponse))
         }
 
-        return try parseBatchResponse(data: data, boundary: responseBoundary)
+        return try Self.parseBatchResponse(data: data, boundary: responseBoundary)
     }
 
-    nonisolated private func parseBatchResponse(data: Data, boundary: String) throws(GmailAPIError) -> [(id: String, statusCode: Int, data: Data)] {
+    nonisolated private static func parseBatchResponse(data: Data, boundary: String) throws(GmailAPIError) -> [(id: String, statusCode: Int, data: Data)] {
         guard let responseString = String(data: data, encoding: .utf8) else {
             throw .decodingError(URLError(.cannotParseResponse))
         }

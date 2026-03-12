@@ -38,24 +38,40 @@ final class GmailMessageService {
         try await getMessage(id: id, accountID: accountID, format: "raw")
     }
 
-    /// Fetches a batch of message IDs in groups of 5 to avoid "too many concurrent requests".
+    /// Fetches a batch of messages using Gmail's batch API (up to 50 per request).
     @concurrent func getMessages(ids: [String], accountID: String, format: String = "metadata") async throws -> [GmailMessage] {
-        let batchSize = 5
+        guard !ids.isEmpty else { return [] }
+
+        let batchSize = 50
         var all: [GmailMessage] = []
-        var offset = 0
-        while offset < ids.count {
+        let decoder = JSONDecoder()
+
+        for offset in stride(from: 0, to: ids.count, by: batchSize) {
             let batch = Array(ids[offset..<min(offset + batchSize, ids.count)])
-            let batchResult = try await withThrowingTaskGroup(of: GmailMessage.self) { group in
-                for id in batch {
-                    group.addTask { try await self.getMessage(id: id, accountID: accountID, format: format) }
-                }
-                var msgs: [GmailMessage] = []
-                for try await msg in group { msgs.append(msg) }
-                return msgs
+            let requests = batch.map { id in
+                (id: id, method: "GET", path: "/gmail/v1/users/me/messages/\(id)?format=\(format)", body: nil as Data?)
             }
-            all.append(contentsOf: batchResult)
-            offset += batchSize
+
+            let results = try await GmailAPIClient.shared.batchRequest(requests: requests, accountID: accountID)
+
+            for result in results {
+                guard (200...299).contains(result.statusCode) else {
+                    #if DEBUG
+                    print("[GmailAPI] Batch part \(result.id) failed: HTTP \(result.statusCode)")
+                    #endif
+                    continue
+                }
+                do {
+                    let msg = try decoder.decode(GmailMessage.self, from: result.data)
+                    all.append(msg)
+                } catch {
+                    #if DEBUG
+                    print("[GmailAPI] Batch decode failed for \(result.id): \(error)")
+                    #endif
+                }
+            }
         }
+
         return all.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
     }
 
