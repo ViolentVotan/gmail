@@ -1,5 +1,5 @@
 import SwiftUI
-import Sparkle
+private import Sparkle
 import Combine
 import Observation
 

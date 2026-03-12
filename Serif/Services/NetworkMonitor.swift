@@ -1,5 +1,5 @@
 import Foundation
-import Network
+private import Network
 import Observation
 
 @Observable

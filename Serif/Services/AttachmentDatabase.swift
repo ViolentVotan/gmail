@@ -1,5 +1,5 @@
 import Foundation
-import SQLite3
+private import SQLite3
 
 /// SQLITE_TRANSIENT tells SQLite to copy bound data immediately.
 /// Using `OpaquePointer(bitPattern:)` avoids the undefined behavior of

@@ -1,5 +1,5 @@
 import SwiftUI
-import BlossomColorPicker
+private import BlossomColorPicker
 
 struct AccountsSettingsView: View {
     var authViewModel: AuthViewModel

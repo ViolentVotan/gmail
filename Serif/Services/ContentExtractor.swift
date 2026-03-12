@@ -1,8 +1,8 @@
 import Foundation
 import AppKit
 import PDFKit
-import Vision
-import NaturalLanguage
+private import Vision
+private import NaturalLanguage
 
 // MARK: - Content Extractor
 

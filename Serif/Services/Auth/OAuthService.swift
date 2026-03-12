@@ -1,5 +1,6 @@
 import Foundation
-import AppAuth
+import AppKit
+private import AppAuth
 
 /// Handles Google OAuth 2.0 using AppAuth (loopback HTTP redirect flow).
 /// Compatible with "Desktop app" credentials (redirect_uri = http://localhost).

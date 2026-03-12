@@ -1,6 +1,6 @@
 import Foundation
-import CryptoKit
-import Security
+private import CryptoKit
+private import Security
 
 /// Persists OAuth tokens in UserDefaults, encrypted with AES-256-GCM.
 /// The symmetric key is stored in the macOS Keychain, tokens stay in UserDefaults.

@@ -1,5 +1,5 @@
 import Foundation
-import CryptoKit
+private import CryptoKit
 
 /// Pure-data utilities for transforming Gmail API responses into app models.
 /// All methods are static and have no side effects on app state.
