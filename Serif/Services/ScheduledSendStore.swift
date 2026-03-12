@@ -41,11 +41,9 @@ final class ScheduledSendStore {
     func load(accountID: String) {
         let url = fileURL(for: accountID)
         guard let data = try? Data(contentsOf: url),
-              let contents = try? JSONDecoder().decode(ScheduledFileContents.self, from: data) else {
-            items = []
-            return
-        }
-        items = contents.items.filter { $0.accountID == accountID }
+              let contents = try? JSONDecoder().decode(ScheduledFileContents.self, from: data) else { return }
+        items.removeAll { $0.accountID == accountID }
+        items.append(contentsOf: contents.items.filter { $0.accountID == accountID })
     }
 
     func add(_ item: ScheduledSendItem) {

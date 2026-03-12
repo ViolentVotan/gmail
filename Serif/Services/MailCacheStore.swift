@@ -148,7 +148,7 @@ final class MailCacheStore {
         guard let data = try? Data(contentsOf: url),
               let tags = try? JSONDecoder().decode([String: EmailTags].self, from: data)
         else { return }
-        tagStore = tags
+        tagStore.merge(tags) { _, new in new }
     }
 
     private func saveTagsToDisk(accountID: String) {

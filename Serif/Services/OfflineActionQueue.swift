@@ -20,7 +20,8 @@ final class OfflineActionQueue {
         let url = fileURL(for: accountID)
         guard let data = try? Data(contentsOf: url),
               let contents = try? JSONDecoder().decode(OfflineQueueFileContents.self, from: data) else { return }
-        pendingActions = contents.actions
+        pendingActions.removeAll { $0.accountID == accountID }
+        pendingActions.append(contentsOf: contents.actions)
     }
 
     func startDraining() {

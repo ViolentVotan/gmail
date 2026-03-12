@@ -29,6 +29,7 @@ struct SerifApp: App {
                     SnoozeStore.shared.load(accountID: account.id)
                     ScheduledSendStore.shared.load(accountID: account.id)
                     OfflineActionQueue.shared.load(accountID: account.id)
+                    MailCacheStore.shared.loadTagsFromDisk(accountID: account.id)
                 }
             }
         }

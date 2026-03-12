@@ -47,11 +47,10 @@ final class SnoozeStore {
     func load(accountID: String) {
         let url = fileURL(for: accountID)
         guard let data = try? Data(contentsOf: url),
-              let contents = try? JSONDecoder().decode(SnoozeFileContents.self, from: data) else {
-            items = []
-            return
-        }
-        items = contents.items.filter { $0.accountID == accountID }
+              let contents = try? JSONDecoder().decode(SnoozeFileContents.self, from: data) else { return }
+        // Remove existing items for this account, then add loaded ones
+        items.removeAll { $0.accountID == accountID }
+        items.append(contentsOf: contents.items.filter { $0.accountID == accountID })
     }
 
     func add(_ item: SnoozedItem) {
