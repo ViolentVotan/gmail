@@ -81,6 +81,7 @@ struct SidebarView: View {
             labelsSection
         }
         .listStyle(.sidebar)
+        .navigationSplitViewColumnWidth(min: 200, ideal: 240)
     }
 
     // MARK: - Mailbox Section
@@ -104,7 +105,12 @@ struct SidebarView: View {
                     selectedFolder = .inbox
                     selectedInboxCategory = category
                 } label: {
-                    Label(category.displayName, systemImage: category.icon)
+                    Label {
+                        Text(category.displayName)
+                    } icon: {
+                        Image(systemName: category.icon)
+                            .frame(width: 20)
+                    }
                 }
                 .badge(categoryUnreadCounts[category] ?? 0)
             }
@@ -113,7 +119,12 @@ struct SidebarView: View {
                 selectedFolder = .inbox
                 selectedInboxCategory = .all
             } label: {
-                Label(folder.rawValue, systemImage: folder.icon)
+                Label {
+                    Text(folder.rawValue)
+                } icon: {
+                    Image(systemName: folder.icon)
+                        .frame(width: 20)
+                }
             }
         }
     }
@@ -123,7 +134,12 @@ struct SidebarView: View {
             selectedFolder = folder
             selectedInboxCategory = nil
         } label: {
-            Label(folder.rawValue, systemImage: folder.icon)
+            Label {
+                Text(folder.rawValue)
+            } icon: {
+                Image(systemName: folder.icon)
+                    .frame(width: 20)
+            }
         }
     }
 
@@ -145,11 +161,15 @@ struct SidebarView: View {
             selectedFolder = .labels
             selectedLabel = label
         } label: {
-            HStack(spacing: 8) {
+            Label {
+                Text(label.name)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            } icon: {
                 Circle()
                     .fill(Color(hex: label.color?.backgroundColor ?? "#888888"))
                     .frame(width: 8, height: 8)
-                Text(label.name)
+                    .frame(width: 20)
             }
         }
         .contextMenu {
