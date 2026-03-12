@@ -281,16 +281,30 @@ final class MessageFetchService {
             print("[Serif] Batch verify failed, falling back to individual fetches: \(error)")
             #endif
             // Fall back to individual fetches if batch fails
+            let maxConcurrency = 10
             return await withTaskGroup(of: (String, GmailMessage?).self) { group in
-                for id in ids {
-                    group.addTask {
-                        let msg = try? await api.getMessage(id: id, accountID: accountID, format: "minimal")
-                        return (id, msg)
+                var idIterator = ids.makeIterator()
+                var result: [String: GmailMessage] = [:]
+
+                // Seed initial batch
+                for _ in 0..<min(maxConcurrency, ids.count) {
+                    if let id = idIterator.next() {
+                        group.addTask {
+                            let msg = try? await api.getMessage(id: id, accountID: accountID, format: "minimal")
+                            return (id, msg)
+                        }
                     }
                 }
-                var result: [String: GmailMessage] = [:]
+
+                // As each completes, add the next
                 for await (id, msg) in group {
                     if let msg { result[id] = msg }
+                    if let nextID = idIterator.next() {
+                        group.addTask {
+                            let msg = try? await api.getMessage(id: nextID, accountID: accountID, format: "minimal")
+                            return (nextID, msg)
+                        }
+                    }
                 }
                 return result
             }
