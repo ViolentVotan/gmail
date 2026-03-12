@@ -27,6 +27,11 @@ final class SnoozeMonitor {
     }
 
     private func checkExpired() async {
+        await checkSnoozedItems()
+        await checkScheduledSends()
+    }
+
+    private func checkSnoozedItems() async {
         let expired = SnoozeStore.shared.expiredItems()
         for item in expired {
             do {
@@ -40,6 +45,21 @@ final class SnoozeMonitor {
             } catch {
                 if case .httpError(404, _) = error as? GmailAPIError {
                     SnoozeStore.shared.remove(messageId: item.messageId, accountID: item.accountID)
+                }
+            }
+        }
+    }
+
+    private func checkScheduledSends() async {
+        let due = ScheduledSendStore.shared.dueItems()
+        for item in due {
+            do {
+                try await GmailDraftService.shared.sendDraft(draftId: item.draftId, accountID: item.accountID)
+                ScheduledSendStore.shared.remove(draftId: item.draftId, accountID: item.accountID)
+                ToastManager.shared.show(message: "Scheduled email sent: \(item.subject)")
+            } catch {
+                if case .httpError(404, _) = error as? GmailAPIError {
+                    ScheduledSendStore.shared.remove(draftId: item.draftId, accountID: item.accountID)
                 }
             }
         }

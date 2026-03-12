@@ -221,7 +221,8 @@ struct EmailListView: View {
                         onUnsubscribe: onUnsubscribe,
                         onMoveToInbox: onMoveToInbox,
                         onDeletePermanently: onDeletePermanently,
-                        onMarkNotSpam: onMarkNotSpam
+                        onMarkNotSpam: onMarkNotSpam,
+                        onSnooze: nil
                     )
                 }
             }
