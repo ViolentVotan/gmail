@@ -1,7 +1,7 @@
 import Foundation
 
 /// Represents a connected Gmail account.
-struct GmailAccount: Identifiable, Codable, Equatable {
+struct GmailAccount: Identifiable, Codable, Equatable, Sendable {
     var id: String { email }
     let email:             String
     let displayName:       String
@@ -16,7 +16,8 @@ struct GmailAccount: Identifiable, Codable, Equatable {
 
 /// Persists the list of connected accounts to UserDefaults.
 /// Tokens are stored separately in the Keychain via TokenStore.
-final class AccountStore {
+/// Thread-safe via UserDefaults (which is itself thread-safe).
+final class AccountStore: @unchecked Sendable {
     static let shared = AccountStore()
 
     static let accentPalette = [
@@ -57,7 +58,7 @@ final class AccountStore {
 
     /// Removes an account and its associated data.
     /// Note: Caller must also call `SubscriptionsStore.shared.deleteAccount(id)` from `@MainActor` context.
-    func remove(id: String) {
+    @MainActor func remove(id: String) {
         accounts = accounts.filter { $0.id != id }
         TokenStore.shared.delete(for: id)
         AttachmentDatabase.shared.deleteByAccountID(id)

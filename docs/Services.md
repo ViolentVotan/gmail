@@ -6,10 +6,11 @@ Business logic, networking, and side effects. This is the **only** layer that ta
 
 - Services are **singletons** (`static let shared`) — stateless request handlers, not state containers.
 - All API calls go through `GmailAPIClient` which handles auth tokens, rate limiting, and logging.
-- Services return raw API models (`GmailMessage`, `GmailLabel`, etc.). They do NOT return UI models.
-- Error handling: throw errors up to the ViewModel. Services don't show UI or set `@Published` state.
+- Services return raw API models (`GmailMessage`, `GmailLabel`, etc.). They do NOT return UI models. Model types conform to `Sendable`.
+- Error handling: throw typed errors (`throws(GmailAPIError)`) up to the ViewModel. Services don't show UI or set observable state.
 - Services must be **account-aware**: every method takes `accountID` as parameter.
-- No SwiftUI imports. No `@Published`, no `ObservableObject` (except `UndoActionManager` and `NetworkMonitor` which are UI singletons by design).
+- **Concurrency**: I/O-bound service methods use `@concurrent` for off-MainActor execution. Default isolation is `MainActor` (approachable concurrency). `UndoActionManager` and `NetworkMonitor` use `@Observable` (not `ObservableObject`).
+- No SwiftUI imports in pure service files.
 
 ## Subfolders
 
@@ -29,7 +30,7 @@ Gmail REST API wrappers. One service per domain:
 ### Root-level files
 | File | Role |
 |------|------|
-| `APICache.swift` | Generic ETag-based HTTP response caching |
+| `APILogger.swift` | API request/response debug logging |
 | `AttachmentDatabase.swift` | SQLite FTS5 index for attachment search |
 | `AttachmentIndexer.swift` | Async indexing with CPU throttling |
 | `AttachmentSearchService.swift` | Hybrid FTS + semantic embedding search |

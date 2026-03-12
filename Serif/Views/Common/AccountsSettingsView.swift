@@ -1,8 +1,8 @@
 import SwiftUI
-import BlossomColorPicker
+private import BlossomColorPicker
 
 struct AccountsSettingsView: View {
-    @ObservedObject var authViewModel: AuthViewModel
+    var authViewModel: AuthViewModel
     @Binding var selectedAccountID: String?
     @AppStorage("isSignedIn") private var isSignedIn: Bool = false
     @Environment(\.theme) private var theme

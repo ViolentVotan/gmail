@@ -1,12 +1,12 @@
-import XCTest
+import Testing
+import Foundation
 @testable import Serif
 
-@MainActor
-final class DraftLifecycleTests: XCTestCase {
+@Suite @MainActor struct DraftLifecycleTests {
 
     // MARK: - ComposeViewModel: concurrent save guard
 
-    func testSaveDraftGuardPreventsConcurrentCalls() async {
+    @Test func saveDraftGuardPreventsConcurrentCalls() async {
         let vm = ComposeViewModel(accountID: "", fromAddress: "test@test.com")
         vm.subject = "Test"
         vm.body = "Body"
@@ -21,7 +21,7 @@ final class DraftLifecycleTests: XCTestCase {
 
     // MARK: - ComposeViewModel: gmailDraftID prevents create when set
 
-    func testSaveDraftUpdatesWhenDraftIDExists() async {
+    @Test func saveDraftUpdatesWhenDraftIDExists() async {
         let vm = ComposeViewModel(accountID: "", fromAddress: "test@test.com")
         vm.gmailDraftID = "existing_draft_123"
         vm.subject = "Updated"
@@ -30,13 +30,13 @@ final class DraftLifecycleTests: XCTestCase {
 
         await vm.saveDraft()
 
-        XCTAssertEqual(vm.gmailDraftID, "existing_draft_123",
-                       "Draft ID should be preserved when update fails")
+        #expect(vm.gmailDraftID == "existing_draft_123",
+                "Draft ID should be preserved when update fails")
     }
 
     // MARK: - MailStore: draft operations on gmailDrafts array
 
-    func testUpdateDraftWorksForGmailDrafts() {
+    @Test func updateDraftWorksForGmailDrafts() {
         let store = MailStore()
         let draftID = GmailDataTransformer.deterministicUUID(from: "gmail_draft_1")
         let gmailDraft = Email(
@@ -55,12 +55,12 @@ final class DraftLifecycleTests: XCTestCase {
 
         store.updateDraft(id: draftID, subject: "New Subject", body: "New Body", to: "to@test.com", cc: "")
 
-        XCTAssertEqual(store.gmailDrafts.first?.subject, "New Subject")
-        XCTAssertEqual(store.gmailDrafts.first?.body, "New Body")
-        XCTAssertEqual(store.gmailDrafts.first?.recipients.first?.email, "to@test.com")
+        #expect(store.gmailDrafts.first?.subject == "New Subject")
+        #expect(store.gmailDrafts.first?.body == "New Body")
+        #expect(store.gmailDrafts.first?.recipients.first?.email == "to@test.com")
     }
 
-    func testDeleteDraftRemovesFromGmailDrafts() {
+    @Test func deleteDraftRemovesFromGmailDrafts() {
         let store = MailStore()
         let draftID = GmailDataTransformer.deterministicUUID(from: "gmail_draft_1")
         let gmailDraft = Email(
@@ -79,12 +79,12 @@ final class DraftLifecycleTests: XCTestCase {
 
         store.deleteDraft(id: draftID)
 
-        XCTAssertTrue(store.gmailDrafts.isEmpty, "Gmail draft should be removed")
+        #expect(store.gmailDrafts.isEmpty, "Gmail draft should be removed")
     }
 
     // MARK: - MailStore: gmailDraftID persistence
 
-    func testSetGmailDraftIDPersistsOnLocalDraft() {
+    @Test func setGmailDraftIDPersistsOnLocalDraft() {
         let store = MailStore()
         let draft = Email(
             sender: Contact(name: "", email: ""),
@@ -96,17 +96,17 @@ final class DraftLifecycleTests: XCTestCase {
             isDraft: true
         )
         store.emails = [draft]
-        XCTAssertNil(store.emails.first?.gmailDraftID)
+        #expect(store.emails.first?.gmailDraftID == nil)
 
         store.setGmailDraftID("gmail_123", for: draft.id)
 
-        XCTAssertEqual(store.emails.first?.gmailDraftID, "gmail_123",
-                       "gmailDraftID should be persisted on the Email object")
+        #expect(store.emails.first?.gmailDraftID == "gmail_123",
+                "gmailDraftID should be persisted on the Email object")
     }
 
     // MARK: - MailStore: sync removes local duplicates
 
-    func testSyncGmailDraftsRemovesLocalDuplicates() {
+    @Test func syncGmailDraftsRemovesLocalDuplicates() {
         let store = MailStore()
 
         // Local draft that was already synced to Gmail
@@ -147,13 +147,13 @@ final class DraftLifecycleTests: XCTestCase {
 
         // Should have only the Gmail version
         let drafts = store.emails(for: .drafts)
-        XCTAssertEqual(drafts.count, 1, "Duplicate should be removed")
-        XCTAssertTrue(drafts[0].isGmailDraft, "Remaining draft should be the Gmail version")
+        #expect(drafts.count == 1, "Duplicate should be removed")
+        #expect(drafts[0].isGmailDraft, "Remaining draft should be the Gmail version")
     }
 
     // MARK: - MailStore: local draft without gmailDraftID survives sync
 
-    func testSyncGmailDraftsKeepsUnsyncedLocalDrafts() {
+    @Test func syncGmailDraftsKeepsUnsyncedLocalDrafts() {
         let store = MailStore()
 
         // Local draft that has NOT been synced yet (no gmailDraftID)
@@ -193,20 +193,20 @@ final class DraftLifecycleTests: XCTestCase {
 
         // Both should remain: local (unsynced) + Gmail
         let drafts = store.emails(for: .drafts)
-        XCTAssertEqual(drafts.count, 2, "Unsynced local draft + Gmail draft both kept")
+        #expect(drafts.count == 2, "Unsynced local draft + Gmail draft both kept")
     }
 
     // MARK: - Draft body content check
 
-    func testReopenedDraftPreservesBodyWhenHasContent() {
+    @Test func reopenedDraftPreservesBodyWhenHasContent() {
         let draftBody = "<div>My important email content</div>"
-        XCTAssertFalse(draftBody.isEmpty,
-                       "Draft body with content should not be treated as empty")
+        #expect(!draftBody.isEmpty,
+                "Draft body with content should not be treated as empty")
     }
 
     // MARK: - Preview strips HTML tags
 
-    func testUpdateDraftStripsHTMLFromPreview() {
+    @Test func updateDraftStripsHTMLFromPreview() {
         let store = MailStore()
         let draft = store.createDraft()
 
@@ -219,15 +219,15 @@ final class DraftLifecycleTests: XCTestCase {
         )
 
         let updated = store.emails.first { $0.id == draft.id }!
-        XCTAssertFalse(updated.preview.contains("<div>"),
-                       "Preview should not contain HTML tags")
-        XCTAssertTrue(updated.preview.contains("Hello"),
-                      "Preview should contain plain text content")
+        #expect(!updated.preview.contains("<div>"),
+                "Preview should not contain HTML tags")
+        #expect(updated.preview.contains("Hello"),
+                "Preview should contain plain text content")
     }
 
     // MARK: - MailStore: draft lookup finds both local and Gmail drafts
 
-    func testEmailsForDraftsFolderMergesLocalAndGmail() {
+    @Test func emailsForDraftsFolderMergesLocalAndGmail() {
         let store = MailStore()
         let localDraft = Email(
             sender: Contact(name: "", email: ""),
@@ -254,25 +254,25 @@ final class DraftLifecycleTests: XCTestCase {
         store.gmailDrafts = [gmailDraft]
 
         let drafts = store.emails(for: .drafts)
-        XCTAssertEqual(drafts.count, 2, "Should merge local and Gmail drafts")
-        XCTAssertEqual(drafts[0].subject, "Local Draft", "Newest first")
-        XCTAssertEqual(drafts[1].subject, "Gmail Draft")
+        #expect(drafts.count == 2, "Should merge local and Gmail drafts")
+        #expect(drafts[0].subject == "Local Draft", "Newest first")
+        #expect(drafts[1].subject == "Gmail Draft")
     }
 
     // MARK: - ComposeModeInitializer
 
-    func testComposeModeNewReturnsSignatureBody() {
+    @Test func composeModeNewReturnsSignatureBody() {
         let fields = ComposeModeInitializer.apply(
             mode: .new,
             signatureForNew: "",
             signatureForReply: "",
             aliases: []
         )
-        XCTAssertTrue(fields.bodyHTML.isEmpty,
-                      "No signature → empty bodyHTML, so existing draft body is preserved")
+        #expect(fields.bodyHTML.isEmpty,
+                "No signature -> empty bodyHTML, so existing draft body is preserved")
     }
 
-    func testComposeModeNewWithSignatureReturnsNonEmptyBody() {
+    @Test func composeModeNewWithSignatureReturnsNonEmptyBody() {
         let alias = GmailSendAs(sendAsEmail: "me@test.com", displayName: "Me",
                                 signature: "<div>My Signature</div>", isDefault: true, isPrimary: true)
         let fields = ComposeModeInitializer.apply(
@@ -281,25 +281,25 @@ final class DraftLifecycleTests: XCTestCase {
             signatureForReply: "",
             aliases: [alias]
         )
-        XCTAssertFalse(fields.bodyHTML.isEmpty,
-                       "Signature present → bodyHTML should contain signature")
-        XCTAssertTrue(fields.bodyHTML.contains("My Signature"))
+        #expect(!fields.bodyHTML.isEmpty,
+                "Signature present -> bodyHTML should contain signature")
+        #expect(fields.bodyHTML.contains("My Signature"))
     }
 
     // MARK: - Inline image CID round-trip
 
-    func testInlineImageExtractionAndResolutionRoundTrip() {
+    @Test func inlineImageExtractionAndResolutionRoundTrip() {
         // Step 1: Editor HTML with data: URL + data-cid (as inserted by WebRichTextEditor)
         let originalHTML = """
         <div>Hello <img src="data:image/png;base64,iVBORw0KGgo=" data-cid="img_abc"> world</div>
         """
 
-        // Step 2: Extract for draft save (data: → cid:)
+        // Step 2: Extract for draft save (data: -> cid:)
         let (processedHTML, images) = InlineImageProcessor.extractInlineImages(from: originalHTML)
-        XCTAssertTrue(processedHTML.contains("cid:img_abc"), "Should replace data: with cid:")
-        XCTAssertFalse(processedHTML.contains("data:image"), "data: URL should be gone")
-        XCTAssertEqual(images.count, 1, "Should extract one image")
-        XCTAssertEqual(images[0].contentID, "img_abc")
+        #expect(processedHTML.contains("cid:img_abc"), "Should replace data: with cid:")
+        #expect(!processedHTML.contains("data:image"), "data: URL should be gone")
+        #expect(images.count == 1, "Should extract one image")
+        #expect(images[0].contentID == "img_abc")
 
         // Step 3: Simulate resolving CID back with data-cid attribute (as makeEmailFromGmailDraft does)
         let base64 = images[0].data.base64EncodedString()
@@ -308,27 +308,27 @@ final class DraftLifecycleTests: XCTestCase {
             of: "src=\"cid:img_abc\"",
             with: "src=\"\(dataURI)\" data-cid=\"img_abc\""
         )
-        XCTAssertTrue(resolvedHTML.contains("data-cid=\"img_abc\""),
-                      "Resolved HTML must include data-cid for re-extraction")
-        XCTAssertTrue(resolvedHTML.contains("data:image/png;base64,"),
-                      "Resolved HTML must include data: URL")
+        #expect(resolvedHTML.contains("data-cid=\"img_abc\""),
+                "Resolved HTML must include data-cid for re-extraction")
+        #expect(resolvedHTML.contains("data:image/png;base64,"),
+                "Resolved HTML must include data: URL")
 
         // Step 4: Re-extract (simulates auto-save after re-opening draft)
         let (reProcessed, reImages) = InlineImageProcessor.extractInlineImages(from: resolvedHTML)
-        XCTAssertTrue(reProcessed.contains("cid:img_abc"), "Round-trip: should extract again")
-        XCTAssertEqual(reImages.count, 1, "Round-trip: should find the same image")
-        XCTAssertEqual(reImages[0].contentID, "img_abc", "Round-trip: same CID")
+        #expect(reProcessed.contains("cid:img_abc"), "Round-trip: should extract again")
+        #expect(reImages.count == 1, "Round-trip: should find the same image")
+        #expect(reImages[0].contentID == "img_abc", "Round-trip: same CID")
     }
 
     // MARK: - Draft save cancellation: new save cancels in-flight save
 
-    func testNewSaveCancelsPreviousInFlightSave() async {
+    @Test func newSaveCancelsPreviousInFlightSave() async {
         let vm = ComposeViewModel(accountID: "", fromAddress: "test@test.com")
         vm.subject = "Test"
         vm.body = "Version 1"
         vm.isHTML = true
 
-        // Start first save (will be "in flight" — API fails with empty accountID)
+        // Start first save (will be "in flight" -- API fails with empty accountID)
         async let save1: Void = vm.saveDraft()
 
         // Tiny yield to let save1 start
@@ -340,10 +340,10 @@ final class DraftLifecycleTests: XCTestCase {
 
         _ = await save1
 
-        // No crash, no double-create — the stored task pattern handles it.
+        // No crash, no double-create -- the stored task pattern handles it.
     }
 
-    func testConcurrentSavesPreserveDraftID() async {
+    @Test func concurrentSavesPreserveDraftID() async {
         let vm = ComposeViewModel(accountID: "", fromAddress: "test@test.com")
         vm.gmailDraftID = "existing_draft_456"
         vm.subject = "Test"
@@ -355,13 +355,13 @@ final class DraftLifecycleTests: XCTestCase {
         async let save2: Void = vm.saveDraft()
         _ = await (save1, save2)
 
-        XCTAssertEqual(vm.gmailDraftID, "existing_draft_456",
-                       "Draft ID must not be lost during concurrent saves")
+        #expect(vm.gmailDraftID == "existing_draft_456",
+                "Draft ID must not be lost during concurrent saves")
     }
 
     // MARK: - Draft ID recovery from MailStore.replyDrafts
 
-    func testDraftIDRecoveryFromReplyDrafts() {
+    @Test func draftIDRecoveryFromReplyDrafts() {
         let store = MailStore()
         let threadID = "thread_abc"
         store.replyDrafts[threadID] = MailStore.ReplyDraftInfo(
@@ -371,7 +371,7 @@ final class DraftLifecycleTests: XCTestCase {
 
         // Simulate a new ComposeViewModel (as if view was recreated by SwiftUI)
         let vm = ComposeViewModel(accountID: "acc", fromAddress: "me@test.com", threadID: threadID)
-        XCTAssertNil(vm.gmailDraftID, "New VM should have no draft ID")
+        #expect(vm.gmailDraftID == nil, "New VM should have no draft ID")
 
         // Simulate recovery logic from scheduleAutoSave
         if vm.gmailDraftID == nil,
@@ -379,11 +379,11 @@ final class DraftLifecycleTests: XCTestCase {
             vm.gmailDraftID = saved.gmailDraftID
         }
 
-        XCTAssertEqual(vm.gmailDraftID, "draft_recovered_123",
-                       "Draft ID should be recovered from MailStore.replyDrafts to prevent duplicate creates")
+        #expect(vm.gmailDraftID == "draft_recovered_123",
+                "Draft ID should be recovered from MailStore.replyDrafts to prevent duplicate creates")
     }
 
-    func testDraftIDRecoverySkippedWhenAlreadySet() {
+    @Test func draftIDRecoverySkippedWhenAlreadySet() {
         let store = MailStore()
         let threadID = "thread_abc"
         store.replyDrafts[threadID] = MailStore.ReplyDraftInfo(
@@ -400,18 +400,20 @@ final class DraftLifecycleTests: XCTestCase {
             vm.gmailDraftID = saved.gmailDraftID
         }
 
-        XCTAssertEqual(vm.gmailDraftID, "current_draft",
-                       "Should not overwrite existing gmailDraftID")
+        #expect(vm.gmailDraftID == "current_draft",
+                "Should not overwrite existing gmailDraftID")
     }
 
     // MARK: - MailStore.replyDrafts persistence
 
-    func testReplyDraftsPersistenceRoundTrip() {
-        let key = "replyDrafts"
+    @Test func replyDraftsPersistenceRoundTrip() {
+        let testAccountID = "test_persist_account"
+        let key = "replyDrafts.\(testAccountID)"
         // Clean up before test
         UserDefaults.standard.removeObject(forKey: key)
 
         let store1 = MailStore()
+        store1.accountID = testAccountID
         let threadID = "thread_persist_test"
         store1.replyDrafts[threadID] = MailStore.ReplyDraftInfo(
             gmailDraftID: "draft_xyz",
@@ -419,18 +421,19 @@ final class DraftLifecycleTests: XCTestCase {
         )
         store1.saveReplyDrafts()
 
-        // New MailStore instance reads from UserDefaults on init
+        // New MailStore instance reads from UserDefaults when accountID is set
         let store2 = MailStore()
-        XCTAssertEqual(store2.replyDrafts[threadID]?.gmailDraftID, "draft_xyz",
-                       "Draft ID should survive MailStore recreation")
-        XCTAssertEqual(store2.replyDrafts[threadID]?.preview, "Test preview text",
-                       "Preview should survive MailStore recreation")
+        store2.accountID = testAccountID
+        #expect(store2.replyDrafts[threadID]?.gmailDraftID == "draft_xyz",
+                "Draft ID should survive MailStore recreation")
+        #expect(store2.replyDrafts[threadID]?.preview == "Test preview text",
+                "Preview should survive MailStore recreation")
 
         // Clean up
         UserDefaults.standard.removeObject(forKey: key)
     }
 
-    func testReplyDraftsCleanupOnDiscard() {
+    @Test func replyDraftsCleanupOnDiscard() {
         let store = MailStore()
         let threadID = "thread_discard_test"
         store.replyDrafts[threadID] = MailStore.ReplyDraftInfo(
@@ -441,13 +444,13 @@ final class DraftLifecycleTests: XCTestCase {
         // Simulate discard (as collapse() does)
         store.replyDrafts.removeValue(forKey: threadID)
 
-        XCTAssertNil(store.replyDrafts[threadID],
-                     "Discarded draft should be removed from replyDrafts")
+        #expect(store.replyDrafts[threadID] == nil,
+                "Discarded draft should be removed from replyDrafts")
     }
 
     // MARK: - GmailModels: contentID and inline parts
 
-    func testContentIDExtraction() {
+    @Test func contentIDExtraction() {
         let part = GmailMessagePart(
             partId: "1",
             mimeType: "image/png",
@@ -456,10 +459,10 @@ final class DraftLifecycleTests: XCTestCase {
             body: GmailMessageBody(attachmentId: "att1", size: 100, data: nil),
             parts: nil
         )
-        XCTAssertEqual(part.contentID, "logo@company.com", "Should strip angle brackets")
+        #expect(part.contentID == "logo@company.com", "Should strip angle brackets")
     }
 
-    func testContentIDNilWhenMissing() {
+    @Test func contentIDNilWhenMissing() {
         let part = GmailMessagePart(
             partId: "1",
             mimeType: "text/html",
@@ -468,10 +471,10 @@ final class DraftLifecycleTests: XCTestCase {
             body: GmailMessageBody(attachmentId: nil, size: 100, data: nil),
             parts: nil
         )
-        XCTAssertNil(part.contentID)
+        #expect(part.contentID == nil)
     }
 
-    func testInlinePartsCollected() {
+    @Test func inlinePartsCollected() {
         let inlinePart = GmailMessagePart(
             partId: "1.2",
             mimeType: "image/png",
@@ -502,11 +505,11 @@ final class DraftLifecycleTests: XCTestCase {
             sizeEstimate: 1000, historyId: nil, raw: nil
         )
 
-        XCTAssertEqual(message.inlineParts.count, 1)
-        XCTAssertEqual(message.inlineParts.first?.contentID, "logo@cid")
+        #expect(message.inlineParts.count == 1)
+        #expect(message.inlineParts.first?.contentID == "logo@cid")
     }
 
-    func testInlinePartsExcludedFromAttachments() {
+    @Test func inlinePartsExcludedFromAttachments() {
         let inlinePart = GmailMessagePart(
             partId: "1.2",
             mimeType: "image/png",
@@ -537,8 +540,8 @@ final class DraftLifecycleTests: XCTestCase {
             sizeEstimate: 2000, historyId: nil, raw: nil
         )
 
-        XCTAssertEqual(message.attachmentParts.count, 1, "Only file attachment, not inline image")
-        XCTAssertEqual(message.attachmentParts.first?.filename, "document.pdf")
-        XCTAssertEqual(message.inlineParts.count, 1)
+        #expect(message.attachmentParts.count == 1, "Only file attachment, not inline image")
+        #expect(message.attachmentParts.first?.filename == "document.pdf")
+        #expect(message.inlineParts.count == 1)
     }
 }

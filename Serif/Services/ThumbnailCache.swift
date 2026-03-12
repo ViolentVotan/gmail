@@ -1,13 +1,15 @@
 import AppKit
+import Observation
 import PDFKit
 
 /// In-memory + disk cache of attachment thumbnails, loaded on-demand with concurrency throttling.
+@Observable
 @MainActor
-final class ThumbnailCache: ObservableObject {
+final class ThumbnailCache {
     static let shared = ThumbnailCache()
 
     /// Cached thumbnails keyed by attachment ID.
-    @Published private(set) var thumbnails: [String: NSImage] = [:]
+    private(set) var thumbnails: [String: NSImage] = [:]
 
     /// IDs currently being fetched (to avoid duplicate requests).
     private var loading: Set<String> = []

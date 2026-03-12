@@ -1,9 +1,9 @@
 import Foundation
-import Combine
+import Observation
 
 // MARK: - API Log Entry
 
-struct APILogEntry: Identifiable {
+struct APILogEntry: Identifiable, Sendable {
     let id              = UUID()
     let date            = Date()
     let method          : String
@@ -71,12 +71,13 @@ struct APILogEntry: Identifiable {
 
 // MARK: - API Logger
 
+@Observable
 @MainActor
-final class APILogger: ObservableObject {
+final class APILogger {
     static let shared = APILogger()
     private init() {}
 
-    @Published private(set) var entries: [APILogEntry] = []
+    private(set) var entries: [APILogEntry] = []
     private let maxEntries = 200
 
     func log(_ entry: APILogEntry) {
@@ -87,52 +88,3 @@ final class APILogger: ObservableObject {
     func clear() { entries = [] }
 }
 
-// MARK: - API Cache
-
-/// Debug-only disk cache for Gmail API responses.
-/// Disabled by default — enable via the Debug menu toggle.
-final class APICache {
-    static let shared = APICache()
-
-    /// Toggle caching on/off without clearing stored data.
-    var isEnabled = false
-
-    private let cacheDir: URL
-
-    private init() {
-        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        cacheDir = caches.appendingPathComponent("com.genyus.serif.app/api-cache", isDirectory: true)
-        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
-    }
-
-    func get(path: String, accountID: String) -> Data? {
-        guard isEnabled else { return nil }
-        return try? Data(contentsOf: fileURL(path, accountID))
-    }
-
-    func set(_ data: Data, path: String, accountID: String) {
-        guard isEnabled else { return }
-        try? data.write(to: fileURL(path, accountID))
-    }
-
-    func clear() {
-        guard let files = try? FileManager.default.contentsOfDirectory(
-            at: cacheDir, includingPropertiesForKeys: nil
-        ) else { return }
-        files.forEach { try? FileManager.default.removeItem(at: $0) }
-    }
-
-    var cachedResponseCount: Int {
-        (try? FileManager.default.contentsOfDirectory(at: cacheDir, includingPropertiesForKeys: nil))?.count ?? 0
-    }
-
-    private func fileURL(_ path: String, _ accountID: String) -> URL {
-        let key = "\(accountID)|\(path)"
-            .data(using: .utf8)!
-            .base64EncodedString()
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "=", with: "")
-        return cacheDir.appendingPathComponent(String(key.prefix(200)) + ".json")
-    }
-}

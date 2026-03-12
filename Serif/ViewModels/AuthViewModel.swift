@@ -1,11 +1,12 @@
 import SwiftUI
 
 /// Manages account sign-in, sign-out, and the list of connected Gmail accounts.
+@Observable
 @MainActor
-final class AuthViewModel: ObservableObject {
-    @Published var accounts: [GmailAccount] = []
-    @Published var isSigningIn = false
-    @Published var error: String?
+final class AuthViewModel {
+    var accounts: [GmailAccount] = []
+    var isSigningIn = false
+    var error: String?
 
     init() {
         accounts = AccountStore.shared.accounts

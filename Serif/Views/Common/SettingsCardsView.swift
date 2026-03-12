@@ -224,7 +224,7 @@ struct SignatureSettingsCard: View {
 // MARK: - Storage Settings Card
 
 struct StorageSettingsCard: View {
-    @ObservedObject var attachmentStore: AttachmentStore
+    var attachmentStore: AttachmentStore
     @AppStorage("attachmentScanMonths") private var scanMonths: Int = -1 // UserDefaultsKey.attachmentScanMonths
     @State private var dbSize: Int64 = 0
     @State private var showClearConfirm = false
@@ -302,7 +302,7 @@ struct StorageSettingsCard: View {
             attachmentStore.refresh()
             dbSize = AttachmentDatabase.shared.databaseSizeBytes()
         }
-        .onChange(of: attachmentStore.stats.total) { _ in
+        .onChange(of: attachmentStore.stats.total) { _, _ in
             dbSize = AttachmentDatabase.shared.databaseSizeBytes()
         }
         .alert("Clear attachment index?", isPresented: $showClearConfirm) {

@@ -1,6 +1,6 @@
 import Foundation
 
-struct Email: Identifiable, Equatable {
+struct Email: Identifiable, Equatable, Sendable {
     static func == (lhs: Email, rhs: Email) -> Bool {
         lhs.id == rhs.id &&
         lhs.isRead == rhs.isRead &&
@@ -109,7 +109,7 @@ struct Email: Identifiable, Equatable {
     }
 }
 
-struct Contact: Identifiable, Hashable {
+struct Contact: Identifiable, Hashable, Sendable {
     let id: UUID
     let name: String
     let email: String
@@ -139,7 +139,7 @@ struct Contact: Identifiable, Hashable {
     }
 }
 
-struct Attachment: Identifiable {
+struct Attachment: Identifiable, Sendable {
     let id: UUID
     let name: String
     let fileType: FileType
@@ -159,7 +159,7 @@ struct Attachment: Identifiable {
         self.mimeType = mimeType
     }
 
-    enum FileType: String, CaseIterable {
+    enum FileType: String, CaseIterable, Sendable {
         case document = "doc.fill"
         case pdf = "doc.richtext.fill"
         case image = "photo.fill"
@@ -194,7 +194,7 @@ struct Attachment: Identifiable {
     }
 }
 
-struct EmailLabel: Identifiable {
+struct EmailLabel: Identifiable, Sendable {
     let id: UUID
     let name: String
     let color: String
@@ -210,7 +210,7 @@ struct EmailLabel: Identifiable {
 
 // MARK: - Inbox Categories (Gmail system labels)
 
-enum InboxCategory: String, CaseIterable, Identifiable {
+enum InboxCategory: String, CaseIterable, Identifiable, Sendable {
     case all        = "ALL_INBOX"
     case primary    = "CATEGORY_PERSONAL"
     case social     = "CATEGORY_SOCIAL"
@@ -253,7 +253,7 @@ enum InboxCategory: String, CaseIterable, Identifiable {
 
 // MARK: - Folder
 
-enum Folder: String, CaseIterable, Identifiable {
+enum Folder: String, CaseIterable, Identifiable, Sendable {
     case inbox = "Inbox"
     case starred = "Starred"
     case sent = "Sent"

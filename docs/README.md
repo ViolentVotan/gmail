@@ -14,3 +14,10 @@ Architecture and conventions for the Serif macOS Gmail client.
 | [Utilities.md](Utilities.md) | Pure helpers, extensions, constants |
 | [Theme.md](Theme.md) | Theming system |
 | [Configuration.md](Configuration.md) | App-level config (API keys, scopes) |
+
+## Specs & Plans
+
+| Document | Scope |
+|----------|-------|
+| [superpowers/specs/2026-03-11-swift-6.2-migration-design.md](superpowers/specs/2026-03-11-swift-6.2-migration-design.md) | Swift 6.2 / macOS 26 migration design spec |
+| [superpowers/plans/2026-03-11-swift-6.2-migration.md](superpowers/plans/2026-03-11-swift-6.2-migration.md) | Swift 6.2 / macOS 26 migration implementation plan |

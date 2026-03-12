@@ -115,7 +115,10 @@ struct OriginalMessageView: View {
                         NSPasteboard.general.clearContents()
                         NSPasteboard.general.setString(source, forType: .string)
                         copied = true
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { copied = false }
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .seconds(2))
+                            copied = false
+                        }
                     }
                 } label: {
                     HStack(spacing: 4) {
@@ -248,12 +251,10 @@ struct OriginalMessageView: View {
     // MARK: - Download
 
     private func downloadOriginal(_ source: String) {
-        DispatchQueue.main.async {
-            let panel = NSSavePanel()
-            panel.nameFieldStringValue = "original_message.eml"
-            panel.canCreateDirectories = true
-            guard panel.runModal() == .OK, let url = panel.url else { return }
-            try? source.data(using: .utf8)?.write(to: url)
-        }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = "original_message.eml"
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? source.data(using: .utf8)?.write(to: url)
     }
 }

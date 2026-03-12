@@ -1,12 +1,13 @@
 import Foundation
 
+@MainActor
 final class GmailSendService {
     static let shared = GmailSendService()
     private init() {}
 
     // MARK: - Send
 
-    func send(
+    @concurrent func send(
         from: String,
         to: [String],
         cc: [String] = [],
@@ -19,7 +20,7 @@ final class GmailSendService {
         inlineImages: [InlineImageAttachment] = [],
         attachments: [URL]? = nil,
         accountID: String
-    ) async throws -> GmailMessage {
+    ) async throws(GmailAPIError) -> GmailMessage {
         let raw: String
         let hasAttachments = attachments != nil && !attachments!.isEmpty
         if hasAttachments || !inlineImages.isEmpty {
@@ -39,7 +40,12 @@ final class GmailSendService {
         }
         var payload: [String: Any] = ["raw": raw]
         if let threadID { payload["threadId"] = threadID }
-        let encoded = try JSONSerialization.data(withJSONObject: payload)
+        let encoded: Data
+        do {
+            encoded = try JSONSerialization.data(withJSONObject: payload)
+        } catch {
+            throw .encodingError(error)
+        }
         return try await GmailAPIClient.shared.request(
             path: "/users/me/messages/send",
             method: "POST", body: encoded, contentType: "application/json",
@@ -49,7 +55,7 @@ final class GmailSendService {
 
     // MARK: - Drafts
 
-    func createDraft(
+    @concurrent func createDraft(
         from: String,
         to: [String],
         cc: [String] = [],
@@ -58,7 +64,7 @@ final class GmailSendService {
         isHTML: Bool = false,
         inlineImages: [InlineImageAttachment] = [],
         accountID: String
-    ) async throws -> GmailDraft {
+    ) async throws(GmailAPIError) -> GmailDraft {
         let encoded = try buildDraftPayload(
             from: from, to: to, cc: cc, subject: subject,
             body: body, isHTML: isHTML, inlineImages: inlineImages
@@ -70,7 +76,7 @@ final class GmailSendService {
         )
     }
 
-    func updateDraft(
+    @concurrent func updateDraft(
         draftID: String,
         from: String,
         to: [String],
@@ -80,7 +86,7 @@ final class GmailSendService {
         isHTML: Bool = false,
         inlineImages: [InlineImageAttachment] = [],
         accountID: String
-    ) async throws -> GmailDraft {
+    ) async throws(GmailAPIError) -> GmailDraft {
         let encoded = try buildDraftPayload(
             from: from, to: to, cc: cc, subject: subject,
             body: body, isHTML: isHTML, inlineImages: inlineImages
@@ -92,7 +98,7 @@ final class GmailSendService {
         )
     }
 
-    private func buildDraftPayload(
+    nonisolated private func buildDraftPayload(
         from: String,
         to: [String],
         cc: [String],
@@ -100,7 +106,7 @@ final class GmailSendService {
         body: String,
         isHTML: Bool,
         inlineImages: [InlineImageAttachment]
-    ) throws -> Data {
+    ) throws(GmailAPIError) -> Data {
         let raw: String
         if !inlineImages.isEmpty {
             raw = buildRawMultipart(from: from, to: to, cc: cc, bcc: [],
@@ -110,10 +116,14 @@ final class GmailSendService {
             raw = buildRaw(from: from, to: to, cc: cc, bcc: [], subject: subject, body: body, isHTML: isHTML)
         }
         let payload: [String: Any] = ["message": ["raw": raw]]
-        return try JSONSerialization.data(withJSONObject: payload)
+        do {
+            return try JSONSerialization.data(withJSONObject: payload)
+        } catch {
+            throw .encodingError(error)
+        }
     }
 
-    func deleteDraft(draftID: String, accountID: String) async throws {
+    @concurrent func deleteDraft(draftID: String, accountID: String) async throws(GmailAPIError) {
         _ = try await GmailAPIClient.shared.rawRequest(
             path: "/users/me/drafts/\(draftID)",
             method: "DELETE",
@@ -123,7 +133,7 @@ final class GmailSendService {
 
     // MARK: - RFC 2822 Builder (plain / HTML)
 
-    private func buildRaw(
+    nonisolated private func buildRaw(
         from: String,
         to: [String],
         cc: [String],
@@ -180,7 +190,7 @@ final class GmailSendService {
 
     // MARK: - RFC 2822 Builder (multipart/mixed + multipart/related)
 
-    private func buildRawMultipart(
+    nonisolated private func buildRawMultipart(
         from: String,
         to: [String],
         cc: [String],
@@ -310,14 +320,14 @@ final class GmailSendService {
     // MARK: - Helpers
 
     /// RFC 2047 encode a header value when it contains non-ASCII characters (e.g. emojis).
-    private func mimeEncodeHeader(_ value: String) -> String {
+    nonisolated private func mimeEncodeHeader(_ value: String) -> String {
         let needsEncoding = value.unicodeScalars.contains { !$0.isASCII }
         guard needsEncoding, let data = value.data(using: .utf8) else { return value }
         let encoded = data.base64EncodedString()
         return "=?UTF-8?B?\(encoded)?="
     }
 
-    private func base64URLEncode(_ string: String) -> String {
+    nonisolated private func base64URLEncode(_ string: String) -> String {
         guard let data = string.data(using: .utf8) else { return "" }
         return data.base64EncodedString()
             .replacingOccurrences(of: "+", with: "-")

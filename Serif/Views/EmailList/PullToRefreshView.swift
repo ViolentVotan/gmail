@@ -9,7 +9,8 @@ struct PullToRefreshDetector: NSViewRepresentable {
 
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(0.5))
             guard let scrollView = view.enclosingScrollView else { return }
             context.coordinator.attach(to: scrollView)
         }
@@ -24,7 +25,7 @@ struct PullToRefreshDetector: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    class Coordinator: NSObject {
+    @MainActor class Coordinator: NSObject {
         weak var scrollView: NSScrollView?
         var isRefreshing = false
         var onRefresh: (() async -> Void)?
@@ -55,13 +56,14 @@ struct PullToRefreshDetector: NSViewRepresentable {
 
         private func triggerRefresh() {
             isRefreshing = true
-            DispatchQueue.main.async {
-                self.isRefreshingBinding?.wrappedValue = true
-            }
+            isRefreshingBinding?.wrappedValue = true
+            let refreshAction = onRefresh
             Task { @MainActor in
-                async let refresh: Void = self.onRefresh?() ?? ()
-                async let minDelay: Void = { try? await Task.sleep(nanoseconds: 800_000_000) }()
-                _ = await (refresh, minDelay)
+                let start = ContinuousClock.now
+                await refreshAction?()
+                let elapsed = ContinuousClock.now - start
+                let remaining = Duration.milliseconds(800) - elapsed
+                if remaining > .zero { try? await Task.sleep(for: remaining) }
                 self.isRefreshing = false
                 self.isRefreshingBinding?.wrappedValue = false
                 self.didPassThreshold = false

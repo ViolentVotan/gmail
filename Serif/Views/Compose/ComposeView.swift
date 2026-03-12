@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ComposeView: View {
-    @ObservedObject var mailStore: MailStore
+    var mailStore: MailStore
     let draftId: UUID
     let accountID: String
     let fromAddress: String
@@ -30,7 +30,7 @@ struct ComposeView: View {
     @State private var currentSignatureHTML: String = ""
     @State private var showDiscardAlert = false
     @StateObject private var editorState = WebRichTextEditorState()
-    @StateObject private var composeVM: ComposeViewModel
+    @State private var composeVM: ComposeViewModel
     @Environment(\.theme) private var theme
 
     init(
@@ -46,7 +46,7 @@ struct ComposeView: View {
         onDiscard: @escaping () -> Void,
         onOpenLink: ((URL) -> Void)? = nil
     ) {
-        self._mailStore        = ObservedObject(wrappedValue: mailStore)
+        self.mailStore         = mailStore
         self.draftId           = draftId
         self.accountID         = accountID
         self.fromAddress       = fromAddress
@@ -58,10 +58,10 @@ struct ComposeView: View {
         self.onDiscard         = onDiscard
         self.onOpenLink        = onOpenLink
         self._selectedAliasEmail = State(initialValue: fromAddress)
-        self._composeVM        = StateObject(wrappedValue: ComposeViewModel(
+        self.composeVM         = ComposeViewModel(
             accountID: accountID,
             fromAddress: fromAddress
-        ))
+        )
     }
 
     private var draft: Email? {
@@ -151,12 +151,12 @@ struct ComposeView: View {
         }
         .background(theme.detailBackground)
         .onAppear { loadDraft() }
-        .onChange(of: to)       { _ in scheduleAutoSave() }
-        .onChange(of: cc)       { _ in scheduleAutoSave() }
-        .onChange(of: bcc)      { _ in scheduleAutoSave() }
-        .onChange(of: subject)  { _ in scheduleAutoSave() }
-        .onChange(of: bodyHTML) { _ in scheduleAutoSave() }
-        .onChange(of: selectedAliasEmail) { newEmail in
+        .onChange(of: to)       { _, _ in scheduleAutoSave() }
+        .onChange(of: cc)       { _, _ in scheduleAutoSave() }
+        .onChange(of: bcc)      { _, _ in scheduleAutoSave() }
+        .onChange(of: subject)  { _, _ in scheduleAutoSave() }
+        .onChange(of: bodyHTML) { _, _ in scheduleAutoSave() }
+        .onChange(of: selectedAliasEmail) { _, newEmail in
             composeVM.fromAddress = newEmail
             replaceSignature(for: newEmail)
         }
@@ -213,7 +213,8 @@ struct ComposeView: View {
 
         // Delay clearing isInitialLoad so the WebView's didFinish → setHTML → contentChanged
         // cycle doesn't trigger a spurious auto-save that could corrupt inline images.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(0.5))
             isInitialLoad = false
         }
     }

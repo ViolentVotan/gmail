@@ -1,12 +1,13 @@
 import Foundation
 
+@MainActor
 final class GmailProfileService {
     static let shared = GmailProfileService()
     private init() {}
 
     // MARK: - Gmail Profile
 
-    func getProfile(accountID: String) async throws -> GmailProfile {
+    @concurrent func getProfile(accountID: String) async throws(GmailAPIError) -> GmailProfile {
         try await GmailAPIClient.shared.request(
             path: "/users/me/profile",
             accountID: accountID
@@ -16,7 +17,7 @@ final class GmailProfileService {
     // MARK: - Google User Info (name, avatar)
 
     /// Fetches display name and profile picture from Google's userinfo endpoint.
-    func getUserInfo(accessToken: String) async throws -> GoogleUserInfo {
+    @concurrent func getUserInfo(accessToken: String) async throws -> GoogleUserInfo {
         let url = URL(string: "https://www.googleapis.com/oauth2/v2/userinfo")!
         var request = URLRequest(url: url)
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
@@ -27,7 +28,7 @@ final class GmailProfileService {
     // MARK: - SendAs / Aliases
 
     /// Returns all SendAs aliases for the account.
-    func listSendAs(accountID: String) async throws -> [GmailSendAs] {
+    @concurrent func listSendAs(accountID: String) async throws(GmailAPIError) -> [GmailSendAs] {
         let response: GmailSendAsListResponse = try await GmailAPIClient.shared.request(
             path: "/users/me/settings/sendAs",
             accountID: accountID
@@ -37,9 +38,14 @@ final class GmailProfileService {
 
     /// Updates the signature HTML for a specific send-as alias.
     @discardableResult
-    func updateSignature(sendAsEmail: String, signature: String, accountID: String) async throws -> GmailSendAs {
+    @concurrent func updateSignature(sendAsEmail: String, signature: String, accountID: String) async throws(GmailAPIError) -> GmailSendAs {
         struct UpdateRequest: Encodable { let signature: String }
-        let body = try JSONEncoder().encode(UpdateRequest(signature: signature))
+        let body: Data
+        do {
+            body = try JSONEncoder().encode(UpdateRequest(signature: signature))
+        } catch {
+            throw .encodingError(error)
+        }
         return try await GmailAPIClient.shared.request(
             path: "/users/me/settings/sendAs/\(sendAsEmail)",
             method: "PUT", body: body, contentType: "application/json",
@@ -48,7 +54,7 @@ final class GmailProfileService {
     }
 
     /// Returns the signature HTML for the default send-as address.
-    func getSignature(accountID: String) async throws -> String? {
+    @concurrent func getSignature(accountID: String) async throws(GmailAPIError) -> String? {
         let aliases = try await listSendAs(accountID: accountID)
         return aliases.first(where: { $0.isDefault == true })?.signature
     }
@@ -139,7 +145,7 @@ final class GmailProfileService {
 
 // MARK: - Stored Contact
 
-struct StoredContact: Codable, Identifiable, Hashable {
+struct StoredContact: Codable, Identifiable, Hashable, Sendable {
     var id: String { email }
     let name: String
     let email: String
@@ -148,6 +154,7 @@ struct StoredContact: Codable, Identifiable, Hashable {
 
 // MARK: - Contact Store (UserDefaults persistence)
 
+@MainActor
 final class ContactStore {
     static let shared = ContactStore()
     private init() {}
@@ -174,7 +181,9 @@ final class ContactStore {
 // MARK: - Contact Photo Cache
 
 /// In-memory cache of email → Google profile photo URL, populated from People API at login.
-final class ContactPhotoCache {
+/// Thread-safe via NSLock – deliberately `@unchecked Sendable` so callers on any isolation
+/// domain can read/write without awaiting.
+final class ContactPhotoCache: @unchecked Sendable {
     static let shared = ContactPhotoCache()
     private init() {}
 
@@ -223,7 +232,7 @@ private struct PersonName: Decodable {
 
 // MARK: - Google User Info Model
 
-struct GoogleUserInfo: Decodable {
+struct GoogleUserInfo: Decodable, Sendable {
     let id:        String
     let email:     String
     let name:      String?

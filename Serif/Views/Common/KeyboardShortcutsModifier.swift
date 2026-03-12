@@ -1,12 +1,12 @@
 import SwiftUI
-import AppKit
+@preconcurrency import AppKit
 import WebKit
 
 /// Invisible view that captures global keyboard shortcuts.
 /// Cmd+A, Cmd+Z, and Cmd+F are handled via NSEvent monitor to respect the responder chain
 /// (text fields/editors get priority over global app shortcuts).
 struct KeyboardShortcutsView: View {
-    @ObservedObject var coordinator: AppCoordinator
+    var coordinator: AppCoordinator
 
     var body: some View {
         Group {
@@ -74,32 +74,42 @@ private struct KeyboardEventMonitor: NSViewRepresentable {
         }
 
         private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
+            // Extract event data before crossing into MainActor (NSEvent isn't Sendable)
+            let keyCode = event.keyCode
+            let modifiers = event.modifierFlags
+            let chars = event.charactersIgnoringModifiers
+
+            // NSEvent monitors fire on the main thread — safe to access MainActor state directly.
+            nonisolated(unsafe) let coord = coordinator
+
             // Escape — close any open panel (takes priority over everything)
-            if event.keyCode == 53 {
-                let panels = coordinator.panelCoordinator
-                if MainActor.assumeIsolated({ panels.isAnyOpen }) {
-                    DispatchQueue.main.async { panels.closeAll() }
+            if keyCode == 53 {
+                let shouldClose = MainActor.assumeIsolated {
+                    coord.panelCoordinator.isAnyOpen
+                }
+                if shouldClose {
+                    MainActor.assumeIsolated { coord.panelCoordinator.closeAll() }
                     return nil
                 }
             }
 
-            guard event.modifierFlags.contains(.command),
-                  !event.modifierFlags.contains(.shift) else { return event }
+            guard modifiers.contains(.command),
+                  !modifiers.contains(.shift) else { return event }
 
-            switch event.charactersIgnoringModifiers {
+            switch chars {
             case "a":
                 if isTextInputFocused { return event } // let native select-all handle it
-                DispatchQueue.main.async { self.coordinator.selectAllEmails() }
+                MainActor.assumeIsolated { coord.selectAllEmails() }
                 return nil
 
             case "z":
                 if isTextInputFocused { return event } // let native undo handle it
-                DispatchQueue.main.async { UndoActionManager.shared.undo() }
+                MainActor.assumeIsolated { UndoActionManager.shared.undo() }
                 return nil
 
             case "f":
                 if isTextInputFocused { return event } // let native find handle it
-                DispatchQueue.main.async { self.coordinator.searchFocusTrigger = true }
+                MainActor.assumeIsolated { coord.searchFocusTrigger = true }
                 return nil
 
             default:

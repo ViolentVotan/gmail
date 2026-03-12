@@ -1,10 +1,11 @@
 import Foundation
+import Observation
 
-enum ToastType {
+enum ToastType: Sendable {
     case success, error, info
 }
 
-struct ToastMessage: Identifiable, Equatable {
+struct ToastMessage: Identifiable, Equatable, Sendable {
     let id = UUID()
     let message: String
     let type: ToastType
@@ -14,12 +15,13 @@ struct ToastMessage: Identifiable, Equatable {
     }
 }
 
+@Observable
 @MainActor
-final class ToastManager: ObservableObject {
+final class ToastManager {
     static let shared = ToastManager()
     private init() {}
 
-    @Published var currentToast: ToastMessage?
+    var currentToast: ToastMessage?
     private var dismissTask: Task<Void, Never>?
 
     func show(message: String, type: ToastType = .info, duration: Double = 3.5) {

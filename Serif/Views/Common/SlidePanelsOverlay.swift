@@ -1,10 +1,10 @@
 import SwiftUI
 
 struct SlidePanelsOverlay: View {
-    @ObservedObject var panels: PanelCoordinator
+    @Bindable var panels: PanelCoordinator
 
-    @ObservedObject var themeManager: ThemeManager
-    @ObservedObject var authViewModel: AuthViewModel
+    var themeManager: ThemeManager
+    var authViewModel: AuthViewModel
     @Binding var selectedAccountID: String?
     @Binding var undoDuration: Int
     @Binding var refreshInterval: Int
@@ -15,7 +15,7 @@ struct SlidePanelsOverlay: View {
     var onAliasesUpdated: (() -> Void)?
     var onRefreshContacts: ((String) async -> Void)?
     var onSaveSignature: ((String, String, String) async throws -> GmailSendAs)?
-    @ObservedObject var attachmentStore: AttachmentStore
+    var attachmentStore: AttachmentStore
     var mailStore: MailStore
 
     @Environment(\.theme) private var theme

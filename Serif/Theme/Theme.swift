@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct Theme: Identifiable, Equatable {
+struct Theme: Identifiable, Equatable, Sendable {
     let id: String
     let name: String
     let icon: String

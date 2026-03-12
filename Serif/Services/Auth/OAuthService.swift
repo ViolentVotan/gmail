@@ -1,5 +1,6 @@
 import Foundation
-import AppAuth
+import AppKit
+private import AppAuth
 
 /// Handles Google OAuth 2.0 using AppAuth (loopback HTTP redirect flow).
 /// Compatible with "Desktop app" credentials (redirect_uri = http://localhost).
@@ -81,7 +82,7 @@ final class OAuthService: NSObject {
     }
 
     /// Uses the stored refresh token to obtain a new access token.
-    func refreshToken(_ token: AuthToken) async throws -> AuthToken {
+    @concurrent func refreshToken(_ token: AuthToken) async throws -> AuthToken {
         guard let refreshToken = token.refreshToken else { throw OAuthError.noRefreshToken }
 
         let params: [String: String] = [
@@ -102,7 +103,7 @@ final class OAuthService: NSObject {
 
     // MARK: - Private
 
-    private func postForm<T: Decodable>(to urlString: String, params: [String: String]) async throws -> T {
+    @concurrent private func postForm<T: Decodable>(to urlString: String, params: [String: String]) async throws -> T {
         guard let url = URL(string: urlString) else { throw OAuthError.invalidURL }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"

@@ -33,7 +33,7 @@ struct EmailDetailView: View {
     var fromAddress: String = ""
     var mailStore: MailStore
 
-    @StateObject private var detailVM: EmailDetailViewModel
+    @State private var detailVM: EmailDetailViewModel
     @State private var emailBodyHeight: CGFloat = 100
     @State private var didUnsubscribe = false
     @State private var showSenderInfo = false
@@ -119,7 +119,7 @@ struct EmailDetailView: View {
         self.checkUnsubscribed     = checkUnsubscribed
         self.extractBodyUnsubscribeURL = extractBodyUnsubscribeURL
         self.fromAddress           = fromAddress
-        self._detailVM             = StateObject(wrappedValue: EmailDetailViewModel(accountID: accountID))
+        self.detailVM              = EmailDetailViewModel(accountID: accountID)
     }
 
     // MARK: - Derived content
@@ -403,13 +403,11 @@ struct EmailDetailView: View {
     }
 
     private func saveAttachmentData(_ data: Data, named name: String) {
-        DispatchQueue.main.async {
-            let panel = NSSavePanel()
-            panel.nameFieldStringValue = name
-            panel.canCreateDirectories = true
-            guard panel.runModal() == .OK, let url = panel.url else { return }
-            try? data.write(to: url)
-        }
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = name
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? data.write(to: url)
     }
 
     // MARK: - Sender Header

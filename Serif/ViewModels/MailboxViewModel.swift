@@ -1,19 +1,20 @@
 import SwiftUI
 
 /// Drives the email list for a given account and folder.
+@Observable
 @MainActor
-final class MailboxViewModel: ObservableObject {
-    @Published var messages:      [GmailMessage] = [] { didSet { recomputeEmails() } }
-    @Published var isLoading      = false
-    @Published var error:         String?
-    @Published var nextPageToken: String?
-    @Published var labels:                [GmailLabel] = [] { didSet { recomputeEmails() } }
-    @Published var sendAsAliases:         [GmailSendAs] = []
-    @Published var readIDs:               Set<String> = []
-    @Published var categoryUnreadCounts:  [InboxCategory: Int] = [:]
+final class MailboxViewModel {
+    var messages:      [GmailMessage] = [] { didSet { recomputeEmails() } }
+    var isLoading      = false
+    var error:         String?
+    var nextPageToken: String?
+    var labels:                [GmailLabel] = [] { didSet { recomputeEmails() } }
+    var sendAsAliases:         [GmailSendAs] = []
+    var readIDs:               Set<String> = []
+    var categoryUnreadCounts:  [InboxCategory: Int] = [:]
     /// Set by `restoreOptimistically` so the UI can re-select the restored email.
-    @Published var lastRestoredMessageID: String?
-    @Published private(set) var emails: [Email] = []
+    var lastRestoredMessageID: String?
+    private(set) var emails: [Email] = []
 
     var accountID: String
     var attachmentIndexer: AttachmentIndexer? {
@@ -41,9 +42,11 @@ final class MailboxViewModel: ObservableObject {
         self.labelService   = LabelSyncService(cache: cache)
         self.historyService = HistorySyncService(api: api)
         // Wire up the makeEmail closure for background analysis.
-        // Uses unowned since the service cannot outlive the VM that owns it.
-        fetchService.makeEmail = { [unowned self] msg in
-            self.makeEmail(from: msg)
+        fetchService.makeEmail = { [weak self] msg in
+            guard let self else {
+                return Email(sender: Contact(name: "", email: ""), subject: "", body: "")
+            }
+            return self.makeEmail(from: msg)
         }
     }
 
@@ -336,17 +339,8 @@ final class MailboxViewModel: ObservableObject {
         saveCacheToDisk()
         do {
             try await api.emptyTrash(accountID: accountID)
-        } catch let error as GmailAPIError {
-            if case .partialFailure = error {
-                self.error = error.localizedDescription  // inform but don't revert
-            } else {
-                messages = backup
-                fetchService.messageCache = cacheBackup
-                fetchService.allCachedMessages = cachedBackup
-                fetchService.localOffset = offsetBackup
-                saveCacheToDisk()
-                self.error = error.localizedDescription
-            }
+        } catch GmailAPIError.partialFailure {
+            self.error = "Some messages could not be deleted"  // inform but don't revert
         } catch {
             messages = backup
             fetchService.messageCache = cacheBackup
@@ -369,17 +363,8 @@ final class MailboxViewModel: ObservableObject {
         saveCacheToDisk()
         do {
             try await api.emptySpam(accountID: accountID)
-        } catch let error as GmailAPIError {
-            if case .partialFailure = error {
-                self.error = error.localizedDescription  // inform but don't revert
-            } else {
-                messages = backup
-                fetchService.messageCache = cacheBackup
-                fetchService.allCachedMessages = cachedBackup
-                fetchService.localOffset = offsetBackup
-                saveCacheToDisk()
-                self.error = error.localizedDescription
-            }
+        } catch GmailAPIError.partialFailure {
+            self.error = "Some messages could not be deleted"  // inform but don't revert
         } catch {
             messages = backup
             fetchService.messageCache = cacheBackup
@@ -447,7 +432,7 @@ final class MailboxViewModel: ObservableObject {
             let newLabel = try await GmailLabelService.shared.createLabel(name: name, accountID: accountID)
             labels.append(newLabel)
             await addLabel(newLabel.id, to: messageID)
-            // labels is @Published — changing it already triggers re-computation of emails
+            // labels is @Observable-tracked — changing it triggers didSet → recomputeEmails()
             return newLabel.id
         } catch {
             self.error = error.localizedDescription
@@ -652,7 +637,7 @@ final class MailboxViewModel: ObservableObject {
         }
     }
 
-    /// Applies the result of a history sync to the VM's published state.
+    /// Applies the result of a history sync to the VM's observable state.
     private func applyHistorySync(labelId: String?) async -> Bool {
         let existingIDs = Set(messages.map(\.id))
         let result = await historyService.syncViaHistory(

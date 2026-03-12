@@ -10,7 +10,7 @@ struct InAppBrowserView: View {
     @State private var isLoading = true
     @State private var canGoBack = false
     @State private var canGoForward = false
-    @StateObject private var webViewStore = WebViewStore()
+    @State private var webViewStore = WebViewStore()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -133,7 +133,9 @@ struct InAppBrowserView: View {
 
 // MARK: - WebView Store
 
-private class WebViewStore: ObservableObject {
+@Observable
+@MainActor
+private class WebViewStore {
     let webView = WKWebView()
 }
 
@@ -168,7 +170,7 @@ private struct BrowserWebView: NSViewRepresentable {
             super.init()
 
             observation = parent.webView.observe(\.isLoading) { [weak self] webView, _ in
-                DispatchQueue.main.async {
+                Task { @MainActor [weak self] in
                     self?.parent.onLoadingChange(webView.isLoading)
                     self?.parent.onNavigationChange(webView.canGoBack, webView.canGoForward)
                 }

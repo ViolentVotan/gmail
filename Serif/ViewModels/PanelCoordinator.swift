@@ -1,37 +1,38 @@
 import SwiftUI
 
+@Observable
 @MainActor
-final class PanelCoordinator: ObservableObject {
+final class PanelCoordinator {
     // MARK: - Panel visibility
 
-    @Published var showSettings = false
-    @Published var showHelp = false
-    @Published var showDebug = false
-    @Published var showOriginal = false
-    @Published var showAttachmentPreview = false
-    @Published var showWebBrowser = false
+    var showSettings = false
+    var showHelp = false
+    var showDebug = false
+    var showOriginal = false
+    var showAttachmentPreview = false
+    var showWebBrowser = false
 
     // MARK: - Web browser data
 
-    @Published var webBrowserURL: URL?
+    var webBrowserURL: URL?
 
     // MARK: - Original message data
 
-    @Published var originalMessage: GmailMessage?
-    @Published var originalRawSource: String?
-    @Published var isLoadingOriginal = false
+    var originalMessage: GmailMessage?
+    var originalRawSource: String?
+    var isLoadingOriginal = false
 
     // MARK: - Email preview data
 
-    @Published var showEmailPreview = false
-    @Published var previewEmail: Email?
-    @Published var previewAccountID = ""
+    var showEmailPreview = false
+    var previewEmail: Email?
+    var previewAccountID = ""
 
     // MARK: - Attachment preview data
 
-    @Published var attachmentPreviewData: Data?
-    @Published var attachmentPreviewName = ""
-    @Published var attachmentPreviewFileType: Attachment.FileType = .document
+    var attachmentPreviewData: Data?
+    var attachmentPreviewName = ""
+    var attachmentPreviewFileType: Attachment.FileType = .document
 
     var isAnyOpen: Bool {
         showSettings || showHelp || showDebug || showAttachmentPreview || showOriginal || showWebBrowser || showEmailPreview

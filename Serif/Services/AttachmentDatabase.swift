@@ -1,5 +1,5 @@
 import Foundation
-import SQLite3
+private import SQLite3
 
 /// SQLITE_TRANSIENT tells SQLite to copy bound data immediately.
 /// Using `OpaquePointer(bitPattern:)` avoids the undefined behavior of
@@ -9,7 +9,7 @@ private let SQLITE_TRANSIENT = unsafeBitCast(OpaquePointer(bitPattern: -1), to: 
 
 // MARK: - Error
 
-enum AttachmentDatabaseError: Error {
+enum AttachmentDatabaseError: Error, Sendable {
     case openFailed(String)
     case schemaFailed(String)
     case queryFailed(String)
@@ -592,7 +592,7 @@ final class AttachmentDatabase: @unchecked Sendable {
 
     // MARK: - Scan State
 
-    struct ScanState {
+    struct ScanState: Sendable {
         let pageToken: String?
         let isComplete: Bool
     }

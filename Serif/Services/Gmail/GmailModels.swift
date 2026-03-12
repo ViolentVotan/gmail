@@ -2,20 +2,20 @@ import Foundation
 
 // MARK: - Message List
 
-struct GmailMessageListResponse: Codable {
+struct GmailMessageListResponse: Codable, Sendable {
     let messages:            [GmailMessageRef]?
     let nextPageToken:       String?
     let resultSizeEstimate:  Int?
 }
 
-struct GmailMessageRef: Codable {
+struct GmailMessageRef: Codable, Sendable {
     let id:       String
     let threadId: String
 }
 
 // MARK: - Message
 
-struct GmailMessage: Codable {
+struct GmailMessage: Codable, Sendable {
     let id:           String
     let threadId:     String
     var labelIds:     [String]?
@@ -27,7 +27,7 @@ struct GmailMessage: Codable {
     let raw:          String?   // base64url-encoded RFC 2822 source (format=raw)
 }
 
-struct GmailMessagePart: Codable {
+struct GmailMessagePart: Codable, Sendable {
     let partId:   String?
     let mimeType: String?
     let filename: String?
@@ -36,12 +36,12 @@ struct GmailMessagePart: Codable {
     let parts:    [GmailMessagePart]?
 }
 
-struct GmailHeader: Codable {
+struct GmailHeader: Codable, Sendable {
     let name:  String
     let value: String
 }
 
-struct GmailMessageBody: Codable {
+struct GmailMessageBody: Codable, Sendable {
     let attachmentId: String?
     let size:         Int
     let data:         String?   // base64url encoded
@@ -49,7 +49,7 @@ struct GmailMessageBody: Codable {
 
 // MARK: - Thread
 
-struct GmailThread: Codable {
+struct GmailThread: Codable, Sendable {
     let id:        String
     let historyId: String?
     let messages:  [GmailMessage]?
@@ -57,13 +57,13 @@ struct GmailThread: Codable {
 
 // MARK: - History
 
-struct GmailHistoryListResponse: Codable {
+struct GmailHistoryListResponse: Codable, Sendable {
     let history:       [GmailHistoryRecord]?
     let nextPageToken: String?
     let historyId:     String
 }
 
-struct GmailHistoryRecord: Codable {
+struct GmailHistoryRecord: Codable, Sendable {
     let id:              String
     let messagesAdded:   [GmailHistoryMessageAdded]?
     let messagesDeleted: [GmailHistoryMessageDeleted]?
@@ -71,31 +71,31 @@ struct GmailHistoryRecord: Codable {
     let labelsRemoved:   [GmailHistoryLabelRemoved]?
 }
 
-struct GmailHistoryMessageAdded: Codable {
+struct GmailHistoryMessageAdded: Codable, Sendable {
     let message: GmailMessageRef
 }
 
-struct GmailHistoryMessageDeleted: Codable {
+struct GmailHistoryMessageDeleted: Codable, Sendable {
     let message: GmailMessageRef
 }
 
-struct GmailHistoryLabelAdded: Codable {
+struct GmailHistoryLabelAdded: Codable, Sendable {
     let message:  GmailMessageRef
     let labelIds: [String]
 }
 
-struct GmailHistoryLabelRemoved: Codable {
+struct GmailHistoryLabelRemoved: Codable, Sendable {
     let message:  GmailMessageRef
     let labelIds: [String]
 }
 
-struct GmailThreadListResponse: Codable {
+struct GmailThreadListResponse: Codable, Sendable {
     let threads:            [GmailThreadRef]?
     let nextPageToken:      String?
     let resultSizeEstimate: Int?
 }
 
-struct GmailThreadRef: Codable {
+struct GmailThreadRef: Codable, Sendable {
     let id:        String
     let snippet:   String?
     let historyId: String?
@@ -103,16 +103,16 @@ struct GmailThreadRef: Codable {
 
 // MARK: - Labels
 
-struct GmailLabelListResponse: Codable {
+struct GmailLabelListResponse: Codable, Sendable {
     let labels: [GmailLabel]
 }
 
-struct GmailLabelColor: Codable {
+struct GmailLabelColor: Codable, Sendable {
     let textColor:       String?
     let backgroundColor: String?
 }
 
-struct GmailLabel: Codable, Identifiable {
+struct GmailLabel: Codable, Identifiable, Sendable {
     let id:              String
     let name:            String
     let type:            String?
@@ -175,7 +175,7 @@ extension GmailLabel {
 
 // MARK: - Profile
 
-struct GmailProfile: Codable {
+struct GmailProfile: Codable, Sendable {
     let emailAddress:  String
     let messagesTotal: Int
     let threadsTotal:  Int
@@ -184,11 +184,11 @@ struct GmailProfile: Codable {
 
 // MARK: - Send As / Signature
 
-struct GmailSendAsListResponse: Codable {
+struct GmailSendAsListResponse: Codable, Sendable {
     let sendAs: [GmailSendAs]
 }
 
-struct GmailSendAs: Codable, Identifiable {
+struct GmailSendAs: Codable, Identifiable, Sendable {
     var id: String { sendAsEmail }
     let sendAsEmail: String
     let displayName: String?
@@ -200,25 +200,25 @@ struct GmailSendAs: Codable, Identifiable {
 
 // MARK: - Attachment
 
-struct GmailAttachmentResponse: Codable {
+struct GmailAttachmentResponse: Codable, Sendable {
     let size: Int
     let data: String    // base64url encoded
 }
 
 // MARK: - Draft
 
-struct GmailDraft: Codable {
+struct GmailDraft: Codable, Sendable {
     let id:      String
     let message: GmailMessage?
 }
 
-struct GmailDraftListResponse: Codable {
+struct GmailDraftListResponse: Codable, Sendable {
     let drafts:             [GmailDraftRef]?
     let nextPageToken:      String?
     let resultSizeEstimate: Int?
 }
 
-struct GmailDraftRef: Codable {
+struct GmailDraftRef: Codable, Sendable {
     let id:      String
     let message: GmailMessageRef?
 }

@@ -1,5 +1,5 @@
 import Foundation
-import Combine
+import Observation
 
 // MARK: - URL validity cache (thread-safe)
 
@@ -44,12 +44,13 @@ private final class URLValidityCache: @unchecked Sendable {
 /// loaded message in the background.  An HTTP HEAD check ensures the unsubscribe
 /// URL is reachable before the email surfaces in the Subscriptions folder.
 /// Validated subscription IDs are persisted per account so they survive restarts.
+@Observable
 @MainActor
-final class SubscriptionsStore: ObservableObject {
+final class SubscriptionsStore {
     static let shared = SubscriptionsStore()
 
-    @Published private(set) var entries:     [Email] = []
-    @Published private(set) var isAnalyzing: Bool    = false
+    private(set) var entries:     [Email] = []
+    private(set) var isAnalyzing: Bool    = false
 
     var accountID: String = "" {
         didSet {

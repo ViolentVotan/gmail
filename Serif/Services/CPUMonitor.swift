@@ -1,6 +1,6 @@
 import Foundation
-import Darwin.Mach
-import os
+private import Darwin.Mach
+private import os
 
 final class CPUMonitor: Sendable {
     static let shared = CPUMonitor()

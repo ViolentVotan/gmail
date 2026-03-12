@@ -18,4 +18,4 @@ Pure data structures and local persistence stores.
 | `ComposeMode.swift` | Compose mode enum (new, reply, replyAll, forward) |
 | `GmailAccount.swift` | Account model + `AccountStore` (UserDefaults persistence) |
 | `IndexedAttachment.swift` | Indexed attachment model for the attachment vault |
-| `MailStore.swift` | `@MainActor` local draft store, Gmail draft sync, reply draft persistence (`ReplyDraftInfo`) |
+| `MailStore.swift` | `@Observable` local draft store, Gmail draft sync, reply draft persistence (`ReplyDraftInfo`) |

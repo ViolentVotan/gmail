@@ -160,14 +160,11 @@ struct DetailPaneView: View {
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Image(systemName: emptyStateIcon)
-                .font(.system(size: 40))
-                .foregroundColor(theme.textTertiary)
-            Text(emptyStateMessage)
-                .font(.system(size: 14))
-                .foregroundColor(theme.textTertiary)
-        }
+        ContentUnavailableView(
+            emptyStateTitle,
+            systemImage: emptyStateIcon,
+            description: Text(emptyStateDescription)
+        )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(theme.detailBackground)
     }
@@ -186,7 +183,19 @@ struct DetailPaneView: View {
         }
     }
 
-    private var emptyStateMessage: String {
+    private var emptyStateTitle: String {
+        switch selectedFolder {
+        case .drafts:        return "No Draft Selected"
+        case .sent:          return "No Email Selected"
+        case .starred:       return "No Email Selected"
+        case .archive:       return "No Email Selected"
+        case .attachments:   return "No Email Selected"
+        case .subscriptions: return "No Subscription Selected"
+        default:             return "No Email Selected"
+        }
+    }
+
+    private var emptyStateDescription: String {
         switch selectedFolder {
         case .drafts:        return "Select a draft to edit"
         case .sent:          return "Select a sent email to view"

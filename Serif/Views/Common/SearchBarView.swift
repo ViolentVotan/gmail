@@ -63,7 +63,7 @@ struct NonAutoFocusTextField: NSViewRepresentable {
             nsView.stringValue = text
         }
         if focusTrigger {
-            DispatchQueue.main.async {
+            Task { @MainActor in
                 nsView.programmaticFocus = true
                 nsView.window?.makeFirstResponder(nsView)
                 nsView.programmaticFocus = false

@@ -1,10 +1,11 @@
 import Foundation
+import Observation
 
-@MainActor
-final class MailStore: ObservableObject {
-    @Published var emails: [Email]
-    @Published var gmailDrafts: [Email] = []
-    @Published var isLoadingGmailDrafts = false
+@Observable
+final class MailStore {
+    var emails: [Email]
+    var gmailDrafts: [Email] = []
+    var isLoadingGmailDrafts = false
 
     /// In-progress quick reply drafts, keyed by Gmail thread ID.
     /// Only stores the link — content is always fetched fresh from Gmail.
@@ -210,7 +211,7 @@ final class MailStore: ObservableObject {
 
 // MARK: - Attachment Item (attachment with email context)
 
-struct AttachmentItem: Identifiable {
+struct AttachmentItem: Identifiable, Sendable {
     let id: UUID
     let attachment: Attachment
     let emailId: UUID
@@ -220,7 +221,7 @@ struct AttachmentItem: Identifiable {
     let date: Date
     let direction: Direction
 
-    enum Direction: String, CaseIterable {
+    enum Direction: String, CaseIterable, Sendable {
         case received = "Received"
         case sent = "Sent"
     }

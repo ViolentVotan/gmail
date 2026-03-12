@@ -57,7 +57,7 @@ struct LabelEditorView: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 12))
                 .foregroundColor(theme.textPrimary)
-                .onChange(of: labelSearchText) { _ in highlightedIndex = 0 }
+                .onChange(of: labelSearchText) { _, _ in highlightedIndex = 0 }
                 .onSubmit { confirmHighlighted() }
                 .onKeyPress(.downArrow) {
                     highlightedIndex = min(highlightedIndex + 1, dropdownItems.count - 1)
@@ -159,7 +159,7 @@ struct LabelEditorView: View {
             }
             .scrollContentBackground(.hidden)
             .frame(width: 220, height: Self.rowHeight * min(CGFloat(items.count), 5) + 8)
-            .onChange(of: highlightedIndex) { _ in
+            .onChange(of: highlightedIndex) { _, _ in
                 if highlightedIndex < items.count {
                     withAnimation(.easeOut(duration: 0.15)) {
                         proxy.scrollTo(highlightedIndex, anchor: .center)

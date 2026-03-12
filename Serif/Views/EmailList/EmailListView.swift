@@ -33,7 +33,7 @@ struct EmailListView: View {
     @State private var selectionAnchorID: String?
     @State private var isRefreshing = false
     @State private var sortedEmails: [Email] = []
-    @ObservedObject private var swipeCoordinator = SwipeCoordinator.shared
+    private let swipeCoordinator = SwipeCoordinator.shared
     @Environment(\.theme) private var theme
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
@@ -55,19 +55,19 @@ struct EmailListView: View {
         }
         .background(theme.listBackground)
         .onAppear { recomputeSortedEmails() }
-        .onChange(of: emails) { _ in recomputeSortedEmails() }
-        .onChange(of: searchResetTrigger) { _ in
+        .onChange(of: emails) { _, _ in recomputeSortedEmails() }
+        .onChange(of: searchResetTrigger) { _, _ in
             searchText = ""
             sortOrder = .dateNewest
         }
-        .onChange(of: sortOrder) { newSort in
+        .onChange(of: sortOrder) { _, newSort in
             recomputeSortedEmails()
             switch newSort {
             case .unreadFirst: onSearch("is:unread")
             default:           onSearch(searchText)
             }
         }
-        .onChange(of: searchText) { query in
+        .onChange(of: searchText) { _, query in
             searchDebounceTask?.cancel()
             if query.isEmpty {
                 onSearch("")

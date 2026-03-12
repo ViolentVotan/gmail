@@ -1,8 +1,7 @@
-import XCTest
+import Testing
 @testable import Serif
 
-@MainActor
-final class LabelManagementTests: XCTestCase {
+@Suite @MainActor struct LabelManagementTests {
 
     // MARK: - Helpers
 
@@ -14,7 +13,7 @@ final class LabelManagementTests: XCTestCase {
 
     // MARK: - MailboxViewModel
 
-    func testRenameLabelUpdatesLocalArray() {
+    @Test func renameLabelUpdatesLocalArray() {
         let vm = MailboxViewModel(accountID: "test")
         let label = makeLabel()
         vm.labels = [label]
@@ -28,11 +27,11 @@ final class LabelManagementTests: XCTestCase {
             vm.labels[idx] = updated
         }
 
-        XCTAssertEqual(vm.labels.first?.name, "Personal", "Label name should be updated optimistically")
-        XCTAssertEqual(vm.labels.count, 1, "Label count should remain the same")
+        #expect(vm.labels.first?.name == "Personal", "Label name should be updated optimistically")
+        #expect(vm.labels.count == 1, "Label count should remain the same")
     }
 
-    func testDeleteLabelRemovesFromArray() {
+    @Test func deleteLabelRemovesFromArray() {
         let vm = MailboxViewModel(accountID: "test")
         let label1 = makeLabel(id: "Label_1", name: "Work")
         let label2 = makeLabel(id: "Label_2", name: "Personal")
@@ -41,13 +40,13 @@ final class LabelManagementTests: XCTestCase {
         // Simulate the optimistic delete logic (same as deleteLabel before the await)
         vm.labels.removeAll { $0.id == label1.id }
 
-        XCTAssertEqual(vm.labels.count, 1, "One label should remain after deletion")
-        XCTAssertEqual(vm.labels.first?.id, "Label_2", "The remaining label should be Label_2")
+        #expect(vm.labels.count == 1, "One label should remain after deletion")
+        #expect(vm.labels.first?.id == "Label_2", "The remaining label should be Label_2")
     }
 
     // MARK: - AppCoordinator
 
-    func testDeleteSelectedLabelClearsSelection() {
+    @Test func deleteSelectedLabelClearsSelection() {
         let coordinator = AppCoordinator()
         let label = makeLabel()
         coordinator.mailboxViewModel.labels = [label]
@@ -65,10 +64,10 @@ final class LabelManagementTests: XCTestCase {
             }
         }
 
-        XCTAssertNil(coordinator.selectedLabel, "Selected label should be nil after deleting it (no remaining user labels)")
+        #expect(coordinator.selectedLabel == nil, "Selected label should be nil after deleting it (no remaining user labels)")
     }
 
-    func testDeleteNonSelectedLabelKeepsSelection() {
+    @Test func deleteNonSelectedLabelKeepsSelection() {
         let coordinator = AppCoordinator()
         let label1 = makeLabel(id: "Label_1", name: "Work")
         let label2 = makeLabel(id: "Label_2", name: "Personal")
@@ -80,6 +79,6 @@ final class LabelManagementTests: XCTestCase {
         coordinator.mailboxViewModel.labels.removeAll { $0.id == label2.id }
 
         // Selection should not change
-        XCTAssertEqual(coordinator.selectedLabel?.id, "Label_1", "Selected label should remain unchanged")
+        #expect(coordinator.selectedLabel?.id == "Label_1", "Selected label should remain unchanged")
     }
 }

@@ -2,21 +2,21 @@ import Foundation
 
 // MARK: - Models
 
-enum TrackerKind: String {
+enum TrackerKind: String, Sendable {
     case pixel
     case knownTracker
     case cssTracker
     case trackingLink
 }
 
-struct TrackerInfo: Identifiable {
+struct TrackerInfo: Identifiable, Sendable {
     let id = UUID()
     let kind: TrackerKind
     let source: String
     let serviceName: String?
 }
 
-struct TrackerResult {
+struct TrackerResult: Sendable {
     let sanitizedHTML: String
     let originalHTML: String
     let trackers: [TrackerInfo]
@@ -27,6 +27,7 @@ struct TrackerResult {
 
 // MARK: - Service
 
+@MainActor
 final class TrackerBlockerService {
     static let shared = TrackerBlockerService()
     private init() {}

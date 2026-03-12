@@ -139,7 +139,7 @@ struct EmailHoverSummaryView: View {
     // MARK: - Streaming
 
     private func startStreaming() {
-        streamTask = Task { @MainActor in
+        streamTask = Task {
             let stream = SummaryService.shared.summary(for: email)
             for await text in stream {
                 guard !Task.isCancelled else { return }

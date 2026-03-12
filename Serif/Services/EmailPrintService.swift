@@ -1,6 +1,7 @@
 import WebKit
 import AppKit
 
+@MainActor
 final class EmailPrintService {
     static let shared = EmailPrintService()
     private init() {}
@@ -244,8 +245,10 @@ private class PrintNavigationDelegate: NSObject, WKNavigationDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            self?.onFinish(webView)
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(0.5))
+            guard let self else { return }
+            self.onFinish(webView)
         }
     }
 }

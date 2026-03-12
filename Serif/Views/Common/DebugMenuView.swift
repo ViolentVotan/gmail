@@ -2,9 +2,13 @@ import SwiftUI
 
 struct DebugMenuView: View {
     let accountID: String
+
+    init(accountID: String) {
+        self.accountID = accountID
+    }
+
     @AppStorage("isSignedIn") private var isSignedIn: Bool = false
-    @ObservedObject private var logger = APILogger.shared
-    @State private var cacheCount = 0
+    private let logger = APILogger.shared
     @State private var expandedEntryID: UUID?
     @State private var indexingStats = IndexingStats()
     @State private var unsupportedTypes: [(mimeType: String, count: Int)] = []
@@ -92,34 +96,10 @@ struct DebugMenuView: View {
                 }
             }
 
-            // MARK: - API Cache
-            debugSection(title: "API Cache") {
-                HStack {
-                    Text("\(cacheCount) response\(cacheCount == 1 ? "" : "s") cached")
-                        .font(.system(size: 12))
-                        .foregroundColor(theme.textTertiary)
-                    Spacer()
-                    Toggle("", isOn: Binding(
-                        get: { APICache.shared.isEnabled },
-                        set: { APICache.shared.isEnabled = $0 }
-                    ))
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    .labelsHidden()
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-
-                debugButton(icon: "trash", label: "Clear API Cache") {
-                    APICache.shared.clear()
-                    cacheCount = APICache.shared.cachedResponseCount
-                }
-            }
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {
-            cacheCount = APICache.shared.cachedResponseCount
             refreshIndexingStats()
         }
     }

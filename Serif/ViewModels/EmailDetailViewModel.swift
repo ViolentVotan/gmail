@@ -1,20 +1,21 @@
 import SwiftUI
 
 /// Drives the email detail / thread view.
+@Observable
 @MainActor
-final class EmailDetailViewModel: ObservableObject {
-    @Published var thread:          GmailThread?
-    @Published var isLoading        = false
-    @Published var error:           String?
-    @Published var rawSource:       String?
-    @Published var isLoadingRaw     = false
-    @Published var trackerResult:   TrackerResult?
-    @Published var allowTrackers    = false
-    @Published var resolvedHTML:    String?
+final class EmailDetailViewModel {
+    var thread:          GmailThread?
+    var isLoading        = false
+    var error:           String?
+    var rawSource:       String?
+    var isLoadingRaw     = false
+    var trackerResult:   TrackerResult?
+    var allowTrackers    = false
+    var resolvedHTML:    String?
     /// Resolved inline-image HTML for each thread message (keyed by message ID).
-    @Published var resolvedMessageHTML: [String: String] = [:]
-    @Published var calendarInvite:  CalendarInvite?
-    @Published var rsvpInProgress   = false
+    var resolvedMessageHTML: [String: String] = [:]
+    var calendarInvite:  CalendarInvite?
+    var rsvpInProgress   = false
 
     /// HTML to render: sanitized (trackers stripped) or original when user allows.
     var displayHTML: String? {
@@ -25,9 +26,9 @@ final class EmailDetailViewModel: ObservableObject {
     var blockedTrackerCount: Int { trackerResult?.trackerCount ?? 0 }
     var hasBlockedTrackers: Bool { !allowTrackers && (trackerResult?.hasTrackers ?? false) }
 
-    let accountID: String
-    var attachmentIndexer: AttachmentIndexer?
-    var onMessagesRead: (([String]) -> Void)?
+    @ObservationIgnored let accountID: String
+    @ObservationIgnored var attachmentIndexer: AttachmentIndexer?
+    @ObservationIgnored var onMessagesRead: (([String]) -> Void)?
 
     init(accountID: String) {
         self.accountID = accountID

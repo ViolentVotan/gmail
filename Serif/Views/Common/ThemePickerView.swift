@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ThemePickerView: View {
-    @ObservedObject var themeManager: ThemeManager
+    var themeManager: ThemeManager
     @Environment(\.theme) private var theme
     @State private var showCustomize = false
 
@@ -107,7 +107,7 @@ struct ThemePickerView: View {
 
 struct ColorRowView: View {
     let key: String
-    @ObservedObject var themeManager: ThemeManager
+    var themeManager: ThemeManager
 
     private var isOverridden: Bool {
         themeManager.currentOverrides[key] != nil

@@ -46,7 +46,7 @@ final class UnsubscribeService {
     }
 
     /// RFC 8058: POST with body "List-Unsubscribe=One-Click"
-    private func performOneClickPost(url: URL) async -> Bool {
+    @concurrent private func performOneClickPost(url: URL) async -> Bool {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")

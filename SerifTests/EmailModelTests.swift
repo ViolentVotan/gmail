@@ -1,99 +1,100 @@
-import XCTest
+import Testing
+import Foundation
 @testable import Serif
 
-final class EmailModelTests: XCTestCase {
+@Suite struct EmailModelTests {
 
     // MARK: - Contact
 
-    func testContactInitials_TwoWords() {
+    @Test func contactInitials_TwoWords() {
         let contact = Contact(name: "Alice Smith", email: "alice@example.com")
-        XCTAssertEqual(contact.initials, "AS")
+        #expect(contact.initials == "AS")
     }
 
-    func testContactInitials_ThreeWords() {
+    @Test func contactInitials_ThreeWords() {
         let contact = Contact(name: "John Michael Doe", email: "jmd@example.com")
         // Should use first letter of first two words
-        XCTAssertEqual(contact.initials, "JM")
+        #expect(contact.initials == "JM")
     }
 
-    func testContactInitials_SingleWord() {
+    @Test func contactInitials_SingleWord() {
         let contact = Contact(name: "Alice", email: "alice@example.com")
         // Should use first two characters
-        XCTAssertEqual(contact.initials, "AL")
+        #expect(contact.initials == "AL")
     }
 
-    func testContactInitials_SingleChar() {
+    @Test func contactInitials_SingleChar() {
         let contact = Contact(name: "A", email: "a@example.com")
-        XCTAssertEqual(contact.initials, "A")
+        #expect(contact.initials == "A")
     }
 
-    func testContactInitials_LowercaseIsUppercased() {
+    @Test func contactInitials_LowercaseIsUppercased() {
         let contact = Contact(name: "jane doe", email: "jane@example.com")
-        XCTAssertEqual(contact.initials, "JD")
+        #expect(contact.initials == "JD")
     }
 
-    func testContactDomain() {
+    @Test func contactDomain() {
         let contact = Contact(name: "Alice", email: "alice@example.com")
-        XCTAssertEqual(contact.domain, "example.com")
+        #expect(contact.domain == "example.com")
     }
 
-    func testContactDomainMissing() {
+    @Test func contactDomainMissing() {
         let contact = Contact(name: "Alice", email: "no-at-sign")
-        XCTAssertNil(contact.domain)
+        #expect(contact.domain == nil)
     }
 
-    func testContactDomainLowercased() {
+    @Test func contactDomainLowercased() {
         let contact = Contact(name: "Alice", email: "alice@EXAMPLE.COM")
-        XCTAssertEqual(contact.domain, "example.com")
+        #expect(contact.domain == "example.com")
     }
 
     // MARK: - Email Init
 
-    func testEmailPreviewFallsBackToBody() {
+    @Test func emailPreviewFallsBackToBody() {
         let email = Email(
             sender: Contact(name: "Test", email: "test@example.com"),
             subject: "Test Subject",
             body: "This is the full body of the email that should be used as preview when none is provided."
         )
         // preview should be first 120 chars of body when no explicit preview
-        XCTAssertEqual(email.preview, String(email.body.prefix(120)))
+        #expect(email.preview == String(email.body.prefix(120)))
     }
 
-    func testEmailPreviewUsedWhenProvided() {
+    @Test func emailPreviewUsedWhenProvided() {
         let email = Email(
             sender: Contact(name: "Test", email: "test@example.com"),
             subject: "Test Subject",
             body: "Full body text here",
             preview: "Custom preview"
         )
-        XCTAssertEqual(email.preview, "Custom preview")
+        #expect(email.preview == "Custom preview")
     }
 
-    func testEmailDefaultValues() {
+    @Test func emailDefaultValues() {
         let email = Email(
             sender: Contact(name: "Test", email: "test@example.com"),
             subject: "Test"
         , body: "Body")
 
-        XCTAssertFalse(email.isRead)
-        XCTAssertFalse(email.isStarred)
-        XCTAssertFalse(email.hasAttachments)
-        XCTAssertTrue(email.attachments.isEmpty)
-        XCTAssertEqual(email.folder, .inbox)
-        XCTAssertTrue(email.labels.isEmpty)
-        XCTAssertFalse(email.isDraft)
-        XCTAssertFalse(email.isGmailDraft)
-        XCTAssertNil(email.gmailDraftID)
-        XCTAssertNil(email.gmailMessageID)
-        XCTAssertNil(email.gmailThreadID)
-        XCTAssertTrue(email.gmailLabelIDs.isEmpty)
-        XCTAssertFalse(email.isFromMailingList)
-        XCTAssertNil(email.unsubscribeURL)
+        #expect(!email.isRead)
+        #expect(!email.isStarred)
+        #expect(!email.hasAttachments)
+        #expect(email.attachments.isEmpty)
+        #expect(email.folder == .inbox)
+        #expect(email.labels.isEmpty)
+        #expect(!email.isDraft)
+        #expect(!email.isGmailDraft)
+        #expect(email.gmailDraftID == nil)
+        #expect(email.gmailMessageID == nil)
+        #expect(email.gmailThreadID == nil)
+        #expect(email.gmailLabelIDs.isEmpty)
+        #expect(!email.isFromMailingList)
+        #expect(email.unsubscribeURL == nil)
     }
 
     // MARK: - Email Equatable
 
-    func testEmailEquatable_SameID() {
+    @Test func emailEquatable_SameID() {
         let id = UUID()
         let email1 = Email(
             id: id,
@@ -112,10 +113,10 @@ final class EmailModelTests: XCTestCase {
             isStarred: false
         )
         // Equatable only checks id, isRead, isStarred, gmailLabelIDs
-        XCTAssertEqual(email1, email2)
+        #expect(email1 == email2)
     }
 
-    func testEmailEquatable_DifferentReadState() {
+    @Test func emailEquatable_DifferentReadState() {
         let id = UUID()
         let email1 = Email(
             id: id,
@@ -131,10 +132,10 @@ final class EmailModelTests: XCTestCase {
             body: "B",
             isRead: true
         )
-        XCTAssertNotEqual(email1, email2)
+        #expect(email1 != email2)
     }
 
-    func testEmailEquatable_DifferentStarredState() {
+    @Test func emailEquatable_DifferentStarredState() {
         let id = UUID()
         let email1 = Email(
             id: id,
@@ -150,10 +151,10 @@ final class EmailModelTests: XCTestCase {
             body: "B",
             isStarred: true
         )
-        XCTAssertNotEqual(email1, email2)
+        #expect(email1 != email2)
     }
 
-    func testEmailEquatable_DifferentGmailLabelIDs() {
+    @Test func emailEquatable_DifferentGmailLabelIDs() {
         let id = UUID()
         let email1 = Email(
             id: id,
@@ -169,117 +170,105 @@ final class EmailModelTests: XCTestCase {
             body: "B",
             gmailLabelIDs: ["INBOX", "STARRED"]
         )
-        XCTAssertNotEqual(email1, email2)
+        #expect(email1 != email2)
     }
 
     // MARK: - Attachment.FileType
 
-    func testFileTypeFromExtension_PDF() {
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "pdf"), .pdf)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "PDF"), .pdf)
+    @Test func fileTypeFromExtension_PDF() {
+        #expect(Attachment.FileType.from(fileExtension: "pdf") == .pdf)
+        #expect(Attachment.FileType.from(fileExtension: "PDF") == .pdf)
     }
 
-    func testFileTypeFromExtension_Images() {
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "jpg"), .image)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "jpeg"), .image)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "png"), .image)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "gif"), .image)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "webp"), .image)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "heic"), .image)
+    @Test(arguments: ["jpg", "jpeg", "png", "gif", "webp", "heic"])
+    func fileTypeFromExtension_Images(ext: String) {
+        #expect(Attachment.FileType.from(fileExtension: ext) == .image)
     }
 
-    func testFileTypeFromExtension_Spreadsheets() {
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "xls"), .spreadsheet)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "xlsx"), .spreadsheet)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "csv"), .spreadsheet)
+    @Test(arguments: ["xls", "xlsx", "csv"])
+    func fileTypeFromExtension_Spreadsheets(ext: String) {
+        #expect(Attachment.FileType.from(fileExtension: ext) == .spreadsheet)
     }
 
-    func testFileTypeFromExtension_Archives() {
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "zip"), .archive)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "gz"), .archive)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "tar"), .archive)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "rar"), .archive)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "7z"), .archive)
+    @Test(arguments: ["zip", "gz", "tar", "rar", "7z"])
+    func fileTypeFromExtension_Archives(ext: String) {
+        #expect(Attachment.FileType.from(fileExtension: ext) == .archive)
     }
 
-    func testFileTypeFromExtension_Presentations() {
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "ppt"), .presentation)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "pptx"), .presentation)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "key"), .presentation)
+    @Test(arguments: ["ppt", "pptx", "key"])
+    func fileTypeFromExtension_Presentations(ext: String) {
+        #expect(Attachment.FileType.from(fileExtension: ext) == .presentation)
     }
 
-    func testFileTypeFromExtension_Code() {
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "swift"), .code)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "py"), .code)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "js"), .code)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "html"), .code)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "json"), .code)
+    @Test(arguments: ["swift", "py", "js", "html", "json"])
+    func fileTypeFromExtension_Code(ext: String) {
+        #expect(Attachment.FileType.from(fileExtension: ext) == .code)
     }
 
-    func testFileTypeFromExtension_Unknown() {
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: "xyz"), .document)
-        XCTAssertEqual(Attachment.FileType.from(fileExtension: ""), .document)
+    @Test func fileTypeFromExtension_Unknown() {
+        #expect(Attachment.FileType.from(fileExtension: "xyz") == .document)
+        #expect(Attachment.FileType.from(fileExtension: "") == .document)
     }
 
-    func testFileTypeLabel() {
-        XCTAssertEqual(Attachment.FileType.document.label, "Document")
-        XCTAssertEqual(Attachment.FileType.pdf.label, "PDF")
-        XCTAssertEqual(Attachment.FileType.image.label, "Image")
-        XCTAssertEqual(Attachment.FileType.spreadsheet.label, "Spreadsheet")
-        XCTAssertEqual(Attachment.FileType.archive.label, "Archive")
-        XCTAssertEqual(Attachment.FileType.presentation.label, "Presentation")
-        XCTAssertEqual(Attachment.FileType.code.label, "Code")
+    @Test func fileTypeLabel() {
+        #expect(Attachment.FileType.document.label == "Document")
+        #expect(Attachment.FileType.pdf.label == "PDF")
+        #expect(Attachment.FileType.image.label == "Image")
+        #expect(Attachment.FileType.spreadsheet.label == "Spreadsheet")
+        #expect(Attachment.FileType.archive.label == "Archive")
+        #expect(Attachment.FileType.presentation.label == "Presentation")
+        #expect(Attachment.FileType.code.label == "Code")
     }
 
     // MARK: - Folder
 
-    func testFolderGmailLabelID() {
-        XCTAssertEqual(Folder.inbox.gmailLabelID, "INBOX")
-        XCTAssertEqual(Folder.starred.gmailLabelID, "STARRED")
-        XCTAssertEqual(Folder.sent.gmailLabelID, "SENT")
-        XCTAssertEqual(Folder.drafts.gmailLabelID, "DRAFT")
-        XCTAssertEqual(Folder.spam.gmailLabelID, "SPAM")
-        XCTAssertEqual(Folder.trash.gmailLabelID, "TRASH")
-        XCTAssertNil(Folder.archive.gmailLabelID)
-        XCTAssertNil(Folder.attachments.gmailLabelID)
-        XCTAssertNil(Folder.subscriptions.gmailLabelID)
-        XCTAssertNil(Folder.labels.gmailLabelID)
+    @Test func folderGmailLabelID() {
+        #expect(Folder.inbox.gmailLabelID == "INBOX")
+        #expect(Folder.starred.gmailLabelID == "STARRED")
+        #expect(Folder.sent.gmailLabelID == "SENT")
+        #expect(Folder.drafts.gmailLabelID == "DRAFT")
+        #expect(Folder.spam.gmailLabelID == "SPAM")
+        #expect(Folder.trash.gmailLabelID == "TRASH")
+        #expect(Folder.archive.gmailLabelID == nil)
+        #expect(Folder.attachments.gmailLabelID == nil)
+        #expect(Folder.subscriptions.gmailLabelID == nil)
+        #expect(Folder.labels.gmailLabelID == nil)
     }
 
-    func testFolderGmailQuery() {
-        XCTAssertNotNil(Folder.archive.gmailQuery)
-        XCTAssertNotNil(Folder.attachments.gmailQuery)
-        XCTAssertNil(Folder.inbox.gmailQuery)
-        XCTAssertNil(Folder.subscriptions.gmailQuery)
+    @Test func folderGmailQuery() {
+        #expect(Folder.archive.gmailQuery != nil)
+        #expect(Folder.attachments.gmailQuery != nil)
+        #expect(Folder.inbox.gmailQuery == nil)
+        #expect(Folder.subscriptions.gmailQuery == nil)
     }
 
-    func testFolderIcon() {
+    @Test func folderIcon() {
         // Ensure every folder has a non-empty icon
         for folder in Folder.allCases {
-            XCTAssertFalse(folder.icon.isEmpty, "\(folder) should have an icon")
+            #expect(!folder.icon.isEmpty, "\(folder) should have an icon")
         }
     }
 
     // MARK: - InboxCategory
 
-    func testInboxCategoryDisplayNames() {
-        XCTAssertEqual(InboxCategory.all.displayName, "All")
-        XCTAssertEqual(InboxCategory.primary.displayName, "Primary")
-        XCTAssertEqual(InboxCategory.social.displayName, "Social")
-        XCTAssertEqual(InboxCategory.promotions.displayName, "Promotions")
-        XCTAssertEqual(InboxCategory.updates.displayName, "Updates")
-        XCTAssertEqual(InboxCategory.forums.displayName, "Forums")
+    @Test func inboxCategoryDisplayNames() {
+        #expect(InboxCategory.all.displayName == "All")
+        #expect(InboxCategory.primary.displayName == "Primary")
+        #expect(InboxCategory.social.displayName == "Social")
+        #expect(InboxCategory.promotions.displayName == "Promotions")
+        #expect(InboxCategory.updates.displayName == "Updates")
+        #expect(InboxCategory.forums.displayName == "Forums")
     }
 
-    func testInboxCategoryGmailLabelIDs() {
-        XCTAssertEqual(InboxCategory.all.gmailLabelIDs, ["INBOX"])
-        XCTAssertEqual(InboxCategory.primary.gmailLabelIDs, ["INBOX", "CATEGORY_PERSONAL"])
-        XCTAssertEqual(InboxCategory.social.gmailLabelIDs, ["INBOX", "CATEGORY_SOCIAL"])
+    @Test func inboxCategoryGmailLabelIDs() {
+        #expect(InboxCategory.all.gmailLabelIDs == ["INBOX"])
+        #expect(InboxCategory.primary.gmailLabelIDs == ["INBOX", "CATEGORY_PERSONAL"])
+        #expect(InboxCategory.social.gmailLabelIDs == ["INBOX", "CATEGORY_SOCIAL"])
     }
 
-    func testInboxCategoryIcons() {
+    @Test func inboxCategoryIcons() {
         for category in InboxCategory.allCases {
-            XCTAssertFalse(category.icon.isEmpty, "\(category) should have an icon")
+            #expect(!category.icon.isEmpty, "\(category) should have an icon")
         }
     }
 }

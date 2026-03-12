@@ -1,5 +1,5 @@
-import SwiftUI
 import AppKit
+import SwiftUI
 
 // MARK: - View
 
@@ -10,7 +10,7 @@ struct SwipeableEmailRow: View {
     let onArchive: (() -> Void)?
     let onDelete: (() -> Void)?
 
-    @StateObject private var state = SwipeRowState()
+    @State private var state = SwipeRowState()
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -31,7 +31,7 @@ struct SwipeableEmailRow: View {
             state.onArchive = onArchive
             state.onDelete  = onDelete
             // Reset dismissed/collapsed state in case this row was restored via undo.
-            // SwiftUI may reuse the @StateObject for the same ForEach identity,
+            // SwiftUI may reuse the @State object for the same ForEach identity,
             // so the old collapsed state would persist without this reset.
             if state.isCollapsed || state.dragOffset != 0 {
                 state.undoDismiss()
@@ -74,10 +74,11 @@ struct SwipeableEmailRow: View {
 
 // MARK: - State
 
+@Observable
 @MainActor
-final class SwipeRowState: ObservableObject {
-    @Published var dragOffset: CGFloat = 0
-    @Published var isCollapsed = false
+final class SwipeRowState {
+    var dragOffset: CGFloat = 0
+    var isCollapsed = false
 
     let threshold: CGFloat = 80
 
@@ -206,9 +207,10 @@ final class SwipeRowState: ObservableObject {
 
 // MARK: - SwipeCoordinator
 
+@Observable
 @MainActor
-final class SwipeCoordinator: ObservableObject {
+final class SwipeCoordinator {
     static let shared = SwipeCoordinator()
-    @Published var isSwipeActive = false
+    var isSwipeActive = false
     private init() {}
 }

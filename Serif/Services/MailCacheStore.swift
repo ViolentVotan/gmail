@@ -1,12 +1,13 @@
 import Foundation
 
 /// Wrapper that stores messages alongside pagination state.
-struct FolderCache: Codable {
+struct FolderCache: Codable, Sendable {
     var messages: [GmailMessage]
     var nextPageToken: String?
 }
 
 /// File-based cache for mails, labels, and threads — per account + folder.
+@MainActor
 final class MailCacheStore {
     static let shared = MailCacheStore()
     private var createdDirs: Set<String> = []
