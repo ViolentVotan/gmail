@@ -14,6 +14,15 @@ struct EmailRowView: View {
         return "Received \(daysAgo) days ago"
     }
 
+    private func tagColor(_ name: String) -> Color {
+        switch name {
+        case "blue": return .blue
+        case "red": return .red
+        case "green": return .green
+        default: return .secondary
+        }
+    }
+
     private static let isAppleIntelligenceAvailable: Bool = {
         guard #available(macOS 26.0, *) else { return false }
         #if canImport(FoundationModels)
@@ -94,6 +103,20 @@ struct EmailRowView: View {
                             }
                         }
                         .padding(.top, 2)
+                    }
+
+                    if let tags = EmailClassifier.shared.cachedTags(for: email.gmailMessageID ?? "") {
+                        HStack(spacing: 4) {
+                            ForEach(tags.activeTags, id: \.label) { tag in
+                                Text(tag.label)
+                                    .font(.system(size: 9, weight: .medium))
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1)
+                                    .background(tagColor(tag.color).opacity(0.15))
+                                    .foregroundStyle(tagColor(tag.color))
+                                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                            }
+                        }
                     }
                 }
 
