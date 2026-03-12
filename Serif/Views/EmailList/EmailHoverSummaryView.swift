@@ -70,6 +70,40 @@ struct EmailHoverSummaryView: View {
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
                     .animation(.easeIn(duration: 0.05), value: summaryVM.displayedText)
+
+                #if canImport(FoundationModels)
+                if #available(macOS 26.0, *) {
+                    if let insight = summaryVM.insight {
+                        VStack(alignment: .leading, spacing: 6) {
+                            if let action = insight.actionNeeded {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "exclamationmark.circle.fill")
+                                        .foregroundStyle(.orange)
+                                    Text(action)
+                                        .font(.caption)
+                                }
+                            }
+                            if let deadline = insight.deadline {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "calendar.badge.clock")
+                                        .foregroundStyle(.red)
+                                    Text(deadline)
+                                        .font(.caption)
+                                }
+                            }
+                            if let sentiment = insight.sentiment {
+                                Text(sentiment.capitalized)
+                                    .font(.caption2.weight(.medium))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(sentimentColor(sentiment).opacity(0.15))
+                                    .foregroundStyle(sentimentColor(sentiment))
+                                    .clipShape(Capsule())
+                            }
+                        }
+                    }
+                }
+                #endif
             }
 
             // Footer
@@ -114,6 +148,15 @@ struct EmailHoverSummaryView: View {
         .padding(.horizontal, 6)
         .padding(.vertical, 3)
         .background(Capsule().fill(.fill.quaternary))
+    }
+
+    private func sentimentColor(_ sentiment: String) -> Color {
+        switch sentiment.lowercased() {
+        case "positive": return .green
+        case "negative": return .red
+        case "urgent": return .orange
+        default: return .secondary
+        }
     }
 
     // MARK: - Footer

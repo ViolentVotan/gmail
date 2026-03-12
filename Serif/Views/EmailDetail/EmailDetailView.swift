@@ -224,6 +224,14 @@ struct EmailDetailView: View {
                                 .animation(.easeOut(duration: 0.25), value: labelSuggestions.map(\.name))
                             }
 
+                            #if canImport(FoundationModels)
+                            if #available(macOS 26.0, *) {
+                                InsightCardView(email: email)
+                                    .padding(.horizontal, 24)
+                                    .padding(.bottom, 12)
+                            }
+                            #endif
+
                             if detailVM.hasBlockedTrackers {
                                 TrackerBannerView(
                                     trackerCount: detailVM.blockedTrackerCount,

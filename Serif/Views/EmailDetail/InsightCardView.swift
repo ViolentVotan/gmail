@@ -1,0 +1,103 @@
+#if canImport(FoundationModels)
+import SwiftUI
+
+@available(macOS 26.0, *)
+struct InsightCardView: View {
+    let email: Email
+
+    @State private var insight: EmailInsightSnapshot?
+    @State private var insightTask: Task<Void, Never>?
+
+    var body: some View {
+        Group {
+            if let insight, hasContent(insight) {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Label("Apple Intelligence", systemImage: "apple.intelligence")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.tertiary)
+                        Spacer()
+                    }
+
+                    if let summary = insight.summary, !summary.isEmpty {
+                        Text(summary)
+                            .font(.subheadline)
+                            .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    if insight.actionNeeded != nil || insight.deadline != nil || insight.sentiment != nil {
+                        HStack(spacing: 8) {
+                            if let action = insight.actionNeeded {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "exclamationmark.circle.fill")
+                                        .foregroundStyle(.orange)
+                                    Text(action)
+                                        .font(.caption)
+                                        .foregroundStyle(.primary)
+                                }
+                            }
+                            if let deadline = insight.deadline {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "calendar.badge.clock")
+                                        .foregroundStyle(.red)
+                                    Text(deadline)
+                                        .font(.caption)
+                                        .foregroundStyle(.primary)
+                                }
+                            }
+                            if let sentiment = insight.sentiment {
+                                Text(sentiment.capitalized)
+                                    .font(.caption2.weight(.medium))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(sentimentColor(sentiment).opacity(0.15))
+                                    .foregroundStyle(sentimentColor(sentiment))
+                                    .clipShape(Capsule())
+                            }
+                            Spacer()
+                        }
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(.regularMaterial)
+                .cornerRadius(8)
+                .transition(.opacity.combined(with: .scale(scale: 0.97)))
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: insight?.summary)
+        .task(id: email.id) {
+            insightTask?.cancel()
+            insight = nil
+            insightTask = Task {
+                let stream = SummaryService.shared.insight(for: email)
+                for await snapshot in stream {
+                    guard !Task.isCancelled else { return }
+                    insight = snapshot
+                }
+            }
+            await insightTask?.value
+        }
+        .onDisappear {
+            insightTask?.cancel()
+        }
+    }
+
+    private func hasContent(_ snapshot: EmailInsightSnapshot) -> Bool {
+        snapshot.summary != nil ||
+        snapshot.actionNeeded != nil ||
+        snapshot.deadline != nil ||
+        snapshot.sentiment != nil
+    }
+
+    private func sentimentColor(_ sentiment: String) -> Color {
+        switch sentiment.lowercased() {
+        case "positive": return .green
+        case "negative": return .red
+        case "urgent": return .orange
+        default: return .secondary
+        }
+    }
+}
+#endif

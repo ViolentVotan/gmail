@@ -7,8 +7,10 @@ final class EmailSummaryViewModel {
     private(set) var displayedText = ""
     private(set) var isStreaming = true
     private(set) var isAISummary = false
+    private(set) var insight: EmailInsightSnapshot?
 
     private var streamTask: Task<Void, Never>?
+    private var insightTask: Task<Void, Never>?
 
     func startStreaming(for email: Email) {
         streamTask = Task {
@@ -20,9 +22,22 @@ final class EmailSummaryViewModel {
             isStreaming = false
             isAISummary = SummaryService.shared.isAIGenerated(for: email)
         }
+
+        #if canImport(FoundationModels)
+        if #available(macOS 26.0, *) {
+            insightTask = Task {
+                let stream = SummaryService.shared.insight(for: email)
+                for await snapshot in stream {
+                    guard !Task.isCancelled else { return }
+                    insight = snapshot
+                }
+            }
+        }
+        #endif
     }
 
     func cancelStreaming() {
         streamTask?.cancel()
+        insightTask?.cancel()
     }
 }
