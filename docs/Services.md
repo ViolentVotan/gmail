@@ -19,13 +19,13 @@ OAuth flow, token storage (Keychain), token refresh. `OAuthService` handles the 
 
 ### `Gmail/`
 Gmail REST API wrappers. One service per domain:
-- `GmailAPIClient` — HTTP layer (auth headers, base URL, per-account token refresh coalescing, retry with exponential backoff on 429/500/503, 401 auto-retry after token refresh, batch API support)
+- `GmailAPIClient` — HTTP layer (auth headers, base URL, per-account token refresh coalescing, retry with exponential backoff + Retry-After on 429/500/503, 401 auto-retry on standard and batch requests, generic `batchFetch<T>()` for batch GET operations, `requestURL()` for non-Gmail Google APIs)
 - `GmailMessageService` — Messages, threads, mutations (trash, archive, star, labels), History API. Label modifications delegate to a single `modifyLabels` method.
 - `GmailLabelService` — Label CRUD
-- `GmailProfileService` — Gmail profile info, send-as aliases, signature management
+- `GmailProfileService` — Gmail profile info, user identity (OAuth userinfo), send-as aliases, signature management
 - `GmailSendService` — Compose, send, draft CRUD (RFC 2822 MIME encoding with RFC 2047 header encoding)
-- `GmailDraftService` — Draft fetch (single + batch via Gmail batch API), used for quick reply draft loading
-- `GmailFilterService` — Gmail filter CRUD (list, create, update, delete filters)
+- `GmailDraftService` — Draft fetch (single + batch via `batchFetch`), used for quick reply draft loading
+- `GmailFilterService` — Gmail filter CRUD (list, create, delete filters)
 - `GmailModels` — All API response/request types (`Codable` structs)
 
 ### Root-level files
@@ -38,6 +38,7 @@ Gmail REST API wrappers. One service per domain:
 | `AvatarCache.swift` | Avatar image caching (uses shared `stableHash` for cache keys) |
 | `BIMIService.swift` | BIMI logo resolution via DNS-over-HTTPS |
 | `CalendarInviteParser.swift` | iCalendar (.ics) parsing for calendar invite cards |
+| `ContactModels.swift` | `StoredContact`, `ContactStore` (UserDefaults), `ContactPhotoCache` (in-memory), `GoogleUserInfo` |
 | `ContentExtractor.swift` | PDF/OCR/Word/text extraction + embedding generation |
 | `CPUMonitor.swift` | Adaptive CPU throttling for background tasks |
 | `EmailClassifier.swift` | Apple Foundation Models classification — categorizes emails by priority, sentiment, category |
@@ -50,7 +51,7 @@ Gmail REST API wrappers. One service per domain:
 | `NetworkMonitor.swift` | `@MainActor` online/offline detection via NWPathMonitor |
 | `NotificationService.swift` | `UNUserNotificationCenter` push notifications with reply/archive/mark-read actions |
 | `OfflineActionQueue.swift` | Queues email mutations (archive, trash) when offline; drains FIFO on reconnect |
-| `PeopleAPIService.swift` | Google People API — contact fetching (connections + otherContacts), photo cache population |
+| `PeopleAPIService.swift` | Google People API — contact fetching (connections + otherContacts) with sync token support for incremental updates, photo cache population |
 | `QuickReplyService.swift` | AI-powered quick reply suggestions with bounded cache |
 | `ScheduledSendStore.swift` | Persists scheduled-send items per account (file-based JSON) with send-time monitoring |
 | `SmartReplyProvider.swift` | Foundation Models smart reply chip generation (contextual reply suggestions) |
