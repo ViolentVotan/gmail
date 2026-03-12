@@ -27,7 +27,7 @@ struct SlidePanel<Content: View>: View {
                 // Header
                 HStack {
                     Text(title)
-                        .font(.system(size: 16, weight: .bold))
+                        .font(.system(size: 18, weight: .bold))
                         .foregroundStyle(.primary)
                     Spacer()
                     Button { isPresented = false } label: {
@@ -50,7 +50,7 @@ struct SlidePanel<Content: View>: View {
                     content
                 }
             }
-            .containerRelativeFrame(.horizontal) { length, _ in length * 0.5 }
+            .containerRelativeFrame(.horizontal) { length, _ in length * 0.25 }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { panelWidth = $0 }
             .frame(maxHeight: .infinity)
             .background(.ultraThinMaterial)

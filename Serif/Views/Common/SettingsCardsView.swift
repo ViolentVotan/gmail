@@ -15,7 +15,7 @@ struct BehaviorSettingsCard: View {
 
             HStack {
                 Text("Undo duration")
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Picker("", selection: $undoDuration) {
@@ -32,7 +32,7 @@ struct BehaviorSettingsCard: View {
 
             HStack {
                 Text("Refresh interval")
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Picker("", selection: $refreshInterval) {
@@ -67,7 +67,7 @@ struct ContactsSettingsCard: View {
 
             HStack {
                 Text("\(contactCount) contacts cached")
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
 
                 Spacer()
@@ -125,7 +125,7 @@ struct SignatureSettingsCard: View {
 
             if aliases.isEmpty {
                 Text("No aliases found")
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.tertiary)
             } else {
                 VStack(alignment: .leading, spacing: 8) {
@@ -140,7 +140,7 @@ struct SignatureSettingsCard: View {
                                         .foregroundStyle(.primary)
                                     if alias.isPrimary == true {
                                         Text("Primary")
-                                            .font(.system(size: 9, weight: .semibold))
+                                            .font(.system(size: 10, weight: .semibold))
                                             .foregroundStyle(.tint)
                                             .padding(.horizontal, 5)
                                             .padding(.vertical, 1)
@@ -152,16 +152,16 @@ struct SignatureSettingsCard: View {
                                         .foregroundStyle(.tertiary)
                                 }
                                 Text(alias.sendAsEmail)
-                                    .font(.footnote)
+                                    .font(.callout)
                                     .foregroundStyle(.tertiary)
                                 if let sig = alias.signature, !sig.isEmpty {
                                     Text(sig.strippingHTML.prefix(80) + (sig.strippingHTML.count > 80 ? "…" : ""))
-                                        .font(.caption2.weight(.semibold))
+                                        .font(.caption.weight(.semibold))
                                         .foregroundStyle(.tertiary)
                                         .lineLimit(2)
                                 } else {
                                     Text("No signature")
-                                        .font(.caption2.weight(.semibold))
+                                        .font(.caption.weight(.semibold))
                                         .foregroundStyle(.tertiary)
                                         .italic()
                                 }
@@ -177,7 +177,7 @@ struct SignatureSettingsCard: View {
 
                 HStack {
                     Text("New emails")
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                     Spacer()
                     Picker("", selection: $signatureForNew) {
@@ -192,7 +192,7 @@ struct SignatureSettingsCard: View {
 
                 HStack {
                     Text("Replies & forwards")
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                     Spacer()
                     Picker("", selection: $signatureForReply) {
@@ -239,7 +239,7 @@ struct StorageSettingsCard: View {
 
             HStack {
                 Text("Attachment scan depth")
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Picker("", selection: $scanMonths) {
@@ -258,14 +258,14 @@ struct StorageSettingsCard: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Attachment index")
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                     HStack(spacing: 8) {
                         Text(formattedSize)
-                            .font(.caption.monospaced().weight(.medium))
+                            .font(.footnote.monospaced().weight(.medium))
                             .foregroundStyle(.primary)
                         Text("\(attachmentStore.stats.total) attachments")
-                            .font(.footnote)
+                            .font(.callout)
                             .foregroundStyle(.tertiary)
                     }
                 }
@@ -330,10 +330,10 @@ struct AppleIntelligenceSettingsCard: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Label suggestions")
-                        .font(.callout)
+                        .font(.body)
                         .foregroundStyle(.secondary)
                     Text("Suggest labels for emails using on-device AI")
-                        .font(.footnote)
+                        .font(.callout)
                         .foregroundStyle(.tertiary)
                 }
                 Spacer()
@@ -360,7 +360,7 @@ struct DeveloperSettingsCard: View {
 
             HStack {
                 Text("Show Debug menu")
-                    .font(.callout)
+                    .font(.body)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Toggle("", isOn: $showDebugMenu)
@@ -388,19 +388,19 @@ struct RefreshStatusView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Image(systemName: "clock.arrow.2.circlepath")
-                    .font(.caption2.weight(.semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
                 Text(lastRefreshLabel)
-                    .font(.footnote)
+                    .font(.callout)
                     .foregroundStyle(.tertiary)
                 Spacer()
             }
             HStack {
                 Image(systemName: "arrow.clockwise")
-                    .font(.caption2.weight(.semibold))
+                    .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
                 Text(nextRefreshLabel)
-                    .font(.footnote)
+                    .font(.callout)
                     .foregroundStyle(.tertiary)
                 Spacer()
             }

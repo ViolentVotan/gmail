@@ -15,12 +15,12 @@ struct AccountsSettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Connected Accounts")
-                .font(.system(size: 14, weight: .semibold))
+                .font(.system(size: 16, weight: .semibold))
                 .foregroundStyle(.primary)
 
             if authViewModel.accounts.isEmpty {
                 Text("No accounts connected")
-                    .font(.system(size: 12))
+                    .font(.system(size: 14))
                     .foregroundStyle(.tertiary)
                     .padding(.vertical, 4)
             } else {
@@ -63,9 +63,9 @@ struct AccountsSettingsView: View {
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 14))
+                        .font(.system(size: 16))
                     Text(authViewModel.isSigningIn ? "Signing in…" : "Add account")
-                        .font(.system(size: 13))
+                        .font(.system(size: 15))
                 }
                 .foregroundStyle(.tint)
             }
@@ -149,7 +149,7 @@ struct AccountsSettingsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(account.displayName)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 15, weight: .medium))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     if isFirst {
@@ -163,7 +163,7 @@ struct AccountsSettingsView: View {
                     }
                 }
                 Text(account.email)
-                    .font(.system(size: 11))
+                    .font(.system(size: 13))
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
             }
@@ -192,7 +192,7 @@ struct AccountsSettingsView: View {
                 }
             } label: {
                 Text("Sign out")
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 13, weight: .medium))
                     .foregroundColor(.red.opacity(0.8))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)

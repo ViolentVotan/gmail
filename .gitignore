@@ -22,3 +22,4 @@ timeline.xctimeline
 playground.xcworkspace
 
 .build/build/
+build/
