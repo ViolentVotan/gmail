@@ -1,6 +1,6 @@
 # Serif — Architecture Overview
 
-macOS Gmail client built with Swift/SwiftUI. 3-column layout (sidebar, email list, email detail).
+macOS Gmail client built with Swift/SwiftUI. `NavigationSplitView` 3-column layout (sidebar, email list, email detail) with Liquid Glass chrome.
 
 ## Folder Structure
 
@@ -22,11 +22,14 @@ macOS Gmail client built with Swift/SwiftUI. 3-column layout (sidebar, email lis
 3. **Multi-account**: All persistence is keyed by `accountID`. Never assume a single account.
 4. **Optimistic UI**: Mutations (archive, trash, star) update the UI immediately, then call the API.
 5. **Semantic colors**: Views use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`) and materials — no custom color definitions.
+6. **Semantic typography**: All fonts use semantic text styles (`.body`, `.caption`, `.title2`, etc.) for Dynamic Type support. No hardcoded `.system(size:)` except proportional avatar sizing.
+7. **Accessibility**: Email rows, toasts, avatars, and badges have VoiceOver labels, hints, and traits.
 
 ## Entry Point
 
-`SerifApp.swift` -> routes to `OnboardingView` or `ContentView` based on `@AppStorage("isSignedIn")`.
-`ContentView.swift` is the main orchestrator: owns ViewModels, wires callbacks, manages navigation state.
+`SerifApp.swift` -> routes to `OnboardingView` or `ContentView` based on `@AppStorage("isSignedIn")`. Also registers the `Settings` scene (Cmd+,) with `SettingsView`.
+
+`ContentView.swift` is the main orchestrator: owns ViewModels, wires callbacks, manages navigation state. Uses `NavigationSplitView` for the three-column layout with `@FocusState` pane cycling (Opt+Tab). Advertises `NSUserActivity` for Handoff when viewing an email.
 
 ## Key Patterns
 

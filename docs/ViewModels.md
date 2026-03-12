@@ -27,5 +27,5 @@ State management layer between Services and Views. Each ViewModel uses the `@Obs
 | `EmailActionCoordinator.swift` | Email mutations (archive, delete, star, labels) with bulk-action concurrency via `TaskGroup` |
 | `EmailDetailViewModel.swift` | Thread loading with disk cache, attachment download. Business logic: compose mode construction (reply/replyAll/forward), attachment transforms, label suggestion application. |
 | `MailboxViewModel.swift` | Email list, pagination, delta sync, stale pruning, cache orchestration. Targeted in-place updates for single-message mutations. |
-| `PanelCoordinator.swift` | Side panel state (compose, settings, shortcuts, browser) |
+| `PanelCoordinator.swift` | Side panel state (shortcuts, debug, original message, attachments, browser) |
 | `UpdaterViewModel.swift` | Sparkle auto-update state |

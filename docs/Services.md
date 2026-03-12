@@ -47,6 +47,7 @@ Gmail REST API wrappers. One service per domain:
 | `NetworkMonitor.swift` | `@MainActor` online/offline detection via NWPathMonitor |
 | `QuickReplyService.swift` | AI-powered quick reply suggestions with bounded cache |
 | `SignatureResolver.swift` | Signature HTML lookup per alias, signature replacement in body |
+| `SpotlightIndexer.swift` | CoreSpotlight email indexing for Spotlight search (indexes viewed emails, prunes at 1000) |
 | `SubscriptionsStore.swift` | Detects newsletter/subscription emails, manages unsubscribe state |
 | `SummaryService.swift` | AI-powered email summaries (delegates to `String.cleanedForAI` for preprocessing) |
 | `ThumbnailCache.swift` | Thumbnail generation + LRU caching with concurrency limiting |

@@ -18,10 +18,10 @@ SwiftUI views. UI presentation only — no business logic.
 ## Subfolders
 
 ### `Sidebar/`
-Left column — folder navigation, account switcher, labels. Context menu for label rename/delete.
+Left column — `List(.sidebar)` with folder navigation, account switcher, labels. Context menu for label rename/delete. Gets Liquid Glass treatment automatically from NavigationSplitView.
 
 ### `EmailList/`
-Middle column — email rows, swipe actions (archive/delete), search, pull-to-refresh, multi-select with bulk actions.
+Middle column — email rows with native `.swipeActions()` (archive/delete), search, `.refreshable` pull-to-refresh, multi-select with bulk actions. Uses `List(selection:)` for row rendering.
 
 ### `EmailDetail/`
 Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView), attachments, sender info popover, tracker blocking UI, label picker.
@@ -37,6 +37,9 @@ Email composer — `ComposeView` for the full compose form with rich text editor
 ### `Attachments/`
 Attachment explorer with grid view, thumbnails, file type filtering, and search.
 
+### `Settings/`
+Tabbed settings view (General, Advanced) registered as a macOS `Settings` scene — opens via Cmd+,. Uses `@AppStorage` with the same keys as `AppCoordinator` for shared state.
+
 ### `Onboarding/`
 Sign-in / welcome screen with OAuth flow.
 
@@ -49,7 +52,7 @@ Shared reusable components:
 | `LabelChipView` | Colored label pill |
 | `ThemePickerView` | Segmented picker for System / Light / Dark appearance |
 | `SettingsCardsView` | Settings UI with behavior, signature, account cards |
-| `SlidePanel` | Animated side panel overlay (settings, help, debug, previews) with frosted glass background |
+| `SlidePanel` | Animated side panel overlay (help, debug, previews) with frosted glass background |
 | `FormattingToolbar` | Rich text toolbar for compose/reply |
 | `WebRichTextEditor` | WKWebView-based HTML editor |
 | `UndoToastView` | Undo toast + offline indicator |
