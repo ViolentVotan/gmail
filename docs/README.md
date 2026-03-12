@@ -29,3 +29,4 @@ Architecture and conventions for the Serif macOS Gmail client.
 | [superpowers/plans/2026-03-12-macos26-ui-modernization.md](superpowers/plans/2026-03-12-macos26-ui-modernization.md) | macOS 26 UI/UX modernization implementation plan |
 | [superpowers/specs/2026-03-12-serif-improvements-design.md](superpowers/specs/2026-03-12-serif-improvements-design.md) | Serif improvements design spec (AI features, offline, snooze, schedule-send, intents, filters) |
 | [superpowers/plans/2026-03-12-serif-improvements.md](superpowers/plans/2026-03-12-serif-improvements.md) | Serif improvements implementation plan (55 tasks across 6 phases) |
+| [superpowers/plans/2026-03-12-gmail-api-best-practices.md](superpowers/plans/2026-03-12-gmail-api-best-practices.md) | Gmail & People API best practices alignment (retry, DRY, SOLID, URL safety, partial responses) |
