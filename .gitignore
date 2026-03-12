@@ -4,6 +4,7 @@
 .sourcekit-lsp/
 buildServer.json
 docs/plans/
+docs/superpowers/
 Serif/Configuration/GoogleCredentials.swift
 
 ## User settings
