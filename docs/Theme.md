@@ -1,25 +1,26 @@
-# Theme
+# Appearance
 
-Color theming system with customization and persistence.
+System-integrated appearance management — follows macOS light/dark mode with optional user override.
 
-## Guidelines
+## How It Works
 
-- `Theme` is a **value type** (`struct`). It holds all color properties. No logic beyond color lookup.
-- Themes are accessed in Views exclusively via `@Environment(\.theme)`. Never instantiate or hardcode colors.
-- `ThemeManager` is the single `@Observable` class that owns the current theme. It handles:
-  - Base theme selection (persisted to UserDefaults)
-  - Per-theme color overrides (persisted to UserDefaults as `[themeID: [colorKey: hex]]`)
-  - `currentTheme` = base theme + overrides applied
-- `Theme.==` must compare actual colors (not just `id`), otherwise SwiftUI won't propagate environment changes when overrides change.
-- When adding a new color property:
-  1. Add the `let` to `Theme`
-  2. Add it to `colorGroups`, `color(for:)`, `label(for:)`, and `applying(overrides:)`
-  3. Add it to every theme in `DefaultThemes.swift`
+`AppearanceManager` is an `@Observable` class that stores a single preference: System, Light, or Dark. It is owned by `ContentView` via `@State` and applied with `.preferredColorScheme()`.
+
+- **System** (default): defers to macOS appearance (passes `nil` to `.preferredColorScheme()`)
+- **Light / Dark**: forces the corresponding color scheme
+
+All views use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`, `Color.accentColor`) and materials (`.regularMaterial`). No custom color definitions exist.
 
 ## Files
 
 | File | Role |
 |------|------|
-| `Theme.swift` | `Theme` struct, `Color` extensions (hex init/export), color lookup helpers |
-| `DefaultThemes.swift` | All 16 built-in theme definitions |
-| `ThemeManager.swift` | Theme selection, overrides, persistence, `@Entry` macro for environment |
+| `AppearanceManager.swift` | Preference storage, UserDefaults persistence, migration from legacy theme system |
+
+## Migration
+
+`AppearanceManager.init()` detects the old `selectedThemeId` UserDefaults key and maps it to Light or Dark based on the theme's name. The old keys (`selectedThemeId`, `themeOverrides`) are removed after migration.
+
+## Settings UI
+
+`ThemePickerView` provides a segmented picker (System / Light / Dark) inside the Settings panel.

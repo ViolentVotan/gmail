@@ -34,7 +34,7 @@ Serif/
 ├── ViewModels/     # MVVM view models (one per feature)
 ├── Models/         # Data models
 ├── Services/       # Business logic (Gmail auth, mail ops, tracking protection)
-├── Theme/          # 16 themes (11 dark, 5 light)
+├── Theme/          # Appearance management (system/light/dark)
 ├── Configuration/  # OAuth credentials (gitignored)
 └── Utilities/      # Helpers
 ```
