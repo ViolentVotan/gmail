@@ -1,11 +1,12 @@
-import XCTest
+import Testing
+import Foundation
 @testable import Serif
 
-final class GmailModelsTests: XCTestCase {
+@Suite struct GmailModelsTests {
 
     // MARK: - GmailMessageListResponse
 
-    func testDecodeMessageListResponse() throws {
+    @Test func decodeMessageListResponse() throws {
         let json = """
         {
             "messages": [
@@ -18,15 +19,15 @@ final class GmailModelsTests: XCTestCase {
         """.data(using: .utf8)!
 
         let response = try JSONDecoder().decode(GmailMessageListResponse.self, from: json)
-        XCTAssertEqual(response.messages?.count, 2)
-        XCTAssertEqual(response.messages?[0].id, "msg001")
-        XCTAssertEqual(response.messages?[0].threadId, "thread001")
-        XCTAssertEqual(response.messages?[1].id, "msg002")
-        XCTAssertEqual(response.nextPageToken, "token_abc")
-        XCTAssertEqual(response.resultSizeEstimate, 42)
+        #expect(response.messages?.count == 2)
+        #expect(response.messages?[0].id == "msg001")
+        #expect(response.messages?[0].threadId == "thread001")
+        #expect(response.messages?[1].id == "msg002")
+        #expect(response.nextPageToken == "token_abc")
+        #expect(response.resultSizeEstimate == 42)
     }
 
-    func testDecodeMessageListResponseEmptyMessages() throws {
+    @Test func decodeMessageListResponseEmptyMessages() throws {
         let json = """
         {
             "resultSizeEstimate": 0
@@ -34,14 +35,14 @@ final class GmailModelsTests: XCTestCase {
         """.data(using: .utf8)!
 
         let response = try JSONDecoder().decode(GmailMessageListResponse.self, from: json)
-        XCTAssertNil(response.messages)
-        XCTAssertNil(response.nextPageToken)
-        XCTAssertEqual(response.resultSizeEstimate, 0)
+        #expect(response.messages == nil)
+        #expect(response.nextPageToken == nil)
+        #expect(response.resultSizeEstimate == 0)
     }
 
     // MARK: - GmailMessage
 
-    func testDecodeGmailMessageFull() throws {
+    @Test func decodeGmailMessageFull() throws {
         let json = """
         {
             "id": "18abc123",
@@ -82,18 +83,18 @@ final class GmailModelsTests: XCTestCase {
 
         let msg = try JSONDecoder().decode(GmailMessage.self, from: json)
 
-        XCTAssertEqual(msg.id, "18abc123")
-        XCTAssertEqual(msg.threadId, "18abc000")
-        XCTAssertEqual(msg.labelIds, ["INBOX", "UNREAD", "STARRED"])
-        XCTAssertEqual(msg.snippet, "Hey, just checking in...")
-        XCTAssertEqual(msg.internalDate, "1700000000000")
-        XCTAssertEqual(msg.sizeEstimate, 4096)
-        XCTAssertEqual(msg.historyId, "999")
-        XCTAssertEqual(msg.payload?.mimeType, "multipart/alternative")
-        XCTAssertEqual(msg.payload?.parts?.count, 2)
+        #expect(msg.id == "18abc123")
+        #expect(msg.threadId == "18abc000")
+        #expect(msg.labelIds == ["INBOX", "UNREAD", "STARRED"])
+        #expect(msg.snippet == "Hey, just checking in...")
+        #expect(msg.internalDate == "1700000000000")
+        #expect(msg.sizeEstimate == 4096)
+        #expect(msg.historyId == "999")
+        #expect(msg.payload?.mimeType == "multipart/alternative")
+        #expect(msg.payload?.parts?.count == 2)
     }
 
-    func testDecodeGmailMessageMinimal() throws {
+    @Test func decodeGmailMessageMinimal() throws {
         let json = """
         {
             "id": "minimal_id",
@@ -102,35 +103,35 @@ final class GmailModelsTests: XCTestCase {
         """.data(using: .utf8)!
 
         let msg = try JSONDecoder().decode(GmailMessage.self, from: json)
-        XCTAssertEqual(msg.id, "minimal_id")
-        XCTAssertEqual(msg.threadId, "minimal_thread")
-        XCTAssertNil(msg.labelIds)
-        XCTAssertNil(msg.snippet)
-        XCTAssertNil(msg.internalDate)
-        XCTAssertNil(msg.payload)
-        XCTAssertNil(msg.sizeEstimate)
+        #expect(msg.id == "minimal_id")
+        #expect(msg.threadId == "minimal_thread")
+        #expect(msg.labelIds == nil)
+        #expect(msg.snippet == nil)
+        #expect(msg.internalDate == nil)
+        #expect(msg.payload == nil)
+        #expect(msg.sizeEstimate == nil)
     }
 
     // MARK: - GmailMessage.header()
 
-    func testHeaderNamedIsCaseInsensitive() throws {
+    @Test func headerNamedIsCaseInsensitive() throws {
         let msg = makeMessage(headers: [
             ("From", "alice@example.com"),
             ("Subject", "Test Subject"),
             ("X-Custom-Header", "custom-value")
         ])
 
-        XCTAssertEqual(msg.header(named: "from"), "alice@example.com")
-        XCTAssertEqual(msg.header(named: "FROM"), "alice@example.com")
-        XCTAssertEqual(msg.header(named: "From"), "alice@example.com")
-        XCTAssertEqual(msg.header(named: "subject"), "Test Subject")
-        XCTAssertEqual(msg.header(named: "x-custom-header"), "custom-value")
-        XCTAssertNil(msg.header(named: "Nonexistent"))
+        #expect(msg.header(named: "from") == "alice@example.com")
+        #expect(msg.header(named: "FROM") == "alice@example.com")
+        #expect(msg.header(named: "From") == "alice@example.com")
+        #expect(msg.header(named: "subject") == "Test Subject")
+        #expect(msg.header(named: "x-custom-header") == "custom-value")
+        #expect(msg.header(named: "Nonexistent") == nil)
     }
 
     // MARK: - Computed Properties: from, subject, to, cc
 
-    func testFromSubjectToCC() throws {
+    @Test func fromSubjectToCC() throws {
         let msg = makeMessage(headers: [
             ("From", "Alice <alice@example.com>"),
             ("Subject", "Important Meeting"),
@@ -138,36 +139,36 @@ final class GmailModelsTests: XCTestCase {
             ("Cc", "charlie@example.com")
         ])
 
-        XCTAssertEqual(msg.from, "Alice <alice@example.com>")
-        XCTAssertEqual(msg.subject, "Important Meeting")
-        XCTAssertEqual(msg.to, "bob@example.com")
-        XCTAssertEqual(msg.cc, "charlie@example.com")
+        #expect(msg.from == "Alice <alice@example.com>")
+        #expect(msg.subject == "Important Meeting")
+        #expect(msg.to == "bob@example.com")
+        #expect(msg.cc == "charlie@example.com")
     }
 
-    func testSubjectFallbackWhenMissing() throws {
+    @Test func subjectFallbackWhenMissing() throws {
         let msg = makeMessage(headers: [])
-        XCTAssertEqual(msg.subject, "(no subject)")
-        XCTAssertEqual(msg.from, "")
-        XCTAssertEqual(msg.to, "")
-        XCTAssertEqual(msg.cc, "")
+        #expect(msg.subject == "(no subject)")
+        #expect(msg.from == "")
+        #expect(msg.to == "")
+        #expect(msg.cc == "")
     }
 
-    func testReplyToFallsBackToFrom() throws {
+    @Test func replyToFallsBackToFrom() throws {
         let msg = makeMessage(headers: [
             ("From", "sender@example.com")
         ])
-        XCTAssertEqual(msg.replyTo, "sender@example.com")
+        #expect(msg.replyTo == "sender@example.com")
 
         let msgWithReplyTo = makeMessage(headers: [
             ("From", "sender@example.com"),
             ("Reply-To", "reply@example.com")
         ])
-        XCTAssertEqual(msgWithReplyTo.replyTo, "reply@example.com")
+        #expect(msgWithReplyTo.replyTo == "reply@example.com")
     }
 
     // MARK: - Date
 
-    func testDateConversion() throws {
+    @Test func dateConversion() throws {
         // 1700000000000 ms = Nov 14, 2023 22:13:20 UTC
         let json = """
         {
@@ -178,198 +179,198 @@ final class GmailModelsTests: XCTestCase {
         """.data(using: .utf8)!
 
         let msg = try JSONDecoder().decode(GmailMessage.self, from: json)
-        let date = try XCTUnwrap(msg.date)
+        let date = try #require(msg.date)
 
-        XCTAssertEqual(date.timeIntervalSince1970, 1_700_000_000, accuracy: 1)
+        #expect(abs(date.timeIntervalSince1970 - 1_700_000_000) < 1)
     }
 
-    func testDateNilWhenMissing() throws {
+    @Test func dateNilWhenMissing() throws {
         let json = """
         {"id": "no_date", "threadId": "t1"}
         """.data(using: .utf8)!
 
         let msg = try JSONDecoder().decode(GmailMessage.self, from: json)
-        XCTAssertNil(msg.date)
+        #expect(msg.date == nil)
     }
 
     // MARK: - Label Flags: isUnread, isStarred, isDraft
 
-    func testIsUnread() throws {
+    @Test func isUnread() throws {
         let unread = makeMessage(labelIds: ["INBOX", "UNREAD"])
-        XCTAssertTrue(unread.isUnread)
+        #expect(unread.isUnread)
 
         let read = makeMessage(labelIds: ["INBOX"])
-        XCTAssertFalse(read.isUnread)
+        #expect(!read.isUnread)
 
         let noLabels = makeMessage(labelIds: nil)
-        XCTAssertFalse(noLabels.isUnread)
+        #expect(!noLabels.isUnread)
     }
 
-    func testIsStarred() throws {
+    @Test func isStarred() throws {
         let starred = makeMessage(labelIds: ["STARRED"])
-        XCTAssertTrue(starred.isStarred)
+        #expect(starred.isStarred)
 
         let notStarred = makeMessage(labelIds: ["INBOX"])
-        XCTAssertFalse(notStarred.isStarred)
+        #expect(!notStarred.isStarred)
     }
 
-    func testIsDraft() throws {
+    @Test func isDraft() throws {
         let draft = makeMessage(labelIds: ["DRAFT"])
-        XCTAssertTrue(draft.isDraft)
+        #expect(draft.isDraft)
 
         let notDraft = makeMessage(labelIds: ["INBOX"])
-        XCTAssertFalse(notDraft.isDraft)
+        #expect(!notDraft.isDraft)
     }
 
     // MARK: - Mailing List Detection
 
-    func testIsFromMailingListWithListUnsubscribe() throws {
+    @Test func isFromMailingListWithListUnsubscribe() throws {
         let msg = makeMessage(headers: [
             ("List-Unsubscribe", "<https://example.com/unsub>")
         ])
-        XCTAssertTrue(msg.isFromMailingList)
+        #expect(msg.isFromMailingList)
     }
 
-    func testIsFromMailingListWithListId() throws {
+    @Test func isFromMailingListWithListId() throws {
         let msg = makeMessage(headers: [
             ("List-Id", "<news.example.com>")
         ])
-        XCTAssertTrue(msg.isFromMailingList)
+        #expect(msg.isFromMailingList)
     }
 
-    func testIsNotFromMailingList() throws {
+    @Test func isNotFromMailingList() throws {
         let msg = makeMessage(headers: [
             ("From", "person@example.com")
         ])
-        XCTAssertFalse(msg.isFromMailingList)
+        #expect(!msg.isFromMailingList)
     }
 
     // MARK: - Unsubscribe URL Parsing
 
-    func testUnsubscribeURLPrefersHTTPS() throws {
+    @Test func unsubscribeURLPrefersHTTPS() throws {
         let msg = makeMessage(headers: [
             ("List-Unsubscribe", "<mailto:unsub@example.com>, <https://example.com/unsub?id=123>")
         ])
-        XCTAssertEqual(msg.unsubscribeURL?.absoluteString, "https://example.com/unsub?id=123")
+        #expect(msg.unsubscribeURL?.absoluteString == "https://example.com/unsub?id=123")
     }
 
-    func testUnsubscribeURLFallsBackToMailto() throws {
+    @Test func unsubscribeURLFallsBackToMailto() throws {
         let msg = makeMessage(headers: [
             ("List-Unsubscribe", "<mailto:unsub@example.com>")
         ])
-        XCTAssertEqual(msg.unsubscribeURL?.scheme, "mailto")
+        #expect(msg.unsubscribeURL?.scheme == "mailto")
     }
 
-    func testUnsubscribeURLNilWhenNoHeader() throws {
+    @Test func unsubscribeURLNilWhenNoHeader() throws {
         let msg = makeMessage(headers: [])
-        XCTAssertNil(msg.unsubscribeURL)
+        #expect(msg.unsubscribeURL == nil)
     }
 
     // MARK: - One-Click Unsubscribe
 
-    func testSupportsOneClickUnsubscribe() throws {
+    @Test func supportsOneClickUnsubscribe() throws {
         let msg = makeMessage(headers: [
             ("List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
         ])
-        XCTAssertTrue(msg.supportsOneClickUnsubscribe)
+        #expect(msg.supportsOneClickUnsubscribe)
     }
 
-    func testDoesNotSupportOneClickUnsubscribeWithoutHeader() throws {
+    @Test func doesNotSupportOneClickUnsubscribeWithoutHeader() throws {
         let msg = makeMessage(headers: [])
-        XCTAssertFalse(msg.supportsOneClickUnsubscribe)
+        #expect(!msg.supportsOneClickUnsubscribe)
     }
 
     // MARK: - Body Extraction
 
-    func testHtmlBodyExtraction() throws {
+    @Test func htmlBodyExtraction() throws {
         let msg = makeMessage(headers: [], htmlBodyData: "PGI-SGVsbG8gV29ybGQ8L2I-")
-        XCTAssertNotNil(msg.htmlBody)
-        XCTAssertTrue(msg.htmlBody?.contains("Hello World") == true)
+        #expect(msg.htmlBody != nil)
+        #expect(msg.htmlBody?.contains("Hello World") == true)
     }
 
-    func testPlainBodyExtraction() throws {
+    @Test func plainBodyExtraction() throws {
         let msg = makeMessage(headers: [], plainBodyData: "SGVsbG8gV29ybGQ")
-        XCTAssertNotNil(msg.plainBody)
-        XCTAssertEqual(msg.plainBody, "Hello World")
+        #expect(msg.plainBody != nil)
+        #expect(msg.plainBody == "Hello World")
     }
 
-    func testBodyPrefersHtmlOverPlain() throws {
+    @Test func bodyPrefersHtmlOverPlain() throws {
         let msg = makeMessage(
             headers: [],
             htmlBodyData: "PGI-SFRNTA8L2I-",  // <b>HTML</b>
             plainBodyData: "UGxhaW4"            // Plain
         )
         // body should prefer htmlBody
-        XCTAssertNotNil(msg.htmlBody)
+        #expect(msg.htmlBody != nil)
     }
 
     // MARK: - FromDomain
 
-    func testFromDomainWithAngleBrackets() throws {
+    @Test func fromDomainWithAngleBrackets() throws {
         let msg = makeMessage(headers: [
             ("From", "Alice Smith <alice@example.com>")
         ])
-        XCTAssertEqual(msg.fromDomain, "example.com")
+        #expect(msg.fromDomain == "example.com")
     }
 
-    func testFromDomainPlainEmail() throws {
+    @Test func fromDomainPlainEmail() throws {
         let msg = makeMessage(headers: [
             ("From", "bob@company.co.uk")
         ])
-        XCTAssertEqual(msg.fromDomain, "company.co.uk")
+        #expect(msg.fromDomain == "company.co.uk")
     }
 
     // MARK: - Security: mailedBy, signedBy, encryptionInfo
 
-    func testMailedByFromReturnPath() throws {
+    @Test func mailedByFromReturnPath() throws {
         let msg = makeMessage(headers: [
             ("Return-Path", "<bounce@sender.example.com>")
         ])
-        XCTAssertEqual(msg.mailedBy, "sender.example.com")
+        #expect(msg.mailedBy == "sender.example.com")
     }
 
-    func testSignedByFromDKIM() throws {
+    @Test func signedByFromDKIM() throws {
         let msg = makeMessage(headers: [
             ("DKIM-Signature", "v=1; a=rsa-sha256; d=example.com; s=selector; b=abc123")
         ])
-        XCTAssertEqual(msg.signedBy, "example.com")
+        #expect(msg.signedBy == "example.com")
     }
 
-    func testEncryptionInfoDetectsTLS() throws {
+    @Test func encryptionInfoDetectsTLS() throws {
         let msg = makeMessage(headers: [
             ("Received", "from mail.example.com by mx.google.com with ESMTPS id abc")
         ])
-        XCTAssertEqual(msg.encryptionInfo, "Standard encryption (TLS)")
+        #expect(msg.encryptionInfo == "Standard encryption (TLS)")
     }
 
-    func testEncryptionInfoNilWithoutTLS() throws {
+    @Test func encryptionInfoNilWithoutTLS() throws {
         let msg = makeMessage(headers: [
             ("Received", "from mail.example.com by mx.google.com with SMTP id abc")
         ])
-        XCTAssertNil(msg.encryptionInfo)
+        #expect(msg.encryptionInfo == nil)
     }
 
     // MARK: - Suspicious Sender
 
-    func testIsSuspiciousSenderMismatchedDomains() throws {
+    @Test func isSuspiciousSenderMismatchedDomains() throws {
         let msg = makeMessage(headers: [
             ("From", "legit@trusted.com"),
             ("Return-Path", "<bounce@phishing.com>")
         ])
-        XCTAssertTrue(msg.isSuspiciousSender)
+        #expect(msg.isSuspiciousSender)
     }
 
-    func testIsNotSuspiciousSenderMatchingDomains() throws {
+    @Test func isNotSuspiciousSenderMatchingDomains() throws {
         let msg = makeMessage(headers: [
             ("From", "alice@example.com"),
             ("Return-Path", "<bounce@example.com>")
         ])
-        XCTAssertFalse(msg.isSuspiciousSender)
+        #expect(!msg.isSuspiciousSender)
     }
 
     // MARK: - HasPartsWithFilenames
 
-    func testHasPartsWithFilenames() throws {
+    @Test func hasPartsWithFilenames() throws {
         let json = """
         {
             "id": "att_msg",
@@ -393,14 +394,14 @@ final class GmailModelsTests: XCTestCase {
         """.data(using: .utf8)!
 
         let msg = try JSONDecoder().decode(GmailMessage.self, from: json)
-        XCTAssertTrue(msg.hasPartsWithFilenames)
-        XCTAssertEqual(msg.attachmentParts.count, 1)
-        XCTAssertEqual(msg.attachmentParts.first?.filename, "report.pdf")
+        #expect(msg.hasPartsWithFilenames)
+        #expect(msg.attachmentParts.count == 1)
+        #expect(msg.attachmentParts.first?.filename == "report.pdf")
     }
 
     // MARK: - GmailHistoryListResponse
 
-    func testDecodeHistoryListResponse() throws {
+    @Test func decodeHistoryListResponse() throws {
         let json = """
         {
             "history": [
@@ -423,23 +424,23 @@ final class GmailModelsTests: XCTestCase {
         """.data(using: .utf8)!
 
         let response = try JSONDecoder().decode(GmailHistoryListResponse.self, from: json)
-        XCTAssertEqual(response.historyId, "99999")
-        XCTAssertEqual(response.nextPageToken, "hist_token")
-        XCTAssertEqual(response.history?.count, 1)
+        #expect(response.historyId == "99999")
+        #expect(response.nextPageToken == "hist_token")
+        #expect(response.history?.count == 1)
 
-        let record = try XCTUnwrap(response.history?.first)
-        XCTAssertEqual(record.id, "12345")
-        XCTAssertEqual(record.messagesAdded?.count, 1)
-        XCTAssertEqual(record.messagesAdded?.first?.message.id, "msg_new")
-        XCTAssertEqual(record.labelsAdded?.count, 1)
-        XCTAssertEqual(record.labelsAdded?.first?.labelIds, ["STARRED"])
-        XCTAssertEqual(record.labelsRemoved?.count, 1)
-        XCTAssertEqual(record.labelsRemoved?.first?.labelIds, ["UNREAD"])
+        let record = try #require(response.history?.first)
+        #expect(record.id == "12345")
+        #expect(record.messagesAdded?.count == 1)
+        #expect(record.messagesAdded?.first?.message.id == "msg_new")
+        #expect(record.labelsAdded?.count == 1)
+        #expect(record.labelsAdded?.first?.labelIds == ["STARRED"])
+        #expect(record.labelsRemoved?.count == 1)
+        #expect(record.labelsRemoved?.first?.labelIds == ["UNREAD"])
     }
 
     // MARK: - GmailLabel
 
-    func testDecodeGmailLabel() throws {
+    @Test func decodeGmailLabel() throws {
         let json = """
         {
             "id": "Label_42",
@@ -457,56 +458,56 @@ final class GmailModelsTests: XCTestCase {
         """.data(using: .utf8)!
 
         let label = try JSONDecoder().decode(GmailLabel.self, from: json)
-        XCTAssertEqual(label.id, "Label_42")
-        XCTAssertEqual(label.name, "work/projects")
-        XCTAssertEqual(label.displayName, "projects")
-        XCTAssertEqual(label.type, "user")
-        XCTAssertEqual(label.messagesTotal, 150)
-        XCTAssertEqual(label.messagesUnread, 3)
-        XCTAssertEqual(label.color?.backgroundColor, "#0000ff")
+        #expect(label.id == "Label_42")
+        #expect(label.name == "work/projects")
+        #expect(label.displayName == "projects")
+        #expect(label.type == "user")
+        #expect(label.messagesTotal == 150)
+        #expect(label.messagesUnread == 3)
+        #expect(label.color?.backgroundColor == "#0000ff")
     }
 
-    func testGmailLabelIsSystemLabel() throws {
+    @Test func gmailLabelIsSystemLabel() throws {
         let inbox = GmailLabel(id: "INBOX", name: "INBOX", type: "system",
                                messagesTotal: nil, messagesUnread: nil,
                                threadsTotal: nil, threadsUnread: nil, color: nil)
-        XCTAssertTrue(inbox.isSystemLabel)
+        #expect(inbox.isSystemLabel)
 
         let custom = GmailLabel(id: "Label_1", name: "MyLabel", type: "user",
                                 messagesTotal: nil, messagesUnread: nil,
                                 threadsTotal: nil, threadsUnread: nil, color: nil)
-        XCTAssertFalse(custom.isSystemLabel)
+        #expect(!custom.isSystemLabel)
     }
 
-    func testGmailLabelDisplayNameNoSlash() throws {
+    @Test func gmailLabelDisplayNameNoSlash() throws {
         let label = GmailLabel(id: "L1", name: "SimpleLabel", type: nil,
                                messagesTotal: nil, messagesUnread: nil,
                                threadsTotal: nil, threadsUnread: nil, color: nil)
-        XCTAssertEqual(label.displayName, "SimpleLabel")
+        #expect(label.displayName == "SimpleLabel")
     }
 
-    func testGmailLabelResolvedColors() throws {
+    @Test func gmailLabelResolvedColors() throws {
         let withColor = GmailLabel(
             id: "L1", name: "Colored",
             type: nil, messagesTotal: nil, messagesUnread: nil,
             threadsTotal: nil, threadsUnread: nil,
             color: GmailLabelColor(textColor: "#ff0000", backgroundColor: "#00ff00")
         )
-        XCTAssertEqual(withColor.resolvedBgColor, "#00ff00")
-        XCTAssertEqual(withColor.resolvedTextColor, "#ff0000")
+        #expect(withColor.resolvedBgColor == "#00ff00")
+        #expect(withColor.resolvedTextColor == "#ff0000")
 
         let withoutColor = GmailLabel(id: "L2", name: "NoColor", type: nil,
                                       messagesTotal: nil, messagesUnread: nil,
                                       threadsTotal: nil, threadsUnread: nil, color: nil)
         // Should fall back to palette - just verify it returns a non-empty string
-        XCTAssertFalse(withoutColor.resolvedBgColor.isEmpty)
-        XCTAssertFalse(withoutColor.resolvedTextColor.isEmpty)
-        XCTAssertTrue(withoutColor.resolvedBgColor.hasPrefix("#"))
+        #expect(!withoutColor.resolvedBgColor.isEmpty)
+        #expect(!withoutColor.resolvedTextColor.isEmpty)
+        #expect(withoutColor.resolvedBgColor.hasPrefix("#"))
     }
 
     // MARK: - GmailProfile
 
-    func testDecodeGmailProfile() throws {
+    @Test func decodeGmailProfile() throws {
         let json = """
         {
             "emailAddress": "user@gmail.com",
@@ -517,15 +518,15 @@ final class GmailModelsTests: XCTestCase {
         """.data(using: .utf8)!
 
         let profile = try JSONDecoder().decode(GmailProfile.self, from: json)
-        XCTAssertEqual(profile.emailAddress, "user@gmail.com")
-        XCTAssertEqual(profile.messagesTotal, 12345)
-        XCTAssertEqual(profile.threadsTotal, 6789)
-        XCTAssertEqual(profile.historyId, "55555")
+        #expect(profile.emailAddress == "user@gmail.com")
+        #expect(profile.messagesTotal == 12345)
+        #expect(profile.threadsTotal == 6789)
+        #expect(profile.historyId == "55555")
     }
 
     // MARK: - GmailThread
 
-    func testDecodeGmailThread() throws {
+    @Test func decodeGmailThread() throws {
         let json = """
         {
             "id": "thread_001",
@@ -538,14 +539,14 @@ final class GmailModelsTests: XCTestCase {
         """.data(using: .utf8)!
 
         let thread = try JSONDecoder().decode(GmailThread.self, from: json)
-        XCTAssertEqual(thread.id, "thread_001")
-        XCTAssertEqual(thread.historyId, "777")
-        XCTAssertEqual(thread.messages?.count, 2)
+        #expect(thread.id == "thread_001")
+        #expect(thread.historyId == "777")
+        #expect(thread.messages?.count == 2)
     }
 
     // MARK: - GmailDraft
 
-    func testDecodeGmailDraftListResponse() throws {
+    @Test func decodeGmailDraftListResponse() throws {
         let json = """
         {
             "drafts": [
@@ -557,10 +558,10 @@ final class GmailModelsTests: XCTestCase {
         """.data(using: .utf8)!
 
         let response = try JSONDecoder().decode(GmailDraftListResponse.self, from: json)
-        XCTAssertEqual(response.drafts?.count, 2)
-        XCTAssertEqual(response.drafts?[0].id, "d1")
-        XCTAssertEqual(response.drafts?[0].message?.id, "m1")
-        XCTAssertNil(response.drafts?[1].message)
+        #expect(response.drafts?.count == 2)
+        #expect(response.drafts?[0].id == "d1")
+        #expect(response.drafts?[0].message?.id == "m1")
+        #expect(response.drafts?[1].message == nil)
     }
 
     // MARK: - Helpers
@@ -572,7 +573,7 @@ final class GmailModelsTests: XCTestCase {
         htmlBodyData: String? = nil,
         plainBodyData: String? = nil
     ) -> GmailMessage {
-        var headersJSON = headers.map { """
+        let headersJSON = headers.map { """
             {"name": "\($0.0)", "value": "\($0.1)"}
         """ }.joined(separator: ",")
 

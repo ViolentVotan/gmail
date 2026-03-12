@@ -1,48 +1,50 @@
-import XCTest
-import Combine
+import Testing
+import Foundation
 @testable import Serif
 
-@MainActor
-final class AppCoordinatorTests: XCTestCase {
+@Suite @MainActor struct AppCoordinatorTests {
 
-    // MARK: - Child objectWillChange forwarding
+    // MARK: - @Observable state propagation (replaces Combine objectWillChange forwarding)
 
-    /// Regression test: when mailboxViewModel publishes changes,
-    /// AppCoordinator must forward objectWillChange so SwiftUI re-renders.
-    /// Bug: category switch required double-click because nested VM changes
-    /// didn't trigger view updates.
-    func testMailboxViewModelChangesForwardToCoordinator() {
+    /// Verifies that when mailboxViewModel.isLoading changes,
+    /// the new value is immediately accessible through the coordinator.
+    /// (Replaces old Combine objectWillChange forwarding test — under @Observable,
+    /// property-level tracking handles this automatically.)
+    @Test func mailboxViewModelStateIsAccessibleThroughCoordinator() {
         let coordinator = AppCoordinator()
-        let expectation = expectation(description: "Coordinator objectWillChange fires")
+        #expect(!coordinator.mailboxViewModel.isLoading)
 
-        let cancellable = coordinator.objectWillChange
-            .sink { _ in expectation.fulfill() }
-
-        // Mutate the nested mailboxViewModel — coordinator should forward the change
         coordinator.mailboxViewModel.isLoading = true
 
-        waitForExpectations(timeout: 1)
-        cancellable.cancel()
+        #expect(coordinator.mailboxViewModel.isLoading,
+                "Mutating nested mailboxViewModel property should be immediately visible through coordinator")
     }
 
-    /// Regression test: mailStore changes must also be forwarded (drafts folder).
-    func testMailStoreChangesForwardToCoordinator() {
+    /// Verifies that mailStore mutations are immediately visible through the coordinator.
+    /// (Replaces old Combine objectWillChange forwarding test — under @Observable,
+    /// property-level tracking handles this automatically.)
+    @Test func mailStoreStateIsAccessibleThroughCoordinator() {
         let coordinator = AppCoordinator()
-        let expectation = expectation(description: "Coordinator objectWillChange fires from mailStore")
+        #expect(coordinator.mailStore.emails.isEmpty)
 
-        let cancellable = coordinator.objectWillChange
-            .sink { _ in expectation.fulfill() }
+        let email = Email(
+            sender: Contact(name: "Test", email: "test@test.com"),
+            subject: "Test",
+            body: "Body",
+            preview: "Preview",
+            date: Date(),
+            folder: .inbox
+        )
+        coordinator.mailStore.emails = [email]
 
-        // Mutate the nested mailStore — coordinator should forward the change
-        coordinator.mailStore.objectWillChange.send()
-
-        waitForExpectations(timeout: 1)
-        cancellable.cancel()
+        #expect(coordinator.mailStore.emails.count == 1,
+                "Mutating nested mailStore should be immediately visible through coordinator")
+        #expect(coordinator.mailStore.emails.first?.subject == "Test")
     }
 
     // MARK: - handleCategoryChange resets selection state
 
-    func testHandleCategoryChangeResetsSelection() {
+    @Test func handleCategoryChangeResetsSelection() {
         let coordinator = AppCoordinator()
         coordinator.selectedEmail = Email(
             sender: Contact(name: "Test", email: "test@test.com"),
@@ -57,18 +59,18 @@ final class AppCoordinatorTests: XCTestCase {
 
         coordinator.handleCategoryChange(.all)
 
-        XCTAssertNil(coordinator.selectedEmail, "Category change should clear selectedEmail")
-        XCTAssertTrue(coordinator.selectedEmailIDs.isEmpty, "Category change should clear selectedEmailIDs")
-        XCTAssertEqual(coordinator.searchResetTrigger, prevTrigger + 1, "Category change should increment searchResetTrigger")
+        #expect(coordinator.selectedEmail == nil, "Category change should clear selectedEmail")
+        #expect(coordinator.selectedEmailIDs.isEmpty, "Category change should clear selectedEmailIDs")
+        #expect(coordinator.searchResetTrigger == prevTrigger + 1, "Category change should increment searchResetTrigger")
     }
 
     // MARK: - displayedEmails reflects mailboxViewModel
 
-    func testDisplayedEmailsReflectsMailboxEmails() {
+    @Test func displayedEmailsReflectsMailboxEmails() {
         let coordinator = AppCoordinator()
         coordinator.selectedFolder = .inbox
 
         // With no messages, displayedEmails should be empty
-        XCTAssertTrue(coordinator.displayedEmails.isEmpty)
+        #expect(coordinator.displayedEmails.isEmpty)
     }
 }

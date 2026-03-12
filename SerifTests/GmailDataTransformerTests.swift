@@ -1,135 +1,124 @@
-import XCTest
+import Testing
+import Foundation
 @testable import Serif
 
-final class GmailDataTransformerTests: XCTestCase {
+@Suite struct GmailDataTransformerTests {
 
     // MARK: - parseContact
 
-    func testParseContactWithNameAndEmail() {
+    @Test func parseContactWithNameAndEmail() {
         let contact = GmailDataTransformer.parseContact("Alice Smith <alice@example.com>")
-        XCTAssertEqual(contact.name, "Alice Smith")
-        XCTAssertEqual(contact.email, "alice@example.com")
+        #expect(contact.name == "Alice Smith")
+        #expect(contact.email == "alice@example.com")
     }
 
-    func testParseContactWithQuotedName() {
+    @Test func parseContactWithQuotedName() {
         let contact = GmailDataTransformer.parseContact("\"John Doe\" <john@example.com>")
-        XCTAssertEqual(contact.name, "John Doe")
-        XCTAssertEqual(contact.email, "john@example.com")
+        #expect(contact.name == "John Doe")
+        #expect(contact.email == "john@example.com")
     }
 
-    func testParseContactEmailOnly() {
+    @Test func parseContactEmailOnly() {
         let contact = GmailDataTransformer.parseContact("plain@example.com")
-        XCTAssertEqual(contact.name, "plain@example.com")
-        XCTAssertEqual(contact.email, "plain@example.com")
+        #expect(contact.name == "plain@example.com")
+        #expect(contact.email == "plain@example.com")
     }
 
-    func testParseContactEmpty() {
+    @Test func parseContactEmpty() {
         let contact = GmailDataTransformer.parseContact("")
-        XCTAssertEqual(contact.name, "Unknown")
-        XCTAssertEqual(contact.email, "")
+        #expect(contact.name == "Unknown")
+        #expect(contact.email == "")
     }
 
-    func testParseContactWhitespaceOnly() {
+    @Test func parseContactWhitespaceOnly() {
         let contact = GmailDataTransformer.parseContact("   ")
-        XCTAssertEqual(contact.name, "Unknown")
-        XCTAssertEqual(contact.email, "")
+        #expect(contact.name == "Unknown")
+        #expect(contact.email == "")
     }
 
-    func testParseContactNameEmpty_UsesEmail() {
+    @Test func parseContactNameEmpty_UsesEmail() {
         let contact = GmailDataTransformer.parseContact("<noreply@example.com>")
-        XCTAssertEqual(contact.name, "noreply@example.com")
-        XCTAssertEqual(contact.email, "noreply@example.com")
+        #expect(contact.name == "noreply@example.com")
+        #expect(contact.email == "noreply@example.com")
     }
 
     // MARK: - parseContacts (multiple)
 
-    func testParseContactsMultiple() {
+    @Test func parseContactsMultiple() {
         let contacts = GmailDataTransformer.parseContacts("Alice <a@a.com>, Bob <b@b.com>, charlie@c.com")
-        XCTAssertEqual(contacts.count, 3)
-        XCTAssertEqual(contacts[0].name, "Alice")
-        XCTAssertEqual(contacts[0].email, "a@a.com")
-        XCTAssertEqual(contacts[1].name, "Bob")
-        XCTAssertEqual(contacts[1].email, "b@b.com")
-        XCTAssertEqual(contacts[2].email, "charlie@c.com")
+        #expect(contacts.count == 3)
+        #expect(contacts[0].name == "Alice")
+        #expect(contacts[0].email == "a@a.com")
+        #expect(contacts[1].name == "Bob")
+        #expect(contacts[1].email == "b@b.com")
+        #expect(contacts[2].email == "charlie@c.com")
     }
 
-    func testParseContactsEmpty() {
+    @Test func parseContactsEmpty() {
         let contacts = GmailDataTransformer.parseContacts("")
-        XCTAssertTrue(contacts.isEmpty)
+        #expect(contacts.isEmpty)
     }
 
-    func testParseContactsSingle() {
+    @Test func parseContactsSingle() {
         let contacts = GmailDataTransformer.parseContacts("solo@example.com")
-        XCTAssertEqual(contacts.count, 1)
-        XCTAssertEqual(contacts[0].email, "solo@example.com")
+        #expect(contacts.count == 1)
+        #expect(contacts[0].email == "solo@example.com")
     }
 
     // MARK: - folderFor
 
-    func testFolderForSent() {
-        XCTAssertEqual(GmailDataTransformer.folderFor(labelIDs: ["SENT", "INBOX"]), .sent)
-    }
-
-    func testFolderForDraft() {
-        XCTAssertEqual(GmailDataTransformer.folderFor(labelIDs: ["DRAFT"]), .drafts)
-    }
-
-    func testFolderForSpam() {
-        XCTAssertEqual(GmailDataTransformer.folderFor(labelIDs: ["SPAM"]), .spam)
-    }
-
-    func testFolderForTrash() {
-        XCTAssertEqual(GmailDataTransformer.folderFor(labelIDs: ["TRASH"]), .trash)
-    }
-
-    func testFolderForInboxDefault() {
-        XCTAssertEqual(GmailDataTransformer.folderFor(labelIDs: ["INBOX", "UNREAD"]), .inbox)
-    }
-
-    func testFolderForEmpty() {
-        XCTAssertEqual(GmailDataTransformer.folderFor(labelIDs: []), .inbox)
+    @Test(arguments: [
+        (["SENT", "INBOX"], Folder.sent),
+        (["DRAFT"], Folder.drafts),
+        (["SPAM"], Folder.spam),
+        (["TRASH"], Folder.trash),
+        (["INBOX", "UNREAD"], Folder.inbox),
+        ([], Folder.inbox),
+    ] as [([String], Folder)])
+    func folderForLabelIDs(labelIDs: [String], expected: Folder) {
+        #expect(GmailDataTransformer.folderFor(labelIDs: labelIDs) == expected)
     }
 
     // MARK: - deterministicUUID
 
-    func testDeterministicUUIDisStable() {
+    @Test func deterministicUUIDisStable() {
         let uuid1 = GmailDataTransformer.deterministicUUID(from: "18abc123def456")
         let uuid2 = GmailDataTransformer.deterministicUUID(from: "18abc123def456")
-        XCTAssertEqual(uuid1, uuid2)
+        #expect(uuid1 == uuid2)
     }
 
-    func testDeterministicUUIDisDifferentForDifferentIDs() {
+    @Test func deterministicUUIDisDifferentForDifferentIDs() {
         let uuid1 = GmailDataTransformer.deterministicUUID(from: "message_A")
         let uuid2 = GmailDataTransformer.deterministicUUID(from: "message_B")
-        XCTAssertNotEqual(uuid1, uuid2)
+        #expect(uuid1 != uuid2)
     }
 
-    func testDeterministicUUIDShortInput() {
+    @Test func deterministicUUIDShortInput() {
         // Should not crash with very short input
         let uuid = GmailDataTransformer.deterministicUUID(from: "a")
-        XCTAssertNotEqual(uuid, UUID(uuidString: "00000000-0000-0000-0000-000000000000"))
+        #expect(uuid != UUID(uuidString: "00000000-0000-0000-0000-000000000000"))
     }
 
-    func testDeterministicUUIDEmptyInput() {
+    @Test func deterministicUUIDEmptyInput() {
         // Should not crash with empty input
         let uuid = GmailDataTransformer.deterministicUUID(from: "")
-        XCTAssertNotNil(uuid)
+        #expect(uuid != nil)
     }
 
     // MARK: - avatarColor
 
-    func testAvatarColorIsStable() {
+    @Test func avatarColorIsStable() {
         let color1 = GmailDataTransformer.avatarColor(for: "test@example.com")
         let color2 = GmailDataTransformer.avatarColor(for: "test@example.com")
-        XCTAssertEqual(color1, color2)
+        #expect(color1 == color2)
     }
 
-    func testAvatarColorIsHexString() {
+    @Test func avatarColorIsHexString() {
         let color = GmailDataTransformer.avatarColor(for: "user@domain.com")
-        XCTAssertTrue(color.hasPrefix("#"), "Avatar color should be a hex string: \(color)")
+        #expect(color.hasPrefix("#"), "Avatar color should be a hex string: \(color)")
     }
 
-    func testAvatarColorDifferentForDifferentEmails() {
+    @Test func avatarColorDifferentForDifferentEmails() {
         // Not guaranteed but statistically very likely for different inputs
         let colors = Set([
             GmailDataTransformer.avatarColor(for: "a@a.com"),
@@ -142,12 +131,12 @@ final class GmailDataTransformerTests: XCTestCase {
             GmailDataTransformer.avatarColor(for: "h@h.com"),
         ])
         // With 8 colors in the palette and 8 inputs, we should get at least 2 distinct colors
-        XCTAssertGreaterThan(colors.count, 1, "Should produce varied colors for different emails")
+        #expect(colors.count > 1, "Should produce varied colors for different emails")
     }
 
     // MARK: - makeAttachment
 
-    func testMakeAttachmentFromPart() {
+    @Test func makeAttachmentFromPart() {
         let part = GmailMessagePart(
             partId: "1",
             mimeType: "application/pdf",
@@ -158,15 +147,15 @@ final class GmailDataTransformerTests: XCTestCase {
         )
 
         let attachment = GmailDataTransformer.makeAttachment(from: part, messageId: "msg_123")
-        XCTAssertEqual(attachment.name, "report.pdf")
-        XCTAssertEqual(attachment.fileType, .pdf)
-        XCTAssertEqual(attachment.gmailAttachmentId, "att_001")
-        XCTAssertEqual(attachment.gmailMessageId, "msg_123")
-        XCTAssertEqual(attachment.mimeType, "application/pdf")
-        XCTAssertEqual(attachment.size, "512 KB")
+        #expect(attachment.name == "report.pdf")
+        #expect(attachment.fileType == .pdf)
+        #expect(attachment.gmailAttachmentId == "att_001")
+        #expect(attachment.gmailMessageId == "msg_123")
+        #expect(attachment.mimeType == "application/pdf")
+        #expect(attachment.size == "512 KB")
     }
 
-    func testMakeAttachmentNoFilename() {
+    @Test func makeAttachmentNoFilename() {
         let part = GmailMessagePart(
             partId: "2",
             mimeType: "image/png",
@@ -177,33 +166,21 @@ final class GmailDataTransformerTests: XCTestCase {
         )
 
         let attachment = GmailDataTransformer.makeAttachment(from: part, messageId: "msg_456")
-        XCTAssertEqual(attachment.name, "attachment")
-        XCTAssertEqual(attachment.fileType, .document) // no extension -> document
+        #expect(attachment.name == "attachment")
+        #expect(attachment.fileType == .document) // no extension -> document
     }
 
-    func testMakeAttachmentSizeFormatting() {
-        // Small file: bytes
-        let smallPart = GmailMessagePart(
-            partId: "1", mimeType: nil, filename: "tiny.txt", headers: nil,
-            body: GmailMessageBody(attachmentId: nil, size: 500, data: nil), parts: nil
+    @Test(arguments: [
+        (500, "500 B"),
+        (51200, "50 KB"),
+        (5_242_880, "5.0 MB"),
+    ] as [(Int, String)])
+    func makeAttachmentSizeFormatting(size: Int, expected: String) {
+        let part = GmailMessagePart(
+            partId: "1", mimeType: nil, filename: "file.txt", headers: nil,
+            body: GmailMessageBody(attachmentId: nil, size: size, data: nil), parts: nil
         )
-        let small = GmailDataTransformer.makeAttachment(from: smallPart, messageId: "m1")
-        XCTAssertEqual(small.size, "500 B")
-
-        // Medium file: KB
-        let medPart = GmailMessagePart(
-            partId: "2", mimeType: nil, filename: "medium.txt", headers: nil,
-            body: GmailMessageBody(attachmentId: nil, size: 51200, data: nil), parts: nil
-        )
-        let med = GmailDataTransformer.makeAttachment(from: medPart, messageId: "m2")
-        XCTAssertEqual(med.size, "50 KB")
-
-        // Large file: MB
-        let largePart = GmailMessagePart(
-            partId: "3", mimeType: nil, filename: "large.zip", headers: nil,
-            body: GmailMessageBody(attachmentId: nil, size: 5_242_880, data: nil), parts: nil
-        )
-        let large = GmailDataTransformer.makeAttachment(from: largePart, messageId: "m3")
-        XCTAssertEqual(large.size, "5.0 MB")
+        let attachment = GmailDataTransformer.makeAttachment(from: part, messageId: "m1")
+        #expect(attachment.size == expected)
     }
 }

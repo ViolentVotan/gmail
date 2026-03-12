@@ -1,8 +1,8 @@
-import XCTest
+import Testing
+import Foundation
 @testable import Serif
 
-@MainActor
-final class EmailActionCoordinatorTests: XCTestCase {
+@Suite @MainActor struct EmailActionCoordinatorTests {
 
     // MARK: - Helpers
 
@@ -44,7 +44,7 @@ final class EmailActionCoordinatorTests: XCTestCase {
     /// Regression test: after archiving an email, selectNext must receive nil.
     /// Bug: selectNext(vm.emails.first) would auto-open an unrelated email
     /// when the current folder became empty (e.g. Drafts after deleting all drafts).
-    func testArchiveEmail_doesNotAutoSelectNext() {
+    @Test func archiveEmail_doesNotAutoSelectNext() {
         let (coordinator, vm) = makeCoordinator()
         let msg = makeGmailMessage()
         vm.messages = [msg]
@@ -57,10 +57,10 @@ final class EmailActionCoordinatorTests: XCTestCase {
 
         coordinator.archiveEmail(email, selectNext: { receivedEmail = $0 })
 
-        XCTAssertNil(receivedEmail, "archiveEmail should pass nil to selectNext, not auto-select another email")
+        #expect(receivedEmail == nil, "archiveEmail should pass nil to selectNext, not auto-select another email")
     }
 
-    func testDeleteEmail_doesNotAutoSelectNext() {
+    @Test func deleteEmail_doesNotAutoSelectNext() {
         let (coordinator, vm) = makeCoordinator()
         let msg = makeGmailMessage()
         vm.messages = [msg]
@@ -73,10 +73,10 @@ final class EmailActionCoordinatorTests: XCTestCase {
 
         coordinator.deleteEmail(email, selectNext: { receivedEmail = $0 })
 
-        XCTAssertNil(receivedEmail, "deleteEmail should pass nil to selectNext, not auto-select another email")
+        #expect(receivedEmail == nil, "deleteEmail should pass nil to selectNext, not auto-select another email")
     }
 
-    func testMoveToInboxEmail_doesNotAutoSelectNext() {
+    @Test func moveToInboxEmail_doesNotAutoSelectNext() {
         let (coordinator, vm) = makeCoordinator()
         let msg = makeGmailMessage()
         vm.messages = [msg]
@@ -89,10 +89,10 @@ final class EmailActionCoordinatorTests: XCTestCase {
 
         coordinator.moveToInboxEmail(email, selectedFolder: .trash, selectNext: { receivedEmail = $0 })
 
-        XCTAssertNil(receivedEmail, "moveToInboxEmail should pass nil to selectNext, not auto-select another email")
+        #expect(receivedEmail == nil, "moveToInboxEmail should pass nil to selectNext, not auto-select another email")
     }
 
-    func testDeletePermanentlyEmail_doesNotAutoSelectNext() {
+    @Test func deletePermanentlyEmail_doesNotAutoSelectNext() {
         let (coordinator, vm) = makeCoordinator()
         let msg = makeGmailMessage()
         vm.messages = [msg]
@@ -105,10 +105,10 @@ final class EmailActionCoordinatorTests: XCTestCase {
 
         coordinator.deletePermanentlyEmail(email, selectNext: { receivedEmail = $0 })
 
-        XCTAssertNil(receivedEmail, "deletePermanentlyEmail should pass nil to selectNext, not auto-select another email")
+        #expect(receivedEmail == nil, "deletePermanentlyEmail should pass nil to selectNext, not auto-select another email")
     }
 
-    func testMarkNotSpamEmail_doesNotAutoSelectNext() {
+    @Test func markNotSpamEmail_doesNotAutoSelectNext() {
         let (coordinator, vm) = makeCoordinator()
         let msg = makeGmailMessage()
         vm.messages = [msg]
@@ -121,6 +121,6 @@ final class EmailActionCoordinatorTests: XCTestCase {
 
         coordinator.markNotSpamEmail(email, selectNext: { receivedEmail = $0 })
 
-        XCTAssertNil(receivedEmail, "markNotSpamEmail should pass nil to selectNext, not auto-select another email")
+        #expect(receivedEmail == nil, "markNotSpamEmail should pass nil to selectNext, not auto-select another email")
     }
 }
