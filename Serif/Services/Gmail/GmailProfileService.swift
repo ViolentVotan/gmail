@@ -47,7 +47,7 @@ final class GmailProfileService {
             throw .encodingError(error)
         }
         return try await GmailAPIClient.shared.request(
-            path: "/users/me/settings/sendAs/\(sendAsEmail)",
+            path: GmailPathBuilder.sendAsPath(sendAsEmail),
             method: "PUT", body: body, contentType: "application/json",
             accountID: accountID
         )

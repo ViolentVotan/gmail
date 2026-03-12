@@ -447,3 +447,19 @@ enum RetryPolicy {
         return base + jitter
     }
 }
+
+// MARK: - Path Builder
+
+enum GmailPathBuilder {
+    /// Builds a single `&labelIds=...` query parameter with URL encoding.
+    static func labelQueryParam(_ labelID: String) -> String {
+        let encoded = labelID.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? labelID
+        return "&labelIds=\(encoded)"
+    }
+
+    /// Builds the path for a sendAs endpoint with URL-encoded email.
+    static func sendAsPath(_ email: String) -> String {
+        let encoded = email.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? email
+        return "/users/me/settings/sendAs/\(encoded)"
+    }
+}

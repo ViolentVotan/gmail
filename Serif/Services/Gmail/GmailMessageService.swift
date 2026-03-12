@@ -18,7 +18,7 @@ final class GmailMessageService {
         maxResults: Int = 50
     ) async throws(GmailAPIError) -> GmailMessageListResponse {
         var path = "/users/me/messages?maxResults=\(maxResults)"
-        for label in labelIDs { path += "&labelIds=\(label)" }
+        for label in labelIDs { path += GmailPathBuilder.labelQueryParam(label) }
         if let q = query, !q.isEmpty {
             path += "&q=\(q.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? q)"
         }
