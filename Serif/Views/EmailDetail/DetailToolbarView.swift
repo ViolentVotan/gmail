@@ -76,7 +76,6 @@ struct DetailToolbarView: View {
                     .help(oneClick ? "One-click unsubscribe" : "Open unsubscribe page")
                 }
 
-                Divider().frame(height: 16)
             }
 
             if let onArchive {
@@ -94,7 +93,6 @@ struct DetailToolbarView: View {
                 } label: {
                     Image(systemName: "clock")
                         .font(.body)
-                        .foregroundStyle(.secondary)
                         .frame(width: 28, height: 28)
                         .contentShape(Rectangle())
                 }
@@ -107,8 +105,6 @@ struct DetailToolbarView: View {
                     }
                 }
             }
-
-            Divider().frame(height: 16)
 
             Menu {
                 Section {
@@ -155,7 +151,6 @@ struct DetailToolbarView: View {
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.body)
-                    .foregroundStyle(.secondary)
                     .frame(width: 28, height: 28)
                     .contentShape(Rectangle())
             }
@@ -170,7 +165,6 @@ struct DetailToolbarView: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.body)
-                .foregroundStyle(.secondary)
                 .frame(width: 28, height: 28)
                 .contentShape(Rectangle())
         }
