@@ -11,7 +11,7 @@ Swift 6.2 / SwiftUI / macOS 26+ — a native Gmail client with threading, tracke
 
 ## Build & Test
 
-Requires **Xcode 26+** (full IDE, not just command-line tools).
+Requires **Xcode 26.3+** (full IDE, not just command-line tools).
 
 | Action | Command |
 |--------|---------|
@@ -30,17 +30,20 @@ Requires **Xcode 26+** (full IDE, not just command-line tools).
 
 ```
 Serif/
-├── Views/          # SwiftUI views
-├── ViewModels/     # MVVM view models (one per feature)
-├── Models/         # Data models
-├── Services/       # Business logic & API
-│   ├── Auth/       # OAuth & token management
-│   ├── Gmail/      # Gmail REST API clients (one per domain)
-│   └── Protocols/  # Service protocols for testability
-├── Intents/        # App Intents (Shortcuts, Spotlight, Siri)
-├── Theme/          # AppearanceManager (system/light/dark)
-├── Configuration/  # OAuth credentials (gitignored)
-└── Utilities/      # Helpers
+├── SerifApp.swift      # App entry point
+├── ContentView.swift   # Root view
+├── Views/              # SwiftUI views
+├── ViewModels/         # MVVM view models (one per feature)
+├── Models/             # Data models
+├── Services/           # Business logic & API
+│   ├── Auth/           # OAuth & token management
+│   ├── Gmail/          # Gmail REST API clients (one per domain)
+│   └── Protocols/      # Service protocols for testability
+├── Intents/            # App Intents (Shortcuts, Spotlight, Siri)
+├── Theme/              # AppearanceManager (system/light/dark)
+├── Resources/          # Assets, localization
+├── Configuration/      # OAuth credentials (gitignored)
+└── Utilities/          # Helpers
 ```
 
 **Patterns:** MVVM with coordinator navigation (`AppCoordinator`, `EmailActionCoordinator`). `MailStore` handles persistence via JSON. See `.claude/rules/swift.md` for code style and architecture rules.
@@ -61,5 +64,4 @@ Both share the same `sourcekit-lsp` server and Xcode build index — build in Xc
 
 - TokenStore encryption key stored alongside ciphertext (known security issue from review)
 - Some computed properties re-sort on every render (performance issue — known)
-- `WebRichTextEditorState` is the sole `ObservableObject` — cannot migrate to `@Observable` (NSViewRepresentable bridge)
 - Multi-account stores (`SnoozeStore`, `ScheduledSendStore`, `OfflineActionQueue`) use per-account file persistence — `load()` merges, not replaces
