@@ -1,6 +1,8 @@
 .DS_STORE
 .claude/*
 .xcodebuildmcp/*
+.sourcekit-lsp/
+buildServer.json
 docs/plans/
 Serif/Configuration/GoogleCredentials.swift
 
