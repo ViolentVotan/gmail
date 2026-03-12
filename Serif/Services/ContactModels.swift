@@ -64,6 +64,10 @@ final class ContactPhotoCache: @unchecked Sendable {
     func get(_ email: String) -> String? {
         lock.withLock { cache[email.lowercased()] }
     }
+
+    func remove(_ email: String) {
+        lock.withLock { cache.removeValue(forKey: email.lowercased()) }
+    }
 }
 
 // MARK: - Google User Info Model

@@ -62,11 +62,24 @@ final class PeopleAPIService {
                     repeat {
                         let encodedSyncToken = syncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? syncToken
                         var urlStr = "https://people.googleapis.com/v1/people/me/connections"
-                            + "?personFields=names,emailAddresses,photos&syncToken=\(encodedSyncToken)"
+                            + "?personFields=metadata,names,emailAddresses,photos&syncToken=\(encodedSyncToken)"
                             + "&pageSize=1000"
                         if let pt = incPageToken { urlStr += "&pageToken=\(pt)" }
                         let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
-                        let parsed = parseContacts(from: response.connections ?? [])
+                        // Remove deleted contacts
+                        let deletedEmails = Set(
+                            (response.connections ?? [])
+                                .filter { $0.metadata?.deleted == true }
+                                .flatMap { $0.emailAddresses?.compactMap { $0.value?.lowercased() } ?? [] }
+                        )
+                        allContacts.removeAll { deletedEmails.contains($0.email) }
+                        for email in deletedEmails {
+                            ContactPhotoCache.shared.remove(email)
+                        }
+
+                        // Merge updated/new contacts (skip deleted ones)
+                        let nonDeleted = (response.connections ?? []).filter { $0.metadata?.deleted != true }
+                        let parsed = parseContacts(from: nonDeleted)
                         for contact in parsed {
                             if let idx = allContacts.firstIndex(where: { $0.email == contact.email }) {
                                 allContacts[idx] = contact
@@ -97,7 +110,7 @@ final class PeopleAPIService {
                 var pageToken: String? = nil
                 repeat {
                     var urlStr = "https://people.googleapis.com/v1/people/me/connections"
-                        + "?personFields=names,emailAddresses,photos&pageSize=1000"
+                        + "?personFields=metadata,names,emailAddresses,photos&pageSize=1000"
                         + "&requestSyncToken=true"
                     if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
                     let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
@@ -154,7 +167,12 @@ struct OtherContactsResponse: Decodable {
     let nextPageToken: String?
 }
 
+struct PersonMetadata: Decodable {
+    let deleted: Bool?
+}
+
 struct PersonResource: Decodable {
+    let metadata: PersonMetadata?
     let emailAddresses: [PersonEmail]?
     let photos: [PersonPhoto]?
     let names: [PersonName]?
