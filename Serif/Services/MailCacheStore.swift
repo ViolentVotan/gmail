@@ -134,9 +134,20 @@ final class MailCacheStore {
 
     // MARK: - Email Tags (AI classification results)
 
+    /// Pending save task — coalesces rapid tag writes into a single disk write.
+    private var tagSaveTask: Task<Void, Never>?
+
     func saveTags(_ tags: EmailTags, for messageId: String, accountID: String) {
         tagStore[messageId] = tags
-        saveTagsToDisk(accountID: accountID)
+        scheduleTagSave(accountID: accountID)
+    }
+
+    /// Saves multiple tags at once (batch classification). Single disk write.
+    func saveTagsBatch(_ batch: [(messageId: String, tags: EmailTags)], accountID: String) {
+        for (messageId, tags) in batch {
+            tagStore[messageId] = tags
+        }
+        scheduleTagSave(accountID: accountID)
     }
 
     func loadTags(for messageId: String) -> EmailTags? {
@@ -151,7 +162,17 @@ final class MailCacheStore {
         tagStore.merge(tags) { _, new in new }
     }
 
-    private func saveTagsToDisk(accountID: String) {
+    /// Debounces tag saves: waits 500ms for additional writes before flushing to disk.
+    private func scheduleTagSave(accountID: String) {
+        tagSaveTask?.cancel()
+        tagSaveTask = Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            guard !Task.isCancelled else { return }
+            flushTagsToDisk(accountID: accountID)
+        }
+    }
+
+    private func flushTagsToDisk(accountID: String) {
         let url = fileURL(accountID: accountID, folderKey: "_tags")
         let snapshot = tagStore
         Task.detached(priority: .utility) {

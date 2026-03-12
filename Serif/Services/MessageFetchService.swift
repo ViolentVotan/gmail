@@ -251,10 +251,13 @@ final class MessageFetchService {
         let acctID = accountID
         Task {
             await EmailClassifier.shared.classifyBatch(emails)
-            for email in emails {
+            let tagBatch: [(messageId: String, tags: EmailTags)] = emails.compactMap { email in
                 guard let msgId = email.gmailMessageID,
-                      let tags = EmailClassifier.shared.cachedTags(for: msgId) else { continue }
-                cache.saveTags(tags, for: msgId, accountID: acctID)
+                      let tags = EmailClassifier.shared.cachedTags(for: msgId) else { return nil }
+                return (messageId: msgId, tags: tags)
+            }
+            if !tagBatch.isEmpty {
+                cache.saveTagsBatch(tagBatch, accountID: acctID)
             }
         }
     }
