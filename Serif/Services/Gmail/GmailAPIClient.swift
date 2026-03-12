@@ -56,47 +56,58 @@ final class GmailAPIClient {
         guard NetworkMonitor.shared.isConnected else { throw .offline }
         let token = try await validToken(for: accountID)
         guard let url = URL(string: urlString) else { throw .invalidURL }
-        var req = URLRequest(url: url)
-        req.setValue("Bearer \(token.accessToken)", forHTTPHeaderField: "Authorization")
 
         let path = url.path + (url.query.map { "?\($0)" } ?? "")
 
-        #if DEBUG
-        let t0 = Date()
-        do {
-            let (data, response) = try await URLSession.shared.data(for: req)
+        let doRequest = { (accessToken: String) async throws(GmailAPIError) -> T in
+            var req = URLRequest(url: url)
+            req.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+
+            #if DEBUG
+            let t0 = Date()
+            do {
+                let (data, response) = try await URLSession.shared.data(for: req)
+                guard let http = response as? HTTPURLResponse else { throw GmailAPIError.invalidURL }
+                let ms = Int(Date().timeIntervalSince(t0) * 1000)
+                APILogger.shared.log(APILogEntry(
+                    method: "GET", path: path, statusCode: http.statusCode, errorMessage: nil,
+                    responseBodyData: data, responseSize: data.count, durationMs: ms, fromCache: false
+                ))
+                guard (200...299).contains(http.statusCode) else { throw GmailAPIError.httpError(http.statusCode, data) }
+                do { return try JSONDecoder().decode(T.self, from: data) }
+                catch { throw GmailAPIError.decodingError(error) }
+            } catch let error as GmailAPIError {
+                throw error
+            } catch {
+                let ms = Int(Date().timeIntervalSince(t0) * 1000)
+                APILogger.shared.log(APILogEntry(
+                    method: "GET", path: path, statusCode: nil, errorMessage: error.localizedDescription,
+                    responseBodyData: Data(), responseSize: 0, durationMs: ms, fromCache: false
+                ))
+                throw GmailAPIError.networkError(error)
+            }
+            #else
+            let data: Data
+            let response: URLResponse
+            do {
+                (data, response) = try await URLSession.shared.data(for: req)
+            } catch {
+                throw GmailAPIError.networkError(error)
+            }
             guard let http = response as? HTTPURLResponse else { throw GmailAPIError.invalidURL }
-            let ms = Int(Date().timeIntervalSince(t0) * 1000)
-            await APILogger.shared.log(APILogEntry(
-                method: "GET", path: path, statusCode: http.statusCode, errorMessage: nil,
-                responseBodyData: data, responseSize: data.count, durationMs: ms, fromCache: false
-            ))
             guard (200...299).contains(http.statusCode) else { throw GmailAPIError.httpError(http.statusCode, data) }
             do { return try JSONDecoder().decode(T.self, from: data) }
             catch { throw GmailAPIError.decodingError(error) }
-        } catch let error as GmailAPIError {
-            throw error
-        } catch {
-            let ms = Int(Date().timeIntervalSince(t0) * 1000)
-            await APILogger.shared.log(APILogEntry(
-                method: "GET", path: path, statusCode: nil, errorMessage: error.localizedDescription,
-                responseBodyData: Data(), responseSize: 0, durationMs: ms, fromCache: false
-            ))
-            throw .networkError(error)
+            #endif
         }
-        #else
-        let data: Data
-        let response: URLResponse
+
+        // First attempt + 401 auto-retry
         do {
-            (data, response) = try await URLSession.shared.data(for: req)
-        } catch {
-            throw .networkError(error)
+            return try await doRequest(token.accessToken)
+        } catch .unauthorized {
+            let fresh = try await refreshAndRetry(accountID: accountID)
+            return try await doRequest(fresh.accessToken)
         }
-        guard let http = response as? HTTPURLResponse else { throw .invalidURL }
-        guard (200...299).contains(http.statusCode) else { throw .httpError(http.statusCode, data) }
-        do { return try JSONDecoder().decode(T.self, from: data) }
-        catch { throw .decodingError(error) }
-        #endif
     }
 
     // MARK: - Batch requests
