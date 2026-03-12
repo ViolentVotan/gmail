@@ -197,13 +197,13 @@ struct ReplyBarView: View {
                     Button { withAnimation { showCc.toggle() } } label: {
                         Text("Cc")
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(showCc ? Color.accentColor : .tertiary)
+                            .foregroundStyle(showCc ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
                     }
                     .buttonStyle(.plain)
                     Button { withAnimation { showBcc.toggle() } } label: {
                         Text("Bcc")
                             .font(.system(size: 11, weight: .medium))
-                            .foregroundStyle(showBcc ? Color.accentColor : .tertiary)
+                            .foregroundStyle(showBcc ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
                     }
                     .buttonStyle(.plain)
                 }
