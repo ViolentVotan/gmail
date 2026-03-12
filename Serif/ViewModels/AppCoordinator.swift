@@ -78,6 +78,10 @@ final class AppCoordinator {
         : mailboxViewModel.isLoading
     }
 
+    var isComposeActive: Bool {
+        selectedFolder == .drafts && selectedEmail != nil
+    }
+
     var fromAddress: String {
         authViewModel.primaryAccount?.email ?? ""
     }

@@ -19,6 +19,11 @@
 			</array>
 		</dict>
 	</array>
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>com.genyus.serif.viewEmail</string>
+		<string>com.genyus.serif.composeEmail</string>
+	</array>
 	<key>SUFeedURL</key>
 	<string>https://marshallino16.github.io/Serif/appcast.xml</string>
 	<key>SUPublicEDKey</key>
