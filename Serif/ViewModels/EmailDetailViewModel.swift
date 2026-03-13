@@ -318,31 +318,9 @@ final class EmailDetailViewModel {
 
     // MARK: - Derived content
 
-    /// Attachments from the latest full message, falling back to the email summary.
-    func displayAttachments(fallback: [Attachment]) -> [Attachment] {
-        guard let latest = latestMessage else { return fallback }
-        return latest.attachmentParts.map { GmailDataTransformer.makeAttachment(from: $0, messageId: latest.id) }
-    }
-
-    /// Older messages in the thread (everything except the latest). Empty for single messages.
-    var olderThreadMessages: [GmailMessage] {
-        guard messages.count > 1 else { return [] }
-        return Array(messages.dropLast())
-    }
-
     /// Current label IDs from the latest full message, falling back to email summary.
     func currentLabelIDs(fallback: [String]) -> [String] {
         latestMessage?.labelIds ?? fallback
-    }
-
-    /// Attachment + part tuples for rendering.
-    func attachmentPairs(fallback: [Attachment]) -> [(Attachment, GmailMessagePart?)] {
-        if let latest = latestMessage {
-            return latest.attachmentParts.map { part in
-                (GmailDataTransformer.makeAttachment(from: part, messageId: latest.id), part)
-            }
-        }
-        return fallback.map { ($0, nil) }
     }
 
     // MARK: - Compose helpers

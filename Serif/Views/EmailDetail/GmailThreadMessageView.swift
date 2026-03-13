@@ -1,39 +1,9 @@
 import SwiftUI
 
-struct GmailThreadMessageView: View {
-    let message: GmailMessage
-    let fromAddress: String
-    var resolvedHTML: String?
-    var onOpenLink: ((URL) -> Void)?
-    @State private var showQuoted = false
-    @State private var contentHeight: CGFloat = 60
-
-    /// Cached full HTML — computed once at init to avoid redundant recomputation on every render.
-    private let cachedFullHTML: String
-    /// Cached result of `stripQuotedHTML` — computed once at init to avoid
-    /// repeated regex work (10 passes) on every render cycle.
-    private let cachedHTMLParts: (original: String, quoted: String?)
-    /// Cached sender contact — parsed once at init to avoid recomputing on every render.
-    private let sender: Contact
-    /// Cached sent-by-me flag — derived from sender at init.
-    private let isSentByMe: Bool
-
-    init(message: GmailMessage, fromAddress: String, resolvedHTML: String? = nil, onOpenLink: ((URL) -> Void)? = nil) {
-        self.message = message
-        self.fromAddress = fromAddress
-        self.resolvedHTML = resolvedHTML
-        self.onOpenLink = onOpenLink
-
-        let html = Self.computeFullHTML(message: message, resolvedHTML: resolvedHTML)
-        self.cachedFullHTML = html
-        self.cachedHTMLParts = Self.stripQuotedHTML(html)
-
-        let parsedSender = GmailDataTransformer.parseContact(message.from)
-        self.sender = parsedSender
-        self.isSentByMe = !fromAddress.isEmpty && parsedSender.email.lowercased() == fromAddress.lowercased()
-    }
-
-    /// Compute the full HTML from message parts (static for use in init).
+/// Utility for HTML quote stripping and full-HTML computation.
+/// View rendering has moved to ThreadMessageCardView.
+enum GmailThreadMessageView {
+    /// Compute the full HTML from message parts.
     static func computeFullHTML(message: GmailMessage, resolvedHTML: String?) -> String {
         if let resolved = resolvedHTML, !resolved.isEmpty { return resolved }
         if let html = message.htmlBody, !html.isEmpty { return html }
@@ -41,76 +11,6 @@ struct GmailThreadMessageView: View {
         let body = message.body
         return body.isEmpty ? "" : "<p>\(body)</p>"
     }
-
-    /// Which HTML to actually render: stripped or full.
-    private var renderedHTML: String {
-        if showQuoted || cachedHTMLParts.quoted == nil {
-            return cachedFullHTML
-        }
-        return cachedHTMLParts.original
-    }
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 8) {
-            if isSentByMe { Spacer(minLength: 60) }
-
-            if !isSentByMe {
-                AvatarView(initials: sender.initials, color: sender.avatarColor, size: 28,
-                           avatarURL: sender.avatarURL, senderDomain: sender.domain)
-            }
-
-            VStack(alignment: isSentByMe ? .trailing : .leading, spacing: 4) {
-                if !isSentByMe {
-                    Text(sender.name)
-                        .font(Typography.captionSemibold)
-                        .foregroundStyle(.primary)
-                }
-
-                // Bubble
-                VStack(alignment: .leading, spacing: 0) {
-                    HTMLEmailView(html: renderedHTML, contentHeight: $contentHeight, onOpenLink: onOpenLink)
-                        .frame(height: contentHeight)
-
-                    if cachedHTMLParts.quoted != nil {
-                        Button {
-                            withAnimation(.easeInOut(duration: 0.2)) {
-                                showQuoted.toggle()
-                            }
-                        } label: {
-                            HStack(spacing: 3) {
-                                Image(systemName: showQuoted ? "chevron.up" : "chevron.down")
-                                    .font(Typography.captionSmallMedium)
-                                Text(showQuoted ? "Hide quoted" : "Show quoted")
-                                    .font(Typography.captionSmallMedium)
-                            }
-                            .foregroundStyle(.tertiary)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(.quaternary))
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.top, 4)
-                        .padding(.bottom, 4)
-                        .padding(.leading, 4)
-                    }
-                }
-                .padding(10)
-                .frame(maxWidth: 500, alignment: .leading)
-                .background(isSentByMe ? AnyShapeStyle(Color.accentColor.opacity(0.06)) : AnyShapeStyle(.fill.quinary))
-                .clipShape(ChatBubbleShape(isSentByMe: isSentByMe))
-
-                if let date = message.date {
-                    Text(date.formattedRelative)
-                        .font(Typography.captionSmallRegular)
-                        .foregroundStyle(.tertiary)
-                }
-            }
-
-            if !isSentByMe { Spacer(minLength: 60) }
-        }
-    }
-
-    // MARK: - HTML quote stripping
 
     /// Removes quoted/replied content from HTML, returning (original, quoted?).
     /// Detects Gmail, Outlook, Apple Mail, and generic patterns.
@@ -201,51 +101,5 @@ struct GmailThreadMessageView: View {
         }
 
         return (html, nil)
-    }
-}
-
-// MARK: - Chat bubble shape
-
-private struct ChatBubbleShape: Shape {
-    let isSentByMe: Bool
-
-    func path(in rect: CGRect) -> Path {
-        let r: CGFloat = 14
-        let tail: CGFloat = 4
-
-        var path = Path()
-
-        if isSentByMe {
-            path.move(to: CGPoint(x: rect.minX + r, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX - r, y: rect.minY))
-            path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + r),
-                              control: CGPoint(x: rect.maxX, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - tail))
-            path.addQuadCurve(to: CGPoint(x: rect.maxX - tail, y: rect.maxY),
-                              control: CGPoint(x: rect.maxX, y: rect.maxY))
-            path.addLine(to: CGPoint(x: rect.minX + r, y: rect.maxY))
-            path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY - r),
-                              control: CGPoint(x: rect.minX, y: rect.maxY))
-            path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + r))
-            path.addQuadCurve(to: CGPoint(x: rect.minX + r, y: rect.minY),
-                              control: CGPoint(x: rect.minX, y: rect.minY))
-        } else {
-            path.move(to: CGPoint(x: rect.minX + r, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX - r, y: rect.minY))
-            path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + r),
-                              control: CGPoint(x: rect.maxX, y: rect.minY))
-            path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - r))
-            path.addQuadCurve(to: CGPoint(x: rect.maxX - r, y: rect.maxY),
-                              control: CGPoint(x: rect.maxX, y: rect.maxY))
-            path.addLine(to: CGPoint(x: rect.minX + tail, y: rect.maxY))
-            path.addQuadCurve(to: CGPoint(x: rect.minX, y: rect.maxY - tail),
-                              control: CGPoint(x: rect.minX, y: rect.maxY))
-            path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + r))
-            path.addQuadCurve(to: CGPoint(x: rect.minX + r, y: rect.minY),
-                              control: CGPoint(x: rect.minX, y: rect.minY))
-        }
-
-        path.closeSubpath()
-        return path
     }
 }
