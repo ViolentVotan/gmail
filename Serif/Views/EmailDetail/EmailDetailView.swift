@@ -242,6 +242,7 @@ struct EmailDetailView: View {
                             if detailVM.hasBlockedTrackers {
                                 TrackerBannerView(
                                     trackerCount: detailVM.blockedTrackerCount,
+                                    trackers: detailVM.trackerResult?.trackers ?? [],
                                     onAllow: { detailVM.allowBlockedContent() }
                                 )
                                 .padding(.horizontal, 24)
