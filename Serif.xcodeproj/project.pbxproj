@@ -10,6 +10,7 @@
 		9EBEBCE92F5B21B400145F71 /* serif_icon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 9EBEBCE82F5B21B400145F71 /* serif_icon.icon */; };
 		A10001010000000000000082 /* AppAuth in Frameworks */ = {isa = PBXBuildFile; productRef = A10090010000000000000001 /* AppAuth */; };
 		A10001010000000000000200 /* BlossomColorPicker in Frameworks */ = {isa = PBXBuildFile; productRef = A10090010000000000000003 /* BlossomColorPicker */; };
+		A10001010000000000000300 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = A10090010000000000000005 /* GRDB */; };
 		B10001010000000000000001 /* GmailModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000001 /* GmailModelsTests.swift */; };
 		B10001010000000000000002 /* EmailModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000002 /* EmailModelTests.swift */; };
 		B10001010000000000000003 /* GmailDataTransformerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000003 /* GmailDataTransformerTests.swift */; };
@@ -73,6 +74,7 @@
 			files = (
 				A10001010000000000000082 /* AppAuth in Frameworks */,
 				A10001010000000000000200 /* BlossomColorPicker in Frameworks */,
+				A10001010000000000000300 /* GRDB in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -146,6 +148,7 @@
 			packageProductDependencies = (
 				A10090010000000000000001 /* AppAuth */,
 				A10090010000000000000003 /* BlossomColorPicker */,
+				A10090010000000000000005 /* GRDB */,
 			);
 			productName = Serif;
 			productReference = A10002010000000000000099 /* Serif.app */;
@@ -199,6 +202,7 @@
 			packageReferences = (
 				A10091010000000000000001 /* XCRemoteSwiftPackageReference "AppAuth-iOS" */,
 				A10091010000000000000003 /* XCRemoteSwiftPackageReference "BlossomColorPicker" */,
+				A10091010000000000000005 /* XCRemoteSwiftPackageReference "GRDB.swift" */,
 			);
 			productRefGroup = A10004010000000000000099 /* Products */;
 			projectDirPath = "";
@@ -542,6 +546,14 @@
 				minimumVersion = 1.0.0;
 			};
 		};
+		A10091010000000000000005 /* XCRemoteSwiftPackageReference "GRDB.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/groue/GRDB.swift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 7.5.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -554,6 +566,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A10091010000000000000003 /* XCRemoteSwiftPackageReference "BlossomColorPicker" */;
 			productName = BlossomColorPicker;
+		};
+		A10090010000000000000005 /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10091010000000000000005 /* XCRemoteSwiftPackageReference "GRDB.swift" */;
+			productName = GRDB;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
