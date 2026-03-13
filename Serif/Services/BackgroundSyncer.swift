@@ -1,0 +1,233 @@
+import Foundation
+import GRDB
+
+/// Actor responsible for bulk database writes during API sync.
+/// Bulk operations (sync, pre-fetch, batch upsert) go through this actor.
+/// Lightweight writes (star, read, archive) go directly through dbPool.write.
+actor BackgroundSyncer {
+    let db: MailDatabase
+
+    init(db: MailDatabase) {
+        self.db = db
+    }
+
+    // MARK: - Message Upsert
+
+    /// Upsert messages from API response into database.
+    /// Handles: message records, label records, message_labels join, FTS index, thread counts.
+    func upsertMessages(_ gmailMessages: [GmailMessage], ensureLabels labelIds: [String]) throws {
+        try db.dbPool.write { db in
+            // Ensure label records exist
+            for labelId in labelIds {
+                let label = LabelRecord(gmailId: labelId, name: labelId, type: "system", bgColor: nil, textColor: nil)
+                try label.upsert(db)
+            }
+
+            var affectedThreadIds = Set<String>()
+
+            for gmail in gmailMessages {
+                let record = MessageRecord(from: gmail)
+                let existed = try MessageRecord.fetchOne(db, key: record.gmailId) != nil
+
+                try record.upsert(db)
+                affectedThreadIds.insert(record.threadId)
+
+                // Replace message_labels for this message
+                try db.execute(
+                    sql: "DELETE FROM message_labels WHERE message_id = ?",
+                    arguments: [record.gmailId]
+                )
+                for labelId in gmail.labelIds ?? [] {
+                    // Ensure custom label exists
+                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).upsert(db)
+                    try MessageLabelRecord(messageId: record.gmailId, labelId: labelId).insert(db)
+                }
+
+                // FTS: index or update
+                if existed {
+                    try FTSManager.update(message: record, in: db)
+                } else {
+                    try FTSManager.index(message: record, in: db)
+                }
+            }
+
+            // Update thread message counts for affected threads
+            for threadId in affectedThreadIds {
+                try db.execute(sql: """
+                    UPDATE messages SET thread_message_count = (
+                        SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = messages.thread_id
+                    ) WHERE thread_id = ?
+                """, arguments: [threadId])
+            }
+        }
+    }
+
+    // MARK: - Message Deletion
+
+    /// Remove messages from database (e.g., from history delta).
+    func deleteMessages(gmailIds: [String]) throws {
+        guard !gmailIds.isEmpty else { return }
+        try db.dbPool.write { db in
+            for id in gmailIds {
+                try FTSManager.delete(gmailId: id, in: db)
+            }
+            // CASCADE handles message_labels, email_tags, attachments
+            try MessageRecord.deleteAll(db, keys: gmailIds)
+        }
+    }
+
+    // MARK: - Body Pre-fetch Update
+
+    /// Update message bodies after background pre-fetch.
+    func updateBodies(_ updates: [(gmailId: String, html: String?, plain: String?)]) throws {
+        try db.dbPool.write { db in
+            for update in updates {
+                try db.execute(sql: """
+                    UPDATE messages
+                    SET body_html = ?, body_plain = ?, full_body_fetched = 1, fetched_at = ?
+                    WHERE gmail_id = ?
+                """, arguments: [update.html, update.plain, Date().timeIntervalSince1970, update.gmailId])
+
+                // Update FTS with new body content
+                if let record = try MessageRecord.fetchOne(db, key: update.gmailId) {
+                    var updated = record
+                    updated.bodyHtml = update.html
+                    updated.bodyPlain = update.plain
+                    try FTSManager.update(message: updated, in: db)
+                }
+            }
+        }
+    }
+
+    // MARK: - Label Sync
+
+    /// Upsert labels from API.
+    func upsertLabels(_ gmailLabels: [GmailLabel]) throws {
+        try db.dbPool.write { db in
+            for gmail in gmailLabels {
+                try LabelRecord(from: gmail).upsert(db)
+            }
+        }
+    }
+
+    // MARK: - Contact Sync
+
+    /// Upsert contacts from People API.
+    func upsertContacts(_ contacts: [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)]) throws {
+        try db.dbPool.write { db in
+            for contact in contacts {
+                try ContactRecord(
+                    email: contact.email.lowercased(),
+                    name: contact.name,
+                    photoUrl: contact.photoUrl,
+                    source: contact.source,
+                    resourceName: contact.resourceName,
+                    updatedAt: Date().timeIntervalSince1970
+                ).upsert(db)
+            }
+        }
+    }
+
+    // MARK: - Sync State
+
+    /// Update folder sync state.
+    func updateFolderSyncState(folderKey: String, historyId: String?, nextPageToken: String?, fullSync: Bool) throws {
+        try db.dbPool.write { db in
+            var state = try FolderSyncStateRecord.fetchOne(db, key: folderKey)
+                ?? FolderSyncStateRecord(folderKey: folderKey)
+            state.historyId = historyId ?? state.historyId
+            state.nextPageToken = nextPageToken
+            if fullSync {
+                state.lastFullSync = Date().timeIntervalSince1970
+            } else {
+                state.lastDeltaSync = Date().timeIntervalSince1970
+            }
+            try state.upsert(db)
+        }
+    }
+
+    /// Get folder sync state.
+    func folderSyncState(forKey key: String) throws -> FolderSyncStateRecord? {
+        try db.dbPool.read { db in
+            try FolderSyncStateRecord.fetchOne(db, key: key)
+        }
+    }
+
+    // MARK: - Body Eviction
+
+    /// Evict bodies older than the given date.
+    func evictBodies(olderThan date: Date) throws {
+        try db.dbPool.write { db in
+            let cutoff = date.timeIntervalSince1970
+
+            // Get messages to evict
+            let toEvict = try MessageRecord.fetchAll(db, sql: """
+                SELECT * FROM messages
+                WHERE internal_date < ? AND full_body_fetched = 1
+            """, arguments: [cutoff])
+
+            // Update FTS for each (remove body, keep subject/snippet/sender)
+            for msg in toEvict {
+                try FTSManager.evictBody(
+                    gmailId: msg.gmailId,
+                    subject: msg.subject,
+                    snippet: msg.snippet,
+                    senderName: msg.senderName,
+                    senderEmail: msg.senderEmail,
+                    in: db
+                )
+            }
+
+            // Null out bodies
+            try db.execute(sql: """
+                UPDATE messages
+                SET body_html = NULL, body_plain = NULL, full_body_fetched = 0
+                WHERE internal_date < ? AND full_body_fetched = 1
+            """, arguments: [cutoff])
+        }
+    }
+
+    // MARK: - History Delta Sync
+
+    /// Apply history delta: insert new, delete removed, update labels.
+    func applyDelta(
+        newMessages: [GmailMessage],
+        deletedIds: [String],
+        labelUpdates: [(gmailId: String, labelIds: [String])]
+    ) throws {
+        try db.dbPool.write { db in
+            // Delete removed messages
+            for id in deletedIds {
+                try FTSManager.delete(gmailId: id, in: db)
+            }
+            try MessageRecord.deleteAll(db, keys: deletedIds)
+
+            // Insert new messages
+            for gmail in newMessages {
+                let record = MessageRecord(from: gmail)
+                try record.upsert(db)
+                try db.execute(sql: "DELETE FROM message_labels WHERE message_id = ?", arguments: [record.gmailId])
+                for labelId in gmail.labelIds ?? [] {
+                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).upsert(db)
+                    try MessageLabelRecord(messageId: record.gmailId, labelId: labelId).insert(db)
+                }
+                try FTSManager.index(message: record, in: db)
+            }
+
+            // Update labels on existing messages
+            for update in labelUpdates {
+                try db.execute(sql: "DELETE FROM message_labels WHERE message_id = ?", arguments: [update.gmailId])
+                for labelId in update.labelIds {
+                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).upsert(db)
+                    try MessageLabelRecord(messageId: update.gmailId, labelId: labelId).insert(db)
+                }
+                // Update denormalized columns
+                let isRead = !update.labelIds.contains("UNREAD")
+                let isStarred = update.labelIds.contains("STARRED")
+                try db.execute(sql: """
+                    UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?
+                """, arguments: [isRead, isStarred, update.gmailId])
+            }
+        }
+    }
+}
