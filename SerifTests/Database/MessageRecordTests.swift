@@ -104,6 +104,40 @@ struct MessageRecordTests {
         #expect(fetched?.isStarred == record.isStarred)
     }
 
+    @Test("converts MessageRecord to Email for UI display")
+    func toEmailConversion() throws {
+        let db = try makeTestDatabase()
+        try db.dbPool.write { db in
+            try LabelRecord(gmailId: "INBOX", name: "Inbox", type: "system", bgColor: nil, textColor: nil).insert(db)
+            try LabelRecord(gmailId: "work", name: "Work", type: "user", bgColor: "#4285f4", textColor: "#ffffff").insert(db)
+            var msg = MessageRecord.fixture(gmailId: "m1", subject: "Test Email")
+            msg.senderEmail = "alice@example.com"
+            msg.senderName = "Alice"
+            msg.isRead = true
+            msg.isStarred = false
+            msg.hasAttachments = true
+            msg.threadMessageCount = 3
+            try msg.insert(db)
+            try MessageLabelRecord(messageId: "m1", labelId: "INBOX").insert(db)
+            try MessageLabelRecord(messageId: "m1", labelId: "work").insert(db)
+        }
+
+        let email = try db.dbPool.read { db in
+            let msg = try MessageRecord.fetchOne(db, key: "m1")!
+            let labels = try MailDatabaseQueries.labels(forMessage: "m1", in: db)
+            return msg.toEmail(labels: labels, tags: nil)
+        }
+
+        #expect(email.subject == "Test Email")
+        #expect(email.sender.email == "alice@example.com")
+        #expect(email.sender.name == "Alice")
+        #expect(email.isRead == true)
+        #expect(email.isStarred == false)
+        #expect(email.hasAttachments == true)
+        #expect(email.threadMessageCount == 3)
+        #expect(email.labels.count == 1) // Only user labels shown (not system)
+    }
+
     private func makeTestDatabase() throws -> MailDatabase {
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)

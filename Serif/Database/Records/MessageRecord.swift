@@ -118,6 +118,78 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord 
     }
 }
 
+// MARK: - UI Model Conversion
+
+extension MessageRecord {
+    /// Convert to UI Email model for display in list views.
+    func toEmail(labels: [LabelRecord], tags: EmailTagRecord?) -> Email {
+        let sender = Contact(
+            name: senderName ?? senderEmail ?? "Unknown",
+            email: senderEmail ?? ""
+        )
+        let userLabels = labels.filter { $0.type == "user" }.map { label in
+            EmailLabel(
+                id: UUID(),
+                name: label.name,
+                color: label.bgColor ?? "#e8eaed",
+                textColor: label.textColor ?? "#3c4043"
+            )
+        }
+        // Parse recipients from JSON
+        let toList = Self.decodeRecipientStrings(toRecipients)
+        let ccList = Self.decodeRecipientStrings(ccRecipients)
+
+        // Derive folder from system label IDs in the labels array
+        let systemLabelIds = Set(labels.compactMap { $0.type == "system" ? $0.gmailId : nil })
+        let folder: Folder
+        if systemLabelIds.contains("SENT") {
+            folder = .sent
+        } else if systemLabelIds.contains("DRAFT") {
+            folder = .drafts
+        } else if systemLabelIds.contains("SPAM") {
+            folder = .spam
+        } else if systemLabelIds.contains("TRASH") {
+            folder = .trash
+        } else if systemLabelIds.contains("STARRED") {
+            folder = .starred
+        } else {
+            folder = .inbox
+        }
+
+        let isDraft = systemLabelIds.contains("DRAFT")
+        let gmailLabelIDs = labels.map { $0.gmailId }
+
+        return Email(
+            sender: sender,
+            recipients: toList.map { Contact(name: $0, email: $0) },
+            cc: ccList.map { Contact(name: $0, email: $0) },
+            subject: subject ?? "(No Subject)",
+            body: bodyHtml ?? bodyPlain ?? "",
+            preview: snippet ?? "",
+            date: Date(timeIntervalSince1970: internalDate),
+            isRead: isRead,
+            isStarred: isStarred,
+            hasAttachments: hasAttachments,
+            attachments: [],
+            folder: folder,
+            labels: userLabels,
+            isDraft: isDraft,
+            isGmailDraft: isDraft,
+            gmailMessageID: gmailId,
+            gmailThreadID: threadId,
+            gmailLabelIDs: gmailLabelIDs,
+            threadMessageCount: threadMessageCount,
+            isFromMailingList: isFromMailingList,
+            unsubscribeURL: unsubscribeUrl.flatMap { URL(string: $0) }
+        )
+    }
+
+    private static func decodeRecipientStrings(_ json: String?) -> [String] {
+        guard let json, let data = json.data(using: .utf8) else { return [] }
+        return (try? JSONDecoder().decode([String].self, from: data)) ?? []
+    }
+}
+
 // MARK: - GRDB Associations
 
 extension MessageRecord {
