@@ -230,6 +230,9 @@ final class AppCoordinator {
             guard self.selectedAccountID == accountID else { return }
             self.mailDatabase = db
             self.backgroundSyncer = BackgroundSyncer(db: db)
+            if CacheMigration.needsMigration(accountID: accountID) {
+                try? await CacheMigration.migrateIfNeeded(db: db, accountID: accountID)
+            }
         } catch {
             print("Failed to create database for \(accountID): \(error)")
             self.mailDatabase = nil
