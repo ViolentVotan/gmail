@@ -231,7 +231,7 @@ struct ReplyBarView: View {
                                 .buttonStyle(.plain)
                             }
                             .padding(.horizontal, Spacing.sm).padding(.vertical, Spacing.xs)
-                            .glassEffect(.regular, in: .rect(cornerRadius: CornerRadius.sm))
+                            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: CornerRadius.sm))
                             .foregroundStyle(.secondary)
                         }
                     }
@@ -362,7 +362,7 @@ struct ReplyBarView: View {
                         .foregroundStyle(.primary)
                         .padding(.horizontal, Spacing.md)
                         .padding(.vertical, Spacing.sm)
-                        .glassEffect(.regular, in: .capsule)
+                        .glassEffect(.regular.interactive(), in: .capsule)
                         .overlay(
                             Capsule()
                                 .strokeBorder(appleIntelligenceGradient, lineWidth: 1.5)

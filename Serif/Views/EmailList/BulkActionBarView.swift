@@ -44,7 +44,7 @@ struct BulkActionBarView: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, Spacing.lg)
                     .padding(.vertical, Spacing.sm)
-                    .glassEffect(.regular, in: .rect(cornerRadius: CornerRadius.sm))
+                    .glassEffect(.regular.interactive(), in: .rect(cornerRadius: CornerRadius.sm))
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Deselect All")
@@ -83,7 +83,7 @@ struct BulkActionBarView: View {
             }
             .foregroundStyle(destructive ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
             .frame(width: tileWidth, height: tileHeight)
-            .glassEffect(.regular, in: .rect(cornerRadius: CornerRadius.md))
+            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: CornerRadius.md))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)

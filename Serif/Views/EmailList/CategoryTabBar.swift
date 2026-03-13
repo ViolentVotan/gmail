@@ -78,7 +78,7 @@ private struct TabBackground: ViewModifier {
     func body(content: Content) -> some View {
         if #available(macOS 26.0, *) {
             if isSelected {
-                content.glassEffect(.regular, in: .capsule)
+                content.glassEffect(.regular.interactive(), in: .capsule)
             } else {
                 content
             }
