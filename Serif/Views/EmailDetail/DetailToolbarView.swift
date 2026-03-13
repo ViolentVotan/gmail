@@ -43,8 +43,8 @@ struct DetailToolbarView: View {
                             .font(Typography.subhead)
                     }
                     .foregroundStyle(.tertiary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.xs)
                     .background(.quaternary)
                     .clipShape(.rect(cornerRadius: CornerRadius.sm))
                 } else {
@@ -65,8 +65,8 @@ struct DetailToolbarView: View {
                                 .font(Typography.subhead)
                         }
                         .foregroundStyle(Color.red)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
+                        .padding(.horizontal, Spacing.md)
+                        .padding(.vertical, Spacing.xs)
                         .background(Color.red.opacity(0.1))
                         .clipShape(.rect(cornerRadius: CornerRadius.sm))
                     }

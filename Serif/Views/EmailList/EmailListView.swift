@@ -117,18 +117,18 @@ struct EmailListView: View {
                             .font(Typography.captionSmallRegular)
                     }
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .glassOrMaterial(in: .rect(cornerRadius: 6), interactive: true)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.xs)
+                    .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
                 }
                 .buttonStyle(.plain)
             }
 
             SearchBarView(text: $searchText, focusTrigger: $searchFocusTrigger)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, Spacing.lg)
         .padding(.top, 20)
-        .padding(.bottom, 12)
+        .padding(.bottom, Spacing.md)
     }
 
     // MARK: - Email list
