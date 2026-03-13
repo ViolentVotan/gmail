@@ -292,7 +292,7 @@ struct ComposeView: View {
         HStack(spacing: 12) {
             Spacer()
 
-            toolbarButton(icon: "paperclip", label: "Attach") { attachFiles() }
+            ToolbarIconButton(icon: "paperclip", label: "Attach") { attachFiles() }
 
             Button {
                 showCc.toggle()
@@ -320,24 +320,12 @@ struct ComposeView: View {
 
             Divider().frame(height: 16)
 
-            toolbarButton(icon: "trash", label: "Discard") {
+            ToolbarIconButton(icon: "trash", label: "Discard") {
                 showDiscardAlert = true
             }
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 10)
-    }
-
-    private func toolbarButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(Typography.body)
-                .foregroundStyle(.secondary)
-                .frame(width: 28, height: 28)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(label)
     }
 
     // MARK: - Bottom actions

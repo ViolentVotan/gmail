@@ -29,7 +29,7 @@ struct DetailToolbarView: View {
     @State private var isUnsubscribing = false
     @State private var showSnoozePicker = false
     @Binding var didUnsubscribe: Bool
-    @ScaledMetric(relativeTo: .body) private var buttonSize: CGFloat = 30
+    @ScaledMetric(relativeTo: .body) private var buttonSize: CGFloat = ButtonSize.lg
 
     var body: some View {
         Group {
@@ -92,13 +92,13 @@ struct DetailToolbarView: View {
             }
 
             if let onArchive {
-                toolbarButton(icon: "archivebox", label: "Archive") { onArchive() }
+                ToolbarIconButton(icon: "archivebox", label: "Archive", size: buttonSize, useGlass: true) { onArchive() }
             }
             if let onDelete {
-                toolbarButton(icon: "trash", label: "Delete") { onDelete() }
+                ToolbarIconButton(icon: "trash", label: "Delete", size: buttonSize, useGlass: true) { onDelete() }
             }
             if let onMoveToInbox {
-                toolbarButton(icon: "tray.and.arrow.down", label: "Move to Inbox") { onMoveToInbox() }
+                ToolbarIconButton(icon: "tray.and.arrow.down", label: "Move to Inbox", size: buttonSize, useGlass: true) { onMoveToInbox() }
             }
             if let onSnooze {
                 Button {
@@ -176,14 +176,4 @@ struct DetailToolbarView: View {
         .elevation(.navigation)
     }
 
-    private func toolbarButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(Typography.body)
-                .frame(width: buttonSize, height: buttonSize)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.glass)
-        .help(label)
-    }
 }
