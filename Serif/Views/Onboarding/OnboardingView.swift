@@ -45,7 +45,7 @@ struct OnboardingView: View {
                 HStack(alignment: .center, spacing: 0) {
                     Text("THERE'S A NEW")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.5))
                         .tracking(11 * 0.18)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                         .padding(.trailing, 20)
@@ -56,7 +56,7 @@ struct OnboardingView: View {
                     HStack(alignment: .center, spacing: 0) {
                         Text("Ser")
                             .font(.system(size: 80, weight: .bold, design: .default))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .opacity(showSer ? 1 : 0)
                             .offset(x: showSer ? 0 : 30)
 
@@ -72,14 +72,14 @@ struct OnboardingView: View {
 
                         Text("f")
                             .font(.system(size: 80, weight: .bold, design: .default))
-                            .foregroundColor(.white)
+                            .foregroundStyle(.white)
                             .opacity(showF ? 1 : 0)
                             .offset(x: showF ? 0 : -30)
                     }
 
                     Text("IN TOWN")
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundStyle(.white.opacity(0.5))
                         .tracking(11 * 0.18)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.leading, 20)
@@ -109,7 +109,7 @@ struct OnboardingView: View {
                         .frame(width: 20, height: 20)
                         Text(isSigningIn ? "Signing in\u{2026}" : "Continue with Google")
                             .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(Color(hex: "#1C1C1E"))
+                            .foregroundStyle(Color(hex: "#1C1C1E"))
                     }
                     .padding(.horizontal, 28)
                     .padding(.vertical, 14)
@@ -134,7 +134,7 @@ struct OnboardingView: View {
                 if let error = signInError {
                     Text(error)
                         .font(.system(size: 12))
-                        .foregroundColor(coral)
+                        .foregroundStyle(coral)
                         .multilineTextAlignment(.center)
                         .padding(.top, 12)
                         .opacity(showButton ? 1 : 0)

@@ -231,7 +231,7 @@ struct OriginalMessageView: View {
             HStack(spacing: 6) {
                 Text(authStatusLabel(value))
                     .font(.caption.weight(.semibold).monospaced())
-                    .foregroundColor(authStatusColor(value))
+                    .foregroundStyle(authStatusColor(value))
 
                 if let v = value {
                     Text(v)

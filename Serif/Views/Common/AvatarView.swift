@@ -23,7 +23,7 @@ struct AvatarView: View {
                     .fill(Color(hex: color))
                 Text(initials)
                     .font(.system(size: size * 0.38, weight: .semibold, design: .rounded))
-                    .foregroundColor(.white)
+                    .foregroundStyle(.white)
             }
         }
         .frame(width: size, height: size)

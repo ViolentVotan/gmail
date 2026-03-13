@@ -145,7 +145,7 @@ struct DebugMenuView: View {
                 HStack(spacing: 6) {
                     Text(entry.fromCache ? "CACHE" : entry.method)
                         .font(.caption2.weight(.bold).monospaced())
-                        .foregroundColor(.white)
+                        .foregroundStyle(.white)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
                         .background(entry.fromCache ? Color.gray : (entry.method == "GET" ? Color.blue : Color.orange))
@@ -216,7 +216,7 @@ struct DebugMenuView: View {
                         if let err = entry.errorMessage {
                             Text(err)
                                 .font(.caption2.weight(.semibold))
-                                .foregroundColor(.red)
+                                .foregroundStyle(.red)
                         }
                         Spacer()
                         Text("\(entry.responseSize) bytes · \(entry.date.formatted(.dateTime.hour().minute().second()))")
@@ -242,7 +242,7 @@ struct DebugMenuView: View {
                             if entry.bodyTruncated {
                                 Text("Body truncated at 200 KB")
                                     .font(.caption2)
-                                    .foregroundColor(.orange)
+                                    .foregroundStyle(.orange)
                             }
                             Spacer()
                             Button {

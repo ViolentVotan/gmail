@@ -64,7 +64,7 @@ struct EmailRowView: View {
                         if email.threadMessageCount > 1 {
                             Text("\(email.threadMessageCount)")
                                 .font(.caption.bold())
-                                .foregroundColor(.white)
+                                .foregroundStyle(.white)
                                 .frame(minWidth: threadBadgeSize, minHeight: threadBadgeSize)
                                 .background(Circle().fill(Color.accentColor.opacity(0.75)))
                         }

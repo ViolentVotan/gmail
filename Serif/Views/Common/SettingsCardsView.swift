@@ -287,7 +287,7 @@ struct StorageSettingsCard: View {
                         Text(isClearing ? "Clearing..." : "Clear")
                             .font(.callout)
                     }
-                    .foregroundColor(.red)
+                    .foregroundStyle(.red)
                 }
                 .buttonStyle(.plain)
                 .disabled(isClearing || dbSize == 0)

@@ -92,7 +92,7 @@ struct FormattingToolbar: View {
                 VStack(spacing: 1) {
                     Text("A")
                         .font(.body.bold())
-                        .foregroundColor(Color(nsColor: state.textColor))
+                        .foregroundStyle(Color(nsColor: state.textColor))
                     RoundedRectangle(cornerRadius: 1)
                         .fill(Color(nsColor: state.textColor))
                         .frame(width: 12, height: 2)
@@ -160,7 +160,7 @@ struct FormattingToolbar: View {
                     HStack(spacing: 6) {
                         Text("URL")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .frame(width: 30, alignment: .leading)
                         TextField("https://", text: $linkURL)
                             .textFieldStyle(.roundedBorder)
@@ -169,7 +169,7 @@ struct FormattingToolbar: View {
                     HStack(spacing: 6) {
                         Text("Text")
                             .font(.caption)
-                            .foregroundColor(.secondary)
+                            .foregroundStyle(.secondary)
                             .frame(width: 30, alignment: .leading)
                         TextField("Display text (optional)", text: $linkText)
                             .textFieldStyle(.roundedBorder)
@@ -305,7 +305,7 @@ struct ColorGridPopover: View {
 
                 Text("Custom")
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundStyle(.secondary)
 
                 Spacer()
 

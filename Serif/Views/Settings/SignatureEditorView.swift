@@ -97,11 +97,11 @@ struct SignatureEditorView: View {
     private func errorBanner(_ message: String) -> some View {
         HStack {
             Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundColor(.red)
+                .foregroundStyle(.red)
                 .font(.footnote)
             Text(message)
                 .font(.footnote)
-                .foregroundColor(.red)
+                .foregroundStyle(.red)
             Spacer()
             Button {
                 errorMessage = nil

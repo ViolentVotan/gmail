@@ -193,7 +193,7 @@ struct AccountsSettingsView: View {
             } label: {
                 Text("Sign out")
                     .font(.body.weight(.medium))
-                    .foregroundColor(.red.opacity(0.8))
+                    .foregroundStyle(.red.opacity(0.8))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(.red.opacity(0.08))

@@ -10,7 +10,7 @@ struct LabelChipView: View {
         HStack(spacing: 3) {
             Text(label.name)
                 .font(.caption2.weight(.medium))
-                .foregroundColor(Color(hex: label.textColor))
+                .foregroundStyle(Color(hex: label.textColor))
                 .lineLimit(1)
 
             if isRemovable {
@@ -19,7 +19,7 @@ struct LabelChipView: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.caption2.weight(.bold))
-                        .foregroundColor(Color(hex: label.textColor).opacity(0.7))
+                        .foregroundStyle(Color(hex: label.textColor).opacity(0.7))
                 }
                 .buttonStyle(.plain)
             }
