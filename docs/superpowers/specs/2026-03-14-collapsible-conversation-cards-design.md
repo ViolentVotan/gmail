@@ -155,7 +155,14 @@ Initialized with the latest message ID on thread load.
 ### Auto-scroll
 
 - `ScrollViewReader` scrolls to latest message ID with `.bottom` anchor
-- Delayed slightly (`DispatchQueue.main.asyncAfter(deadline: .now() + 0.1)`) to let layout settle
+- Delayed via structured concurrency inside a `.task` modifier:
+
+```swift
+.task(id: latestMessageID) {
+    try? await Task.sleep(for: .milliseconds(100))
+    withAnimation { proxy.scrollTo(latestMessageID, anchor: .bottom) }
+}
+```
 
 ## Data Flow & ViewModel Changes
 
@@ -211,7 +218,7 @@ ThreadMessageCardView(
 | File | Action | Summary |
 |------|--------|---------|
 | `Views/EmailDetail/ThreadMessageCardView.swift` | Create | New collapsible card component |
-| `Views/EmailDetail/EmailDetailView.swift` | Modify | Replace hero+bubbles with unified card list, add `expandedMessageIDs`, add conversation header with Collapse All |
+| `Views/EmailDetail/EmailDetailView.swift` | Modify | Replace hero+bubbles with unified card list, add `expandedMessageIDs`, add conversation header with Collapse Others |
 | `ViewModels/EmailDetailViewModel.swift` | Modify | Add `allMessagesChronological`, remove `olderThreadMessages`, unify `resolvedHTML` into `resolvedMessageHTML`, add `messageID` param to attachment methods |
 | `Views/EmailDetail/GmailThreadMessageView.swift` | Modify | Remove `ChatBubbleShape` and the view body; keep `stripQuotedHTML` as static utility |
 
