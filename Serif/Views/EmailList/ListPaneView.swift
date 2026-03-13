@@ -22,7 +22,7 @@ struct ListPaneView: View {
 
     private var navigationTitleText: String {
         if selectedFolder == .labels {
-            return selectedLabel?.name ?? "Labels"
+            return selectedLabel?.name ?? Folder.labels.rawValue
         }
         return selectedFolder.rawValue
     }
