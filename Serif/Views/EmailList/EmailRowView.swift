@@ -9,7 +9,7 @@ struct EmailRowView: View {
     @State private var hoverTask: Task<Void, Never>?
     @State private var popoverHolder = PopoverHolder()
     @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 36
-    @ScaledMetric(relativeTo: .caption2) private var dotSize: CGFloat = 6
+    @ScaledMetric(relativeTo: .caption2) private var dotSize: CGFloat = 7
     @ScaledMetric(relativeTo: .caption2) private var threadBadgeSize: CGFloat = 18
 
     private var nudgeText: String? {
@@ -54,10 +54,10 @@ struct EmailRowView: View {
                 )
 
                 // Content
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Text(email.isDraft && email.recipients.isEmpty ? "Draft" : email.sender.name)
-                            .font(.body.weight(email.isRead ? .medium : .semibold))
+                            .font(.callout.weight(email.isRead ? .medium : .semibold))
                             .foregroundStyle(email.isDraft && email.recipients.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
                             .lineLimit(1)
 
@@ -73,6 +73,7 @@ struct EmailRowView: View {
 
                         Text(email.date.formattedRelative)
                             .font(Typography.captionRegular)
+                            .monospacedDigit()
                             .foregroundStyle(.tertiary)
                     }
 

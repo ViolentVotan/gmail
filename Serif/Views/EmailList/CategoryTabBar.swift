@@ -11,8 +11,12 @@ struct CategoryTabBar: View {
 
     private var tabBarContent: some View {
         HStack(spacing: 0) {
-            ForEach(InboxCategory.allCases) { category in
-                categoryTab(category)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    ForEach(InboxCategory.allCases) { category in
+                        categoryTab(category)
+                    }
+                }
             }
 
             Spacer()
@@ -28,8 +32,8 @@ struct CategoryTabBar: View {
             .buttonStyle(.plain)
             .help("Show only important emails")
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 6)
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.sm)
     }
 
     private func categoryTab(_ category: InboxCategory) -> some View {
@@ -42,6 +46,7 @@ struct CategoryTabBar: View {
                 Text(category.displayName)
                     .font(Typography.subheadRegular)
                     .fontWeight(isSelected ? .semibold : .regular)
+                    .fixedSize()
 
                 if let count = unreadCounts[category], count > 0 {
                     Text("\(count)")

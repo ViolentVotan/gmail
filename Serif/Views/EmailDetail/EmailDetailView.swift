@@ -81,20 +81,6 @@ struct EmailDetailView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            DetailToolbarView(
-                email: email,
-                detailVM: detailVM,
-                isMailingList: isMailingList,
-                resolvedUnsubscribeURL: resolvedUnsubscribeURL,
-                oneClick: oneClick,
-                alreadyUnsubscribed: alreadyUnsubscribed,
-                actions: actions,
-                replyMode: replyMode,
-                replyAllMode: replyAllMode,
-                forwardMode: forwardMode,
-                didUnsubscribe: $didUnsubscribe
-            )
-
             if detailVM.isLoading && detailVM.thread == nil {
                 EmailDetailSkeletonView()
             } else {
@@ -105,11 +91,32 @@ struct EmailDetailView: View {
                             .padding(.top, Spacing.xl)
                             .padding(.bottom, Spacing.lg)
 
-                        Text(detailVM.latestMessage?.subject ?? email.subject)
-                            .font(Typography.title)
-                            .foregroundStyle(.primary)
-                            .padding(.horizontal, Spacing.xl)
-                            .padding(.bottom, Spacing.md)
+                        HStack(alignment: .top) {
+                            Text(detailVM.latestMessage?.subject ?? email.subject)
+                                .font(Typography.title)
+                                .foregroundStyle(.primary)
+
+                            Spacer()
+
+                            Menu {
+                                Button { actions.onDownloadMessage?(detailVM) } label: {
+                                    Label("Download Message", systemImage: "arrow.down.circle")
+                                }
+                                Button { actions.onShowOriginal?(detailVM) } label: {
+                                    Label("Show Original", systemImage: "doc.text")
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis")
+                                    .font(Typography.body)
+                                    .foregroundStyle(.tertiary)
+                                    .frame(width: ButtonSize.lg, height: ButtonSize.lg)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .help("Message options")
+                        }
+                        .padding(.horizontal, Spacing.xl)
+                        .padding(.bottom, Spacing.md)
 
                         LabelEditorView(
                             currentLabelIDs: currentLabelIDs,
@@ -202,12 +209,16 @@ struct EmailDetailView: View {
                                         showQuotedMain.toggle()
                                     }
                                 } label: {
-                                    Text(showQuotedMain ? "Hide quoted" : "···")
-                                        .font(showQuotedMain ? .caption.weight(.medium) : .callout.bold())
-                                        .foregroundStyle(.tertiary)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, Spacing.xs)
-                                        .background(Capsule().fill(.quaternary))
+                                    HStack(spacing: 4) {
+                                        Image(systemName: showQuotedMain ? "chevron.up" : "chevron.down")
+                                            .font(Typography.captionSmall)
+                                        Text(showQuotedMain ? "Hide quoted text" : "Show quoted text")
+                                            .font(Typography.captionRegular)
+                                    }
+                                    .foregroundStyle(.tertiary)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, Spacing.xs)
+                                    .background(Capsule().fill(.quaternary))
                                 }
                                 .buttonStyle(.plain)
                                 .padding(.horizontal, Spacing.xl)
@@ -228,6 +239,7 @@ struct EmailDetailView: View {
                                 .padding(.bottom, Spacing.md)
                         }
                     }
+                    .frame(maxWidth: 720, alignment: .leading)
                 }
                 .task(id: email.id) {
                     labelSuggestions = []

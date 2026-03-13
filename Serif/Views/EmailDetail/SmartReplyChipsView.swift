@@ -29,13 +29,16 @@ struct SmartReplyChipsView: View {
                 } label: {
                     Text(suggestion)
                         .font(Typography.captionRegular)
-                        .lineLimit(2)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .frame(maxWidth: 280)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .modifier(SmartReplyChipBackground())
                         .foregroundStyle(Color.accentColor)
                 }
                 .buttonStyle(.plain)
+                .help(suggestion)
             }
         }
         .padding(.horizontal, 16)

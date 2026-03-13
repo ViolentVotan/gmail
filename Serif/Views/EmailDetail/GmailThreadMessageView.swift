@@ -81,12 +81,16 @@ struct GmailThreadMessageView: View {
                                 showQuoted.toggle()
                             }
                         } label: {
-                            Text(showQuoted ? "Hide" : "···")
-                                .font(showQuoted ? .caption2.weight(.medium) : .callout.bold())
-                                .foregroundStyle(.tertiary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(Capsule().fill(.quaternary))
+                            HStack(spacing: 3) {
+                                Image(systemName: showQuoted ? "chevron.up" : "chevron.down")
+                                    .font(Typography.captionSmallMedium)
+                                Text(showQuoted ? "Hide quoted" : "Show quoted")
+                                    .font(Typography.captionSmallMedium)
+                            }
+                            .foregroundStyle(.tertiary)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(.quaternary))
                         }
                         .buttonStyle(.plain)
                         .padding(.top, 4)
