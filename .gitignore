@@ -5,6 +5,7 @@
 buildServer.json
 docs/plans/
 docs/superpowers/
+.superpowers/
 Serif/Configuration/GoogleCredentials.swift
 
 ## User settings
