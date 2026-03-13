@@ -63,6 +63,7 @@ enum Typography {
     // Caption
     static let caption: Font = .caption.weight(.medium)
     static let captionRegular: Font = .caption
+    static let captionSemibold: Font = .caption.weight(.semibold)
     static let captionSmall: Font = .caption2.weight(.semibold)
     static let captionSmallMedium: Font = .caption2.weight(.medium)
     static let captionSmallRegular: Font = .caption2

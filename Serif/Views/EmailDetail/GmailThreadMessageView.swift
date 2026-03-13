@@ -66,7 +66,7 @@ struct GmailThreadMessageView: View {
             VStack(alignment: isSentByMe ? .trailing : .leading, spacing: 4) {
                 if !isSentByMe {
                     Text(sender.name)
-                        .font(.caption.weight(.semibold))
+                        .font(Typography.captionSemibold)
                         .foregroundStyle(.primary)
                 }
 

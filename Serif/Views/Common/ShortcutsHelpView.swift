@@ -40,7 +40,7 @@ struct ShortcutsHelpView: View {
             ForEach(sections, id: \.title) { section in
                 VStack(alignment: .leading, spacing: 8) {
                     Text(section.title)
-                        .font(.caption.weight(.semibold))
+                        .font(Typography.captionSemibold)
                         .foregroundStyle(.tertiary)
                         .textCase(.uppercase)
                         .tracking(0.5)

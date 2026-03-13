@@ -156,12 +156,12 @@ struct SignatureSettingsCard: View {
                                     .foregroundStyle(.tertiary)
                                 if let sig = alias.signature, !sig.isEmpty {
                                     Text(sig.strippingHTML.prefix(80) + (sig.strippingHTML.count > 80 ? "…" : ""))
-                                        .font(.caption.weight(.semibold))
+                                        .font(Typography.captionSemibold)
                                         .foregroundStyle(.tertiary)
                                         .lineLimit(2)
                                 } else {
                                     Text("No signature")
-                                        .font(.caption.weight(.semibold))
+                                        .font(Typography.captionSemibold)
                                         .foregroundStyle(.tertiary)
                                         .italic()
                                 }
@@ -388,7 +388,7 @@ struct RefreshStatusView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Image(systemName: "clock.arrow.2.circlepath")
-                    .font(.caption.weight(.semibold))
+                    .font(Typography.captionSemibold)
                     .foregroundStyle(.tertiary)
                 Text(lastRefreshLabel)
                     .font(Typography.callout)
@@ -397,7 +397,7 @@ struct RefreshStatusView: View {
             }
             HStack {
                 Image(systemName: "arrow.clockwise")
-                    .font(.caption.weight(.semibold))
+                    .font(Typography.captionSemibold)
                     .foregroundStyle(.tertiary)
                 Text(nextRefreshLabel)
                     .font(Typography.callout)

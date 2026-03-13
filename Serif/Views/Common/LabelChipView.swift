@@ -51,7 +51,7 @@ struct LabelPickerRow: View {
 
                 if isSelected {
                     Image(systemName: "checkmark")
-                        .font(.caption.weight(.semibold))
+                        .font(Typography.captionSemibold)
                         .foregroundStyle(.tint)
                 }
             }
