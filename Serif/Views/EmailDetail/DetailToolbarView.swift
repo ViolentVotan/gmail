@@ -7,21 +7,7 @@ struct DetailToolbarView: View {
     let resolvedUnsubscribeURL: URL?
     let oneClick: Bool
     let alreadyUnsubscribed: Bool
-    var onArchive: (() -> Void)?
-    var onDelete: (() -> Void)?
-    var onSnooze: ((Date) -> Void)?
-    var onMoveToInbox: (() -> Void)?
-    var onDeletePermanently: (() -> Void)?
-    var onMarkNotSpam: (() -> Void)?
-    var onToggleStar: ((Bool) -> Void)?
-    var onMarkUnread: (() -> Void)?
-    var onReply: ((ComposeMode) -> Void)?
-    var onReplyAll: ((ComposeMode) -> Void)?
-    var onForward: ((ComposeMode) -> Void)?
-    var onShowOriginal: ((EmailDetailViewModel) -> Void)?
-    var onDownloadMessage: ((EmailDetailViewModel) -> Void)?
-    var onUnsubscribe: ((URL, Bool, String?) async -> Bool)?
-    var onPrint: ((GmailMessage, Email) -> Void)?
+    let actions: EmailDetailActions
     let replyMode: () -> ComposeMode
     let replyAllMode: () -> ComposeMode
     let forwardMode: () -> ComposeMode
@@ -66,7 +52,7 @@ struct DetailToolbarView: View {
                         isUnsubscribing = true
                         Task {
                             let msgID = email.gmailMessageID
-                            let success = await onUnsubscribe?(url, oneClick, msgID) ?? false
+                            let success = await actions.onUnsubscribe?(url, oneClick, msgID) ?? false
                             isUnsubscribing = false
                             if success { didUnsubscribe = true }
                         }
@@ -91,16 +77,16 @@ struct DetailToolbarView: View {
 
             }
 
-            if let onArchive {
+            if let onArchive = actions.onArchive {
                 ToolbarIconButton(icon: "archivebox", label: "Archive", size: buttonSize, useGlass: true) { onArchive() }
             }
-            if let onDelete {
+            if let onDelete = actions.onDelete {
                 ToolbarIconButton(icon: "trash", label: "Delete", size: buttonSize, useGlass: true) { onDelete() }
             }
-            if let onMoveToInbox {
+            if let onMoveToInbox = actions.onMoveToInbox {
                 ToolbarIconButton(icon: "tray.and.arrow.down", label: "Move to Inbox", size: buttonSize, useGlass: true) { onMoveToInbox() }
             }
-            if let onSnooze {
+            if let onSnooze = actions.onSnooze {
                 Button {
                     showSnoozePicker = true
                 } label: {
@@ -121,17 +107,17 @@ struct DetailToolbarView: View {
 
             Menu {
                 Section {
-                    Button { onReply?(replyMode()) }    label: { Label("Reply",     systemImage: "arrowshape.turn.up.left") }
-                    Button { onReplyAll?(replyAllMode()) } label: { Label("Reply All", systemImage: "arrowshape.turn.up.left.2") }
-                    Button { onForward?(forwardMode()) }  label: { Label("Forward",   systemImage: "arrowshape.turn.up.right") }
+                    Button { actions.onReply?(replyMode()) }    label: { Label("Reply",     systemImage: "arrowshape.turn.up.left") }
+                    Button { actions.onReplyAll?(replyAllMode()) } label: { Label("Reply All", systemImage: "arrowshape.turn.up.left.2") }
+                    Button { actions.onForward?(forwardMode()) }  label: { Label("Forward",   systemImage: "arrowshape.turn.up.right") }
                 }
                 Divider()
                 Section {
-                    Button { onMarkUnread?() } label: { Label("Mark as Unread",     systemImage: "envelope.badge") }
+                    Button { actions.onMarkUnread?() } label: { Label("Mark as Unread",     systemImage: "envelope.badge") }
                     Button {
                         let starred = detailVM.latestMessage?.isStarred ?? email.isStarred
                         detailVM.toggleStar()
-                        onToggleStar?(starred)
+                        actions.onToggleStar?(starred)
                     } label: {
                         let starred = detailVM.latestMessage?.isStarred ?? email.isStarred
                         Label(starred ? "Remove from Favorites" : "Add to Favorites", systemImage: starred ? "star.slash" : "star")
@@ -141,23 +127,23 @@ struct DetailToolbarView: View {
                 Section {
                     Button {
                         if let msg = detailVM.latestMessage {
-                            onPrint?(msg, email)
+                            actions.onPrint?(msg, email)
                         }
                     } label: { Label("Print", systemImage: "printer") }
-                    Button { onDownloadMessage?(detailVM) } label: { Label("Download Message", systemImage: "arrow.down.circle") }
-                    Button { onShowOriginal?(detailVM) } label: { Label("Show Original",    systemImage: "doc.text") }
+                    Button { actions.onDownloadMessage?(detailVM) } label: { Label("Download Message", systemImage: "arrow.down.circle") }
+                    Button { actions.onShowOriginal?(detailVM) } label: { Label("Show Original",    systemImage: "doc.text") }
                 }
                 Divider()
                 Section {
                     // TODO: Implement mute thread and block sender features
                     // Button { } label: { Label("Mute Thread", systemImage: "bell.slash") }
                     // Button { } label: { Label("Block Sender", systemImage: "hand.raised") }
-                    if let onMarkNotSpam {
+                    if let onMarkNotSpam = actions.onMarkNotSpam {
                         Button { onMarkNotSpam() } label: { Label("Not Spam", systemImage: "tray.and.arrow.down") }
                     } else {
-                        Button(role: .destructive) { onDelete?() } label: { Label("Report as Spam", systemImage: "exclamationmark.shield") }
+                        Button(role: .destructive) { actions.onDelete?() } label: { Label("Report as Spam", systemImage: "exclamationmark.shield") }
                     }
-                    if let onDeletePermanently {
+                    if let onDeletePermanently = actions.onDeletePermanently {
                         Button(role: .destructive) { onDeletePermanently() } label: { Label("Delete Permanently", systemImage: "trash.slash") }
                     }
                 }

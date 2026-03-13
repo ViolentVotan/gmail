@@ -90,9 +90,13 @@ struct SlidePanelsOverlay: View {
                     email: email,
                     accountID: panels.previewAccountID,
                     mailStore: mailStore,
-                    onPreviewAttachment: { data, name, fileType in
-                        panels.previewAttachment(data: data, name: name, fileType: fileType)
-                    }
+                    actions: {
+                        var a = EmailDetailActions()
+                        a.onPreviewAttachment = { data, name, fileType in
+                            panels.previewAttachment(data: data, name: name, fileType: fileType)
+                        }
+                        return a
+                    }()
                 )
             }
         }

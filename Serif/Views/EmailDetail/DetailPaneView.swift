@@ -85,70 +85,73 @@ struct DetailPaneView: View {
     // MARK: - Email Detail
 
     private func emailDetailView(email: Email) -> some View {
-        var view = EmailDetailView(
+        var actions = EmailDetailActions()
+        actions.onArchive = selectedFolder == .archive ? nil : { actionCoordinator.archiveEmail(email, selectNext: { coordinator.selectNext($0) }) }
+        actions.onDelete = selectedFolder == .trash ? nil : { actionCoordinator.deleteEmail(email, selectNext: { coordinator.selectNext($0) }) }
+        actions.onMoveToInbox = selectedFolder == .archive || selectedFolder == .trash
+            ? { actionCoordinator.moveToInboxEmail(email, selectedFolder: selectedFolder, selectNext: { coordinator.selectNext($0) }) } : nil
+        actions.onDeletePermanently = selectedFolder == .trash
+            ? { actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selectNext($0) }) } : nil
+        actions.onMarkNotSpam = selectedFolder == .spam
+            ? { actionCoordinator.markNotSpamEmail(email, selectNext: { coordinator.selectNext($0) }) } : nil
+        actions.onToggleStar = { isCurrentlyStarred in
+            guard let msgID = email.gmailMessageID else { return }
+            Task { await mailboxViewModel.toggleStar(msgID, isStarred: isCurrentlyStarred) }
+        }
+        actions.onMarkUnread = { actionCoordinator.markUnreadEmail(email) }
+        actions.onSnooze = { date in actionCoordinator.snoozeEmail(email, until: date, selectNext: { coordinator.selectNext($0) }) }
+        actions.onAddLabel = { labelID in
+            guard let msgID = email.gmailMessageID else { return }
+            Task { await mailboxViewModel.addLabel(labelID, to: msgID) }
+        }
+        actions.onRemoveLabel = { labelID in
+            guard let msgID = email.gmailMessageID else { return }
+            Task { await mailboxViewModel.removeLabel(labelID, from: msgID) }
+        }
+        actions.onReply = { mode in coordinator.startCompose(mode: mode) }
+        actions.onReplyAll = { mode in coordinator.startCompose(mode: mode) }
+        actions.onForward = { mode in coordinator.startCompose(mode: mode) }
+        actions.onCreateAndAddLabel = { name, completion in
+            guard let msgID = email.gmailMessageID else { completion(nil); return }
+            Task {
+                let labelID = await mailboxViewModel.createAndAddLabel(name: name, to: msgID)
+                completion(labelID)
+            }
+        }
+        actions.onPreviewAttachment = { data, name, fileType in
+            panelCoordinator.previewAttachment(data: data, name: name, fileType: fileType)
+        }
+        actions.onShowOriginal = { vm in panelCoordinator.showOriginalMessage(from: vm) }
+        actions.onDownloadMessage = { vm in panelCoordinator.downloadMessage(from: vm) }
+        actions.onUnsubscribe = { url, oneClick, msgID in
+            await actionCoordinator.unsubscribe(url: url, oneClick: oneClick, messageID: msgID, accountID: accountID)
+        }
+        actions.onPrint = { msg, email in
+            EmailPrintService.shared.printEmail(message: msg, email: email)
+        }
+        actions.checkUnsubscribed = { msgID in
+            actionCoordinator.isUnsubscribed(messageID: msgID, accountID: accountID)
+        }
+        actions.extractBodyUnsubscribeURL = { html in
+            actionCoordinator.extractBodyUnsubscribeURL(from: html)
+        }
+        actions.onOpenLink = { url in panelCoordinator.openInAppBrowser(url: url) }
+        actions.onMessagesRead = { messageIDs in mailboxViewModel.applyReadLocally(messageIDs) }
+        actions.onLoadDraft = { draftID, acctID in
+            try await actionCoordinator.loadDraft(id: draftID, accountID: acctID)
+        }
+
+        return EmailDetailView(
             email: email,
             accountID: accountID,
             mailStore: mailStore,
+            actions: actions,
             attachmentIndexer: attachmentIndexer,
-            onArchive: selectedFolder == .archive ? nil : { actionCoordinator.archiveEmail(email, selectNext: { coordinator.selectNext($0) }) },
-            onDelete: selectedFolder == .trash ? nil : { actionCoordinator.deleteEmail(email, selectNext: { coordinator.selectNext($0) }) },
-            onMoveToInbox: selectedFolder == .archive || selectedFolder == .trash
-                ? { actionCoordinator.moveToInboxEmail(email, selectedFolder: selectedFolder, selectNext: { coordinator.selectNext($0) }) } : nil,
-            onDeletePermanently: selectedFolder == .trash
-                ? { actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selectNext($0) }) } : nil,
-            onMarkNotSpam: selectedFolder == .spam
-                ? { actionCoordinator.markNotSpamEmail(email, selectNext: { coordinator.selectNext($0) }) } : nil,
-            onToggleStar: { isCurrentlyStarred in
-                guard let msgID = email.gmailMessageID else { return }
-                Task { await mailboxViewModel.toggleStar(msgID, isStarred: isCurrentlyStarred) }
-            },
-            onMarkUnread: { actionCoordinator.markUnreadEmail(email) },
-            onSnooze: { date in actionCoordinator.snoozeEmail(email, until: date, selectNext: { coordinator.selectNext($0) }) },
             allLabels: mailboxViewModel.labels,
-            onAddLabel: { labelID in
-                guard let msgID = email.gmailMessageID else { return }
-                Task { await mailboxViewModel.addLabel(labelID, to: msgID) }
-            },
-            onRemoveLabel: { labelID in
-                guard let msgID = email.gmailMessageID else { return }
-                Task { await mailboxViewModel.removeLabel(labelID, from: msgID) }
-            },
-            onReply: { mode in coordinator.startCompose(mode: mode) },
-            onReplyAll: { mode in coordinator.startCompose(mode: mode) },
-            onForward: { mode in coordinator.startCompose(mode: mode) },
-            onCreateAndAddLabel: { name, completion in
-                guard let msgID = email.gmailMessageID else { completion(nil); return }
-                Task {
-                    let labelID = await mailboxViewModel.createAndAddLabel(name: name, to: msgID)
-                    completion(labelID)
-                }
-            },
-            onPreviewAttachment: { data, name, fileType in
-                panelCoordinator.previewAttachment(data: data, name: name, fileType: fileType)
-            },
-            onShowOriginal: { vm in panelCoordinator.showOriginalMessage(from: vm) },
-            onDownloadMessage: { vm in panelCoordinator.downloadMessage(from: vm) },
-            onUnsubscribe: { url, oneClick, msgID in
-                await actionCoordinator.unsubscribe(url: url, oneClick: oneClick, messageID: msgID, accountID: accountID)
-            },
-            onPrint: { msg, email in
-                EmailPrintService.shared.printEmail(message: msg, email: email)
-            },
-            checkUnsubscribed: { msgID in
-                actionCoordinator.isUnsubscribed(messageID: msgID, accountID: accountID)
-            },
-            extractBodyUnsubscribeURL: { html in
-                actionCoordinator.extractBodyUnsubscribeURL(from: html)
-            },
             fromAddress: fromAddress,
             mailDatabase: coordinator.mailDatabase
         )
-        view.onOpenLink = { url in panelCoordinator.openInAppBrowser(url: url) }
-        view.onMessagesRead = { messageIDs in mailboxViewModel.applyReadLocally(messageIDs) }
-        view.onLoadDraft = { draftID, acctID in
-            try await actionCoordinator.loadDraft(id: draftID, accountID: acctID)
-        }
-        return view.id(email.id)
+        .id(email.id)
     }
 
     // MARK: - Empty State

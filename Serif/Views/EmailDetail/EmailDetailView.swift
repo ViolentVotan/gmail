@@ -3,33 +3,9 @@ import SwiftUI
 struct EmailDetailView: View {
     let email: Email
     let accountID: String
+    let actions: EmailDetailActions
     var attachmentIndexer: AttachmentIndexer?
-    var onArchive:            (() -> Void)?
-    var onDelete:             (() -> Void)?
-    var onMoveToInbox:        (() -> Void)?
-    var onDeletePermanently:  (() -> Void)?
-    var onMarkNotSpam:        (() -> Void)?
-    var onToggleStar:         ((Bool) -> Void)?
-    var onMarkUnread:         (() -> Void)?
-    var onSnooze:             ((Date) -> Void)?
-    var allLabels:     [GmailLabel]
-    var onAddLabel:    ((String) -> Void)?
-    var onRemoveLabel: ((String) -> Void)?
-    var onReply:       ((ComposeMode) -> Void)?
-    var onReplyAll:    ((ComposeMode) -> Void)?
-    var onForward:     ((ComposeMode) -> Void)?
-
-    var onCreateAndAddLabel: ((String, @escaping (String?) -> Void) -> Void)?
-    var onPreviewAttachment: ((Data?, String, Attachment.FileType) -> Void)?
-    var onShowOriginal: ((EmailDetailViewModel) -> Void)?
-    var onDownloadMessage: ((EmailDetailViewModel) -> Void)?
-    var onUnsubscribe: ((URL, Bool, String?) async -> Bool)?
-    var onPrint: ((GmailMessage, Email) -> Void)?
-    var checkUnsubscribed: ((String) -> Bool)?
-    var extractBodyUnsubscribeURL: ((String) -> URL?)?
-    var onOpenLink: ((URL) -> Void)?
-    var onMessagesRead: (([String]) -> Void)?
-    var onLoadDraft: ((String, String) async throws -> GmailDraft?)?
+    var allLabels: [GmailLabel]
     var fromAddress: String = ""
     var mailStore: MailStore
 
@@ -48,7 +24,7 @@ struct EmailDetailView: View {
     private var resolvedUnsubscribeURL: URL? {
         if let url = detailVM.latestMessage?.unsubscribeURL { return url }
         if let html = detailVM.latestMessage?.htmlBody ?? detailVM.latestMessage?.plainBody,
-           let url = extractBodyUnsubscribeURL?(html) { return url }
+           let url = actions.extractBodyUnsubscribeURL?(html) { return url }
         return email.unsubscribeURL
     }
 
@@ -63,66 +39,26 @@ struct EmailDetailView: View {
     private var alreadyUnsubscribed: Bool {
         if didUnsubscribe { return true }
         guard let msgID = email.gmailMessageID else { return false }
-        return checkUnsubscribed?(msgID) ?? false
+        return actions.checkUnsubscribed?(msgID) ?? false
     }
 
     init(
         email: Email,
         accountID: String,
         mailStore: MailStore,
+        actions: EmailDetailActions = EmailDetailActions(),
         attachmentIndexer: AttachmentIndexer? = nil,
-        onArchive:            (() -> Void)? = nil,
-        onDelete:             (() -> Void)? = nil,
-        onMoveToInbox:        (() -> Void)? = nil,
-        onDeletePermanently:  (() -> Void)? = nil,
-        onMarkNotSpam:        (() -> Void)? = nil,
-        onToggleStar:         ((Bool) -> Void)? = nil,
-        onMarkUnread:         (() -> Void)? = nil,
-        onSnooze:             ((Date) -> Void)? = nil,
-        allLabels:             [GmailLabel] = [],
-        onAddLabel:            ((String) -> Void)? = nil,
-        onRemoveLabel:         ((String) -> Void)? = nil,
-        onReply:               ((ComposeMode) -> Void)? = nil,
-        onReplyAll:            ((ComposeMode) -> Void)? = nil,
-        onForward:             ((ComposeMode) -> Void)? = nil,
-        onCreateAndAddLabel:   ((String, @escaping (String?) -> Void) -> Void)? = nil,
-        onPreviewAttachment:   ((Data?, String, Attachment.FileType) -> Void)? = nil,
-        onShowOriginal:        ((EmailDetailViewModel) -> Void)? = nil,
-        onDownloadMessage:     ((EmailDetailViewModel) -> Void)? = nil,
-        onUnsubscribe:         ((URL, Bool, String?) async -> Bool)? = nil,
-        onPrint:               ((GmailMessage, Email) -> Void)? = nil,
-        checkUnsubscribed:     ((String) -> Bool)? = nil,
-        extractBodyUnsubscribeURL: ((String) -> URL?)? = nil,
-        fromAddress:           String = "",
-        mailDatabase:          MailDatabase? = nil
+        allLabels: [GmailLabel] = [],
+        fromAddress: String = "",
+        mailDatabase: MailDatabase? = nil
     ) {
-        self.email              = email
-        self.accountID          = accountID
-        self.mailStore          = mailStore
-        self.attachmentIndexer  = attachmentIndexer
-        self.onArchive          = onArchive
-        self.onDelete           = onDelete
-        self.onMoveToInbox      = onMoveToInbox
-        self.onDeletePermanently = onDeletePermanently
-        self.onMarkNotSpam      = onMarkNotSpam
-        self.onToggleStar       = onToggleStar
-        self.onMarkUnread       = onMarkUnread
-        self.onSnooze           = onSnooze
-        self.allLabels    = allLabels
-        self.onAddLabel   = onAddLabel
-        self.onRemoveLabel = onRemoveLabel
-        self.onReply               = onReply
-        self.onReplyAll            = onReplyAll
-        self.onForward             = onForward
-        self.onCreateAndAddLabel   = onCreateAndAddLabel
-        self.onPreviewAttachment   = onPreviewAttachment
-        self.onShowOriginal        = onShowOriginal
-        self.onDownloadMessage     = onDownloadMessage
-        self.onUnsubscribe         = onUnsubscribe
-        self.onPrint               = onPrint
-        self.checkUnsubscribed     = checkUnsubscribed
-        self.extractBodyUnsubscribeURL = extractBodyUnsubscribeURL
-        self.fromAddress           = fromAddress
+        self.email = email
+        self.accountID = accountID
+        self.mailStore = mailStore
+        self.actions = actions
+        self.attachmentIndexer = attachmentIndexer
+        self.allLabels = allLabels
+        self.fromAddress = fromAddress
         let vm = EmailDetailViewModel(accountID: accountID)
         vm.mailDatabase = mailDatabase
         self.detailVM = vm
@@ -151,21 +87,7 @@ struct EmailDetailView: View {
                 resolvedUnsubscribeURL: resolvedUnsubscribeURL,
                 oneClick: oneClick,
                 alreadyUnsubscribed: alreadyUnsubscribed,
-                onArchive: onArchive,
-                onDelete: onDelete,
-                onSnooze: onSnooze,
-                onMoveToInbox: onMoveToInbox,
-                onDeletePermanently: onDeletePermanently,
-                onMarkNotSpam: onMarkNotSpam,
-                onToggleStar: onToggleStar,
-                onMarkUnread: onMarkUnread,
-                onReply: onReply,
-                onReplyAll: onReplyAll,
-                onForward: onForward,
-                onShowOriginal: onShowOriginal,
-                onDownloadMessage: onDownloadMessage,
-                onUnsubscribe: onUnsubscribe,
-                onPrint: onPrint,
+                actions: actions,
                 replyMode: replyMode,
                 replyAllMode: replyAllMode,
                 forwardMode: forwardMode,
@@ -193,9 +115,9 @@ struct EmailDetailView: View {
                                 currentLabelIDs: currentLabelIDs,
                                 allLabels: allLabels,
                                 detailVM: detailVM,
-                                onAddLabel: onAddLabel,
-                                onRemoveLabel: onRemoveLabel,
-                                onCreateAndAddLabel: onCreateAndAddLabel
+                                onAddLabel: actions.onAddLabel,
+                                onRemoveLabel: actions.onRemoveLabel,
+                                onCreateAndAddLabel: actions.onCreateAndAddLabel
                             )
                             .padding(.horizontal, 24)
                             .padding(.bottom, labelSuggestions.isEmpty ? 20 : 6)
@@ -268,7 +190,7 @@ struct EmailDetailView: View {
                                 let parts = mainHTMLParts(for: fullHTML)
                                 let htmlToRender = (showQuotedMain || parts.quoted == nil) ? fullHTML : parts.original
 
-                                HTMLEmailView(html: htmlToRender, contentHeight: $emailBodyHeight, onOpenLink: onOpenLink)
+                                HTMLEmailView(html: htmlToRender, contentHeight: $emailBodyHeight, onOpenLink: actions.onOpenLink)
                                     .frame(height: emailBodyHeight)
                                     .padding(.horizontal, 24)
                                     .padding(.bottom, parts.quoted != nil ? 4 : 20)
@@ -327,11 +249,11 @@ struct EmailDetailView: View {
                     accountID: accountID,
                     fromAddress: fromAddress,
                     mailStore: mailStore,
-                    onOpenLink: onOpenLink,
+                    onOpenLink: actions.onOpenLink,
                     onGenerateQuickReplies: { [detailVM] email in
                         await detailVM.generateQuickReplies(for: email)
                     },
-                    onLoadDraft: onLoadDraft,
+                    onLoadDraft: actions.onLoadDraft,
                     smartReplySuggestions: detailVM.smartReplySuggestions
                 )
                     .padding(.horizontal, 16)
@@ -365,7 +287,7 @@ struct EmailDetailView: View {
     private func loadThread() async {
         guard let threadID = email.gmailThreadID else { return }
         detailVM.attachmentIndexer = attachmentIndexer
-        detailVM.onMessagesRead = onMessagesRead
+        detailVM.onMessagesRead = actions.onMessagesRead
         await detailVM.loadThread(id: threadID)
     }
 
@@ -386,8 +308,8 @@ struct EmailDetailView: View {
             suggestion,
             allLabels: allLabels,
             fallbackLabelIDs: email.gmailLabelIDs,
-            onCreateAndAddLabel: onCreateAndAddLabel,
-            onAddLabel: onAddLabel
+            onCreateAndAddLabel: actions.onCreateAndAddLabel,
+            onAddLabel: actions.onAddLabel
         )
     }
 
@@ -398,7 +320,7 @@ struct EmailDetailView: View {
             await detailVM.loadAndPreview(
                 attachment: attachment,
                 part: part,
-                onPreviewAttachment: onPreviewAttachment
+                onPreviewAttachment: actions.onPreviewAttachment
             )
         }
     }
@@ -500,7 +422,7 @@ struct EmailDetailView: View {
                         message: message,
                         fromAddress: fromAddress,
                         resolvedHTML: detailVM.resolvedMessageHTML[message.id],
-                        onOpenLink: onOpenLink
+                        onOpenLink: actions.onOpenLink
                     )
                 }
             }
