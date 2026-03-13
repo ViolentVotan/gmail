@@ -96,7 +96,7 @@ struct FormattingToolbar: View {
                         .fill(Color(nsColor: state.textColor))
                         .frame(width: 12, height: 2)
                 }
-                .frame(width: 26, height: 26)
+                .frame(width: ButtonSize.sm, height: ButtonSize.sm)
             }
             .buttonStyle(.plain)
             .help("Text color")
@@ -149,7 +149,7 @@ struct FormattingToolbar: View {
                 Image(systemName: "link")
                     .font(Typography.subheadRegular)
                     .foregroundStyle(.secondary)
-                    .frame(width: 26, height: 26)
+                    .frame(width: ButtonSize.sm, height: ButtonSize.sm)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)

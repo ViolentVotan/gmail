@@ -300,7 +300,7 @@ struct ComposeView: View {
                 Text("Cc")
                     .font(Typography.subhead)
                     .foregroundStyle(showCc ? Color.accentColor : Color.secondary)
-                    .frame(width: 28, height: 28)
+                    .frame(width: ButtonSize.md, height: ButtonSize.md)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
