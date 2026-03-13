@@ -78,7 +78,7 @@ struct ReplyBarView: View {
         .onChange(of: replyHTML) { _,_ in
             scheduleAutoSave()
         }
-        .animation(.easeInOut(duration: 0.2), value: replyBodyIsEmpty)
+        .animation(SerifAnimation.springSnappy, value: replyBodyIsEmpty)
         .onAppear {
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(0.5))
@@ -148,8 +148,8 @@ struct ReplyBarView: View {
                     .font(.body)
                     .foregroundStyle(.tertiary)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.lg)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -166,37 +166,37 @@ struct ReplyBarView: View {
             // Recipient fields
             VStack(spacing: 0) {
                 recipientField(label: "To", text: $replyTo)
-                Divider().padding(.horizontal, 16)
+                Divider().padding(.horizontal, Spacing.lg)
 
                 if showCc {
                     recipientField(label: "Cc", text: $replyCc)
-                    Divider().padding(.horizontal, 16)
+                    Divider().padding(.horizontal, Spacing.lg)
                 }
 
                 if showBcc {
                     recipientField(label: "Bcc", text: $replyBcc)
-                    Divider().padding(.horizontal, 16)
+                    Divider().padding(.horizontal, Spacing.lg)
                 }
 
                 HStack(spacing: 8) {
                     Spacer()
                     Button { withAnimation { showCc.toggle() } } label: {
                         Text("Cc")
-                            .font(.caption.weight(.medium))
+                            .font(Typography.caption)
                             .foregroundStyle(showCc ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
                     }
                     .buttonStyle(.plain)
                     Button { withAnimation { showBcc.toggle() } } label: {
                         Text("Bcc")
-                            .font(.caption.weight(.medium))
+                            .font(Typography.caption)
                             .foregroundStyle(showBcc ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 6)
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.sm)
 
-                Divider().padding(.horizontal, 16)
+                Divider().padding(.horizontal, Spacing.lg)
             }
 
             WebRichTextEditor(
@@ -208,9 +208,9 @@ struct ReplyBarView: View {
                 onOpenLink: onOpenLink
             )
             .frame(minHeight: 120, maxHeight: 200)
-            .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 8)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.top, Spacing.lg)
+            .padding(.bottom, Spacing.sm)
 
             if !attachments.isEmpty {
                 Divider().background(Color(.separatorColor))
@@ -228,12 +228,12 @@ struct ReplyBarView: View {
                                 }
                                 .buttonStyle(.plain)
                             }
-                            .padding(.horizontal, 8).padding(.vertical, 4)
-                            .background(RoundedRectangle(cornerRadius: 6).fill(.regularMaterial))
+                            .padding(.horizontal, Spacing.sm).padding(.vertical, Spacing.xs)
+                            .glassEffect(.regular, in: .rect(cornerRadius: CornerRadius.sm))
                             .foregroundStyle(.secondary)
                         }
                     }
-                    .padding(.horizontal, 16).padding(.vertical, 6)
+                    .padding(.horizontal, Spacing.lg).padding(.vertical, Spacing.sm)
                 }
             }
 
@@ -246,7 +246,7 @@ struct ReplyBarView: View {
             HStack(spacing: 12) {
                 Button { minimize() } label: {
                     Image(systemName: "chevron.down")
-                        .font(.caption.weight(.medium))
+                        .font(Typography.caption)
                         .foregroundStyle(.secondary)
                         .frame(width: 30, height: 30)
                 }
@@ -296,8 +296,8 @@ struct ReplyBarView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.md)
         }
     }
 
@@ -342,12 +342,9 @@ struct ReplyBarView: View {
                         Text(suggestion)
                             .font(.subheadline)
                             .foregroundStyle(.primary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                Capsule()
-                                    .fill(.regularMaterial)
-                            )
+                            .padding(.horizontal, Spacing.md)
+                            .padding(.vertical, Spacing.sm)
+                            .glassEffect(.regular, in: .capsule)
                             .overlay(
                                 Capsule()
                                     .strokeBorder(appleIntelligenceGradient, lineWidth: 1.5)
@@ -358,8 +355,8 @@ struct ReplyBarView: View {
                     .offset(x: index < visibleChipCount ? 0 : 15)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.md)
         }
         .onAppear { animateChips() }
         .onChange(of: quickReplies) { _, _ in animateChips() }
@@ -369,7 +366,7 @@ struct ReplyBarView: View {
         visibleChipCount = 0
         guard !quickReplies.isEmpty else { return }
         for i in 0..<quickReplies.count {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.75).delay(Double(i) * 0.1)) {
+            withAnimation(SerifAnimation.springGentle.delay(Double(i) * 0.1)) {
                 visibleChipCount = i + 1
             }
         }
@@ -380,7 +377,7 @@ struct ReplyBarView: View {
     private func recipientField(label: String, text: Binding<String>) -> some View {
         HStack(spacing: 8) {
             Text(label)
-                .font(.subheadline.weight(.medium))
+                .font(Typography.subhead)
                 .foregroundStyle(.tertiary)
                 .frame(width: 28, alignment: .leading)
 
@@ -389,8 +386,8 @@ struct ReplyBarView: View {
                 .font(.subheadline)
                 .foregroundStyle(.primary)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.sm)
     }
 
     // MARK: - Actions
