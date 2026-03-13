@@ -103,7 +103,7 @@ struct ContentView: View {
                     .focused($appFocus, equals: .detail)
                 }
             }
-            .backgroundExtensionEffect()
+            .navigationSplitViewStyle(.balanced)
             .windowResizeAnchor(.top)
             .onKeyPress(.tab, phases: .down) { keyPress in
                 guard keyPress.modifiers.contains(.option) else { return .ignored }
@@ -184,8 +184,6 @@ struct ContentView: View {
                 Button { coordinator.composeNewEmail() } label: {
                     Label("Compose", systemImage: "square.and.pencil")
                 }
-                .controlSize(.large)
-                .buttonStyle(.glassProminent)
                 .help("Compose (\u{2318}N)")
             }
 
