@@ -149,14 +149,8 @@ struct ContentView: View {
 
             KeyboardShortcutsView(coordinator: coordinator)
 
-            OfflineToastView()
-                .zIndex(4)
-
-            UndoToastView()
+            UnifiedToastLayer()
                 .zIndex(5)
-
-            ToastOverlayView()
-                .zIndex(6)
 
             SlidePanelsOverlay(
                 panels: coordinator.panelCoordinator,

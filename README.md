@@ -12,8 +12,8 @@
   <img src="https://img.shields.io/badge/platform-macOS%2026%2B-blue?logo=apple&logoColor=white" />
   <img src="https://img.shields.io/badge/swift-6.2-orange?logo=swift&logoColor=white" />
   <img src="https://img.shields.io/badge/UI-SwiftUI-purple?logo=swift&logoColor=white" />
-  <img src="https://img.shields.io/github/v/release/marshallino16/Serif?color=green" />
-  <img src="https://img.shields.io/github/license/marshallino16/Serif" />
+  <img src="https://img.shields.io/github/v/release/ViolentVotan/gmail?color=green" />
+  <img src="https://img.shields.io/github/license/ViolentVotan/gmail" />
 </p>
 
 <p align="center">
@@ -62,7 +62,7 @@ A native macOS Gmail client. No Electron. No web wrapper. Just Swift, SwiftUI, a
 ## Getting Started
 
 ```bash
-git clone https://github.com/marshallino16/Serif.git
+git clone https://github.com/ViolentVotan/gmail.git
 ```
 
 1. Create a Google Cloud project with **Gmail API** and **People API** enabled, plus an OAuth 2.0 Desktop client
