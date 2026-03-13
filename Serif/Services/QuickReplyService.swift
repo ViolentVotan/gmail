@@ -35,17 +35,21 @@ final class QuickReplyService {
     #if canImport(FoundationModels)
     @available(macOS 26.0, *)
     private func generateWithFoundationModels(email: Email) async -> [String] {
+        guard SystemLanguageModel.default.availability == .available else { return [] }
+
         do {
+            let localePhrase = Self.localeInstructions()
             let instructions = Instructions("""
             You are an email assistant inside a macOS email client. \
             The user has opened an email and you must suggest quick replies. \
             Rules:
-            - First, identify the language of the email body. Reply suggestions MUST be written in that same language. \
-            For example: if the email is in French, reply in French. If in Spanish, reply in Spanish. Never default to English.
             - Generate 1 to 3 short reply suggestions (max 10 words each).
+            - Match the language of the email body when possible. \
+            If the email is in a supported language, reply in that language.
             - Adapt tone to the email (formal/informal).
-            - Return each suggestion on a separate line, prefixed with a number and a dot (e.g. "1. Merci, je regarde ça.").
+            - Return each suggestion on a separate line, prefixed with a number and a dot (e.g. "1. Thanks, I'll take a look.").
             - No extra text, just the numbered suggestions.
+            \(localePhrase)
             """)
             let session = LanguageModelSession(instructions: instructions)
 
@@ -71,13 +75,49 @@ final class QuickReplyService {
                 if cache.count > 200 { cache.removeAll() }
             }
             return replies
+        } catch is CancellationError {
+            return []
+        } catch let error as LanguageModelSession.GenerationError {
+            switch error {
+            case .unsupportedLanguageOrLocale, .refusal:
+                // Language not supported or model refused — fall back silently
+                return []
+            default:
+                return []
+            }
         } catch {
             return []
         }
     }
+
     #endif
 
+    private static func localeInstructions(for locale: Locale = .current) -> String {
+        if Locale.Language(identifier: "en_US").isEquivalent(to: locale.language) {
+            return ""
+        }
+        return "The person's locale is \(locale.identifier)."
+    }
+
+    private static let refusalPatterns: [String] = [
+        "cannot fulfill",
+        "can't fulfill",
+        "cannot generate",
+        "can't generate",
+        "not able to",
+        "i'm sorry",
+        "i cannot",
+        "i can't",
+        "unable to",
+        "not supported",
+    ]
+
     private func parseReplies(from text: String) -> [String] {
+        let lower = text.lowercased()
+        if Self.refusalPatterns.contains(where: { lower.contains($0) }) {
+            return []
+        }
+
         let unwanted = CharacterSet(charactersIn: ".\"\u{201C}\u{201D}")
             .union(.whitespaces)
 

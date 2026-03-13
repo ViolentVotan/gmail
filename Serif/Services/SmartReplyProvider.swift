@@ -34,10 +34,13 @@ final class SmartReplyProvider {
             #if canImport(FoundationModels)
             do {
                 guard SystemLanguageModel.default.availability == .available else { return [] }
+                let localePhrase = Self.localeInstructions()
                 let instructions = Instructions("""
                 Generate 2-3 short reply suggestions for the email below. \
                 Each reply should be 1-2 sentences, professional but friendly. \
-                Vary the tone: one positive/agreeable, one asking for clarification, one brief acknowledgment.
+                Match the language of the email when possible. \
+                Vary the tone: one positive/agreeable, one asking for clarification, one brief acknowledgment. \
+                \(localePhrase)
                 """)
                 let session = LanguageModelSession(instructions: instructions)
                 let truncatedBody = String(body.cleanedForAI().prefix(10000))
@@ -46,10 +49,25 @@ final class SmartReplyProvider {
                 let replies = Array(response.content.replies.prefix(3))
                 cache[threadId] = replies
                 return replies
+            } catch is CancellationError { return [] }
+            catch let error as LanguageModelSession.GenerationError {
+                switch error {
+                case .unsupportedLanguageOrLocale, .refusal:
+                    return []
+                default:
+                    return []
+                }
             } catch { return [] }
             #else
             return []
             #endif
         } else { return [] }
+    }
+
+    private static func localeInstructions(for locale: Locale = .current) -> String {
+        if Locale.Language(identifier: "en_US").isEquivalent(to: locale.language) {
+            return ""
+        }
+        return "The person's locale is \(locale.identifier)."
     }
 }
