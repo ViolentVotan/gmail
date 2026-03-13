@@ -81,20 +81,16 @@ actor BackgroundSyncer {
     /// Update message bodies after background pre-fetch.
     func updateBodies(_ updates: [(gmailId: String, html: String?, plain: String?)]) throws {
         try db.dbPool.write { db in
+            let now = Date().timeIntervalSince1970
             for update in updates {
-                try db.execute(sql: """
-                    UPDATE messages
-                    SET body_html = ?, body_plain = ?, full_body_fetched = 1, fetched_at = ?
-                    WHERE gmail_id = ?
-                """, arguments: [update.html, update.plain, Date().timeIntervalSince1970, update.gmailId])
-
-                // Update FTS with new body content
-                if let record = try MessageRecord.fetchOne(db, key: update.gmailId) {
-                    var updated = record
-                    updated.bodyHtml = update.html
-                    updated.bodyPlain = update.plain
-                    try FTSManager.update(message: updated, in: db)
-                }
+                // Fetch record once; use it for both the DB update and FTS — no second read needed.
+                guard var record = try MessageRecord.fetchOne(db, key: update.gmailId) else { continue }
+                record.bodyHtml = update.html
+                record.bodyPlain = update.plain
+                record.fullBodyFetched = true
+                record.fetchedAt = now
+                try record.update(db)
+                try FTSManager.update(message: record, in: db)
             }
         }
     }
@@ -224,13 +220,18 @@ actor BackgroundSyncer {
             // Insert new messages
             for gmail in newMessages {
                 let record = MessageRecord(from: gmail)
+                let existed = try MessageRecord.fetchOne(db, key: record.gmailId) != nil
                 try record.upsert(db)
                 try db.execute(sql: "DELETE FROM message_labels WHERE message_id = ?", arguments: [record.gmailId])
                 for labelId in gmail.labelIds ?? [] {
                     try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).upsert(db)
                     try MessageLabelRecord(messageId: record.gmailId, labelId: labelId).insert(db)
                 }
-                try FTSManager.index(message: record, in: db)
+                if existed {
+                    try FTSManager.update(message: record, in: db)
+                } else {
+                    try FTSManager.index(message: record, in: db)
+                }
             }
 
             // Update labels on existing messages

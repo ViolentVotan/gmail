@@ -1,6 +1,14 @@
 import GRDB
 import SwiftUI
 
+/// A message with its eagerly-loaded labels and optional tag.
+/// Used to decode GRDB association-prefetched results.
+private struct MessageWithAssociations: Decodable, FetchableRecord {
+    var message: MessageRecord
+    var labels: [LabelRecord]
+    var tags: EmailTagRecord?
+}
+
 /// Drives the email list for a given account and folder.
 @Observable
 @MainActor
@@ -27,15 +35,27 @@ final class MailboxViewModel {
 
     // MARK: - Services
 
-    var mailDatabase: MailDatabase? {
+    private(set) var mailDatabase: MailDatabase? {
         didSet { fetchService.mailDatabase = mailDatabase }
     }
-    var backgroundSyncer: BackgroundSyncer?
+    private(set) var backgroundSyncer: BackgroundSyncer?
+
+    /// Update the mail database for this view model.
+    func setMailDatabase(_ db: MailDatabase?) {
+        self.mailDatabase = db
+    }
+
+    /// Update the background syncer for this view model.
+    func setBackgroundSyncer(_ syncer: BackgroundSyncer?) {
+        self.backgroundSyncer = syncer
+    }
+
     private let api: MessageFetching
     private let fetchService: MessageFetchService
     private let labelService: LabelSyncService
     private let historyService: HistorySyncService
-    private var messageObservation: (any DatabaseCancellable)?
+    @ObservationIgnored nonisolated(unsafe) private var messageObservation: (any DatabaseCancellable)?
+    @ObservationIgnored nonisolated(unsafe) private var enrichmentTask: Task<Void, Never>?
 
     init(
         accountID: String,
@@ -54,6 +74,11 @@ final class MailboxViewModel {
             return self.makeEmail(from: msg)
         }
         fetchService.accountID = accountID
+    }
+
+    deinit {
+        messageObservation?.cancel()
+        enrichmentTask?.cancel()
     }
 
     // MARK: - GmailMessage → Email (cached)
@@ -81,8 +106,20 @@ final class MailboxViewModel {
     func startObservingLabel(_ labelId: String) {
         messageObservation?.cancel()
         guard let db = mailDatabase else { return }
+        // Use GRDB association prefetching: 3 queries instead of N+1.
+        // Query 1: SELECT m.* FROM messages … (filtered by label)
+        // Query 2: SELECT l.* FROM labels WHERE … IN (...) (batch)
+        // Query 3: SELECT t.* FROM email_tags WHERE … IN (...) (batch)
+        let request = MessageRecord
+            .joining(required: MessageRecord.messageLabels
+                .filter(Column("label_id") == labelId))
+            .including(all: MessageRecord.labels)
+            .including(optional: MessageRecord.tags)
+            .order(Column("internal_date").desc)
+            .limit(200)
+            .asRequest(of: MessageWithAssociations.self)
         let observation = ValueObservation.tracking { db in
-            try MailDatabaseQueries.messagesForLabel(labelId, limit: 200, in: db)
+            try request.fetchAll(db)
         }
         messageObservation = observation.start(
             in: db.dbPool,
@@ -92,45 +129,40 @@ final class MailboxViewModel {
                     self?.error = "Database observation failed: \(error.localizedDescription)"
                 }
             },
-            onChange: { [weak self] records in
+            onChange: { [weak self] enrichedRecords in
                 Task { @MainActor in
-                    self?.handleDatabaseUpdate(records, from: db)
+                    self?.handleDatabaseUpdate(enrichedRecords, from: db)
                 }
             }
         )
     }
 
-    private func handleDatabaseUpdate(_ records: [MessageRecord], from db: MailDatabase) {
+    private func handleDatabaseUpdate(_ records: [MessageWithAssociations], from db: MailDatabase) {
         // Stale check: ignore updates from a previous account's database
         guard db === mailDatabase else { return }
-        Task {
-            let threadEmails = await Self.enrichRecords(records, db: db)
+        enrichmentTask?.cancel()
+        enrichmentTask = Task {
+            let threadEmails = Self.threadedEmails(from: records)
+            guard !Task.isCancelled else { return }
             guard db === self.mailDatabase else { return }
-            // Guard against enrichRecords returning empty due to error/cancellation
-            // when the observation returned non-empty records
+            // Guard against empty results when the observation returned non-empty records
             if threadEmails.isEmpty && !records.isEmpty { return }
             self.emails = threadEmails
         }
     }
 
-    private nonisolated static func enrichRecords(_ records: [MessageRecord], db: MailDatabase) async -> [Email] {
-        do {
-            let newEmails: [Email] = try await db.dbPool.read { database in
-                try records.map { record in
-                    let labels = try MailDatabaseQueries.labels(forMessage: record.gmailId, in: database)
-                    return record.toEmail(labels: labels, tags: nil)
-                }
-            }
-            let grouped = Dictionary(grouping: newEmails) { $0.gmailThreadID ?? $0.gmailMessageID ?? $0.id.uuidString }
-            return grouped.values.compactMap { threadEmails -> Email? in
-                var latest = threadEmails.sorted { $0.date > $1.date }.first
-                latest?.threadMessageCount = threadEmails.count
-                return latest
-            }.sorted { $0.date > $1.date }
-        } catch {
-            print("DB update error: \(error)")
-            return []
+    /// Convert association-prefetched records into threaded Email models.
+    /// Pure computation — no database access needed.
+    private static func threadedEmails(from records: [MessageWithAssociations]) -> [Email] {
+        let emails = records.map { row in
+            row.message.toEmail(labels: row.labels, tags: row.tags)
         }
+        let grouped = Dictionary(grouping: emails) { $0.gmailThreadID ?? $0.gmailMessageID ?? $0.id.uuidString }
+        return grouped.values.compactMap { threadEmails -> Email? in
+            var latest = threadEmails.sorted { $0.date > $1.date }.first
+            latest?.threadMessageCount = threadEmails.count
+            return latest
+        }.sorted { $0.date > $1.date }
     }
 
     // MARK: - Load

@@ -42,39 +42,48 @@ final class SnoozeStore {
     static let shared = SnoozeStore()
     private init() {}
 
-    private(set) var items: [SnoozedItem] = []
+    /// Per-account storage keyed by accountID. Eliminates cross-account bleed
+    /// and makes load(accountID:) atomic (a single dictionary assignment rather
+    /// than removeAll + append which is non-atomic under observation).
+    private var itemsByAccount: [String: [SnoozedItem]] = [:]
+
+    /// Flat view of all items across all accounts. Preserves the public API
+    /// shape that callers (e.g. AppCoordinator) depend on.
+    private(set) var items: [SnoozedItem] {
+        get { itemsByAccount.values.flatMap { $0 } }
+        set { /* @Observable requires a setter; mutations go through itemsByAccount */ }
+    }
 
     func load(accountID: String) {
         let url = fileURL(for: accountID)
         guard let data = try? Data(contentsOf: url),
               let contents = try? JSONDecoder().decode(SnoozeFileContents.self, from: data) else { return }
-        // Remove existing items for this account, then add loaded ones
-        items.removeAll { $0.accountID == accountID }
-        items.append(contentsOf: contents.items.filter { $0.accountID == accountID })
+        // Atomic replacement: a single dictionary write rather than removeAll + append
+        itemsByAccount[accountID] = contents.items.filter { $0.accountID == accountID }
     }
 
     func add(_ item: SnoozedItem) {
-        items.append(item)
+        itemsByAccount[item.accountID, default: []].append(item)
         save(accountID: item.accountID)
     }
 
     func remove(messageId: String, accountID: String) {
-        items.removeAll { $0.messageId == messageId && $0.accountID == accountID }
+        itemsByAccount[accountID]?.removeAll { $0.messageId == messageId }
         save(accountID: accountID)
     }
 
     func expiredItems() -> [SnoozedItem] {
         let now = Date()
-        return items.filter { $0.snoozeUntil <= now }
+        return itemsByAccount.values.flatMap { $0 }.filter { $0.snoozeUntil <= now }
     }
 
     func itemsForAccount(_ accountID: String) -> [SnoozedItem] {
-        items.filter { $0.accountID == accountID }
+        itemsByAccount[accountID] ?? []
     }
 
     private func save(accountID: String) {
         let url = fileURL(for: accountID)
-        let contents = SnoozeFileContents(version: 1, items: items.filter { $0.accountID == accountID })
+        let contents = SnoozeFileContents(version: 1, items: itemsByAccount[accountID] ?? [])
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? JSONEncoder().encode(contents).write(to: url, options: .atomic)
     }

@@ -4,8 +4,8 @@ import Observation
 struct PendingUndoAction: Identifiable {
     let id = UUID()
     let label: String
-    let onConfirm: () -> Void
-    let onUndo: () -> Void
+    let onConfirm: @MainActor @Sendable () -> Void
+    let onUndo: @MainActor @Sendable () -> Void
 }
 
 @Observable
@@ -27,7 +27,7 @@ final class UndoActionManager {
     /// The currently displayed action (most recent).
     var currentAction: PendingUndoAction? { pendingActions.last }
 
-    func schedule(label: String, onConfirm: @escaping () -> Void, onUndo: @escaping () -> Void) {
+    func schedule(label: String, onConfirm: @escaping @MainActor @Sendable () -> Void, onUndo: @escaping @MainActor @Sendable () -> Void) {
         // If stack is full, confirm the oldest action to make room
         if pendingActions.count >= maxStack {
             let oldest = pendingActions.removeFirst()

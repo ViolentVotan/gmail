@@ -140,7 +140,8 @@ final class HistorySyncService {
             result.error = error.localizedDescription
             return result
         } catch {
-            result.succeeded = true
+            print("[HistorySyncService] Non-API error during sync: \(error)")
+            result.succeeded = false
             result.error = error.localizedDescription
             return result
         }

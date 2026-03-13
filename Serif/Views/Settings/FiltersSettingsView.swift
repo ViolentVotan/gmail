@@ -2,16 +2,20 @@ import SwiftUI
 
 struct FiltersSettingsView: View {
     let accountID: String
-    @State private var filters: [GmailFilter] = []
-    @State private var isLoading = false
+    @State private var viewModel: FiltersViewModel
     @State private var showEditor = false
     @State private var filterToDelete: GmailFilter?
 
+    init(accountID: String) {
+        self.accountID = accountID
+        self._viewModel = State(initialValue: FiltersViewModel(accountID: accountID))
+    }
+
     var body: some View {
         VStack {
-            if isLoading {
+            if viewModel.isLoading {
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else if filters.isEmpty {
+            } else if viewModel.filters.isEmpty {
                 ContentUnavailableView(
                     "No Filters",
                     systemImage: "line.3.horizontal.decrease.circle",
@@ -19,7 +23,7 @@ struct FiltersSettingsView: View {
                 )
             } else {
                 List {
-                    ForEach(filters) { filter in
+                    ForEach(viewModel.filters) { filter in
                         filterRow(filter)
                     }
                 }
@@ -29,7 +33,7 @@ struct FiltersSettingsView: View {
             Button { showEditor = true } label: { Label("Create Filter", systemImage: "plus") }
         }
         .sheet(isPresented: $showEditor) {
-            FilterEditorView(accountID: accountID) { _ in Task { await loadFilters() } }
+            FilterEditorView(viewModel: viewModel) { _ in Task { await viewModel.loadFilters() } }
         }
         .alert("Delete Filter", isPresented: Binding(
             get: { filterToDelete != nil },
@@ -38,15 +42,12 @@ struct FiltersSettingsView: View {
             Button("Cancel", role: .cancel) { filterToDelete = nil }
             Button("Delete", role: .destructive) {
                 if let filter = filterToDelete {
-                    Task {
-                        try? await GmailFilterService.shared.deleteFilter(id: filter.id, accountID: accountID)
-                        await loadFilters()
-                    }
+                    Task { await viewModel.deleteFilter(id: filter.id) }
                 }
                 filterToDelete = nil
             }
         }
-        .task { await loadFilters() }
+        .task { await viewModel.loadFilters() }
     }
 
     private func filterRow(_ filter: GmailFilter) -> some View {
@@ -57,12 +58,6 @@ struct FiltersSettingsView: View {
         .contextMenu {
             Button("Delete", role: .destructive) { filterToDelete = filter }
         }
-    }
-
-    private func loadFilters() async {
-        isLoading = true
-        defer { isLoading = false }
-        filters = (try? await GmailFilterService.shared.listFilters(accountID: accountID)) ?? []
     }
 
     private func filterSummary(_ filter: GmailFilter) -> String {

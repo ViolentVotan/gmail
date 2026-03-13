@@ -7,7 +7,8 @@ import GRDB
 struct MessageRecordTests {
     @Test("upsert updates existing record")
     func upsertUpdates() throws {
-        let db = try makeTestDatabase()
+        let (db, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         var record = MessageRecord.fixture()
 
         try db.dbPool.write { db in
@@ -49,7 +50,8 @@ struct MessageRecordTests {
 
     @Test("queries messages by thread_id")
     func queryByThread() throws {
-        let db = try makeTestDatabase()
+        let (db, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         try db.dbPool.write { db in
             try MessageRecord.fixture(gmailId: "m1", threadId: "t1").insert(db)
             try MessageRecord.fixture(gmailId: "m2", threadId: "t1").insert(db)
@@ -68,7 +70,8 @@ struct MessageRecordTests {
 
     @Test("message-label association works")
     func messageLabelAssociation() throws {
-        let db = try makeTestDatabase()
+        let (db, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         try db.dbPool.write { db in
             try LabelRecord(gmailId: "INBOX", name: "Inbox", type: "system", bgColor: nil, textColor: nil).insert(db)
             try LabelRecord(gmailId: "STARRED", name: "Starred", type: "system", bgColor: nil, textColor: nil).insert(db)
@@ -86,7 +89,8 @@ struct MessageRecordTests {
 
     @Test("inserts and fetches from database")
     func insertAndFetch() throws {
-        let mailDB = try makeTestDatabase()
+        let (mailDB, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         let record = MessageRecord.fixture(gmailId: "rt-test")
 
         try mailDB.dbPool.write { db in
@@ -106,7 +110,8 @@ struct MessageRecordTests {
 
     @Test("converts MessageRecord to Email for UI display")
     func toEmailConversion() throws {
-        let db = try makeTestDatabase()
+        let (db, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         try db.dbPool.write { db in
             try LabelRecord(gmailId: "INBOX", name: "Inbox", type: "system", bgColor: nil, textColor: nil).insert(db)
             try LabelRecord(gmailId: "work", name: "Work", type: "user", bgColor: "#4285f4", textColor: "#ffffff").insert(db)
@@ -138,10 +143,11 @@ struct MessageRecordTests {
         #expect(email.labels.count == 1) // Only user labels shown (not system)
     }
 
-    private func makeTestDatabase() throws -> MailDatabase {
+    private func makeTestDatabase() throws -> (db: MailDatabase, tempDir: URL) {
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        return try MailDatabase(accountID: "test", baseDirectory: tempDir)
+        let db = try MailDatabase(accountID: "test", baseDirectory: tempDir)
+        return (db, tempDir)
     }
 }

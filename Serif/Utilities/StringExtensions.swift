@@ -1,6 +1,59 @@
 import Foundation
 
 extension String {
+    /// Decodes all HTML entities (named, decimal &#123;, hex &#x1F;) to characters.
+    /// Authoritative implementation — used by `strippingHTML` and `cleanedForAI`.
+    func decodingHTMLEntities() -> String {
+        guard contains("&") else { return self }
+        var result = self
+
+        // Decode hex numeric HTML entities (&#x27; etc.)
+        if let regex = try? NSRegularExpression(pattern: "&#x([0-9a-fA-F]+);") {
+            let mutable = NSMutableString(string: result)
+            for match in regex.matches(in: result, range: NSRange(result.startIndex..., in: result)).reversed() {
+                if let range = Range(match.range(at: 1), in: result),
+                   let code = UInt32(result[range], radix: 16),
+                   let scalar = Unicode.Scalar(code) {
+                    mutable.replaceCharacters(in: match.range, with: String(scalar))
+                }
+            }
+            result = mutable as String
+        }
+
+        // Decode decimal numeric HTML entities (&#39; &#8203; etc.)
+        if let regex = try? NSRegularExpression(pattern: "&#([0-9]+);") {
+            let mutable = NSMutableString(string: result)
+            for match in regex.matches(in: result, range: NSRange(result.startIndex..., in: result)).reversed() {
+                if let range = Range(match.range(at: 1), in: result),
+                   let code = UInt32(result[range]),
+                   let scalar = Unicode.Scalar(code) {
+                    mutable.replaceCharacters(in: match.range, with: String(scalar))
+                }
+            }
+            result = mutable as String
+        }
+
+        // Decode named HTML entities (comprehensive set)
+        let entities: [String: String] = [
+            "&nbsp;": " ", "&lt;": "<", "&gt;": ">",
+            "&quot;": "\"", "&apos;": "'",
+            "&lsquo;": "\u{2018}", "&rsquo;": "\u{2019}",
+            "&ldquo;": "\u{201C}", "&rdquo;": "\u{201D}",
+            "&ndash;": "\u{2013}", "&mdash;": "\u{2014}",
+            "&hellip;": "\u{2026}", "&bull;": "\u{2022}",
+            "&copy;": "\u{00A9}", "&reg;": "\u{00AE}",
+            "&trade;": "\u{2122}",
+            "&euro;": "\u{20AC}",
+        ]
+        for (entity, replacement) in entities {
+            result = result.replacingOccurrences(of: entity, with: replacement)
+        }
+        // Decode &amp; last to prevent double-decoding (e.g. &amp;lt; -> &lt; -> <)
+        result = result.replacingOccurrences(of: "&amp;", with: "&")
+
+        return result
+    }
+
     var strippingHTML: String {
         var result = self
         // Remove style/script blocks first
@@ -14,13 +67,8 @@ extension String {
         result = result.replacingOccurrences(of: "</div>",       with: "")
         // Strip remaining tags
         result = result.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
-        // Decode common HTML entities
-        result = result.replacingOccurrences(of: "&nbsp;",  with: " ")
-        result = result.replacingOccurrences(of: "&lt;",    with: "<")
-        result = result.replacingOccurrences(of: "&gt;",    with: ">")
-        result = result.replacingOccurrences(of: "&quot;",  with: "\"")
-        result = result.replacingOccurrences(of: "&#39;",   with: "'")
-        result = result.replacingOccurrences(of: "&amp;",   with: "&")
+        // Decode HTML entities
+        result = result.decodingHTMLEntities()
         // Collapse multiple blank lines
         result = result.replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -43,46 +91,8 @@ extension String {
             )
         }
 
-        // Decode hex numeric HTML entities (&#x27; etc.)
-        if let regex = try? NSRegularExpression(pattern: "&#x([0-9a-fA-F]+);") {
-            let mutable = NSMutableString(string: text)
-            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
-                if let range = Range(match.range(at: 1), in: text),
-                   let code = UInt32(text[range], radix: 16),
-                   let scalar = Unicode.Scalar(code) {
-                    mutable.replaceCharacters(in: match.range, with: String(scalar))
-                }
-            }
-            text = mutable as String
-        }
-
-        // Decode decimal numeric HTML entities (&#39; &#8203; etc.)
-        if let regex = try? NSRegularExpression(pattern: "&#([0-9]+);") {
-            let mutable = NSMutableString(string: text)
-            for match in regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
-                if let range = Range(match.range(at: 1), in: text),
-                   let code = UInt32(text[range]),
-                   let scalar = Unicode.Scalar(code) {
-                    mutable.replaceCharacters(in: match.range, with: String(scalar))
-                }
-            }
-            text = mutable as String
-        }
-
-        // Decode named HTML entities
-        let entities: [String: String] = [
-            "&nbsp;": " ", "&lt;": "<", "&gt;": ">",
-            "&quot;": "\"", "&apos;": "'", "&rsquo;": "\u{2019}",
-            "&lsquo;": "\u{2018}", "&rdquo;": "\u{201D}", "&ldquo;": "\u{201C}",
-            "&ndash;": "\u{2013}", "&mdash;": "\u{2014}", "&hellip;": "\u{2026}",
-            "&euro;": "\u{20AC}", "&copy;": "\u{00A9}", "&reg;": "\u{00AE}",
-            "&trade;": "\u{2122}", "&bull;": "\u{2022}"
-        ]
-        for (entity, replacement) in entities {
-            text = text.replacingOccurrences(of: entity, with: replacement)
-        }
-        // Decode &amp; last to prevent double-decoding (e.g. &amp;lt; → &lt; → <)
-        text = text.replacingOccurrences(of: "&amp;", with: "&")
+        // Decode HTML entities
+        text = text.decodingHTMLEntities()
 
         // Split into lines and filter noise
         let lines = text.components(separatedBy: .newlines)

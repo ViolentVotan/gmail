@@ -18,7 +18,7 @@ final class ComposeViewModel {
     @ObservationIgnored let accountID:   String
     @ObservationIgnored var fromAddress: String
     @ObservationIgnored var gmailDraftID:     String?   // set once we've created a remote draft
-    @ObservationIgnored private var saveDraftTask: Task<Void, Never>?
+    @ObservationIgnored nonisolated(unsafe) private var saveDraftTask: Task<Void, Never>?
     @ObservationIgnored var threadID:         String?   // for replies
     @ObservationIgnored var replyToMessageID: String?   // for In-Reply-To / References headers
     @ObservationIgnored var attachmentURLs:   [URL] = []
@@ -27,6 +27,10 @@ final class ComposeViewModel {
         self.accountID   = accountID
         self.fromAddress = fromAddress
         self.threadID    = threadID
+    }
+
+    deinit {
+        saveDraftTask?.cancel()
     }
 
     // MARK: - Send
@@ -111,7 +115,8 @@ final class ComposeViewModel {
         // Cancel any previous in-flight save so we don't get double creates
         saveDraftTask?.cancel()
 
-        let task = Task {
+        let task = Task { [weak self] in
+            guard let self else { return }
             guard !Task.isCancelled else { return }
             do {
                 // Extract inline data: URLs → cid: + MIME parts for proper Gmail storage
@@ -131,7 +136,7 @@ final class ComposeViewModel {
                         accountID:    accountID
                     )
                     guard !Task.isCancelled else { return }
-                    gmailDraftID = draft.id
+                    self.gmailDraftID = draft.id
                 } else {
                     let draft = try await GmailDraftService.shared.createDraft(
                         from:         fromAddress,
@@ -144,7 +149,7 @@ final class ComposeViewModel {
                         accountID:    accountID
                     )
                     guard !Task.isCancelled else { return }
-                    gmailDraftID = draft.id
+                    self.gmailDraftID = draft.id
                 }
             } catch {
                 if !Task.isCancelled {
@@ -259,9 +264,10 @@ final class ComposeViewModel {
             return nil
         }
         previousTask?.cancel()
-        let task = Task {
+        let task = Task { [weak self] in
             try? await Task.sleep(nanoseconds: 2_000_000_000)
             guard !Task.isCancelled else { return }
+            guard let self else { return }
             if self.gmailDraftID == nil,
                let threadID = self.threadID,
                let saved = mailStore.replyDrafts[threadID] {

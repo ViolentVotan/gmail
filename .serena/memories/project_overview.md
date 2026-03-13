@@ -14,14 +14,14 @@ Native macOS Gmail client. Swift 6.2 / SwiftUI. 3-column layout (sidebar, email 
 - Optimistic UI with undo system
 - Draft auto-save with 2s debounce
 - Theming via @Environment(\.theme)
-- Auto-updates via Sparkle (appcast on GitHub Pages)
+- GRDB SQLite database for per-account email persistence
 - Apple Intelligence integration (summaries, quick replies)
 
 ## CI/CD
-- GitHub Actions: `v*` tag → build → sign → notarize → DMG → GitHub Release → Sparkle appcast
+- GitHub Actions: `v*` tag → build → sign → notarize → DMG → GitHub Release
 - Secrets: Google OAuth, Developer ID cert, provisioning profile, Apple notarization credentials
 
 ## Build & Test
 - Build verification: XcodeBuildMCP
 - Tests: `xcodebuild test -scheme Serif -destination 'platform=macOS'`
-- 11 test files in SerifTests/
+- Tests in SerifTests/ (root + Database/ subdirectory)

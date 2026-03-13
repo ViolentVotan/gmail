@@ -48,31 +48,40 @@ final class CommandPaletteViewModel {
 
     func buildCommands(coordinator: AppCoordinator) {
         allCommands = [
-            Command(id: "action.compose", title: "Compose New Email", icon: "square.and.pencil", group: .actions) {
+            Command(id: "action.compose", title: "Compose New Email", icon: "square.and.pencil", group: .actions) { [weak coordinator] in
+                guard let coordinator else { return }
                 coordinator.composeNewEmail()
             },
-            Command(id: "action.refresh", title: "Refresh", icon: "arrow.clockwise", group: .actions) {
+            Command(id: "action.refresh", title: "Refresh", icon: "arrow.clockwise", group: .actions) { [weak coordinator] in
+                guard let coordinator else { return }
                 Task { await coordinator.loadCurrentFolder() }
             },
-            Command(id: "folder.inbox", title: "Go to Inbox", icon: "tray", group: .navigation) {
+            Command(id: "folder.inbox", title: "Go to Inbox", icon: "tray", group: .navigation) { [weak coordinator] in
+                guard let coordinator else { return }
                 coordinator.selectedFolder = .inbox
             },
-            Command(id: "folder.sent", title: "Go to Sent", icon: "paperplane", group: .navigation) {
+            Command(id: "folder.sent", title: "Go to Sent", icon: "paperplane", group: .navigation) { [weak coordinator] in
+                guard let coordinator else { return }
                 coordinator.selectedFolder = .sent
             },
-            Command(id: "folder.drafts", title: "Go to Drafts", icon: "doc", group: .navigation) {
+            Command(id: "folder.drafts", title: "Go to Drafts", icon: "doc", group: .navigation) { [weak coordinator] in
+                guard let coordinator else { return }
                 coordinator.selectedFolder = .drafts
             },
-            Command(id: "folder.archive", title: "Go to Archive", icon: "archivebox", group: .navigation) {
+            Command(id: "folder.archive", title: "Go to Archive", icon: "archivebox", group: .navigation) { [weak coordinator] in
+                guard let coordinator else { return }
                 coordinator.selectedFolder = .archive
             },
-            Command(id: "folder.trash", title: "Go to Trash", icon: "trash", group: .navigation) {
+            Command(id: "folder.trash", title: "Go to Trash", icon: "trash", group: .navigation) { [weak coordinator] in
+                guard let coordinator else { return }
                 coordinator.selectedFolder = .trash
             },
-            Command(id: "folder.starred", title: "Go to Starred", icon: "star", group: .navigation) {
+            Command(id: "folder.starred", title: "Go to Starred", icon: "star", group: .navigation) { [weak coordinator] in
+                guard let coordinator else { return }
                 coordinator.selectedFolder = .starred
             },
-            Command(id: "folder.snoozed", title: "Go to Snoozed", icon: "clock.fill", group: .navigation) {
+            Command(id: "folder.snoozed", title: "Go to Snoozed", icon: "clock.fill", group: .navigation) { [weak coordinator] in
+                guard let coordinator else { return }
                 coordinator.selectedFolder = .snoozed
             },
             Command(id: "settings.open", title: "Open Settings", icon: "gear", group: .actions) {

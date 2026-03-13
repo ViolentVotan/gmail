@@ -16,6 +16,9 @@ struct EmailListView: View {
     @State private var selectionAnchorID: String?
     @State private var sortedEmails: [Email] = []
     @State private var cachedSections: [EmailDateSection] = []
+    @State private var unreadEmails: [Email] = []
+    @State private var starredEmails: [Email] = []
+    @State private var attachmentEmails: [Email] = []
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
@@ -26,6 +29,9 @@ struct EmailListView: View {
         case .sender:                   sortedEmails = emails.sorted { $0.sender.name.localizedCaseInsensitiveCompare($1.sender.name) == .orderedAscending }
         }
         cachedSections = useDateSections ? Self.buildSections(from: sortedEmails) : []
+        unreadEmails = emails.filter { !$0.isRead }
+        starredEmails = emails.filter { $0.isStarred }
+        attachmentEmails = emails.filter { $0.hasAttachments }
     }
 
     var body: some View {
@@ -339,17 +345,17 @@ struct EmailListView: View {
         .onKeyPress(characters: CharacterSet(charactersIn: "r")) { _ in handleKeyR() }
         .scrollEdgeEffectStyle(.hard, for: .top)
         .accessibilityRotor("Unread Emails") {
-            ForEach(emails.filter { !$0.isRead }) { email in
+            ForEach(unreadEmails) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)
             }
         }
         .accessibilityRotor("Starred") {
-            ForEach(emails.filter { $0.isStarred }) { email in
+            ForEach(starredEmails) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)
             }
         }
         .accessibilityRotor("Has Attachments") {
-            ForEach(emails.filter { $0.hasAttachments }) { email in
+            ForEach(attachmentEmails) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)
             }
         }

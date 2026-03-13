@@ -1,4 +1,4 @@
-import SwiftUI
+import Foundation
 
 struct EmailDetailActions {
     // MARK: - Email mutations
@@ -27,8 +27,8 @@ struct EmailDetailActions {
     // MARK: - Content
 
     var onPreviewAttachment: ((Data?, String, Attachment.FileType) -> Void)?
-    var onShowOriginal: ((EmailDetailViewModel) -> Void)?
-    var onDownloadMessage: ((EmailDetailViewModel) -> Void)?
+    var onShowOriginal: ((GmailMessage, String) -> Void)?   // (message, accountID)
+    var onDownloadMessage: ((GmailMessage, String) -> Void)? // (message, accountID)
     var onPrint: ((GmailMessage, Email) -> Void)?
     var onUnsubscribe: ((URL, Bool, String?) async -> Bool)?
     var onOpenLink: ((URL) -> Void)?

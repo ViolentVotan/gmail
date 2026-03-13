@@ -87,15 +87,12 @@ struct ElevationModifier: ViewModifier {
     let level: ElevationLevel
 
     enum ElevationLevel {
-        case navigation
         case transient
         case elevated
     }
 
     func body(content: Content) -> some View {
         switch level {
-        case .navigation:
-            content.shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
         case .transient:
             content.shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 4)
         case .elevated:
@@ -107,28 +104,6 @@ struct ElevationModifier: ViewModifier {
 extension View {
     func elevation(_ level: ElevationModifier.ElevationLevel) -> some View {
         modifier(ElevationModifier(level: level))
-    }
-}
-
-// MARK: - Selectable Row Style
-
-struct SelectableRowStyle: ViewModifier {
-    let isSelected: Bool
-    let isHovered: Bool
-
-    func body(content: Content) -> some View {
-        content
-            .foregroundStyle(
-                isSelected ? AnyShapeStyle(.tint)
-                : isHovered ? AnyShapeStyle(.primary)
-                : AnyShapeStyle(.secondary)
-            )
-    }
-}
-
-extension View {
-    func selectableRowStyle(isSelected: Bool, isHovered: Bool) -> some View {
-        modifier(SelectableRowStyle(isSelected: isSelected, isHovered: isHovered))
     }
 }
 

@@ -8,6 +8,7 @@ final class OfflineActionQueue {
 
     private(set) var pendingActions: [OfflineAction] = []
     private(set) var isDraining = false
+    private var retryDelay: TimeInterval = 2.0
 
     var pendingCount: Int { pendingActions.count }
 
@@ -30,6 +31,7 @@ final class OfflineActionQueue {
 
         Task {
             var succeeded = 0
+            var hitError = false
             while let action = pendingActions.first {
                 do {
                     try await executeAction(action)
@@ -41,13 +43,24 @@ final class OfflineActionQueue {
                         pendingActions.removeFirst()
                         save(accountID: action.accountID)
                     } else {
+                        print("[OfflineActionQueue] Drain error: \(error), retrying in \(retryDelay)s")
+                        hitError = true
                         break
                     }
                 }
             }
             isDraining = false
             if succeeded > 0 {
+                retryDelay = 2.0
                 ToastManager.shared.show(message: "Synced \(succeeded) action\(succeeded == 1 ? "" : "s")")
+            }
+            if hitError {
+                let delay = retryDelay
+                retryDelay = min(retryDelay * 2, 60)
+                Task {
+                    try? await Task.sleep(for: .seconds(delay))
+                    startDraining()
+                }
             }
         }
     }

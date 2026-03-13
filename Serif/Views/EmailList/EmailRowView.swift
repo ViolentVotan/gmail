@@ -14,10 +14,29 @@ struct EmailRowView: View {
     @ScaledMetric(relativeTo: .caption2) private var dotSize: CGFloat = 7
     @ScaledMetric(relativeTo: .caption2) private var threadBadgeSize: CGFloat = 18
 
-    private var nudgeText: String? {
+    /// Cached at init to avoid per-render allocations.
+    private let nudgeText: String?
+    /// Cached at init to avoid per-render allocations.
+    private let labelBadges: [BadgeItem]
+    /// Cached at init to avoid per-render allocations and direct service access.
+    private let tagBadges: [BadgeItem]
+
+    init(email: Email, isSelected: Bool, accountID: String, action: @escaping () -> Void) {
+        self.email = email
+        self.isSelected = isSelected
+        self.accountID = accountID
+        self.action = action
+
         let daysAgo = Calendar.current.dateComponents([.day], from: email.date, to: Date()).day ?? 0
-        guard daysAgo >= 3 else { return nil }
-        return "Received \(daysAgo) days ago"
+        self.nudgeText = daysAgo >= 3 ? "Received \(daysAgo) days ago" : nil
+
+        self.labelBadges = email.labels.map { .label($0) }
+
+        if let tags = EmailClassifier.shared.cachedTags(for: email.gmailMessageID ?? "") {
+            self.tagBadges = tags.activeTags.map { .tag(label: $0.label, color: $0.color) }
+        } else {
+            self.tagBadges = []
+        }
     }
 
     private func tagColor(_ name: String) -> Color {
@@ -58,15 +77,6 @@ struct EmailRowView: View {
         }
     }
 
-    private var labelBadges: [BadgeItem] {
-        email.labels.map { .label($0) }
-    }
-
-    private var tagBadges: [BadgeItem] {
-        guard let tags = EmailClassifier.shared.cachedTags(for: email.gmailMessageID ?? "") else { return [] }
-        return tags.activeTags.map { .tag(label: $0.label, color: $0.color) }
-    }
-
     private static let isAppleIntelligenceAvailable: Bool = {
         guard #available(macOS 26.0, *) else { return false }
         #if canImport(FoundationModels)
@@ -77,8 +87,6 @@ struct EmailRowView: View {
     }()
 
     var body: some View {
-        let labels = labelBadges
-        let tags = tagBadges
         Button(action: action) {
             HStack(spacing: 12) {
                 // Unread indicator
@@ -135,18 +143,18 @@ struct EmailRowView: View {
                             .foregroundStyle(.orange)
                     }
 
-                    if !labels.isEmpty || (showTags && !tags.isEmpty) {
+                    if !labelBadges.isEmpty || (showTags && !tagBadges.isEmpty) {
                         HStack(spacing: 4) {
-                            ForEach(labels.prefix(2)) { badge in
+                            ForEach(labelBadges.prefix(2)) { badge in
                                 badgeView(badge)
                             }
                             if showTags {
-                                ForEach(tags.prefix(2)) { badge in
+                                ForEach(tagBadges.prefix(2)) { badge in
                                     badgeView(badge)
                                 }
                             }
-                            let totalVisible = labels.prefix(2).count + (showTags ? tags.prefix(2).count : 0)
-                            let totalCount = labels.count + tags.count
+                            let totalVisible = labelBadges.prefix(2).count + (showTags ? tagBadges.prefix(2).count : 0)
+                            let totalCount = labelBadges.count + tagBadges.count
                             if totalCount > totalVisible {
                                 Text("+\(totalCount - totalVisible)")
                                     .font(Typography.captionSmallMedium)

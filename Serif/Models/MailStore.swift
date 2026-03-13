@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 
+// MARK: - TODO: Move to ViewModels/ — this is architecturally a ViewModel
 @Observable @MainActor
 final class MailStore {
     var emails: [Email]
@@ -117,8 +118,7 @@ final class MailStore {
             let syncedGmailIDs = Set(emails.compactMap(\.gmailDraftID))
             self.emails.removeAll { email in
                 email.folder == .drafts && email.isDraft
-                    && email.gmailDraftID != nil
-                    && syncedGmailIDs.contains(email.gmailDraftID!)
+                    && email.gmailDraftID.map { syncedGmailIDs.contains($0) } == true
             }
         } catch {
             // Silently fail — keep existing cached drafts if any

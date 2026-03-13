@@ -57,8 +57,7 @@ final class PanelCoordinator {
         }
     }
 
-    func showOriginalMessage(from vm: EmailDetailViewModel) {
-        guard let msg = vm.latestMessage else { return }
+    func showOriginalMessage(message msg: GmailMessage, accountID: String) {
         originalMessage = msg
         originalRawSource = nil
         isLoadingOriginal = true
@@ -67,7 +66,7 @@ final class PanelCoordinator {
         }
         Task {
             do {
-                let raw = try await GmailMessageService.shared.getRawMessage(id: msg.id, accountID: vm.accountID)
+                let raw = try await GmailMessageService.shared.getRawMessage(id: msg.id, accountID: accountID)
                 self.originalRawSource = raw.rawSource
             } catch {
                 self.originalRawSource = nil
@@ -91,19 +90,16 @@ final class PanelCoordinator {
         }
     }
 
-    func downloadMessage(from vm: EmailDetailViewModel) {
-        guard let msg = vm.latestMessage else { return }
+    func downloadMessage(message msg: GmailMessage, accountID: String) {
         Task {
             do {
-                let raw = try await GmailMessageService.shared.getRawMessage(id: msg.id, accountID: vm.accountID)
+                let raw = try await GmailMessageService.shared.getRawMessage(id: msg.id, accountID: accountID)
                 if let source = raw.rawSource {
-                    await MainActor.run {
-                        let panel = NSSavePanel()
-                        panel.nameFieldStringValue = "\(msg.subject).eml"
-                        panel.canCreateDirectories = true
-                        guard panel.runModal() == .OK, let url = panel.url else { return }
-                        try? source.data(using: .utf8)?.write(to: url)
-                    }
+                    let panel = NSSavePanel()
+                    panel.nameFieldStringValue = "\(msg.subject).eml"
+                    panel.canCreateDirectories = true
+                    guard panel.runModal() == .OK, let url = panel.url else { return }
+                    try? source.data(using: .utf8)?.write(to: url)
                 }
             } catch {
                 ToastManager.shared.show(message: "Download failed: \(error.localizedDescription)", type: .error)

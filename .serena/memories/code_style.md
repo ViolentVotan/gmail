@@ -29,13 +29,13 @@ Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). Al
 
 ## Architecture (MVVM)
 - **Services**: Singletons via `static let shared` + `private init()`. `@MainActor` when touching UI state; `@concurrent` on I/O-bound methods. Dependency injection via initializer params for testability.
-- **ViewModels**: `@Observable @MainActor final class` — 9 VMs follow this pattern. No `@Published`, no `ObservableObject`. Properties are plain `var` tracked by `@Observable` macro.
+- **ViewModels**: `@Observable @MainActor final class` — 10 VMs follow this pattern. No `@Published`, no `ObservableObject`. Properties are plain `var` tracked by `@Observable` macro.
 - **Views**: Pure SwiftUI rendering. No business logic. Access data via ViewModels only.
 - **Models**: Value types (struct). Never reference services.
-- **Exception**: `WebRichTextEditorState` stays as `ObservableObject` with `@Published` — NSViewRepresentable bridge requirement. `UpdaterViewModel` keeps `import Combine` for Sparkle KVO interop.
+- **Exception**: `WebRichTextEditorState` stays as `ObservableObject` with `@Published` + `import Combine` — NSViewRepresentable bridge requirement.
 
 ## SwiftUI Patterns
-- **`@Observable`** macro on all VMs, `MailStore`, `ThemeManager`, and many services
+- **`@Observable`** macro on all VMs, `MailStore`, `AppearanceManager`, and many services
 - **`@State`** for ViewModel ownership in views (not `@StateObject`)
 - **`@Bindable`** for child views needing two-way bindings to `@Observable` objects
 - **`@Environment(\.theme)`** for theming via `@Entry` macro on `EnvironmentValues` — never hardcode colors
@@ -68,7 +68,7 @@ Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). Al
 - Expression-style `if`/`switch` for assignments where it improves readability
 
 ## Testing
-- All 11 test files use **Swift Testing** (`import Testing`, `@Test`, `#expect`)
+- All test files use **Swift Testing** (`import Testing`, `@Test`, `#expect`)
 - No XCTest — fully migrated to Swift Testing framework
 - Parameterized tests via `@Test(arguments:)` for data-driven testing
 

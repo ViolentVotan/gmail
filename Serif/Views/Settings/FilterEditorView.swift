@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct FilterEditorView: View {
-    let accountID: String
+    let viewModel: FiltersViewModel
     let onSave: (GmailFilter) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -60,7 +60,7 @@ struct FilterEditorView: View {
         if shouldMarkRead { removeLabelIds.append("UNREAD") }
         let action = GmailFilter.FilterAction(removeLabelIds: removeLabelIds.isEmpty ? nil : removeLabelIds)
         do {
-            let filter = try await GmailFilterService.shared.createFilter(criteria: criteria, action: action, accountID: accountID)
+            let filter = try await viewModel.createFilter(criteria: criteria, action: action)
             onSave(filter)
             dismiss()
         } catch {

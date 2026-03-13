@@ -36,34 +36,44 @@ final class ScheduledSendStore {
     static let shared = ScheduledSendStore()
     private init() {}
 
-    private(set) var items: [ScheduledSendItem] = []
+    /// Per-account storage keyed by accountID. Eliminates cross-account bleed
+    /// and makes load(accountID:) atomic (a single dictionary assignment rather
+    /// than removeAll + append which is non-atomic under observation).
+    private var itemsByAccount: [String: [ScheduledSendItem]] = [:]
+
+    /// Flat view of all items across all accounts. Preserves the public API
+    /// shape that callers (e.g. AppCoordinator) depend on.
+    private(set) var items: [ScheduledSendItem] {
+        get { itemsByAccount.values.flatMap { $0 } }
+        set { /* @Observable requires a setter; mutations go through itemsByAccount */ }
+    }
 
     func load(accountID: String) {
         let url = fileURL(for: accountID)
         guard let data = try? Data(contentsOf: url),
               let contents = try? JSONDecoder().decode(ScheduledFileContents.self, from: data) else { return }
-        items.removeAll { $0.accountID == accountID }
-        items.append(contentsOf: contents.items.filter { $0.accountID == accountID })
+        // Atomic replacement: a single dictionary write rather than removeAll + append
+        itemsByAccount[accountID] = contents.items.filter { $0.accountID == accountID }
     }
 
     func add(_ item: ScheduledSendItem) {
-        items.append(item)
+        itemsByAccount[item.accountID, default: []].append(item)
         save(accountID: item.accountID)
     }
 
     func remove(draftId: String, accountID: String) {
-        items.removeAll { $0.draftId == draftId && $0.accountID == accountID }
+        itemsByAccount[accountID]?.removeAll { $0.draftId == draftId }
         save(accountID: accountID)
     }
 
     func dueItems() -> [ScheduledSendItem] {
         let now = Date()
-        return items.filter { $0.scheduledTime <= now }
+        return itemsByAccount.values.flatMap { $0 }.filter { $0.scheduledTime <= now }
     }
 
     private func save(accountID: String) {
         let url = fileURL(for: accountID)
-        let contents = ScheduledFileContents(version: 1, items: items.filter { $0.accountID == accountID })
+        let contents = ScheduledFileContents(version: 1, items: itemsByAccount[accountID] ?? [])
         try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? JSONEncoder().encode(contents).write(to: url, options: .atomic)
     }

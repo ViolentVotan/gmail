@@ -18,10 +18,10 @@ final class EmailClassifier {
     func classifyBatch(_ emails: [Email], db: MailDatabase? = nil) async {
         if #available(macOS 26.0, *) {
             #if canImport(FoundationModels)
-            do {
-                guard SystemLanguageModel.default.availability == .available else { return }
-                for email in emails.prefix(10) {
-                    guard let msgId = email.gmailMessageID, tagCache[msgId] == nil else { continue }
+            guard SystemLanguageModel.default.availability == .available else { return }
+            for email in emails.prefix(10) {
+                guard let msgId = email.gmailMessageID, tagCache[msgId] == nil else { continue }
+                do {
                     // Check DB for persisted tags before invoking the model
                     if let db {
                         let persisted = try? await db.dbPool.read { database in
@@ -59,8 +59,11 @@ final class EmailClassifier {
                             ).upsert(database)
                         }
                     }
+                } catch {
+                    print("[EmailClassifier] Failed to classify \(msgId): \(error)")
+                    continue
                 }
-            } catch { }
+            }
             #endif
         }
     }

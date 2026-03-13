@@ -44,8 +44,8 @@ final class AttachmentStore {
 
     @ObservationIgnored private let database: AttachmentDatabase
     @ObservationIgnored private let searchService: AttachmentSearchService
-    @ObservationIgnored private var searchTask: Task<Void, Never>?
-    @ObservationIgnored private var debounceTask: Task<Void, Never>?
+    @ObservationIgnored nonisolated(unsafe) private var searchTask: Task<Void, Never>?
+    @ObservationIgnored nonisolated(unsafe) private var debounceTask: Task<Void, Never>?
     @ObservationIgnored var accountID: String = ""
 
     @ObservationIgnored var indexer: AttachmentIndexer?
@@ -89,6 +89,11 @@ final class AttachmentStore {
     init(database: AttachmentDatabase = .shared) {
         self.database = database
         self.searchService = AttachmentSearchService(database: database)
+    }
+
+    deinit {
+        searchTask?.cancel()
+        debounceTask?.cancel()
     }
 
     // MARK: - Search Debounce

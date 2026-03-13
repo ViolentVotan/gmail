@@ -17,6 +17,8 @@ final class AppCoordinator {
     private(set) var backgroundSyncer: BackgroundSyncer?
     private var pendingDraftSelection: Email?
     private var lifecycleTask: Task<Void, Never>?
+    private var cachedSnoozedEmails: [Email] = []
+    private var cachedScheduledEmails: [Email] = []
 
     // MARK: - Selection State
 
@@ -71,35 +73,8 @@ final class AppCoordinator {
     var displayedEmails: [Email] {
         if selectedFolder == .drafts { return mailStore.emails(for: .drafts) }
         if selectedFolder == .subscriptions { return SubscriptionsStore.shared.entries }
-        if selectedFolder == .snoozed {
-            return SnoozeStore.shared.items.map { item in
-                Email(
-                    sender: Contact(name: item.senderName, email: ""),
-                    subject: item.subject,
-                    body: "",
-                    date: item.snoozeUntil,
-                    isRead: true,
-                    folder: .snoozed,
-                    gmailMessageID: item.messageId,
-                    gmailThreadID: item.threadId,
-                    gmailLabelIDs: item.originalLabelIds
-                )
-            }
-        }
-        if selectedFolder == .scheduled {
-            return ScheduledSendStore.shared.items.map { item in
-                Email(
-                    sender: Contact(name: fromAddress, email: fromAddress),
-                    recipients: item.recipients.map { Contact(name: $0, email: $0) },
-                    subject: item.subject,
-                    body: "",
-                    date: item.scheduledTime,
-                    isRead: true,
-                    folder: .scheduled,
-                    isDraft: true
-                )
-            }
-        }
+        if selectedFolder == .snoozed { return cachedSnoozedEmails }
+        if selectedFolder == .scheduled { return cachedScheduledEmails }
         return mailboxViewModel.emails
     }
 
@@ -115,6 +90,37 @@ final class AppCoordinator {
 
     var fromAddress: String {
         authViewModel.primaryAccount?.email ?? ""
+    }
+
+    private func refreshSnoozedCache() {
+        cachedSnoozedEmails = SnoozeStore.shared.items.map { item in
+            Email(
+                sender: Contact(name: item.senderName, email: ""),
+                subject: item.subject,
+                body: "",
+                date: item.snoozeUntil,
+                isRead: true,
+                folder: .snoozed,
+                gmailMessageID: item.messageId,
+                gmailThreadID: item.threadId,
+                gmailLabelIDs: item.originalLabelIds
+            )
+        }
+    }
+
+    private func refreshScheduledCache() {
+        cachedScheduledEmails = ScheduledSendStore.shared.items.map { item in
+            Email(
+                sender: Contact(name: fromAddress, email: fromAddress),
+                recipients: item.recipients.map { Contact(name: $0, email: $0) },
+                subject: item.subject,
+                body: "",
+                date: item.scheduledTime,
+                isRead: true,
+                folder: .scheduled,
+                isDraft: true
+            )
+        }
     }
 
     // MARK: - Actions
@@ -262,6 +268,10 @@ final class AppCoordinator {
             }
         case .drafts:
             await mailStore.syncGmailDrafts(accountID: accountID)
+        case .snoozed:
+            refreshSnoozedCache()
+        case .scheduled:
+            refreshScheduledCache()
         case .subscriptions:
             break
         case .attachments:
@@ -294,8 +304,8 @@ final class AppCoordinator {
             mailboxViewModel.attachmentIndexer = indexer
             Task {
                 await setupDatabase(for: account.id)
-                mailboxViewModel.mailDatabase = self.mailDatabase
-                mailboxViewModel.backgroundSyncer = self.backgroundSyncer
+                mailboxViewModel.setMailDatabase(self.mailDatabase)
+                mailboxViewModel.setBackgroundSyncer(self.backgroundSyncer)
                 await indexer.setProgressUpdate { [weak attachmentStore] in
                     attachmentStore?.refresh()
                 }
@@ -334,7 +344,11 @@ final class AppCoordinator {
         searchResetTrigger += 1
         if folder != .labels { selectedLabel = nil }
         lifecycleTask?.cancel()
-        if folder == .attachments {
+        if folder == .snoozed {
+            refreshSnoozedCache()
+        } else if folder == .scheduled {
+            refreshScheduledCache()
+        } else if folder == .attachments {
             attachmentStore.refresh()
             if let indexer = attachmentIndexer {
                 lifecycleTask = Task {
@@ -353,14 +367,16 @@ final class AppCoordinator {
         selectedEmail = nil
         selectedEmailIDs = []
         searchResetTrigger += 1
-        Task { await loadCurrentFolder() }
+        lifecycleTask?.cancel()
+        lifecycleTask = Task { await loadCurrentFolder() }
     }
 
     func handleCategoryChange(_ category: InboxCategory?) {
         selectedEmail = nil
         selectedEmailIDs = []
         searchResetTrigger += 1
-        Task { await loadCurrentFolder() }
+        lifecycleTask?.cancel()
+        lifecycleTask = Task { await loadCurrentFolder() }
     }
 
     func handleAccountChange(_ newID: String?) {
@@ -396,8 +412,8 @@ final class AppCoordinator {
                 attachmentStore?.refresh()
             }
             await mailboxViewModel.switchAccount(id)
-            mailboxViewModel.mailDatabase = self.mailDatabase
-            mailboxViewModel.backgroundSyncer = self.backgroundSyncer
+            mailboxViewModel.setMailDatabase(self.mailDatabase)
+            mailboxViewModel.setBackgroundSyncer(self.backgroundSyncer)
             async let folderLoad: Void = loadCurrentFolder()
             async let labelsLoad: Void = mailboxViewModel.loadLabels()
             async let sendAsLoad: Void = mailboxViewModel.loadSendAs()

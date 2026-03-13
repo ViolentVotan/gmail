@@ -18,6 +18,7 @@ enum CacheMigration {
 
     /// Migrate existing JSON cache data into the database, then mark migration complete.
     /// Fault-tolerant: individual failures are swallowed so the flag is always set.
+    /// Deletes only this account's cache subdirectory after migration.
     static func migrateIfNeeded(db: MailDatabase, accountID: String) async throws {
         guard needsMigration(accountID: accountID) else { return }
         defer {
@@ -34,6 +35,10 @@ enum CacheMigration {
 
         // Migrate AI classification tags
         await migrateTags(db: db, accountID: accountID)
+
+        // Remove only this account's cache subdirectory — other accounts may not have migrated yet.
+        let accountDir = cacheBaseDir.appendingPathComponent(accountID, isDirectory: true)
+        try? FileManager.default.removeItem(at: accountDir)
     }
 
     // MARK: - Private helpers
@@ -94,9 +99,18 @@ enum CacheMigration {
         }
     }
 
-    /// Removes the old JSON cache directory after migration is complete.
+    /// Removes the old JSON cache base directory only if it is empty
+    /// (i.e., all per-account subdirectories have already been cleaned up by migrateIfNeeded).
+    /// Safe to call after any single account finishes migration — it will not delete
+    /// cache data for accounts whose migration has not yet run.
     static func cleanupOldCache() {
-        try? FileManager.default.removeItem(at: cacheBaseDir)
+        let contents = try? FileManager.default.contentsOfDirectory(
+            at: cacheBaseDir,
+            includingPropertiesForKeys: nil
+        )
+        if contents?.isEmpty == true {
+            try? FileManager.default.removeItem(at: cacheBaseDir)
+        }
     }
 
     private static func migrateTags(db: MailDatabase, accountID: String) async {

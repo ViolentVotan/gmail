@@ -45,7 +45,15 @@ final class MailDatabase: Sendable {
         }
     }
 
+    /// Closes the database pool, releasing all connections.
+    /// Call this before `deleteDatabase(accountID:baseDirectory:)` to avoid WAL/SHM file locks.
+    func close() {
+        try? dbPool.close()
+    }
+
     /// Deletes the database file and WAL/SHM files.
+    /// IMPORTANT: Close the MailDatabase instance (call `close()`) before calling this,
+    /// otherwise WAL/SHM files may be locked and file removal can fail silently.
     static func deleteDatabase(accountID: String, baseDirectory: URL? = nil) {
         let dir = baseDirectory ?? defaultBaseDirectory
         let base = dir.appendingPathComponent("\(accountID).sqlite").path

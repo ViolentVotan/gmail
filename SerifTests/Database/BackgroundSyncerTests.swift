@@ -8,7 +8,8 @@ struct BackgroundSyncerTests {
 
     @Test("upsertMessages inserts new messages and labels into DB")
     func upsertMessages() async throws {
-        let db = try makeTestDatabase()
+        let (db, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         let syncer = BackgroundSyncer(db: db)
 
         // Simulate API response
@@ -32,7 +33,8 @@ struct BackgroundSyncerTests {
 
     @Test("upsertMessages updates existing message on re-sync")
     func upsertUpdatesExisting() async throws {
-        let db = try makeTestDatabase()
+        let (db, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         let syncer = BackgroundSyncer(db: db)
 
         let msg1 = GmailMessage.testFixture(id: "m1", threadId: "t1", labelIds: ["INBOX", "UNREAD"], subject: "Original")
@@ -49,7 +51,8 @@ struct BackgroundSyncerTests {
 
     @Test("updateThreadMessageCounts sets correct counts")
     func threadCounts() async throws {
-        let db = try makeTestDatabase()
+        let (db, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         let syncer = BackgroundSyncer(db: db)
 
         let messages = [
@@ -67,7 +70,8 @@ struct BackgroundSyncerTests {
 
     @Test("applyDelta inserts new messages and removes deleted ones")
     func applyDelta() async throws {
-        let db = try makeTestDatabase()
+        let (db, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         let syncer = BackgroundSyncer(db: db)
 
         // Seed existing messages
@@ -95,10 +99,11 @@ struct BackgroundSyncerTests {
         #expect(m2?.isStarred == true)
     }
 
-    private func makeTestDatabase() throws -> MailDatabase {
+    private func makeTestDatabase() throws -> (db: MailDatabase, tempDir: URL) {
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        return try MailDatabase(accountID: "test", baseDirectory: tempDir)
+        let db = try MailDatabase(accountID: "test", baseDirectory: tempDir)
+        return (db, tempDir)
     }
 }

@@ -61,7 +61,19 @@ struct ContentView: View {
                     categoryUnreadCounts: coordinator.mailboxViewModel.categoryUnreadCounts,
                     userLabels: coordinator.mailboxViewModel.labels.filter { !$0.isSystemLabel },
                     onRenameLabel: { label, newName in Task { await coordinator.renameLabel(label, to: newName) } },
-                    onDeleteLabel: { label in Task { await coordinator.deleteLabel(label) } }
+                    onDeleteLabel: { label in Task { await coordinator.deleteLabel(label) } },
+                    onDropToTrash: { msgId, accountID in
+                        Task { try? await GmailMessageService.shared.trashMessage(id: msgId, accountID: accountID) }
+                    },
+                    onDropToArchive: { msgId, accountID in
+                        Task { try? await GmailMessageService.shared.archiveMessage(id: msgId, accountID: accountID) }
+                    },
+                    onDropToSpam: { msgId, accountID in
+                        Task { try? await GmailMessageService.shared.spamMessage(id: msgId, accountID: accountID) }
+                    },
+                    onDropToLabel: { msgId, labelId, accountID in
+                        Task { try? await GmailMessageService.shared.modifyLabels(id: msgId, add: [labelId], remove: [], accountID: accountID) }
+                    }
                 )
                 .focused($appFocus, equals: .sidebar)
             } content: {
@@ -195,8 +207,7 @@ struct ContentView: View {
             if let email = coordinator.selectedEmail {
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button {
-                        let vm = EmailDetailViewModel(accountID: coordinator.accountID)
-                        coordinator.startCompose(mode: vm.replyMode(email: email))
+                        coordinator.startCompose(mode: EmailDetailViewModel.replyMode(for: email, fromAddress: coordinator.fromAddress))
                     } label: {
                         Label("Reply", systemImage: "arrowshape.turn.up.left")
                     }
@@ -239,13 +250,11 @@ struct ContentView: View {
                 ToolbarItem(placement: .automatic) {
                     Menu {
                         Button {
-                            let vm = EmailDetailViewModel(accountID: coordinator.accountID)
-                            coordinator.startCompose(mode: vm.replyAllMode(email: email))
+                            coordinator.startCompose(mode: EmailDetailViewModel.replyAllMode(for: email, fromAddress: coordinator.fromAddress))
                         } label: { Label("Reply All", systemImage: "arrowshape.turn.up.left.2") }
 
                         Button {
-                            let vm = EmailDetailViewModel(accountID: coordinator.accountID)
-                            coordinator.startCompose(mode: vm.forwardMode(email: email))
+                            coordinator.startCompose(mode: EmailDetailViewModel.forwardMode(for: email))
                         } label: { Label("Forward", systemImage: "arrowshape.turn.up.right") }
 
                         Divider()
@@ -331,6 +340,11 @@ struct ContentView: View {
             .onReceive(NotificationCenter.default.publisher(for: .searchEmailFromIntent)) { _ in
                 coordinator.selectedFolder = .inbox
                 coordinator.searchFocusTrigger = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .openEmailFromIntent)) { notification in
+                if let messageId = notification.userInfo?["messageId"] as? String {
+                    coordinator.navigateToMessage(gmailMessageID: messageId)
+                }
             }
             .onChange(of: coordinator.mailboxViewModel.lastRestoredMessageID) { _, msgID in
                 guard let msgID else { return }

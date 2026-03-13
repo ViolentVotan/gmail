@@ -13,4 +13,4 @@
 
 ## Clean
 - `xcodebuild clean -scheme Serif`
-- Remove DerivedData: `rm -rf ~/Library/Developer/Xcode/DerivedData/Serif-*`
+- Remove DerivedData: `rm -r ~/Library/Developer/Xcode/DerivedData/Serif-*`

@@ -62,12 +62,20 @@ enum MailDatabaseQueries {
     }
 
     /// Batch check which gmail IDs are NOT in the database.
+    /// Processes in chunks of 500 to stay within SQLite's variable limit.
     static func missingMessageIds(from ids: [String], in db: Database) throws -> [String] {
         guard !ids.isEmpty else { return [] }
-        let existing = try String.fetchAll(db, sql: """
-            SELECT gmail_id FROM messages WHERE gmail_id IN (\(ids.map { _ in "?" }.joined(separator: ",")))
-        """, arguments: StatementArguments(ids))
-        let existingSet = Set(existing)
+        let chunkSize = 500
+        var existingSet = Set<String>()
+        for chunkStart in stride(from: 0, to: ids.count, by: chunkSize) {
+            let chunkEnd = min(chunkStart + chunkSize, ids.count)
+            let chunk = Array(ids[chunkStart..<chunkEnd])
+            let placeholders = chunk.map { _ in "?" }.joined(separator: ",")
+            let found = try String.fetchAll(db, sql: """
+                SELECT gmail_id FROM messages WHERE gmail_id IN (\(placeholders))
+            """, arguments: StatementArguments(chunk))
+            existingSet.formUnion(found)
+        }
         return ids.filter { !existingSet.contains($0) }
     }
 

@@ -11,6 +11,10 @@ struct SidebarView: View {
     var userLabels: [GmailLabel] = []
     var onRenameLabel: ((GmailLabel, String) -> Void)?
     var onDeleteLabel: ((GmailLabel) -> Void)?
+    var onDropToTrash: ((String, String) -> Void)?
+    var onDropToArchive: ((String, String) -> Void)?
+    var onDropToSpam: ((String, String) -> Void)?
+    var onDropToLabel: ((String, String, String) -> Void)?
 
     @State private var labelToRename: GmailLabel?
     @State private var labelToDelete: GmailLabel?
@@ -150,16 +154,14 @@ struct SidebarView: View {
         .dropDestination(for: EmailDragItem.self) { items, _ in
             for item in items {
                 for msgId in item.messageIds {
-                    Task {
-                        switch folder {
-                        case .trash:
-                            try? await GmailMessageService.shared.trashMessage(id: msgId, accountID: item.accountID)
-                        case .archive:
-                            try? await GmailMessageService.shared.archiveMessage(id: msgId, accountID: item.accountID)
-                        case .spam:
-                            try? await GmailMessageService.shared.spamMessage(id: msgId, accountID: item.accountID)
-                        default: break
-                        }
+                    switch folder {
+                    case .trash:
+                        onDropToTrash?(msgId, item.accountID)
+                    case .archive:
+                        onDropToArchive?(msgId, item.accountID)
+                    case .spam:
+                        onDropToSpam?(msgId, item.accountID)
+                    default: break
                     }
                 }
             }
@@ -199,11 +201,7 @@ struct SidebarView: View {
         .dropDestination(for: EmailDragItem.self) { items, _ in
             for item in items {
                 for msgId in item.messageIds {
-                    Task {
-                        try? await GmailMessageService.shared.modifyLabels(
-                            id: msgId, add: [label.id], remove: [], accountID: item.accountID
-                        )
-                    }
+                    onDropToLabel?(msgId, label.id, item.accountID)
                 }
             }
             return true

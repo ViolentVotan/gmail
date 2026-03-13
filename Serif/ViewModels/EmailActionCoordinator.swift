@@ -90,10 +90,21 @@ final class EmailActionCoordinator {
     func markSpamEmail(_ email: Email, selectNext: @escaping (Email?) -> Void) {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
-        vm.removeOptimistically(msgID)
-        vm.updateLabelsInDatabase(msgID, addLabelIds: [GmailSystemLabel.spam], removeLabelIds: [GmailSystemLabel.inbox])
+        let removed = vm.removeOptimistically(msgID)
+        let originalLabels = vm.updateLabelsInDatabase(
+            msgID,
+            addLabelIds: [GmailSystemLabel.spam],
+            removeLabelIds: [GmailSystemLabel.inbox]
+        )
         selectNext(nil)
-        Task { await vm.spam(msgID) }
+        UndoActionManager.shared.schedule(
+            label: "Marked as Spam",
+            onConfirm: { Task { await vm.spam(msgID) } },
+            onUndo: {
+                if let msg = removed { vm.restoreOptimistically(msg) }
+                if let labels = originalLabels { vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels) }
+            }
+        )
     }
 
     func unsubscribeEmail(_ email: Email) {

@@ -13,6 +13,10 @@ struct GmailThreadMessageView: View {
     /// Cached result of `stripQuotedHTML` — computed once at init to avoid
     /// repeated regex work (10 passes) on every render cycle.
     private let cachedHTMLParts: (original: String, quoted: String?)
+    /// Cached sender contact — parsed once at init to avoid recomputing on every render.
+    private let sender: Contact
+    /// Cached sent-by-me flag — derived from sender at init.
+    private let isSentByMe: Bool
 
     init(message: GmailMessage, fromAddress: String, resolvedHTML: String? = nil, onOpenLink: ((URL) -> Void)? = nil) {
         self.message = message
@@ -23,18 +27,10 @@ struct GmailThreadMessageView: View {
         let html = Self.computeFullHTML(message: message, resolvedHTML: resolvedHTML)
         self.cachedFullHTML = html
         self.cachedHTMLParts = Self.stripQuotedHTML(html)
-    }
 
-    private var sender: Contact { GmailDataTransformer.parseContact(message.from) }
-
-    private var isSentByMe: Bool {
-        guard !fromAddress.isEmpty else { return false }
-        return sender.email.lowercased() == fromAddress.lowercased()
-    }
-
-    /// The raw HTML for this message — use resolved (inline images) if available.
-    private var fullHTML: String {
-        Self.computeFullHTML(message: message, resolvedHTML: resolvedHTML)
+        let parsedSender = GmailDataTransformer.parseContact(message.from)
+        self.sender = parsedSender
+        self.isSentByMe = !fromAddress.isEmpty && parsedSender.email.lowercased() == fromAddress.lowercased()
     }
 
     /// Compute the full HTML from message parts (static for use in init).

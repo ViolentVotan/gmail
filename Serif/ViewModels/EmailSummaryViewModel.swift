@@ -9,8 +9,13 @@ final class EmailSummaryViewModel {
     private(set) var isAISummary = false
     private(set) var insight: EmailInsightSnapshot?
 
-    private var streamTask: Task<Void, Never>?
-    private var insightTask: Task<Void, Never>?
+    @ObservationIgnored nonisolated(unsafe) private var streamTask: Task<Void, Never>?
+    @ObservationIgnored nonisolated(unsafe) private var insightTask: Task<Void, Never>?
+
+    deinit {
+        streamTask?.cancel()
+        insightTask?.cancel()
+    }
 
     func startStreaming(for email: Email) {
         streamTask = Task {

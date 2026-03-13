@@ -80,27 +80,7 @@ struct Email: Identifiable, Equatable, Sendable {
 
     /// Decodes HTML entities (e.g. `&#39;` → `'`, `&amp;` → `&`) from Gmail snippets.
     private static func decodeHTMLEntities(_ string: String) -> String {
-        guard string.contains("&") else { return string }
-        var result = string
-        // Named entities
-        let named: [(String, String)] = [
-            ("&lt;", "<"), ("&gt;", ">"),
-            ("&quot;", "\""), ("&apos;", "'"), ("&nbsp;", " "),
-            ("&amp;", "&"),
-        ]
-        for (entity, char) in named {
-            result = result.replacingOccurrences(of: entity, with: char)
-        }
-        // Numeric entities: &#39; &#169; etc.
-        while let range = result.range(of: "&#\\d+;", options: .regularExpression) {
-            let digits = result[range].dropFirst(2).dropLast()
-            if let code = UInt32(digits), let scalar = Unicode.Scalar(code) {
-                result.replaceSubrange(range, with: String(scalar))
-            } else {
-                break
-            }
-        }
-        return result
+        return string.decodingHTMLEntities()
     }
 }
 
@@ -280,8 +260,6 @@ enum Folder: String, CaseIterable, Identifiable, Sendable {
         case .scheduled:     return "calendar.badge.clock"
         }
     }
-
-    var count: Int { 0 }
 
     /// Gmail API label ID for this folder (nil = use gmailQuery instead).
     var gmailLabelID: String? {

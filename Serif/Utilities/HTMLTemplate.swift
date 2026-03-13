@@ -132,6 +132,36 @@ enum HTMLTemplate {
             with: "",
             options: .regularExpression
         )
+        // Remove <object> tags and their content
+        result = result.replacingOccurrences(
+            of: "<object[^>]*>[\\s\\S]*?</object>",
+            with: "",
+            options: [.regularExpression, .caseInsensitive]
+        )
+        // Remove <embed> tags (self-closing)
+        result = result.replacingOccurrences(
+            of: "<embed[^>]*>",
+            with: "",
+            options: [.regularExpression, .caseInsensitive]
+        )
+        // Remove <form> tags and their content
+        result = result.replacingOccurrences(
+            of: "<form[^>]*>[\\s\\S]*?</form>",
+            with: "",
+            options: [.regularExpression, .caseInsensitive]
+        )
+        // Remove <base> tags (can hijack relative URLs)
+        result = result.replacingOccurrences(
+            of: "<base[^>]*>",
+            with: "",
+            options: [.regularExpression, .caseInsensitive]
+        )
+        // Remove <meta http-equiv="refresh"> tags (can redirect)
+        result = result.replacingOccurrences(
+            of: "<meta[^>]*http-equiv[^>]*>",
+            with: "",
+            options: [.regularExpression, .caseInsensitive]
+        )
         // Remove javascript: URLs from attributes
         result = result.replacingOccurrences(
             of: "javascript\\s*:",

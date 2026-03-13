@@ -11,6 +11,7 @@ final class GmailAPIClient {
     private let baseURL = "https://gmail.googleapis.com/gmail/v1"
     nonisolated private static let logger = Logger(subsystem: "com.genyus.serif", category: "GmailAPI")
     private var refreshTasks: [String: Task<AuthToken, Error>] = [:]
+    private var refreshGeneration: [String: Int] = [:]
 
     /// Configured session for Google API calls: appropriate timeouts,
     /// connection pooling, and connectivity waiting.
@@ -488,8 +489,10 @@ final class GmailAPIClient {
             }
         }
 
+        let generation = (refreshGeneration[accountID] ?? 0) + 1
+        refreshGeneration[accountID] = generation
+
         let task = Task<AuthToken, Error> {
-            defer { self.refreshTasks[accountID] = nil }
             let token: AuthToken?
             do {
                 token = try TokenStore.shared.retrieve(for: accountID)
@@ -503,8 +506,18 @@ final class GmailAPIClient {
         }
         refreshTasks[accountID] = task
         do {
-            return try await task.value
+            let result = try await task.value
+            // Only clear if this is still our task (generation matches)
+            if refreshGeneration[accountID] == generation {
+                refreshTasks[accountID] = nil
+                refreshGeneration.removeValue(forKey: accountID)
+            }
+            return result
         } catch {
+            if refreshGeneration[accountID] == generation {
+                refreshTasks[accountID] = nil
+                refreshGeneration.removeValue(forKey: accountID)
+            }
             throw .wrap(error)
         }
     }
@@ -717,15 +730,29 @@ enum RetryPolicy {
 // MARK: - Path Builder
 
 enum GmailPathBuilder {
+    /// Query-safe characters — `.urlQueryAllowed` minus `+` (which means space in query strings).
+    private static let queryAllowed: CharacterSet = {
+        var cs = CharacterSet.urlQueryAllowed
+        cs.remove("+")
+        return cs
+    }()
+
+    /// Path-safe characters — `.urlPathAllowed` minus `+` (ambiguous in email addresses).
+    private static let pathAllowed: CharacterSet = {
+        var cs = CharacterSet.urlPathAllowed
+        cs.remove("+")
+        return cs
+    }()
+
     /// Builds a single `&labelIds=...` query parameter with URL encoding.
     static func labelQueryParam(_ labelID: String) -> String {
-        let encoded = labelID.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? labelID
+        let encoded = labelID.addingPercentEncoding(withAllowedCharacters: queryAllowed) ?? labelID
         return "&labelIds=\(encoded)"
     }
 
     /// Builds the path for a sendAs endpoint with URL-encoded email.
     static func sendAsPath(_ email: String) -> String {
-        let encoded = email.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? email
+        let encoded = email.addingPercentEncoding(withAllowedCharacters: pathAllowed) ?? email
         return "/users/me/settings/sendAs/\(encoded)"
     }
 }

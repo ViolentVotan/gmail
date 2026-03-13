@@ -121,8 +121,12 @@ struct DetailPaneView: View {
         actions.onPreviewAttachment = { data, name, fileType in
             panelCoordinator.previewAttachment(data: data, name: name, fileType: fileType)
         }
-        actions.onShowOriginal = { vm in panelCoordinator.showOriginalMessage(from: vm) }
-        actions.onDownloadMessage = { vm in panelCoordinator.downloadMessage(from: vm) }
+        actions.onShowOriginal = { msg, acctID in
+            panelCoordinator.showOriginalMessage(message: msg, accountID: acctID)
+        }
+        actions.onDownloadMessage = { msg, acctID in
+            panelCoordinator.downloadMessage(message: msg, accountID: acctID)
+        }
         actions.onUnsubscribe = { url, oneClick, msgID in
             await actionCoordinator.unsubscribe(url: url, oneClick: oneClick, messageID: msgID, accountID: accountID)
         }

@@ -17,6 +17,9 @@ struct GmailAccount: Identifiable, Codable, Equatable, Sendable {
 /// Persists the list of connected accounts to UserDefaults.
 /// Tokens are stored separately in the Keychain via TokenStore.
 /// Thread-safe via UserDefaults (which is itself thread-safe).
+/// Thread-safe when all mutations are called from @MainActor (which they are in practice).
+/// The `@unchecked Sendable` conformance allows cross-isolation passing of the shared instance.
+/// All mutating methods (add, remove, update*) are called exclusively from @MainActor contexts.
 final class AccountStore: @unchecked Sendable {
     static let shared = AccountStore()
 

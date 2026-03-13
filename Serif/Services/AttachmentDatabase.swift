@@ -27,16 +27,22 @@ final class AttachmentDatabase: @unchecked Sendable {
     // MARK: - Lifecycle
 
     private init() {
-        do {
-            try openDatabase()
-            try createSchema()
-        } catch {
-            print("[AttachmentDB] Init failed: \(error)")
+        queue.sync {
+            do {
+                try openDatabase()
+                try createSchema()
+            } catch {
+                print("[AttachmentDB] Init failed: \(error)")
+            }
         }
     }
 
+    // Effectively unreachable — `shared` singleton is never deallocated.
+    // Wrapped in queue.sync for correctness if reuse patterns change.
     deinit {
-        if let db { sqlite3_close(db) }
+        queue.sync {
+            if let db { sqlite3_close(db) }
+        }
     }
 
     // MARK: - Open

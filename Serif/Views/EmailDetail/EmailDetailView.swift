@@ -113,10 +113,16 @@ struct EmailDetailView: View {
                                     Divider()
                                 }
 
-                                Button { actions.onDownloadMessage?(detailVM) } label: {
+                                Button {
+                                    guard let msg = detailVM.latestMessage else { return }
+                                    actions.onDownloadMessage?(msg, detailVM.accountID)
+                                } label: {
                                     Label("Download Message", systemImage: "arrow.down.circle")
                                 }
-                                Button { actions.onShowOriginal?(detailVM) } label: {
+                                Button {
+                                    guard let msg = detailVM.latestMessage else { return }
+                                    actions.onShowOriginal?(msg, detailVM.accountID)
+                                } label: {
                                     Label("Show Original", systemImage: "doc.text")
                                 }
                             } label: {

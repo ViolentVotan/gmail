@@ -20,17 +20,17 @@ final class BIMIService {
     ]
 
     // in-memory: domain → logo URL or nil (nil means "no BIMI found")
+    // @MainActor provides serialization — no lock needed.
     private var cache: [String: String?] = [:]
-    private let lock = NSLock()
 
     func logoURL(for domain: String) async -> String? {
         let domain = domain.lowercased()
         guard !Self.personalDomains.contains(domain) else { return nil }
 
-        if let cached = lock.withLock({ cache[domain] }) { return cached }
+        if let cached = cache[domain] { return cached }
 
         let result = await resolveBIMI(for: domain)
-        lock.withLock { cache[domain] = result }
+        cache[domain] = result
         return result
     }
 

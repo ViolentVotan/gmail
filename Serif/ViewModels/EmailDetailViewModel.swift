@@ -29,14 +29,21 @@ final class EmailDetailViewModel {
     @ObservationIgnored var attachmentIndexer: AttachmentIndexer?
     @ObservationIgnored var onMessagesRead: (([String]) -> Void)?
     @ObservationIgnored var mailDatabase: MailDatabase?
+    @ObservationIgnored nonisolated(unsafe) private var backgroundTasks: [Task<Void, Never>] = []
 
     init(accountID: String) {
         self.accountID = accountID
     }
 
+    deinit {
+        backgroundTasks.forEach { $0.cancel() }
+    }
+
     // MARK: - Load
 
     func loadThread(id: String) async {
+        backgroundTasks.forEach { $0.cancel() }
+        backgroundTasks.removeAll()
         isLoading = true
         error     = nil
         allowTrackers = false
@@ -83,7 +90,8 @@ final class EmailDetailViewModel {
             if let indexer = attachmentIndexer, let messages = fresh.messages {
                 let withAttachments = messages.filter { !$0.attachmentParts.isEmpty }
                 if !withAttachments.isEmpty {
-                    Task { await indexer.registerFromFullMessages(messages: withAttachments) }
+                    let t = Task { await indexer.registerFromFullMessages(messages: withAttachments) }
+                    backgroundTasks.append(t)
                 }
             }
             // Mark all unread messages in the thread as read (concurrently)
@@ -293,7 +301,7 @@ final class EmailDetailViewModel {
             smartReplySuggestions = cached
             return
         }
-        Task {
+        let t = Task {
             let replies = await SmartReplyProvider.shared.generateReplies(
                 subject: email.subject,
                 senderName: email.sender.name,
@@ -302,6 +310,7 @@ final class EmailDetailViewModel {
             )
             smartReplySuggestions = replies
         }
+        backgroundTasks.append(t)
     }
 
     // MARK: - Label Suggestions
@@ -346,10 +355,36 @@ final class EmailDetailViewModel {
         return "<br><br><blockquote style='border-left:2px solid #ccc;margin-left:4px;padding-left:8px;color:#555;'><p><b>\(email.sender.name)</b> wrote:</p>\(original)</blockquote>"
     }
 
-    func replyMode(email: Email) -> ComposeMode {
+    // MARK: Static compose mode factories (no instance context required)
+
+    static func quotedHTML(for email: Email, latestHTMLBody: String? = nil) -> String {
+        let original = latestHTMLBody ?? email.body
+        return "<br><br><blockquote style='border-left:2px solid #ccc;margin-left:4px;padding-left:8px;color:#555;'><p><b>\(email.sender.name)</b> wrote:</p>\(original)</blockquote>"
+    }
+
+    static func replyMode(for email: Email, fromAddress: String = "", latestHTMLBody: String? = nil) -> ComposeMode {
         let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
-        return .reply(to: email.sender.email, subject: sub, quotedBody: quotedHTML(email: email),
+        return .reply(to: email.sender.email, subject: sub, quotedBody: quotedHTML(for: email, latestHTMLBody: latestHTMLBody),
                       replyToMessageID: email.gmailMessageID ?? "", threadID: email.gmailThreadID ?? "")
+    }
+
+    static func replyAllMode(for email: Email, fromAddress: String = "", latestHTMLBody: String? = nil) -> ComposeMode {
+        let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
+        let toField = ([email.sender.email] + email.recipients.map(\.email)).joined(separator: ", ")
+        return .replyAll(to: toField, cc: email.cc.map(\.email).joined(separator: ", "),
+                         subject: sub, quotedBody: quotedHTML(for: email, latestHTMLBody: latestHTMLBody),
+                         replyToMessageID: email.gmailMessageID ?? "", threadID: email.gmailThreadID ?? "")
+    }
+
+    static func forwardMode(for email: Email, latestHTMLBody: String? = nil) -> ComposeMode {
+        let sub = email.subject.hasPrefix("Fwd:") ? email.subject : "Fwd: \(email.subject)"
+        return .forward(subject: sub, quotedBody: quotedHTML(for: email, latestHTMLBody: latestHTMLBody))
+    }
+
+    // MARK: Instance wrappers (use latestMessage context for accurate quoted body)
+
+    func replyMode(email: Email) -> ComposeMode {
+        Self.replyMode(for: email, latestHTMLBody: latestMessage?.htmlBody)
     }
 
     func replyAllMode(email: Email) -> ComposeMode {
@@ -362,8 +397,7 @@ final class EmailDetailViewModel {
     }
 
     func forwardMode(email: Email) -> ComposeMode {
-        let sub = email.subject.hasPrefix("Fwd:") ? email.subject : "Fwd: \(email.subject)"
-        return .forward(subject: sub, quotedBody: quotedHTML(email: email))
+        Self.forwardMode(for: email, latestHTMLBody: latestMessage?.htmlBody)
     }
 
     // MARK: - Label suggestion application
