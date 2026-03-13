@@ -106,6 +106,9 @@ final class MailboxViewModel {
         Task {
             let threadEmails = await Self.enrichRecords(records, db: db)
             guard db === self.mailDatabase else { return }
+            // Guard against enrichRecords returning empty due to error/cancellation
+            // when the observation returned non-empty records
+            if threadEmails.isEmpty && !records.isEmpty { return }
             self.emails = threadEmails
         }
     }
@@ -389,7 +392,8 @@ final class MailboxViewModel {
 
     func trash(_ messageID: String) async {
         do {
-            try await api.trashMessage(id: messageID, accountID: accountID)
+            let updated = try await api.trashMessage(id: messageID, accountID: accountID)
+            reconcileLabelsInDatabase(messageID, serverLabelIds: updated.labelIds ?? [])
             removeFromLocalState(messageID)
         } catch { self.error = error.localizedDescription }
     }
@@ -422,6 +426,101 @@ final class MailboxViewModel {
             messages.insert(message, at: insertIdx)
         }
         lastRestoredMessageID = message.id
+    }
+
+    /// Optimistically updates labels in the database so ValueObservation reflects the change.
+    /// Returns the original label IDs for undo.
+    @discardableResult
+    func updateLabelsInDatabase(_ messageID: String, addLabelIds: [String], removeLabelIds: [String]) -> [String]? {
+        guard let db = mailDatabase else { return nil }
+        do {
+            return try db.dbPool.write { database in
+                // Read current labels for undo
+                let currentLabels = try String.fetchAll(database, sql:
+                    "SELECT label_id FROM message_labels WHERE message_id = ?",
+                    arguments: [messageID]
+                )
+
+                // Remove specified labels
+                if !removeLabelIds.isEmpty {
+                    let placeholders = removeLabelIds.map { _ in "?" }.joined(separator: ",")
+                    try database.execute(
+                        sql: "DELETE FROM message_labels WHERE message_id = ? AND label_id IN (\(placeholders))",
+                        arguments: StatementArguments([messageID] + removeLabelIds)
+                    )
+                }
+
+                // Add specified labels (ignore if already present from concurrent sync)
+                for labelId in addLabelIds {
+                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).upsert(database)
+                    try MessageLabelRecord(messageId: messageID, labelId: labelId).insert(database, onConflict: .ignore)
+                }
+
+                return currentLabels
+            }
+        } catch {
+            print("Optimistic DB label update failed: \(error)")
+            return nil
+        }
+    }
+
+    /// Removes all labels from a message in the database. Returns the original labels for undo.
+    func removeAllLabelsInDatabase(_ messageID: String) -> [String]? {
+        guard let db = mailDatabase else { return nil }
+        do {
+            return try db.dbPool.write { database in
+                let currentLabels = try String.fetchAll(database, sql:
+                    "SELECT label_id FROM message_labels WHERE message_id = ?",
+                    arguments: [messageID]
+                )
+                try database.execute(
+                    sql: "DELETE FROM message_labels WHERE message_id = ?",
+                    arguments: [messageID]
+                )
+                return currentLabels
+            }
+        } catch {
+            print("Optimistic DB label removal failed: \(error)")
+            return nil
+        }
+    }
+
+    /// Restores the original labels in the database (undo path).
+    func restoreLabelsInDatabase(_ messageID: String, originalLabelIds: [String]) {
+        guard let db = mailDatabase else { return }
+        do {
+            try db.dbPool.write { database in
+                try database.execute(
+                    sql: "DELETE FROM message_labels WHERE message_id = ?",
+                    arguments: [messageID]
+                )
+                for labelId in originalLabelIds {
+                    try MessageLabelRecord(messageId: messageID, labelId: labelId).insert(database, onConflict: .ignore)
+                }
+            }
+        } catch {
+            print("Label restore failed: \(error)")
+        }
+    }
+
+    /// Reconciles DB labels with the server's authoritative label set after an API mutation.
+    /// Corrects any drift between our optimistic update and what the server actually applied.
+    private func reconcileLabelsInDatabase(_ messageID: String, serverLabelIds: [String]) {
+        guard let db = mailDatabase else { return }
+        do {
+            try db.dbPool.write { database in
+                try database.execute(
+                    sql: "DELETE FROM message_labels WHERE message_id = ?",
+                    arguments: [messageID]
+                )
+                for labelId in serverLabelIds {
+                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).upsert(database)
+                    try MessageLabelRecord(messageId: messageID, labelId: labelId).insert(database, onConflict: .ignore)
+                }
+            }
+        } catch {
+            print("Label reconciliation failed: \(error)")
+        }
     }
 
     func emptyTrash() async {
@@ -467,7 +566,8 @@ final class MailboxViewModel {
 
     func untrash(_ messageID: String) async {
         do {
-            try await api.untrashMessage(id: messageID, accountID: accountID)
+            let updated = try await api.untrashMessage(id: messageID, accountID: accountID)
+            reconcileLabelsInDatabase(messageID, serverLabelIds: updated.labelIds ?? [])
             removeFromLocalState(messageID)
         } catch { self.error = error.localizedDescription }
     }

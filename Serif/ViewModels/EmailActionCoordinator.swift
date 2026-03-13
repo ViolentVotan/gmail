@@ -17,6 +17,11 @@ final class EmailActionCoordinator {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
         let removed = vm.removeOptimistically(msgID)
+        let originalLabels = vm.updateLabelsInDatabase(
+            msgID,
+            addLabelIds: [],
+            removeLabelIds: [GmailSystemLabel.inbox]
+        )
         selectNext(nil)
         guard NetworkMonitor.shared.isConnected else {
             OfflineActionQueue.shared.enqueue(OfflineAction(
@@ -28,7 +33,10 @@ final class EmailActionCoordinator {
         UndoActionManager.shared.schedule(
             label: "Archived",
             onConfirm: { Task { await vm.archive(msgID) } },
-            onUndo:    { if let msg = removed { vm.restoreOptimistically(msg) } }
+            onUndo: {
+                if let msg = removed { vm.restoreOptimistically(msg) }
+                if let labels = originalLabels { vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels) }
+            }
         )
     }
 
@@ -46,6 +54,11 @@ final class EmailActionCoordinator {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
         let removed = vm.removeOptimistically(msgID)
+        let originalLabels = vm.updateLabelsInDatabase(
+            msgID,
+            addLabelIds: [GmailSystemLabel.trash],
+            removeLabelIds: [GmailSystemLabel.inbox]
+        )
         selectNext(nil)
         guard NetworkMonitor.shared.isConnected else {
             OfflineActionQueue.shared.enqueue(OfflineAction(
@@ -57,7 +70,10 @@ final class EmailActionCoordinator {
         UndoActionManager.shared.schedule(
             label: "Moved to Trash",
             onConfirm: { Task { await vm.trash(msgID) } },
-            onUndo:    { if let msg = removed { vm.restoreOptimistically(msg) } }
+            onUndo: {
+                if let msg = removed { vm.restoreOptimistically(msg) }
+                if let labels = originalLabels { vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels) }
+            }
         )
     }
 
@@ -73,10 +89,11 @@ final class EmailActionCoordinator {
 
     func markSpamEmail(_ email: Email, selectNext: @escaping (Email?) -> Void) {
         guard let msgID = email.gmailMessageID else { return }
-        Task {
-            await mailboxViewModel.spam(msgID)
-            selectNext(nil)
-        }
+        let vm = mailboxViewModel
+        vm.removeOptimistically(msgID)
+        vm.updateLabelsInDatabase(msgID, addLabelIds: [GmailSystemLabel.spam], removeLabelIds: [GmailSystemLabel.inbox])
+        selectNext(nil)
+        Task { await vm.spam(msgID) }
     }
 
     func unsubscribeEmail(_ email: Email) {
@@ -105,18 +122,30 @@ final class EmailActionCoordinator {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
         let removed = vm.removeOptimistically(msgID)
+        let removeLabels = selectedFolder == .trash ? [GmailSystemLabel.trash] : []
+        let originalLabels = vm.updateLabelsInDatabase(
+            msgID,
+            addLabelIds: [GmailSystemLabel.inbox],
+            removeLabelIds: removeLabels
+        )
         selectNext(nil)
         if selectedFolder == .trash {
             UndoActionManager.shared.schedule(
                 label: "Moved to Inbox",
                 onConfirm: { Task { await vm.untrash(msgID) } },
-                onUndo:    { if let msg = removed { vm.restoreOptimistically(msg) } }
+                onUndo: {
+                    if let msg = removed { vm.restoreOptimistically(msg) }
+                    if let labels = originalLabels { vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels) }
+                }
             )
         } else {
             UndoActionManager.shared.schedule(
                 label: "Moved to Inbox",
                 onConfirm: { Task { await vm.moveToInbox(msgID) } },
-                onUndo:    { if let msg = removed { vm.restoreOptimistically(msg) } }
+                onUndo: {
+                    if let msg = removed { vm.restoreOptimistically(msg) }
+                    if let labels = originalLabels { vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels) }
+                }
             )
         }
     }
@@ -125,11 +154,16 @@ final class EmailActionCoordinator {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
         let removed = vm.removeOptimistically(msgID)
+        // Remove all labels from DB so ValueObservation won't bring it back
+        let originalLabels = vm.removeAllLabelsInDatabase(msgID)
         selectNext(nil)
         UndoActionManager.shared.schedule(
             label: "Deleted permanently",
             onConfirm: { Task { await vm.deletePermanently(msgID) } },
-            onUndo:    { if let msg = removed { vm.restoreOptimistically(msg) } }
+            onUndo: {
+                if let msg = removed { vm.restoreOptimistically(msg) }
+                if let labels = originalLabels { vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels) }
+            }
         )
     }
 
@@ -137,11 +171,19 @@ final class EmailActionCoordinator {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
         let removed = vm.removeOptimistically(msgID)
+        let originalLabels = vm.updateLabelsInDatabase(
+            msgID,
+            addLabelIds: [GmailSystemLabel.inbox],
+            removeLabelIds: [GmailSystemLabel.spam]
+        )
         selectNext(nil)
         UndoActionManager.shared.schedule(
             label: "Moved to Inbox",
             onConfirm: { Task { await vm.unspam(msgID) } },
-            onUndo:    { if let msg = removed { vm.restoreOptimistically(msg) } }
+            onUndo: {
+                if let msg = removed { vm.restoreOptimistically(msg) }
+                if let labels = originalLabels { vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels) }
+            }
         )
     }
 
@@ -212,6 +254,12 @@ final class EmailActionCoordinator {
         let vm = mailboxViewModel
         let msgIDs = emails.compactMap(\.gmailMessageID)
         let removed = msgIDs.compactMap { vm.removeOptimistically($0) }
+        var originalLabelsMap: [String: [String]] = [:]
+        for id in msgIDs {
+            if let labels = vm.updateLabelsInDatabase(id, addLabelIds: [], removeLabelIds: [GmailSystemLabel.inbox]) {
+                originalLabelsMap[id] = labels
+            }
+        }
         onClear()
         guard NetworkMonitor.shared.isConnected else {
             OfflineActionQueue.shared.enqueue(OfflineAction(
@@ -223,7 +271,12 @@ final class EmailActionCoordinator {
         UndoActionManager.shared.schedule(
             label: "Archived \(msgIDs.count) emails",
             onConfirm: { Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.archive(id) } } } } },
-            onUndo:    { for msg in removed { vm.restoreOptimistically(msg) } }
+            onUndo: {
+                for msg in removed { vm.restoreOptimistically(msg) }
+                for (id, labels) in originalLabelsMap {
+                    vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
+                }
+            }
         )
     }
 
@@ -231,6 +284,12 @@ final class EmailActionCoordinator {
         let vm = mailboxViewModel
         let msgIDs = emails.compactMap(\.gmailMessageID)
         let removed = msgIDs.compactMap { vm.removeOptimistically($0) }
+        var originalLabelsMap: [String: [String]] = [:]
+        for id in msgIDs {
+            if let labels = vm.updateLabelsInDatabase(id, addLabelIds: [GmailSystemLabel.trash], removeLabelIds: [GmailSystemLabel.inbox]) {
+                originalLabelsMap[id] = labels
+            }
+        }
         onClear()
         guard NetworkMonitor.shared.isConnected else {
             OfflineActionQueue.shared.enqueue(OfflineAction(
@@ -242,7 +301,12 @@ final class EmailActionCoordinator {
         UndoActionManager.shared.schedule(
             label: "Trashed \(msgIDs.count) emails",
             onConfirm: { Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.trash(id) } } } } },
-            onUndo:    { for msg in removed { vm.restoreOptimistically(msg) } }
+            onUndo: {
+                for msg in removed { vm.restoreOptimistically(msg) }
+                for (id, labels) in originalLabelsMap {
+                    vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
+                }
+            }
         )
     }
 
@@ -267,18 +331,35 @@ final class EmailActionCoordinator {
         let vm = mailboxViewModel
         let msgIDs = emails.compactMap(\.gmailMessageID)
         let removed = msgIDs.compactMap { vm.removeOptimistically($0) }
+        let removeLabels = selectedFolder == .trash ? [GmailSystemLabel.trash] : [String]()
+        var originalLabelsMap: [String: [String]] = [:]
+        for id in msgIDs {
+            if let labels = vm.updateLabelsInDatabase(id, addLabelIds: [GmailSystemLabel.inbox], removeLabelIds: removeLabels) {
+                originalLabelsMap[id] = labels
+            }
+        }
         onClear()
         if selectedFolder == .trash {
             UndoActionManager.shared.schedule(
                 label: "Moved \(msgIDs.count) to Inbox",
                 onConfirm: { Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.untrash(id) } } } } },
-                onUndo:    { for msg in removed { vm.restoreOptimistically(msg) } }
+                onUndo: {
+                    for msg in removed { vm.restoreOptimistically(msg) }
+                    for (id, labels) in originalLabelsMap {
+                        vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
+                    }
+                }
             )
         } else {
             UndoActionManager.shared.schedule(
                 label: "Moved \(msgIDs.count) to Inbox",
                 onConfirm: { Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.moveToInbox(id) } } } } },
-                onUndo:    { for msg in removed { vm.restoreOptimistically(msg) } }
+                onUndo: {
+                    for msg in removed { vm.restoreOptimistically(msg) }
+                    for (id, labels) in originalLabelsMap {
+                        vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
+                    }
+                }
             )
         }
     }

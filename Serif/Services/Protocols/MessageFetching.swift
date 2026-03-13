@@ -14,10 +14,12 @@ protocol MessageFetching: Sendable {
     @concurrent func listHistory(accountID: String, startHistoryId: String, labelId: String?, pageToken: String?, maxResults: Int) async throws(GmailAPIError) -> GmailHistoryListResponse
     @concurrent func markAsRead(id: String, accountID: String) async throws(GmailAPIError)
     @concurrent func setStarred(_ starred: Bool, id: String, accountID: String) async throws(GmailAPIError)
-    @concurrent func trashMessage(id: String, accountID: String) async throws(GmailAPIError)
+    @discardableResult
+    @concurrent func trashMessage(id: String, accountID: String) async throws(GmailAPIError) -> GmailMessage
     @concurrent func archiveMessage(id: String, accountID: String) async throws(GmailAPIError)
     @concurrent func markAsUnread(id: String, accountID: String) async throws(GmailAPIError)
-    @concurrent func untrashMessage(id: String, accountID: String) async throws(GmailAPIError)
+    @discardableResult
+    @concurrent func untrashMessage(id: String, accountID: String) async throws(GmailAPIError) -> GmailMessage
     @concurrent func deleteMessagePermanently(id: String, accountID: String) async throws(GmailAPIError)
     @concurrent func spamMessage(id: String, accountID: String) async throws(GmailAPIError)
     @discardableResult

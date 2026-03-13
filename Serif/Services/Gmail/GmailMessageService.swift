@@ -108,8 +108,9 @@ final class GmailMessageService {
         }
     }
 
-    @concurrent func trashMessage(id: String, accountID: String) async throws(GmailAPIError) {
-        let _: GmailMessage = try await client.request(
+    @discardableResult
+    @concurrent func trashMessage(id: String, accountID: String) async throws(GmailAPIError) -> GmailMessage {
+        try await client.request(
             path: "/users/me/messages/\(id)/trash",
             method: "POST",
             accountID: accountID
@@ -124,8 +125,9 @@ final class GmailMessageService {
         try await modifyLabels(id: id, add: [GmailSystemLabel.unread], remove: [], accountID: accountID)
     }
 
-    @concurrent func untrashMessage(id: String, accountID: String) async throws(GmailAPIError) {
-        let _: GmailMessage = try await client.request(
+    @discardableResult
+    @concurrent func untrashMessage(id: String, accountID: String) async throws(GmailAPIError) -> GmailMessage {
+        try await client.request(
             path: "/users/me/messages/\(id)/untrash",
             method: "POST",
             accountID: accountID
