@@ -9,13 +9,14 @@ System-integrated appearance management — follows macOS light/dark mode with o
 - **System** (default): defers to macOS appearance (passes `nil` to `.preferredColorScheme()`)
 - **Light / Dark**: forces the corresponding color scheme
 
-All views use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`, `Color.accentColor`) and materials (`.regularMaterial`). No custom color definitions exist.
+All views use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`, `Color.accentColor`), materials (`.regularMaterial`), and Liquid Glass (`.glassEffect(.regular)`). No custom color definitions exist.
 
 ## Files
 
 | File | Role |
 |------|------|
 | `AppearanceManager.swift` | Preference storage, UserDefaults persistence, migration from legacy theme system |
+| `DesignTokens.swift` | Centralized design tokens (`Spacing`, `CornerRadius`, `SerifAnimation`) and shared view modifiers (`selectableRowStyle`, `floatingPanelStyle`) |
 
 ## Migration
 

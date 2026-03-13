@@ -8,7 +8,7 @@ SwiftUI views. UI presentation only — no business logic.
   - Call Services or APIs directly
   - Perform data transformations beyond simple formatting
   - Contain persistence logic
-- **No hardcoded colors.** Use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`, `Color.accentColor`) and materials (`.regularMaterial`, `.ultraThinMaterial`).
+- **No hardcoded colors.** Use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`, `Color.accentColor`), materials (`.regularMaterial`), and Liquid Glass (`.glassEffect(.regular)`, `.floatingPanelStyle()`) for floating surfaces.
 - **Callbacks over direct ViewModel access.** Views receive `onDelete`, `onArchive`, etc. as closures. Only top-level views (ContentView) wire these to ViewModels.
 - **Small, composable views.** Extract reusable components into `Common/`. One concern per file.
 - **Animations belong in views**, not in ViewModels or Services.
@@ -24,7 +24,7 @@ Left column — `List(.sidebar)` with folder navigation, account switcher, label
 Middle column — email rows with native `.swipeActions()` (archive/delete), search, `.refreshable` pull-to-refresh, multi-select with bulk actions. Uses `List(selection:)` for row rendering.
 - `CategoryTabBar` — Horizontal tab bar for inbox category filtering (Primary, Social, Updates, etc.).
 - `EmailHoverSummaryView` — AI-generated summary tooltip on email row hover.
-- `EmailContextMenu` — Right-click context menu with archive, delete, star, snooze, labels.
+- `EmailContextMenu` — Right-click context menu with reply, reply all, forward, archive, delete, star, snooze, labels.
 
 ### `EmailDetail/`
 Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView), attachments, sender info popover, tracker blocking UI, label picker.
@@ -61,7 +61,7 @@ Shared reusable components:
 | `LabelChipView` | Colored label pill |
 | `ThemePickerView` | Segmented picker for System / Light / Dark appearance |
 | `SettingsCardsView` | Settings UI with behavior, signature, account cards |
-| `SlidePanel` | Animated side panel overlay (help, debug, previews) with frosted glass background |
+| `SlidePanel` | Animated side panel overlay (help, debug, previews) with Liquid Glass background |
 | `FormattingToolbar` | Rich text toolbar for compose/reply |
 | `WebRichTextEditor` | WKWebView-based HTML editor |
 | `UndoToastView` | Undo toast + offline indicator |
