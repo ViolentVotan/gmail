@@ -6,6 +6,8 @@ struct EmailRowView: View {
     let accountID: String
     let action: () -> Void
     @State private var isHovered = false
+    @State private var showTags = false
+    @State private var tagRevealTask: Task<Void, Never>?
     @State private var hoverTask: Task<Void, Never>?
     @State private var popoverHolder = PopoverHolder()
     @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 36
@@ -56,17 +58,13 @@ struct EmailRowView: View {
         }
     }
 
-    private var combinedBadges: [BadgeItem] {
-        var badges: [BadgeItem] = []
-        for label in email.labels {
-            badges.append(.label(label))
-        }
-        if let tags = EmailClassifier.shared.cachedTags(for: email.gmailMessageID ?? "") {
-            for tag in tags.activeTags {
-                badges.append(.tag(label: tag.label, color: tag.color))
-            }
-        }
-        return badges
+    private var labelBadges: [BadgeItem] {
+        email.labels.map { .label($0) }
+    }
+
+    private var tagBadges: [BadgeItem] {
+        guard let tags = EmailClassifier.shared.cachedTags(for: email.gmailMessageID ?? "") else { return [] }
+        return tags.activeTags.map { .tag(label: $0.label, color: $0.color) }
     }
 
     private static let isAppleIntelligenceAvailable: Bool = {
@@ -79,7 +77,8 @@ struct EmailRowView: View {
     }()
 
     var body: some View {
-        let badges = combinedBadges
+        let labels = labelBadges
+        let tags = tagBadges
         Button(action: action) {
             HStack(spacing: 12) {
                 // Unread indicator
@@ -106,10 +105,10 @@ struct EmailRowView: View {
 
                         if email.threadMessageCount > 1 {
                             Text("\(email.threadMessageCount)")
-                                .font(.caption.bold())
-                                .foregroundStyle(.white)
+                                .font(Typography.captionSmall)
+                                .foregroundStyle(.secondary)
                                 .frame(minWidth: threadBadgeSize, minHeight: threadBadgeSize)
-                                .background(Circle().fill(Color.accentColor.opacity(0.75)))
+                                .background(Capsule().fill(.fill.quaternary))
                         }
 
                         Spacer()
@@ -136,13 +135,20 @@ struct EmailRowView: View {
                             .foregroundStyle(.orange)
                     }
 
-                    if !badges.isEmpty {
+                    if !labels.isEmpty || (showTags && !tags.isEmpty) {
                         HStack(spacing: 4) {
-                            ForEach(badges.prefix(2)) { badge in
+                            ForEach(labels.prefix(2)) { badge in
                                 badgeView(badge)
                             }
-                            if badges.count > 2 {
-                                Text("+\(badges.count - 2)")
+                            if showTags {
+                                ForEach(tags.prefix(2)) { badge in
+                                    badgeView(badge)
+                                }
+                            }
+                            let totalVisible = labels.prefix(2).count + (showTags ? tags.prefix(2).count : 0)
+                            let totalCount = labels.count + tags.count
+                            if totalCount > totalVisible {
+                                Text("+\(totalCount - totalVisible)")
                                     .font(Typography.captionSmallMedium)
                                     .foregroundStyle(.tertiary)
                                     .padding(.horizontal, 5)
@@ -150,6 +156,7 @@ struct EmailRowView: View {
                                     .background(Capsule().fill(.fill.quaternary))
                             }
                         }
+                        .animation(.easeInOut(duration: 0.2), value: showTags)
                     }
                 }
 
@@ -190,6 +197,15 @@ struct EmailRowView: View {
         .onHover { hovering in
             isHovered = hovering
             if hovering {
+                // Reveal AI tags after a short delay
+                tagRevealTask?.cancel()
+                tagRevealTask = Task {
+                    try? await Task.sleep(for: .milliseconds(300))
+                    guard !Task.isCancelled else { return }
+                    showTags = true
+                }
+
+                // Apple Intelligence hover summary
                 guard !popoverHolder.isShowing, Self.isAppleIntelligenceAvailable else { return }
                 hoverTask?.cancel()
                 hoverTask = Task {
@@ -200,6 +216,10 @@ struct EmailRowView: View {
                     popoverHolder.show(content: content)
                 }
             } else {
+                tagRevealTask?.cancel()
+                tagRevealTask = nil
+                showTags = false
+
                 hoverTask?.cancel()
                 hoverTask = nil
                 popoverHolder.close()

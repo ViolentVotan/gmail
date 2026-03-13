@@ -132,20 +132,18 @@ struct EmailDetailView: View {
                         .padding(.horizontal, Spacing.xl)
                         .padding(.bottom, Spacing.sm)
 
-                        LabelEditorView(
-                            currentLabelIDs: currentLabelIDs,
-                            allLabels: allLabels,
-                            detailVM: detailVM,
-                            onAddLabel: actions.onAddLabel,
-                            onRemoveLabel: actions.onRemoveLabel,
-                            onCreateAndAddLabel: actions.onCreateAndAddLabel
-                        )
-                        .padding(.horizontal, Spacing.xl)
-                        .padding(.bottom, labelSuggestions.isEmpty ? Spacing.lg : 6)
-                        .zIndex(1)
+                        HStack(spacing: 6) {
+                            LabelEditorView(
+                                currentLabelIDs: currentLabelIDs,
+                                allLabels: allLabels,
+                                detailVM: detailVM,
+                                onAddLabel: actions.onAddLabel,
+                                onRemoveLabel: actions.onRemoveLabel,
+                                onCreateAndAddLabel: actions.onCreateAndAddLabel
+                            )
+                            .zIndex(1)
 
-                        if !labelSuggestions.isEmpty {
-                            HStack(spacing: 4) {
+                            if !labelSuggestions.isEmpty {
                                 ForEach(labelSuggestions, id: \.name) { suggestion in
                                     Button {
                                         applyLabelSuggestion(suggestion)
@@ -165,11 +163,11 @@ struct EmailDetailView: View {
                                     .buttonStyle(.plain)
                                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
                                 }
+                                .animation(SerifAnimation.springSnappy, value: labelSuggestions.map(\.name))
                             }
-                            .padding(.horizontal, Spacing.xl)
-                            .padding(.bottom, Spacing.lg)
-                            .animation(SerifAnimation.springSnappy, value: labelSuggestions.map(\.name))
                         }
+                        .padding(.horizontal, Spacing.xl)
+                        .padding(.bottom, Spacing.md)
 
                         #if canImport(FoundationModels)
                         if #available(macOS 26.0, *) {

@@ -50,6 +50,8 @@ struct LabelEditorView: View {
             && (!filteredLabels.isEmpty || showCreateOption)
     }
 
+    @State private var isAddingLabel = false
+
     var body: some View {
         HStack(spacing: 6) {
             ForEach(currentUserLabels) { label in
@@ -60,34 +62,56 @@ struct LabelEditorView: View {
                 }
             }
 
-            HStack(spacing: 4) {
-                Image(systemName: "tag")
-                    .font(Typography.captionSmallRegular)
-                    .foregroundStyle(.tertiary)
-                TextField("Add label…", text: $labelSearchText, onEditingChanged: { editing in
-                    isLabelFieldFocused = editing
-                    if editing { highlightedIndex = 0 }
-                })
-                .textFieldStyle(.plain)
-                .font(Typography.subheadRegular)
-                .foregroundStyle(.primary)
-                .onChange(of: labelSearchText) { _, _ in highlightedIndex = 0 }
-                .onSubmit { confirmHighlighted() }
-                .onKeyPress(.downArrow) {
-                    highlightedIndex = min(highlightedIndex + 1, dropdownItems.count - 1)
-                    return .handled
+            if isAddingLabel {
+                HStack(spacing: 4) {
+                    Image(systemName: "tag")
+                        .font(Typography.captionSmallRegular)
+                        .foregroundStyle(.tertiary)
+                    TextField("Add label…", text: $labelSearchText, onEditingChanged: { editing in
+                        isLabelFieldFocused = editing
+                        if editing { highlightedIndex = 0 }
+                        if !editing && labelSearchText.isEmpty {
+                            isAddingLabel = false
+                        }
+                    })
+                    .textFieldStyle(.plain)
+                    .font(Typography.subheadRegular)
+                    .foregroundStyle(.primary)
+                    .onChange(of: labelSearchText) { _, _ in highlightedIndex = 0 }
+                    .onSubmit { confirmHighlighted() }
+                    .onKeyPress(.downArrow) {
+                        highlightedIndex = min(highlightedIndex + 1, dropdownItems.count - 1)
+                        return .handled
+                    }
+                    .onKeyPress(.upArrow) {
+                        highlightedIndex = max(highlightedIndex - 1, 0)
+                        return .handled
+                    }
+                    .onKeyPress(.escape) {
+                        labelSearchText = ""
+                        isAddingLabel = false
+                        return .handled
+                    }
                 }
-                .onKeyPress(.upArrow) {
-                    highlightedIndex = max(highlightedIndex - 1, 0)
-                    return .handled
+                .frame(minWidth: 80, maxWidth: 160)
+                .overlay(alignment: .topLeading) {
+                    if showDropdown {
+                        autocompleteDropdown
+                            .offset(y: 24)
+                    }
                 }
-            }
-            .frame(minWidth: 80, maxWidth: 160)
-            .overlay(alignment: .topLeading) {
-                if showDropdown {
-                    autocompleteDropdown
-                        .offset(y: 24)
+            } else {
+                Button {
+                    isAddingLabel = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(Typography.captionSmall)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 22, height: 22)
+                        .glassOrMaterial(in: .capsule, interactive: true)
                 }
+                .buttonStyle(.plain)
+                .help("Add label")
             }
 
             Spacer()

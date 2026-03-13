@@ -50,12 +50,11 @@ struct CategoryTabBar: View {
 
                 if let count = unreadCounts[category], count > 0 {
                     Text("\(count)")
-                        .font(Typography.caption)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(isSelected ? Color.accentColor : .secondary.opacity(0.2))
-                        .foregroundStyle(isSelected ? .white : .secondary)
-                        .clipShape(Capsule())
+                        .font(Typography.captionSmall)
+                        .foregroundStyle(isSelected ? .primary : .tertiary)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 1)
+                        .background(Capsule().fill(.fill.quaternary))
                 }
             }
             .padding(.horizontal, 10)
@@ -71,12 +70,15 @@ struct CategoryTabBar: View {
 
 private struct TabBackground: ViewModifier {
     let isSelected: Bool
+    @State private var isHovered = false
 
     func body(content: Content) -> some View {
         if isSelected {
             content.glassEffect(.regular.interactive(), in: .capsule)
         } else {
             content
+                .background(isHovered ? AnyShapeStyle(.fill.quaternary) : AnyShapeStyle(Color.clear), in: .capsule)
+                .onHover { isHovered = $0 }
         }
     }
 }

@@ -36,11 +36,10 @@ struct TrackerBannerView: View {
                 } label: {
                     Text("Load blocked content")
                         .font(Typography.captionSmallMedium)
-                        .foregroundStyle(.tint)
+                        .foregroundStyle(.secondary)
                         .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Color.accentColor.opacity(0.12))
-                        .clipShape(.rect(cornerRadius: CornerRadius.xs))
+                        .padding(.vertical, 4)
+                        .glassOrMaterial(in: .capsule, interactive: true)
                 }
                 .buttonStyle(.plain)
             }

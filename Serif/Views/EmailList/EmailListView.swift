@@ -64,71 +64,86 @@ struct EmailListView: View {
 
     // MARK: - Header
 
+    private var hasFolderAction: Bool {
+        switch selectedFolder {
+        case .subscriptions:
+            return !emails.isEmpty && actions.onUnsubscribe != nil
+                && emails.contains { $0.isFromMailingList && $0.unsubscribeURL != nil }
+        case .trash:
+            return !emails.isEmpty && actions.onEmptyTrash != nil
+        case .spam:
+            return !emails.isEmpty && actions.onEmptySpam != nil
+        default:
+            return false
+        }
+    }
+
     private var headerSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.md) {
-            HStack {
-                Spacer()
-
-                if selectedFolder == .subscriptions, !emails.isEmpty, let onUnsubscribe = actions.onUnsubscribe {
-                    let unsubscribable = emails.filter { $0.isFromMailingList && $0.unsubscribeURL != nil }
-                    if !unsubscribable.isEmpty {
-                        Button {
-                            unsubscribable.forEach { onUnsubscribe($0) }
-                        } label: {
-                            Text("Unsubscribe All (\(unsubscribable.count))")
-                                .destructiveActionStyle()
-                        }
-                        .buttonStyle(.plain)
-                    }
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            if hasFolderAction {
+                HStack {
+                    Spacer()
+                    folderActionButton
                 }
-
-                if selectedFolder == .trash, !emails.isEmpty, let onEmptyTrash = actions.onEmptyTrash {
-                    Button {
-                        onEmptyTrash()
-                    } label: {
-                        Text("Empty Trash")
-                            .destructiveActionStyle()
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                if selectedFolder == .spam, !emails.isEmpty, let onEmptySpam = actions.onEmptySpam {
-                    Button {
-                        onEmptySpam()
-                    } label: {
-                        Text("Empty Spam")
-                            .destructiveActionStyle()
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Menu {
-                    Button { sortOrder = .dateNewest }  label: { Label("Date (Newest)",  systemImage: sortOrder == .dateNewest  ? "checkmark" : "") }
-                    Button { sortOrder = .dateOldest }  label: { Label("Date (Oldest)",  systemImage: sortOrder == .dateOldest  ? "checkmark" : "") }
-                    Button { sortOrder = .sender }       label: { Label("Sender",         systemImage: sortOrder == .sender      ? "checkmark" : "") }
-                    Button { sortOrder = .unreadFirst } label: { Label("Unread first",   systemImage: sortOrder == .unreadFirst ? "checkmark" : "") }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.up.arrow.down")
-                            .font(Typography.captionRegular)
-                        Text(sortOrder.label)
-                            .font(Typography.subheadRegular)
-                        Image(systemName: "chevron.down")
-                            .font(Typography.captionRegular)
-                    }
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, Spacing.md)
-                    .padding(.vertical, Spacing.xs)
-                    .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
-                }
-                .buttonStyle(.plain)
             }
 
-            SearchBarView(text: $searchText, focusTrigger: $searchFocusTrigger)
+            HStack(spacing: Spacing.sm) {
+                SearchBarView(text: $searchText, focusTrigger: $searchFocusTrigger)
+
+                sortMenu
+            }
         }
         .padding(.horizontal, Spacing.lg)
         .padding(.top, Spacing.md)
         .padding(.bottom, Spacing.md)
+    }
+
+    @ViewBuilder
+    private var folderActionButton: some View {
+        if selectedFolder == .subscriptions, !emails.isEmpty, let onUnsubscribe = actions.onUnsubscribe {
+            let unsubscribable = emails.filter { $0.isFromMailingList && $0.unsubscribeURL != nil }
+            if !unsubscribable.isEmpty {
+                Button {
+                    unsubscribable.forEach { onUnsubscribe($0) }
+                } label: {
+                    Text("Unsubscribe All (\(unsubscribable.count))")
+                        .destructiveActionStyle()
+                }
+                .buttonStyle(.plain)
+            }
+        } else if selectedFolder == .trash, !emails.isEmpty, let onEmptyTrash = actions.onEmptyTrash {
+            Button {
+                onEmptyTrash()
+            } label: {
+                Text("Empty Trash")
+                    .destructiveActionStyle()
+            }
+            .buttonStyle(.plain)
+        } else if selectedFolder == .spam, !emails.isEmpty, let onEmptySpam = actions.onEmptySpam {
+            Button {
+                onEmptySpam()
+            } label: {
+                Text("Empty Spam")
+                    .destructiveActionStyle()
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private var sortMenu: some View {
+        Menu {
+            Button { sortOrder = .dateNewest }  label: { Label("Date (Newest)",  systemImage: sortOrder == .dateNewest  ? "checkmark" : "") }
+            Button { sortOrder = .dateOldest }  label: { Label("Date (Oldest)",  systemImage: sortOrder == .dateOldest  ? "checkmark" : "") }
+            Button { sortOrder = .sender }       label: { Label("Sender",         systemImage: sortOrder == .sender      ? "checkmark" : "") }
+            Button { sortOrder = .unreadFirst } label: { Label("Unread first",   systemImage: sortOrder == .unreadFirst ? "checkmark" : "") }
+        } label: {
+            Image(systemName: "arrow.up.arrow.down")
+                .font(Typography.subheadRegular)
+                .foregroundStyle(.secondary)
+                .frame(width: 28, height: 28)
+                .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Email list
@@ -223,6 +238,9 @@ struct EmailListView: View {
             action: { handleTap(email: email) }
         )
         .tag(email.id.uuidString)
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+        .listRowInsets(EdgeInsets())
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             if selectedFolder != .archive {
                 Button {
@@ -275,10 +293,13 @@ struct EmailListView: View {
                             emailRow(for: email)
                         }
                     } header: {
-                        Text(section.title)
-                            .font(Typography.captionSemibold)
-                            .foregroundStyle(.tertiary)
-                            .textCase(nil)
+                        HStack(spacing: Spacing.sm) {
+                            Text(section.title)
+                                .font(Typography.caption)
+                                .foregroundStyle(.secondary)
+                                .textCase(nil)
+                            VStack { Divider() }
+                        }
                     }
                 }
             } else {
