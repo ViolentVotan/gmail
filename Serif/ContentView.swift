@@ -100,9 +100,9 @@ struct ContentView: View {
                         coordinator: coordinator
                     )
                     .focused($appFocus, equals: .detail)
-                    .backgroundExtensionEffect()
                 }
             }
+            .backgroundExtensionEffect()
             .windowResizeAnchor(.top)
             .onKeyPress(.tab, phases: .down) { keyPress in
                 guard keyPress.modifiers.contains(.option) else { return .ignored }

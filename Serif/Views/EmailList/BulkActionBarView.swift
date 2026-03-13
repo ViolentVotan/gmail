@@ -26,18 +26,13 @@ struct BulkActionBarView: View {
                 .font(Typography.title)
                 .foregroundStyle(.primary)
 
-            HStack(spacing: Spacing.md) {
-                if selectedFolder != .archive {
-                    actionButton(icon: "archivebox", label: "Archive", action: onArchive)
-                }
-                if selectedFolder != .trash {
-                    actionButton(icon: "trash", label: "Delete", action: onDelete, destructive: true)
-                }
-                actionButton(icon: "envelope.badge", label: "Unread", action: onMarkUnread)
-                actionButton(icon: "envelope.open", label: "Read", action: onMarkRead)
-                actionButton(icon: "star", label: "Star", action: onToggleStar)
-                if selectedFolder == .archive || selectedFolder == .trash {
-                    actionButton(icon: "tray.and.arrow.down", label: "Inbox", action: onMoveToInbox)
+            Group {
+                if #available(macOS 26.0, *) {
+                    GlassEffectContainer {
+                        actionRow
+                    }
+                } else {
+                    actionRow
                 }
             }
 
@@ -57,6 +52,23 @@ struct BulkActionBarView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var actionRow: some View {
+        HStack(spacing: Spacing.md) {
+            if selectedFolder != .archive {
+                actionButton(icon: "archivebox", label: "Archive", action: onArchive)
+            }
+            if selectedFolder != .trash {
+                actionButton(icon: "trash", label: "Delete", action: onDelete, destructive: true)
+            }
+            actionButton(icon: "envelope.badge", label: "Unread", action: onMarkUnread)
+            actionButton(icon: "envelope.open", label: "Read", action: onMarkRead)
+            actionButton(icon: "star", label: "Star", action: onToggleStar)
+            if selectedFolder == .archive || selectedFolder == .trash {
+                actionButton(icon: "tray.and.arrow.down", label: "Inbox", action: onMoveToInbox)
+            }
+        }
     }
 
     private func actionButton(icon: String, label: String, action: @escaping () -> Void, destructive: Bool = false) -> some View {

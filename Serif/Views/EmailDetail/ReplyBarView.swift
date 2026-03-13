@@ -323,43 +323,55 @@ struct ReplyBarView: View {
 
     private var quickReplyChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                Image(systemName: "apple.intelligence")
-                    .font(.subheadline)
-                    .foregroundStyle(appleIntelligenceGradient)
-                    .opacity(visibleChipCount > 0 ? 1 : 0)
-                    .scaleEffect(visibleChipCount > 0 ? 1 : 0.5)
-
-                ForEach(Array(quickReplies.enumerated()), id: \.element) { index, suggestion in
-                    Button {
-                        let escaped = suggestion
-                            .replacingOccurrences(of: "&", with: "&amp;")
-                            .replacingOccurrences(of: "<", with: "&lt;")
-                            .replacingOccurrences(of: ">", with: "&gt;")
-                        editorState.setHTML("<p>\(escaped)</p>")
-                        replyHTML = "<p>\(escaped)</p>"
-                    } label: {
-                        Text(suggestion)
-                            .font(.subheadline)
-                            .foregroundStyle(.primary)
-                            .padding(.horizontal, Spacing.md)
-                            .padding(.vertical, Spacing.sm)
-                            .glassEffect(.regular, in: .capsule)
-                            .overlay(
-                                Capsule()
-                                    .strokeBorder(appleIntelligenceGradient, lineWidth: 1.5)
-                            )
+            Group {
+                if #available(macOS 26.0, *) {
+                    GlassEffectContainer {
+                        quickReplyChipContent
                     }
-                    .buttonStyle(.plain)
-                    .opacity(index < visibleChipCount ? 1 : 0)
-                    .offset(x: index < visibleChipCount ? 0 : 15)
+                } else {
+                    quickReplyChipContent
                 }
             }
-            .padding(.horizontal, Spacing.lg)
-            .padding(.vertical, Spacing.md)
         }
         .onAppear { animateChips() }
         .onChange(of: quickReplies) { _, _ in animateChips() }
+    }
+
+    private var quickReplyChipContent: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "apple.intelligence")
+                .font(.subheadline)
+                .foregroundStyle(appleIntelligenceGradient)
+                .opacity(visibleChipCount > 0 ? 1 : 0)
+                .scaleEffect(visibleChipCount > 0 ? 1 : 0.5)
+
+            ForEach(Array(quickReplies.enumerated()), id: \.element) { index, suggestion in
+                Button {
+                    let escaped = suggestion
+                        .replacingOccurrences(of: "&", with: "&amp;")
+                        .replacingOccurrences(of: "<", with: "&lt;")
+                        .replacingOccurrences(of: ">", with: "&gt;")
+                    editorState.setHTML("<p>\(escaped)</p>")
+                    replyHTML = "<p>\(escaped)</p>"
+                } label: {
+                    Text(suggestion)
+                        .font(.subheadline)
+                        .foregroundStyle(.primary)
+                        .padding(.horizontal, Spacing.md)
+                        .padding(.vertical, Spacing.sm)
+                        .glassEffect(.regular, in: .capsule)
+                        .overlay(
+                            Capsule()
+                                .strokeBorder(appleIntelligenceGradient, lineWidth: 1.5)
+                        )
+                }
+                .buttonStyle(.plain)
+                .opacity(index < visibleChipCount ? 1 : 0)
+                .offset(x: index < visibleChipCount ? 0 : 15)
+            }
+        }
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.md)
     }
 
     private func animateChips() {

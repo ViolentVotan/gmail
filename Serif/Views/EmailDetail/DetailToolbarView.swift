@@ -32,6 +32,18 @@ struct DetailToolbarView: View {
     @ScaledMetric(relativeTo: .body) private var buttonSize: CGFloat = 30
 
     var body: some View {
+        Group {
+            if #available(macOS 26.0, *) {
+                GlassEffectContainer {
+                    toolbarContent
+                }
+            } else {
+                toolbarContent
+            }
+        }
+    }
+
+    private var toolbarContent: some View {
         HStack(spacing: Spacing.md) {
             Spacer()
 

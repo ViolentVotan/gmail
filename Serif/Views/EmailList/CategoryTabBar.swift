@@ -6,6 +6,18 @@ struct CategoryTabBar: View {
     let unreadCounts: [InboxCategory: Int]
 
     var body: some View {
+        Group {
+            if #available(macOS 26.0, *) {
+                GlassEffectContainer {
+                    tabBarContent
+                }
+            } else {
+                tabBarContent
+            }
+        }
+    }
+
+    private var tabBarContent: some View {
         HStack(spacing: 0) {
             ForEach(InboxCategory.allCases) { category in
                 categoryTab(category)
