@@ -9,6 +9,13 @@ enum Spacing {
     static let lg: CGFloat = 16
     static let xl: CGFloat = 24
     static let xxl: CGFloat = 32
+    static let xxxl: CGFloat = 48
+}
+
+enum ButtonSize {
+    static let sm: CGFloat = 26
+    static let md: CGFloat = 28
+    static let lg: CGFloat = 30
 }
 
 // MARK: - Corner Radius
@@ -117,6 +124,59 @@ struct SelectableRowStyle: ViewModifier {
 extension View {
     func selectableRowStyle(isSelected: Bool, isHovered: Bool) -> some View {
         modifier(SelectableRowStyle(isSelected: isSelected, isHovered: isHovered))
+    }
+}
+
+// MARK: - Destructive Action Style
+
+struct DestructiveActionStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(Typography.subhead)
+            .foregroundStyle(.red)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(Color.red.opacity(0.1), in: .rect(cornerRadius: CornerRadius.sm))
+    }
+}
+
+extension View {
+    func destructiveActionStyle() -> some View {
+        modifier(DestructiveActionStyle())
+    }
+}
+
+// MARK: - Toolbar Icon Button
+
+struct ToolbarIconButton: View {
+    let icon: String
+    let label: String
+    var size: CGFloat = ButtonSize.md
+    var font: Font = Typography.body
+    var useGlass: Bool = false
+    let action: () -> Void
+
+    var body: some View {
+        Group {
+            if useGlass {
+                Button(action: action) {
+                    Image(systemName: icon)
+                        .font(font)
+                        .frame(width: size, height: size)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.glass)
+            } else {
+                Button(action: action) {
+                    Image(systemName: icon)
+                        .font(font)
+                        .frame(width: size, height: size)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .help(label)
     }
 }
 
