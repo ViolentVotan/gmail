@@ -414,3 +414,41 @@ extension GmailMessagePart {
             .trimmingCharacters(in: CharacterSet(charactersIn: "<>"))
     }
 }
+
+// MARK: - Test Fixtures
+
+#if DEBUG
+extension GmailMessage {
+    /// Creates a minimal test fixture for unit tests.
+    static func testFixture(
+        id: String = "msg-test",
+        threadId: String = "thread-test",
+        labelIds: [String] = ["INBOX"],
+        subject: String = "Test Subject",
+        from: String = "test@example.com",
+        snippet: String = "Test snippet"
+    ) -> GmailMessage {
+        let subjectHeader = GmailHeader(name: "Subject", value: subject)
+        let fromHeader = GmailHeader(name: "From", value: from)
+        let payload = GmailMessagePart(
+            partId: "0",
+            mimeType: "text/plain",
+            filename: nil,
+            headers: [subjectHeader, fromHeader],
+            body: GmailMessageBody(attachmentId: nil, size: 0, data: nil),
+            parts: nil
+        )
+        return GmailMessage(
+            id: id,
+            threadId: threadId,
+            labelIds: labelIds,
+            snippet: snippet,
+            internalDate: String(Int(Date().timeIntervalSince1970 * 1000)),
+            payload: payload,
+            sizeEstimate: 1024,
+            historyId: nil,
+            raw: nil
+        )
+    }
+}
+#endif
