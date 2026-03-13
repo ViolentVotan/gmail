@@ -1,3 +1,4 @@
+import GRDB
 import SwiftUI
 
 /// Drives the email list for a given account and folder.
@@ -26,10 +27,12 @@ final class MailboxViewModel {
 
     // MARK: - Services
 
+    var mailDatabase: MailDatabase?
     private let api: MessageFetching
     private let fetchService: MessageFetchService
     private let labelService: LabelSyncService
     private let historyService: HistorySyncService
+    private var messageObservation: (any DatabaseCancellable)?
 
     init(
         accountID: String,
@@ -71,10 +74,69 @@ final class MailboxViewModel {
             }
     }
 
+    // MARK: - Database Observation
+
+    func startObservingLabel(_ labelId: String) {
+        messageObservation?.cancel()
+        guard let db = mailDatabase else { return }
+        let observation = ValueObservation.tracking { db in
+            try MailDatabaseQueries.messagesForLabel(labelId, limit: 200, in: db)
+        }
+        messageObservation = observation.start(
+            in: db.dbPool,
+            scheduling: .async(onQueue: .main),
+            onError: { [weak self] error in
+                Task { @MainActor in
+                    self?.error = "Database observation failed: \(error.localizedDescription)"
+                }
+            },
+            onChange: { [weak self] records in
+                Task { @MainActor in
+                    self?.handleDatabaseUpdate(records, from: db)
+                }
+            }
+        )
+    }
+
+    private func handleDatabaseUpdate(_ records: [MessageRecord], from db: MailDatabase) {
+        // Stale check: ignore updates from a previous account's database
+        guard db === mailDatabase else { return }
+        Task {
+            let threadEmails = await Self.enrichRecords(records, db: db)
+            guard db === self.mailDatabase else { return }
+            self.emails = threadEmails
+        }
+    }
+
+    private nonisolated static func enrichRecords(_ records: [MessageRecord], db: MailDatabase) async -> [Email] {
+        do {
+            let newEmails: [Email] = try await db.dbPool.read { database in
+                try records.map { record in
+                    let labels = try MailDatabaseQueries.labels(forMessage: record.gmailId, in: database)
+                    return record.toEmail(labels: labels, tags: nil)
+                }
+            }
+            let grouped = Dictionary(grouping: newEmails) { $0.gmailThreadID ?? $0.gmailMessageID ?? $0.id.uuidString }
+            return grouped.values.compactMap { threadEmails -> Email? in
+                var latest = threadEmails.sorted { $0.date > $1.date }.first
+                latest?.threadMessageCount = threadEmails.count
+                return latest
+            }.sorted { $0.date > $1.date }
+        } catch {
+            print("DB update error: \(error)")
+            return []
+        }
+    }
+
     // MARK: - Load
 
     /// Cancels any in-flight fetch and starts a new folder load.
     func loadFolder(labelIDs: [String], query: String? = nil) async {
+        // DB fast path: serve from local database instantly
+        if query == nil, let labelId = labelIDs.first, mailDatabase != nil {
+            startObservingLabel(labelId)
+        }
+
         let isFolderChange = labelIDs != currentLabelIDs || query != currentQuery
         currentLabelIDs = labelIDs
         currentQuery    = query
@@ -177,6 +239,8 @@ final class MailboxViewModel {
     // MARK: - Account switching
 
     func switchAccount(_ id: String) async {
+        messageObservation?.cancel()
+        messageObservation = nil
         cancelActiveFetch()
         accountID              = id
         fetchService.accountID = id

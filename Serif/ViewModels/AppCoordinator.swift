@@ -287,6 +287,7 @@ final class AppCoordinator {
             mailboxViewModel.attachmentIndexer = indexer
             Task {
                 await setupDatabase(for: account.id)
+                mailboxViewModel.mailDatabase = self.mailDatabase
                 await indexer.setProgressUpdate { [weak attachmentStore] in
                     attachmentStore?.refresh()
                 }
@@ -378,6 +379,7 @@ final class AppCoordinator {
                 attachmentStore?.refresh()
             }
             await mailboxViewModel.switchAccount(id)
+            mailboxViewModel.mailDatabase = self.mailDatabase
             async let folderLoad: Void = loadCurrentFolder()
             async let labelsLoad: Void = mailboxViewModel.loadLabels()
             async let sendAsLoad: Void = mailboxViewModel.loadSendAs()
