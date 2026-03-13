@@ -13,6 +13,7 @@ final class AppCoordinator {
     let panelCoordinator = PanelCoordinator()
     let attachmentStore: AttachmentStore
 
+    private(set) var mailDatabase: MailDatabase?
     private var pendingDraftSelection: Email?
     private var lifecycleTask: Task<Void, Never>?
 
@@ -212,6 +213,27 @@ final class AppCoordinator {
         UserDefaults.standard.set(signatureForReply, forKey: UserDefaultsKey.signatureForReply(id))
     }
 
+    // MARK: - Database Lifecycle
+
+    private func setupDatabase(for accountID: String) async {
+        do {
+            let db = try await Task.detached(priority: .userInitiated) {
+                let database = try MailDatabase(accountID: accountID)
+                guard try database.integrityCheck() else {
+                    MailDatabase.deleteDatabase(accountID: accountID)
+                    return try MailDatabase(accountID: accountID)
+                }
+                return database
+            }.value
+            // Guard against account switching race
+            guard self.selectedAccountID == accountID else { return }
+            self.mailDatabase = db
+        } catch {
+            print("Failed to create database for \(accountID): \(error)")
+            self.mailDatabase = nil
+        }
+    }
+
     // MARK: - Folder Loading
 
     func loadCurrentFolder() async {
@@ -264,6 +286,7 @@ final class AppCoordinator {
             attachmentIndexer = indexer
             mailboxViewModel.attachmentIndexer = indexer
             Task {
+                await setupDatabase(for: account.id)
                 await indexer.setProgressUpdate { [weak attachmentStore] in
                     attachmentStore?.refresh()
                 }
@@ -350,6 +373,7 @@ final class AppCoordinator {
         mailboxViewModel.attachmentIndexer = indexer
         lifecycleTask?.cancel()
         lifecycleTask = Task {
+            await setupDatabase(for: id)
             await indexer.setProgressUpdate { [weak attachmentStore] in
                 attachmentStore?.refresh()
             }
