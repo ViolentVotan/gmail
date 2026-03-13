@@ -99,6 +99,25 @@ actor BackgroundSyncer {
         }
     }
 
+    // MARK: - Body Pre-fetch
+
+    /// Pre-fetch full message bodies for messages that only have metadata.
+    /// Fetches newest first in batches. Runs until all visible messages have bodies.
+    func preFetchBodies(messageService: GmailMessageService, accountID: String) async throws {
+        let toFetch = try await db.dbPool.read { db in
+            try MailDatabaseQueries.messagesNeedingBodies(limit: 50, in: db)
+        }
+        guard !toFetch.isEmpty else { return }
+
+        let ids = toFetch.map(\.gmailId)
+        let fullMessages = try await messageService.getMessages(ids: ids, accountID: accountID, format: "full")
+
+        let updates: [(gmailId: String, html: String?, plain: String?)] = fullMessages.map { msg in
+            (gmailId: msg.id, html: msg.htmlBody, plain: msg.plainBody)
+        }
+        try updateBodies(updates)
+    }
+
     // MARK: - Label Sync
 
     /// Upsert labels from API.

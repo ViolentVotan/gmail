@@ -14,6 +14,7 @@ final class AppCoordinator {
     let attachmentStore: AttachmentStore
 
     private(set) var mailDatabase: MailDatabase?
+    private(set) var backgroundSyncer: BackgroundSyncer?
     private var pendingDraftSelection: Email?
     private var lifecycleTask: Task<Void, Never>?
 
@@ -228,9 +229,11 @@ final class AppCoordinator {
             // Guard against account switching race
             guard self.selectedAccountID == accountID else { return }
             self.mailDatabase = db
+            self.backgroundSyncer = BackgroundSyncer(db: db)
         } catch {
             print("Failed to create database for \(accountID): \(error)")
             self.mailDatabase = nil
+            self.backgroundSyncer = nil
         }
     }
 
@@ -300,6 +303,15 @@ final class AppCoordinator {
                 lastRefreshedAt = Date()
                 await indexer.resumePending()
                 await indexer.scanForAttachments()
+                // Pre-fetch bodies at low priority after initial sync
+                if let syncer = self.backgroundSyncer {
+                    Task.detached(priority: .utility) {
+                        try? await syncer.preFetchBodies(
+                            messageService: GmailMessageService.shared,
+                            accountID: account.id
+                        )
+                    }
+                }
             }
         } else {
             selectedEmail = mailStore.emails(for: .inbox).first
