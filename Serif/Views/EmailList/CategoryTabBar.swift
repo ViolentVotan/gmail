@@ -6,15 +6,7 @@ struct CategoryTabBar: View {
     let unreadCounts: [InboxCategory: Int]
 
     var body: some View {
-        Group {
-            if #available(macOS 26.0, *) {
-                GlassEffectContainer {
-                    tabBarContent
-                }
-            } else {
-                tabBarContent
-            }
-        }
+        tabBarContent
     }
 
     private var tabBarContent: some View {
@@ -76,14 +68,10 @@ private struct TabBackground: ViewModifier {
     let isSelected: Bool
 
     func body(content: Content) -> some View {
-        if #available(macOS 26.0, *) {
-            if isSelected {
-                content.glassEffect(.regular.interactive(), in: .capsule)
-            } else {
-                content
-            }
+        if isSelected {
+            content.glassEffect(.regular.interactive(), in: .capsule)
         } else {
-            content.background(isSelected ? Color.accentColor.opacity(0.1) : .clear, in: .capsule)
+            content
         }
     }
 }
