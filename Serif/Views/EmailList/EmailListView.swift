@@ -100,12 +100,7 @@ struct EmailListView: View {
                             unsubscribable.forEach { onUnsubscribe($0) }
                         } label: {
                             Text("Unsubscribe All (\(unsubscribable.count))")
-                                .font(Typography.subhead)
-                                .foregroundStyle(.red)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Color.red.opacity(0.1))
-                                .cornerRadius(6)
+                                .destructiveActionStyle()
                         }
                         .buttonStyle(.plain)
                     }
@@ -116,12 +111,7 @@ struct EmailListView: View {
                         onEmptyTrash()
                     } label: {
                         Text("Empty Trash")
-                            .font(Typography.subhead)
-                            .foregroundStyle(.red)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Color.red.opacity(0.1))
-                            .cornerRadius(6)
+                            .destructiveActionStyle()
                     }
                     .buttonStyle(.plain)
                 }
@@ -131,12 +121,7 @@ struct EmailListView: View {
                         onEmptySpam()
                     } label: {
                         Text("Empty Spam")
-                            .font(Typography.subhead)
-                            .foregroundStyle(.red)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Color.red.opacity(0.1))
-                            .cornerRadius(6)
+                            .destructiveActionStyle()
                     }
                     .buttonStyle(.plain)
                 }
