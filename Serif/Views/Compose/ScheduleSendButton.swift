@@ -34,7 +34,7 @@ struct ScheduleSendButton: View {
                 }
             } label: {
                 Image(systemName: "chevron.down")
-                    .font(.caption2)
+                    .font(Typography.captionSmallRegular)
             }
             .menuStyle(.borderlessButton)
             .frame(width: 24)

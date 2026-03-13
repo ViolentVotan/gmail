@@ -13,10 +13,10 @@ struct CalendarInviteCardView: View {
             // Title
             HStack(spacing: 8) {
                 Image(systemName: "calendar")
-                    .font(.subheadline.weight(.semibold))
+                    .font(Typography.subheadSemibold)
                     .foregroundStyle(.tint)
                 Text(invite.summary)
-                    .font(.subheadline.weight(.semibold))
+                    .font(Typography.subheadSemibold)
                     .foregroundStyle(.primary)
                     .lineLimit(2)
             }
@@ -25,11 +25,11 @@ struct CalendarInviteCardView: View {
             if !invite.dateText.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "clock")
-                        .font(.subheadline)
+                        .font(Typography.subheadRegular)
                         .foregroundStyle(.tertiary)
                         .frame(width: 16)
                     Text(invite.dateText)
-                        .font(.body)
+                        .font(Typography.body)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -38,11 +38,11 @@ struct CalendarInviteCardView: View {
             if let location = invite.location, !location.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "mappin.and.ellipse")
-                        .font(.subheadline)
+                        .font(Typography.subheadRegular)
                         .foregroundStyle(.tertiary)
                         .frame(width: 16)
                     Text(location)
-                        .font(.body)
+                        .font(Typography.body)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
@@ -52,11 +52,11 @@ struct CalendarInviteCardView: View {
             if let organizer = invite.organizer, !organizer.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "person")
-                        .font(.subheadline)
+                        .font(Typography.subheadRegular)
                         .foregroundStyle(.tertiary)
                         .frame(width: 16)
                     Text(organizer)
-                        .font(.body)
+                        .font(Typography.body)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -84,9 +84,9 @@ struct CalendarInviteCardView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: showOriginalEmail ? "chevron.up" : "chevron.down")
-                            .font(.caption2.weight(.medium))
+                            .font(Typography.captionSmallMedium)
                         Text(showOriginalEmail ? "Hide original" : "Show original")
-                            .font(.caption.weight(.medium))
+                            .font(Typography.caption)
                     }
                     .foregroundStyle(.tertiary)
                 }
@@ -111,9 +111,9 @@ struct CalendarInviteCardView: View {
         Button(action: action) {
             HStack(spacing: 5) {
                 Image(systemName: isSelected ? "checkmark" : icon)
-                    .font(.caption.weight(.medium))
+                    .font(Typography.caption)
                 Text(label)
-                    .font(.subheadline.weight(.medium))
+                    .font(Typography.subhead)
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 7)

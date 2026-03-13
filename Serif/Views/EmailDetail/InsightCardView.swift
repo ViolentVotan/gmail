@@ -14,14 +14,14 @@ struct InsightCardView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 6) {
                         Label("Apple Intelligence", systemImage: "apple.intelligence")
-                            .font(.caption2.weight(.medium))
+                            .font(Typography.captionSmallMedium)
                             .foregroundStyle(.tertiary)
                         Spacer()
                     }
 
                     if let summary = insight.summary, !summary.isEmpty {
                         Text(summary)
-                            .font(.subheadline)
+                            .font(Typography.subheadRegular)
                             .foregroundStyle(.primary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -33,7 +33,7 @@ struct InsightCardView: View {
                                     Image(systemName: "exclamationmark.circle.fill")
                                         .foregroundStyle(.orange)
                                     Text(action)
-                                        .font(.caption)
+                                        .font(Typography.captionRegular)
                                         .foregroundStyle(.primary)
                                 }
                             }
@@ -42,13 +42,13 @@ struct InsightCardView: View {
                                     Image(systemName: "calendar.badge.clock")
                                         .foregroundStyle(.red)
                                     Text(deadline)
-                                        .font(.caption)
+                                        .font(Typography.captionRegular)
                                         .foregroundStyle(.primary)
                                 }
                             }
                             if let sentiment = insight.sentiment {
                                 Text(sentiment.capitalized)
-                                    .font(.caption2.weight(.medium))
+                                    .font(Typography.captionSmallMedium)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
                                     .background(sentimentColor(sentiment).opacity(0.15))

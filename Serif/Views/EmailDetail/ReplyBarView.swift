@@ -136,16 +136,16 @@ struct ReplyBarView: View {
             HStack(spacing: 10) {
                 if !quickReplies.isEmpty {
                     Image(systemName: "apple.intelligence")
-                        .font(.body)
+                        .font(Typography.body)
                         .foregroundStyle(appleIntelligenceGradient)
                 }
                 Text(collapsedPlaceholder)
-                    .font(.body)
+                    .font(Typography.body)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
                 Spacer()
                 Image(systemName: hasSavedDraft ? "arrow.uturn.forward" : "square.and.pencil")
-                    .font(.body)
+                    .font(Typography.body)
                     .foregroundStyle(.tertiary)
             }
             .padding(.horizontal, Spacing.lg)
@@ -219,9 +219,9 @@ struct ReplyBarView: View {
                         ForEach(attachments, id: \.self) { url in
                             HStack(spacing: 4) {
                                 Image(systemName: url.sfSymbolIcon)
-                                    .font(.caption)
+                                    .font(Typography.captionRegular)
                                 Text(url.lastPathComponent)
-                                    .font(.caption)
+                                    .font(Typography.captionRegular)
                                     .lineLimit(1)
                                 Button { attachments.removeAll { $0 == url } } label: {
                                     Image(systemName: "xmark").font(.caption2.weight(.bold))
@@ -256,7 +256,7 @@ struct ReplyBarView: View {
 
                 Button { attachFiles() } label: {
                     Image(systemName: "paperclip")
-                        .font(.subheadline)
+                        .font(Typography.subheadRegular)
                         .foregroundStyle(.secondary)
                         .frame(width: 30, height: 30)
                 }
@@ -265,7 +265,7 @@ struct ReplyBarView: View {
 
                 if let err = sendError {
                     Text(err)
-                        .font(.caption)
+                        .font(Typography.captionRegular)
                         .foregroundStyle(.red)
                         .lineLimit(1)
                 }
@@ -340,7 +340,7 @@ struct ReplyBarView: View {
     private var quickReplyChipContent: some View {
         HStack(spacing: 8) {
             Image(systemName: "apple.intelligence")
-                .font(.subheadline)
+                .font(Typography.subheadRegular)
                 .foregroundStyle(appleIntelligenceGradient)
                 .opacity(visibleChipCount > 0 ? 1 : 0)
                 .scaleEffect(visibleChipCount > 0 ? 1 : 0.5)
@@ -355,7 +355,7 @@ struct ReplyBarView: View {
                     replyHTML = "<p>\(escaped)</p>"
                 } label: {
                     Text(suggestion)
-                        .font(.subheadline)
+                        .font(Typography.subheadRegular)
                         .foregroundStyle(.primary)
                         .padding(.horizontal, Spacing.md)
                         .padding(.vertical, Spacing.sm)
@@ -395,7 +395,7 @@ struct ReplyBarView: View {
 
             TextField("", text: text)
                 .textFieldStyle(.plain)
-                .font(.subheadline)
+                .font(Typography.subheadRegular)
                 .foregroundStyle(.primary)
         }
         .padding(.horizontal, Spacing.lg)

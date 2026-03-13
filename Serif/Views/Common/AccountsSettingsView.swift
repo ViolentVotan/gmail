@@ -15,12 +15,12 @@ struct AccountsSettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Connected Accounts")
-                .font(.title3.weight(.semibold))
+                .font(Typography.titleSemibold)
                 .foregroundStyle(.primary)
 
             if authViewModel.accounts.isEmpty {
                 Text("No accounts connected")
-                    .font(.callout)
+                    .font(Typography.callout)
                     .foregroundStyle(.tertiary)
                     .padding(.vertical, 4)
             } else {
@@ -63,9 +63,9 @@ struct AccountsSettingsView: View {
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.title3)
+                        .font(Typography.title)
                     Text(authViewModel.isSigningIn ? "Signing in…" : "Add account")
-                        .font(.subheadline)
+                        .font(Typography.subheadRegular)
                 }
                 .foregroundStyle(.tint)
             }
@@ -130,7 +130,7 @@ struct AccountsSettingsView: View {
             // Drag handle
             if authViewModel.accounts.count > 1 {
                 Image(systemName: "line.3.horizontal")
-                    .font(.callout.weight(.medium))
+                    .font(Typography.calloutMedium)
                     .foregroundStyle(.tertiary.opacity(0.5))
                     .frame(width: 18)
                     .contentShape(.rect)
@@ -149,12 +149,12 @@ struct AccountsSettingsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(account.displayName)
-                        .font(.subheadline.weight(.medium))
+                        .font(Typography.subhead)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     if isFirst {
                         Text("Default")
-                            .font(.caption2.weight(.semibold))
+                            .font(Typography.captionSmall)
                             .foregroundStyle(.tint)
                             .padding(.horizontal, 5)
                             .padding(.vertical, 1)
@@ -163,7 +163,7 @@ struct AccountsSettingsView: View {
                     }
                 }
                 Text(account.email)
-                    .font(.body)
+                    .font(Typography.body)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
             }
@@ -192,7 +192,7 @@ struct AccountsSettingsView: View {
                 }
             } label: {
                 Text("Sign out")
-                    .font(.body.weight(.medium))
+                    .font(Typography.bodyMedium)
                     .foregroundStyle(.red.opacity(0.8))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)

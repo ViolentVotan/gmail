@@ -9,7 +9,7 @@ struct SnoozePickerView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .font(Typography.subheadSemibold)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 8)
                 .padding(.top, 4)
@@ -22,7 +22,7 @@ struct SnoozePickerView: View {
                         Label(preset.label, systemImage: preset.icon)
                         Spacer()
                         Text(preset.subtitle)
-                            .font(.caption)
+                            .font(Typography.captionRegular)
                             .foregroundStyle(.secondary)
                     }
                     .padding(.horizontal, 8)

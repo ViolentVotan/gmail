@@ -160,7 +160,7 @@ struct AttachmentCardView: View {
 
     private var filenameArea: some View {
         Text(result.attachment.filename)
-            .font(.subheadline.weight(.medium))
+            .font(Typography.subhead)
             .foregroundStyle(.primary)
             .lineLimit(2)
             .multilineTextAlignment(.center)
@@ -171,11 +171,11 @@ struct AttachmentCardView: View {
     private var metadataArea: some View {
         VStack(spacing: 2) {
             Text(result.attachment.senderName ?? result.attachment.senderEmail ?? "")
-                .font(.caption2)
+                .font(Typography.captionSmallRegular)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
             Text(formattedDate)
-                .font(.caption2)
+                .font(Typography.captionSmallRegular)
                 .foregroundStyle(.tertiary)
         }
         .frame(maxWidth: .infinity)

@@ -98,9 +98,9 @@ struct OriginalMessageView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.down.doc")
-                            .font(.caption)
+                            .font(Typography.captionRegular)
                         Text("Download Original")
-                            .font(.subheadline.weight(.medium))
+                            .font(Typography.subhead)
                     }
                     .foregroundStyle(.tint)
                 }
@@ -122,9 +122,9 @@ struct OriginalMessageView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: copied ? "checkmark" : "doc.on.doc")
-                            .font(.caption)
+                            .font(Typography.captionRegular)
                         Text(copied ? "Copied!" : "Copy to Clipboard")
-                            .font(.subheadline.weight(.medium))
+                            .font(Typography.subhead)
                     }
                     .foregroundStyle(.tint)
                     .padding(.horizontal, 12)
@@ -147,7 +147,7 @@ struct OriginalMessageView: View {
                     ProgressView()
                         .tint(.gray)
                     Text("Loading original message…")
-                        .font(.subheadline)
+                        .font(Typography.subheadRegular)
                         .foregroundStyle(.tertiary)
                         .padding(.top, 8)
                     Spacer()
@@ -165,7 +165,7 @@ struct OriginalMessageView: View {
                 VStack {
                     Spacer()
                     Text("Could not load original message")
-                        .font(.subheadline)
+                        .font(Typography.subheadRegular)
                         .foregroundStyle(.tertiary)
                     Spacer()
                 }
@@ -202,14 +202,14 @@ struct OriginalMessageView: View {
     private func metadataRow(label: String, value: String) -> some View {
         HStack(alignment: .top, spacing: 0) {
             Text(label)
-                .font(.subheadline.weight(.medium))
+                .font(Typography.subhead)
                 .foregroundStyle(.tertiary)
                 .frame(width: 100, alignment: .leading)
                 .padding(.vertical, 10)
                 .padding(.leading, 14)
 
             Text(value)
-                .font(.subheadline)
+                .font(Typography.subheadRegular)
                 .foregroundStyle(.primary)
                 .textSelection(.enabled)
                 .padding(.vertical, 10)
@@ -222,7 +222,7 @@ struct OriginalMessageView: View {
     private func authRow(label: String, value: String?) -> some View {
         HStack(alignment: .top, spacing: 0) {
             Text(label)
-                .font(.subheadline.weight(.medium))
+                .font(Typography.subhead)
                 .foregroundStyle(.tertiary)
                 .frame(width: 100, alignment: .leading)
                 .padding(.vertical, 10)
@@ -235,7 +235,7 @@ struct OriginalMessageView: View {
 
                 if let v = value {
                     Text(v)
-                        .font(.caption)
+                        .font(Typography.captionRegular)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }

@@ -11,11 +11,11 @@ struct TrackerBannerView: View {
         VStack(spacing: 0) {
             HStack(spacing: 10) {
                 Image(systemName: "eye.slash.fill")
-                    .font(.body)
+                    .font(Typography.body)
                     .foregroundStyle(.tint)
 
                 Text("\(trackerCount) tracker\(trackerCount > 1 ? "s" : "") blocked")
-                    .font(.subheadline.weight(.medium))
+                    .font(Typography.subhead)
                     .foregroundStyle(.primary)
 
                 Button {
@@ -24,7 +24,7 @@ struct TrackerBannerView: View {
                     }
                 } label: {
                     Text(showDetails ? "Hide details" : "Show details")
-                        .font(.caption.weight(.medium))
+                        .font(Typography.caption)
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
@@ -35,7 +35,7 @@ struct TrackerBannerView: View {
                     onAllow()
                 } label: {
                     Text("Load blocked content")
-                        .font(.caption.weight(.medium))
+                        .font(Typography.caption)
                         .foregroundStyle(.tint)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
@@ -59,7 +59,7 @@ struct TrackerBannerView: View {
                                 .foregroundStyle(.tertiary)
                                 .frame(width: 14)
                             Text(group.name)
-                                .font(.caption.weight(.medium))
+                                .font(Typography.caption)
                                 .foregroundStyle(.primary)
                             if group.count > 1 {
                                 Text("×\(group.count)")

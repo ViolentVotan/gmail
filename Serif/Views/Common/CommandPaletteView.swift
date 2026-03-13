@@ -37,7 +37,7 @@ struct CommandPaletteView: View {
                 .foregroundStyle(.secondary)
             TextField("Type a command...", text: $viewModel.query)
                 .textFieldStyle(.plain)
-                .font(.title3)
+                .font(Typography.title)
                 .onSubmit { viewModel.executeSelected() }
         }
         .padding(Spacing.md)

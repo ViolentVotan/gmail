@@ -30,14 +30,42 @@ enum SerifAnimation {
 // MARK: - Typography
 
 enum Typography {
-    static let title = Font.title3.bold()
-    static let headline = Font.headline
-    static let subhead = Font.subheadline.weight(.medium)
-    static let body = Font.body
-    static let bodyMedium = Font.body.weight(.medium)
-    static let bodySemibold = Font.body.weight(.semibold)
-    static let caption = Font.caption.weight(.medium)
-    static let captionSmall = Font.caption2.weight(.semibold)
+    // Display
+    static let titleLarge: Font = .title2.bold()
+
+    // Title
+    static let title: Font = .title3.bold()
+    static let titleSemibold: Font = .title3.weight(.semibold)
+
+    // Headline
+    static let headline: Font = .headline
+    static let headlineSemibold: Font = .headline.weight(.semibold)
+
+    // Subhead
+    static let subhead: Font = .subheadline.weight(.medium)
+    static let subheadRegular: Font = .subheadline
+    static let subheadSemibold: Font = .subheadline.weight(.semibold)
+
+    // Body
+    static let body: Font = .body
+    static let bodyMedium: Font = .body.weight(.medium)
+    static let bodySemibold: Font = .body.weight(.semibold)
+
+    // Callout
+    static let callout: Font = .callout
+    static let calloutMedium: Font = .callout.weight(.medium)
+    static let calloutSemibold: Font = .callout.weight(.semibold)
+
+    // Footnote
+    static let footnote: Font = .footnote
+    static let footnoteMedium: Font = .footnote.weight(.medium)
+
+    // Caption
+    static let caption: Font = .caption.weight(.medium)
+    static let captionRegular: Font = .caption
+    static let captionSmall: Font = .caption2.weight(.semibold)
+    static let captionSmallMedium: Font = .caption2.weight(.medium)
+    static let captionSmallRegular: Font = .caption2
 }
 
 // MARK: - Elevation

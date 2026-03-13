@@ -17,17 +17,17 @@ struct EmailHoverSummaryView: View {
                 )
                 VStack(alignment: .leading, spacing: 2) {
                     Text(email.sender.name)
-                        .font(.subheadline.weight(.semibold))
+                        .font(Typography.subheadSemibold)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     Text(email.subject)
-                        .font(.caption.weight(.medium))
+                        .font(Typography.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
                 Spacer(minLength: 0)
                 Text(email.date.formatted(date: .abbreviated, time: .shortened))
-                    .font(.caption2)
+                    .font(Typography.captionSmallRegular)
                     .foregroundStyle(.tertiary)
             }
 
@@ -61,12 +61,12 @@ struct EmailHoverSummaryView: View {
                     ProgressView()
                         .controlSize(.small)
                     Text("Summarizing...")
-                        .font(.caption)
+                        .font(Typography.captionRegular)
                         .foregroundStyle(.tertiary)
                 }
             } else {
                 Text(summaryVM.displayedText)
-                    .font(.subheadline)
+                    .font(Typography.subheadRegular)
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
                     .animation(.easeIn(duration: 0.05), value: summaryVM.displayedText)
@@ -80,7 +80,7 @@ struct EmailHoverSummaryView: View {
                                     Image(systemName: "exclamationmark.circle.fill")
                                         .foregroundStyle(.orange)
                                     Text(action)
-                                        .font(.caption)
+                                        .font(Typography.captionRegular)
                                 }
                             }
                             if let deadline = insight.deadline {
@@ -88,12 +88,12 @@ struct EmailHoverSummaryView: View {
                                     Image(systemName: "calendar.badge.clock")
                                         .foregroundStyle(.red)
                                     Text(deadline)
-                                        .font(.caption)
+                                        .font(Typography.captionRegular)
                                 }
                             }
                             if let sentiment = insight.sentiment {
                                 Text(sentiment.capitalized)
-                                    .font(.caption2.weight(.medium))
+                                    .font(Typography.captionSmallMedium)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
                                     .background(sentimentColor(sentiment).opacity(0.15))
@@ -139,9 +139,9 @@ struct EmailHoverSummaryView: View {
     private func metadataPill(icon: String, text: String) -> some View {
         HStack(spacing: 3) {
             Image(systemName: icon)
-                .font(.caption2)
+                .font(Typography.captionSmallRegular)
             Text(text)
-                .font(.caption2)
+                .font(Typography.captionSmallRegular)
                 .lineLimit(1)
         }
         .foregroundStyle(.tertiary)
@@ -168,7 +168,7 @@ struct EmailHoverSummaryView: View {
             if summaryVM.isAISummary, #available(macOS 26.0, *) {
                 #if canImport(FoundationModels)
                 Label("Apple Intelligence", systemImage: "apple.intelligence")
-                    .font(.caption2)
+                    .font(Typography.captionSmallRegular)
                     .foregroundStyle(.tertiary)
                 #endif
             }

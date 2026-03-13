@@ -184,7 +184,7 @@ struct EmailDetailView: View {
                                 .padding(.bottom, 16)
 
                             Text(detailVM.latestMessage?.subject ?? email.subject)
-                                .font(.title3.bold())
+                                .font(Typography.title)
                                 .foregroundStyle(.primary)
                                 .padding(.horizontal, 24)
                                 .padding(.bottom, 10)
@@ -209,9 +209,9 @@ struct EmailDetailView: View {
                                         } label: {
                                             HStack(spacing: 3) {
                                                 Image(systemName: suggestion.isNew ? "plus.circle" : "plus")
-                                                    .font(.caption2.weight(.semibold))
+                                                    .font(Typography.captionSmall)
                                                 Text(suggestion.name)
-                                                    .font(.caption2)
+                                                    .font(Typography.captionSmallRegular)
                                             }
                                             .padding(.horizontal, 6)
                                             .padding(.vertical, 3)
@@ -433,11 +433,11 @@ struct EmailDetailView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(email.sender.name)
-                    .font(.callout.weight(.semibold))
+                    .font(Typography.calloutSemibold)
                     .foregroundStyle(.primary)
 
                 Text(email.sender.email)
-                    .font(.subheadline)
+                    .font(Typography.subheadRegular)
                     .foregroundStyle(.tertiary)
                     .underline(showSenderInfo, color: .gray)
                     .onHover { hovering in
@@ -453,7 +453,7 @@ struct EmailDetailView: View {
             Spacer()
 
             Text(email.date.formattedFull)
-                .font(.subheadline)
+                .font(Typography.subheadRegular)
                 .foregroundStyle(.tertiary)
         }
     }
@@ -468,9 +468,9 @@ struct EmailDetailView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 Image(systemName: "paperclip")
-                    .font(.subheadline)
+                    .font(Typography.subheadRegular)
                 Text("\(displayAttachments.count) Attachment\(displayAttachments.count > 1 ? "s" : "")")
-                    .font(.subheadline.weight(.medium))
+                    .font(Typography.subhead)
             }
             .foregroundStyle(.secondary)
 

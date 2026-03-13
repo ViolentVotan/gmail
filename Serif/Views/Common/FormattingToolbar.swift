@@ -53,9 +53,9 @@ struct FormattingToolbar: View {
             } label: {
                 HStack(spacing: 3) {
                     Text("\(Int(state.fontSize))")
-                        .font(.caption)
+                        .font(Typography.captionRegular)
                     Image(systemName: "chevron.down")
-                        .font(.caption2)
+                        .font(Typography.captionSmallRegular)
                 }
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 6)
@@ -148,7 +148,7 @@ struct FormattingToolbar: View {
                 showLinkPopover.toggle()
             } label: {
                 Image(systemName: "link")
-                    .font(.subheadline)
+                    .font(Typography.subheadRegular)
                     .foregroundStyle(.secondary)
                     .frame(width: 26, height: 26)
                     .contentShape(Rectangle())
@@ -159,28 +159,28 @@ struct FormattingToolbar: View {
                 VStack(spacing: 10) {
                     HStack(spacing: 6) {
                         Text("URL")
-                            .font(.caption)
+                            .font(Typography.captionRegular)
                             .foregroundStyle(.secondary)
                             .frame(width: 30, alignment: .leading)
                         TextField("https://", text: $linkURL)
                             .textFieldStyle(.roundedBorder)
-                            .font(.subheadline)
+                            .font(Typography.subheadRegular)
                     }
                     HStack(spacing: 6) {
                         Text("Text")
-                            .font(.caption)
+                            .font(Typography.captionRegular)
                             .foregroundStyle(.secondary)
                             .frame(width: 30, alignment: .leading)
                         TextField("Display text (optional)", text: $linkText)
                             .textFieldStyle(.roundedBorder)
-                            .font(.subheadline)
+                            .font(Typography.subheadRegular)
                     }
                     HStack {
                         Spacer()
                         Button("Cancel") {
                             showLinkPopover = false
                         }
-                        .font(.caption)
+                        .font(Typography.captionRegular)
                         .buttonStyle(.plain)
 
                         Button("Insert") {
@@ -188,7 +188,7 @@ struct FormattingToolbar: View {
                             state.insertLink(url: linkURL, text: text)
                             showLinkPopover = false
                         }
-                        .font(.caption.weight(.medium))
+                        .font(Typography.caption)
                         .buttonStyle(.borderedProminent)
                         .controlSize(.small)
                         .disabled(linkURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
@@ -216,7 +216,7 @@ struct FormattingToolbar: View {
     private func toolbarButton(icon: String, tooltip: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.subheadline)
+                .font(Typography.subheadRegular)
                 .foregroundStyle(.secondary)
                 .frame(width: 26, height: 26)
                 .contentShape(Rectangle())
@@ -304,7 +304,7 @@ struct ColorGridPopover: View {
                     .frame(width: 24, height: 24)
 
                 Text("Custom")
-                    .font(.caption)
+                    .font(Typography.captionRegular)
                     .foregroundStyle(.secondary)
 
                 Spacer()
@@ -313,7 +313,7 @@ struct ColorGridPopover: View {
                     state.setTextColor(NSColor(customColor))
                     showPopover = false
                 }
-                .font(.caption.weight(.medium))
+                .font(Typography.caption)
                 .buttonStyle(.plain)
             }
         }

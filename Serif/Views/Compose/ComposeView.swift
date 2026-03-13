@@ -117,9 +117,9 @@ struct ComposeView: View {
                         ForEach(attachments, id: \.self) { url in
                             HStack(spacing: 4) {
                                 Image(systemName: url.sfSymbolIcon)
-                                    .font(.caption)
+                                    .font(Typography.captionRegular)
                                 Text(url.lastPathComponent)
-                                    .font(.caption)
+                                    .font(Typography.captionRegular)
                                     .lineLimit(1)
                                 Button { attachments.removeAll { $0 == url } } label: {
                                     Image(systemName: "xmark").font(.caption2.weight(.bold))
@@ -144,7 +144,7 @@ struct ComposeView: View {
             if composeVM.isSending, let _ = UndoActionManager.shared.currentAction {
                 HStack {
                     Text("Sending in \(Int(UndoActionManager.shared.timeRemaining))s...")
-                        .font(.subheadline)
+                        .font(Typography.subheadRegular)
                     Spacer()
                     Button("Undo") {
                         UndoActionManager.shared.undo()
@@ -321,7 +321,7 @@ struct ComposeView: View {
                 showCc.toggle()
             } label: {
                 Text("Cc")
-                    .font(.subheadline.weight(.medium))
+                    .font(Typography.subhead)
                     .foregroundStyle(showCc ? Color.accentColor : Color.secondary)
                     .frame(width: 28, height: 28)
                     .contentShape(Rectangle())
@@ -333,7 +333,7 @@ struct ComposeView: View {
                 showBcc.toggle()
             } label: {
                 Text("Bcc")
-                    .font(.subheadline.weight(.medium))
+                    .font(Typography.subhead)
                     .foregroundStyle(showBcc ? Color.accentColor : Color.secondary)
                     .frame(height: 28)
                     .contentShape(Rectangle())
@@ -354,7 +354,7 @@ struct ComposeView: View {
     private func toolbarButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.body)
+                .font(Typography.body)
                 .foregroundStyle(.secondary)
                 .frame(width: 28, height: 28)
                 .contentShape(Rectangle())
@@ -377,7 +377,7 @@ struct ComposeView: View {
 
             if let err = sendError {
                 Text(err)
-                    .font(.caption)
+                    .font(Typography.captionRegular)
                     .foregroundStyle(.red)
                     .lineLimit(1)
             }
@@ -401,7 +401,7 @@ struct ComposeView: View {
     private var fromField: some View {
         HStack(spacing: 10) {
             Text("From")
-                .font(.subheadline.weight(.medium))
+                .font(Typography.subhead)
                 .foregroundStyle(.tertiary)
                 .frame(width: 50, alignment: .leading)
 
@@ -412,7 +412,7 @@ struct ComposeView: View {
             }
             .pickerStyle(.menu)
             .labelsHidden()
-            .font(.body)
+            .font(Typography.body)
             .fixedSize()
 
             Spacer()
@@ -458,13 +458,13 @@ struct ComposeView: View {
     private func composeField(label: String, text: Binding<String>, placeholder: String = "") -> some View {
         HStack(spacing: 10) {
             Text(label)
-                .font(.subheadline.weight(.medium))
+                .font(Typography.subhead)
                 .foregroundStyle(.tertiary)
                 .frame(width: 50, alignment: .leading)
 
             TextField(placeholder, text: text)
                 .textFieldStyle(.plain)
-                .font(.body)
+                .font(Typography.body)
                 .foregroundStyle(.primary)
         }
         .padding(.horizontal, 24)

@@ -33,7 +33,7 @@ struct SlidePanel<Content: View>: View {
                     Spacer()
                     Button { isPresented = false } label: {
                         Image(systemName: "xmark")
-                            .font(.subheadline.weight(.medium))
+                            .font(Typography.subhead)
                             .foregroundStyle(.secondary)
                             .frame(width: closeButtonSize, height: closeButtonSize)
                     }

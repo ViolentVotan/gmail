@@ -31,11 +31,11 @@ struct AttachmentPreviewView: View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(fileName)
-                    .font(.callout.weight(.semibold))
+                    .font(Typography.calloutSemibold)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                 Text(fileType.label)
-                    .font(.caption)
+                    .font(Typography.captionRegular)
                     .foregroundStyle(.tertiary)
             }
 
@@ -49,7 +49,7 @@ struct AttachmentPreviewView: View {
                         }
                     } label: {
                         Image(systemName: "minus.magnifyingglass")
-                            .font(.body)
+                            .font(Typography.body)
                             .foregroundStyle(.secondary)
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
@@ -58,7 +58,7 @@ struct AttachmentPreviewView: View {
                     .help("Zoom out")
 
                     Text("\(Int(zoomScale * 100))%")
-                        .font(.caption.weight(.medium))
+                        .font(Typography.caption)
                         .foregroundStyle(.tertiary)
                         .frame(minWidth: 36)
 
@@ -68,7 +68,7 @@ struct AttachmentPreviewView: View {
                         }
                     } label: {
                         Image(systemName: "plus.magnifyingglass")
-                            .font(.body)
+                            .font(Typography.body)
                             .foregroundStyle(.secondary)
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
@@ -80,7 +80,7 @@ struct AttachmentPreviewView: View {
                         withAnimation(.easeInOut(duration: 0.15)) { zoomScale = 1.0 }
                     } label: {
                         Image(systemName: "1.magnifyingglass")
-                            .font(.body)
+                            .font(Typography.body)
                             .foregroundStyle(.secondary)
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
@@ -96,7 +96,7 @@ struct AttachmentPreviewView: View {
                 onDownload?()
             } label: {
                 Label("Save", systemImage: "arrow.down.circle")
-                    .font(.subheadline.weight(.medium))
+                    .font(Typography.subhead)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
@@ -198,18 +198,18 @@ struct AttachmentPreviewView: View {
             }
 
             Text("This file type cannot be previewed")
-                .font(.callout.weight(.medium))
+                .font(Typography.calloutMedium)
                 .foregroundStyle(.secondary)
 
             Text(fileName)
-                .font(.subheadline)
+                .font(Typography.subheadRegular)
                 .foregroundStyle(.tertiary)
 
             Button {
                 onDownload?()
             } label: {
                 Label("Download file", systemImage: "arrow.down.circle.fill")
-                    .font(.body.weight(.medium))
+                    .font(Typography.bodyMedium)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
@@ -232,7 +232,7 @@ struct AttachmentPreviewView: View {
                 .font(.largeTitle)
                 .foregroundStyle(.tertiary)
             Text("Could not render this file")
-                .font(.callout)
+                .font(Typography.callout)
                 .foregroundStyle(.secondary)
             Spacer()
         }

@@ -51,8 +51,8 @@ struct FiltersSettingsView: View {
 
     private func filterRow(_ filter: GmailFilter) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(filterSummary(filter)).font(.subheadline)
-            Text(actionSummary(filter)).font(.caption).foregroundStyle(.secondary)
+            Text(filterSummary(filter)).font(Typography.subheadRegular)
+            Text(actionSummary(filter)).font(Typography.captionRegular).foregroundStyle(.secondary)
         }
         .contextMenu {
             Button("Delete", role: .destructive) { filterToDelete = filter }

@@ -39,7 +39,7 @@ struct AttachmentExplorerView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Attachments")
-                    .font(.title2.bold())
+                    .font(Typography.titleLarge)
                     .foregroundStyle(.primary)
 
                 Spacer()
@@ -48,7 +48,7 @@ struct AttachmentExplorerView: View {
                     ProgressView()
                         .controlSize(.small)
                     Text("\(store.stats.indexed)/\(store.stats.total) indexed")
-                        .font(.caption)
+                        .font(Typography.captionRegular)
                         .foregroundStyle(.tertiary)
                 }
                 .opacity(store.isIndexing ? 1 : 0)
@@ -171,9 +171,9 @@ struct AttachmentExplorerView: View {
         Button { showRulesPopover.toggle() } label: {
             HStack(spacing: 4) {
                 Image(systemName: "eye.slash")
-                    .font(.caption2)
+                    .font(Typography.captionSmallRegular)
                 Text(store.exclusionRules.isEmpty ? "Rules" : "Rules (\(store.exclusionRules.count))")
-                    .font(.caption.weight(.medium))
+                    .font(Typography.caption)
             }
             .foregroundStyle(.secondary)
             .padding(.horizontal, 10)
@@ -189,12 +189,12 @@ struct AttachmentExplorerView: View {
     private var rulesPopoverContent: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Exclusion Rules")
-                .font(.body.weight(.semibold))
+                .font(Typography.bodySemibold)
                 .foregroundStyle(.primary)
 
             if store.exclusionRules.isEmpty {
                 Text("Right-click an attachment to add a rule")
-                    .font(.caption)
+                    .font(Typography.captionRegular)
                     .foregroundStyle(.tertiary)
             } else {
                 VStack(spacing: 4) {
@@ -208,7 +208,7 @@ struct AttachmentExplorerView: View {
                                 store.removeExclusionRule(rule)
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
-                                    .font(.subheadline)
+                                    .font(Typography.subheadRegular)
                                     .foregroundStyle(.tertiary)
                             }
                             .buttonStyle(.plain)
@@ -223,7 +223,7 @@ struct AttachmentExplorerView: View {
             HStack(spacing: 6) {
                 TextField("Pattern (e.g. image-*)", text: $newRuleText)
                     .textFieldStyle(.plain)
-                    .font(.subheadline)
+                    .font(Typography.subheadRegular)
                     .frame(minWidth: 140)
                     .onSubmit {
                         guard !newRuleText.isEmpty else { return }
@@ -236,7 +236,7 @@ struct AttachmentExplorerView: View {
                     newRuleText = ""
                 } label: {
                     Image(systemName: "plus.circle.fill")
-                        .font(.callout)
+                        .font(Typography.callout)
                         .foregroundStyle(.tint)
                 }
                 .buttonStyle(.plain)
@@ -254,10 +254,10 @@ struct AttachmentExplorerView: View {
             HStack(spacing: 4) {
                 if let icon = icon {
                     Image(systemName: icon)
-                        .font(.caption2)
+                        .font(Typography.captionSmallRegular)
                 }
                 Text(label)
-                    .font(.caption.weight(.medium))
+                    .font(Typography.caption)
             }
             .foregroundStyle(isSelected ? Color.white : Color.secondary)
             .padding(.horizontal, 10)

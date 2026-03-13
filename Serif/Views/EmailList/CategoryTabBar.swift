@@ -30,7 +30,7 @@ struct CategoryTabBar: View {
                 priorityFilterOn.toggle()
             } label: {
                 Label("Priority", systemImage: priorityFilterOn ? "flag.fill" : "flag")
-                    .font(.caption)
+                    .font(Typography.captionRegular)
                     .foregroundStyle(priorityFilterOn ? Color.accentColor : .secondary)
             }
             .buttonStyle(.plain)
@@ -48,12 +48,12 @@ struct CategoryTabBar: View {
         } label: {
             HStack(spacing: 4) {
                 Text(category.displayName)
-                    .font(.subheadline)
+                    .font(Typography.subheadRegular)
                     .fontWeight(isSelected ? .semibold : .regular)
 
                 if let count = unreadCounts[category], count > 0 {
                     Text("\(count)")
-                        .font(.caption2.weight(.medium))
+                        .font(Typography.captionSmallMedium)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 1)
                         .background(isSelected ? Color.accentColor : .secondary.opacity(0.2))

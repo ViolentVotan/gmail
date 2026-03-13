@@ -10,12 +10,12 @@ struct BehaviorSettingsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Behavior")
-                .font(.headline)
+                .font(Typography.headline)
                 .foregroundStyle(.primary)
 
             HStack {
                 Text("Undo duration")
-                    .font(.footnote)
+                    .font(Typography.footnote)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Picker("", selection: $undoDuration) {
@@ -32,7 +32,7 @@ struct BehaviorSettingsCard: View {
 
             HStack {
                 Text("Refresh interval")
-                    .font(.footnote)
+                    .font(Typography.footnote)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Picker("", selection: $refreshInterval) {
@@ -62,12 +62,12 @@ struct ContactsSettingsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Contacts")
-                .font(.headline)
+                .font(Typography.headline)
                 .foregroundStyle(.primary)
 
             HStack {
                 Text("\(contactCount) contacts cached")
-                    .font(.footnote)
+                    .font(Typography.footnote)
                     .foregroundStyle(.secondary)
 
                 Spacer()
@@ -88,10 +88,10 @@ struct ContactsSettingsCard: View {
                                 .frame(width: 12, height: 12)
                         } else {
                             Image(systemName: "arrow.clockwise")
-                                .font(.footnote)
+                                .font(Typography.footnote)
                         }
                         Text(isRefreshingContacts ? "Refreshing…" : "Refresh")
-                            .font(.callout)
+                            .font(Typography.callout)
                     }
                     .foregroundStyle(.tint)
                 }
@@ -120,12 +120,12 @@ struct SignatureSettingsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Signatures")
-                .font(.headline)
+                .font(Typography.headline)
                 .foregroundStyle(.primary)
 
             if aliases.isEmpty {
                 Text("No aliases found")
-                    .font(.footnote)
+                    .font(Typography.footnote)
                     .foregroundStyle(.tertiary)
             } else {
                 VStack(alignment: .leading, spacing: 8) {
@@ -136,11 +136,11 @@ struct SignatureSettingsCard: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 6) {
                                     Text(alias.displayName ?? alias.sendAsEmail)
-                                        .font(.callout)
+                                        .font(Typography.callout)
                                         .foregroundStyle(.primary)
                                     if alias.isPrimary == true {
                                         Text("Primary")
-                                            .font(.caption2.weight(.semibold))
+                                            .font(Typography.captionSmall)
                                             .foregroundStyle(.tint)
                                             .padding(.horizontal, 5)
                                             .padding(.vertical, 1)
@@ -148,11 +148,11 @@ struct SignatureSettingsCard: View {
                                     }
                                     Spacer()
                                     Image(systemName: "pencil")
-                                        .font(.footnote)
+                                        .font(Typography.footnote)
                                         .foregroundStyle(.tertiary)
                                 }
                                 Text(alias.sendAsEmail)
-                                    .font(.callout)
+                                    .font(Typography.callout)
                                     .foregroundStyle(.tertiary)
                                 if let sig = alias.signature, !sig.isEmpty {
                                     Text(sig.strippingHTML.prefix(80) + (sig.strippingHTML.count > 80 ? "…" : ""))
@@ -177,7 +177,7 @@ struct SignatureSettingsCard: View {
 
                 HStack {
                     Text("New emails")
-                        .font(.footnote)
+                        .font(Typography.footnote)
                         .foregroundStyle(.secondary)
                     Spacer()
                     Picker("", selection: $signatureForNew) {
@@ -192,7 +192,7 @@ struct SignatureSettingsCard: View {
 
                 HStack {
                     Text("Replies & forwards")
-                        .font(.footnote)
+                        .font(Typography.footnote)
                         .foregroundStyle(.secondary)
                     Spacer()
                     Picker("", selection: $signatureForReply) {
@@ -234,12 +234,12 @@ struct StorageSettingsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Storage")
-                .font(.headline)
+                .font(Typography.headline)
                 .foregroundStyle(.primary)
 
             HStack {
                 Text("Attachment scan depth")
-                    .font(.footnote)
+                    .font(Typography.footnote)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Picker("", selection: $scanMonths) {
@@ -258,14 +258,14 @@ struct StorageSettingsCard: View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Attachment index")
-                        .font(.footnote)
+                        .font(Typography.footnote)
                         .foregroundStyle(.secondary)
                     HStack(spacing: 8) {
                         Text(formattedSize)
                             .font(.footnote.monospaced().weight(.medium))
                             .foregroundStyle(.primary)
                         Text("\(attachmentStore.stats.total) attachments")
-                            .font(.callout)
+                            .font(Typography.callout)
                             .foregroundStyle(.tertiary)
                     }
                 }
@@ -282,10 +282,10 @@ struct StorageSettingsCard: View {
                                 .frame(width: 12, height: 12)
                         } else {
                             Image(systemName: "trash")
-                                .font(.footnote)
+                                .font(Typography.footnote)
                         }
                         Text(isClearing ? "Clearing..." : "Clear")
-                            .font(.callout)
+                            .font(Typography.callout)
                     }
                     .foregroundStyle(.red)
                 }
@@ -324,16 +324,16 @@ struct AppleIntelligenceSettingsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Apple Intelligence")
-                .font(.headline)
+                .font(Typography.headline)
                 .foregroundStyle(.primary)
 
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Label suggestions")
-                        .font(.body)
+                        .font(Typography.body)
                         .foregroundStyle(.secondary)
                     Text("Suggest labels for emails using on-device AI")
-                        .font(.callout)
+                        .font(Typography.callout)
                         .foregroundStyle(.tertiary)
                 }
                 Spacer()
@@ -355,12 +355,12 @@ struct DeveloperSettingsCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Developer")
-                .font(.headline)
+                .font(Typography.headline)
                 .foregroundStyle(.primary)
 
             HStack {
                 Text("Show Debug menu")
-                    .font(.body)
+                    .font(Typography.body)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Toggle("", isOn: $showDebugMenu)
@@ -391,7 +391,7 @@ struct RefreshStatusView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
                 Text(lastRefreshLabel)
-                    .font(.callout)
+                    .font(Typography.callout)
                     .foregroundStyle(.tertiary)
                 Spacer()
             }
@@ -400,7 +400,7 @@ struct RefreshStatusView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tertiary)
                 Text(nextRefreshLabel)
-                    .font(.callout)
+                    .font(Typography.callout)
                     .foregroundStyle(.tertiary)
                 Spacer()
             }

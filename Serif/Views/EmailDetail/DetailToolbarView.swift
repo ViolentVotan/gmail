@@ -105,7 +105,7 @@ struct DetailToolbarView: View {
                     showSnoozePicker = true
                 } label: {
                     Image(systemName: "clock")
-                        .font(.body)
+                        .font(Typography.body)
                         .frame(width: buttonSize, height: buttonSize)
                         .contentShape(Rectangle())
                 }
@@ -163,7 +163,7 @@ struct DetailToolbarView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis")
-                    .font(.body)
+                    .font(Typography.body)
                     .frame(width: buttonSize, height: buttonSize)
                     .contentShape(Rectangle())
             }
@@ -179,7 +179,7 @@ struct DetailToolbarView: View {
     private func toolbarButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.body)
+                .font(Typography.body)
                 .frame(width: buttonSize, height: buttonSize)
                 .contentShape(Rectangle())
         }

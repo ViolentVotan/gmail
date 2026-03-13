@@ -11,18 +11,18 @@ struct AttachmentChipView: View {
     var body: some View {
         HStack(spacing: 8) {
             Image(systemName: attachment.fileType.rawValue)
-                .font(.body)
+                .font(Typography.body)
                 .foregroundStyle(.tint)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(attachment.name)
-                    .font(.caption.weight(.medium))
+                    .font(Typography.caption)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
                 if !attachment.size.isEmpty {
                     Text(attachment.size)
-                        .font(.caption2)
+                        .font(Typography.captionSmallRegular)
                         .foregroundStyle(.tertiary)
                 }
             }
@@ -54,7 +54,7 @@ struct AttachmentChipView: View {
                 onDownload?()
             } label: {
                 Image(systemName: "arrow.down.circle")
-                    .font(.subheadline)
+                    .font(Typography.subheadRegular)
                     .foregroundStyle(isDownloadHovered ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
                     .frame(width: 28, height: 28)
                     .contentShape(Rectangle())

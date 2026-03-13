@@ -62,14 +62,14 @@ struct LabelEditorView: View {
 
             HStack(spacing: 4) {
                 Image(systemName: "tag")
-                    .font(.caption2)
+                    .font(Typography.captionSmallRegular)
                     .foregroundStyle(.tertiary)
                 TextField("Add label…", text: $labelSearchText, onEditingChanged: { editing in
                     isLabelFieldFocused = editing
                     if editing { highlightedIndex = 0 }
                 })
                 .textFieldStyle(.plain)
-                .font(.subheadline)
+                .font(Typography.subheadRegular)
                 .foregroundStyle(.primary)
                 .onChange(of: labelSearchText) { _, _ in highlightedIndex = 0 }
                 .onSubmit { confirmHighlighted() }
@@ -123,21 +123,21 @@ struct LabelEditorView: View {
                         .fill(Color(hex: label.resolvedTextColor))
                         .frame(width: 10, height: 10)
                     Text(label.displayName)
-                        .font(.subheadline)
+                        .font(Typography.subheadRegular)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                     Spacer(minLength: 0)
                     if currentLabelIDs.contains(label.id) {
                         Image(systemName: "checkmark")
-                            .font(.caption2.weight(.semibold))
+                            .font(Typography.captionSmall)
                             .foregroundStyle(.tint)
                     }
                 case .create(let name):
                     Image(systemName: "plus.circle.fill")
-                        .font(.subheadline)
+                        .font(Typography.subheadRegular)
                         .foregroundStyle(.tint)
                     Text("Create \"\(name)\"")
-                        .font(.subheadline.weight(.medium))
+                        .font(Typography.subhead)
                         .foregroundStyle(.tint)
                     Spacer(minLength: 0)
                 }

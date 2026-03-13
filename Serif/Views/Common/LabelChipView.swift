@@ -9,7 +9,7 @@ struct LabelChipView: View {
     var body: some View {
         HStack(spacing: 3) {
             Text(label.name)
-                .font(.caption2.weight(.medium))
+                .font(Typography.captionSmallMedium)
                 .foregroundStyle(Color(hex: label.textColor))
                 .lineLimit(1)
 
@@ -44,7 +44,7 @@ struct LabelPickerRow: View {
                     .frame(width: 10, height: 10)
 
                 Text(label.name)
-                    .font(.body)
+                    .font(Typography.body)
                     .foregroundStyle(.primary)
 
                 Spacer()

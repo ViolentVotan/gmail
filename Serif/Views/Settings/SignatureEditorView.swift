@@ -40,17 +40,17 @@ struct SignatureEditorView: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Edit Signature")
-                    .font(.headline)
+                    .font(Typography.headline)
                     .foregroundStyle(.primary)
                 Text(alias.sendAsEmail)
-                    .font(.footnote)
+                    .font(Typography.footnote)
                     .foregroundStyle(.tertiary)
             }
             Spacer()
             Button("Cancel") { dismiss() }
                 .buttonStyle(.plain)
                 .foregroundStyle(.secondary)
-                .font(.callout)
+                .font(Typography.callout)
             saveButton
         }
         .padding(16)
@@ -69,7 +69,7 @@ struct SignatureEditorView: View {
                         .frame(width: 12, height: 12)
                 }
                 Text(isSaving ? "Saving…" : "Save")
-                    .font(.callout)
+                    .font(Typography.callout)
             }
             .foregroundStyle(.white)
             .padding(.horizontal, 14)
@@ -98,16 +98,16 @@ struct SignatureEditorView: View {
         HStack {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundStyle(.red)
-                .font(.footnote)
+                .font(Typography.footnote)
             Text(message)
-                .font(.footnote)
+                .font(Typography.footnote)
                 .foregroundStyle(.red)
             Spacer()
             Button {
                 errorMessage = nil
             } label: {
                 Image(systemName: "xmark")
-                    .font(.caption2.weight(.semibold))
+                    .font(Typography.captionSmall)
                     .foregroundStyle(.tertiary)
             }
             .buttonStyle(.plain)

@@ -49,11 +49,11 @@ struct ShortcutsHelpView: View {
                         ForEach(section.shortcuts, id: \.keys) { shortcut in
                             HStack {
                                 Text(shortcut.description)
-                                    .font(.body)
+                                    .font(Typography.body)
                                     .foregroundStyle(.secondary)
                                 Spacer()
                                 Text(shortcut.keys)
-                                    .font(.subheadline.weight(.medium))
+                                    .font(Typography.subhead)
                                     .foregroundStyle(.primary)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 3)

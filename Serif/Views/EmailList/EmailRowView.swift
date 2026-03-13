@@ -72,7 +72,7 @@ struct EmailRowView: View {
                         Spacer()
 
                         Text(email.date.formattedRelative)
-                            .font(.caption)
+                            .font(Typography.captionRegular)
                             .foregroundStyle(.tertiary)
                     }
 
@@ -82,13 +82,13 @@ struct EmailRowView: View {
                         .lineLimit(1)
 
                     Text(email.preview)
-                        .font(.caption)
+                        .font(Typography.captionRegular)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
 
                     if let nudge = nudgeText {
                         Text(nudge)
-                            .font(.caption2)
+                            .font(Typography.captionSmallRegular)
                             .foregroundStyle(.orange)
                     }
 
@@ -99,7 +99,7 @@ struct EmailRowView: View {
                             }
                             if email.labels.count > 3 {
                                 Text("+\(email.labels.count - 3)")
-                                    .font(.caption2.weight(.medium))
+                                    .font(Typography.captionSmallMedium)
                                     .foregroundStyle(.tertiary)
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 2)
@@ -128,12 +128,12 @@ struct EmailRowView: View {
                 VStack(spacing: 4) {
                     if email.isStarred {
                         Image(systemName: "star.fill")
-                            .font(.caption2)
+                            .font(Typography.captionSmallRegular)
                             .foregroundStyle(.tint)
                     }
                     if email.hasAttachments {
                         Image(systemName: "paperclip")
-                            .font(.caption2)
+                            .font(Typography.captionSmallRegular)
                             .foregroundStyle(.tertiary)
                     }
                 }

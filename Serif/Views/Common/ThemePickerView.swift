@@ -6,7 +6,7 @@ struct ThemePickerView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Appearance")
-                .font(.headline)
+                .font(Typography.headline)
 
             Picker("Appearance", selection: $appearanceManager.preference) {
                 Text("System").tag(AppearanceManager.Preference.system)

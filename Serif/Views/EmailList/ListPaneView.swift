@@ -40,7 +40,7 @@ struct ListPaneView: View {
                     }
                     Spacer()
                 }
-                .font(.caption)
+                .font(Typography.captionRegular)
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)

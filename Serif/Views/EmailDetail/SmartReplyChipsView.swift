@@ -28,7 +28,7 @@ struct SmartReplyChipsView: View {
                     onSelect(suggestion)
                 } label: {
                     Text(suggestion)
-                        .font(.caption)
+                        .font(Typography.captionRegular)
                         .lineLimit(2)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)

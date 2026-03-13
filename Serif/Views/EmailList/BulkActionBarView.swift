@@ -77,7 +77,7 @@ struct BulkActionBarView: View {
         } label: {
             VStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.title3)
+                    .font(Typography.title)
                 Text(label)
                     .font(Typography.caption)
             }

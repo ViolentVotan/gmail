@@ -61,7 +61,7 @@ struct SenderInfoPopover: View {
     private func infoRow(label: String, value: String, suspicious: Bool = false, multiline: Bool = false) -> some View {
         HStack(alignment: multiline ? .top : .center, spacing: 0) {
             Text(label)
-                .font(.caption)
+                .font(Typography.captionRegular)
                 .foregroundStyle(.secondary)
                 .frame(width: 72, alignment: .trailing)
                 .padding(.trailing, 8)
@@ -80,17 +80,17 @@ struct SenderInfoPopover: View {
     private func securityRow(label: String, value: String) -> some View {
         HStack(alignment: .center, spacing: 0) {
             Text(label)
-                .font(.caption)
+                .font(Typography.captionRegular)
                 .foregroundStyle(.secondary)
                 .frame(width: 72, alignment: .trailing)
                 .padding(.trailing, 8)
 
             HStack(spacing: 4) {
                 Image(systemName: "lock.fill")
-                    .font(.caption2)
+                    .font(Typography.captionSmallRegular)
                     .foregroundStyle(.green)
                 Text(value)
-                    .font(.caption)
+                    .font(Typography.captionRegular)
                     .foregroundStyle(.primary)
             }
 

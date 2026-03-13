@@ -101,7 +101,7 @@ struct GmailThreadMessageView: View {
 
                 if let date = message.date {
                     Text(date.formattedRelative)
-                        .font(.caption2)
+                        .font(Typography.captionSmallRegular)
                         .foregroundStyle(.tertiary)
                 }
             }

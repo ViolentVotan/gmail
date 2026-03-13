@@ -66,7 +66,7 @@ struct SidebarView: View {
 
             if let account = authViewModel.accounts.first(where: { $0.id == selectedAccountID }) {
                 Text(account.email)
-                    .font(.caption)
+                    .font(Typography.captionRegular)
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 12)
                     .padding(.bottom, 8)
