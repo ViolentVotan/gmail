@@ -8,7 +8,7 @@ SwiftUI views. UI presentation only — no business logic.
   - Call Services or APIs directly
   - Perform data transformations beyond simple formatting
   - Contain persistence logic
-- **No hardcoded colors.** Use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`, `Color.accentColor`), materials (`.regularMaterial`), and Liquid Glass (`.glassEffect(.regular)`, `.floatingPanelStyle()`) for floating surfaces.
+- **No hardcoded colors.** Use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`, `Color.accentColor`). Use `.cardStyle()` for Base-plane content cards, `.glassEffect(.regular)` for Navigation-plane surfaces, and `.floatingPanelStyle()` for Transient-plane overlays. Use `Spacing`, `CornerRadius`, `Typography`, and `SerifAnimation` tokens from `DesignTokens.swift`.
 - **Callbacks over direct ViewModel access.** Views receive `onDelete`, `onArchive`, etc. as closures. Only top-level views (ContentView) wire these to ViewModels.
 - **Small, composable views.** Extract reusable components into `Common/`. One concern per file.
 - **Animations belong in views**, not in ViewModels or Services.
@@ -76,7 +76,7 @@ Shared reusable components:
 Shared styled components:
 | File | Role |
 |------|------|
-| `CardStyle` | Reusable card container style for settings and detail cards |
+| `CardStyle` | Base-plane card container (`.quinary` fill + `.separator` stroke) for settings and detail cards |
 | `BadgeView` | Numeric badge pill (unread counts) |
 
 ## Intents (App Intents)

@@ -13,5 +13,5 @@ Architecture and conventions for the Serif macOS Gmail client.
 | [ViewModels.md](ViewModels.md) | State management, coordination |
 | [Views.md](Views.md) | SwiftUI views and UI components |
 | [Utilities.md](Utilities.md) | Pure helpers, extensions, constants |
-| [Theme.md](Theme.md) | Appearance management (system/light/dark) |
+| [Theme.md](Theme.md) | Appearance management, design tokens, spatial hierarchy |
 | [Configuration.md](Configuration.md) | App-level config (API keys, scopes) |
