@@ -36,7 +36,6 @@ struct SlidePanel<Content: View>: View {
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(.secondary)
                             .frame(width: closeButtonSize, height: closeButtonSize)
-                            .glassEffect(.regular, in: .rect(cornerRadius: CornerRadius.sm))
                     }
                     .buttonStyle(.glass)
                 }
@@ -53,8 +52,7 @@ struct SlidePanel<Content: View>: View {
             .containerRelativeFrame(.horizontal) { length, _ in length * 0.25 }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { panelWidth = $0 }
             .frame(maxHeight: .infinity)
-            .background(.ultraThinMaterial, in: .rect(cornerRadius: 0))
-            .glassEffect(.regular, in: .rect(cornerRadius: 0))
+            .modifier(SlidePanelBackground())
             .elevation(.elevated)
             .offset(x: isPresented ? 0 : -(panelWidth + 60))
             .animation(SerifAnimation.springDefault, value: isPresented)
@@ -65,5 +63,15 @@ struct SlidePanel<Content: View>: View {
                 .onTapGesture { isPresented = false }
         }
         .allowsHitTesting(isPresented)
+    }
+}
+
+private struct SlidePanelBackground: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content.glassEffect(.regular, in: .rect(cornerRadius: 0))
+        } else {
+            content.background(.ultraThinMaterial, in: .rect(cornerRadius: 0))
+        }
     }
 }
