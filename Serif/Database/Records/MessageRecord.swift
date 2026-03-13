@@ -81,6 +81,7 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord 
 
     // MARK: - Test fixture
 
+    #if DEBUG
     static func fixture(
         gmailId: String = "msg-\(UUID().uuidString.prefix(8))",
         threadId: String = "thread-1",
@@ -103,6 +104,7 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord 
         r.fetchedAt = nil
         return r
     }
+    #endif
 
     // MARK: - Private helpers
 
