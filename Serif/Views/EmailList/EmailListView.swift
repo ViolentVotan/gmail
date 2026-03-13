@@ -4,29 +4,7 @@ struct EmailListView: View {
     let emails: [Email]
     let isLoading: Bool
     let accountID: String
-    let onLoadMore: () -> Void
-    let onSearch: (String) -> Void
-    let onArchive: ((Email) -> Void)?
-    let onDelete: ((Email) -> Void)?
-    let onToggleStar: ((Email) -> Void)?
-    let onMarkUnread: ((Email) -> Void)?
-    let onMarkSpam: ((Email) -> Void)?
-    let onUnsubscribe: ((Email) -> Void)?
-    let onMoveToInbox: ((Email) -> Void)?
-    let onDeletePermanently: ((Email) -> Void)?
-    let onMarkNotSpam: ((Email) -> Void)?
-    let onSnooze: ((Email, Date) -> Void)?
-    let onReply: ((Email) -> Void)?
-    let onReplyAll: ((Email) -> Void)?
-    let onForward: ((Email) -> Void)?
-    let onEmptyTrash: (() -> Void)?
-    let onEmptySpam: (() -> Void)?
-    let onBulkArchive: (() -> Void)?
-    let onBulkDelete: (() -> Void)?
-    let onBulkMarkUnread: (() -> Void)?
-    let onBulkMarkRead: (() -> Void)?
-    let onBulkToggleStar: (() -> Void)?
-    let onRefresh: (() async -> Void)?
+    let actions: EmailListActions
     let searchResetTrigger: Int
     @Binding var searchFocusTrigger: Bool
     @Binding var selectedEmail: Email?
@@ -64,19 +42,19 @@ struct EmailListView: View {
         .onChange(of: sortOrder) { _, newSort in
             recomputeSortedEmails()
             switch newSort {
-            case .unreadFirst: onSearch("is:unread")
-            default:           onSearch(searchText)
+            case .unreadFirst: actions.onSearch("is:unread")
+            default:           actions.onSearch(searchText)
             }
         }
         .onChange(of: searchText) { _, query in
             searchDebounceTask?.cancel()
             if query.isEmpty {
-                onSearch("")
+                actions.onSearch("")
             } else {
                 searchDebounceTask = Task {
                     try? await Task.sleep(nanoseconds: 400_000_000)
                     guard !Task.isCancelled else { return }
-                    onSearch(query)
+                    actions.onSearch(query)
                 }
             }
         }
@@ -93,7 +71,7 @@ struct EmailListView: View {
 
                 Spacer()
 
-                if selectedFolder == .subscriptions, !emails.isEmpty, let onUnsubscribe {
+                if selectedFolder == .subscriptions, !emails.isEmpty, let onUnsubscribe = actions.onUnsubscribe {
                     let unsubscribable = emails.filter { $0.isFromMailingList && $0.unsubscribeURL != nil }
                     if !unsubscribable.isEmpty {
                         Button {
@@ -106,7 +84,7 @@ struct EmailListView: View {
                     }
                 }
 
-                if selectedFolder == .trash, !emails.isEmpty, let onEmptyTrash {
+                if selectedFolder == .trash, !emails.isEmpty, let onEmptyTrash = actions.onEmptyTrash {
                     Button {
                         onEmptyTrash()
                     } label: {
@@ -116,7 +94,7 @@ struct EmailListView: View {
                     .buttonStyle(.plain)
                 }
 
-                if selectedFolder == .spam, !emails.isEmpty, let onEmptySpam {
+                if selectedFolder == .spam, !emails.isEmpty, let onEmptySpam = actions.onEmptySpam {
                     Button {
                         onEmptySpam()
                     } label: {
@@ -184,7 +162,7 @@ struct EmailListView: View {
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                     if selectedFolder != .archive {
                         Button {
-                            onArchive?(email)
+                            actions.onArchive?(email)
                         } label: {
                             Label("Archive", systemImage: "archivebox")
                         }
@@ -194,7 +172,7 @@ struct EmailListView: View {
                 .swipeActions(edge: .leading, allowsFullSwipe: true) {
                     if selectedFolder != .trash {
                         Button(role: .destructive) {
-                            onDelete?(email)
+                            actions.onDelete?(email)
                         } label: {
                             Label("Delete", systemImage: "trash")
                         }
@@ -204,20 +182,20 @@ struct EmailListView: View {
                     EmailContextMenu(
                         email: email,
                         selectedFolder: selectedFolder,
-                        onArchive: onArchive,
-                        onDelete: onDelete,
-                        onToggleStar: onToggleStar,
-                        onMarkUnread: onMarkUnread,
-                        onMarkSpam: onMarkSpam,
-                        onUnsubscribe: onUnsubscribe,
-                        onMoveToInbox: onMoveToInbox,
-                        onDeletePermanently: onDeletePermanently,
-                        onMarkNotSpam: onMarkNotSpam,
-                        onSnooze: onSnooze,
+                        onArchive: actions.onArchive,
+                        onDelete: actions.onDelete,
+                        onToggleStar: actions.onToggleStar,
+                        onMarkUnread: actions.onMarkUnread,
+                        onMarkSpam: actions.onMarkSpam,
+                        onUnsubscribe: actions.onUnsubscribe,
+                        onMoveToInbox: actions.onMoveToInbox,
+                        onDeletePermanently: actions.onDeletePermanently,
+                        onMarkNotSpam: actions.onMarkNotSpam,
+                        onSnooze: actions.onSnooze,
                         onCreateFilter: nil,
-                        onReply: onReply,
-                        onReplyAll: onReplyAll,
-                        onForward: onForward
+                        onReply: actions.onReply,
+                        onReplyAll: actions.onReplyAll,
+                        onForward: actions.onForward
                     )
                 }
             }
@@ -225,7 +203,7 @@ struct EmailListView: View {
             if !emails.isEmpty && searchText.isEmpty {
                 Color.clear
                     .frame(height: 1)
-                    .onAppear { onLoadMore() }
+                    .onAppear { actions.onLoadMore() }
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
             }
@@ -241,7 +219,7 @@ struct EmailListView: View {
         }
         .listStyle(.plain)
         .refreshable {
-            await onRefresh?()
+            await actions.onRefresh?()
         }
         .focusable()
         .focusEffectDisabled(true)
@@ -274,8 +252,8 @@ struct EmailListView: View {
     private var hiddenButtons: some View {
         Group {
             Button("") {
-                if isMultiSelect { onBulkDelete?() }
-                else if let email = selectedEmail { onDelete?(email) }
+                if isMultiSelect { actions.onBulkDelete?() }
+                else if let email = selectedEmail { actions.onDelete?(email) }
             }
             .keyboardShortcut(.delete, modifiers: [])
         }
@@ -286,25 +264,25 @@ struct EmailListView: View {
     // MARK: - Key handlers
 
     private func handleKeyE() -> KeyPress.Result {
-        if isMultiSelect { onBulkArchive?() }
-        else if let email = selectedEmail { onArchive?(email) }
+        if isMultiSelect { actions.onBulkArchive?() }
+        else if let email = selectedEmail { actions.onArchive?(email) }
         return .handled
     }
 
     private func handleKeyS() -> KeyPress.Result {
-        if isMultiSelect { onBulkToggleStar?() }
-        else if let email = selectedEmail { onToggleStar?(email) }
+        if isMultiSelect { actions.onBulkToggleStar?() }
+        else if let email = selectedEmail { actions.onToggleStar?(email) }
         return .handled
     }
 
     private func handleKeyU() -> KeyPress.Result {
-        if isMultiSelect { onBulkMarkUnread?() }
-        else if let email = selectedEmail { onMarkUnread?(email) }
+        if isMultiSelect { actions.onBulkMarkUnread?() }
+        else if let email = selectedEmail { actions.onMarkUnread?(email) }
         return .handled
     }
 
     private func handleKeyR() -> KeyPress.Result {
-        if isMultiSelect { onBulkMarkRead?() }
+        if isMultiSelect { actions.onBulkMarkRead?() }
         return .handled
     }
 

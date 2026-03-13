@@ -67,52 +67,54 @@ struct ListPaneView: View {
             emails: emails,
             isLoading: isLoading,
             accountID: mailboxViewModel.accountID,
-            onLoadMore: { Task { await mailboxViewModel.loadMore() } },
-            onSearch: { query in
-                if query.isEmpty {
-                    Task { await coordinator.loadCurrentFolder() }
-                } else {
-                    Task { await mailboxViewModel.search(query: query) }
-                }
-            },
-            onArchive:           { actionCoordinator.archiveEmail($0, selectNext: { coordinator.selectNext($0) }) },
-            onDelete:            { actionCoordinator.deleteEmail($0, selectNext: { coordinator.selectNext($0) }) },
-            onToggleStar:        { actionCoordinator.toggleStarEmail($0) },
-            onMarkUnread:        { actionCoordinator.markUnreadEmail($0) },
-            onMarkSpam:          { actionCoordinator.markSpamEmail($0, selectNext: { coordinator.selectNext($0) }) },
-            onUnsubscribe:       { actionCoordinator.unsubscribeEmail($0) },
-            onMoveToInbox:       { actionCoordinator.moveToInboxEmail($0, selectedFolder: selectedFolder, selectNext: { coordinator.selectNext($0) }) },
-            onDeletePermanently: { actionCoordinator.deletePermanentlyEmail($0, selectNext: { coordinator.selectNext($0) }) },
-            onMarkNotSpam:       { actionCoordinator.markNotSpamEmail($0, selectNext: { coordinator.selectNext($0) }) },
-            onSnooze:            { actionCoordinator.snoozeEmail($0, until: $1, selectNext: { coordinator.selectNext($0) }) },
-            onReply: { email in
-                let vm = EmailDetailViewModel(accountID: coordinator.accountID)
-                coordinator.startCompose(mode: vm.replyMode(email: email))
-            },
-            onReplyAll: { email in
-                let vm = EmailDetailViewModel(accountID: coordinator.accountID)
-                coordinator.startCompose(mode: vm.replyAllMode(email: email))
-            },
-            onForward: { email in
-                let vm = EmailDetailViewModel(accountID: coordinator.accountID)
-                coordinator.startCompose(mode: vm.forwardMode(email: email))
-            },
-            onEmptyTrash: {
-                actionCoordinator.emptyTrash(accountID: mailboxViewModel.accountID) { count in
-                    coordinator.emptyTrashRequested(count: count)
-                }
-            },
-            onEmptySpam: {
-                actionCoordinator.emptySpam(accountID: mailboxViewModel.accountID) { count in
-                    coordinator.emptySpamRequested(count: count)
-                }
-            },
-            onBulkArchive:    { actionCoordinator.bulkArchive(selectedEmails, onClear: clearSelection) },
-            onBulkDelete:     { actionCoordinator.bulkDelete(selectedEmails, onClear: clearSelection) },
-            onBulkMarkUnread: { actionCoordinator.bulkMarkUnread(selectedEmails) { selectedEmailIDs = [] } },
-            onBulkMarkRead:   { actionCoordinator.bulkMarkRead(selectedEmails) { selectedEmailIDs = [] } },
-            onBulkToggleStar: { for e in selectedEmails { actionCoordinator.toggleStarEmail(e) } },
-            onRefresh:        { await coordinator.loadCurrentFolder() },
+            actions: EmailListActions(
+                onArchive:           { actionCoordinator.archiveEmail($0, selectNext: { coordinator.selectNext($0) }) },
+                onDelete:            { actionCoordinator.deleteEmail($0, selectNext: { coordinator.selectNext($0) }) },
+                onToggleStar:        { actionCoordinator.toggleStarEmail($0) },
+                onMarkUnread:        { actionCoordinator.markUnreadEmail($0) },
+                onMarkSpam:          { actionCoordinator.markSpamEmail($0, selectNext: { coordinator.selectNext($0) }) },
+                onUnsubscribe:       { actionCoordinator.unsubscribeEmail($0) },
+                onMoveToInbox:       { actionCoordinator.moveToInboxEmail($0, selectedFolder: selectedFolder, selectNext: { coordinator.selectNext($0) }) },
+                onDeletePermanently: { actionCoordinator.deletePermanentlyEmail($0, selectNext: { coordinator.selectNext($0) }) },
+                onMarkNotSpam:       { actionCoordinator.markNotSpamEmail($0, selectNext: { coordinator.selectNext($0) }) },
+                onSnooze:            { actionCoordinator.snoozeEmail($0, until: $1, selectNext: { coordinator.selectNext($0) }) },
+                onReply: { email in
+                    let vm = EmailDetailViewModel(accountID: coordinator.accountID)
+                    coordinator.startCompose(mode: vm.replyMode(email: email))
+                },
+                onReplyAll: { email in
+                    let vm = EmailDetailViewModel(accountID: coordinator.accountID)
+                    coordinator.startCompose(mode: vm.replyAllMode(email: email))
+                },
+                onForward: { email in
+                    let vm = EmailDetailViewModel(accountID: coordinator.accountID)
+                    coordinator.startCompose(mode: vm.forwardMode(email: email))
+                },
+                onBulkArchive:    { actionCoordinator.bulkArchive(selectedEmails, onClear: clearSelection) },
+                onBulkDelete:     { actionCoordinator.bulkDelete(selectedEmails, onClear: clearSelection) },
+                onBulkMarkUnread: { actionCoordinator.bulkMarkUnread(selectedEmails) { selectedEmailIDs = [] } },
+                onBulkMarkRead:   { actionCoordinator.bulkMarkRead(selectedEmails) { selectedEmailIDs = [] } },
+                onBulkToggleStar: { for e in selectedEmails { actionCoordinator.toggleStarEmail(e) } },
+                onEmptyTrash: {
+                    actionCoordinator.emptyTrash(accountID: mailboxViewModel.accountID) { count in
+                        coordinator.emptyTrashRequested(count: count)
+                    }
+                },
+                onEmptySpam: {
+                    actionCoordinator.emptySpam(accountID: mailboxViewModel.accountID) { count in
+                        coordinator.emptySpamRequested(count: count)
+                    }
+                },
+                onLoadMore: { Task { await mailboxViewModel.loadMore() } },
+                onSearch: { query in
+                    if query.isEmpty {
+                        Task { await coordinator.loadCurrentFolder() }
+                    } else {
+                        Task { await mailboxViewModel.search(query: query) }
+                    }
+                },
+                onRefresh: { await coordinator.loadCurrentFolder() }
+            ),
             searchResetTrigger: searchResetTrigger,
             searchFocusTrigger: $searchFocusTrigger,
             selectedEmail: $selectedEmail,
