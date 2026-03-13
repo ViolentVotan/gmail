@@ -22,16 +22,16 @@ struct ToastOverlayView: View {
         Group {
             if #available(macOS 26.0, *) {
                 toastContent(toast)
-                    .glassEffect(.regular, in: .rect(cornerRadius: 12))
+                    .glassEffect(.regular, in: .rect(cornerRadius: CornerRadius.md))
                     .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
             } else {
                 toastContent(toast)
                     .background(
-                        RoundedRectangle(cornerRadius: 12)
+                        RoundedRectangle(cornerRadius: CornerRadius.md)
                             .fill(.regularMaterial)
                             .shadow(color: .black.opacity(0.2), radius: 12, x: 0, y: 4)
                     )
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.md))
             }
         }
         .frame(width: 320)

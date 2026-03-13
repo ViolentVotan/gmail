@@ -15,11 +15,14 @@ struct EmailContextMenu: View {
     let onMarkNotSpam: ((Email) -> Void)?
     let onSnooze: ((Email, Date) -> Void)?
     let onCreateFilter: ((Email) -> Void)?
+    var onReply: ((Email) -> Void)? = nil
+    var onReplyAll: ((Email) -> Void)? = nil
+    var onForward: ((Email) -> Void)? = nil
 
     var body: some View {
-        Button { } label: { Label("Reply",     systemImage: "arrowshape.turn.up.left") }
-        Button { } label: { Label("Reply All", systemImage: "arrowshape.turn.up.left.2") }
-        Button { } label: { Label("Forward",   systemImage: "arrowshape.turn.up.right") }
+        Button { onReply?(email) } label: { Label("Reply",     systemImage: "arrowshape.turn.up.left") }
+        Button { onReplyAll?(email) } label: { Label("Reply All", systemImage: "arrowshape.turn.up.left.2") }
+        Button { onForward?(email) } label: { Label("Forward",   systemImage: "arrowshape.turn.up.right") }
 
         Divider()
 

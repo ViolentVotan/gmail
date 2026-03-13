@@ -8,6 +8,9 @@ struct EmailRowView: View {
     @State private var isHovered = false
     @State private var hoverTask: Task<Void, Never>?
     @State private var popoverHolder = PopoverHolder()
+    @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 36
+    @ScaledMetric(relativeTo: .caption2) private var dotSize: CGFloat = 6
+    @ScaledMetric(relativeTo: .caption2) private var threadBadgeSize: CGFloat = 18
 
     private var nudgeText: String? {
         let daysAgo = Calendar.current.dateComponents([.day], from: email.date, to: Date()).day ?? 0
@@ -39,13 +42,13 @@ struct EmailRowView: View {
                 // Unread indicator
                 Circle()
                     .fill(email.isRead ? Color.clear : Color.blue)
-                    .frame(width: 6, height: 6)
+                    .frame(width: dotSize, height: dotSize)
 
                 // Avatar
                 AvatarView(
                     initials: email.sender.initials,
                     color: email.sender.avatarColor,
-                    size: 36,
+                    size: avatarSize,
                     avatarURL: email.sender.avatarURL,
                     senderDomain: email.sender.domain
                 )
@@ -62,7 +65,7 @@ struct EmailRowView: View {
                             Text("\(email.threadMessageCount)")
                                 .font(.caption.bold())
                                 .foregroundColor(.white)
-                                .frame(minWidth: 18, minHeight: 18)
+                                .frame(minWidth: threadBadgeSize, minHeight: threadBadgeSize)
                                 .background(Circle().fill(Color.accentColor.opacity(0.75)))
                         }
 

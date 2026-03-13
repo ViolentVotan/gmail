@@ -91,7 +91,7 @@ struct HTMLEmailView: NSViewRepresentable {
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-            font-size: 14px;
+            font-size: \(Int(NSFont.systemFont(ofSize: 0).pointSize))px;
             line-height: 1.65;
             color: \(textHex);
             background-color: transparent;

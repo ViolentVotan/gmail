@@ -15,7 +15,7 @@ struct InboxParentRow: View {
                 HStack(spacing: 10) {
                     Image(systemName: "tray.fill")
                         .font(.callout)
-                        .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
+                        .selectableRowStyle(isSelected: isSelected, isHovered: isHovered)
                         .frame(width: 20)
 
                     Text("Inbox")
@@ -49,7 +49,7 @@ struct InboxParentRow: View {
                     }
                     Image(systemName: "tray.fill")
                         .font(.title3)
-                        .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
+                        .selectableRowStyle(isSelected: isSelected, isHovered: isHovered)
                 }
                 .frame(width: 40, height: 40)
                 .contentShape(Rectangle())
@@ -80,7 +80,7 @@ struct InboxCategoryRow: View {
 
                 Image(systemName: category.icon)
                     .font(.subheadline)
-                    .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
+                    .selectableRowStyle(isSelected: isSelected, isHovered: isHovered)
                     .frame(width: 16)
 
                 Text(category.displayName)
@@ -121,7 +121,7 @@ struct LabelsParentRow: View {
                 HStack(spacing: 10) {
                     Image(systemName: "tag.fill")
                         .font(.callout)
-                        .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
+                        .selectableRowStyle(isSelected: isSelected, isHovered: isHovered)
                         .frame(width: 20)
 
                     Text("Labels")
@@ -153,7 +153,7 @@ struct LabelsParentRow: View {
                     }
                     Image(systemName: "tag.fill")
                         .font(.title3)
-                        .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
+                        .selectableRowStyle(isSelected: isSelected, isHovered: isHovered)
                 }
                 .frame(width: 40, height: 40)
                 .contentShape(Rectangle())
@@ -237,7 +237,7 @@ struct SidebarItemView: View {
         HStack(spacing: 10) {
             Image(systemName: folder.icon)
                 .font(.callout)
-                .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
+                .selectableRowStyle(isSelected: isSelected, isHovered: isHovered)
                 .frame(width: 20)
 
             Text(folder.rawValue)
@@ -272,7 +272,7 @@ struct SidebarItemView: View {
             ZStack(alignment: .topTrailing) {
                 Image(systemName: folder.icon)
                     .font(.title3)
-                    .foregroundStyle(isSelected ? AnyShapeStyle(.tint) : (isHovered ? AnyShapeStyle(.primary) : AnyShapeStyle(.secondary)))
+                    .selectableRowStyle(isSelected: isSelected, isHovered: isHovered)
                 if folder.count > 0 {
                     Circle().fill(.tint).frame(width: 8, height: 8).offset(x: 4, y: -2)
                 }

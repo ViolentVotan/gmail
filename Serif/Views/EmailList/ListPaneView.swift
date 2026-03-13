@@ -85,6 +85,18 @@ struct ListPaneView: View {
             onDeletePermanently: { actionCoordinator.deletePermanentlyEmail($0, selectNext: { coordinator.selectNext($0) }) },
             onMarkNotSpam:       { actionCoordinator.markNotSpamEmail($0, selectNext: { coordinator.selectNext($0) }) },
             onSnooze:            { actionCoordinator.snoozeEmail($0, until: $1, selectNext: { coordinator.selectNext($0) }) },
+            onReply: { email in
+                let vm = EmailDetailViewModel(accountID: coordinator.accountID)
+                coordinator.startCompose(mode: vm.replyMode(email: email))
+            },
+            onReplyAll: { email in
+                let vm = EmailDetailViewModel(accountID: coordinator.accountID)
+                coordinator.startCompose(mode: vm.replyAllMode(email: email))
+            },
+            onForward: { email in
+                let vm = EmailDetailViewModel(accountID: coordinator.accountID)
+                coordinator.startCompose(mode: vm.forwardMode(email: email))
+            },
             onEmptyTrash: {
                 actionCoordinator.emptyTrash(accountID: mailboxViewModel.accountID) { count in
                     coordinator.emptyTrashRequested(count: count)

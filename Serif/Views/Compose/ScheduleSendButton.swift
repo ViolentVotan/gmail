@@ -18,7 +18,8 @@ struct ScheduleSendButton: View {
                     Text("Send")
                 }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.glassProminent)
+            .controlSize(.large)
             .disabled(isSending)
 
             Divider()

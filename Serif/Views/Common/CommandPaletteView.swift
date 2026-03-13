@@ -11,9 +11,7 @@ struct CommandPaletteView: View {
         }
         .frame(width: 500)
         .frame(maxHeight: 400)
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .shadow(radius: 20)
+        .floatingPanelStyle(cornerRadius: CornerRadius.md)
         .onKeyPress(.escape) {
             viewModel.dismiss()
             return .handled

@@ -19,6 +19,7 @@ struct SlidePanel<Content: View>: View {
     }
 
     @State private var panelWidth: CGFloat = 0
+    @ScaledMetric(relativeTo: .subheadline) private var closeButtonSize: CGFloat = 24
 
     var body: some View {
         HStack(spacing: 0) {
@@ -34,11 +35,10 @@ struct SlidePanel<Content: View>: View {
                         Image(systemName: "xmark")
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(.secondary)
-                            .frame(width: 24, height: 24)
-                            .background(.regularMaterial)
-                            .cornerRadius(6)
+                            .frame(width: closeButtonSize, height: closeButtonSize)
+                            .glassEffect(.regular, in: .rect(cornerRadius: CornerRadius.sm))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.glass)
                 }
                 .padding(20)
 
@@ -53,10 +53,11 @@ struct SlidePanel<Content: View>: View {
             .containerRelativeFrame(.horizontal) { length, _ in length * 0.25 }
             .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { panelWidth = $0 }
             .frame(maxHeight: .infinity)
-            .background(.ultraThinMaterial)
-            .shadow(color: .black.opacity(0.12), radius: 20, x: 8, y: 0)
+            .background(.ultraThinMaterial, in: .rect(cornerRadius: 0))
+            .glassEffect(.regular, in: .rect(cornerRadius: 0))
+            .shadow(color: .black.opacity(0.1), radius: 16, x: 4, y: 0)
             .offset(x: isPresented ? 0 : -(panelWidth + 60))
-            .animation(.spring(response: 0.35, dampingFraction: 0.85), value: isPresented)
+            .animation(SerifAnimation.springDefault, value: isPresented)
 
             // Tap outside to dismiss
             Color.clear

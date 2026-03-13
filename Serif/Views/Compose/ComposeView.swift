@@ -371,14 +371,9 @@ struct ComposeView: View {
                 showDiscardAlert = true
             } label: {
                 Text("Discard")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
-                    .background(.secondary)
-                    .cornerRadius(6)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glass)
+            .controlSize(.large)
 
             if let err = sendError {
                 Text(err)

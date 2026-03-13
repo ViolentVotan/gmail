@@ -184,13 +184,19 @@ struct ContentView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         if !coordinator.panelCoordinator.isAnyOpen {
-            ToolbarItemGroup(placement: .primaryAction) {
+            ToolbarItem(placement: .primaryAction) {
                 Button { coordinator.composeNewEmail() } label: {
                     Label("Compose", systemImage: "square.and.pencil")
                 }
+                .controlSize(.large)
+                .buttonStyle(.glassProminent)
                 .help("Compose (\u{2318}N)")
+            }
 
-                if let email = coordinator.selectedEmail {
+            ToolbarSpacer(.fixed, placement: .primaryAction)
+
+            if let email = coordinator.selectedEmail {
+                ToolbarItemGroup(placement: .primaryAction) {
                     Button {
                         let vm = EmailDetailViewModel(accountID: coordinator.accountID)
                         coordinator.startCompose(mode: vm.replyMode(email: email))

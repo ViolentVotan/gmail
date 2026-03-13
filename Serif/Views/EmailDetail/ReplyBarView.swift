@@ -24,7 +24,6 @@ struct ReplyBarView: View {
     @State private var composeVM: ComposeViewModel
     @State private var quickReplies: [String] = []
     @State private var isLoadingReplies = false
-    @State private var gradientRotation: Double = 0
     @State private var replyTo = ""
     @State private var replyCc = ""
     @State private var replyBcc = ""
@@ -70,35 +69,11 @@ struct ReplyBarView: View {
                 collapsedContent
             }
         }
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: -2)
-        .shadow(color: .black.opacity(0.03), radius: 2, x: 0, y: -1)
+        .floatingPanelStyle(cornerRadius: CornerRadius.lg)
         .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .strokeBorder(
-                    isExpanded
-                        ? AnyShapeStyle(Color(.separatorColor))
-                        : AnyShapeStyle(
-                            AngularGradient(
-                                colors: [
-                                    Color.accentColor.opacity(0.5),
-                                    Color(.separatorColor),
-                                    Color.accentColor.opacity(0.2),
-                                    Color(.separatorColor),
-                                    Color.accentColor.opacity(0.5),
-                                ],
-                                center: .center,
-                                angle: .degrees(gradientRotation)
-                            )
-                        ),
-                    lineWidth: 1
-                )
+            RoundedRectangle(cornerRadius: CornerRadius.lg)
+                .strokeBorder(Color(.separatorColor), lineWidth: 0.5)
         )
-        .onAppear { startGradientAnimation() }
-        .onChange(of: isExpanded) { _, expanded in
-            if !expanded { startGradientAnimation() }
-        }
         .background(ClickOutsideDetector(isExpanded: isExpanded, onClickOutside: { minimize() }))
         .onChange(of: replyHTML) { _,_ in
             scheduleAutoSave()
@@ -154,7 +129,7 @@ struct ReplyBarView: View {
                 replyTo = email.sender.email
             }
             loadExistingDraft()
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            withAnimation(SerifAnimation.springSnappy) {
                 isExpanded = true
             }
         } label: {
@@ -300,39 +275,22 @@ struct ReplyBarView: View {
                 if !replyBodyIsEmpty {
                     Button { discardAction() } label: {
                         Text("Discard")
-                            .font(.subheadline.weight(.medium))
-                            .foregroundStyle(.secondary)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Color.secondary)
-                            .cornerRadius(6)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.glass)
+                    .controlSize(.large)
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
 
                     Button { Task { await sendReply() } } label: {
-                        HStack(spacing: 4) {
-                            Group {
-                                if isSending {
-                                    ProgressView()
-                                        .scaleEffect(0.5)
-                                        .tint(.white)
-                                } else {
-                                    Image(systemName: "paperplane.fill")
-                                }
-                            }
-                            .font(.caption)
-                            .frame(width: 12, height: 12)
+                        if isSending {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                                .frame(width: 16, height: 16)
+                        } else {
                             Text("Send")
-                                .font(.subheadline.weight(.semibold))
                         }
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 6)
-                        .background(Color.accentColor.opacity(isSending ? 0.6 : 1))
-                        .cornerRadius(6)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.glassProminent)
+                    .controlSize(.large)
                     .disabled(isSending)
                     .keyboardShortcut(.return, modifiers: .command)
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
@@ -528,15 +486,9 @@ struct ReplyBarView: View {
         )
     }
 
-    private func startGradientAnimation() {
-        gradientRotation = 0
-        withAnimation(.linear(duration: 6).repeatForever(autoreverses: false)) {
-            gradientRotation = 360
-        }
-    }
 
     private func minimize() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+        withAnimation(SerifAnimation.springSnappy) {
             isExpanded = false
         }
     }
@@ -550,7 +502,7 @@ struct ReplyBarView: View {
         if composeVM.gmailDraftID != nil {
             Task { await composeVM.discardDraft() }
         }
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+        withAnimation(SerifAnimation.springSnappy) {
             isExpanded = false
             replyHTML = ""
             replyTo = ""

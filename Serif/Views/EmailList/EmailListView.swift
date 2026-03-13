@@ -16,6 +16,9 @@ struct EmailListView: View {
     let onDeletePermanently: ((Email) -> Void)?
     let onMarkNotSpam: ((Email) -> Void)?
     let onSnooze: ((Email, Date) -> Void)?
+    let onReply: ((Email) -> Void)?
+    let onReplyAll: ((Email) -> Void)?
+    let onForward: ((Email) -> Void)?
     let onEmptyTrash: (() -> Void)?
     let onEmptySpam: (() -> Void)?
     let onBulkArchive: (() -> Void)?
@@ -227,7 +230,10 @@ struct EmailListView: View {
                         onDeletePermanently: onDeletePermanently,
                         onMarkNotSpam: onMarkNotSpam,
                         onSnooze: onSnooze,
-                        onCreateFilter: nil
+                        onCreateFilter: nil,
+                        onReply: onReply,
+                        onReplyAll: onReplyAll,
+                        onForward: onForward
                     )
                 }
             }
