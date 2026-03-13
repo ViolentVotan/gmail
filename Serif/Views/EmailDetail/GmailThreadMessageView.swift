@@ -34,7 +34,7 @@ struct GmailThreadMessageView: View {
     }
 
     /// Compute the full HTML from message parts (static for use in init).
-    private static func computeFullHTML(message: GmailMessage, resolvedHTML: String?) -> String {
+    static func computeFullHTML(message: GmailMessage, resolvedHTML: String?) -> String {
         if let resolved = resolvedHTML, !resolved.isEmpty { return resolved }
         if let html = message.htmlBody, !html.isEmpty { return html }
         if let plain = message.plainBody, !plain.isEmpty { return "<p>\(plain)</p>" }
