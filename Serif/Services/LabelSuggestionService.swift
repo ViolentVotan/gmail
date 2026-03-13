@@ -17,12 +17,12 @@ final class LabelSuggestionService {
     private init() {}
 
     func cachedSuggestions(for email: Email) -> [LabelSuggestion]? {
-        guard let key = cacheKey(for: email) else { return nil }
+        guard let key = AIServiceHelpers.cacheKey(for: email) else { return nil }
         return cache[key]
     }
 
     func generateSuggestions(for email: Email, existingLabels: [GmailLabel]) async -> [LabelSuggestion] {
-        if let key = cacheKey(for: email), let cached = cache[key] {
+        if let key = AIServiceHelpers.cacheKey(for: email), let cached = cache[key] {
             return cached
         }
 
@@ -73,7 +73,7 @@ final class LabelSuggestionService {
             let response = try await session.respond(to: prompt)
             let suggestions = parseSuggestions(from: response.content, existingLabels: userLabels)
 
-            if let key = cacheKey(for: email) {
+            if let key = AIServiceHelpers.cacheKey(for: email) {
                 cache[key] = suggestions
             }
             return suggestions
@@ -115,7 +115,4 @@ final class LabelSuggestionService {
         }
     }
 
-    private func cacheKey(for email: Email) -> String? {
-        email.gmailMessageID ?? email.id.uuidString
-    }
 }

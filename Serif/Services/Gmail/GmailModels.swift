@@ -296,6 +296,9 @@ extension GmailMessage {
 
     // MARK: - Security / Sender info
 
+    private static let receivedFromRegex = try? NSRegularExpression(pattern: "from\\s+([\\w.-]+)", options: .caseInsensitive)
+    private static let dkimDomainRegex   = try? NSRegularExpression(pattern: "\\bd=([^;\\s]+)", options: .caseInsensitive)
+
     /// Domain from the Return-Path or Received header (who actually sent the email).
     var mailedBy: String? {
         // Try Return-Path first
@@ -308,9 +311,8 @@ extension GmailMessage {
         }
         // Fallback: first Received header domain
         if let received = header(named: "Received") {
-            let pattern = try? NSRegularExpression(pattern: "from\\s+([\\w.-]+)", options: .caseInsensitive)
             let range = NSRange(received.startIndex..., in: received)
-            if let match = pattern?.firstMatch(in: received, range: range),
+            if let match = Self.receivedFromRegex?.firstMatch(in: received, range: range),
                let r = Range(match.range(at: 1), in: received) {
                 return String(received[r])
             }
@@ -321,9 +323,8 @@ extension GmailMessage {
     /// DKIM signing domain (from DKIM-Signature d= parameter).
     var signedBy: String? {
         guard let dkim = header(named: "DKIM-Signature") else { return nil }
-        let pattern = try? NSRegularExpression(pattern: "\\bd=([^;\\s]+)", options: .caseInsensitive)
         let range = NSRange(dkim.startIndex..., in: dkim)
-        if let match = pattern?.firstMatch(in: dkim, range: range),
+        if let match = Self.dkimDomainRegex?.firstMatch(in: dkim, range: range),
            let r = Range(match.range(at: 1), in: dkim) {
             return String(dkim[r]).trimmingCharacters(in: .whitespacesAndNewlines)
         }

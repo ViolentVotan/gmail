@@ -61,4 +61,22 @@ final class MailDatabase: Sendable {
             try? FileManager.default.removeItem(atPath: base + suffix)
         }
     }
+
+    // MARK: - Shared Instance Cache
+
+    private nonisolated(unsafe) static var sharedInstances: [String: MailDatabase] = [:]
+    private static let instanceLock = NSLock()
+
+    /// Returns a cached `MailDatabase` for the given account, creating one if needed.
+    /// Avoids opening redundant `DatabasePool` connections across Intents and extensions.
+    static func shared(for accountID: String) throws -> MailDatabase {
+        instanceLock.lock()
+        defer { instanceLock.unlock() }
+        if let existing = sharedInstances[accountID] {
+            return existing
+        }
+        let db = try MailDatabase(accountID: accountID)
+        sharedInstances[accountID] = db
+        return db
+    }
 }

@@ -34,7 +34,7 @@ final class EmailPrintService {
         objc_setAssociatedObject(webView, "printDelegate", delegate, .OBJC_ASSOCIATION_RETAIN)
         webView.navigationDelegate = delegate
 
-        webView.loadHTMLString(html, baseURL: URL(string: "https://mail.google.com/"))
+        webView.loadHTMLString(html, baseURL: nil)
     }
 
     private func showPrintDialog(webView: WKWebView) {

@@ -29,36 +29,3 @@ struct LabelChipView: View {
         .background(Capsule().fill(Color(hex: label.color)))
     }
 }
-
-/// Compact dot + name row used in the label picker.
-struct LabelPickerRow: View {
-    let label: EmailLabel
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                Circle()
-                    .fill(Color(hex: label.color))
-                    .frame(width: 10, height: 10)
-
-                Text(label.name)
-                    .font(Typography.body)
-                    .foregroundStyle(.primary)
-
-                Spacer()
-
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .font(Typography.captionSemibold)
-                        .foregroundStyle(.tint)
-                }
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-}

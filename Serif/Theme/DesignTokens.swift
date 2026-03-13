@@ -9,7 +9,6 @@ enum Spacing {
     static let lg: CGFloat = 16
     static let xl: CGFloat = 24
     static let xxl: CGFloat = 32
-    static let xxxl: CGFloat = 48
 }
 
 enum ButtonSize {
@@ -48,7 +47,6 @@ enum Typography {
 
     // Headline
     static let headline: Font = .headline
-    static let headlineSemibold: Font = .headline.weight(.semibold)
 
     // Subhead
     static let subhead: Font = .subheadline.weight(.medium)

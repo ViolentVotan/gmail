@@ -70,7 +70,7 @@ final class GmailProfileService {
         }
         return try await client.request(
             path: GmailPathBuilder.sendAsPath(sendAsEmail),
-            method: "PUT", body: body, contentType: "application/json",
+            method: "PATCH", body: body, contentType: "application/json",
             accountID: accountID
         )
     }

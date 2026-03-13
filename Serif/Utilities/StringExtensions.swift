@@ -1,6 +1,23 @@
 import Foundation
 
 extension String {
+    // MARK: - Private static resources (compiled once)
+
+    private static let hexEntityRegex     = try? NSRegularExpression(pattern: "&#x([0-9a-fA-F]+);")
+    private static let decimalEntityRegex = try? NSRegularExpression(pattern: "&#([0-9]+);")
+
+    private static let namedEntities: [String: String] = [
+        "&nbsp;": " ", "&lt;": "<", "&gt;": ">",
+        "&quot;": "\"", "&apos;": "'",
+        "&lsquo;": "\u{2018}", "&rsquo;": "\u{2019}",
+        "&ldquo;": "\u{201C}", "&rdquo;": "\u{201D}",
+        "&ndash;": "\u{2013}", "&mdash;": "\u{2014}",
+        "&hellip;": "\u{2026}", "&bull;": "\u{2022}",
+        "&copy;": "\u{00A9}", "&reg;": "\u{00AE}",
+        "&trade;": "\u{2122}",
+        "&euro;": "\u{20AC}",
+    ]
+
     /// Decodes all HTML entities (named, decimal &#123;, hex &#x1F;) to characters.
     /// Authoritative implementation — used by `strippingHTML` and `cleanedForAI`.
     func decodingHTMLEntities() -> String {
@@ -8,7 +25,7 @@ extension String {
         var result = self
 
         // Decode hex numeric HTML entities (&#x27; etc.)
-        if let regex = try? NSRegularExpression(pattern: "&#x([0-9a-fA-F]+);") {
+        if let regex = Self.hexEntityRegex {
             let mutable = NSMutableString(string: result)
             for match in regex.matches(in: result, range: NSRange(result.startIndex..., in: result)).reversed() {
                 if let range = Range(match.range(at: 1), in: result),
@@ -21,7 +38,7 @@ extension String {
         }
 
         // Decode decimal numeric HTML entities (&#39; &#8203; etc.)
-        if let regex = try? NSRegularExpression(pattern: "&#([0-9]+);") {
+        if let regex = Self.decimalEntityRegex {
             let mutable = NSMutableString(string: result)
             for match in regex.matches(in: result, range: NSRange(result.startIndex..., in: result)).reversed() {
                 if let range = Range(match.range(at: 1), in: result),
@@ -33,19 +50,8 @@ extension String {
             result = mutable as String
         }
 
-        // Decode named HTML entities (comprehensive set)
-        let entities: [String: String] = [
-            "&nbsp;": " ", "&lt;": "<", "&gt;": ">",
-            "&quot;": "\"", "&apos;": "'",
-            "&lsquo;": "\u{2018}", "&rsquo;": "\u{2019}",
-            "&ldquo;": "\u{201C}", "&rdquo;": "\u{201D}",
-            "&ndash;": "\u{2013}", "&mdash;": "\u{2014}",
-            "&hellip;": "\u{2026}", "&bull;": "\u{2022}",
-            "&copy;": "\u{00A9}", "&reg;": "\u{00AE}",
-            "&trade;": "\u{2122}",
-            "&euro;": "\u{20AC}",
-        ]
-        for (entity, replacement) in entities {
+        // Decode named HTML entities
+        for (entity, replacement) in Self.namedEntities {
             result = result.replacingOccurrences(of: entity, with: replacement)
         }
         // Decode &amp; last to prevent double-decoding (e.g. &amp;lt; -> &lt; -> <)
@@ -54,23 +60,33 @@ extension String {
         return result
     }
 
+    private static let styleBlockRegex  = try? NSRegularExpression(pattern: "<style[^>]*>[\\s\\S]*?</style>",  options: [])
+    private static let scriptBlockRegex = try? NSRegularExpression(pattern: "<script[^>]*>[\\s\\S]*?</script>", options: [])
+    private static let brTagRegex       = try? NSRegularExpression(pattern: "<br\\s*/?>",  options: [])
+    private static let openPTagRegex    = try? NSRegularExpression(pattern: "<p[^>]*>",    options: [])
+    private static let openDivTagRegex  = try? NSRegularExpression(pattern: "<div[^>]*>",  options: [])
+    private static let remainingTagsRegex = try? NSRegularExpression(pattern: "<[^>]+>",   options: [])
+    private static let multipleNewlineRegex = try? NSRegularExpression(pattern: "\\n{3,}", options: [])
+
     var strippingHTML: String {
         var result = self
+        let fullRange = { NSRange(result.startIndex..., in: result) }
+
         // Remove style/script blocks first
-        result = result.replacingOccurrences(of: "<style[^>]*>[\\s\\S]*?</style>",  with: "", options: .regularExpression)
-        result = result.replacingOccurrences(of: "<script[^>]*>[\\s\\S]*?</script>", with: "", options: .regularExpression)
+        if let re = Self.styleBlockRegex  { result = re.stringByReplacingMatches(in: result, range: fullRange(), withTemplate: "") }
+        if let re = Self.scriptBlockRegex { result = re.stringByReplacingMatches(in: result, range: fullRange(), withTemplate: "") }
         // Replace block tags with newlines
-        result = result.replacingOccurrences(of: "<br\\s*/?>",  with: "\n", options: .regularExpression)
-        result = result.replacingOccurrences(of: "<p[^>]*>",    with: "\n", options: .regularExpression)
-        result = result.replacingOccurrences(of: "</p>",         with: "")
-        result = result.replacingOccurrences(of: "<div[^>]*>",  with: "\n", options: .regularExpression)
-        result = result.replacingOccurrences(of: "</div>",       with: "")
+        if let re = Self.brTagRegex      { result = re.stringByReplacingMatches(in: result, range: fullRange(), withTemplate: "\n") }
+        if let re = Self.openPTagRegex   { result = re.stringByReplacingMatches(in: result, range: fullRange(), withTemplate: "\n") }
+        result = result.replacingOccurrences(of: "</p>",    with: "")
+        if let re = Self.openDivTagRegex { result = re.stringByReplacingMatches(in: result, range: fullRange(), withTemplate: "\n") }
+        result = result.replacingOccurrences(of: "</div>",  with: "")
         // Strip remaining tags
-        result = result.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        if let re = Self.remainingTagsRegex { result = re.stringByReplacingMatches(in: result, range: fullRange(), withTemplate: "") }
         // Decode HTML entities
         result = result.decodingHTMLEntities()
         // Collapse multiple blank lines
-        result = result.replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
+        if let re = Self.multipleNewlineRegex { result = re.stringByReplacingMatches(in: result, range: fullRange(), withTemplate: "\n\n") }
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 

@@ -63,16 +63,19 @@ struct ContentView: View {
                     onRenameLabel: { label, newName in Task { await coordinator.renameLabel(label, to: newName) } },
                     onDeleteLabel: { label in Task { await coordinator.deleteLabel(label) } },
                     onDropToTrash: { msgId, accountID in
-                        Task { try? await GmailMessageService.shared.trashMessage(id: msgId, accountID: accountID) }
+                        guard let email = coordinator.mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgId }) else { return }
+                        coordinator.actionCoordinator.deleteEmail(email, selectNext: { _ in })
                     },
                     onDropToArchive: { msgId, accountID in
-                        Task { try? await GmailMessageService.shared.archiveMessage(id: msgId, accountID: accountID) }
+                        guard let email = coordinator.mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgId }) else { return }
+                        coordinator.actionCoordinator.archiveEmail(email, selectNext: { _ in })
                     },
                     onDropToSpam: { msgId, accountID in
-                        Task { try? await GmailMessageService.shared.spamMessage(id: msgId, accountID: accountID) }
+                        guard let email = coordinator.mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgId }) else { return }
+                        coordinator.actionCoordinator.markSpamEmail(email, selectNext: { _ in })
                     },
                     onDropToLabel: { msgId, labelId, accountID in
-                        Task { try? await GmailMessageService.shared.modifyLabels(id: msgId, add: [labelId], remove: [], accountID: accountID) }
+                        Task { await coordinator.mailboxViewModel.addLabel(labelId, to: msgId) }
                     }
                 )
                 .focused($appFocus, equals: .sidebar)
@@ -334,12 +337,42 @@ struct ContentView: View {
             }
             .onChange(of: coordinator.signatureForNew) { _, _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
             .onChange(of: coordinator.signatureForReply) { _, _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
-            .onReceive(NotificationCenter.default.publisher(for: .composeEmailFromIntent)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: .composeEmailFromIntent)) { notification in
                 coordinator.composeNewEmail()
+                if let recipient = notification.userInfo?["recipient"] as? String, !recipient.isEmpty,
+                   let draft = coordinator.mailStore.emails.first(where: { $0.isDraft && $0.recipients.isEmpty && $0.body.isEmpty }) {
+                    coordinator.mailStore.updateDraft(id: draft.id, subject: "", body: "", to: recipient, cc: "")
+                }
             }
-            .onReceive(NotificationCenter.default.publisher(for: .searchEmailFromIntent)) { _ in
+            .onReceive(NotificationCenter.default.publisher(for: .searchEmailFromIntent)) { notification in
                 coordinator.selectedFolder = .inbox
                 coordinator.searchFocusTrigger = true
+                if let query = notification.userInfo?["query"] as? String, !query.isEmpty {
+                    Task { await coordinator.mailboxViewModel.search(query: query) }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .quickReplyFromNotification)) { notification in
+                guard let messageId = notification.userInfo?["messageId"] as? String,
+                      let text = notification.userInfo?["text"] as? String,
+                      let accountID = notification.userInfo?["accountID"] as? String,
+                      !text.isEmpty
+                else { return }
+                Task {
+                    guard let message = try? await GmailMessageService.shared.getMessage(
+                        id: messageId, accountID: accountID, format: "metadata"
+                    ) else { return }
+                    let replySubject = message.subject.hasPrefix("Re:") ? message.subject : "Re: \(message.subject)"
+                    _ = try? await GmailSendService.shared.send(
+                        from: accountID,
+                        to: [message.replyTo],
+                        subject: replySubject,
+                        body: text,
+                        threadID: message.threadId,
+                        referencesHeader: message.messageID,
+                        accountID: accountID
+                    )
+                    ToastManager.shared.show(message: "Reply sent")
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: .openEmailFromIntent)) { notification in
                 if let messageId = notification.userInfo?["messageId"] as? String {

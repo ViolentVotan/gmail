@@ -51,7 +51,7 @@ final class SnoozeStore {
     /// shape that callers (e.g. AppCoordinator) depend on.
     private(set) var items: [SnoozedItem] {
         get { itemsByAccount.values.flatMap { $0 } }
-        set { /* @Observable requires a setter; mutations go through itemsByAccount */ }
+        set { assertionFailure("Mutate itemsByAccount instead") }
     }
 
     func load(accountID: String) {

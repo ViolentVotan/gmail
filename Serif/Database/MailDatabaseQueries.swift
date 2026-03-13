@@ -42,11 +42,6 @@ enum MailDatabaseQueries {
         """, arguments: [gmailId])
     }
 
-    /// All labels for the account.
-    static func allLabels(in db: Database) throws -> [LabelRecord] {
-        try LabelRecord.order(Column("name")).fetchAll(db)
-    }
-
     /// Messages needing body pre-fetch, newest first.
     static func messagesNeedingBodies(limit: Int = 50, in db: Database) throws -> [MessageRecord] {
         try MessageRecord
@@ -61,28 +56,30 @@ enum MailDatabaseQueries {
         try MessageRecord.fetchOne(db, key: gmailId) != nil
     }
 
-    /// Batch check which gmail IDs are NOT in the database.
-    /// Processes in chunks of 500 to stay within SQLite's variable limit.
-    static func missingMessageIds(from ids: [String], in db: Database) throws -> [String] {
-        guard !ids.isEmpty else { return [] }
-        let chunkSize = 500
-        var existingSet = Set<String>()
-        for chunkStart in stride(from: 0, to: ids.count, by: chunkSize) {
-            let chunkEnd = min(chunkStart + chunkSize, ids.count)
-            let chunk = Array(ids[chunkStart..<chunkEnd])
-            let placeholders = chunk.map { _ in "?" }.joined(separator: ",")
-            let found = try String.fetchAll(db, sql: """
-                SELECT gmail_id FROM messages WHERE gmail_id IN (\(placeholders))
-            """, arguments: StatementArguments(chunk))
-            existingSet.formUnion(found)
-        }
-        return ids.filter { !existingSet.contains($0) }
+    // MARK: - Contacts
+
+    /// All contacts, ordered by name.
+    static func allContacts(in db: Database) throws -> [ContactRecord] {
+        try ContactRecord.order(Column("name").asc).fetchAll(db)
     }
 
-    /// Contact photo URL for an email address.
-    static func contactPhotoUrl(forEmail email: String, in db: Database) throws -> String? {
-        try String.fetchOne(db, sql: """
-            SELECT photo_url FROM contacts WHERE email = ? COLLATE NOCASE
-        """, arguments: [email])
+    /// Total number of contacts.
+    static func contactCount(in db: Database) throws -> Int {
+        try ContactRecord.fetchCount(db)
     }
+
+    // MARK: - Account Sync State
+
+    /// Read the single-row account sync state.
+    static func syncState(in db: Database) throws -> AccountSyncStateRecord? {
+        try AccountSyncStateRecord.fetchOne(db, key: 1)
+    }
+
+    /// Update the single-row account sync state, creating it if it doesn't exist.
+    static func updateSyncState(_ update: (inout AccountSyncStateRecord) -> Void, in db: Database) throws {
+        var record = try AccountSyncStateRecord.fetchOne(db, key: 1) ?? AccountSyncStateRecord()
+        update(&record)
+        try record.upsert(db)
+    }
+
 }

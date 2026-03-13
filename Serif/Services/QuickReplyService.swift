@@ -12,12 +12,12 @@ final class QuickReplyService {
     private init() {}
 
     func cachedReplies(for email: Email) -> [String]? {
-        guard let key = cacheKey(for: email) else { return nil }
+        guard let key = AIServiceHelpers.cacheKey(for: email) else { return nil }
         return cache[key]
     }
 
     func generateReplies(for email: Email) async -> [String] {
-        if let key = cacheKey(for: email), let cached = cache[key] {
+        if let key = AIServiceHelpers.cacheKey(for: email), let cached = cache[key] {
             return cached
         }
 
@@ -38,7 +38,7 @@ final class QuickReplyService {
         guard SystemLanguageModel.default.availability == .available else { return [] }
 
         do {
-            let localePhrase = Self.localeInstructions()
+            let localePhrase = AIServiceHelpers.localeInstructions()
             let instructions = Instructions("""
             You are an email assistant inside a macOS email client. \
             The user has opened an email and you must suggest quick replies. \
@@ -60,7 +60,7 @@ final class QuickReplyService {
             }
             context += "\nSubject: \(email.subject)"
 
-            let body = cleanedPreview(from: email)
+            let body = AIServiceHelpers.cleanedPreview(from: email)
             let prompt = """
             \(context)
 
@@ -70,7 +70,7 @@ final class QuickReplyService {
             let response = try await session.respond(to: prompt)
             let replies = parseReplies(from: response.content)
 
-            if let key = cacheKey(for: email) {
+            if let key = AIServiceHelpers.cacheKey(for: email) {
                 cache[key] = replies
                 if cache.count > 200 { cache.removeAll() }
             }
@@ -91,13 +91,6 @@ final class QuickReplyService {
     }
 
     #endif
-
-    private static func localeInstructions(for locale: Locale = .current) -> String {
-        if Locale.Language(identifier: "en_US").isEquivalent(to: locale.language) {
-            return ""
-        }
-        return "The person's locale is \(locale.identifier)."
-    }
 
     private static let refusalPatterns: [String] = [
         "cannot fulfill",
@@ -140,12 +133,4 @@ final class QuickReplyService {
             .map { String($0) }
     }
 
-    private func cleanedPreview(from email: Email) -> String {
-        let text = email.body.isEmpty ? email.preview : email.body
-        return text.cleanedForAI()
-    }
-
-    private func cacheKey(for email: Email) -> String? {
-        email.gmailMessageID ?? email.id.uuidString
-    }
 }

@@ -78,7 +78,7 @@ struct ContactsSettingsCard: View {
                     Task {
                         await onRefreshContacts?(accountID)
                         isRefreshingContacts = false
-                        contactCount = ContactStore.shared.contacts(for: accountID).count
+                        contactCount = ContactStore.shared.contactCount(for: accountID)
                     }
                 } label: {
                     HStack(spacing: 5) {
@@ -101,7 +101,7 @@ struct ContactsSettingsCard: View {
         }
         .cardStyle()
         .onAppear {
-            contactCount = ContactStore.shared.contacts(for: accountID).count
+            contactCount = ContactStore.shared.contactCount(for: accountID)
         }
     }
 }
@@ -294,8 +294,8 @@ struct StorageSettingsCard: View {
             }
         }
         .cardStyle()
-        .onAppear {
-            attachmentStore.refresh()
+        .task {
+            await attachmentStore.refresh()
             dbSize = AttachmentDatabase.shared.databaseSizeBytes()
         }
         .onChange(of: attachmentStore.stats.total) { _, _ in
@@ -305,10 +305,12 @@ struct StorageSettingsCard: View {
             Button("Cancel", role: .cancel) {}
             Button("Clear", role: .destructive) {
                 isClearing = true
-                AttachmentDatabase.shared.clearAll()
-                attachmentStore.refresh()
-                dbSize = AttachmentDatabase.shared.databaseSizeBytes()
-                isClearing = false
+                Task {
+                    await AttachmentDatabase.shared.clearAll()
+                    await attachmentStore.refresh()
+                    dbSize = AttachmentDatabase.shared.databaseSizeBytes()
+                    isClearing = false
+                }
             }
         } message: {
             Text("This will delete all cached data (\(formattedSize)). Attachments will be re-indexed as you browse your emails.")
@@ -380,9 +382,7 @@ struct RefreshStatusView: View {
     let refreshInterval: Int
     @State private var now: Date = Date()
 
-    private var timer: Timer.TimerPublisher {
-        Timer.publish(every: 1, on: .main, in: .common)
-    }
+    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -405,7 +405,7 @@ struct RefreshStatusView: View {
                 Spacer()
             }
         }
-        .onReceive(timer.autoconnect()) { date in now = date }
+        .onReceive(timer) { date in now = date }
     }
 
     private var lastRefreshLabel: String {

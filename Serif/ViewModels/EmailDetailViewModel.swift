@@ -225,7 +225,7 @@ final class EmailDetailViewModel {
     }
 
     /// Shared helper: downloads inline CID attachments and replaces cid: references with data: URIs.
-    private static nonisolated func replaceCIDReferences(in html: String, message: GmailMessage, accountID: String) async -> String {
+    @concurrent private static func replaceCIDReferences(in html: String, message: GmailMessage, accountID: String) async -> String {
         var result = html
         await withTaskGroup(of: (String, String, Data?).self) { group in
             for part in message.inlineParts {
@@ -352,14 +352,25 @@ final class EmailDetailViewModel {
 
     func quotedHTML(email: Email) -> String {
         let original = latestMessage?.htmlBody ?? email.body
-        return "<br><br><blockquote style='border-left:2px solid #ccc;margin-left:4px;padding-left:8px;color:#555;'><p><b>\(email.sender.name)</b> wrote:</p>\(original)</blockquote>"
+        let safeName = Self.htmlEscape(email.sender.name)
+        return "<br><br><blockquote style='border-left:2px solid #ccc;margin-left:4px;padding-left:8px;color:#555;'><p><b>\(safeName)</b> wrote:</p>\(original)</blockquote>"
     }
 
     // MARK: Static compose mode factories (no instance context required)
 
     static func quotedHTML(for email: Email, latestHTMLBody: String? = nil) -> String {
         let original = latestHTMLBody ?? email.body
-        return "<br><br><blockquote style='border-left:2px solid #ccc;margin-left:4px;padding-left:8px;color:#555;'><p><b>\(email.sender.name)</b> wrote:</p>\(original)</blockquote>"
+        let safeName = htmlEscape(email.sender.name)
+        return "<br><br><blockquote style='border-left:2px solid #ccc;margin-left:4px;padding-left:8px;color:#555;'><p><b>\(safeName)</b> wrote:</p>\(original)</blockquote>"
+    }
+
+    /// HTML-escapes a string to prevent XSS when interpolating into HTML.
+    private static func htmlEscape(_ string: String) -> String {
+        string
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
     }
 
     static func replyMode(for email: Email, fromAddress: String = "", latestHTMLBody: String? = nil) -> ComposeMode {

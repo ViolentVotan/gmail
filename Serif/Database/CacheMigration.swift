@@ -17,24 +17,26 @@ enum CacheMigration {
     }
 
     /// Migrate existing JSON cache data into the database, then mark migration complete.
-    /// Fault-tolerant: individual failures are swallowed so the flag is always set.
+    /// Per-file write failures are logged but do not abort the migration — other files
+    /// still migrate. If a critical write error propagates (disk full, etc.), the
+    /// completion flag is NOT set so the migration will retry on next launch.
     /// Deletes only this account's cache subdirectory after migration.
     static func migrateIfNeeded(db: MailDatabase, accountID: String) async throws {
         guard needsMigration(accountID: accountID) else { return }
-        defer {
-            UserDefaults.standard.set(true, forKey: "\(migrationKeyPrefix).\(accountID)")
-        }
 
         let syncer = BackgroundSyncer(db: db)
 
         // Migrate labels first so message_labels foreign keys resolve
         await migrateLabels(syncer: syncer, accountID: accountID)
 
-        // Migrate all folder caches
+        // Migrate all folder caches — individual file failures are logged, not thrown
         await migrateMessages(syncer: syncer, accountID: accountID)
 
         // Migrate AI classification tags
         await migrateTags(db: db, accountID: accountID)
+
+        // Mark migration complete only after all writes have finished without a critical error
+        UserDefaults.standard.set(true, forKey: "\(migrationKeyPrefix).\(accountID)")
 
         // Remove only this account's cache subdirectory — other accounts may not have migrated yet.
         let accountDir = cacheBaseDir.appendingPathComponent(accountID, isDirectory: true)
@@ -95,7 +97,11 @@ enum CacheMigration {
 
             // Collect all label IDs present in this batch
             let labelIds = Array(Set(messages.flatMap { $0.labelIds ?? [] }))
-            try? await syncer.upsertMessages(messages, ensureLabels: labelIds)
+            do {
+                try await syncer.upsertMessages(messages, ensureLabels: labelIds)
+            } catch {
+                print("[CacheMigration] Failed to migrate \(file.lastPathComponent): \(error)")
+            }
         }
     }
 

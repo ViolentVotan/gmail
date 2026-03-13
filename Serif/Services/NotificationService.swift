@@ -74,13 +74,9 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
 
         switch response.actionIdentifier {
         case "ARCHIVE":
-            await MainActor.run {
-                Task { try? await GmailMessageService.shared.archiveMessage(id: messageId, accountID: accountID) }
-            }
+            try? await GmailMessageService.shared.archiveMessage(id: messageId, accountID: accountID)
         case "MARK_READ":
-            await MainActor.run {
-                Task { try? await GmailMessageService.shared.markAsRead(id: messageId, accountID: accountID) }
-            }
+            try? await GmailMessageService.shared.markAsRead(id: messageId, accountID: accountID)
         case "REPLY":
             if let textResponse = response as? UNTextInputNotificationResponse {
                 let text = textResponse.userText

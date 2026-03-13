@@ -9,6 +9,7 @@ final class OfflineActionQueue {
     private(set) var pendingActions: [OfflineAction] = []
     private(set) var isDraining = false
     private var retryDelay: TimeInterval = 2.0
+    private var retryTask: Task<Void, Never>?
 
     var pendingCount: Int { pendingActions.count }
 
@@ -26,6 +27,9 @@ final class OfflineActionQueue {
     }
 
     func startDraining() {
+        // Cancel any pending retry — a fresh drain supersedes it.
+        retryTask?.cancel()
+        retryTask = nil
         guard !isDraining, !pendingActions.isEmpty else { return }
         isDraining = true
 
@@ -55,10 +59,14 @@ final class OfflineActionQueue {
                 ToastManager.shared.show(message: "Synced \(succeeded) action\(succeeded == 1 ? "" : "s")")
             }
             if hitError {
+                // Mark draining now to block concurrent startDraining() calls during the delay.
+                isDraining = true
                 let delay = retryDelay
                 retryDelay = min(retryDelay * 2, 60)
-                Task {
+                retryTask = Task {
                     try? await Task.sleep(for: .seconds(delay))
+                    guard !Task.isCancelled else { return }
+                    isDraining = false
                     startDraining()
                 }
             }
@@ -66,6 +74,9 @@ final class OfflineActionQueue {
     }
 
     private func executeAction(_ action: OfflineAction) async throws {
+        // Work through messageIds sequentially. After each success, prune that ID
+        // from the persisted action so a retry won't re-execute already-completed work.
+        var remainingIds = action.messageIds
         for msgId in action.messageIds {
             switch action.actionType {
             case .archive:
@@ -81,17 +92,42 @@ final class OfflineActionQueue {
             case .markUnread:
                 try await GmailMessageService.shared.markAsUnread(id: msgId, accountID: action.accountID)
             case .addLabel:
-                if let labelId = action.metadata["labelId"] {
-                    try await GmailMessageService.shared.modifyLabels(id: msgId, add: [labelId], remove: [], accountID: action.accountID)
+                guard let labelId = action.metadata["labelId"] else {
+                    print("[OfflineActionQueue] addLabel action missing labelId — skipping message \(msgId)")
+                    remainingIds.removeFirst()
+                    persistRemainingIds(remainingIds, for: action)
+                    continue
                 }
+                try await GmailMessageService.shared.modifyLabels(id: msgId, add: [labelId], remove: [], accountID: action.accountID)
             case .removeLabel:
-                if let labelId = action.metadata["labelId"] {
-                    try await GmailMessageService.shared.modifyLabels(id: msgId, add: [], remove: [labelId], accountID: action.accountID)
+                guard let labelId = action.metadata["labelId"] else {
+                    print("[OfflineActionQueue] removeLabel action missing labelId — skipping message \(msgId)")
+                    remainingIds.removeFirst()
+                    persistRemainingIds(remainingIds, for: action)
+                    continue
                 }
+                try await GmailMessageService.shared.modifyLabels(id: msgId, add: [], remove: [labelId], accountID: action.accountID)
             case .spam:
                 try await GmailMessageService.shared.spamMessage(id: msgId, accountID: action.accountID)
             }
+            // Message succeeded — prune it so a retry skips it.
+            remainingIds.removeFirst()
+            persistRemainingIds(remainingIds, for: action)
         }
+    }
+
+    /// Replaces the in-memory action with an updated copy holding only `remainingIds`,
+    /// ensuring retries do not re-execute already-completed messages.
+    private func persistRemainingIds(_ remainingIds: [String], for action: OfflineAction) {
+        guard let idx = pendingActions.indices.first(where: { pendingActions[$0].id == action.id }) else { return }
+        pendingActions[idx] = OfflineAction(
+            id: action.id,
+            actionType: action.actionType,
+            messageIds: remainingIds,
+            accountID: action.accountID,
+            timestamp: action.timestamp,
+            metadata: action.metadata
+        )
     }
 
     private func save(accountID: String) {

@@ -1,4 +1,5 @@
 import SwiftUI
+import GRDB
 
 struct DetailPaneView: View {
     let selectedEmail: Email?
@@ -75,7 +76,11 @@ struct DetailPaneView: View {
             sendAsAliases: mailboxViewModel.sendAsAliases,
             signatureForNew: signatureForNew,
             signatureForReply: signatureForReply,
-            contacts: ContactStore.shared.contacts(for: accountID),
+            contacts: (try? MailDatabase.shared(for: accountID).dbPool.read { db in
+                try MailDatabaseQueries.allContacts(in: db).map {
+                    StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
+                }
+            }) ?? [],
             onDiscard: { coordinator.discardDraft(id: draftId) },
             onOpenLink: { url in panelCoordinator.openInAppBrowser(url: url) }
         )

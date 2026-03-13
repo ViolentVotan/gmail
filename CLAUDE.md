@@ -19,11 +19,10 @@ Requires **Xcode 26.3+** (full IDE, not just command-line tools).
 | Test | `xcodebuild -scheme Serif -destination 'platform=macOS' test` |
 | Release | `./scripts/release.sh` |
 
-## Setup
-
+<!-- Human-only setup reference (hidden from Claude context):
 1. Google Cloud project with Gmail API enabled + OAuth 2.0 Desktop credentials
-2. Create `Serif/Configuration/GoogleCredentials.swift` (gitignored) with OAuth client ID/secret
-3. Open `Serif.xcodeproj` in Xcode, build and run
+2. Create Serif/Configuration/GoogleCredentials.swift (gitignored) with OAuth client ID/secret
+3. Open Serif.xcodeproj in Xcode, build and run -->
 
 ## Architecture
 
@@ -52,7 +51,9 @@ Serif/
 └── Utilities/          # Helpers
 ```
 
-**Patterns:** MVVM with coordinator navigation (`AppCoordinator`, `EmailActionCoordinator`). Per-account GRDB SQLite database (WAL mode) for email persistence; `BackgroundSyncer` actor writes, `ValueObservation` drives reactive UI. See `.claude/rules/swift.md` for code style and architecture rules.
+**Patterns:** MVVM with coordinator navigation (`AppCoordinator`, `EmailActionCoordinator`). Per-account GRDB SQLite database (WAL mode) for email persistence; `BackgroundSyncer` actor writes, `ValueObservation` drives reactive UI.
+
+**Path-scoped rules** (`.claude/rules/`): `swift.md` (all Swift), `database.md` (Database layer), `testing.md` (tests), `safety.md` (CI/config safety). Serena `code_style` memory has full reference.
 
 ## LSP Tool Routing
 

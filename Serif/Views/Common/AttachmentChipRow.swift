@@ -7,7 +7,7 @@ struct AttachmentChipRow: View {
         if !attachments.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 6) {
-                    ForEach(attachments, id: \.self) { url in
+                    ForEach(Array(attachments.enumerated()), id: \.offset) { _, url in
                         HStack(spacing: 4) {
                             Image(systemName: url.sfSymbolIcon)
                                 .font(Typography.captionRegular)

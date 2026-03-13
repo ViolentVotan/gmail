@@ -50,29 +50,25 @@ final class SummaryService {
     private init() {}
 
     func cachedSummary(for email: Email) -> String? {
-        guard let key = cacheKey(for: email) else { return nil }
+        guard let key = AIServiceHelpers.cacheKey(for: email) else { return nil }
         guard let value = cache[key] else { return nil }
         // Move to end of access order (most recently used)
-        if let idx = accessOrder.firstIndex(of: key) {
-            accessOrder.remove(at: idx)
-        }
+        accessOrder.removeAll { $0 == key }
         accessOrder.append(key)
         return value
     }
 
     func isAIGenerated(for email: Email) -> Bool {
-        guard let key = cacheKey(for: email) else { return false }
+        guard let key = AIServiceHelpers.cacheKey(for: email) else { return false }
         return aiGenerated.contains(key)
     }
 
     func summary(for email: Email) -> AsyncStream<String> {
         AsyncStream { continuation in
             let task = Task {
-                if let key = cacheKey(for: email), let cached = cache[key] {
+                if let key = AIServiceHelpers.cacheKey(for: email), let cached = cache[key] {
                     // Track access for LRU eviction
-                    if let idx = accessOrder.firstIndex(of: key) {
-                        accessOrder.remove(at: idx)
-                    }
+                    accessOrder.removeAll { $0 == key }
                     accessOrder.append(key)
                     continuation.yield(cached)
                     continuation.finish()
@@ -124,7 +120,7 @@ final class SummaryService {
                 context += "\nAttachments: \(names)"
             }
 
-            let body = cleanedPreview(from: email)
+            let body = AIServiceHelpers.cleanedPreview(from: email)
             let prompt = """
             \(context)
 
@@ -138,9 +134,10 @@ final class SummaryService {
                 continuation.yield(accumulated)
             }
 
-            if let key = cacheKey(for: email) {
+            if let key = AIServiceHelpers.cacheKey(for: email) {
                 cache[key] = accumulated
                 aiGenerated.insert(key)
+                accessOrder.removeAll { $0 == key }
                 accessOrder.append(key)
                 trimCacheIfNeeded()
             }
@@ -152,23 +149,15 @@ final class SummaryService {
     #endif
 
     private func yieldFallback(email: Email, continuation: AsyncStream<String>.Continuation) {
-        let fallback = cleanedPreview(from: email)
-        if let key = cacheKey(for: email) {
+        let fallback = AIServiceHelpers.cleanedPreview(from: email)
+        if let key = AIServiceHelpers.cacheKey(for: email) {
             cache[key] = fallback
+            accessOrder.removeAll { $0 == key }
             accessOrder.append(key)
             trimCacheIfNeeded()
         }
         continuation.yield(fallback)
         continuation.finish()
-    }
-
-    private func cleanedPreview(from email: Email) -> String {
-        let text = email.body.isEmpty ? email.preview : email.body
-        return text.cleanedForAI()
-    }
-
-    private func cacheKey(for email: Email) -> String? {
-        email.gmailMessageID ?? email.id.uuidString
     }
 
     private func trimCacheIfNeeded() {
@@ -193,7 +182,7 @@ final class SummaryService {
                     Focus on what matters: what is it about, what action is needed, any deadlines.
                     """)
                     let session = LanguageModelSession(instructions: instructions)
-                    let body = cleanedPreview(from: email)
+                    let body = AIServiceHelpers.cleanedPreview(from: email)
                     let truncated = String(body.prefix(10000))
                     let prompt = "From: \(email.sender.name)\nSubject: \(email.subject)\n\n\(truncated)"
                     let response = session.streamResponse(to: prompt, generating: EmailInsight.self)

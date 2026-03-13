@@ -57,7 +57,7 @@ struct DebugMenuView: View {
                 .padding(.vertical, 4)
 
                 debugButton(icon: "arrow.clockwise", label: "Refresh Stats") {
-                    refreshIndexingStats()
+                    Task { await refreshIndexingStats() }
                 }
             }
 
@@ -97,8 +97,8 @@ struct DebugMenuView: View {
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .onAppear {
-            refreshIndexingStats()
+        .task {
+            await refreshIndexingStats()
         }
     }
 
@@ -117,15 +117,15 @@ struct DebugMenuView: View {
         .padding(.horizontal, 12)
     }
 
-    private func refreshIndexingStats() {
-        let raw = AttachmentDatabase.shared.stats(accountID: accountID)
+    private func refreshIndexingStats() async {
+        let raw = await AttachmentDatabase.shared.stats(accountID: accountID)
         indexingStats = IndexingStats(
             total: raw.total,
             indexed: raw.indexed,
             pending: raw.pending,
             failed: raw.failed
         )
-        unsupportedTypes = AttachmentDatabase.shared.unsupportedMimeTypes(accountID: accountID)
+        unsupportedTypes = await AttachmentDatabase.shared.unsupportedMimeTypes(accountID: accountID)
     }
 
     // MARK: - Log Entry Row

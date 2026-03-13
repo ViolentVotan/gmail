@@ -20,7 +20,7 @@ struct MarkAsReadIntent: AppIntent {
 
     private func findOwnerAccount(for messageId: String) async -> String? {
         for account in AccountStore.shared.accounts {
-            guard let db = try? MailDatabase(accountID: account.id) else { continue }
+            guard let db = try? MailDatabase.shared(for: account.id) else { continue }
             let exists = try? await db.dbPool.read { database in
                 try MailDatabaseQueries.messageExists(messageId, in: database)
             }

@@ -17,37 +17,35 @@ enum AttachmentDatabaseError: Error, Sendable {
 
 // MARK: - AttachmentDatabase
 
-final class AttachmentDatabase: @unchecked Sendable {
+actor AttachmentDatabase {
 
     static let shared = AttachmentDatabase()
 
-    private var db: OpaquePointer?
-    private let queue = DispatchQueue(label: "com.serif.attachment-db", qos: .utility)
+    // nonisolated(unsafe) allows access from nonisolated init/deinit.
+    // All runtime access is serialized: init runs before the actor is shared,
+    // deinit runs after, and all other methods are actor-isolated.
+    nonisolated(unsafe) private var db: OpaquePointer?
 
     // MARK: - Lifecycle
 
     private init() {
-        queue.sync {
-            do {
-                try openDatabase()
-                try createSchema()
-            } catch {
-                print("[AttachmentDB] Init failed: \(error)")
-            }
+        do {
+            try openDatabase()
+            try createSchema()
+        } catch {
+            print("[AttachmentDB] Init failed: \(error)")
         }
     }
 
     // Effectively unreachable — `shared` singleton is never deallocated.
-    // Wrapped in queue.sync for correctness if reuse patterns change.
+    // `sqlite3_close_v2` is thread-safe so direct call from nonisolated deinit is fine.
     deinit {
-        queue.sync {
-            if let db { sqlite3_close(db) }
-        }
+        if let db { sqlite3_close_v2(db) }
     }
 
     // MARK: - Open
 
-    private func openDatabase() throws {
+    private nonisolated func openDatabase() throws {
         let fm = FileManager.default
         let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let dir = support.appendingPathComponent("com.genyus.serif.app", isDirectory: true)
@@ -72,7 +70,7 @@ final class AttachmentDatabase: @unchecked Sendable {
     // 3. FTS changes: drop/recreate FTS virtual table + triggers, then rebuild from main table
     // 4. Bump PRAGMA user_version only after successful migration
 
-    private func createSchema() throws {
+    private nonisolated func createSchema() throws {
         // 1. Base table
         let createTable = """
         CREATE TABLE IF NOT EXISTS attachments (
@@ -129,7 +127,7 @@ final class AttachmentDatabase: @unchecked Sendable {
         migrateFTS()
     }
 
-    private func migrateFTS() {
+    private nonisolated func migrateFTS() {
         // Check schema version
         var version: Int32 = 0
         var stmt: OpaquePointer?
@@ -191,12 +189,6 @@ final class AttachmentDatabase: @unchecked Sendable {
     // MARK: - Insert
 
     func insertAttachment(_ attachment: IndexedAttachment) {
-        queue.sync {
-            _insertAttachment(attachment)
-        }
-    }
-
-    private func _insertAttachment(_ attachment: IndexedAttachment) {
         let sql = """
         INSERT OR IGNORE INTO attachments
             (id, messageId, attachmentId, filename, mimeType, fileType, size,
@@ -240,270 +232,244 @@ final class AttachmentDatabase: @unchecked Sendable {
     // MARK: - Update indexed content
 
     func updateIndexedContent(id: String, text: String?, embedding: [Float]?, status: IndexedAttachment.IndexingStatus) {
-        queue.sync {
-            let sql = """
-            UPDATE attachments
-            SET extractedText = ?, embedding = ?, indexingStatus = ?, indexedAt = ?
-            WHERE id = ?
-            """
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
-            defer { sqlite3_finalize(stmt) }
+        let sql = """
+        UPDATE attachments
+        SET extractedText = ?, embedding = ?, indexingStatus = ?, indexedAt = ?
+        WHERE id = ?
+        """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(stmt) }
 
-            bindTextOrNull(stmt, 1, text)
+        bindTextOrNull(stmt, 1, text)
 
-            if let embedding {
-                let data = serializeEmbedding(embedding)
-                data.withUnsafeBytes { buf in
-                    sqlite3_bind_blob(stmt, 2, buf.baseAddress, Int32(data.count), SQLITE_TRANSIENT)
-                }
-            } else {
-                sqlite3_bind_null(stmt, 2)
+        if let embedding {
+            let data = serializeEmbedding(embedding)
+            data.withUnsafeBytes { buf in
+                sqlite3_bind_blob(stmt, 2, buf.baseAddress, Int32(data.count), SQLITE_TRANSIENT)
             }
-
-            bindText(stmt, 3, status.rawValue)
-            sqlite3_bind_double(stmt, 4, Date().timeIntervalSince1970)
-            bindText(stmt, 5, id)
-
-            sqlite3_step(stmt)
+        } else {
+            sqlite3_bind_null(stmt, 2)
         }
+
+        bindText(stmt, 3, status.rawValue)
+        sqlite3_bind_double(stmt, 4, Date().timeIntervalSince1970)
+        bindText(stmt, 5, id)
+
+        sqlite3_step(stmt)
     }
 
     // MARK: - Update email body (enrich from full-format fetch)
 
     func updateEmailBody(id: String, body: String) {
-        queue.sync {
-            let sql = "UPDATE attachments SET emailBody = ? WHERE id = ? AND emailBody IS NULL"
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
-            defer { sqlite3_finalize(stmt) }
-            bindText(stmt, 1, body)
-            bindText(stmt, 2, id)
-            sqlite3_step(stmt)
-        }
+        let sql = "UPDATE attachments SET emailBody = ? WHERE id = ? AND emailBody IS NULL"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(stmt) }
+        bindText(stmt, 1, body)
+        bindText(stmt, 2, id)
+        sqlite3_step(stmt)
     }
 
     // MARK: - Exists
 
     func exists(id: String) -> Bool {
-        queue.sync {
-            let sql = "SELECT 1 FROM attachments WHERE id = ? LIMIT 1"
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return false }
-            defer { sqlite3_finalize(stmt) }
-            bindText(stmt, 1, id)
-            return sqlite3_step(stmt) == SQLITE_ROW
-        }
+        let sql = "SELECT 1 FROM attachments WHERE id = ? LIMIT 1"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return false }
+        defer { sqlite3_finalize(stmt) }
+        bindText(stmt, 1, id)
+        return sqlite3_step(stmt) == SQLITE_ROW
     }
 
     // MARK: - Message-level check
 
     func hasMessageAttachments(messageId: String) -> Bool {
-        queue.sync {
-            let sql = "SELECT 1 FROM attachments WHERE messageId = ? LIMIT 1"
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return false }
-            defer { sqlite3_finalize(stmt) }
-            bindText(stmt, 1, messageId)
-            return sqlite3_step(stmt) == SQLITE_ROW
-        }
+        let sql = "SELECT 1 FROM attachments WHERE messageId = ? LIMIT 1"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return false }
+        defer { sqlite3_finalize(stmt) }
+        bindText(stmt, 1, messageId)
+        return sqlite3_step(stmt) == SQLITE_ROW
     }
 
     // MARK: - Retry
 
     func resetFailedForRetry(maxRetries: Int, accountID: String) {
-        queue.sync {
-            let sql = "UPDATE attachments SET indexingStatus = 'pending' WHERE indexingStatus = 'failed' AND retryCount < ? AND accountID = ?"
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
-            defer { sqlite3_finalize(stmt) }
-            sqlite3_bind_int64(stmt, 1, Int64(maxRetries))
-            bindText(stmt, 2, accountID)
-            sqlite3_step(stmt)
-        }
+        let sql = "UPDATE attachments SET indexingStatus = 'pending' WHERE indexingStatus = 'failed' AND retryCount < ? AND accountID = ?"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(stmt) }
+        sqlite3_bind_int64(stmt, 1, Int64(maxRetries))
+        bindText(stmt, 2, accountID)
+        sqlite3_step(stmt)
     }
 
     func incrementRetry(id: String) {
-        queue.sync {
-            let sql = "UPDATE attachments SET indexingStatus = 'failed', retryCount = retryCount + 1 WHERE id = ?"
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
-            defer { sqlite3_finalize(stmt) }
-            bindText(stmt, 1, id)
-            sqlite3_step(stmt)
-        }
+        let sql = "UPDATE attachments SET indexingStatus = 'failed', retryCount = retryCount + 1 WHERE id = ?"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(stmt) }
+        bindText(stmt, 1, id)
+        sqlite3_step(stmt)
     }
 
     // MARK: - Pending
 
     func pendingAttachments(limit: Int = 50, accountID: String) -> [IndexedAttachment] {
-        queue.sync {
-            let sql = """
-            SELECT * FROM attachments
-            WHERE indexingStatus = 'pending' AND accountID = ?
-            ORDER BY emailDate DESC
-            LIMIT ?
-            """
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
-            defer { sqlite3_finalize(stmt) }
-            bindText(stmt, 1, accountID)
-            sqlite3_bind_int64(stmt, 2, Int64(limit))
-            return readRows(stmt)
-        }
+        let sql = """
+        SELECT * FROM attachments
+        WHERE indexingStatus = 'pending' AND accountID = ?
+        ORDER BY emailDate DESC
+        LIMIT ?
+        """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        defer { sqlite3_finalize(stmt) }
+        bindText(stmt, 1, accountID)
+        sqlite3_bind_int64(stmt, 2, Int64(limit))
+        return readRows(stmt)
     }
 
     // MARK: - All
 
     func allAttachments(limit: Int = 100, offset: Int = 0, accountID: String) -> [IndexedAttachment] {
-        queue.sync {
-            let sql = """
-            SELECT * FROM attachments
-            WHERE accountID = ?
-            ORDER BY emailDate DESC
-            LIMIT ? OFFSET ?
-            """
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
-            defer { sqlite3_finalize(stmt) }
-            bindText(stmt, 1, accountID)
-            sqlite3_bind_int64(stmt, 2, Int64(limit))
-            sqlite3_bind_int64(stmt, 3, Int64(offset))
-            return readRows(stmt)
-        }
+        let sql = """
+        SELECT * FROM attachments
+        WHERE accountID = ?
+        ORDER BY emailDate DESC
+        LIMIT ? OFFSET ?
+        """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        defer { sqlite3_finalize(stmt) }
+        bindText(stmt, 1, accountID)
+        sqlite3_bind_int64(stmt, 2, Int64(limit))
+        sqlite3_bind_int64(stmt, 3, Int64(offset))
+        return readRows(stmt)
     }
 
     // MARK: - FTS Search
 
     func searchFTS(query: String, limit: Int = 30, accountID: String) -> [(IndexedAttachment, Double)] {
-        queue.sync {
-            let sanitized = sanitizeFTSQuery(query)
-            guard !sanitized.isEmpty else { return [] }
+        let sanitized = sanitizeFTSQuery(query)
+        guard !sanitized.isEmpty else { return [] }
 
-            let sql = """
-            SELECT a.*, abs(bm25(attachments_fts, 1.0, 5.0, 3.0, 0.5)) AS score
-            FROM attachments_fts f
-            JOIN attachments a ON a.rowid = f.rowid
-            WHERE attachments_fts MATCH ? AND a.accountID = ?
-            ORDER BY score DESC
-            LIMIT ?
-            """
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
-            defer { sqlite3_finalize(stmt) }
+        let sql = """
+        SELECT a.*, abs(bm25(attachments_fts, 1.0, 5.0, 3.0, 0.5)) AS score
+        FROM attachments_fts f
+        JOIN attachments a ON a.rowid = f.rowid
+        WHERE attachments_fts MATCH ? AND a.accountID = ?
+        ORDER BY score DESC
+        LIMIT ?
+        """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        defer { sqlite3_finalize(stmt) }
 
-            bindText(stmt, 1, sanitized)
-            bindText(stmt, 2, accountID)
-            sqlite3_bind_int64(stmt, 3, Int64(limit))
+        bindText(stmt, 1, sanitized)
+        bindText(stmt, 2, accountID)
+        sqlite3_bind_int64(stmt, 3, Int64(limit))
 
-            let columnCount = sqlite3_column_count(stmt)
-            let scoreIndex = columnCount - 1  // score is always the last column in our SELECT
+        let columnCount = sqlite3_column_count(stmt)
+        let scoreIndex = columnCount - 1  // score is always the last column in our SELECT
 
-            var results: [(IndexedAttachment, Double)] = []
-            while sqlite3_step(stmt) == SQLITE_ROW {
-                let att = readRow(stmt)
-                let score = sqlite3_column_double(stmt, scoreIndex)
-                results.append((att, score))
-            }
-            return results
+        var results: [(IndexedAttachment, Double)] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            let att = readRow(stmt)
+            let score = sqlite3_column_double(stmt, scoreIndex)
+            results.append((att, score))
         }
+        return results
     }
 
     // MARK: - All embeddings (for semantic search)
 
     func allEmbeddings(accountID: String, limit: Int = 1000) -> [(String, [Float])] {
-        queue.sync {
-            let sql = "SELECT id, embedding FROM attachments WHERE embedding IS NOT NULL AND accountID = ? ORDER BY emailDate DESC LIMIT ?"
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
-            defer { sqlite3_finalize(stmt) }
-            bindText(stmt, 1, accountID)
-            sqlite3_bind_int64(stmt, 2, Int64(limit))
+        let sql = "SELECT id, embedding FROM attachments WHERE embedding IS NOT NULL AND accountID = ? ORDER BY emailDate DESC LIMIT ?"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        defer { sqlite3_finalize(stmt) }
+        bindText(stmt, 1, accountID)
+        sqlite3_bind_int64(stmt, 2, Int64(limit))
 
-            var results: [(String, [Float])] = []
-            while sqlite3_step(stmt) == SQLITE_ROW {
-                guard let idRaw = sqlite3_column_text(stmt, 0) else { continue }
-                let id = String(cString: idRaw)
-                if let blobPtr = sqlite3_column_blob(stmt, 1) {
-                    let byteCount = Int(sqlite3_column_bytes(stmt, 1))
-                    let floats = deserializeEmbedding(blobPtr, byteCount: byteCount)
-                    results.append((id, floats))
-                }
+        var results: [(String, [Float])] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            guard let idRaw = sqlite3_column_text(stmt, 0) else { continue }
+            let id = String(cString: idRaw)
+            if let blobPtr = sqlite3_column_blob(stmt, 1) {
+                let byteCount = Int(sqlite3_column_bytes(stmt, 1))
+                let floats = deserializeEmbedding(blobPtr, byteCount: byteCount)
+                results.append((id, floats))
             }
-            return results
         }
+        return results
     }
 
     // MARK: - By ID
 
     func attachment(byId id: String) -> IndexedAttachment? {
-        queue.sync {
-            let sql = "SELECT * FROM attachments WHERE id = ? LIMIT 1"
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
-            defer { sqlite3_finalize(stmt) }
-            bindText(stmt, 1, id)
-            guard sqlite3_step(stmt) == SQLITE_ROW else { return nil }
-            return readRow(stmt)
-        }
+        let sql = "SELECT * FROM attachments WHERE id = ? LIMIT 1"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
+        defer { sqlite3_finalize(stmt) }
+        bindText(stmt, 1, id)
+        guard sqlite3_step(stmt) == SQLITE_ROW else { return nil }
+        return readRow(stmt)
     }
 
     // MARK: - Stats
 
     func stats(accountID: String) -> (total: Int, indexed: Int, pending: Int, failed: Int) {
-        queue.sync {
-            let sql = """
-            SELECT
-                COUNT(*),
-                SUM(CASE WHEN indexingStatus = 'indexed' THEN 1 ELSE 0 END),
-                SUM(CASE WHEN indexingStatus = 'pending' THEN 1 ELSE 0 END),
-                SUM(CASE WHEN indexingStatus = 'failed' THEN 1 ELSE 0 END)
-            FROM attachments
-            WHERE accountID = ?
-            """
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return (0, 0, 0, 0) }
-            defer { sqlite3_finalize(stmt) }
-            bindText(stmt, 1, accountID)
-            guard sqlite3_step(stmt) == SQLITE_ROW else { return (0, 0, 0, 0) }
+        let sql = """
+        SELECT
+            COUNT(*),
+            SUM(CASE WHEN indexingStatus = 'indexed' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN indexingStatus = 'pending' THEN 1 ELSE 0 END),
+            SUM(CASE WHEN indexingStatus = 'failed' THEN 1 ELSE 0 END)
+        FROM attachments
+        WHERE accountID = ?
+        """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return (0, 0, 0, 0) }
+        defer { sqlite3_finalize(stmt) }
+        bindText(stmt, 1, accountID)
+        guard sqlite3_step(stmt) == SQLITE_ROW else { return (0, 0, 0, 0) }
 
-            let total   = Int(sqlite3_column_int64(stmt, 0))
-            let indexed = Int(sqlite3_column_int64(stmt, 1))
-            let pending = Int(sqlite3_column_int64(stmt, 2))
-            let failed  = Int(sqlite3_column_int64(stmt, 3))
-            return (total, indexed, pending, failed)
-        }
+        let total   = Int(sqlite3_column_int64(stmt, 0))
+        let indexed = Int(sqlite3_column_int64(stmt, 1))
+        let pending = Int(sqlite3_column_int64(stmt, 2))
+        let failed  = Int(sqlite3_column_int64(stmt, 3))
+        return (total, indexed, pending, failed)
     }
 
     /// Distinct MIME types of unsupported attachments (for debugging).
     func unsupportedMimeTypes(accountID: String) -> [(mimeType: String, count: Int)] {
-        queue.sync {
-            let sql = """
-            SELECT COALESCE(mimeType, 'unknown'), COUNT(*)
-            FROM attachments
-            WHERE indexingStatus = 'unsupported' AND accountID = ?
-            GROUP BY mimeType
-            ORDER BY COUNT(*) DESC
-            """
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
-            defer { sqlite3_finalize(stmt) }
-            bindText(stmt, 1, accountID)
+        let sql = """
+        SELECT COALESCE(mimeType, 'unknown'), COUNT(*)
+        FROM attachments
+        WHERE indexingStatus = 'unsupported' AND accountID = ?
+        GROUP BY mimeType
+        ORDER BY COUNT(*) DESC
+        """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        defer { sqlite3_finalize(stmt) }
+        bindText(stmt, 1, accountID)
 
-            var results: [(String, Int)] = []
-            while sqlite3_step(stmt) == SQLITE_ROW {
-                let mime = columnText(stmt, 0) ?? "unknown"
-                let count = Int(sqlite3_column_int64(stmt, 1))
-                results.append((mime, count))
-            }
-            return results
+        var results: [(String, Int)] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            let mime = columnText(stmt, 0) ?? "unknown"
+            let count = Int(sqlite3_column_int64(stmt, 1))
+            results.append((mime, count))
         }
+        return results
     }
 
     // MARK: - Storage Info
 
     /// Total size on disk (main DB + WAL + SHM files) in bytes.
-    func databaseSizeBytes() -> Int64 {
+    nonisolated func databaseSizeBytes() -> Int64 {
         let fm = FileManager.default
         let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let dir = support.appendingPathComponent("com.genyus.serif.app", isDirectory: true)
@@ -523,77 +489,69 @@ final class AttachmentDatabase: @unchecked Sendable {
 
     /// Returns all message IDs that have already been scanned (with or without attachments).
     func allScannedMessageIDs(accountID: String) -> Set<String> {
-        queue.sync {
-            let sql = "SELECT messageID FROM scanned_messages WHERE accountID = ?"
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
-            defer { sqlite3_finalize(stmt) }
-            bindText(stmt, 1, accountID)
-            var ids: Set<String> = []
-            while sqlite3_step(stmt) == SQLITE_ROW {
-                if let raw = sqlite3_column_text(stmt, 0) {
-                    ids.insert(String(cString: raw))
-                }
+        let sql = "SELECT messageID FROM scanned_messages WHERE accountID = ?"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return [] }
+        defer { sqlite3_finalize(stmt) }
+        bindText(stmt, 1, accountID)
+        var ids: Set<String> = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            if let raw = sqlite3_column_text(stmt, 0) {
+                ids.insert(String(cString: raw))
             }
-            return ids
         }
+        return ids
     }
 
     /// Persists a batch of scanned message IDs so they are skipped on next launch.
     func markMessagesScanned(_ ids: [String], accountID: String) {
-        queue.sync {
-            let sql = "INSERT OR IGNORE INTO scanned_messages (messageID, accountID) VALUES (?, ?)"
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
-            defer { sqlite3_finalize(stmt) }
-            for id in ids {
-                sqlite3_reset(stmt)
-                bindText(stmt, 1, id)
-                bindText(stmt, 2, accountID)
-                sqlite3_step(stmt)
-            }
+        let sql = "INSERT OR IGNORE INTO scanned_messages (messageID, accountID) VALUES (?, ?)"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(stmt) }
+        for id in ids {
+            sqlite3_reset(stmt)
+            bindText(stmt, 1, id)
+            bindText(stmt, 2, accountID)
+            sqlite3_step(stmt)
         }
     }
 
     /// Delete all rows for a specific account, rebuild FTS, and reclaim disk space.
     func deleteByAccountID(_ accountID: String) {
-        queue.sync {
-            let sql = "DELETE FROM attachments WHERE accountID = ?"
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
-            defer { sqlite3_finalize(stmt) }
-            bindText(stmt, 1, accountID)
-            sqlite3_step(stmt)
-            // Also clean scanned_messages for this account
-            let sql2 = "DELETE FROM scanned_messages WHERE accountID = ?"
-            var stmt2: OpaquePointer?
-            if sqlite3_prepare_v2(db, sql2, -1, &stmt2, nil) == SQLITE_OK {
-                defer { sqlite3_finalize(stmt2) }
-                bindText(stmt2, 1, accountID)
-                sqlite3_step(stmt2)
-            }
-            // Also clean scan_state for this account
-            let sql3 = "DELETE FROM scan_state WHERE accountID = ?"
-            var stmt3: OpaquePointer?
-            if sqlite3_prepare_v2(db, sql3, -1, &stmt3, nil) == SQLITE_OK {
-                defer { sqlite3_finalize(stmt3) }
-                bindText(stmt3, 1, accountID)
-                sqlite3_step(stmt3)
-            }
-            exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')")
-            exec("VACUUM")
+        let sql = "DELETE FROM attachments WHERE accountID = ?"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(stmt) }
+        bindText(stmt, 1, accountID)
+        sqlite3_step(stmt)
+        // Also clean scanned_messages for this account
+        let sql2 = "DELETE FROM scanned_messages WHERE accountID = ?"
+        var stmt2: OpaquePointer?
+        if sqlite3_prepare_v2(db, sql2, -1, &stmt2, nil) == SQLITE_OK {
+            defer { sqlite3_finalize(stmt2) }
+            bindText(stmt2, 1, accountID)
+            sqlite3_step(stmt2)
         }
+        // Also clean scan_state for this account
+        let sql3 = "DELETE FROM scan_state WHERE accountID = ?"
+        var stmt3: OpaquePointer?
+        if sqlite3_prepare_v2(db, sql3, -1, &stmt3, nil) == SQLITE_OK {
+            defer { sqlite3_finalize(stmt3) }
+            bindText(stmt3, 1, accountID)
+            sqlite3_step(stmt3)
+        }
+        exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')")
+        exec("VACUUM")
     }
 
     /// Delete all rows from the attachments, scanned_messages, and scan_state tables, rebuild FTS, and reclaim disk space.
     func clearAll() {
-        queue.sync {
-            exec("DELETE FROM attachments")
-            exec("DELETE FROM scanned_messages")
-            exec("DELETE FROM scan_state")
-            exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')")
-            exec("VACUUM")
-        }
+        exec("DELETE FROM attachments")
+        exec("DELETE FROM scanned_messages")
+        exec("DELETE FROM scan_state")
+        exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')")
+        exec("VACUUM")
     }
 
     // MARK: - Scan State
@@ -604,49 +562,43 @@ final class AttachmentDatabase: @unchecked Sendable {
     }
 
     func loadScanState(accountID: String) -> ScanState? {
-        queue.sync {
-            let sql = "SELECT pageToken, isComplete FROM scan_state WHERE accountID = ? LIMIT 1"
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
-            defer { sqlite3_finalize(stmt) }
-            bindText(stmt, 1, accountID)
-            guard sqlite3_step(stmt) == SQLITE_ROW else { return nil }
-            let pageToken = columnText(stmt, 0)
-            let isComplete = sqlite3_column_int(stmt, 1) != 0
-            return ScanState(pageToken: pageToken, isComplete: isComplete)
-        }
+        let sql = "SELECT pageToken, isComplete FROM scan_state WHERE accountID = ? LIMIT 1"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
+        defer { sqlite3_finalize(stmt) }
+        bindText(stmt, 1, accountID)
+        guard sqlite3_step(stmt) == SQLITE_ROW else { return nil }
+        let pageToken = columnText(stmt, 0)
+        let isComplete = sqlite3_column_int(stmt, 1) != 0
+        return ScanState(pageToken: pageToken, isComplete: isComplete)
     }
 
     func saveScanState(accountID: String, pageToken: String?, isComplete: Bool) {
-        queue.sync {
-            let sql = """
-            INSERT INTO scan_state (accountID, pageToken, isComplete, updatedAt)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(accountID) DO UPDATE SET
-                pageToken = excluded.pageToken,
-                isComplete = excluded.isComplete,
-                updatedAt = excluded.updatedAt
-            """
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
-            defer { sqlite3_finalize(stmt) }
-            bindText(stmt, 1, accountID)
-            bindTextOrNull(stmt, 2, pageToken)
-            sqlite3_bind_int(stmt, 3, isComplete ? 1 : 0)
-            sqlite3_bind_double(stmt, 4, Date().timeIntervalSince1970)
-            sqlite3_step(stmt)
-        }
+        let sql = """
+        INSERT INTO scan_state (accountID, pageToken, isComplete, updatedAt)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(accountID) DO UPDATE SET
+            pageToken = excluded.pageToken,
+            isComplete = excluded.isComplete,
+            updatedAt = excluded.updatedAt
+        """
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(stmt) }
+        bindText(stmt, 1, accountID)
+        bindTextOrNull(stmt, 2, pageToken)
+        sqlite3_bind_int(stmt, 3, isComplete ? 1 : 0)
+        sqlite3_bind_double(stmt, 4, Date().timeIntervalSince1970)
+        sqlite3_step(stmt)
     }
 
     func clearScanState(accountID: String) {
-        queue.sync {
-            let sql = "DELETE FROM scan_state WHERE accountID = ?"
-            var stmt: OpaquePointer?
-            guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
-            defer { sqlite3_finalize(stmt) }
-            bindText(stmt, 1, accountID)
-            sqlite3_step(stmt)
-        }
+        let sql = "DELETE FROM scan_state WHERE accountID = ?"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(stmt) }
+        bindText(stmt, 1, accountID)
+        sqlite3_step(stmt)
     }
 
     // MARK: - Helpers: Row Mapping
@@ -659,40 +611,59 @@ final class AttachmentDatabase: @unchecked Sendable {
         return rows
     }
 
-    /// Maps a `SELECT *` row to `IndexedAttachment`.
-    /// Column order must match the CREATE TABLE definition.
+    /// Maps a result row to `IndexedAttachment` by column name, not ordinal index.
+    /// Safe against column reordering from `SELECT *` and future `addColumnIfMissing` additions.
     private func readRow(_ stmt: OpaquePointer?) -> IndexedAttachment {
-        let id            = columnText(stmt, 0) ?? ""
-        let messageId     = columnText(stmt, 1) ?? ""
-        let attachmentId  = columnText(stmt, 2) ?? ""
-        let filename      = columnText(stmt, 3) ?? ""
-        let mimeType      = columnText(stmt, 4)
-        let fileType      = columnText(stmt, 5) ?? "other"
-        let size          = Int(sqlite3_column_int64(stmt, 6))
-        let senderEmail   = columnText(stmt, 7)
-        let senderName    = columnText(stmt, 8)
-        let emailSubject  = columnText(stmt, 9)
-
-        var emailDate: Date?
-        if sqlite3_column_type(stmt, 10) != SQLITE_NULL {
-            emailDate = Date(timeIntervalSince1970: sqlite3_column_double(stmt, 10))
+        // Build name → index map from the statement's column metadata.
+        var col: [String: Int32] = [:]
+        let count = sqlite3_column_count(stmt)
+        for i in 0..<count {
+            if let namePtr = sqlite3_column_name(stmt, i) {
+                col[String(cString: namePtr)] = i
+            }
         }
 
-        let directionRaw  = columnText(stmt, 11) ?? "received"
-        let direction     = IndexedAttachment.Direction(rawValue: directionRaw) ?? .received
-
-        var indexedAt: Date?
-        if sqlite3_column_type(stmt, 12) != SQLITE_NULL {
-            indexedAt = Date(timeIntervalSince1970: sqlite3_column_double(stmt, 12))
+        func text(_ name: String) -> String? {
+            guard let idx = col[name] else { return nil }
+            return columnText(stmt, idx)
+        }
+        func int64(_ name: String) -> Int64 {
+            guard let idx = col[name] else { return 0 }
+            return sqlite3_column_int64(stmt, idx)
+        }
+        func isNull(_ name: String) -> Bool {
+            guard let idx = col[name] else { return true }
+            return sqlite3_column_type(stmt, idx) == SQLITE_NULL
+        }
+        func double(_ name: String) -> Double {
+            guard let idx = col[name] else { return 0 }
+            return sqlite3_column_double(stmt, idx)
         }
 
-        let statusRaw     = columnText(stmt, 13) ?? "pending"
+        let id           = text("id") ?? ""
+        let messageId    = text("messageId") ?? ""
+        let attachmentId = text("attachmentId") ?? ""
+        let filename     = text("filename") ?? ""
+        let mimeType     = text("mimeType")
+        let fileType     = text("fileType") ?? "other"
+        let size         = Int(int64("size"))
+        let senderEmail  = text("senderEmail")
+        let senderName   = text("senderName")
+        let emailSubject = text("emailSubject")
+
+        let emailDate: Date? = isNull("emailDate") ? nil : Date(timeIntervalSince1970: double("emailDate"))
+
+        let directionRaw = text("direction") ?? "received"
+        let direction    = IndexedAttachment.Direction(rawValue: directionRaw) ?? .received
+
+        let indexedAt: Date? = isNull("indexedAt") ? nil : Date(timeIntervalSince1970: double("indexedAt"))
+
+        let statusRaw     = text("indexingStatus") ?? "pending"
         let status        = IndexedAttachment.IndexingStatus(rawValue: statusRaw) ?? .pending
-        let extractedText = columnText(stmt, 14)
-        // Column 15 = embedding BLOB — not mapped into IndexedAttachment
-        // Column 16 = retryCount — managed separately
-        let emailBody     = columnText(stmt, 17)
-        let accountID     = columnText(stmt, 18) ?? ""
+        let extractedText = text("extractedText")
+        // "embedding" BLOB and "retryCount" are not mapped into IndexedAttachment.
+        let emailBody     = text("emailBody")
+        let accountID     = text("accountID") ?? ""
 
         return IndexedAttachment(
             id: id,
@@ -739,20 +710,29 @@ final class AttachmentDatabase: @unchecked Sendable {
     }
 
     /// Adds a column only if it doesn't already exist (avoids "duplicate column" warnings).
-    private func addColumnIfMissing(_ table: String, column: String, definition: String) {
+    ///
+    /// WARNING: `table`, `column`, and `definition` are interpolated directly into SQL.
+    /// All callers MUST pass compile-time literals. Never pass user-supplied input.
+    private nonisolated func addColumnIfMissing(_ table: String, column: String, definition: String) {
+        // Guard against SQL injection — identifiers must contain only alphanumeric chars or underscores.
+        let identifierPattern = #/^[a-zA-Z0-9_]+$/#
+        assert(table.wholeMatch(of: identifierPattern) != nil, "addColumnIfMissing: unsafe table name '\(table)'")
+        assert(column.wholeMatch(of: identifierPattern) != nil, "addColumnIfMissing: unsafe column name '\(column)'")
+
         var stmt: OpaquePointer?
-        let sql = "PRAGMA table_info(\(table))"
-        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+        let pragmaSQL = "PRAGMA table_info(\(table))"
+        guard sqlite3_prepare_v2(db, pragmaSQL, -1, &stmt, nil) == SQLITE_OK else { return }
         defer { sqlite3_finalize(stmt) }
         while sqlite3_step(stmt) == SQLITE_ROW {
             if let name = sqlite3_column_text(stmt, 1), String(cString: name) == column { return }
         }
-        sqlite3_exec(db, "ALTER TABLE \(table) ADD COLUMN \(column) \(definition)", nil, nil, nil)
+        let alterSQL = "ALTER TABLE \(table) ADD COLUMN \(column) \(definition)"
+        sqlite3_exec(db, alterSQL, nil, nil, nil)
     }
 
     /// Fire-and-forget exec (for PRAGMAs, etc).
     @discardableResult
-    private func exec(_ sql: String) -> Bool {
+    private nonisolated func exec(_ sql: String) -> Bool {
         sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK
     }
 

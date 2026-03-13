@@ -32,14 +32,14 @@ Gmail REST API wrappers. One service per domain:
 | File | Role |
 |------|------|
 | `APILogger.swift` | API request/response debug logging |
-| `AttachmentDatabase.swift` | SQLite FTS5 index for attachment search |
+| `AttachmentDatabase.swift` | Actor wrapping raw SQLite + FTS5 index for attachment search |
 | `AttachmentIndexer.swift` | Async indexing with CPU throttling |
 | `AttachmentSearchService.swift` | Hybrid FTS + semantic embedding search |
 | `AvatarCache.swift` | Avatar image caching (uses shared `stableHash` for cache keys) |
 | `BIMIService.swift` | BIMI logo resolution via DNS-over-HTTPS |
 | `CalendarInviteParser.swift` | iCalendar (.ics) parsing for calendar invite cards |
-| `BackgroundSyncer.swift` | Actor for bulk API sync → GRDB writes (upsert messages/labels, delta sync, body pre-fetch, FTS maintenance) |
-| `ContactModels.swift` | `StoredContact`, `ContactStore` (UserDefaults), `ContactPhotoCache` (in-memory), `GoogleUserInfo` |
+| `BackgroundSyncer.swift` | Actor for bulk API sync → GRDB writes (upsert messages/labels/contacts, delta sync, body pre-fetch, FTS maintenance) |
+| `ContactModels.swift` | `StoredContact`, `ContactStore` (reads from GRDB), `ContactPhotoCache` (in-memory NSLock), `GoogleUserInfo` |
 | `ContentExtractor.swift` | PDF/OCR/Word/text extraction + embedding generation |
 | `CPUMonitor.swift` | Adaptive CPU throttling for background tasks |
 | `EmailClassifier.swift` | Apple Foundation Models classification — categorizes emails by priority, sentiment, category. Persists tags to GRDB. |
@@ -57,7 +57,7 @@ Gmail REST API wrappers. One service per domain:
 | `SmartReplyProvider.swift` | Foundation Models smart reply chip generation (contextual reply suggestions) |
 | `SnoozeMonitor.swift` | Background timer that un-snoozes emails when their snooze-until date arrives |
 | `SnoozeStore.swift` | Persists snoozed email items per account (file-based JSON) |
-| `SignatureResolver.swift` | Signature HTML lookup per alias, signature replacement in body |
+| `SignatureResolver.swift` | Signature HTML lookup per alias, HTML signature replacement in compose body |
 | `SpotlightIndexer.swift` | CoreSpotlight email indexing for Spotlight search (indexes viewed emails, prunes at 1000) |
 | `SubscriptionsStore.swift` | Detects newsletter/subscription emails, manages unsubscribe state |
 | `SummaryService.swift` | AI-powered email summaries (delegates to `String.cleanedForAI` for preprocessing) |

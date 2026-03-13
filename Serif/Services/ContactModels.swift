@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 
 // MARK: - Stored Contact
 
@@ -9,7 +10,7 @@ struct StoredContact: Codable, Identifiable, Hashable, Sendable {
     var photoURL: String?
 }
 
-// MARK: - Contact Store (UserDefaults persistence)
+// MARK: - Contact Store (GRDB-backed, reads from per-account SQLite)
 
 @MainActor
 final class ContactStore {
@@ -17,36 +18,20 @@ final class ContactStore {
     private init() {}
 
     func contacts(for accountID: String) -> [StoredContact] {
-        let key = "com.serif.contacts.\(accountID)"
-        guard let data = UserDefaults.standard.data(forKey: key),
-              let decoded = try? JSONDecoder().decode([StoredContact].self, from: data)
-        else { return [] }
-        return decoded
+        (try? MailDatabase.shared(for: accountID).dbPool.read { db in
+            try MailDatabaseQueries.allContacts(in: db).map {
+                StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
+            }
+        }) ?? []
     }
 
-    func setContacts(_ contacts: [StoredContact], for accountID: String) {
-        let key = "com.serif.contacts.\(accountID)"
-        if let data = try? JSONEncoder().encode(contacts) {
-            UserDefaults.standard.set(data, forKey: key)
-        }
+    func contactCount(for accountID: String) -> Int {
+        (try? MailDatabase.shared(for: accountID).dbPool.read { db in
+            try MailDatabaseQueries.contactCount(in: db)
+        }) ?? 0
     }
 
-    func syncToken(for accountID: String) -> String? {
-        UserDefaults.standard.string(forKey: "com.serif.contacts.syncToken.\(accountID)")
-    }
-
-    func setSyncToken(_ token: String?, for accountID: String) {
-        UserDefaults.standard.set(token, forKey: "com.serif.contacts.syncToken.\(accountID)")
-    }
-
-    func otherContactsSyncToken(for accountID: String) -> String? {
-        UserDefaults.standard.string(forKey: "com.serif.contacts.otherSyncToken.\(accountID)")
-    }
-
-    func setOtherContactsSyncToken(_ token: String?, for accountID: String) {
-        UserDefaults.standard.set(token, forKey: "com.serif.contacts.otherSyncToken.\(accountID)")
-    }
-
+    /// Clean up legacy UserDefaults keys when an account is removed.
     func deleteAccount(_ accountID: String) {
         UserDefaults.standard.removeObject(forKey: "com.serif.contacts.\(accountID)")
         UserDefaults.standard.removeObject(forKey: "com.serif.contacts.syncToken.\(accountID)")
@@ -57,14 +42,13 @@ final class ContactStore {
 // MARK: - Contact Photo Cache
 
 /// In-memory cache of email → Google profile photo URL, populated from People API at login.
-/// Thread-safe via NSLock – deliberately `@unchecked Sendable` so callers on any isolation
-/// domain can read/write without awaiting.
+/// NSLock is safe here: all critical sections are synchronous (no suspension points inside lock).
 final class ContactPhotoCache: @unchecked Sendable {
     static let shared = ContactPhotoCache()
     private init() {}
 
-    private var cache: [String: String] = [:]
     private let lock = NSLock()
+    private var cache: [String: String] = [:]
 
     func set(_ url: String, for email: String) {
         lock.withLock { cache[email.lowercased()] = url }

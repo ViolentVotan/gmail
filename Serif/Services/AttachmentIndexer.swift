@@ -33,7 +33,7 @@ actor AttachmentIndexer {
                   let gmailMessageId = att.gmailMessageId else { continue }
 
             let id = "\(gmailMessageId)_\(gmailAttachmentId)"
-            guard !database.exists(id: id) else { continue }
+            guard await !database.exists(id: id) else { continue }
 
             let indexed = IndexedAttachment(
                 id: id,
@@ -54,7 +54,7 @@ actor AttachmentIndexer {
                 emailBody: nil,
                 accountID: accountID
             )
-            database.insertAttachment(indexed)
+            await database.insertAttachment(indexed)
         }
         await processQueue()
     }
@@ -63,7 +63,7 @@ actor AttachmentIndexer {
 
     /// Resume pending + retry failed items.
     func resumePending() async {
-        database.resetFailedForRetry(maxRetries: maxRetries, accountID: accountID)
+        await database.resetFailedForRetry(maxRetries: maxRetries, accountID: accountID)
         await processQueue()
     }
 
@@ -80,7 +80,7 @@ actor AttachmentIndexer {
         let acctID = accountID
         let monitor = cpuMonitor
 
-        var pending = db.pendingAttachments(limit: maxConcurrent, accountID: acctID)
+        var pending = await db.pendingAttachments(limit: maxConcurrent, accountID: acctID)
         while !pending.isEmpty {
             // Hard gate: wait if process CPU is above threshold
             await monitor.throttleIfNeeded()
@@ -97,7 +97,7 @@ actor AttachmentIndexer {
                 await onProgress()
             }
             try? await Task.sleep(nanoseconds: monitor.recommendedDelay(base: 200_000_000))
-            pending = db.pendingAttachments(limit: maxConcurrent, accountID: acctID)
+            pending = await db.pendingAttachments(limit: maxConcurrent, accountID: acctID)
         }
     }
 
@@ -125,14 +125,14 @@ actor AttachmentIndexer {
             switch result {
             case .text(let text):
                 let embedding = ContentExtractor.generateEmbedding(for: text)
-                database.updateIndexedContent(id: att.id, text: text, embedding: embedding, status: .indexed)
+                await database.updateIndexedContent(id: att.id, text: text, embedding: embedding, status: .indexed)
                 print("[AttachmentIndexer] Indexed: \(att.filename)")
             case .unsupported:
-                database.updateIndexedContent(id: att.id, text: nil, embedding: nil, status: .unsupported)
+                await database.updateIndexedContent(id: att.id, text: nil, embedding: nil, status: .unsupported)
                 print("[AttachmentIndexer] Unsupported: \(att.filename)")
             }
         } catch {
-            database.incrementRetry(id: att.id)
+            await database.incrementRetry(id: att.id)
             print("[AttachmentIndexer] Failed: \(att.filename) — \(error)")
         }
     }
@@ -163,7 +163,7 @@ actor AttachmentIndexer {
 
         // Pre-populate in-memory set from DB so we skip already-scanned messages
         if processedMessageIDs.isEmpty {
-            processedMessageIDs = database.allScannedMessageIDs(accountID: accountID)
+            processedMessageIDs = await database.allScannedMessageIDs(accountID: accountID)
         }
 
         let service = messageService
@@ -181,7 +181,7 @@ actor AttachmentIndexer {
         }
 
         // Load persisted scan state
-        let scanState = db.loadScanState(accountID: acctID)
+        let scanState = await db.loadScanState(accountID: acctID)
         let previouslyComplete = scanState?.isComplete ?? false
         // If scan was previously complete, start from page 1 to catch new messages
         // Otherwise resume from saved pageToken
@@ -219,7 +219,7 @@ actor AttachmentIndexer {
                 // Mark all as seen in-memory + persist to DB
                 let newIDs = refs.map(\.id)
                 for id in newIDs { processedMessageIDs.insert(id) }
-                db.markMessagesScanned(newIDs, accountID: acctID)
+                await db.markMessagesScanned(newIDs, accountID: acctID)
 
                 if !toScan.isEmpty {
                     // Fetch in adaptive chunks based on CPU pressure
@@ -251,7 +251,7 @@ actor AttachmentIndexer {
                 }
 
                 // Persist scan progress after each page
-                db.saveScanState(accountID: acctID, pageToken: pageToken, isComplete: false)
+                await db.saveScanState(accountID: acctID, pageToken: pageToken, isComplete: false)
 
                 // Pace between pages — hard gate + adaptive delay
                 await monitor.throttleIfNeeded()
@@ -261,7 +261,7 @@ actor AttachmentIndexer {
 
             // Mark scan as complete if we exhausted all pages or reached date cutoff
             let isComplete = pageToken == nil || reachedCutoff || (previouslyComplete && totalScanned > 0)
-            db.saveScanState(accountID: acctID, pageToken: nil, isComplete: isComplete)
+            await db.saveScanState(accountID: acctID, pageToken: nil, isComplete: isComplete)
 
             if totalDiscovered > 0 {
                 let depthLabel = cutoffDate.map { "\($0.formatted(.dateTime.month().year()))" } ?? "all time"
@@ -285,7 +285,7 @@ actor AttachmentIndexer {
 
         for message in messages {
             guard !processedMessageIDs.contains(message.id) else { continue }
-            guard !database.hasMessageAttachments(messageId: message.id) else {
+            guard await !database.hasMessageAttachments(messageId: message.id) else {
                 processedMessageIDs.insert(message.id)
                 continue
             }
@@ -337,9 +337,9 @@ actor AttachmentIndexer {
             for part in parts {
                 guard let attachmentId = part.body?.attachmentId else { continue }
                 let id = "\(message.id)_\(attachmentId)"
-                if database.exists(id: id) {
+                if await database.exists(id: id) {
                     // Only enrich body if this message wasn't already fully processed
-                    if !alreadySeen, let body = body { database.updateEmailBody(id: id, body: body) }
+                    if !alreadySeen, let body = body { await database.updateEmailBody(id: id, body: body) }
                     continue
                 }
                 let name = part.filename ?? "attachment"
@@ -355,7 +355,7 @@ actor AttachmentIndexer {
                     extractedText: nil, emailBody: body,
                     accountID: accountID
                 )
-                database.insertAttachment(indexed)
+                await database.insertAttachment(indexed)
                 newCount += 1
             }
             processedMessageIDs.insert(message.id)

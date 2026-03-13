@@ -1,19 +1,17 @@
 import Foundation
 import Observation
 
-// MARK: - URL validity cache (thread-safe)
+// MARK: - URL validity cache (actor-isolated)
 
-private final class URLValidityCache: @unchecked Sendable {
+private actor URLValidityCache {
     private var cache: [URL: Bool] = [:]
-    private let lock = NSLock()
     private let maxCacheSize = 500
 
     func get(_ url: URL) -> Bool? {
-        lock.lock(); defer { lock.unlock() }
-        return cache[url]
+        cache[url]
     }
+
     func set(_ url: URL, valid: Bool) {
-        lock.lock(); defer { lock.unlock() }
         if cache.count >= maxCacheSize { cache.removeAll() }
         cache[url] = valid
     }
@@ -141,6 +139,7 @@ final class SubscriptionsStore {
                 }
                 for await (email, valid) in group {
                     guard !Task.isCancelled else { return }
+                    guard accountID == expectedAccountID else { break }
                     guard valid else { continue }
                     if !entries.contains(where: { $0.id == email.id }) {
                         entries.append(email)

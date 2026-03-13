@@ -31,16 +31,23 @@ final class AccountStore: @unchecked Sendable {
     private init() { migrateColors() }
 
     private let key = "com.serif.accounts"
+    private var _cachedAccounts: [GmailAccount]?
 
     var accounts: [GmailAccount] {
         get {
+            if let cached = _cachedAccounts { return cached }
             guard
                 let data = UserDefaults.standard.data(forKey: key),
                 let decoded = try? JSONDecoder().decode([GmailAccount].self, from: data)
-            else { return [] }
+            else {
+                _cachedAccounts = []
+                return []
+            }
+            _cachedAccounts = decoded
             return decoded
         }
         set {
+            _cachedAccounts = newValue
             let data = try? JSONEncoder().encode(newValue)
             UserDefaults.standard.set(data, forKey: key)
         }
@@ -64,7 +71,7 @@ final class AccountStore: @unchecked Sendable {
     @MainActor func remove(id: String) {
         accounts = accounts.filter { $0.id != id }
         TokenStore.shared.delete(for: id)
-        AttachmentDatabase.shared.deleteByAccountID(id)
+        Task { await AttachmentDatabase.shared.deleteByAccountID(id) }
         MailDatabase.deleteDatabase(accountID: id)
         UnsubscribeService.shared.clearAccount(id)
         ContactStore.shared.deleteAccount(id)

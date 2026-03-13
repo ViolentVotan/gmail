@@ -62,7 +62,7 @@ struct EmailEntityQuery: EntityStringQuery {
         let accounts = AccountStore.shared.accounts
         var entities: [EmailEntity] = []
         for account in accounts {
-            guard let db = try? MailDatabase(accountID: account.id) else { continue }
+            guard let db = try? MailDatabase.shared(for: account.id) else { continue }
             let records = try? await db.dbPool.read { database in
                 try MailDatabaseQueries.messagesForLabel("INBOX", limit: 200, in: database)
             }

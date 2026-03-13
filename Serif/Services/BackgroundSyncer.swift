@@ -125,24 +125,6 @@ actor BackgroundSyncer {
         }
     }
 
-    // MARK: - Contact Sync
-
-    /// Upsert contacts from People API.
-    func upsertContacts(_ contacts: [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)]) throws {
-        try db.dbPool.write { db in
-            for contact in contacts {
-                try ContactRecord(
-                    email: contact.email.lowercased(),
-                    name: contact.name,
-                    photoUrl: contact.photoUrl,
-                    source: contact.source,
-                    resourceName: contact.resourceName,
-                    updatedAt: Date().timeIntervalSince1970
-                ).upsert(db)
-            }
-        }
-    }
-
     // MARK: - Sync State
 
     /// Update folder sync state.
@@ -211,17 +193,26 @@ actor BackgroundSyncer {
         labelUpdates: [(gmailId: String, labelIds: [String])]
     ) throws {
         try db.dbPool.write { db in
-            // Delete removed messages
-            for id in deletedIds {
-                try FTSManager.delete(gmailId: id, in: db)
+            var affectedThreadIds = Set<String>()
+
+            // Delete removed messages — collect thread IDs before deletion
+            if !deletedIds.isEmpty {
+                let deletedRecords = try MessageRecord.fetchAll(db, keys: deletedIds)
+                for record in deletedRecords {
+                    affectedThreadIds.insert(record.threadId)
+                }
+                for id in deletedIds {
+                    try FTSManager.delete(gmailId: id, in: db)
+                }
+                try MessageRecord.deleteAll(db, keys: deletedIds)
             }
-            try MessageRecord.deleteAll(db, keys: deletedIds)
 
             // Insert new messages
             for gmail in newMessages {
                 let record = MessageRecord(from: gmail)
                 let existed = try MessageRecord.fetchOne(db, key: record.gmailId) != nil
                 try record.upsert(db)
+                affectedThreadIds.insert(record.threadId)
                 try db.execute(sql: "DELETE FROM message_labels WHERE message_id = ?", arguments: [record.gmailId])
                 for labelId in gmail.labelIds ?? [] {
                     try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).upsert(db)
@@ -248,6 +239,44 @@ actor BackgroundSyncer {
                     UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?
                 """, arguments: [isRead, isStarred, update.gmailId])
             }
+
+            // Update thread message counts for all affected threads
+            for threadId in affectedThreadIds {
+                try db.execute(sql: """
+                    UPDATE messages SET thread_message_count = (
+                        SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = messages.thread_id
+                    ) WHERE thread_id = ?
+                """, arguments: [threadId])
+            }
+        }
+    }
+
+    // MARK: - Contact Sync
+
+    func upsertContacts(_ contacts: [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)]) throws {
+        try db.dbPool.write { db in
+            for contact in contacts {
+                try ContactRecord(
+                    email: contact.email.lowercased(),
+                    name: contact.name,
+                    photoUrl: contact.photoUrl,
+                    source: contact.source,
+                    resourceName: contact.resourceName,
+                    updatedAt: Date().timeIntervalSince1970
+                ).upsert(db)
+            }
+        }
+    }
+
+    func deleteContacts(emails: [String]) throws {
+        try db.dbPool.write { db in
+            try ContactRecord.filter(emails.map { $0.lowercased() }.contains(Column("email"))).deleteAll(db)
+        }
+    }
+
+    func deleteAllContacts() throws {
+        try db.dbPool.write { db in
+            try ContactRecord.deleteAll(db)
         }
     }
 }

@@ -34,7 +34,7 @@ final class SmartReplyProvider {
             #if canImport(FoundationModels)
             do {
                 guard SystemLanguageModel.default.availability == .available else { return [] }
-                let localePhrase = Self.localeInstructions()
+                let localePhrase = AIServiceHelpers.localeInstructions()
                 let instructions = Instructions("""
                 Generate 2-3 short reply suggestions for the email below. \
                 Each reply should be 1-2 sentences, professional but friendly. \
@@ -64,10 +64,4 @@ final class SmartReplyProvider {
         } else { return [] }
     }
 
-    private static func localeInstructions(for locale: Locale = .current) -> String {
-        if Locale.Language(identifier: "en_US").isEquivalent(to: locale.language) {
-            return ""
-        }
-        return "The person's locale is \(locale.identifier)."
-    }
 }

@@ -30,15 +30,31 @@ final class AttachmentStore {
     // MARK: - State
 
     var searchQuery = "" {
-        didSet { debouncedSearch() }
+        didSet {
+            debouncedSearch()
+            recomputeDisplayedAttachments()
+        }
     }
-    var searchResults: [AttachmentSearchResult] = []
-    var allAttachments: [IndexedAttachment] = []
+    var searchResults: [AttachmentSearchResult] = [] {
+        didSet { recomputeDisplayedAttachments() }
+    }
+    var allAttachments: [IndexedAttachment] = [] {
+        didSet { recomputeDisplayedAttachments() }
+    }
     var stats = IndexingStats()
     var isSearching = false
-    var filterFileType: Attachment.FileType?
-    var filterDirection: IndexedAttachment.Direction?
-    var exclusionRules: [String] = []
+    var filterFileType: Attachment.FileType? {
+        didSet { recomputeDisplayedAttachments() }
+    }
+    var filterDirection: IndexedAttachment.Direction? {
+        didSet { recomputeDisplayedAttachments() }
+    }
+    var exclusionRules: [String] = [] {
+        didSet { recomputeDisplayedAttachments() }
+    }
+
+    /// Cached result of filtering, exclusion, and deduplication. Updated only when inputs change.
+    private(set) var displayedAttachments: [AttachmentSearchResult] = []
 
     // MARK: - Dependencies
 
@@ -50,9 +66,11 @@ final class AttachmentStore {
 
     @ObservationIgnored var indexer: AttachmentIndexer?
 
-    // MARK: - Computed
+    var isIndexing: Bool { stats.pending > 0 }
 
-    var displayedAttachments: [AttachmentSearchResult] {
+    // MARK: - Cache Recomputation
+
+    private func recomputeDisplayedAttachments() {
         var results = searchQuery.isEmpty
             ? allAttachments.map {
                 AttachmentSearchResult(id: $0.id, attachment: $0, score: 1.0, matchSource: .fts)
@@ -79,10 +97,8 @@ final class AttachmentStore {
             let key = "\(r.attachment.filename)_\(r.attachment.size)"
             return seen.insert(key).inserted
         }
-        return results
+        displayedAttachments = results
     }
-
-    var isIndexing: Bool { stats.pending > 0 }
 
     // MARK: - Init
 
@@ -110,10 +126,10 @@ final class AttachmentStore {
 
     // MARK: - Refresh
 
-    func refresh() {
+    func refresh() async {
         loadExclusionRules()
-        allAttachments = database.allAttachments(limit: 5000, offset: 0, accountID: accountID)
-        let raw = database.stats(accountID: accountID)
+        allAttachments = await database.allAttachments(limit: 5000, offset: 0, accountID: accountID)
+        let raw = await database.stats(accountID: accountID)
         stats = IndexingStats(
             total: raw.total,
             indexed: raw.indexed,
@@ -152,7 +168,7 @@ final class AttachmentStore {
             defer { isSearching = false }
 
             guard !Task.isCancelled else { return }
-            let results = searchService.search(query: query, accountID: accountID)
+            let results = await searchService.search(query: query, accountID: accountID)
             guard !Task.isCancelled else { return }
             searchResults = results
         }

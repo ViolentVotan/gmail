@@ -13,7 +13,7 @@ Native macOS Gmail client. Swift 6.2 / SwiftUI. 3-column layout (sidebar, email 
 - Tracker blocking (pixels, domains, CSS)
 - Optimistic UI with undo system
 - Draft auto-save with 2s debounce
-- Theming via @Environment(\.theme)
+- Theming via AppearanceManager + DesignTokens (static enums & view modifiers)
 - GRDB SQLite database for per-account email persistence
 - Apple Intelligence integration (summaries, quick replies)
 

@@ -123,16 +123,11 @@ final class MailboxViewModel {
         }
         messageObservation = observation.start(
             in: db.dbPool,
-            scheduling: .async(onQueue: .main),
             onError: { [weak self] error in
-                Task { @MainActor in
-                    self?.error = "Database observation failed: \(error.localizedDescription)"
-                }
+                self?.error = "Database observation failed: \(error.localizedDescription)"
             },
             onChange: { [weak self] enrichedRecords in
-                Task { @MainActor in
-                    self?.handleDatabaseUpdate(enrichedRecords, from: db)
-                }
+                self?.handleDatabaseUpdate(enrichedRecords, from: db)
             }
         )
     }
@@ -556,28 +551,20 @@ final class MailboxViewModel {
     }
 
     func emptyTrash() async {
-        let backup = messages
-        let cacheBackup = fetchService.messageCache
-        messages.removeAll()
-        fetchService.messageCache.removeAll()
-        do {
-            try await api.emptyTrash(accountID: accountID)
-        } catch GmailAPIError.partialFailure {
-            self.error = "Some messages could not be deleted"
-        } catch {
-            messages = backup
-            fetchService.messageCache = cacheBackup
-            self.error = error.localizedDescription
-        }
+        await emptyFolder { [api, accountID] in try await api.emptyTrash(accountID: accountID) }
     }
 
     func emptySpam() async {
+        await emptyFolder { [api, accountID] in try await api.emptySpam(accountID: accountID) }
+    }
+
+    private func emptyFolder(action: @Sendable () async throws -> Void) async {
         let backup = messages
         let cacheBackup = fetchService.messageCache
         messages.removeAll()
         fetchService.messageCache.removeAll()
         do {
-            try await api.emptySpam(accountID: accountID)
+            try await action()
         } catch GmailAPIError.partialFailure {
             self.error = "Some messages could not be deleted"
         } catch {
@@ -663,25 +650,6 @@ final class MailboxViewModel {
                 fetchService.messageCache[messageID] = messages[idx]
             }
         } catch { self.error = error.localizedDescription }
-    }
-
-    // MARK: - Attachments helper
-
-    func allAttachmentItems() -> [AttachmentItem] {
-        emails.flatMap { email in
-            email.attachments.map { attachment in
-                AttachmentItem(
-                    attachment:   attachment,
-                    emailId:      email.id,
-                    emailSubject: email.subject,
-                    senderName:   email.sender.name,
-                    senderColor:  email.sender.avatarColor,
-                    date:         email.date,
-                    direction:    email.folder == .sent ? .sent : .received
-                )
-            }
-        }
-        .sorted { $0.date > $1.date }
     }
 
     // MARK: - GmailMessage → Email conversion

@@ -42,7 +42,10 @@ struct SerifApp: App {
         }
 
         Settings {
-            SettingsView(appearanceManager: appearanceManager)
+            SettingsView(
+                accountID: AccountStore.shared.accounts.first?.id ?? "",
+                appearanceManager: appearanceManager
+            )
         }
     }
 }

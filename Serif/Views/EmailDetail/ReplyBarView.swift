@@ -80,11 +80,9 @@ struct ReplyBarView: View {
             scheduleAutoSave()
         }
         .animation(SerifAnimation.springSnappy, value: replyBodyIsEmpty)
-        .onAppear {
-            Task { @MainActor in
-                try? await Task.sleep(for: .seconds(0.5))
-                isInitialLoad = false
-            }
+        .task {
+            try? await Task.sleep(for: .seconds(0.5))
+            isInitialLoad = false
         }
         .task(id: email.id) {
             isLoadingReplies = true

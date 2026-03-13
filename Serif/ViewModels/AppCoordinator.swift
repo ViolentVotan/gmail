@@ -307,7 +307,7 @@ final class AppCoordinator {
                 mailboxViewModel.setMailDatabase(self.mailDatabase)
                 mailboxViewModel.setBackgroundSyncer(self.backgroundSyncer)
                 await indexer.setProgressUpdate { [weak attachmentStore] in
-                    attachmentStore?.refresh()
+                    Task { await attachmentStore?.refresh() }
                 }
                 async let folderLoad: Void = loadCurrentFolder()
                 async let labelsLoad: Void = mailboxViewModel.loadLabels()
@@ -349,9 +349,9 @@ final class AppCoordinator {
         } else if folder == .scheduled {
             refreshScheduledCache()
         } else if folder == .attachments {
-            attachmentStore.refresh()
-            if let indexer = attachmentIndexer {
-                lifecycleTask = Task {
+            lifecycleTask = Task {
+                await attachmentStore.refresh()
+                if let indexer = attachmentIndexer {
                     await indexer.scanForAttachments()
                 }
             }
@@ -397,7 +397,6 @@ final class AppCoordinator {
         mailStore.accountID = id
         SubscriptionsStore.shared.accountID = id
         attachmentStore.accountID = id
-        attachmentStore.refresh()
         let indexer = AttachmentIndexer(
             database: .shared,
             messageService: GmailMessageService.shared,
@@ -407,9 +406,10 @@ final class AppCoordinator {
         mailboxViewModel.attachmentIndexer = indexer
         lifecycleTask?.cancel()
         lifecycleTask = Task {
+            await attachmentStore.refresh()
             await setupDatabase(for: id)
             await indexer.setProgressUpdate { [weak attachmentStore] in
-                attachmentStore?.refresh()
+                Task { await attachmentStore?.refresh() }
             }
             await mailboxViewModel.switchAccount(id)
             mailboxViewModel.setMailDatabase(self.mailDatabase)

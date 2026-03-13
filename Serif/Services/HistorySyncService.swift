@@ -130,17 +130,16 @@ final class HistorySyncService {
             result.succeeded = true
             return result
 
-        } catch let error as GmailAPIError {
+        } catch {
             if case .httpError(let code, _) = error, code == 404 {
-                // historyId expired -- fall back to full refresh
+                // historyId expired — fall back to full refresh
                 updateStoredHistoryId(nil, accountID: accountID)
                 return SyncResult(succeeded: false)
             }
-            result.succeeded = true // Don't trigger full refresh for other API errors
-            result.error = error.localizedDescription
-            return result
-        } catch {
-            print("[HistorySyncService] Non-API error during sync: \(error)")
+            // Rate-limit (429), server errors (5xx), and other API errors are retriable —
+            // mark as failed so the caller shows a stale-data indicator rather than
+            // silently swallowing the error.
+            print("[HistorySyncService] API error during sync: \(error)")
             result.succeeded = false
             result.error = error.localizedDescription
             return result

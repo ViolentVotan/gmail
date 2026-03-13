@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 
 /// Fetches contacts and photos from the Google People API.
 @MainActor
@@ -8,7 +9,11 @@ final class PeopleAPIService {
 
     /// Loads contacts: uses local cache if available, otherwise fetches from network.
     func loadContactPhotos(accountID: String) async {
-        let local = ContactStore.shared.contacts(for: accountID)
+        let local: [StoredContact] = (try? await MailDatabase.shared(for: accountID).dbPool.read { db in
+            try MailDatabaseQueries.allContacts(in: db).map {
+                StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
+            }
+        }) ?? []
         if !local.isEmpty {
             print("[Serif] Using \(local.count) cached contacts for \(accountID)")
             for contact in local {
@@ -49,14 +54,22 @@ final class PeopleAPIService {
     private func fetchAndStoreContacts(accountID: String) async {
         var allContacts: [StoredContact] = []
 
+        let mailDB = try? MailDatabase.shared(for: accountID)
+
         // 1. Fetch "My Contacts" via connections
         do {
-            let syncToken = ContactStore.shared.syncToken(for: accountID)
+            let syncToken: String? = try? await mailDB?.dbPool.read { db in
+                try MailDatabaseQueries.syncState(in: db)?.contactsSyncToken
+            }
             var newSyncToken: String?
             var needsFullFetch = syncToken == nil
 
             if let syncToken, !needsFullFetch {
-                allContacts = ContactStore.shared.contacts(for: accountID)
+                allContacts = (try? await mailDB?.dbPool.read { db in
+                    try MailDatabaseQueries.allContacts(in: db).map {
+                        StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
+                    }
+                }) ?? []
                 do {
                     var incPageToken: String? = nil
                     repeat {
@@ -95,7 +108,9 @@ final class PeopleAPIService {
                     let isGone = if case GmailAPIError.httpError(410, _) = error { true } else { false }
                     if isGone {
                         print("[Serif] Sync token expired, performing full re-fetch")
-                        ContactStore.shared.setSyncToken(nil, for: accountID)
+                        try? await mailDB?.dbPool.write { db in
+                            try MailDatabaseQueries.updateSyncState({ $0.contactsSyncToken = nil }, in: db)
+                        }
                         allContacts = []
                         needsFullFetch = true
                     } else {
@@ -122,7 +137,9 @@ final class PeopleAPIService {
             }
 
             if let newSyncToken {
-                ContactStore.shared.setSyncToken(newSyncToken, for: accountID)
+                try? await mailDB?.dbPool.write { db in
+                    try MailDatabaseQueries.updateSyncState({ $0.contactsSyncToken = newSyncToken }, in: db)
+                }
             }
         } catch {
             print("[Serif] Connections fetch error: \(error)")
@@ -131,7 +148,9 @@ final class PeopleAPIService {
         // 2. Fetch "Other Contacts" (auto-created from email interactions)
         // Note: readMask omits "photos" — Other Contacts don't support photo fields.
         do {
-            let otherSyncToken = ContactStore.shared.otherContactsSyncToken(for: accountID)
+            let otherSyncToken: String? = try? await mailDB?.dbPool.read { db in
+                try MailDatabaseQueries.syncState(in: db)?.otherContactsSyncToken
+            }
             var newOtherSyncToken: String?
             var needsFullOtherFetch = otherSyncToken == nil
 
@@ -173,7 +192,9 @@ final class PeopleAPIService {
                     let isGone = if case GmailAPIError.httpError(410, _) = error { true } else { false }
                     if isGone {
                         print("[Serif] Other Contacts sync token expired, performing full re-fetch")
-                        ContactStore.shared.setOtherContactsSyncToken(nil, for: accountID)
+                        try? await mailDB?.dbPool.write { db in
+                            try MailDatabaseQueries.updateSyncState({ $0.otherContactsSyncToken = nil }, in: db)
+                        }
                         needsFullOtherFetch = true
                     } else {
                         throw error
@@ -198,16 +219,22 @@ final class PeopleAPIService {
             }
 
             if let newOtherSyncToken {
-                ContactStore.shared.setOtherContactsSyncToken(newOtherSyncToken, for: accountID)
+                try? await mailDB?.dbPool.write { db in
+                    try MailDatabaseQueries.updateSyncState({ $0.otherContactsSyncToken = newOtherSyncToken }, in: db)
+                }
             }
         } catch {
             print("[Serif] Other Contacts fetch error: \(error)")
         }
 
-        // Deduplicate by email and persist
+        // Deduplicate by email and persist to GRDB
         var seen = Set<String>()
         let unique = allContacts.filter { seen.insert($0.email).inserted }
-        ContactStore.shared.setContacts(unique, for: accountID)
+        if let mailDB {
+            let syncer = BackgroundSyncer(db: mailDB)
+            let tuples = unique.map { (email: $0.email, name: Optional($0.name), photoUrl: $0.photoURL, source: "people_api", resourceName: nil as String?) }
+            try? await syncer.upsertContacts(tuples)
+        }
         print("[Serif] Total unique contacts stored: \(unique.count)")
     }
 }

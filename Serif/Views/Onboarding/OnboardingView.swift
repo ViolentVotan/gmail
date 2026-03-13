@@ -6,17 +6,11 @@ import AppKit
 private struct WindowAccessor: NSViewRepresentable {
     @Binding var window: NSWindow?
 
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView()
-        DispatchQueue.main.async {
-            self.window = view.window
-        }
-        return view
-    }
+    func makeNSView(context: Context) -> NSView { NSView() }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        DispatchQueue.main.async {
-            self.window = nsView.window
+        if window != nsView.window {
+            Task { @MainActor in self.window = nsView.window }
         }
     }
 }
