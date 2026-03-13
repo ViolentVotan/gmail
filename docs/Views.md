@@ -21,7 +21,7 @@ SwiftUI views. UI presentation only — no business logic.
 Left column — `List(.sidebar)` with folder navigation, account switcher, labels. Context menu for label rename/delete. Gets Liquid Glass treatment automatically from NavigationSplitView.
 
 ### `EmailList/`
-Middle column — email rows with native `.swipeActions()` (archive/delete), search, `.refreshable` pull-to-refresh, multi-select with bulk actions. Uses `List(selection:)` for row rendering.
+Middle column — email rows with native `.swipeActions()` (archive/delete), search, `.refreshable` pull-to-refresh, multi-select with bulk actions. Uses `List(selection:)` for row rendering. Date-based sort orders show section headers (Today, Yesterday, This Week, Last Week, month/year). Email rows merge Gmail labels and AI classification tags into a single capped badge row (max 2 visible + overflow count).
 - `CategoryTabBar` — Horizontal tab bar for inbox category filtering (Primary, Social, Updates, etc.).
 - `EmailHoverSummaryView` — AI-generated summary tooltip on email row hover.
 - `EmailContextMenu` — Right-click context menu with reply, reply all, forward, archive, delete, star, snooze, labels.
@@ -78,7 +78,7 @@ Shared reusable components:
 Shared styled components:
 | File | Role |
 |------|------|
-| `CardStyle` | Base-plane card container (`.quinary` fill + `.separator` stroke) for settings and detail cards |
+| `CardStyle` | Base-plane card container (`.quinary` fill + `.separator` stroke) for settings and detail cards. `CompactCardStyle` variant with tighter padding (`Spacing.md`/`Spacing.sm`) for inline banners (tracker, insight). |
 | `BadgeView` | Numeric badge pill (unread counts) |
 
 ## Intents (App Intents)
