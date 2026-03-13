@@ -190,6 +190,69 @@ extension MessageRecord {
     }
 }
 
+// MARK: - Reverse conversion to GmailMessage
+
+extension MessageRecord {
+    func toGmailMessage() -> GmailMessage {
+        var labelIds: [String] = []
+        if !isRead { labelIds.append("UNREAD") }
+        if isStarred { labelIds.append("STARRED") }
+
+        return GmailMessage(
+            id: gmailId,
+            threadId: threadId,
+            labelIds: labelIds,
+            snippet: snippet,
+            internalDate: String(Int64(internalDate * 1000)), // Convert seconds to milliseconds string
+            payload: GmailMessagePart(
+                partId: nil,
+                mimeType: bodyHtml != nil ? "text/html" : "text/plain",
+                filename: nil,
+                headers: buildHeaders(),
+                body: buildBody(),
+                parts: nil
+            ),
+            sizeEstimate: sizeEstimate,
+            historyId: historyId,
+            raw: nil
+        )
+    }
+
+    private func buildHeaders() -> [GmailHeader] {
+        var headers: [GmailHeader] = []
+        if let subject { headers.append(GmailHeader(name: "Subject", value: subject)) }
+        if let senderName, let senderEmail {
+            headers.append(GmailHeader(name: "From", value: "\(senderName) <\(senderEmail)>"))
+        } else if let senderEmail {
+            headers.append(GmailHeader(name: "From", value: senderEmail))
+        }
+        if let toRecipients { headers.append(GmailHeader(name: "To", value: decodeRecipientsAsString(toRecipients))) }
+        if let ccRecipients { headers.append(GmailHeader(name: "Cc", value: decodeRecipientsAsString(ccRecipients))) }
+        if let replyTo { headers.append(GmailHeader(name: "Reply-To", value: replyTo)) }
+        if let messageIdHeader { headers.append(GmailHeader(name: "Message-ID", value: messageIdHeader)) }
+        if let inReplyTo { headers.append(GmailHeader(name: "In-Reply-To", value: inReplyTo)) }
+        if let url = unsubscribeUrl { headers.append(GmailHeader(name: "List-Unsubscribe", value: url)) }
+        return headers
+    }
+
+    private func buildBody() -> GmailMessageBody? {
+        let bodyContent = bodyHtml ?? bodyPlain
+        guard let bodyContent else { return nil }
+        // Re-encode as base64url so GmailMessage.htmlBody / plainBody can decode it
+        let base64url = Data(bodyContent.utf8).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+        return GmailMessageBody(attachmentId: nil, size: bodyContent.utf8.count, data: base64url)
+    }
+
+    private func decodeRecipientsAsString(_ json: String) -> String {
+        guard let data = json.data(using: .utf8),
+              let arr = try? JSONDecoder().decode([String].self, from: data) else { return json }
+        return arr.joined(separator: ", ")
+    }
+}
+
 // MARK: - GRDB Associations
 
 extension MessageRecord {

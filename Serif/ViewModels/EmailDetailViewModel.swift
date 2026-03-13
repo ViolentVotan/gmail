@@ -1,4 +1,5 @@
 import SwiftUI
+import GRDB
 
 /// Drives the email detail / thread view.
 @Observable
@@ -27,6 +28,7 @@ final class EmailDetailViewModel {
     @ObservationIgnored let accountID: String
     @ObservationIgnored var attachmentIndexer: AttachmentIndexer?
     @ObservationIgnored var onMessagesRead: (([String]) -> Void)?
+    @ObservationIgnored var mailDatabase: MailDatabase?
 
     init(accountID: String) {
         self.accountID = accountID
@@ -42,8 +44,31 @@ final class EmailDetailViewModel {
 
         resolvedHTML = nil
 
-        // Load from disk cache first (instant + offline)
-        if let cached = await MailCacheStore.shared.loadThread(accountID: accountID, threadID: id) {
+        // DB fast path: load thread from local database (instant)
+        if let db = mailDatabase {
+            let threadMessages = try? await db.dbPool.read { db in
+                try MailDatabaseQueries.messagesForThread(id, in: db)
+            }
+            if let records = threadMessages, !records.isEmpty {
+                let allHaveBodies = records.allSatisfy { $0.fullBodyFetched }
+                let gmailMessages = records.map { $0.toGmailMessage() }
+                thread = GmailThread(id: id, historyId: nil, messages: gmailMessages)
+                await analyzeTrackers()
+                detectCalendarInvite()
+                if allHaveBodies {
+                    if let latest = gmailMessages.last {
+                        await resolveInlineImages(for: latest)
+                    }
+                    if gmailMessages.count > 1 {
+                        await resolveInlineImagesForOlderMessages(Array(gmailMessages.dropLast()))
+                    }
+                }
+            }
+        }
+
+        // Load from disk cache only if DB had no data
+        if thread == nil,
+           let cached = await MailCacheStore.shared.loadThread(accountID: accountID, threadID: id) {
             thread = cached
             await analyzeTrackers()
             detectCalendarInvite()

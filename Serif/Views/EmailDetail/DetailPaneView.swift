@@ -140,7 +140,8 @@ struct DetailPaneView: View {
             extractBodyUnsubscribeURL: { html in
                 actionCoordinator.extractBodyUnsubscribeURL(from: html)
             },
-            fromAddress: fromAddress
+            fromAddress: fromAddress,
+            mailDatabase: coordinator.mailDatabase
         )
         view.onOpenLink = { url in panelCoordinator.openInAppBrowser(url: url) }
         view.onMessagesRead = { messageIDs in mailboxViewModel.applyReadLocally(messageIDs) }

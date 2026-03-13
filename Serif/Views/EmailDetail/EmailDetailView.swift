@@ -93,7 +93,8 @@ struct EmailDetailView: View {
         onPrint:               ((GmailMessage, Email) -> Void)? = nil,
         checkUnsubscribed:     ((String) -> Bool)? = nil,
         extractBodyUnsubscribeURL: ((String) -> URL?)? = nil,
-        fromAddress:           String = ""
+        fromAddress:           String = "",
+        mailDatabase:          MailDatabase? = nil
     ) {
         self.email              = email
         self.accountID          = accountID
@@ -122,7 +123,9 @@ struct EmailDetailView: View {
         self.checkUnsubscribed     = checkUnsubscribed
         self.extractBodyUnsubscribeURL = extractBodyUnsubscribeURL
         self.fromAddress           = fromAddress
-        self.detailVM              = EmailDetailViewModel(accountID: accountID)
+        let vm = EmailDetailViewModel(accountID: accountID)
+        vm.mailDatabase = mailDatabase
+        self.detailVM = vm
     }
 
     // MARK: - Derived content (delegated to ViewModel)
