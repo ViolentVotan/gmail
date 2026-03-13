@@ -153,12 +153,38 @@ final class MailboxViewModel {
         let newQuery = query.isEmpty ? nil : query
         let isNewQuery = newQuery != currentQuery
         currentQuery = newQuery
+
+        // FTS fast path: search local database first for instant results
+        if let q = newQuery, let db = mailDatabase {
+            messageObservation?.cancel()
+            messageObservation = nil
+            let localResults = await Self.localSearch(query: q, db: db)
+            if !localResults.isEmpty {
+                emails = localResults
+            }
+        }
+
         cancelActiveFetch()
         let gen = fetchService.nextGeneration()
         fetchService.setActiveFetchTask(Task {
             await self.performFetch(reset: true, clearFirst: isNewQuery, generation: gen)
         })
         await fetchService.awaitActiveFetch()
+    }
+
+    /// Search local FTS5 index and return Email results.
+    private nonisolated static func localSearch(query: String, db: MailDatabase) async -> [Email] {
+        do {
+            return try await db.dbPool.read { database in
+                let records = try FTSManager.search(query: query, in: database)
+                return try records.map { record in
+                    let labels = try MailDatabaseQueries.labels(forMessage: record.gmailId, in: database)
+                    return record.toEmail(labels: labels, tags: nil)
+                }
+            }
+        } catch {
+            return []
+        }
     }
 
     func loadMore() async {
