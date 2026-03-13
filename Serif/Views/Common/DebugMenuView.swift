@@ -85,8 +85,7 @@ struct DebugMenuView: View {
                             }
                         }
                     }
-                    .background(.regularMaterial)
-                    .cornerRadius(8)
+                    .glassOrMaterial(in: .rect(cornerRadius: 8))
                 }
 
                 debugButton(icon: "trash", label: "Clear Log") {
@@ -340,8 +339,7 @@ struct DebugMenuView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(.regularMaterial)
-            .cornerRadius(8)
+            .glassOrMaterial(in: .rect(cornerRadius: 8), interactive: true)
         }
         .buttonStyle(.plain)
     }

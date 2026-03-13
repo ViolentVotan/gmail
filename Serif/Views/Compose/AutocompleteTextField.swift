@@ -150,8 +150,7 @@ struct AutocompleteTextField: View {
                 }
             }
         }
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.md))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .strokeBorder(.separator, lineWidth: 1)

@@ -194,8 +194,7 @@ struct OriginalMessageView: View {
             Divider().background(Color(.separatorColor))
             authRow(label: "DMARC", value: dmarcValue)
         }
-        .background(.regularMaterial)
-        .cornerRadius(10)
+        .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(.separatorColor), lineWidth: 1))
     }
 

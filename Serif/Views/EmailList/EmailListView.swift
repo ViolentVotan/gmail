@@ -156,8 +156,7 @@ struct EmailListView: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
-                    .background(.regularMaterial)
-                    .cornerRadius(6)
+                    .glassOrMaterial(in: .rect(cornerRadius: 6), interactive: true)
                 }
                 .buttonStyle(.plain)
             }

@@ -178,7 +178,7 @@ struct AttachmentExplorerView: View {
             .foregroundStyle(.secondary)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
-            .background(Capsule().fill(.regularMaterial))
+            .glassOrMaterial(in: Capsule(), interactive: true)
         }
         .buttonStyle(.plain)
         .popover(isPresented: $showRulesPopover, arrowEdge: .bottom) {

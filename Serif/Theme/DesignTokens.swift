@@ -137,3 +137,35 @@ extension View {
     }
 }
 
+// MARK: - Glass or Material Modifier
+
+struct GlassOrMaterial<S: Shape>: ViewModifier {
+    let shape: S
+    let interactive: Bool
+
+    init(in shape: S, interactive: Bool = false) {
+        self.shape = shape
+        self.interactive = interactive
+    }
+
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            if interactive {
+                content.glassEffect(.regular.interactive(), in: shape)
+            } else {
+                content.glassEffect(.regular, in: shape)
+            }
+        } else {
+            content
+                .background(shape.fill(.regularMaterial))
+                .clipShape(shape)
+        }
+    }
+}
+
+extension View {
+    func glassOrMaterial<S: Shape>(in shape: S, interactive: Bool = false) -> some View {
+        modifier(GlassOrMaterial(in: shape, interactive: interactive))
+    }
+}
+

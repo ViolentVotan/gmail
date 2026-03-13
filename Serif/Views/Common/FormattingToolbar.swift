@@ -60,8 +60,7 @@ struct FormattingToolbar: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
-                .background(.regularMaterial)
-                .cornerRadius(4)
+                .glassOrMaterial(in: .rect(cornerRadius: 4), interactive: true)
             }
             .buttonStyle(.plain)
 

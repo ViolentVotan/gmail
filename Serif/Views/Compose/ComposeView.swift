@@ -127,7 +127,7 @@ struct ComposeView: View {
                                 .buttonStyle(.plain)
                             }
                             .padding(.horizontal, 8).padding(.vertical, 4)
-                            .background(RoundedRectangle(cornerRadius: 6).fill(.regularMaterial))
+                            .glassOrMaterial(in: .rect(cornerRadius: 6))
                             .foregroundStyle(.secondary)
                         }
                     }

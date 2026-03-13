@@ -57,8 +57,7 @@ struct ShortcutsHelpView: View {
                                     .foregroundStyle(.primary)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 3)
-                                    .background(.regularMaterial)
-                                    .cornerRadius(5)
+                                    .glassOrMaterial(in: .rect(cornerRadius: 4))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 5)
                                             .stroke(.separator, lineWidth: 1)
