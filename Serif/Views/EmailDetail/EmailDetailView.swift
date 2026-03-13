@@ -99,6 +99,20 @@ struct EmailDetailView: View {
                             Spacer()
 
                             Menu {
+                                if isMailingList, let url = resolvedUnsubscribeURL, !alreadyUnsubscribed {
+                                    Button(role: .destructive) {
+                                        Task {
+                                            let msgID = email.gmailMessageID
+                                            let success = await actions.onUnsubscribe?(url, oneClick, msgID) ?? false
+                                            if success { didUnsubscribe = true }
+                                        }
+                                    } label: {
+                                        Label("Unsubscribe", systemImage: "xmark.circle")
+                                    }
+
+                                    Divider()
+                                }
+
                                 Button { actions.onDownloadMessage?(detailVM) } label: {
                                     Label("Download Message", systemImage: "arrow.down.circle")
                                 }
