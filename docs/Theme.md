@@ -35,7 +35,7 @@ The UI follows a three-plane model:
 | `Spacing` | `xs` (4), `sm` (8), `md` (12), `lg` (16), `xl` (24), `xxl` (32) |
 | `CornerRadius` | `sm` (6), `md` (12), `lg` (16) |
 | `SerifAnimation` | `springDefault`, `springSnappy`, `springGentle` |
-| `Typography` | `title`, `headline`, `subhead`, `body`, `bodyMedium`, `bodySemibold`, `caption`, `captionSmall` |
+| `Typography` | `titleLarge`, `title`, `titleSemibold`, `headline`, `headlineSemibold`, `subhead`, `subheadRegular`, `subheadSemibold`, `body`, `bodyMedium`, `bodySemibold`, `callout`, `calloutMedium`, `calloutSemibold`, `footnote`, `footnoteMedium`, `caption`, `captionRegular`, `captionSemibold`, `captionSmall`, `captionSmallMedium`, `captionSmallRegular` |
 
 **View modifiers:**
 
@@ -44,6 +44,8 @@ The UI follows a three-plane model:
 | `.elevation(.navigation / .transient / .elevated)` | Shadow scale (tight → wide) for spatial depth |
 | `.selectableRowStyle(isSelected:isHovered:)` | Tint/primary/secondary foreground based on state |
 | `.floatingPanelStyle()` | Liquid Glass + transient elevation for floating surfaces |
+| `.glassOrMaterial(in:interactive:)` | Liquid Glass on macOS 26+ with `.regularMaterial` fallback |
+| `.transientGlass()` | Glass + transient elevation for toast cards (macOS 26+ / material fallback) |
 
 ## Migration
 

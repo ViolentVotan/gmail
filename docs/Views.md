@@ -64,7 +64,7 @@ Shared reusable components:
 | `SlidePanel` | Animated side panel overlay (help, debug, previews) with Liquid Glass background |
 | `FormattingToolbar` | Rich text toolbar for compose/reply |
 | `WebRichTextEditor` | WKWebView-based HTML editor |
-| `UndoToastView` | Undo toast + offline indicator |
+| `UnifiedToastLayer` | Consolidated toast system (undo, offline, general) with priority ordering |
 | `CommandPaletteView` | ⌘K command palette with fuzzy search, keyboard navigation, recent commands |
 | `SnoozePickerView` | Snooze date/time picker with preset options (tonight, tomorrow, next week) |
 | `DebugMenuView` | API logs, cache controls |
