@@ -4,7 +4,7 @@ System-integrated appearance management and centralized design token system foll
 
 ## How It Works
 
-`AppearanceManager` is an `@Observable` class that stores a single preference: System, Light, or Dark. It is owned by `ContentView` via `@State` and applied with `.preferredColorScheme()`.
+`AppearanceManager` is an `@Observable` class that stores a single preference: System, Light, or Dark. It is owned by `SerifApp` via `@State` and passed to both `ContentView` and `SettingsView`, then applied with `.preferredColorScheme()`.
 
 - **System** (default): defers to macOS appearance (passes `nil` to `.preferredColorScheme()`)
 - **Light / Dark**: forces the corresponding color scheme
@@ -33,10 +33,10 @@ The UI follows a three-plane model:
 | Token | Values |
 |-------|--------|
 | `Spacing` | `xs` (4), `sm` (8), `md` (12), `lg` (16), `xl` (24), `xxl` (32), `xxxl` (48) |
-| `CornerRadius` | `sm` (6), `md` (12), `lg` (16) |
+| `CornerRadius` | `xs` (4), `sm` (6), `md` (12), `lg` (16), `xl` (24) |
 | `ButtonSize` | `sm` (26), `md` (28), `lg` (30) |
 | `SerifAnimation` | `springDefault`, `springSnappy`, `springGentle` |
-| `Typography` | `titleLarge`, `title`, `titleSemibold`, `headline`, `headlineSemibold`, `subhead`, `subheadRegular`, `subheadSemibold`, `body`, `bodyMedium`, `bodySemibold`, `callout`, `calloutMedium`, `calloutSemibold`, `footnote`, `footnoteMedium`, `caption`, `captionRegular`, `captionSemibold`, `captionSmall`, `captionSmallMedium`, `captionSmallRegular` |
+| `Typography` | `titleLarge`, `title`, `titleSemibold`, `headline`, `headlineSemibold`, `subhead`, `subheadRegular`, `subheadSemibold`, `body`, `bodyMedium`, `bodySemibold`, `callout`, `calloutMedium`, `calloutSemibold`, `footnote`, `footnoteMedium`, `caption`, `captionRegular`, `captionSemibold`, `captionSmall`, `captionSmallMedium`, `captionSmallRegular`, `microTag` |
 
 **View modifiers:**
 

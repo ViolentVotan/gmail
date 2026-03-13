@@ -107,7 +107,7 @@ struct ComposeView: View {
                 onFileDrop: { url in handleFileDrop(url) },
                 onOpenLink: onOpenLink
             )
-            .padding(.horizontal, 20)
+            .padding(.horizontal, Spacing.xl)
             .padding(.top, 4)
 
             AttachmentChipRow(attachments: $attachments)
@@ -129,8 +129,8 @@ struct ComposeView: View {
                     .buttonStyle(.bordered)
                 }
                 .padding(.horizontal)
-                .padding(.vertical, 8)
-                .background(.yellow.opacity(0.1))
+                .padding(.vertical, Spacing.sm)
+                .background(Color.accentColor.opacity(0.08))
 
                 Divider()
             }
@@ -324,8 +324,8 @@ struct ComposeView: View {
                 showDiscardAlert = true
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Spacing.xl)
+        .padding(.vertical, Spacing.sm)
     }
 
     // MARK: - Bottom actions
@@ -357,8 +357,8 @@ struct ComposeView: View {
             .disabled(composeVM.isSending || to.isEmpty)
             .keyboardShortcut(.return, modifiers: .command)
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.horizontal, Spacing.xl)
+        .padding(.vertical, Spacing.md)
     }
 
     // MARK: - From field
@@ -383,7 +383,7 @@ struct ComposeView: View {
             Spacer()
         }
         .padding(.horizontal, Spacing.xl)
-        .padding(.vertical, 10)
+        .padding(.vertical, Spacing.sm)
     }
 
     private func aliasLabel(_ alias: GmailSendAs) -> String {

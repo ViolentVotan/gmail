@@ -127,7 +127,7 @@ struct CalendarInviteCardView: View {
                     ? .white
                     : Color.accentColor
             )
-            .cornerRadius(6)
+            .clipShape(.rect(cornerRadius: CornerRadius.sm))
         }
         .buttonStyle(.plain)
         .opacity(hasResponded && !isSelected ? 0.5 : 1)

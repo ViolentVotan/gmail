@@ -116,9 +116,9 @@ struct AttachmentCardView: View {
         .padding(12)
         .frame(maxWidth: .infinity)
         .frame(height: 190)
-        .background(RoundedRectangle(cornerRadius: 12).fill(.background))
+        .background(RoundedRectangle(cornerRadius: CornerRadius.md).fill(.background))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: CornerRadius.md)
                 .strokeBorder(isHovered ? iconForegroundColor.opacity(0.5) : Color(.separatorColor), lineWidth: isHovered ? 1.5 : 1)
         )
         .contentShape(Rectangle())
@@ -130,7 +130,7 @@ struct AttachmentCardView: View {
 
     private var thumbnailArea: some View {
         ZStack {
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: CornerRadius.md)
                 .fill(iconBackgroundColor)
 
             if let thumb = thumbCache.thumbnail(for: result.attachment.id) {
@@ -155,7 +155,7 @@ struct AttachmentCardView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: thumbHeight)
-        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.md))
     }
 
     private var filenameArea: some View {

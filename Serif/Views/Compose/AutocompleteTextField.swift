@@ -113,7 +113,7 @@ struct AutocompleteTextField: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .background(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: CornerRadius.sm)
                     .fill(isHighlighted ? Color.accentColor.opacity(0.1) : Color.clear)
             )
             .contentShape(Rectangle())
@@ -152,7 +152,7 @@ struct AutocompleteTextField: View {
         }
         .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: CornerRadius.md)
                 .strokeBorder(.separator, lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.12), radius: 12, y: 6)

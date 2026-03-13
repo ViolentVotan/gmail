@@ -34,10 +34,10 @@ struct AttachmentChipView: View {
         .padding(.trailing, 4)
         .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: CornerRadius.sm)
                 .fill(.quaternary)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 8)
+                    RoundedRectangle(cornerRadius: CornerRadius.sm)
                         .stroke(Color(.separatorColor), lineWidth: 1)
                 )
         )

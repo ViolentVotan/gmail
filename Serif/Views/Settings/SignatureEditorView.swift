@@ -28,7 +28,7 @@ struct SignatureEditorView: View {
             }
         }
         .frame(width: 560, height: 420)
-        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .clipShape(RoundedRectangle(cornerRadius: CornerRadius.sm))
         .onAppear {
             htmlContent = alias.signature ?? ""
         }

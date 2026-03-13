@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var appearanceManager = AppearanceManager()
+    var appearanceManager: AppearanceManager
     @State private var coordinator = AppCoordinator()
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var commandPalette = CommandPaletteViewModel()

@@ -40,7 +40,7 @@ struct TrackerBannerView: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
                         .background(Color.accentColor.opacity(0.12))
-                        .cornerRadius(5)
+                        .clipShape(.rect(cornerRadius: CornerRadius.sm))
                 }
                 .buttonStyle(.plain)
             }

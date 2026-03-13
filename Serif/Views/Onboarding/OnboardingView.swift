@@ -1,10 +1,34 @@
 import SwiftUI
+import AppKit
+
+// MARK: - Window Accessor
+
+private struct WindowAccessor: NSViewRepresentable {
+    @Binding var window: NSWindow?
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async {
+            self.window = view.window
+        }
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        DispatchQueue.main.async {
+            self.window = nsView.window
+        }
+    }
+}
+
+// MARK: - OnboardingView
 
 struct OnboardingView: View {
     @Binding var isSignedIn: Bool
     @State private var authViewModel = AuthViewModel()
     @State private var isSigningIn = false
     @State private var signInError: String?
+    @State private var hostWindow: NSWindow?
 
     // Animation states
     @State private var showTaglineTop = false
@@ -115,11 +139,11 @@ struct OnboardingView: View {
                     .padding(.vertical, 14)
                     .frame(minWidth: 260)
                     .background(
-                        RoundedRectangle(cornerRadius: 24)
+                        RoundedRectangle(cornerRadius: CornerRadius.xl)
                             .fill(.white)
                     )
                     .overlay(
-                        RoundedRectangle(cornerRadius: 24)
+                        RoundedRectangle(cornerRadius: CornerRadius.xl)
                             .stroke(Color(hex: "#DADCE0"), lineWidth: 1)
                     )
                 }
@@ -144,6 +168,7 @@ struct OnboardingView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(WindowAccessor(window: $hostWindow))
         .clipped()
         .onAppear {
             runAnimationSequence()
@@ -276,7 +301,9 @@ struct OnboardingView: View {
     // MARK: - Window Chrome
 
     private func hideTrafficLights(_ hide: Bool) {
-        guard let window = NSApplication.shared.windows.first else { return }
+        guard let window = hostWindow
+                ?? NSApplication.shared.keyWindow
+                ?? NSApplication.shared.windows.first(where: { $0.isVisible }) else { return }
         if hide {
             window.toolbar = nil
             window.isMovableByWindowBackground = true

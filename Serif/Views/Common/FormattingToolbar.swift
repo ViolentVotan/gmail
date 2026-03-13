@@ -288,11 +288,11 @@ struct ColorGridPopover: View {
                                 state.setTextColor(color)
                                 showPopover = false
                             } label: {
-                                RoundedRectangle(cornerRadius: 3)
+                                RoundedRectangle(cornerRadius: CornerRadius.xs)
                                     .fill(Color(nsColor: color))
                                     .frame(width: 22, height: 22)
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 3)
+                                        RoundedRectangle(cornerRadius: CornerRadius.xs)
                                             .stroke(isSelected(color) ? Color.white : Color.white.opacity(0.15), lineWidth: isSelected(color) ? 2 : 1)
                                     )
                             }

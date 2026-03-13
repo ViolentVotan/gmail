@@ -85,7 +85,7 @@ struct DebugMenuView: View {
                             }
                         }
                     }
-                    .glassOrMaterial(in: .rect(cornerRadius: 8))
+                    .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm))
                 }
 
                 debugButton(icon: "trash", label: "Clear Log") {
@@ -148,7 +148,7 @@ struct DebugMenuView: View {
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
                         .background(entry.fromCache ? Color.gray : (entry.method == "GET" ? Color.blue : Color.orange))
-                        .cornerRadius(3)
+                        .clipShape(.rect(cornerRadius: CornerRadius.xs))
 
                     Text(entry.shortPath)
                         .font(.caption.monospaced())
@@ -298,7 +298,7 @@ struct DebugMenuView: View {
                 .padding(8)
         }
         .frame(maxHeight: maxHeight)
-        .cornerRadius(4)
+        .clipShape(.rect(cornerRadius: CornerRadius.xs))
         .padding(.horizontal, 10)
         .padding(.bottom, 4)
     }
@@ -339,7 +339,7 @@ struct DebugMenuView: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .glassOrMaterial(in: .rect(cornerRadius: 8), interactive: true)
+            .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
         }
         .buttonStyle(.plain)
     }

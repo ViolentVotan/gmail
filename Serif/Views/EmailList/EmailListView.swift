@@ -373,12 +373,12 @@ private struct EmailSkeletonRowView: View {
                 RoundedRectangle(cornerRadius: 3)
                     .fill(.tertiary.opacity(animate ? 0.1 : 0.2))
                     .frame(height: 8)
-                    .padding(.trailing, 16)
+                    .padding(.trailing, Spacing.lg)
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .padding(.horizontal, 8)
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.sm)
+        .padding(.horizontal, Spacing.sm)
         .onAppear {
             withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
                 animate = true

@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct SerifApp: App {
     @AppStorage("isSignedIn") private var isSignedIn: Bool = false
+    @State private var appearanceManager = AppearanceManager()
 
     init() {
         NotificationService.shared.setup()
@@ -12,7 +13,7 @@ struct SerifApp: App {
         WindowGroup {
             Group {
                 if isSignedIn {
-                    ContentView()
+                    ContentView(appearanceManager: appearanceManager)
                         .transition(.opacity)
                 } else {
                     OnboardingView(isSignedIn: $isSignedIn)
@@ -41,7 +42,7 @@ struct SerifApp: App {
         }
 
         Settings {
-            SettingsView()
+            SettingsView(appearanceManager: appearanceManager)
         }
     }
 }

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsView: View {
     var accountID: String = ""
+    @Bindable var appearanceManager: AppearanceManager
 
     // Use the same @AppStorage keys as AppCoordinator and UndoActionManager
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
@@ -9,7 +10,6 @@ struct SettingsView: View {
     @AppStorage("refreshInterval") private var refreshInterval = 120
     @AppStorage("showDebugMenu") private var showDebugMenu = false
     @AppStorage("aiLabelSuggestions") private var aiLabelSuggestions = true
-    @AppStorage("appearancePreference") private var appearancePreference = "system"
 
     var body: some View {
         TabView {
@@ -31,10 +31,10 @@ struct SettingsView: View {
     private var generalTab: some View {
         Form {
             Section("Appearance") {
-                Picker("Theme", selection: $appearancePreference) {
-                    Text("System").tag("system")
-                    Text("Light").tag("light")
-                    Text("Dark").tag("dark")
+                Picker("Theme", selection: $appearanceManager.preference) {
+                    Text("System").tag(AppearanceManager.Preference.system)
+                    Text("Light").tag(AppearanceManager.Preference.light)
+                    Text("Dark").tag(AppearanceManager.Preference.dark)
                 }
                 .pickerStyle(.segmented)
             }

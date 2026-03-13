@@ -21,9 +21,11 @@ enum ButtonSize {
 // MARK: - Corner Radius
 
 enum CornerRadius {
+    static let xs: CGFloat = 4
     static let sm: CGFloat = 6
     static let md: CGFloat = 12
     static let lg: CGFloat = 16
+    static let xl: CGFloat = 24
 }
 
 // MARK: - Animation
@@ -74,6 +76,9 @@ enum Typography {
     static let captionSmall: Font = .caption2.weight(.semibold)
     static let captionSmallMedium: Font = .caption2.weight(.medium)
     static let captionSmallRegular: Font = .caption2
+
+    // Micro — AI classification tags, tiny badges
+    static let microTag: Font = .system(size: 9, weight: .medium)
 }
 
 // MARK: - Elevation

@@ -19,6 +19,7 @@ struct EmailDetailView: View {
     @State private var cachedMainHTMLSource: String?
     @State private var labelSuggestions: [LabelSuggestion] = []
     @AppStorage("aiLabelSuggestions") private var aiLabelSuggestionsEnabled = true
+    @ScaledMetric(relativeTo: .body) private var senderAvatarSize: CGFloat = 40
 
     /// Best available unsubscribe URL: header-based (from full thread) or body-scanned.
     private var resolvedUnsubscribeURL: URL? {
@@ -146,7 +147,7 @@ struct EmailDetailView: View {
                             }
                             .padding(.horizontal, Spacing.xl)
                             .padding(.bottom, Spacing.lg)
-                            .animation(.easeOut(duration: 0.25), value: labelSuggestions.map(\.name))
+                            .animation(SerifAnimation.springSnappy, value: labelSuggestions.map(\.name))
                         }
 
                         #if canImport(FoundationModels)
@@ -345,7 +346,7 @@ struct EmailDetailView: View {
             AvatarView(
                 initials: email.sender.initials,
                 color:    email.sender.avatarColor,
-                size:     40,
+                size:     senderAvatarSize,
                 avatarURL: email.sender.avatarURL,
                 senderDomain: email.sender.domain
             )

@@ -145,7 +145,7 @@ struct LabelEditorView: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 8)
             .background(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: CornerRadius.sm)
                     .fill(isHighlighted ? Color.accentColor.opacity(0.15) : Color.clear)
             )
             .contentShape(Rectangle())
@@ -183,7 +183,7 @@ struct LabelEditorView: View {
         }
         .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: CornerRadius.md)
                 .strokeBorder(Color(.separatorColor), lineWidth: 1)
         )
         .shadow(color: .black.opacity(0.12), radius: 12, y: 6)

@@ -159,7 +159,7 @@ struct AccountsSettingsView: View {
                             .padding(.horizontal, 5)
                             .padding(.vertical, 1)
                             .background(Color.accentColor.opacity(0.12))
-                            .cornerRadius(3)
+                            .clipShape(.rect(cornerRadius: CornerRadius.xs))
                     }
                 }
                 Text(account.email)
@@ -197,15 +197,15 @@ struct AccountsSettingsView: View {
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(.red.opacity(0.08))
-                    .cornerRadius(6)
-                    .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(.red.opacity(0.2), lineWidth: 1))
+                    .clipShape(.rect(cornerRadius: CornerRadius.sm))
+                    .overlay(RoundedRectangle(cornerRadius: CornerRadius.sm).strokeBorder(.red.opacity(0.2), lineWidth: 1))
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .background(
-            RoundedRectangle(cornerRadius: 8)
+            RoundedRectangle(cornerRadius: CornerRadius.sm)
                 .fill(isSelected ? Color.accentColor.opacity(0.07) : Color.clear)
         )
     }

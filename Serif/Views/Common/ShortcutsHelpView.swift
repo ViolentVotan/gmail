@@ -57,16 +57,16 @@ struct ShortcutsHelpView: View {
                                     .foregroundStyle(.primary)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 3)
-                                    .glassOrMaterial(in: .rect(cornerRadius: 4))
+                                    .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.xs))
                                     .overlay(
-                                        RoundedRectangle(cornerRadius: 5)
+                                        RoundedRectangle(cornerRadius: CornerRadius.sm)
                                             .stroke(.separator, lineWidth: 1)
                                     )
                             }
                             .padding(.horizontal, 12)
                             .padding(.vertical, 7)
                             .background(.fill.quaternary.opacity(0.5))
-                            .cornerRadius(7)
+                            .clipShape(.rect(cornerRadius: CornerRadius.sm))
                         }
                     }
                 }

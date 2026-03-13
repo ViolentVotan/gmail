@@ -130,7 +130,7 @@ struct OriginalMessageView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(Color.accentColor.opacity(0.1))
-                    .cornerRadius(6)
+                    .clipShape(.rect(cornerRadius: CornerRadius.sm))
                 }
                 .buttonStyle(.plain)
                 .disabled(rawSource == nil)
@@ -195,7 +195,7 @@ struct OriginalMessageView: View {
             authRow(label: "DMARC", value: dmarcValue)
         }
         .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(Color(.separatorColor), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: CornerRadius.md).stroke(Color(.separatorColor), lineWidth: 1))
     }
 
     private func metadataRow(label: String, value: String) -> some View {

@@ -33,7 +33,7 @@ struct SearchBarView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .background(.quinary)
-        .cornerRadius(8)
+        .clipShape(.rect(cornerRadius: CornerRadius.sm))
     }
 }
 

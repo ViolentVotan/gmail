@@ -41,7 +41,7 @@ struct EmailRowView: View {
             HStack(spacing: 12) {
                 // Unread indicator
                 Circle()
-                    .fill(email.isRead ? Color.clear : Color.blue)
+                    .fill(email.isRead ? Color.clear : Color.accentColor)
                     .frame(width: dotSize, height: dotSize)
 
                 // Avatar
@@ -113,12 +113,12 @@ struct EmailRowView: View {
                         HStack(spacing: 4) {
                             ForEach(tags.activeTags, id: \.label) { tag in
                                 Text(tag.label)
-                                    .font(.system(size: 9, weight: .medium))
+                                    .font(Typography.microTag)
                                     .padding(.horizontal, 4)
                                     .padding(.vertical, 1)
                                     .background(tagColor(tag.color).opacity(0.15))
                                     .foregroundStyle(tagColor(tag.color))
-                                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.xs))
                             }
                         }
                     }
