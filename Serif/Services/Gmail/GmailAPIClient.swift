@@ -63,6 +63,85 @@ final class GmailAPIClient {
         }
     }
 
+    // MARK: - ETag-aware request
+
+    /// Makes a GET request with optional `If-None-Match` header for cache validation.
+    /// Returns `nil` when the server responds with 304 Not Modified.
+    /// Returns `(decoded, etag)` on 200, where `etag` is the ETag header value if present.
+    func requestWithETag<T: Decodable>(
+        path: String,
+        etag: String?,
+        fields: String? = nil,
+        accountID: String
+    ) async throws(GmailAPIError) -> (T, String?)? {
+        guard NetworkMonitor.shared.isConnected else { throw .offline }
+        let token = try await validToken(for: accountID)
+
+        let doRequest = { (accessToken: String) async throws(GmailAPIError) -> (T, String?)? in
+            try await self.performWithETag(
+                path: path, etag: etag, fields: fields, accessToken: accessToken
+            )
+        }
+
+        do {
+            return try await doRequest(token.accessToken)
+        } catch .unauthorized {
+            let fresh = try await refreshAndRetry(accountID: accountID)
+            return try await doRequest(fresh.accessToken)
+        }
+    }
+
+    @concurrent private func performWithETag<T: Decodable>(
+        path: String,
+        etag: String?,
+        fields: String?,
+        accessToken: String
+    ) async throws(GmailAPIError) -> (T, String?)? {
+        var fullPath = path
+        if let fields {
+            let separator = fullPath.contains("?") ? "&" : "?"
+            let encoded = fields.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? fields
+            fullPath += "\(separator)fields=\(encoded)"
+        }
+        guard let url = URL(string: baseURL + fullPath) else { throw .invalidURL }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
+        if let etag {
+            request.setValue(etag, forHTTPHeaderField: "If-None-Match")
+        }
+
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await Self.session.data(for: request)
+        } catch {
+            throw .networkError(error)
+        }
+        guard let http = response as? HTTPURLResponse else { throw .invalidURL }
+
+        switch http.statusCode {
+        case 304:
+            return nil
+        case 200...299:
+            let responseETag = http.value(forHTTPHeaderField: "ETag")
+                ?? http.value(forHTTPHeaderField: "Etag")
+            do {
+                let decoded = try JSONDecoder().decode(T.self, from: data)
+                return (decoded, responseETag)
+            } catch {
+                throw .decodingError(error)
+            }
+        case 401:
+            throw .unauthorized
+        default:
+            throw .httpError(http.statusCode, data)
+        }
+    }
+
     // MARK: - Authenticated request to any Google API URL
 
     /// Makes an authenticated GET request to any Google API (not limited to the Gmail base URL).
@@ -226,6 +305,7 @@ final class GmailAPIClient {
             request.httpMethod = "GET"
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
             request.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+            request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
 
             let data: Data
             let response: URLResponse
@@ -508,6 +588,7 @@ final class GmailAPIClient {
             request.httpMethod = method
             request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
             request.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+            request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
             if let contentType { request.setValue(contentType, forHTTPHeaderField: "Content-Type") }
             request.httpBody = body
 

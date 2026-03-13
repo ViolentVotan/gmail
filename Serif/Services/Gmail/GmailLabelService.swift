@@ -15,6 +15,20 @@ final class GmailLabelService {
         return response.labels
     }
 
+    /// Fetches labels with ETag-based cache validation.
+    /// Returns `nil` if the server responds 304 Not Modified (labels unchanged).
+    /// Returns `(labels, etag)` on a fresh 200 response.
+    @concurrent func listLabels(etag: String?, accountID: String) async throws(GmailAPIError) -> ([GmailLabel], String?)? {
+        let result: (GmailLabelListResponse, String?)? = try await client.requestWithETag(
+            path: "/users/me/labels",
+            etag: etag,
+            fields: "labels(id,name,type,messagesTotal,messagesUnread,threadsTotal,threadsUnread,color,labelListVisibility,messageListVisibility)",
+            accountID: accountID
+        )
+        guard let (response, responseETag) = result else { return nil }
+        return (response.labels, responseETag)
+    }
+
     @concurrent func getLabel(id: String, accountID: String) async throws(GmailAPIError) -> GmailLabel {
         return try await client.request(
             path: "/users/me/labels/\(id)",
