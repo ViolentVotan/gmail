@@ -65,10 +65,6 @@ struct EmailListView: View {
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text(selectedFolder.rawValue)
-                    .font(Typography.titleLarge)
-                    .foregroundStyle(.primary)
-
                 Spacer()
 
                 if selectedFolder == .subscriptions, !emails.isEmpty, let onUnsubscribe = actions.onUnsubscribe {
@@ -127,7 +123,7 @@ struct EmailListView: View {
             SearchBarView(text: $searchText, focusTrigger: $searchFocusTrigger)
         }
         .padding(.horizontal, Spacing.lg)
-        .padding(.top, 20)
+        .padding(.top, Spacing.md)
         .padding(.bottom, Spacing.md)
     }
 
