@@ -494,7 +494,7 @@ struct EmailDetailView: View {
             Divider()
                 .background(Color(.separatorColor))
 
-            LazyVStack(spacing: 12) {
+            LazyVStack(spacing: 14) {
                 ForEach(olderThreadMessages, id: \.id) { message in
                     GmailThreadMessageView(
                         message: message,
