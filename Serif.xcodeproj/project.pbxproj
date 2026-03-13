@@ -11,18 +11,6 @@
 		A10001010000000000000082 /* AppAuth in Frameworks */ = {isa = PBXBuildFile; productRef = A10090010000000000000001 /* AppAuth */; };
 		A10001010000000000000200 /* BlossomColorPicker in Frameworks */ = {isa = PBXBuildFile; productRef = A10090010000000000000003 /* BlossomColorPicker */; };
 		A10001010000000000000300 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = A10090010000000000000005 /* GRDB */; };
-		B10001010000000000000001 /* GmailModelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000001 /* GmailModelsTests.swift */; };
-		B10001010000000000000002 /* EmailModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000002 /* EmailModelTests.swift */; };
-		B10001010000000000000003 /* GmailDataTransformerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000003 /* GmailDataTransformerTests.swift */; };
-		B10001010000000000000004 /* StringExtensionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000004 /* StringExtensionsTests.swift */; };
-		B10001010000000000000005 /* ContentExtractorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000005 /* ContentExtractorTests.swift */; };
-		B10001010000000000000006 /* TrackerBlockerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000006 /* TrackerBlockerTests.swift */; };
-		B10001010000000000000007 /* AppCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000007 /* AppCoordinatorTests.swift */; };
-		B10001010000000000000008 /* LabelManagementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000008 /* LabelManagementTests.swift */; };
-		B10001010000000000000009 /* CPUMonitorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B10002010000000000000009 /* CPUMonitorTests.swift */; };
-		B1000101000000000000000A /* EmailActionCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000201000000000000000A /* EmailActionCoordinatorTests.swift */; };
-		B1000101000000000000000B /* DraftLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000201000000000000000B /* DraftLifecycleTests.swift */; };
-		B1000101000000000000000C /* GmailAPIClientRetryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1000201000000000000000C /* GmailAPIClientRetryTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -38,18 +26,6 @@
 /* Begin PBXFileReference section */
 		9EBEBCE82F5B21B400145F71 /* serif_icon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = serif_icon.icon; sourceTree = "<group>"; };
 		A10002010000000000000099 /* Serif.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Serif.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		B10002010000000000000001 /* GmailModelsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailModelsTests.swift; sourceTree = "<group>"; };
-		B10002010000000000000002 /* EmailModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailModelTests.swift; sourceTree = "<group>"; };
-		B10002010000000000000003 /* GmailDataTransformerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailDataTransformerTests.swift; sourceTree = "<group>"; };
-		B10002010000000000000004 /* StringExtensionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StringExtensionsTests.swift; sourceTree = "<group>"; };
-		B10002010000000000000005 /* ContentExtractorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentExtractorTests.swift; sourceTree = "<group>"; };
-		B10002010000000000000006 /* TrackerBlockerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrackerBlockerTests.swift; sourceTree = "<group>"; };
-		B10002010000000000000007 /* AppCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinatorTests.swift; sourceTree = "<group>"; };
-		B10002010000000000000008 /* LabelManagementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabelManagementTests.swift; sourceTree = "<group>"; };
-		B10002010000000000000009 /* CPUMonitorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CPUMonitorTests.swift; sourceTree = "<group>"; };
-		B1000201000000000000000A /* EmailActionCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailActionCoordinatorTests.swift; sourceTree = "<group>"; };
-		B1000201000000000000000B /* DraftLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DraftLifecycleTests.swift; sourceTree = "<group>"; };
-		B1000201000000000000000C /* GmailAPIClientRetryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GmailAPIClientRetryTests.swift; sourceTree = "<group>"; };
 		B10002010000000000000099 /* SerifTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SerifTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -63,8 +39,10 @@
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		9E160AA62F60CC08004784BD /* Serif */ = {isa = PBXFileSystemSynchronizedRootGroup; exceptions = (9E160B282F60CC08004784BD /* PBXFileSystemSynchronizedBuildFileExceptionSet */, ); explicitFileTypes = {}; explicitFolders = (); path = Serif; sourceTree = "<group>"; };
+		B10004010000000000000002 /* SerifTests */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = SerifTests; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -110,20 +88,9 @@
 		B10004010000000000000001 /* SerifTests */ = {
 			isa = PBXGroup;
 			children = (
-				B10002010000000000000001 /* GmailModelsTests.swift */,
-				B10002010000000000000002 /* EmailModelTests.swift */,
-				B10002010000000000000003 /* GmailDataTransformerTests.swift */,
-				B10002010000000000000004 /* StringExtensionsTests.swift */,
-				B10002010000000000000005 /* ContentExtractorTests.swift */,
-				B10002010000000000000006 /* TrackerBlockerTests.swift */,
-				B10002010000000000000007 /* AppCoordinatorTests.swift */,
-				B10002010000000000000008 /* LabelManagementTests.swift */,
-				B10002010000000000000009 /* CPUMonitorTests.swift */,
-				B1000201000000000000000A /* EmailActionCoordinatorTests.swift */,
-				B1000201000000000000000B /* DraftLifecycleTests.swift */,
-				B1000201000000000000000C /* GmailAPIClientRetryTests.swift */,
+				B10004010000000000000002 /* SerifTests */,
 			);
-			path = SerifTests;
+			name = SerifTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -165,6 +132,9 @@
 			);
 			dependencies = (
 				B10005010000000000000002 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				B10004010000000000000002 /* SerifTests */,
 			);
 			name = SerifTests;
 			productName = SerifTests;
@@ -237,18 +207,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B10001010000000000000001 /* GmailModelsTests.swift in Sources */,
-				B10001010000000000000002 /* EmailModelTests.swift in Sources */,
-				B10001010000000000000003 /* GmailDataTransformerTests.swift in Sources */,
-				B10001010000000000000004 /* StringExtensionsTests.swift in Sources */,
-				B10001010000000000000005 /* ContentExtractorTests.swift in Sources */,
-				B10001010000000000000006 /* TrackerBlockerTests.swift in Sources */,
-				B10001010000000000000007 /* AppCoordinatorTests.swift in Sources */,
-				B10001010000000000000008 /* LabelManagementTests.swift in Sources */,
-				B10001010000000000000009 /* CPUMonitorTests.swift in Sources */,
-				B1000101000000000000000A /* EmailActionCoordinatorTests.swift in Sources */,
-				B1000101000000000000000B /* DraftLifecycleTests.swift in Sources */,
-				B1000101000000000000000C /* GmailAPIClientRetryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

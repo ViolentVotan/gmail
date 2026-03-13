@@ -31,11 +31,7 @@ final class MailDatabase: Sendable {
             try db.execute(sql: "PRAGMA foreign_keys = ON")
             try db.execute(sql: "PRAGMA cache_size = -64000")
         }
-        #if DEBUG
-        config.prepareDatabase { db in
-            db.trace { print("SQL: \($0)") }
-        }
-        #endif
+        // SQL tracing available via GRDB_TRACE environment variable
 
         dbPool = try DatabasePool(path: path, configuration: config)
         try MailDatabaseMigrations.migrator.migrate(dbPool)

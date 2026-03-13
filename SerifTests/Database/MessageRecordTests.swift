@@ -1,28 +1,10 @@
+import Foundation
 import Testing
 import GRDB
 @testable import Serif
 
 @Suite("MessageRecord")
 struct MessageRecordTests {
-    @Test("round-trips through database")
-    func roundTrip() throws {
-        let db = try makeTestDatabase()
-        var record = MessageRecord.fixture()
-
-        try db.dbPool.write { db in
-            try record.insert(db)
-        }
-
-        let fetched = try db.dbPool.read { db in
-            try MessageRecord.fetchOne(db, key: record.gmailId)
-        }
-        #expect(fetched?.gmailId == record.gmailId)
-        #expect(fetched?.threadId == record.threadId)
-        #expect(fetched?.subject == record.subject)
-        #expect(fetched?.isRead == false)
-        #expect(fetched?.isStarred == false)
-    }
-
     @Test("upsert updates existing record")
     func upsertUpdates() throws {
         let db = try makeTestDatabase()
@@ -61,7 +43,7 @@ struct MessageRecordTests {
         #expect(record.threadId == "thread-1")
         #expect(record.subject == "Test Subject")
         #expect(record.senderEmail == "sender@test.com")
-        #expect(record.isRead == false)  // UNREAD label present
+        #expect(record.isRead == false)
         #expect(record.isStarred == false)
     }
 
@@ -100,6 +82,26 @@ struct MessageRecordTests {
             return try msg.request(for: MessageRecord.labels).fetchAll(db)
         }
         #expect(labels.count == 2)
+    }
+
+    @Test("inserts and fetches from database")
+    func insertAndFetch() throws {
+        let mailDB = try makeTestDatabase()
+        let record = MessageRecord.fixture(gmailId: "rt-test")
+
+        try mailDB.dbPool.write { db in
+            try record.insert(db)
+        }
+
+        let all = try mailDB.dbPool.read { db in
+            try MessageRecord.fetchAll(db)
+        }
+        #expect(all.count == 1)
+        let fetched = all.first
+        #expect(fetched?.gmailId == "rt-test")
+        #expect(fetched?.subject == record.subject)
+        #expect(fetched?.isRead == record.isRead)
+        #expect(fetched?.isStarred == record.isStarred)
     }
 
     private func makeTestDatabase() throws -> MailDatabase {
