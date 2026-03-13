@@ -105,7 +105,7 @@ struct SlidePanelsOverlay: View {
         Group {
             if panels.showWebBrowser, let url = panels.webBrowserURL {
                 InAppBrowserView(url: url) {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                    withAnimation(SerifAnimation.springSnappy) {
                         panels.showWebBrowser = false
                     }
                 }
@@ -113,7 +113,7 @@ struct SlidePanelsOverlay: View {
             }
         }
         .zIndex(20)
-        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: panels.showWebBrowser)
+        .animation(SerifAnimation.springSnappy, value: panels.showWebBrowser)
     }
 
     private func saveAttachment(data: Data, name: String) {

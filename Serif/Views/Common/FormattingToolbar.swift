@@ -60,7 +60,7 @@ struct FormattingToolbar: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
-                .glassOrMaterial(in: .rect(cornerRadius: 4), interactive: true)
+                .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
             }
             .buttonStyle(.plain)
 
@@ -217,7 +217,7 @@ struct FormattingToolbar: View {
             Image(systemName: icon)
                 .font(Typography.subheadRegular)
                 .foregroundStyle(.secondary)
-                .frame(width: 26, height: 26)
+                .frame(width: ButtonSize.sm, height: ButtonSize.sm)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -229,11 +229,8 @@ struct FormattingToolbar: View {
             Image(systemName: icon)
                 .font(.subheadline.weight(isActive ? .bold : .regular))
                 .foregroundStyle(isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                .frame(width: 26, height: 26)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(isActive ? Color.accentColor.opacity(0.12) : Color.clear)
-                )
+                .frame(width: ButtonSize.sm, height: ButtonSize.sm)
+                .modifier(ToggleHighlight(isActive: isActive))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -248,15 +245,26 @@ struct FormattingToolbar: View {
             Image(systemName: icon)
                 .font(.subheadline.weight(isActive ? .bold : .regular))
                 .foregroundStyle(isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
-                .frame(width: 26, height: 26)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(isActive ? Color.accentColor.opacity(0.12) : Color.clear)
-                )
+                .frame(width: ButtonSize.sm, height: ButtonSize.sm)
+                .modifier(ToggleHighlight(isActive: isActive))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help(tooltip)
+    }
+}
+
+// MARK: - Toggle Highlight
+
+private struct ToggleHighlight: ViewModifier {
+    let isActive: Bool
+
+    func body(content: Content) -> some View {
+        if isActive {
+            content.glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
+        } else {
+            content
+        }
     }
 }
 

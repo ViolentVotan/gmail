@@ -259,7 +259,7 @@ struct AttachmentExplorerView: View {
                 Text(label)
                     .font(Typography.caption)
             }
-            .foregroundStyle(isSelected ? Color.white : Color.secondary)
+            .foregroundStyle(isSelected ? Color.primary : Color.secondary)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
             .modifier(FilterChipBackground(isSelected: isSelected))
@@ -272,12 +272,14 @@ private struct FilterChipBackground: ViewModifier {
     let isSelected: Bool
 
     func body(content: Content) -> some View {
-        if isSelected {
-            content.background(Capsule().fill(Color.accentColor))
-        } else if #available(macOS 26.0, *) {
-            content.glassEffect(.regular.interactive(), in: .capsule)
+        if #available(macOS 26.0, *) {
+            if isSelected {
+                content.glassEffect(.regular.interactive(), in: .capsule)
+            } else {
+                content
+            }
         } else {
-            content.background(Capsule().fill(.regularMaterial))
+            content.background(isSelected ? Color.accentColor.opacity(0.1) : .clear, in: .capsule)
         }
     }
 }
