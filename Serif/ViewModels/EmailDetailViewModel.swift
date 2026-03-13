@@ -21,10 +21,6 @@ final class EmailDetailViewModel {
         return allowTrackers ? result.originalHTML : result.sanitizedHTML
     }
 
-    /// Compatibility shim — will be removed in Task 4.
-    var resolvedHTML: String? { latestMessage.flatMap { resolvedMessageHTML[$0.id] } }
-    var displayHTML: String? { trackerSanitizedHTML }
-
     var blockedTrackerCount: Int { trackerResult?.trackerCount ?? 0 }
     var hasBlockedTrackers: Bool { !allowTrackers && (trackerResult?.hasTrackers ?? false) }
 
@@ -462,16 +458,6 @@ final class EmailDetailViewModel {
         message.attachmentParts.map { part in
             (GmailDataTransformer.makeAttachment(from: part, messageId: message.id), part)
         }
-    }
-
-    /// Compatibility shim — will be removed in Task 4.
-    func loadAndPreview(attachment: Attachment, part: GmailMessagePart, onPreviewAttachment: ((Data?, String, Attachment.FileType) -> Void)?) async {
-        guard let msgID = latestMessage?.id else { return }
-        await loadAndPreview(attachment: attachment, part: part, messageID: msgID, onPreviewAttachment: onPreviewAttachment)
-    }
-    func downloadAndSave(attachment: Attachment, part: GmailMessagePart) async -> Data? {
-        guard let msgID = latestMessage?.id else { return nil }
-        return await downloadAndSave(attachment: attachment, part: part, messageID: msgID)
     }
 
     // MARK: - Convenience

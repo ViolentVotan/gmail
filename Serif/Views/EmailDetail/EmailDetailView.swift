@@ -10,16 +10,11 @@ struct EmailDetailView: View {
     var mailStore: MailStore
 
     @State private var detailVM: EmailDetailViewModel
-    @State private var emailBodyHeight: CGFloat = 100
     @State private var didUnsubscribe = false
-    @State private var showSenderInfo = false
     @State private var showOriginalInviteEmail = false
-    @State private var showQuotedMain = false
-    @State private var cachedMainHTMLParts: (original: String, quoted: String?)?
-    @State private var cachedMainHTMLSource: String?
+    @State private var expandedMessageIDs: Set<String> = []
     @State private var labelSuggestions: [LabelSuggestion] = []
     @AppStorage("aiLabelSuggestions") private var aiLabelSuggestionsEnabled = true
-    @ScaledMetric(relativeTo: .body) private var senderAvatarSize: CGFloat = 40
 
     /// Best available unsubscribe URL: header-based (from full thread) or body-scanned.
     private var resolvedUnsubscribeURL: URL? {
@@ -67,14 +62,6 @@ struct EmailDetailView: View {
 
     // MARK: - Derived content (delegated to ViewModel)
 
-    private var displayAttachments: [Attachment] {
-        detailVM.displayAttachments(fallback: email.attachments)
-    }
-
-    private var olderThreadMessages: [GmailMessage] {
-        detailVM.olderThreadMessages
-    }
-
     private var currentLabelIDs: [String] {
         detailVM.currentLabelIDs(fallback: email.gmailLabelIDs)
     }
@@ -84,215 +71,257 @@ struct EmailDetailView: View {
             if detailVM.isLoading && detailVM.thread == nil {
                 EmailDetailSkeletonView()
             } else {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 0) {
-                        senderHeader
-                            .padding(.horizontal, Spacing.xl)
-                            .padding(.top, Spacing.xl)
-                            .padding(.bottom, Spacing.md)
-
-                        HStack(alignment: .top) {
-                            Text(detailVM.latestMessage?.subject ?? email.subject)
-                                .font(Typography.title)
-                                .foregroundStyle(.primary)
-
-                            Spacer()
-
-                            Menu {
-                                if isMailingList, let url = resolvedUnsubscribeURL, !alreadyUnsubscribed {
-                                    Button(role: .destructive) {
-                                        Task {
-                                            let msgID = email.gmailMessageID
-                                            let success = await actions.onUnsubscribe?(url, oneClick, msgID) ?? false
-                                            if success { didUnsubscribe = true }
-                                        }
-                                    } label: {
-                                        Label("Unsubscribe", systemImage: "xmark.circle")
-                                    }
-
-                                    Divider()
-                                }
-
-                                Button {
-                                    guard let msg = detailVM.latestMessage else { return }
-                                    actions.onDownloadMessage?(msg, detailVM.accountID)
-                                } label: {
-                                    Label("Download Message", systemImage: "arrow.down.circle")
-                                }
-                                Button {
-                                    guard let msg = detailVM.latestMessage else { return }
-                                    actions.onShowOriginal?(msg, detailVM.accountID)
-                                } label: {
-                                    Label("Show Original", systemImage: "doc.text")
-                                }
-                            } label: {
-                                Image(systemName: "ellipsis")
-                                    .font(Typography.body)
-                                    .foregroundStyle(.tertiary)
-                                    .frame(width: ButtonSize.lg, height: ButtonSize.lg)
-                                    .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .help("Message options")
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 0) {
+                            threadMetadata
+                            conversationCards
                         }
-                        .padding(.horizontal, Spacing.xl)
-                        .padding(.bottom, Spacing.sm)
-
-                        HStack(spacing: 6) {
-                            LabelEditorView(
-                                currentLabelIDs: currentLabelIDs,
-                                allLabels: allLabels,
-                                detailVM: detailVM,
-                                onAddLabel: actions.onAddLabel,
-                                onRemoveLabel: actions.onRemoveLabel,
-                                onCreateAndAddLabel: actions.onCreateAndAddLabel
-                            )
-                            .zIndex(1)
-
-                            if !labelSuggestions.isEmpty {
-                                ForEach(labelSuggestions, id: \.name) { suggestion in
-                                    Button {
-                                        applyLabelSuggestion(suggestion)
-                                    } label: {
-                                        HStack(spacing: 3) {
-                                            Image(systemName: suggestion.isNew ? "plus.circle" : "plus")
-                                                .font(Typography.captionSmall)
-                                            Text(suggestion.name)
-                                                .font(Typography.captionSmallRegular)
-                                        }
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 3)
-                                        .background(Color.accentColor.opacity(0.08))
-                                        .foregroundStyle(Color.accentColor.opacity(0.7))
-                                        .clipShape(Capsule())
-                                    }
-                                    .buttonStyle(.plain)
-                                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                                }
-                                .animation(SerifAnimation.springSnappy, value: labelSuggestions.map(\.name))
-                            }
-                        }
-                        .padding(.horizontal, Spacing.xl)
-                        .padding(.bottom, Spacing.md)
-
-                        #if canImport(FoundationModels)
-                        if #available(macOS 26.0, *) {
-                            InsightCardView(email: email)
-                                .padding(.horizontal, Spacing.xl)
-                                .padding(.bottom, Spacing.md)
-                        }
-                        #endif
-
-                        if detailVM.hasBlockedTrackers {
-                            TrackerBannerView(
-                                trackerCount: detailVM.blockedTrackerCount,
-                                trackers: detailVM.trackerResult?.trackers ?? [],
-                                onAllow: { detailVM.allowBlockedContent() }
-                            )
-                            .padding(.horizontal, Spacing.xl)
-                            .padding(.bottom, Spacing.md)
-                        }
-
-                        if let invite = detailVM.calendarInvite {
-                            CalendarInviteCardView(
-                                invite: invite,
-                                isLoading: detailVM.rsvpInProgress,
-                                showOriginalEmail: $showOriginalInviteEmail,
-                                onAccept:  { Task { await detailVM.sendRSVP(.accepted) } },
-                                onDecline: { Task { await detailVM.sendRSVP(.declined) } },
-                                onMaybe:   { Task { await detailVM.sendRSVP(.maybe) } }
-                            )
-                            .padding(.horizontal, Spacing.xl)
-                            .padding(.bottom, Spacing.md)
-                        }
-
-                        // Latest message: full HTML rendering with quote stripping
-                        if detailVM.calendarInvite == nil || showOriginalInviteEmail {
-                            let rawHTML = detailVM.resolvedHTML ?? detailVM.displayHTML ?? detailVM.latestMessage?.htmlBody ?? ""
-                            let fullHTML = rawHTML.isEmpty
-                                ? "<p>\(detailVM.latestMessage?.plainBody ?? email.body)</p>"
-                                : rawHTML
-                            let parts = mainHTMLParts(for: fullHTML)
-                            let htmlToRender = (showQuotedMain || parts.quoted == nil) ? fullHTML : parts.original
-
-                            HTMLEmailView(html: htmlToRender, contentHeight: $emailBodyHeight, onOpenLink: actions.onOpenLink)
-                                .frame(height: emailBodyHeight)
-                                .padding(.horizontal, Spacing.xl)
-                                .padding(.bottom, parts.quoted != nil ? Spacing.xs : Spacing.xl)
-                                .accessibilityLabel("Email from \(email.sender.name): \(email.subject)")
-
-                            if parts.quoted != nil {
-                                Button {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        showQuotedMain.toggle()
-                                    }
-                                } label: {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: showQuotedMain ? "chevron.up" : "chevron.down")
-                                            .font(Typography.captionSmall)
-                                        Text(showQuotedMain ? "Hide quoted text" : "Show quoted text")
-                                            .font(Typography.captionRegular)
-                                    }
-                                    .foregroundStyle(.tertiary)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, Spacing.xs)
-                                    .background(Capsule().fill(.quaternary))
-                                }
-                                .buttonStyle(.plain)
-                                .padding(.horizontal, Spacing.xl)
-                                .padding(.bottom, Spacing.xl)
-                            }
-                        }
-
-                        if !displayAttachments.isEmpty {
-                            attachmentsSection
-                                .padding(.horizontal, Spacing.xl)
-                                .padding(.bottom, Spacing.xl)
-                        }
-
-                        // Older thread messages as chat bubbles
-                        if !olderThreadMessages.isEmpty {
-                            conversationSection
-                                .padding(.horizontal, Spacing.xl)
-                                .padding(.bottom, Spacing.md)
+                        .frame(maxWidth: 720, alignment: .leading)
+                    }
+                    .task(id: detailVM.latestMessage?.id) {
+                        if let latestID = detailVM.latestMessage?.id {
+                            expandedMessageIDs = [latestID]
+                            try? await Task.sleep(for: .milliseconds(100))
+                            withAnimation { proxy.scrollTo(latestID, anchor: .bottom) }
                         }
                     }
-                    .frame(maxWidth: 720, alignment: .leading)
-                }
-                .task(id: email.id) {
-                    labelSuggestions = []
-                    guard aiLabelSuggestionsEnabled else { return }
-                    let suggestions = await detailVM.generateLabelSuggestions(
-                        for: email,
-                        existingLabels: allLabels
-                    )
-                    withAnimation { labelSuggestions = suggestions }
-                }
-                .contentTransition(.opacity)
-                .animation(SerifAnimation.springSnappy, value: email.id)
-                .safeAreaInset(edge: .bottom) {
-                    ReplyBarView(
-                        email: email,
-                        accountID: accountID,
-                        fromAddress: fromAddress,
-                        mailStore: mailStore,
-                        onOpenLink: actions.onOpenLink,
-                        onGenerateQuickReplies: { [detailVM] email in
-                            await detailVM.generateQuickReplies(for: email)
-                        },
-                        onLoadDraft: actions.onLoadDraft,
-                        smartReplySuggestions: detailVM.smartReplySuggestions
-                    )
-                    .padding(.horizontal, Spacing.lg)
-                    .padding(.bottom, Spacing.lg)
-                    .task(id: email.id) {
-                        detailVM.loadSmartReplies(for: email)
+                    .contentTransition(.opacity)
+                    .animation(SerifAnimation.springSnappy, value: email.id)
+                    .safeAreaInset(edge: .bottom) {
+                        ReplyBarView(
+                            email: email,
+                            accountID: accountID,
+                            fromAddress: fromAddress,
+                            mailStore: mailStore,
+                            onOpenLink: actions.onOpenLink,
+                            onGenerateQuickReplies: { [detailVM] email in
+                                await detailVM.generateQuickReplies(for: email)
+                            },
+                            onLoadDraft: actions.onLoadDraft,
+                            smartReplySuggestions: detailVM.smartReplySuggestions
+                        )
+                        .padding(.horizontal, Spacing.lg)
+                        .padding(.bottom, Spacing.lg)
+                        .task(id: email.id) {
+                            detailVM.loadSmartReplies(for: email)
+                        }
                     }
                 }
             }
         }
         .task(id: email.id) {
             await loadThread()
+        }
+    }
+
+    // MARK: - Thread Metadata
+
+    private var threadMetadata: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .top) {
+                Text(detailVM.latestMessage?.subject ?? email.subject)
+                    .font(Typography.title)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                Menu {
+                    if isMailingList, let url = resolvedUnsubscribeURL, !alreadyUnsubscribed {
+                        Button(role: .destructive) {
+                            Task {
+                                let msgID = email.gmailMessageID
+                                let success = await actions.onUnsubscribe?(url, oneClick, msgID) ?? false
+                                if success { didUnsubscribe = true }
+                            }
+                        } label: {
+                            Label("Unsubscribe", systemImage: "xmark.circle")
+                        }
+
+                        Divider()
+                    }
+
+                    Button {
+                        guard let msg = detailVM.latestMessage else { return }
+                        actions.onDownloadMessage?(msg, detailVM.accountID)
+                    } label: {
+                        Label("Download Message", systemImage: "arrow.down.circle")
+                    }
+                    Button {
+                        guard let msg = detailVM.latestMessage else { return }
+                        actions.onShowOriginal?(msg, detailVM.accountID)
+                    } label: {
+                        Label("Show Original", systemImage: "doc.text")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(Typography.body)
+                        .foregroundStyle(.tertiary)
+                        .frame(width: ButtonSize.lg, height: ButtonSize.lg)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Message options")
+            }
+            .padding(.horizontal, Spacing.xl)
+            .padding(.top, Spacing.xl)
+            .padding(.bottom, Spacing.sm)
+
+            HStack(spacing: 6) {
+                LabelEditorView(
+                    currentLabelIDs: currentLabelIDs,
+                    allLabels: allLabels,
+                    detailVM: detailVM,
+                    onAddLabel: actions.onAddLabel,
+                    onRemoveLabel: actions.onRemoveLabel,
+                    onCreateAndAddLabel: actions.onCreateAndAddLabel
+                )
+                .zIndex(1)
+
+                if !labelSuggestions.isEmpty {
+                    ForEach(labelSuggestions, id: \.name) { suggestion in
+                        Button {
+                            applyLabelSuggestion(suggestion)
+                        } label: {
+                            HStack(spacing: 3) {
+                                Image(systemName: suggestion.isNew ? "plus.circle" : "plus")
+                                    .font(Typography.captionSmall)
+                                Text(suggestion.name)
+                                    .font(Typography.captionSmallRegular)
+                            }
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Color.accentColor.opacity(0.08))
+                            .foregroundStyle(Color.accentColor.opacity(0.7))
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                    }
+                    .animation(SerifAnimation.springSnappy, value: labelSuggestions.map(\.name))
+                }
+            }
+            .padding(.horizontal, Spacing.xl)
+            .padding(.bottom, Spacing.md)
+
+            #if canImport(FoundationModels)
+            if #available(macOS 26.0, *) {
+                InsightCardView(email: email)
+                    .padding(.horizontal, Spacing.xl)
+                    .padding(.bottom, Spacing.md)
+            }
+            #endif
+
+            if detailVM.hasBlockedTrackers {
+                TrackerBannerView(
+                    trackerCount: detailVM.blockedTrackerCount,
+                    trackers: detailVM.trackerResult?.trackers ?? [],
+                    onAllow: { detailVM.allowBlockedContent() }
+                )
+                .padding(.horizontal, Spacing.xl)
+                .padding(.bottom, Spacing.md)
+            }
+
+            if let invite = detailVM.calendarInvite {
+                CalendarInviteCardView(
+                    invite: invite,
+                    isLoading: detailVM.rsvpInProgress,
+                    showOriginalEmail: $showOriginalInviteEmail,
+                    onAccept:  { Task { await detailVM.sendRSVP(.accepted) } },
+                    onDecline: { Task { await detailVM.sendRSVP(.declined) } },
+                    onMaybe:   { Task { await detailVM.sendRSVP(.maybe) } }
+                )
+                .padding(.horizontal, Spacing.xl)
+                .padding(.bottom, Spacing.md)
+            }
+        }
+        .task(id: email.id) {
+            labelSuggestions = []
+            guard aiLabelSuggestionsEnabled else { return }
+            let suggestions = await detailVM.generateLabelSuggestions(
+                for: email,
+                existingLabels: allLabels
+            )
+            withAnimation { labelSuggestions = suggestions }
+        }
+    }
+
+    // MARK: - Conversation Cards
+
+    private var conversationCards: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            let allMessages = detailVM.allMessagesChronological
+            if allMessages.count > 1 {
+                HStack {
+                    Text("\(allMessages.count) messages")
+                        .font(Typography.captionRegular)
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                    if expandedMessageIDs.count > 1 {
+                        Button {
+                            withAnimation(SerifAnimation.springSnappy) {
+                                if let latestID = detailVM.latestMessage?.id {
+                                    expandedMessageIDs = [latestID]
+                                }
+                            }
+                        } label: {
+                            Text("Collapse Others")
+                                .font(Typography.captionRegular)
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, Spacing.xl)
+                .padding(.bottom, Spacing.sm)
+            }
+
+            LazyVStack(spacing: 1) {
+                ForEach(Array(allMessages.enumerated()), id: \.element.id) { index, message in
+                    let isLastCard = index == allMessages.count - 1
+                    ThreadMessageCardView(
+                        message: message,
+                        email: email,
+                        isExpanded: expandedMessageIDs.contains(message.id),
+                        fromAddress: fromAddress,
+                        isLast: isLastCard,
+                        resolvedHTML: detailVM.resolvedMessageHTML[message.id],
+                        onToggle: {
+                            withAnimation(SerifAnimation.springSnappy) {
+                                if expandedMessageIDs.contains(message.id) {
+                                    expandedMessageIDs.remove(message.id)
+                                } else {
+                                    expandedMessageIDs.insert(message.id)
+                                }
+                            }
+                        },
+                        onOpenLink: actions.onOpenLink,
+                        attachmentPairs: detailVM.attachmentPairsForMessage(message),
+                        onPreviewAttachment: { attachment, part in
+                            Task {
+                                await detailVM.loadAndPreview(
+                                    attachment: attachment,
+                                    part: part,
+                                    messageID: message.id,
+                                    onPreviewAttachment: actions.onPreviewAttachment
+                                )
+                            }
+                        },
+                        onDownloadAttachment: { attachment, part in
+                            Task {
+                                guard let data = await detailVM.downloadAndSave(
+                                    attachment: attachment,
+                                    part: part,
+                                    messageID: message.id
+                                ) else { return }
+                                saveAttachmentData(data, named: attachment.name)
+                            }
+                        }
+                    )
+                    .id(message.id)
+                }
+            }
+            .padding(.horizontal, Spacing.xl)
         }
     }
 
@@ -319,17 +348,6 @@ struct EmailDetailView: View {
         await detailVM.loadThread(id: threadID)
     }
 
-    /// Returns cached quote-stripped parts for the latest message HTML, recomputing only when the source changes.
-    private func mainHTMLParts(for html: String) -> (original: String, quoted: String?) {
-        if html == cachedMainHTMLSource, let cached = cachedMainHTMLParts {
-            return cached
-        }
-        let parts = GmailThreadMessageView.stripQuotedHTML(html)
-        cachedMainHTMLSource = html
-        cachedMainHTMLParts = parts
-        return parts
-    }
-
     private func applyLabelSuggestion(_ suggestion: LabelSuggestion) {
         withAnimation { labelSuggestions.removeAll { $0.name == suggestion.name } }
         detailVM.applyLabelSuggestion(
@@ -341,25 +359,6 @@ struct EmailDetailView: View {
         )
     }
 
-    // MARK: - Attachment preview & download (delegated to ViewModel)
-
-    private func loadAndPreview(attachment: Attachment, part: GmailMessagePart) {
-        Task {
-            await detailVM.loadAndPreview(
-                attachment: attachment,
-                part: part,
-                onPreviewAttachment: actions.onPreviewAttachment
-            )
-        }
-    }
-
-    private func downloadAttachment(attachment: Attachment, part: GmailMessagePart) {
-        Task {
-            guard let data = await detailVM.downloadAndSave(attachment: attachment, part: part) else { return }
-            saveAttachmentData(data, named: attachment.name)
-        }
-    }
-
     /// Thin view-layer wrapper -- NSSavePanel must run on the main thread.
     private func saveAttachmentData(_ data: Data, named name: String) {
         let panel = NSSavePanel()
@@ -367,93 +366,5 @@ struct EmailDetailView: View {
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let url = panel.url else { return }
         try? data.write(to: url)
-    }
-
-    // MARK: - Sender Header
-
-    private var senderHeader: some View {
-        HStack(spacing: 12) {
-            AvatarView(
-                initials: email.sender.initials,
-                color:    email.sender.avatarColor,
-                size:     senderAvatarSize,
-                avatarURL: email.sender.avatarURL,
-                senderDomain: email.sender.domain
-            )
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(email.sender.name)
-                    .font(Typography.calloutSemibold)
-                    .foregroundStyle(.primary)
-
-                Text(email.sender.email)
-                    .font(Typography.subheadRegular)
-                    .foregroundStyle(.tertiary)
-                    .underline(showSenderInfo, color: .gray)
-                    .onHover { hovering in
-                        showSenderInfo = hovering
-                    }
-                    .popover(isPresented: $showSenderInfo, arrowEdge: .bottom) {
-                        if let msg = detailVM.latestMessage {
-                            SenderInfoPopover(message: msg, email: email)
-                        }
-                    }
-            }
-
-            Spacer()
-
-            Text(email.date.formattedFull)
-                .font(Typography.subheadRegular)
-                .foregroundStyle(.tertiary)
-        }
-    }
-
-    // MARK: - Attachments
-
-    private var attachmentPairs: [(Attachment, GmailMessagePart?)] {
-        detailVM.attachmentPairs(fallback: email.attachments)
-    }
-
-    private var attachmentsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Image(systemName: "paperclip")
-                    .font(Typography.subheadRegular)
-                Text("\(displayAttachments.count) Attachment\(displayAttachments.count > 1 ? "s" : "")")
-                    .font(Typography.subhead)
-            }
-            .foregroundStyle(.secondary)
-
-            HStack(spacing: 8) {
-                ForEach(attachmentPairs, id: \.0.id) { (attachment, part) in
-                    AttachmentChipView(
-                        attachment: attachment,
-                        onPreview: part.map { p in { loadAndPreview(attachment: attachment, part: p) } },
-                        onDownload: part.map { p in { downloadAttachment(attachment: attachment, part: p) } }
-                    )
-                    .accessibilityLabel("Attachment: \(attachment.name), \(attachment.size)")
-                }
-            }
-        }
-    }
-
-    // MARK: - Conversation (older thread messages as chat bubbles)
-
-    private var conversationSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Divider()
-                .background(Color(.separatorColor))
-
-            LazyVStack(spacing: 14) {
-                ForEach(olderThreadMessages, id: \.id) { message in
-                    GmailThreadMessageView(
-                        message: message,
-                        fromAddress: fromAddress,
-                        resolvedHTML: detailVM.resolvedMessageHTML[message.id],
-                        onOpenLink: actions.onOpenLink
-                    )
-                }
-            }
-        }
     }
 }
