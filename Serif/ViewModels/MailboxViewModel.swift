@@ -27,7 +27,10 @@ final class MailboxViewModel {
 
     // MARK: - Services
 
-    var mailDatabase: MailDatabase?
+    var mailDatabase: MailDatabase? {
+        didSet { fetchService.mailDatabase = mailDatabase }
+    }
+    var backgroundSyncer: BackgroundSyncer?
     private let api: MessageFetching
     private let fetchService: MessageFetchService
     private let labelService: LabelSyncService
@@ -36,13 +39,12 @@ final class MailboxViewModel {
 
     init(
         accountID: String,
-        api: MessageFetching = GmailMessageService.shared,
-        cache: CacheStoring = MailCacheStore.shared
+        api: MessageFetching = GmailMessageService.shared
     ) {
         self.accountID = accountID
         self.api = api
-        self.fetchService   = MessageFetchService(api: api, cache: cache)
-        self.labelService   = LabelSyncService(cache: cache)
+        self.fetchService   = MessageFetchService(api: api)
+        self.labelService   = LabelSyncService()
         self.historyService = HistorySyncService(api: api)
         // Wire up the makeEmail closure for background analysis.
         fetchService.makeEmail = { [weak self] msg in
@@ -188,26 +190,9 @@ final class MailboxViewModel {
     }
 
     func loadMore() async {
-        // 1. Serve from local cache — skip pages with only duplicates
-        if let newOnes = fetchService.loadMoreFromLocalCache(currentMessages: messages) {
-            withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
-                messages.append(contentsOf: newOnes)
-            }
-            fetchService.analyzeInBackground(newOnes)
-            return
-        }
-        // 2. Local cache exhausted — fetch from API.
-        if let promoted = fetchService.promoteSavedPageToken() {
-            nextPageToken = promoted
-        }
         guard nextPageToken != nil else { return }
-        let gen = fetchService.currentGeneration // don't bump — loadMore appends, doesn't replace
-        let countBefore = messages.count
+        let gen = fetchService.currentGeneration
         await performFetch(reset: false, generation: gen)
-        // If API returned only duplicates, keep fetching until we get new content
-        while messages.count == countBefore && nextPageToken != nil && !Task.isCancelled {
-            await performFetch(reset: false, generation: gen)
-        }
     }
 
     /// Cancel any in-flight search/load task. Called from the view layer
@@ -299,13 +284,7 @@ final class MailboxViewModel {
         readIDs       = []
         error         = nil
         fetchService.resetState()
-        // Load disk cache for default folder (paginated)
-        let cached = await fetchService.loadCacheForAccountSwitch(
-            accountID: id,
-            currentLabelIDs: currentLabelIDs,
-            currentQuery: currentQuery
-        )
-        messages = cached.isEmpty ? [] : cached
+        messages = []
     }
 
     // MARK: - Delta Sync via History API
@@ -320,7 +299,7 @@ final class MailboxViewModel {
         // 2. No search query (history API doesn't support queries)
         // 3. We have cached messages (not first load)
         // 4. Single label ID or no label (history API filters by one label)
-        if isSameFolder && query == nil && !fetchService.allCachedMessages.isEmpty && labelIDs.count <= 1 {
+        if isSameFolder && query == nil && !messages.isEmpty && labelIDs.count <= 1 {
             let success = await applyHistorySync(labelId: labelIDs.first)
             if success { return }
         }
@@ -431,49 +410,32 @@ final class MailboxViewModel {
         withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
             messages.remove(at: idx)
         }
-        fetchService.allCachedMessages.removeAll { $0.id == messageID }
-        saveCacheToDisk()
         return msg
     }
 
     /// Re-inserts a previously removed message at its original date position (undo path).
     func restoreOptimistically(_ message: GmailMessage) {
-        // Restore into the in-memory cache so subsequent lookups work
         fetchService.messageCache[message.id] = message
         let date = message.date ?? .distantPast
         let insertIdx = messages.firstIndex { ($0.date ?? .distantPast) < date } ?? messages.endIndex
         withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
             messages.insert(message, at: insertIdx)
         }
-        // Also restore into the authoritative cache so the message survives the next refresh
-        let cacheIdx = fetchService.allCachedMessages.firstIndex { ($0.date ?? .distantPast) < date }
-            ?? fetchService.allCachedMessages.endIndex
-        fetchService.allCachedMessages.insert(message, at: cacheIdx)
-        saveCacheToDisk()
-        // Signal the UI to re-select this email
         lastRestoredMessageID = message.id
     }
 
     func emptyTrash() async {
         let backup = messages
         let cacheBackup = fetchService.messageCache
-        let cachedBackup = fetchService.allCachedMessages
-        let offsetBackup = fetchService.localOffset
         messages.removeAll()
         fetchService.messageCache.removeAll()
-        fetchService.allCachedMessages.removeAll()
-        fetchService.localOffset = 0
-        saveCacheToDisk()
         do {
             try await api.emptyTrash(accountID: accountID)
         } catch GmailAPIError.partialFailure {
-            self.error = "Some messages could not be deleted"  // inform but don't revert
+            self.error = "Some messages could not be deleted"
         } catch {
             messages = backup
             fetchService.messageCache = cacheBackup
-            fetchService.allCachedMessages = cachedBackup
-            fetchService.localOffset = offsetBackup
-            saveCacheToDisk()
             self.error = error.localizedDescription
         }
     }
@@ -481,23 +443,15 @@ final class MailboxViewModel {
     func emptySpam() async {
         let backup = messages
         let cacheBackup = fetchService.messageCache
-        let cachedBackup = fetchService.allCachedMessages
-        let offsetBackup = fetchService.localOffset
         messages.removeAll()
         fetchService.messageCache.removeAll()
-        fetchService.allCachedMessages.removeAll()
-        fetchService.localOffset = 0
-        saveCacheToDisk()
         do {
             try await api.emptySpam(accountID: accountID)
         } catch GmailAPIError.partialFailure {
-            self.error = "Some messages could not be deleted"  // inform but don't revert
+            self.error = "Some messages could not be deleted"
         } catch {
             messages = backup
             fetchService.messageCache = cacheBackup
-            fetchService.allCachedMessages = cachedBackup
-            fetchService.localOffset = offsetBackup
-            saveCacheToDisk()
             self.error = error.localizedDescription
         }
     }
@@ -637,130 +591,91 @@ final class MailboxViewModel {
 
     // MARK: - Private fetch orchestration
 
-    private var currentFolderKey: String {
-        MailCacheStore.folderKey(labelIDs: currentLabelIDs, query: currentQuery)
-    }
-
     private func performFetch(reset: Bool, clearFirst: Bool = false, generation: UInt64) async {
         guard !accountID.isEmpty else { return }
-        let folderKey = currentFolderKey
 
-        // ── Local-first: load from disk cache and paginate locally ──
-        if reset {
-            let (firstPage, hasCached) = await fetchService.loadDiskCache(accountID: accountID, folderKey: folderKey, filterLabelIDs: currentLabelIDs)
-            if hasCached {
-                if clearFirst || messages.isEmpty {
-                    messages = firstPage
-                } else {
-                    let cachedIDs  = Set(firstPage.map(\.id))
-                    let currentIDs = Set(messages.map(\.id))
-                    if cachedIDs != currentIDs { messages = firstPage }
-                }
-                fetchService.analyzeInBackground(firstPage)
-            } else {
-                if clearFirst { messages = [] }
-            }
+        if reset && clearFirst {
+            messages = []
         }
 
         isLoading = true
         error     = nil
         defer { isLoading = false }
+
         do {
-            // ── API sync: fetch latest page to discover new messages ──
+            // API sync: fetch latest message list
             let list = try await fetchService.listMessages(
                 accountID: accountID,
                 currentLabelIDs: currentLabelIDs,
                 currentQuery: currentQuery,
-                pageToken: reset ? nil : (nextPageToken ?? fetchService.savedPageToken)
+                pageToken: reset ? nil : nextPageToken
             )
-
             guard !fetchService.isStale(generation: generation) else { return }
 
             let refs = list.messages ?? []
             nextPageToken = list.nextPageToken
 
+            // Fetch missing messages from API
             let fetched = try await fetchService.fetchMissingMessages(refs: refs, accountID: accountID)
-
             guard !fetchService.isStale(generation: generation) else { return }
 
+            let resolved = fetchService.resolveFromCache(refs)
+
+            // Write to DB via BackgroundSyncer (ValueObservation will update UI)
+            if let syncer = backgroundSyncer, !resolved.isEmpty {
+                let labelIds = Array(Set(resolved.flatMap { $0.labelIds ?? [] }))
+                try? await syncer.upsertMessages(resolved, ensureLabels: labelIds)
+            }
+
+            // Background analysis (subscriptions, attachments, AI classification)
             if !fetched.isEmpty {
                 fetchService.analyzeInBackground(fetched)
             }
 
-            guard !fetchService.isStale(generation: generation) else { return }
+            // Stale pruning: remove messages that disappeared from API
+            if reset && !refs.isEmpty {
+                await pruneStaleMessages(refs: refs, generation: generation)
+            }
 
-            let page = fetchService.resolveFromCache(refs)
-
-            if reset {
-                let newMessages = fetchService.findNewMessages(in: page)
-                if !newMessages.isEmpty {
-                    fetchService.prependToCache(newMessages)
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
-                        messages.insert(contentsOf: newMessages, at: 0)
-                    }
-                    fetchService.analyzeInBackground(newMessages)
-                }
-
-                // Prune stale messages: locally cached but absent from the API's first page.
-                // Batch-verify suspects to distinguish "deleted/moved" from "pushed to next page".
-                if !refs.isEmpty {
-                    let serverIDs = Set(refs.map(\.id))
-                    let suspectIDs = messages.filter { !serverIDs.contains($0.id) }.map(\.id)
-                    if !suspectIDs.isEmpty {
-                        guard !fetchService.isStale(generation: generation) else { return }
-                        var staleIDs: [String] = []
-                        let folderLabels = Set(currentLabelIDs)
-                        // Batch-verify suspects concurrently (tolerates individual 404s)
-                        let verified = await fetchService.verifyMessages(
-                            ids: suspectIDs, accountID: accountID, api: api
-                        )
-                        for id in suspectIDs {
-                            if let msg = verified[id] {
-                                // Exists but moved to a different folder
-                                if !folderLabels.isEmpty,
-                                   let msgLabels = msg.labelIds,
-                                   folderLabels.isDisjoint(with: Set(msgLabels)) {
-                                    staleIDs.append(id)
-                                }
-                            } else {
-                                staleIDs.append(id) // 404 → deleted on Gmail
-                            }
-                        }
-                        if !staleIDs.isEmpty {
-                            let staleSet = Set(staleIDs)
-                            withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
-                                messages.removeAll { staleSet.contains($0.id) }
-                            }
-                            fetchService.allCachedMessages.removeAll { staleSet.contains($0.id) }
-                            for id in staleIDs { fetchService.messageCache[id] = nil }
-                        }
-                    }
-                }
-
-                fetchService.persistCache(accountID: accountID, folderKey: folderKey, nextPageToken: nextPageToken)
-
-                if let latestHistoryId = page.compactMap(\.historyId).first {
-                    historyService.updateStoredHistoryId(latestHistoryId, accountID: accountID)
-                }
-            } else {
-                // loadMore via API — append new messages
-                let existingIDs = Set(messages.map(\.id))
-                let newOnes = page.filter { !existingIDs.contains($0.id) }
-                if !newOnes.isEmpty {
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
-                        messages.append(contentsOf: newOnes)
-                    }
-                    fetchService.appendToCache(newOnes)
-                    fetchService.analyzeInBackground(newOnes)
-                }
-                fetchService.persistCacheAfterLoadMore(accountID: accountID, folderKey: folderKey, nextPageToken: nextPageToken)
+            // Update history ID for delta sync
+            if reset, let latestHistoryId = resolved.compactMap(\.historyId).first {
+                historyService.updateStoredHistoryId(latestHistoryId, accountID: accountID)
             }
 
         } catch is CancellationError {
-            // Silently swallow — a newer request replaced us
+            // Silently swallow
         } catch {
             guard !fetchService.isStale(generation: generation) else { return }
             self.error = error.localizedDescription
+        }
+    }
+
+    private func pruneStaleMessages(refs: [GmailMessageRef], generation: UInt64) async {
+        let serverIDs = Set(refs.map(\.id))
+        // Use messages currently in the list as suspects
+        let suspectIDs = messages.filter { !serverIDs.contains($0.id) }.map(\.id)
+        guard !suspectIDs.isEmpty else { return }
+        guard !fetchService.isStale(generation: generation) else { return }
+
+        let verified = await fetchService.verifyMessages(ids: suspectIDs, accountID: accountID, api: api)
+        var staleIDs: [String] = []
+        let folderLabels = Set(currentLabelIDs)
+        for id in suspectIDs {
+            if let msg = verified[id] {
+                if !folderLabels.isEmpty,
+                   let msgLabels = msg.labelIds,
+                   folderLabels.isDisjoint(with: Set(msgLabels)) {
+                    staleIDs.append(id)
+                }
+            } else {
+                staleIDs.append(id)
+            }
+        }
+        if !staleIDs.isEmpty {
+            if let syncer = backgroundSyncer {
+                try? await syncer.deleteMessages(gmailIds: staleIDs)
+            }
+            for id in staleIDs { fetchService.messageCache[id] = nil }
         }
     }
 
@@ -774,50 +689,49 @@ final class MailboxViewModel {
         )
         guard result.succeeded else { return false }
 
-        // Remove deleted messages from cache + UI
+        // Write delta to DB (ValueObservation will update UI)
+        if let syncer = backgroundSyncer {
+            var labelUpdates: [(gmailId: String, labelIds: [String])] = []
+            for msg in result.refreshedMessages {
+                labelUpdates.append((gmailId: msg.id, labelIds: msg.labelIds ?? []))
+            }
+            try? await syncer.applyDelta(
+                newMessages: result.newMessages,
+                deletedIds: Array(result.deletedIDs),
+                labelUpdates: labelUpdates
+            )
+        }
+
+        // Update in-memory state for immediate responsiveness
         if !result.deletedIDs.isEmpty {
             withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
                 messages.removeAll { result.deletedIDs.contains($0.id) }
             }
-            fetchService.allCachedMessages.removeAll { result.deletedIDs.contains($0.id) }
             for id in result.deletedIDs { fetchService.messageCache[id] = nil }
         }
 
-        // Insert new messages (already filtered by the service against existingIDs)
         if !result.newMessages.isEmpty {
             for msg in result.newMessages { fetchService.messageCache[msg.id] = msg }
             withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
                 messages.insert(contentsOf: result.newMessages, at: 0)
             }
-            fetchService.allCachedMessages.insert(contentsOf: result.newMessages, at: 0)
-            fetchService.localOffset += result.newMessages.count
             fetchService.analyzeInBackground(result.newMessages)
         }
 
-        // Apply label changes to existing messages
         for msg in result.refreshedMessages {
             fetchService.messageCache[msg.id] = msg
-            // If the message lost the current folder's label, remove it
             if let labelId, let msgLabels = msg.labelIds, !msgLabels.contains(labelId) {
                 withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
                     messages.removeAll { $0.id == msg.id }
                 }
-                fetchService.allCachedMessages.removeAll { $0.id == msg.id }
                 fetchService.messageCache[msg.id] = nil
             } else {
                 if let idx = messages.firstIndex(where: { $0.id == msg.id }) {
                     messages[idx] = msg
                 }
-                if let idx = fetchService.allCachedMessages.firstIndex(where: { $0.id == msg.id }) {
-                    fetchService.allCachedMessages[idx] = msg
-                }
             }
         }
 
-        // Save updated cache
-        saveCacheToDisk()
-
-        // Persist the new historyId
         if let historyId = result.latestHistoryId {
             historyService.updateStoredHistoryId(historyId, accountID: accountID)
         }
@@ -826,25 +740,14 @@ final class MailboxViewModel {
         return true
     }
 
-    private func removeFromLocalState(_ messageID: String, persistCache: Bool = true) {
+    private func removeFromLocalState(_ messageID: String) {
         messages.removeAll { $0.id == messageID }
         fetchService.messageCache[messageID] = nil
-        fetchService.allCachedMessages.removeAll { $0.id == messageID }
-        if persistCache { saveCacheToDisk() }
     }
 
     private func updateEmailInPlace(_ messageID: String, update: (inout Email) -> Void) {
         if let idx = emails.firstIndex(where: { $0.gmailMessageID == messageID }) {
             update(&emails[idx])
         }
-    }
-
-    private func saveCacheToDisk() {
-        fetchService.saveCacheToDisk(
-            messages: messages,
-            accountID: accountID,
-            currentLabelIDs: currentLabelIDs,
-            currentQuery: currentQuery
-        )
     }
 }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Handles message fetching, pagination, and disk caching for a mailbox.
+/// Handles message fetching, pagination, and in-memory caching for a mailbox.
 /// Owns the internal cache state; the MailboxViewModel orchestrates the
 /// fetch flow and applies results to its @Observable-tracked properties.
 @MainActor
@@ -9,7 +9,6 @@ final class MessageFetchService {
     // MARK: - Injected dependencies
 
     private let api: MessageFetching
-    private let cache: CacheStoring
 
     // MARK: - Dependencies (set by MailboxViewModel)
 
@@ -19,22 +18,17 @@ final class MessageFetchService {
     var attachmentIndexer: AttachmentIndexer?
     /// Account ID used when persisting AI classification tags.
     var accountID: String = ""
+    /// Reference to mail database for writing classification tags.
+    var mailDatabase: MailDatabase?
 
     // MARK: - Internal cache state
 
     /// In-memory cache of fetched messages (metadata format) keyed by message ID.
     var messageCache: [String: GmailMessage] = [:]
-    /// Full set of messages loaded from disk cache.
-    var allCachedMessages: [GmailMessage] = []
-    /// Current offset into allCachedMessages for local pagination.
-    var localOffset: Int = 0
-    /// API page token persisted from disk cache (for resuming API pagination).
-    var savedPageToken: String?
     let pageSize = 50
 
-    init(api: MessageFetching = GmailMessageService.shared, cache: CacheStoring = MailCacheStore.shared) {
+    init(api: MessageFetching = GmailMessageService.shared) {
         self.api = api
-        self.cache = cache
     }
 
     /// Tracks the current fetch task so it can be cancelled when a new one starts.
@@ -66,41 +60,6 @@ final class MessageFetchService {
 
     func isStale(generation: UInt64) -> Bool {
         Task.isCancelled || generation != fetchGeneration
-    }
-
-    // MARK: - Cache loading (async, runs disk I/O off main actor)
-
-    /// Loads the disk cache for a folder and returns the first page for display.
-    /// Updates internal cache state (allCachedMessages, savedPageToken, localOffset).
-    /// - Parameter filterLabelIDs: When non-empty, only keeps messages whose labels
-    ///   intersect with this set. Removes duplicates and stale entries.
-    func loadDiskCache(
-        accountID: String,
-        folderKey: String,
-        filterLabelIDs: [String] = []
-    ) async -> (firstPage: [GmailMessage], hasCachedMessages: Bool) {
-        let diskCache = await cache.loadFolderCache(accountID: accountID, folderKey: folderKey)
-        // Deduplicate by message ID and filter out stale labels
-        let labelSet = Set(filterLabelIDs)
-        var seen = Set<String>()
-        var cleaned = [GmailMessage]()
-        for msg in diskCache.messages {
-            guard seen.insert(msg.id).inserted else { continue }
-            if !labelSet.isEmpty, let labels = msg.labelIds, labelSet.isDisjoint(with: labels) {
-                continue
-            }
-            cleaned.append(msg)
-        }
-        allCachedMessages = cleaned
-        savedPageToken    = diskCache.nextPageToken
-        if !allCachedMessages.isEmpty {
-            for msg in allCachedMessages { messageCache[msg.id] = msg }
-            let firstPage = Array(allCachedMessages.prefix(pageSize))
-            localOffset   = firstPage.count
-            return (firstPage, true)
-        }
-        localOffset = 0
-        return ([], false)
     }
 
     // MARK: - API fetch helpers
@@ -143,98 +102,6 @@ final class MessageFetchService {
         refs.compactMap { messageCache[$0.id] }
     }
 
-    /// Finds messages in `page` that are not already in `allCachedMessages`.
-    func findNewMessages(in page: [GmailMessage]) -> [GmailMessage] {
-        let cachedIDs = Set(allCachedMessages.map(\.id))
-        return page.filter { !cachedIDs.contains($0.id) }
-    }
-
-    /// Prepends new messages to the internal cache and adjusts the local offset.
-    func prependToCache(_ newMessages: [GmailMessage]) {
-        allCachedMessages.insert(contentsOf: newMessages, at: 0)
-        for msg in newMessages { messageCache[msg.id] = msg }
-        localOffset += newMessages.count
-    }
-
-    /// Appends new messages to the internal cache (for loadMore via API).
-    func appendToCache(_ newOnes: [GmailMessage]) {
-        let cachedIDs = Set(allCachedMessages.map(\.id))
-        let trulyNew = newOnes.filter { !cachedIDs.contains($0.id) }
-        allCachedMessages.append(contentsOf: trulyNew)
-        localOffset = allCachedMessages.count
-    }
-
-    /// Persists the current cache state to disk.
-    func persistCache(
-        accountID: String,
-        folderKey: String,
-        nextPageToken: String?
-    ) {
-        let cacheToSave = FolderCache(
-            messages: allCachedMessages,
-            nextPageToken: nextPageToken ?? savedPageToken
-        )
-        cache.saveFolderCache(cacheToSave, accountID: accountID, folderKey: folderKey)
-    }
-
-    /// Updates savedPageToken and persists the cache (for loadMore).
-    func persistCacheAfterLoadMore(
-        accountID: String,
-        folderKey: String,
-        nextPageToken: String?
-    ) {
-        savedPageToken = nextPageToken
-        let cacheToSave = FolderCache(
-            messages: allCachedMessages,
-            nextPageToken: nextPageToken
-        )
-        cache.saveFolderCache(cacheToSave, accountID: accountID, folderKey: folderKey)
-    }
-
-    // MARK: - Load more (local pagination)
-
-    /// Attempts to serve the next page from the local disk cache.
-    /// Returns the new messages to append, or nil if the local cache is exhausted.
-    func loadMoreFromLocalCache(currentMessages: [GmailMessage]) -> [GmailMessage]? {
-        while localOffset < allCachedMessages.count {
-            let end = min(localOffset + pageSize, allCachedMessages.count)
-            let localPage = Array(allCachedMessages[localOffset..<end])
-            let existingIDs = Set(currentMessages.map(\.id))
-            let newOnes = localPage.filter { !existingIDs.contains($0.id) }
-            localOffset = end
-            if !newOnes.isEmpty {
-                return newOnes
-            }
-            // All duplicates — continue to next chunk or fall through to API
-        }
-        return nil // local cache exhausted
-    }
-
-    /// Promotes the saved page token (end-of-cache) to the active nextPageToken.
-    /// Returns the promoted token, or nil if there was no saved token.
-    func promoteSavedPageToken() -> String? {
-        guard let saved = savedPageToken else { return nil }
-        savedPageToken = nil
-        return saved
-    }
-
-    // MARK: - Disk cache sync
-
-    func saveCacheToDisk(
-        messages: [GmailMessage],
-        accountID: String,
-        currentLabelIDs: [String],
-        currentQuery: String?
-    ) {
-        // Rebuild: displayed messages (current state) + not-yet-displayed cached messages
-        let displayedIDs = Set(messages.map(\.id))
-        let remaining = allCachedMessages.filter { !displayedIDs.contains($0.id) }
-        allCachedMessages = messages + remaining
-        let folderKey = MailCacheStore.folderKey(labelIDs: currentLabelIDs, query: currentQuery)
-        let folderCache = FolderCache(messages: allCachedMessages, nextPageToken: savedPageToken)
-        cache.saveFolderCache(folderCache, accountID: accountID, folderKey: folderKey)
-    }
-
     // MARK: - Background analysis (subscriptions + attachments)
 
     func analyzeInBackground(_ msgs: [GmailMessage]) {
@@ -248,17 +115,9 @@ final class MessageFetchService {
         }
         // AI classification — runs after subscription detection
         let emails = msgs.compactMap { makeEmail($0) }
-        let acctID = accountID
+        let db = mailDatabase
         Task {
-            await EmailClassifier.shared.classifyBatch(emails)
-            let tagBatch: [(messageId: String, tags: EmailTags)] = emails.compactMap { email in
-                guard let msgId = email.gmailMessageID,
-                      let tags = EmailClassifier.shared.cachedTags(for: msgId) else { return nil }
-                return (messageId: msgId, tags: tags)
-            }
-            if !tagBatch.isEmpty {
-                cache.saveTagsBatch(tagBatch, accountID: acctID)
-            }
+            await EmailClassifier.shared.classifyBatch(emails, db: db)
         }
     }
 
@@ -317,24 +176,6 @@ final class MessageFetchService {
     // MARK: - Reset (for account switch)
 
     func resetState() {
-        messageCache      = [:]
-        allCachedMessages = []
-        localOffset       = 0
-        savedPageToken    = nil
-    }
-
-    /// Loads the disk cache for a given folder, returning the first page of messages.
-    func loadCacheForAccountSwitch(
-        accountID: String,
-        currentLabelIDs: [String],
-        currentQuery: String?
-    ) async -> [GmailMessage] {
-        let folderKey = MailCacheStore.folderKey(labelIDs: currentLabelIDs, query: currentQuery)
-        let (firstPage, hasCached) = await loadDiskCache(
-            accountID: accountID,
-            folderKey: folderKey,
-            filterLabelIDs: currentLabelIDs
-        )
-        return hasCached ? firstPage : []
+        messageCache = [:]
     }
 }

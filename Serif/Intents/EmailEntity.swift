@@ -58,21 +58,21 @@ struct EmailEntityQuery: EntityStringQuery {
 
     // MARK: - Private
 
-    @MainActor
     private func allCachedMessages() async -> [EmailEntity] {
         let accounts = AccountStore.shared.accounts
         var entities: [EmailEntity] = []
         for account in accounts {
-            let inboxKey = MailCacheStore.folderKey(labelIDs: ["INBOX"], query: nil)
-            let cache = await MailCacheStore.shared.loadFolderCache(accountID: account.id, folderKey: inboxKey)
-            for message in cache.messages {
-                let dateMs = Double(message.internalDate ?? "0") ?? 0
-                let date = Date(timeIntervalSince1970: dateMs / 1000)
+            guard let db = try? MailDatabase(accountID: account.id) else { continue }
+            let records = try? await db.dbPool.read { database in
+                try MailDatabaseQueries.messagesForLabel("INBOX", limit: 200, in: database)
+            }
+            guard let records else { continue }
+            for record in records {
                 entities.append(EmailEntity(
-                    id: message.id,
-                    subject: message.subject,
-                    senderName: message.from,
-                    date: date
+                    id: record.gmailId,
+                    subject: record.subject ?? "",
+                    senderName: record.senderName ?? record.senderEmail ?? "",
+                    date: Date(timeIntervalSince1970: record.internalDate)
                 ))
             }
         }

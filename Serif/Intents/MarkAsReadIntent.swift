@@ -10,7 +10,7 @@ struct MarkAsReadIntent: AppIntent {
 
     func perform() async throws -> some IntentResult {
         let messageId = email.id
-        // Find which account owns this message by scanning caches
+        // Find which account owns this message by scanning databases
         let accountID = await findOwnerAccount(for: messageId)
         if let accountID {
             try? await GmailMessageService.shared.markAsRead(id: messageId, accountID: accountID)
@@ -18,12 +18,13 @@ struct MarkAsReadIntent: AppIntent {
         return .result()
     }
 
-    @MainActor
     private func findOwnerAccount(for messageId: String) async -> String? {
         for account in AccountStore.shared.accounts {
-            let key = MailCacheStore.folderKey(labelIDs: ["INBOX"], query: nil)
-            let cache = await MailCacheStore.shared.loadFolderCache(accountID: account.id, folderKey: key)
-            if cache.messages.contains(where: { $0.id == messageId }) {
+            guard let db = try? MailDatabase(accountID: account.id) else { continue }
+            let exists = try? await db.dbPool.read { database in
+                try MailDatabaseQueries.messageExists(messageId, in: database)
+            }
+            if exists == true {
                 return account.id
             }
         }

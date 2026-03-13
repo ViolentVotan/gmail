@@ -1,6 +1,12 @@
 import Foundation
 import GRDB
 
+/// Legacy JSON cache envelope — kept here for migration decoding only.
+struct FolderCache: Codable, Sendable {
+    var messages: [GmailMessage]
+    var nextPageToken: String?
+}
+
 /// One-time migration from JSON file cache to GRDB database.
 /// Runs on first launch after the database layer is introduced.
 enum CacheMigration {
@@ -86,6 +92,11 @@ enum CacheMigration {
             let labelIds = Array(Set(messages.flatMap { $0.labelIds ?? [] }))
             try? await syncer.upsertMessages(messages, ensureLabels: labelIds)
         }
+    }
+
+    /// Removes the old JSON cache directory after migration is complete.
+    static func cleanupOldCache() {
+        try? FileManager.default.removeItem(at: cacheBaseDir)
     }
 
     private static func migrateTags(db: MailDatabase, accountID: String) async {

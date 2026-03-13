@@ -66,14 +66,6 @@ final class EmailDetailViewModel {
             }
         }
 
-        // Load from disk cache only if DB had no data
-        if thread == nil,
-           let cached = await MailCacheStore.shared.loadThread(accountID: accountID, threadID: id) {
-            thread = cached
-            await analyzeTrackers()
-            detectCalendarInvite()
-        }
-
         // Refresh from API
         do {
             let fresh = try await GmailMessageService.shared.getThread(id: id, accountID: accountID)
@@ -87,7 +79,6 @@ final class EmailDetailViewModel {
             if let allMessages = fresh.messages, allMessages.count > 1 {
                 await resolveInlineImagesForOlderMessages(Array(allMessages.dropLast()))
             }
-            MailCacheStore.shared.saveThread(fresh, accountID: accountID)
             // Passive attachment registration from full-format messages
             if let indexer = attachmentIndexer, let messages = fresh.messages {
                 let withAttachments = messages.filter { !$0.attachmentParts.isEmpty }

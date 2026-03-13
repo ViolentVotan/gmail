@@ -4,29 +4,18 @@ import Foundation
 @MainActor
 final class LabelSyncService {
 
-    private let cache: CacheStoring
+    init() {}
 
-    init(cache: CacheStoring = MailCacheStore.shared) {
-        self.cache = cache
-    }
-
-    /// Loads labels from disk cache first, then refreshes from the API.
+    /// Loads labels from the API.
     /// Returns the labels and an optional error message.
     func loadLabels(
         accountID: String,
         currentLabels: [GmailLabel]
     ) async -> (labels: [GmailLabel], error: String?) {
         var labels = currentLabels
-        // Load from disk cache first
-        let cached = await cache.loadLabels(accountID: accountID)
-        if !cached.isEmpty && labels.isEmpty {
-            labels = cached
-        }
-        // Refresh from API
         do {
             let fresh = try await GmailLabelService.shared.listLabels(accountID: accountID)
             labels = fresh
-            cache.saveLabels(fresh, accountID: accountID)
             return (labels, nil)
         } catch {
             if labels.isEmpty {

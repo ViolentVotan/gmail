@@ -62,7 +62,7 @@ final class AccountStore: @unchecked Sendable {
         accounts = accounts.filter { $0.id != id }
         TokenStore.shared.delete(for: id)
         AttachmentDatabase.shared.deleteByAccountID(id)
-        MailCacheStore.shared.deleteAccount(id)
+        MailDatabase.deleteDatabase(accountID: id)
         UnsubscribeService.shared.clearAccount(id)
         ContactStore.shared.deleteAccount(id)
         // Clean per-account UserDefaults

@@ -232,6 +232,7 @@ final class AppCoordinator {
             self.backgroundSyncer = BackgroundSyncer(db: db)
             if CacheMigration.needsMigration(accountID: accountID) {
                 try? await CacheMigration.migrateIfNeeded(db: db, accountID: accountID)
+                CacheMigration.cleanupOldCache()
             }
         } catch {
             print("Failed to create database for \(accountID): \(error)")
@@ -294,6 +295,7 @@ final class AppCoordinator {
             Task {
                 await setupDatabase(for: account.id)
                 mailboxViewModel.mailDatabase = self.mailDatabase
+                mailboxViewModel.backgroundSyncer = self.backgroundSyncer
                 await indexer.setProgressUpdate { [weak attachmentStore] in
                     attachmentStore?.refresh()
                 }
@@ -395,6 +397,7 @@ final class AppCoordinator {
             }
             await mailboxViewModel.switchAccount(id)
             mailboxViewModel.mailDatabase = self.mailDatabase
+            mailboxViewModel.backgroundSyncer = self.backgroundSyncer
             async let folderLoad: Void = loadCurrentFolder()
             async let labelsLoad: Void = mailboxViewModel.loadLabels()
             async let sendAsLoad: Void = mailboxViewModel.loadSendAs()
