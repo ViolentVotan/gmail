@@ -27,6 +27,48 @@ enum SerifAnimation {
     static let springGentle = Animation.spring(response: 0.4, dampingFraction: 0.9)
 }
 
+// MARK: - Typography
+
+enum Typography {
+    static let title = Font.title3.bold()
+    static let headline = Font.headline
+    static let subhead = Font.subheadline.weight(.medium)
+    static let body = Font.body
+    static let bodyMedium = Font.body.weight(.medium)
+    static let bodySemibold = Font.body.weight(.semibold)
+    static let caption = Font.caption.weight(.medium)
+    static let captionSmall = Font.caption2.weight(.semibold)
+}
+
+// MARK: - Elevation
+
+struct ElevationModifier: ViewModifier {
+    let level: ElevationLevel
+
+    enum ElevationLevel {
+        case navigation
+        case transient
+        case elevated
+    }
+
+    func body(content: Content) -> some View {
+        switch level {
+        case .navigation:
+            content.shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
+        case .transient:
+            content.shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 4)
+        case .elevated:
+            content.shadow(color: .black.opacity(0.18), radius: 20, x: 0, y: 8)
+        }
+    }
+}
+
+extension View {
+    func elevation(_ level: ElevationModifier.ElevationLevel) -> some View {
+        modifier(ElevationModifier(level: level))
+    }
+}
+
 // MARK: - Selectable Row Style
 
 struct SelectableRowStyle: ViewModifier {
@@ -57,7 +99,7 @@ struct FloatingPanelStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .glassEffect(.regular, in: .rect(cornerRadius: cornerRadius))
-            .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
+            .elevation(.transient)
     }
 }
 
@@ -66,3 +108,4 @@ extension View {
         modifier(FloatingPanelStyle(cornerRadius: cornerRadius))
     }
 }
+
