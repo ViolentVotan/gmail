@@ -110,30 +110,7 @@ struct ComposeView: View {
             .padding(.horizontal, 20)
             .padding(.top, 4)
 
-            if !attachments.isEmpty {
-                Divider()
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(attachments, id: \.self) { url in
-                            HStack(spacing: 4) {
-                                Image(systemName: url.sfSymbolIcon)
-                                    .font(Typography.captionRegular)
-                                Text(url.lastPathComponent)
-                                    .font(Typography.captionRegular)
-                                    .lineLimit(1)
-                                Button { attachments.removeAll { $0 == url } } label: {
-                                    Image(systemName: "xmark").font(.caption2.weight(.bold))
-                                }
-                                .buttonStyle(.plain)
-                            }
-                            .padding(.horizontal, 8).padding(.vertical, 4)
-                            .glassOrMaterial(in: .rect(cornerRadius: 6))
-                            .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.horizontal, 20).padding(.vertical, 8)
-                }
-            }
+            AttachmentChipRow(attachments: $attachments)
 
             Divider()
 

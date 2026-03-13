@@ -214,30 +214,7 @@ struct ReplyBarView: View {
             .padding(.top, Spacing.lg)
             .padding(.bottom, Spacing.sm)
 
-            if !attachments.isEmpty {
-                Divider().background(Color(.separatorColor))
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(attachments, id: \.self) { url in
-                            HStack(spacing: 4) {
-                                Image(systemName: url.sfSymbolIcon)
-                                    .font(Typography.captionRegular)
-                                Text(url.lastPathComponent)
-                                    .font(Typography.captionRegular)
-                                    .lineLimit(1)
-                                Button { attachments.removeAll { $0 == url } } label: {
-                                    Image(systemName: "xmark").font(.caption2.weight(.bold))
-                                }
-                                .buttonStyle(.plain)
-                            }
-                            .padding(.horizontal, Spacing.sm).padding(.vertical, Spacing.xs)
-                            .glassEffect(.regular.interactive(), in: .rect(cornerRadius: CornerRadius.sm))
-                            .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.horizontal, Spacing.lg).padding(.vertical, Spacing.sm)
-                }
-            }
+            AttachmentChipRow(attachments: $attachments)
 
             Divider().background(Color(.separatorColor))
 
