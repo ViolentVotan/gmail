@@ -233,6 +233,31 @@ final class MailboxViewModel {
     }
 
     func loadCategoryUnreadCounts() async {
+        // DB fast path: compute counts locally
+        if let db = mailDatabase {
+            do {
+                let counts = try await db.dbPool.read { database in
+                    var result: [InboxCategory: Int] = [:]
+                    for category in InboxCategory.allCases where category != .all {
+                        // Category unread = messages with both INBOX and category label that are unread
+                        let count = try Int.fetchOne(database, sql: """
+                            SELECT COUNT(*) FROM messages m
+                            JOIN message_labels ml1 ON ml1.message_id = m.gmail_id AND ml1.label_id = 'INBOX'
+                            JOIN message_labels ml2 ON ml2.message_id = m.gmail_id AND ml2.label_id = ?
+                            WHERE m.is_read = 0
+                        """, arguments: [category.rawValue]) ?? 0
+                        result[category] = count
+                    }
+                    // "All" category = total INBOX unread
+                    result[.all] = try MailDatabaseQueries.unreadCount(forLabel: "INBOX", in: database)
+                    return result
+                }
+                categoryUnreadCounts = counts
+                return
+            } catch {
+                // Fall through to API
+            }
+        }
         categoryUnreadCounts = await labelService.loadCategoryUnreadCounts(accountID: accountID)
     }
 
