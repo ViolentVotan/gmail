@@ -38,15 +38,15 @@ Gmail REST API wrappers. One service per domain:
 | `AvatarCache.swift` | Avatar image caching (uses shared `stableHash` for cache keys) |
 | `BIMIService.swift` | BIMI logo resolution via DNS-over-HTTPS |
 | `CalendarInviteParser.swift` | iCalendar (.ics) parsing for calendar invite cards |
+| `BackgroundSyncer.swift` | Actor for bulk API sync → GRDB writes (upsert messages/labels, delta sync, body pre-fetch, FTS maintenance) |
 | `ContactModels.swift` | `StoredContact`, `ContactStore` (UserDefaults), `ContactPhotoCache` (in-memory), `GoogleUserInfo` |
 | `ContentExtractor.swift` | PDF/OCR/Word/text extraction + embedding generation |
 | `CPUMonitor.swift` | Adaptive CPU throttling for background tasks |
-| `EmailClassifier.swift` | Apple Foundation Models classification — categorizes emails by priority, sentiment, category |
+| `EmailClassifier.swift` | Apple Foundation Models classification — categorizes emails by priority, sentiment, category. Persists tags to GRDB. |
 | `EmailPrintService.swift` | Print formatting via WKWebView |
 | `HistorySyncService.swift` | Delta sync via Gmail History API with label-aware filtering |
 | `LabelSyncService.swift` | Label + category unread count syncing |
-| `MailCacheStore.swift` | File-based JSON cache for messages/threads, keyed by accountID |
-| `MessageFetchService.swift` | Pagination, cache management, generation tracking for stale detection |
+| `MessageFetchService.swift` | API pagination, in-memory cache, generation tracking for stale detection |
 | `LabelSuggestionService.swift` | AI-powered Gmail label suggestions via Foundation Models |
 | `NetworkMonitor.swift` | `@MainActor` online/offline detection via NWPathMonitor |
 | `NotificationService.swift` | `UNUserNotificationCenter` push notifications with reply/archive/mark-read actions |

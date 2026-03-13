@@ -35,10 +35,17 @@ Serif/
 ├── Views/              # SwiftUI views
 ├── ViewModels/         # MVVM view models (one per feature)
 ├── Models/             # Data models
+├── Database/           # GRDB SQLite persistence (per-account)
+│   ├── Records/        # GRDB record types (MessageRecord, LabelRecord, etc.)
+│   ├── MailDatabase.swift          # DatabasePool owner, WAL config, integrity
+│   ├── MailDatabaseMigrations.swift # Schema migrations
+│   ├── MailDatabaseQueries.swift   # Centralized read queries
+│   ├── FTSManager.swift            # FTS5 full-text search maintenance
+│   └── CacheMigration.swift        # One-time JSON→GRDB migration
 ├── Services/           # Business logic & API
 │   ├── Auth/           # OAuth & token management
 │   ├── Gmail/          # Gmail REST API clients (one per domain)
-│   └── Protocols/      # Service protocols for testability
+│   └── BackgroundSyncer.swift      # Actor for bulk API sync → DB writes
 ├── Intents/            # App Intents (Shortcuts, Spotlight, Siri)
 ├── Theme/              # AppearanceManager (system/light/dark)
 ├── Resources/          # Assets, localization
@@ -46,7 +53,7 @@ Serif/
 └── Utilities/          # Helpers
 ```
 
-**Patterns:** MVVM with coordinator navigation (`AppCoordinator`, `EmailActionCoordinator`). `MailStore` handles persistence via JSON. See `.claude/rules/swift.md` for code style and architecture rules.
+**Patterns:** MVVM with coordinator navigation (`AppCoordinator`, `EmailActionCoordinator`). Per-account GRDB SQLite database (WAL mode) for email persistence; `BackgroundSyncer` actor writes, `ValueObservation` drives reactive UI. See `.claude/rules/swift.md` for code style and architecture rules.
 
 ## LSP Tool Routing
 

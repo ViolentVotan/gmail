@@ -7,8 +7,9 @@ macOS Gmail client built with Swift/SwiftUI. `NavigationSplitView` 3-column layo
 | Folder | Role |
 |--------|------|
 | `Configuration/` | App-level config (API keys, scopes) |
+| `Database/` | GRDB SQLite persistence — per-account DatabasePool, record types, migrations, FTS5 |
 | `Models/` | Data models and local stores |
-| `Services/` | Network, auth, business logic |
+| `Services/` | Network, auth, business logic, background sync |
 | `Theme/` | Appearance management (system/light/dark) |
 | `Utilities/` | Pure helper functions (no state, no side effects) |
 | `ViewModels/` | State management layer between Services and Views |
@@ -18,7 +19,7 @@ macOS Gmail client built with Swift/SwiftUI. `NavigationSplitView` 3-column layo
 ## Core Principles
 
 1. **Unidirectional data flow**: Services -> ViewModels -> Views. Views never call Services directly.
-2. **Cache-first**: Contacts, labels, mails, and threads are loaded from disk cache first, then refreshed from API.
+2. **DB-first**: Emails, labels, and threads are loaded from the local GRDB database first (instant), then refreshed from API. `BackgroundSyncer` writes API responses to DB; `ValueObservation` reactively updates the UI.
 3. **Multi-account**: All persistence is keyed by `accountID`. Never assume a single account.
 4. **Optimistic UI**: Mutations (archive, trash, star) update the UI immediately, then call the API.
 5. **Semantic colors**: Views use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`) and materials — no custom color definitions.
@@ -34,7 +35,7 @@ macOS Gmail client built with Swift/SwiftUI. `NavigationSplitView` 3-column layo
 ## Key Patterns
 
 - **Delta sync**: `HistorySyncService` uses Gmail History API for incremental folder updates. Falls back to full refresh if historyId expires (404).
-- **Stale detection**: `MailboxViewModel` verifies cached messages against Gmail on each fetch, pruning messages that were deleted or moved.
+- **Stale detection**: `MailboxViewModel` verifies database messages against Gmail on each fetch, pruning messages that were deleted or moved.
 - **Draft lifecycle**: Drafts auto-save with a 2s debounce. Quick replies persist their link (threadID -> gmailDraftID) across sessions via `MailStore.replyDrafts`.
 - **Tracker blocking**: `TrackerBlockerService` strips tracking pixels, known tracker domains, and CSS background-image trackers from email HTML.
 - **Undo system**: `UndoActionManager` queues destructive actions with a configurable countdown. Actions execute after timeout unless cancelled.

@@ -7,6 +7,7 @@ Architecture and conventions for the Serif macOS Gmail client.
 | Document | Scope |
 |----------|-------|
 | [Serif.md](Serif.md) | Architecture overview, core principles, entry points |
+| [Database.md](Database.md) | GRDB SQLite persistence — schema, records, queries, sync, FTS5 |
 | [Models.md](Models.md) | Data models and local stores |
 | [Services.md](Services.md) | Business logic, networking, API clients |
 | [ViewModels.md](ViewModels.md) | State management, coordination |
