@@ -57,7 +57,7 @@ struct AutocompleteTextField: View {
                 return .handled
             }
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, Spacing.xl)
         .padding(.vertical, 10)
         .overlay(alignment: .topLeading) {
             if showDropdown {

@@ -94,173 +94,170 @@ struct EmailDetailView: View {
                 didUnsubscribe: $didUnsubscribe
             )
 
-            ZStack(alignment: .bottom) {
-                if detailVM.isLoading && detailVM.thread == nil {
-                    EmailDetailSkeletonView()
-                } else {
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 0) {
-                            senderHeader
-                                .padding(.horizontal, 24)
-                                .padding(.top, 24)
-                                .padding(.bottom, 16)
+            if detailVM.isLoading && detailVM.thread == nil {
+                EmailDetailSkeletonView()
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        senderHeader
+                            .padding(.horizontal, Spacing.xl)
+                            .padding(.top, Spacing.xl)
+                            .padding(.bottom, Spacing.lg)
 
-                            Text(detailVM.latestMessage?.subject ?? email.subject)
-                                .font(Typography.title)
-                                .foregroundStyle(.primary)
-                                .padding(.horizontal, 24)
-                                .padding(.bottom, 10)
+                        Text(detailVM.latestMessage?.subject ?? email.subject)
+                            .font(Typography.title)
+                            .foregroundStyle(.primary)
+                            .padding(.horizontal, Spacing.xl)
+                            .padding(.bottom, Spacing.md)
 
-                            LabelEditorView(
-                                currentLabelIDs: currentLabelIDs,
-                                allLabels: allLabels,
-                                detailVM: detailVM,
-                                onAddLabel: actions.onAddLabel,
-                                onRemoveLabel: actions.onRemoveLabel,
-                                onCreateAndAddLabel: actions.onCreateAndAddLabel
-                            )
-                            .padding(.horizontal, 24)
-                            .padding(.bottom, labelSuggestions.isEmpty ? 20 : 6)
-                            .zIndex(1)
+                        LabelEditorView(
+                            currentLabelIDs: currentLabelIDs,
+                            allLabels: allLabels,
+                            detailVM: detailVM,
+                            onAddLabel: actions.onAddLabel,
+                            onRemoveLabel: actions.onRemoveLabel,
+                            onCreateAndAddLabel: actions.onCreateAndAddLabel
+                        )
+                        .padding(.horizontal, Spacing.xl)
+                        .padding(.bottom, labelSuggestions.isEmpty ? Spacing.xl : 6)
+                        .zIndex(1)
 
-                            if !labelSuggestions.isEmpty {
-                                HStack(spacing: 4) {
-                                    ForEach(labelSuggestions, id: \.name) { suggestion in
-                                        Button {
-                                            applyLabelSuggestion(suggestion)
-                                        } label: {
-                                            HStack(spacing: 3) {
-                                                Image(systemName: suggestion.isNew ? "plus.circle" : "plus")
-                                                    .font(Typography.captionSmall)
-                                                Text(suggestion.name)
-                                                    .font(Typography.captionSmallRegular)
-                                            }
-                                            .padding(.horizontal, 6)
-                                            .padding(.vertical, 3)
-                                            .background(Color.accentColor.opacity(0.08))
-                                            .foregroundStyle(Color.accentColor.opacity(0.7))
-                                            .clipShape(Capsule())
-                                        }
-                                        .buttonStyle(.plain)
-                                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
-                                    }
-                                }
-                                .padding(.horizontal, 24)
-                                .padding(.bottom, 16)
-                                .animation(.easeOut(duration: 0.25), value: labelSuggestions.map(\.name))
-                            }
-
-                            #if canImport(FoundationModels)
-                            if #available(macOS 26.0, *) {
-                                InsightCardView(email: email)
-                                    .padding(.horizontal, 24)
-                                    .padding(.bottom, 12)
-                            }
-                            #endif
-
-                            if detailVM.hasBlockedTrackers {
-                                TrackerBannerView(
-                                    trackerCount: detailVM.blockedTrackerCount,
-                                    trackers: detailVM.trackerResult?.trackers ?? [],
-                                    onAllow: { detailVM.allowBlockedContent() }
-                                )
-                                .padding(.horizontal, 24)
-                                .padding(.bottom, 12)
-                            }
-
-                            if let invite = detailVM.calendarInvite {
-                                CalendarInviteCardView(
-                                    invite: invite,
-                                    isLoading: detailVM.rsvpInProgress,
-                                    showOriginalEmail: $showOriginalInviteEmail,
-                                    onAccept:  { Task { await detailVM.sendRSVP(.accepted) } },
-                                    onDecline: { Task { await detailVM.sendRSVP(.declined) } },
-                                    onMaybe:   { Task { await detailVM.sendRSVP(.maybe) } }
-                                )
-                                .padding(.horizontal, 24)
-                                .padding(.bottom, 12)
-                            }
-
-                            // Latest message: full HTML rendering with quote stripping
-                            if detailVM.calendarInvite == nil || showOriginalInviteEmail {
-                                let rawHTML = detailVM.resolvedHTML ?? detailVM.displayHTML ?? detailVM.latestMessage?.htmlBody ?? ""
-                                let fullHTML = rawHTML.isEmpty
-                                    ? "<p>\(detailVM.latestMessage?.plainBody ?? email.body)</p>"
-                                    : rawHTML
-                                let parts = mainHTMLParts(for: fullHTML)
-                                let htmlToRender = (showQuotedMain || parts.quoted == nil) ? fullHTML : parts.original
-
-                                HTMLEmailView(html: htmlToRender, contentHeight: $emailBodyHeight, onOpenLink: actions.onOpenLink)
-                                    .frame(height: emailBodyHeight)
-                                    .padding(.horizontal, 24)
-                                    .padding(.bottom, parts.quoted != nil ? 4 : 20)
-                                    .accessibilityLabel("Email from \(email.sender.name): \(email.subject)")
-
-                                if parts.quoted != nil {
+                        if !labelSuggestions.isEmpty {
+                            HStack(spacing: 4) {
+                                ForEach(labelSuggestions, id: \.name) { suggestion in
                                     Button {
-                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                            showQuotedMain.toggle()
-                                        }
+                                        applyLabelSuggestion(suggestion)
                                     } label: {
-                                        Text(showQuotedMain ? "Hide quoted" : "···")
-                                            .font(showQuotedMain ? .caption.weight(.medium) : .callout.bold())
-                                            .foregroundStyle(.tertiary)
-                                            .padding(.horizontal, 10)
-                                            .padding(.vertical, 4)
-                                            .background(Capsule().fill(.quaternary))
+                                        HStack(spacing: 3) {
+                                            Image(systemName: suggestion.isNew ? "plus.circle" : "plus")
+                                                .font(Typography.captionSmall)
+                                            Text(suggestion.name)
+                                                .font(Typography.captionSmallRegular)
+                                        }
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 3)
+                                        .background(Color.accentColor.opacity(0.08))
+                                        .foregroundStyle(Color.accentColor.opacity(0.7))
+                                        .clipShape(Capsule())
                                     }
                                     .buttonStyle(.plain)
-                                    .padding(.horizontal, 24)
-                                    .padding(.bottom, 20)
+                                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
                                 }
                             }
+                            .padding(.horizontal, Spacing.xl)
+                            .padding(.bottom, Spacing.lg)
+                            .animation(.easeOut(duration: 0.25), value: labelSuggestions.map(\.name))
+                        }
 
-                            if !displayAttachments.isEmpty {
-                                attachmentsSection
-                                    .padding(.horizontal, 24)
-                                    .padding(.bottom, 20)
-                            }
+                        #if canImport(FoundationModels)
+                        if #available(macOS 26.0, *) {
+                            InsightCardView(email: email)
+                                .padding(.horizontal, Spacing.xl)
+                                .padding(.bottom, Spacing.md)
+                        }
+                        #endif
 
-                            // Older thread messages as chat bubbles
-                            if !olderThreadMessages.isEmpty {
-                                conversationSection
-                                    .padding(.horizontal, 24)
-                                    .padding(.bottom, 12)
+                        if detailVM.hasBlockedTrackers {
+                            TrackerBannerView(
+                                trackerCount: detailVM.blockedTrackerCount,
+                                trackers: detailVM.trackerResult?.trackers ?? [],
+                                onAllow: { detailVM.allowBlockedContent() }
+                            )
+                            .padding(.horizontal, Spacing.xl)
+                            .padding(.bottom, Spacing.md)
+                        }
+
+                        if let invite = detailVM.calendarInvite {
+                            CalendarInviteCardView(
+                                invite: invite,
+                                isLoading: detailVM.rsvpInProgress,
+                                showOriginalEmail: $showOriginalInviteEmail,
+                                onAccept:  { Task { await detailVM.sendRSVP(.accepted) } },
+                                onDecline: { Task { await detailVM.sendRSVP(.declined) } },
+                                onMaybe:   { Task { await detailVM.sendRSVP(.maybe) } }
+                            )
+                            .padding(.horizontal, Spacing.xl)
+                            .padding(.bottom, Spacing.md)
+                        }
+
+                        // Latest message: full HTML rendering with quote stripping
+                        if detailVM.calendarInvite == nil || showOriginalInviteEmail {
+                            let rawHTML = detailVM.resolvedHTML ?? detailVM.displayHTML ?? detailVM.latestMessage?.htmlBody ?? ""
+                            let fullHTML = rawHTML.isEmpty
+                                ? "<p>\(detailVM.latestMessage?.plainBody ?? email.body)</p>"
+                                : rawHTML
+                            let parts = mainHTMLParts(for: fullHTML)
+                            let htmlToRender = (showQuotedMain || parts.quoted == nil) ? fullHTML : parts.original
+
+                            HTMLEmailView(html: htmlToRender, contentHeight: $emailBodyHeight, onOpenLink: actions.onOpenLink)
+                                .frame(height: emailBodyHeight)
+                                .padding(.horizontal, Spacing.xl)
+                                .padding(.bottom, parts.quoted != nil ? Spacing.xs : Spacing.xl)
+                                .accessibilityLabel("Email from \(email.sender.name): \(email.subject)")
+
+                            if parts.quoted != nil {
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        showQuotedMain.toggle()
+                                    }
+                                } label: {
+                                    Text(showQuotedMain ? "Hide quoted" : "···")
+                                        .font(showQuotedMain ? .caption.weight(.medium) : .callout.bold())
+                                        .foregroundStyle(.tertiary)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, Spacing.xs)
+                                        .background(Capsule().fill(.quaternary))
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.horizontal, Spacing.xl)
+                                .padding(.bottom, Spacing.xl)
                             }
                         }
-                        .padding(.bottom, 72)
-                    }
-                    .task(id: email.id) {
-                        labelSuggestions = []
-                        guard aiLabelSuggestionsEnabled else { return }
-                        let suggestions = await detailVM.generateLabelSuggestions(
-                            for: email,
-                            existingLabels: allLabels
-                        )
-                        withAnimation { labelSuggestions = suggestions }
-                    }
-                    .contentTransition(.opacity)
-                    .animation(SerifAnimation.springSnappy, value: email.id)
-                }
 
-                // Floating reply bar
-                ReplyBarView(
-                    email: email,
-                    accountID: accountID,
-                    fromAddress: fromAddress,
-                    mailStore: mailStore,
-                    onOpenLink: actions.onOpenLink,
-                    onGenerateQuickReplies: { [detailVM] email in
-                        await detailVM.generateQuickReplies(for: email)
-                    },
-                    onLoadDraft: actions.onLoadDraft,
-                    smartReplySuggestions: detailVM.smartReplySuggestions
-                )
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
+                        if !displayAttachments.isEmpty {
+                            attachmentsSection
+                                .padding(.horizontal, Spacing.xl)
+                                .padding(.bottom, Spacing.xl)
+                        }
+
+                        // Older thread messages as chat bubbles
+                        if !olderThreadMessages.isEmpty {
+                            conversationSection
+                                .padding(.horizontal, Spacing.xl)
+                                .padding(.bottom, Spacing.md)
+                        }
+                    }
+                }
+                .task(id: email.id) {
+                    labelSuggestions = []
+                    guard aiLabelSuggestionsEnabled else { return }
+                    let suggestions = await detailVM.generateLabelSuggestions(
+                        for: email,
+                        existingLabels: allLabels
+                    )
+                    withAnimation { labelSuggestions = suggestions }
+                }
+                .contentTransition(.opacity)
+                .animation(SerifAnimation.springSnappy, value: email.id)
+                .safeAreaInset(edge: .bottom) {
+                    ReplyBarView(
+                        email: email,
+                        accountID: accountID,
+                        fromAddress: fromAddress,
+                        mailStore: mailStore,
+                        onOpenLink: actions.onOpenLink,
+                        onGenerateQuickReplies: { [detailVM] email in
+                            await detailVM.generateQuickReplies(for: email)
+                        },
+                        onLoadDraft: actions.onLoadDraft,
+                        smartReplySuggestions: detailVM.smartReplySuggestions
+                    )
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.bottom, Spacing.lg)
                     .task(id: email.id) {
                         detailVM.loadSmartReplies(for: email)
                     }
+                }
             }
         }
         .task(id: email.id) {

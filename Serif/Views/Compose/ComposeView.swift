@@ -77,24 +77,24 @@ struct ComposeView: View {
                 VStack(spacing: 0) {
                     if sendAsAliases.count > 1 {
                         fromField
-                        Divider().padding(.horizontal, 24)
+                        Divider().padding(.horizontal, Spacing.xl)
                     }
 
                     AutocompleteTextField(label: "To", placeholder: "Recipients", text: $to, contacts: contacts)
-                    Divider().padding(.horizontal, 24)
+                    Divider().padding(.horizontal, Spacing.xl)
 
                     if showCc {
                         AutocompleteTextField(label: "Cc", placeholder: "Cc recipients", text: $cc, contacts: contacts)
-                        Divider().padding(.horizontal, 24)
+                        Divider().padding(.horizontal, Spacing.xl)
                     }
 
                     if showBcc {
                         AutocompleteTextField(label: "Bcc", placeholder: "Bcc recipients", text: $bcc, contacts: contacts)
-                        Divider().padding(.horizontal, 24)
+                        Divider().padding(.horizontal, Spacing.xl)
                     }
 
                     composeField(label: "Subject", text: $subject, placeholder: "Subject")
-                    Divider().padding(.horizontal, 24)
+                    Divider().padding(.horizontal, Spacing.xl)
                 }
             }
             .zIndex(10)
@@ -382,7 +382,7 @@ struct ComposeView: View {
 
             Spacer()
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, Spacing.xl)
         .padding(.vertical, 10)
     }
 
@@ -432,7 +432,7 @@ struct ComposeView: View {
                 .font(Typography.body)
                 .foregroundStyle(.primary)
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, Spacing.xl)
         .padding(.vertical, 10)
     }
 }

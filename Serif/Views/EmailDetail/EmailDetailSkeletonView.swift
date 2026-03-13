@@ -18,13 +18,13 @@ struct EmailDetailSkeletonView: View {
                     Spacer()
                     bar(width: 55, height: 9)
                 }
-                .padding(.horizontal, 24)
-                .padding(.top, 24)
-                .padding(.bottom, 20)
+                .padding(.horizontal, Spacing.xl)
+                .padding(.top, Spacing.xl)
+                .padding(.bottom, Spacing.xl)
 
                 // Subject
                 bar(width: 260, height: 16)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, Spacing.xl)
                     .padding(.bottom, 28)
 
                 // Body lines
@@ -35,7 +35,7 @@ struct EmailDetailSkeletonView: View {
                     ForEach(0..<4, id: \.self) { _ in bar(height: 11) }
                     bar(width: 160, height: 11)
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, Spacing.xl)
             }
         }
         .onAppear {
