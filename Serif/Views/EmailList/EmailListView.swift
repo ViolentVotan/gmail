@@ -15,6 +15,7 @@ struct EmailListView: View {
     @State private var sortOrder: EmailSortOrder = .dateNewest
     @State private var selectionAnchorID: String?
     @State private var sortedEmails: [Email] = []
+    @State private var cachedSections: [EmailDateSection] = []
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
@@ -24,6 +25,7 @@ struct EmailListView: View {
         case .dateOldest:               sortedEmails = emails.reversed()
         case .sender:                   sortedEmails = emails.sorted { $0.sender.name.localizedCaseInsensitiveCompare($1.sender.name) == .orderedAscending }
         }
+        cachedSections = useDateSections ? Self.buildSections(from: sortedEmails) : []
     }
 
     var body: some View {
@@ -107,10 +109,12 @@ struct EmailListView: View {
                     Button { sortOrder = .unreadFirst } label: { Label("Unread first",   systemImage: sortOrder == .unreadFirst ? "checkmark" : "") }
                 } label: {
                     HStack(spacing: 4) {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .font(Typography.captionRegular)
                         Text(sortOrder.label)
                             .font(Typography.subheadRegular)
                         Image(systemName: "chevron.down")
-                            .font(Typography.captionSmallRegular)
+                            .font(Typography.captionRegular)
                     }
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, Spacing.md)
@@ -145,54 +149,141 @@ struct EmailListView: View {
         }
     }
 
+    // MARK: - Date grouping
+
+    private var useDateSections: Bool {
+        sortOrder == .dateNewest || sortOrder == .dateOldest
+    }
+
+    private static let monthYearFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMMM yyyy"
+        return f
+    }()
+
+    private static func buildSections(from emails: [Email]) -> [EmailDateSection] {
+        var sections: [EmailDateSection] = []
+        var currentTitle = ""
+        var currentEmails: [Email] = []
+        let calendar = Calendar.current
+        let now = Date()
+        let thisWeekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start
+        let lastWeekStart: Date? = {
+            guard let thisWeekStart else { return nil }
+            return calendar.date(byAdding: .day, value: -7, to: thisWeekStart)
+        }()
+
+        for email in emails {
+            let title = dateGroupTitle(for: email.date, calendar: calendar, now: now, thisWeekStart: thisWeekStart, lastWeekStart: lastWeekStart)
+            if title != currentTitle {
+                if !currentEmails.isEmpty {
+                    sections.append(EmailDateSection(title: currentTitle, emails: currentEmails))
+                }
+                currentTitle = title
+                currentEmails = [email]
+            } else {
+                currentEmails.append(email)
+            }
+        }
+        if !currentEmails.isEmpty {
+            sections.append(EmailDateSection(title: currentTitle, emails: currentEmails))
+        }
+        return sections
+    }
+
+    private static func dateGroupTitle(
+        for date: Date,
+        calendar: Calendar,
+        now: Date,
+        thisWeekStart: Date?,
+        lastWeekStart: Date?
+    ) -> String {
+        if calendar.isDateInToday(date) { return "Today" }
+        if calendar.isDateInYesterday(date) { return "Yesterday" }
+
+        if let thisWeekStart, date >= thisWeekStart {
+            return "This Week"
+        }
+
+        if let lastWeekStart, date >= lastWeekStart {
+            return "Last Week"
+        }
+
+        return monthYearFormatter.string(from: date)
+    }
+
+    // MARK: - Email row builder
+
+    @ViewBuilder
+    private func emailRow(for email: Email) -> some View {
+        EmailRowView(
+            email: email,
+            isSelected: selectedEmailIDs.contains(email.id.uuidString),
+            accountID: accountID,
+            action: { handleTap(email: email) }
+        )
+        .tag(email.id.uuidString)
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            if selectedFolder != .archive {
+                Button {
+                    actions.onArchive?(email)
+                } label: {
+                    Label("Archive", systemImage: "archivebox")
+                }
+                .tint(.gray)
+            }
+        }
+        .swipeActions(edge: .leading, allowsFullSwipe: true) {
+            if selectedFolder != .trash {
+                Button(role: .destructive) {
+                    actions.onDelete?(email)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+        }
+        .contextMenu {
+            EmailContextMenu(
+                email: email,
+                selectedFolder: selectedFolder,
+                onArchive: actions.onArchive,
+                onDelete: actions.onDelete,
+                onToggleStar: actions.onToggleStar,
+                onMarkUnread: actions.onMarkUnread,
+                onMarkSpam: actions.onMarkSpam,
+                onUnsubscribe: actions.onUnsubscribe,
+                onMoveToInbox: actions.onMoveToInbox,
+                onDeletePermanently: actions.onDeletePermanently,
+                onMarkNotSpam: actions.onMarkNotSpam,
+                onSnooze: actions.onSnooze,
+                onCreateFilter: nil,
+                onReply: actions.onReply,
+                onReplyAll: actions.onReplyAll,
+                onForward: actions.onForward
+            )
+        }
+    }
+
+    // MARK: - Scroll view
+
     private var emailScrollView: some View {
         List(selection: $selectedEmailIDs) {
-            ForEach(sortedEmails) { email in
-                EmailRowView(
-                    email: email,
-                    isSelected: selectedEmailIDs.contains(email.id.uuidString),
-                    accountID: accountID,
-                    action: { handleTap(email: email) }
-                )
-                .tag(email.id.uuidString)
-                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                    if selectedFolder != .archive {
-                        Button {
-                            actions.onArchive?(email)
-                        } label: {
-                            Label("Archive", systemImage: "archivebox")
+            if useDateSections {
+                ForEach(cachedSections) { section in
+                    Section {
+                        ForEach(section.emails) { email in
+                            emailRow(for: email)
                         }
-                        .tint(.gray)
+                    } header: {
+                        Text(section.title)
+                            .font(Typography.captionSemibold)
+                            .foregroundStyle(.tertiary)
+                            .textCase(nil)
                     }
                 }
-                .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                    if selectedFolder != .trash {
-                        Button(role: .destructive) {
-                            actions.onDelete?(email)
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
-                }
-                .contextMenu {
-                    EmailContextMenu(
-                        email: email,
-                        selectedFolder: selectedFolder,
-                        onArchive: actions.onArchive,
-                        onDelete: actions.onDelete,
-                        onToggleStar: actions.onToggleStar,
-                        onMarkUnread: actions.onMarkUnread,
-                        onMarkSpam: actions.onMarkSpam,
-                        onUnsubscribe: actions.onUnsubscribe,
-                        onMoveToInbox: actions.onMoveToInbox,
-                        onDeletePermanently: actions.onDeletePermanently,
-                        onMarkNotSpam: actions.onMarkNotSpam,
-                        onSnooze: actions.onSnooze,
-                        onCreateFilter: nil,
-                        onReply: actions.onReply,
-                        onReplyAll: actions.onReplyAll,
-                        onForward: actions.onForward
-                    )
+            } else {
+                ForEach(sortedEmails) { email in
+                    emailRow(for: email)
                 }
             }
 
@@ -335,6 +426,14 @@ enum EmailSortOrder {
         case .unreadFirst: return "Unread"
         }
     }
+}
+
+// MARK: - Date Section
+
+private struct EmailDateSection: Identifiable {
+    let title: String
+    let emails: [Email]
+    var id: String { title }
 }
 
 // MARK: - Skeleton Row

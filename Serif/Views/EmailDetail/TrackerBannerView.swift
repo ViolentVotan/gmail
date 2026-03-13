@@ -9,13 +9,13 @@ struct TrackerBannerView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Image(systemName: "eye.slash.fill")
-                    .font(Typography.body)
+                    .font(Typography.caption)
                     .foregroundStyle(.tint)
 
                 Text("\(trackerCount) tracker\(trackerCount > 1 ? "s" : "") blocked")
-                    .font(Typography.subhead)
+                    .font(Typography.caption)
                     .foregroundStyle(.primary)
 
                 Button {
@@ -24,7 +24,7 @@ struct TrackerBannerView: View {
                     }
                 } label: {
                     Text(showDetails ? "Hide details" : "Show details")
-                        .font(Typography.caption)
+                        .font(Typography.captionSmallMedium)
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
@@ -35,50 +35,47 @@ struct TrackerBannerView: View {
                     onAllow()
                 } label: {
                     Text("Load blocked content")
-                        .font(Typography.caption)
+                        .font(Typography.captionSmallMedium)
                         .foregroundStyle(.tint)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
                         .background(Color.accentColor.opacity(0.12))
-                        .clipShape(.rect(cornerRadius: CornerRadius.sm))
+                        .clipShape(.rect(cornerRadius: CornerRadius.xs))
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
 
             if showDetails {
                 Divider()
-                    .padding(.horizontal, 14)
+                    .padding(.top, 8)
 
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 4) {
                     ForEach(groupedTrackers, id: \.name) { group in
-                        HStack(spacing: 8) {
+                        HStack(spacing: 6) {
                             Image(systemName: group.icon)
-                                .font(.system(size: 10))
+                                .font(.system(size: 9))
                                 .foregroundStyle(.tertiary)
-                                .frame(width: 14)
+                                .frame(width: 12)
                             Text(group.name)
-                                .font(Typography.caption)
+                                .font(Typography.captionSmallMedium)
                                 .foregroundStyle(.primary)
                             if group.count > 1 {
                                 Text("×\(group.count)")
-                                    .font(.system(size: 10, weight: .medium))
+                                    .font(.system(size: 9, weight: .medium))
                                     .foregroundStyle(.tertiary)
                             }
                             Spacer()
                             Text(group.kindLabel)
-                                .font(.system(size: 10))
+                                .font(.system(size: 9))
                                 .foregroundStyle(.tertiary)
                         }
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .padding(.top, 8)
+                .transition(.opacity)
             }
         }
-        .cardStyle()
+        .compactCardStyle()
         .accessibilityLabel("Blocked \(trackerCount) trackers")
     }
 

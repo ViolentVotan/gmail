@@ -22,7 +22,7 @@ struct ContentView: View {
         withLifecycle(
             mainLayout
                 .preferredColorScheme(appearanceManager.colorScheme)
-                .frame(minWidth: 900, minHeight: 600)
+                .frame(minWidth: 960, minHeight: 600)
                 .focusedSceneValue(\.appCoordinator, coordinator)
                 .focusedSceneValue(\.commandPalette, commandPalette)
                 .toolbar { toolbarContent }

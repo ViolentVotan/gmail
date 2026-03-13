@@ -51,7 +51,7 @@ private struct SmartReplyChipBackground: ViewModifier {
             content.glassEffect(.regular.interactive(), in: .capsule)
         } else {
             content
-                .background(.quinary)
+                .background(Color.accentColor.opacity(0.1))
                 .clipShape(Capsule())
         }
     }

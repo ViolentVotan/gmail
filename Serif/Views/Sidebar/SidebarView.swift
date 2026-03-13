@@ -192,7 +192,7 @@ struct SidebarView: View {
             } icon: {
                 Circle()
                     .fill(Color(hex: label.color?.backgroundColor ?? "#888888"))
-                    .frame(width: 8, height: 8)
+                    .frame(width: 10, height: 10)
                     .frame(width: 20)
             }
         }

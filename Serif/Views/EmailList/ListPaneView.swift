@@ -64,7 +64,7 @@ struct ListPaneView: View {
             }
             emailList
         }
-        .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 400)
+        .navigationSplitViewColumnWidth(min: 350, ideal: 380, max: 500)
         .navigationTitle(navigationTitleText)
         .onChange(of: selectedCategory) { _, newCategory in
             coordinator.selectedInboxCategory = newCategory

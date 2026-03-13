@@ -59,7 +59,7 @@ struct InsightCardView: View {
                         }
                     }
                 }
-                .cardStyle()
+                .compactCardStyle()
                 .accessibilityElement(children: .combine)
                 .transition(.opacity.combined(with: .scale(scale: 0.97)))
             }

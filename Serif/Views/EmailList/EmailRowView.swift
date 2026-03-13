@@ -23,8 +23,50 @@ struct EmailRowView: View {
         case "blue": return .blue
         case "red": return .red
         case "green": return .green
+        case "gray": return .secondary
         default: return .secondary
         }
+    }
+
+    private enum BadgeItem: Identifiable {
+        case label(EmailLabel)
+        case tag(label: String, color: String)
+
+        var id: String {
+            switch self {
+            case .label(let l): return "l-\(l.id)"
+            case .tag(let label, _): return "t-\(label)"
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func badgeView(_ badge: BadgeItem) -> some View {
+        switch badge {
+        case .label(let label):
+            LabelChipView(label: label)
+        case .tag(let label, let color):
+            Text(label)
+                .font(Typography.microTag)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1)
+                .background(tagColor(color).opacity(0.15))
+                .foregroundStyle(tagColor(color))
+                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.xs))
+        }
+    }
+
+    private var combinedBadges: [BadgeItem] {
+        var badges: [BadgeItem] = []
+        for label in email.labels {
+            badges.append(.label(label))
+        }
+        if let tags = EmailClassifier.shared.cachedTags(for: email.gmailMessageID ?? "") {
+            for tag in tags.activeTags {
+                badges.append(.tag(label: tag.label, color: tag.color))
+            }
+        }
+        return badges
     }
 
     private static let isAppleIntelligenceAvailable: Bool = {
@@ -37,6 +79,7 @@ struct EmailRowView: View {
     }()
 
     var body: some View {
+        let badges = combinedBadges
         Button(action: action) {
             HStack(spacing: 12) {
                 // Unread indicator
@@ -78,7 +121,7 @@ struct EmailRowView: View {
                     }
 
                     Text(email.subject)
-                        .font(.subheadline.weight(email.isRead ? .regular : .medium))
+                        .font(Typography.subheadRegular)
                         .foregroundStyle(email.isRead ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                         .lineLimit(1)
 
@@ -93,33 +136,18 @@ struct EmailRowView: View {
                             .foregroundStyle(.orange)
                     }
 
-                    if !email.labels.isEmpty {
+                    if !badges.isEmpty {
                         HStack(spacing: 4) {
-                            ForEach(email.labels.prefix(3)) { label in
-                                LabelChipView(label: label)
+                            ForEach(badges.prefix(2)) { badge in
+                                badgeView(badge)
                             }
-                            if email.labels.count > 3 {
-                                Text("+\(email.labels.count - 3)")
+                            if badges.count > 2 {
+                                Text("+\(badges.count - 2)")
                                     .font(Typography.captionSmallMedium)
                                     .foregroundStyle(.tertiary)
                                     .padding(.horizontal, 5)
                                     .padding(.vertical, 2)
                                     .background(Capsule().fill(.fill.quaternary))
-                            }
-                        }
-                        .padding(.top, 2)
-                    }
-
-                    if let tags = EmailClassifier.shared.cachedTags(for: email.gmailMessageID ?? "") {
-                        HStack(spacing: 4) {
-                            ForEach(tags.activeTags, id: \.label) { tag in
-                                Text(tag.label)
-                                    .font(Typography.microTag)
-                                    .padding(.horizontal, 4)
-                                    .padding(.vertical, 1)
-                                    .background(tagColor(tag.color).opacity(0.15))
-                                    .foregroundStyle(tagColor(tag.color))
-                                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.xs))
                             }
                         }
                     }

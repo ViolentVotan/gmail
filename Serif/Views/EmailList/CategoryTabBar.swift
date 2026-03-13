@@ -50,9 +50,9 @@ struct CategoryTabBar: View {
 
                 if let count = unreadCounts[category], count > 0 {
                     Text("\(count)")
-                        .font(Typography.captionSmallMedium)
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
+                        .font(Typography.caption)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
                         .background(isSelected ? Color.accentColor : .secondary.opacity(0.2))
                         .foregroundStyle(isSelected ? .white : .secondary)
                         .clipShape(Capsule())

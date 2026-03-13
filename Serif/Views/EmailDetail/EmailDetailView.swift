@@ -89,7 +89,7 @@ struct EmailDetailView: View {
                         senderHeader
                             .padding(.horizontal, Spacing.xl)
                             .padding(.top, Spacing.xl)
-                            .padding(.bottom, Spacing.lg)
+                            .padding(.bottom, Spacing.md)
 
                         HStack(alignment: .top) {
                             Text(detailVM.latestMessage?.subject ?? email.subject)
@@ -130,7 +130,7 @@ struct EmailDetailView: View {
                             .help("Message options")
                         }
                         .padding(.horizontal, Spacing.xl)
-                        .padding(.bottom, Spacing.md)
+                        .padding(.bottom, Spacing.sm)
 
                         LabelEditorView(
                             currentLabelIDs: currentLabelIDs,
@@ -141,7 +141,7 @@ struct EmailDetailView: View {
                             onCreateAndAddLabel: actions.onCreateAndAddLabel
                         )
                         .padding(.horizontal, Spacing.xl)
-                        .padding(.bottom, labelSuggestions.isEmpty ? Spacing.xl : 6)
+                        .padding(.bottom, labelSuggestions.isEmpty ? Spacing.lg : 6)
                         .zIndex(1)
 
                         if !labelSuggestions.isEmpty {
