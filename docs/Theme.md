@@ -32,8 +32,9 @@ The UI follows a three-plane model:
 
 | Token | Values |
 |-------|--------|
-| `Spacing` | `xs` (4), `sm` (8), `md` (12), `lg` (16), `xl` (24), `xxl` (32) |
+| `Spacing` | `xs` (4), `sm` (8), `md` (12), `lg` (16), `xl` (24), `xxl` (32), `xxxl` (48) |
 | `CornerRadius` | `sm` (6), `md` (12), `lg` (16) |
+| `ButtonSize` | `sm` (26), `md` (28), `lg` (30) |
 | `SerifAnimation` | `springDefault`, `springSnappy`, `springGentle` |
 | `Typography` | `titleLarge`, `title`, `titleSemibold`, `headline`, `headlineSemibold`, `subhead`, `subheadRegular`, `subheadSemibold`, `body`, `bodyMedium`, `bodySemibold`, `callout`, `calloutMedium`, `calloutSemibold`, `footnote`, `footnoteMedium`, `caption`, `captionRegular`, `captionSemibold`, `captionSmall`, `captionSmallMedium`, `captionSmallRegular` |
 
@@ -46,6 +47,13 @@ The UI follows a three-plane model:
 | `.floatingPanelStyle()` | Liquid Glass + transient elevation for floating surfaces |
 | `.glassOrMaterial(in:interactive:)` | Liquid Glass on macOS 26+ with `.regularMaterial` fallback |
 | `.transientGlass()` | Glass + transient elevation for toast cards (macOS 26+ / material fallback) |
+| `.destructiveActionStyle()` | Red text on red 10% opacity background in rounded rect — for destructive folder actions |
+
+**Shared components** (also in `DesignTokens.swift`):
+
+| Component | Purpose |
+|-----------|---------|
+| `ToolbarIconButton` | Standardised icon button with optional `.glass` or `.plain` style, `help` tooltip, and `ButtonSize` token |
 
 ## Migration
 

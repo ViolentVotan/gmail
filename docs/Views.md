@@ -9,7 +9,7 @@ SwiftUI views. UI presentation only — no business logic.
   - Perform data transformations beyond simple formatting
   - Contain persistence logic
 - **No hardcoded colors.** Use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`, `Color.accentColor`). Use `.cardStyle()` for Base-plane content cards, `.glassEffect(.regular)` for Navigation-plane surfaces, and `.floatingPanelStyle()` for Transient-plane overlays. Use `Spacing`, `CornerRadius`, `Typography`, and `SerifAnimation` tokens from `DesignTokens.swift`.
-- **Callbacks over direct ViewModel access.** Views receive `onDelete`, `onArchive`, etc. as closures. Only top-level views (ContentView) wire these to ViewModels.
+- **Action structs over individual closures.** Views receive callbacks via action structs (`EmailListActions`, `EmailDetailActions`) rather than dozens of individual closure parameters. Only top-level views (ListPaneView, DetailPaneView) construct these structs and wire them to ViewModels/coordinators.
 - **Small, composable views.** Extract reusable components into `Common/`. One concern per file.
 - **Animations belong in views**, not in ViewModels or Services.
 - **Property wrappers**: `@State` for owning `@Observable` objects (not `@StateObject`). `@Bindable` for write access to bindings on `@Observable` objects (not `@ObservedObject`). `@Environment` with `@Entry` macro for custom environment keys.
@@ -71,6 +71,8 @@ Shared reusable components:
 | `ShortcutsHelpView` | Keyboard shortcuts reference |
 | `AccountsSettingsView` | Account management settings |
 | `SerifCommands` | macOS menu bar commands (File, Edit, View custom menus) |
+| `AttachmentChipRow` | Reusable horizontal attachment chip list (used in ComposeView and ReplyBarView) |
+| `SlidePanelsOverlay` | Overlay container for slide panels (help, debug, original message, attachment preview, email preview, web browser) |
 
 ### `Components/`
 Shared styled components:

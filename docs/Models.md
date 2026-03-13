@@ -23,3 +23,5 @@ Pure data structures and local persistence stores.
 | `IndexedAttachment.swift` | Indexed attachment model for the attachment vault |
 | `MailStore.swift` | `@Observable @MainActor` local draft store, Gmail draft sync, reply draft persistence (`ReplyDraftInfo`) |
 | `OfflineAction.swift` | Queued mutation model for offline actions (archive, trash) with account + message IDs |
+| `EmailListActions.swift` | Action struct consolidating 23 email list callbacks (archive, delete, star, bulk ops, etc.) |
+| `EmailDetailActions.swift` | Action struct consolidating 24 email detail callbacks (mutations, compose, labels, content) |
