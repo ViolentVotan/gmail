@@ -13,6 +13,7 @@ struct ContentView: View {
     }
 
     @FocusState private var appFocus: AppFocus?
+    @Namespace private var commandPaletteNamespace
 
     // MARK: - Body
 
@@ -167,6 +168,7 @@ struct ContentView: View {
                     .zIndex(10)
 
                 CommandPaletteView(viewModel: commandPalette)
+                    .matchedGeometryEffect(id: "commandPalette", in: commandPaletteNamespace)
                     .zIndex(11)
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }

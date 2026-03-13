@@ -29,6 +29,7 @@ struct ReplyBarView: View {
     @State private var replyBcc = ""
     @State private var showCc = false
     @State private var showBcc = false
+    @Namespace private var replyBarNamespace
     init(
         email: Email,
         accountID: String,
@@ -151,6 +152,7 @@ struct ReplyBarView: View {
             .padding(.horizontal, Spacing.lg)
             .padding(.vertical, Spacing.lg)
             .contentShape(Rectangle())
+            .matchedGeometryEffect(id: "replyBar", in: replyBarNamespace)
         }
         .buttonStyle(.plain)
     }
@@ -299,6 +301,7 @@ struct ReplyBarView: View {
             .padding(.horizontal, Spacing.lg)
             .padding(.vertical, Spacing.md)
         }
+        .matchedGeometryEffect(id: "replyBar", in: replyBarNamespace)
     }
 
     // MARK: - Apple Intelligence Colors
