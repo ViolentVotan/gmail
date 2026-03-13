@@ -8,6 +8,7 @@ struct ListPaneView: View {
     @Binding var selectedEmail: Email?
     @Binding var selectedEmailIDs: Set<String>
     @Binding var searchFocusTrigger: Bool
+    var selectedLabel: GmailLabel?
 
     let coordinator: AppCoordinator
 
@@ -18,6 +19,13 @@ struct ListPaneView: View {
 
     private var actionCoordinator: EmailActionCoordinator { coordinator.actionCoordinator }
     private var mailboxViewModel: MailboxViewModel { coordinator.mailboxViewModel }
+
+    private var navigationTitleText: String {
+        if selectedFolder == .labels {
+            return selectedLabel?.name ?? "Labels"
+        }
+        return selectedFolder.rawValue
+    }
 
     private var selectedEmails: [Email] {
         emails.filter { selectedEmailIDs.contains($0.id.uuidString) }
@@ -57,6 +65,7 @@ struct ListPaneView: View {
             emailList
         }
         .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 400)
+        .navigationTitle(navigationTitleText)
         .onChange(of: selectedCategory) { _, newCategory in
             coordinator.selectedInboxCategory = newCategory
         }

@@ -78,6 +78,7 @@ struct ContentView: View {
                             )
                         }
                     )
+                    .navigationTitle("Attachments")
                 } else {
                     ListPaneView(
                         emails: coordinator.displayedEmails,
@@ -87,6 +88,7 @@ struct ContentView: View {
                         selectedEmail: $coordinator.selectedEmail,
                         selectedEmailIDs: $coordinator.selectedEmailIDs,
                         searchFocusTrigger: $coordinator.searchFocusTrigger,
+                        selectedLabel: coordinator.selectedLabel,
                         coordinator: coordinator
                     )
                     .focused($appFocus, equals: .list)
