@@ -12,7 +12,7 @@ The current thread view uses a split display model: the latest message gets full
 
 ## Solution
 
-Replace the entire thread display with a **unified chronological list of collapsible message cards**. The most recent message is expanded by default; all others are collapsed. Users can expand/collapse any card by clicking its header. Multiple cards can be open simultaneously, with a "Collapse All" action to reset.
+Replace the entire thread display with a **unified chronological list of collapsible message cards**. The most recent message is expanded by default; all others are collapsed. Users can expand/collapse any card by clicking its header. Multiple cards can be open simultaneously, with a "Collapse Others" action to reset.
 
 ## Design Decisions
 
@@ -20,7 +20,7 @@ Replace the entire thread display with a **unified chronological list of collaps
 |----------|--------|-----------|
 | Card architecture | Unified — all messages use the same card component | Eliminates the hero/bubble split; consistent, maintainable |
 | Message order | Chronological (oldest first, newest last) | Matches natural reading order; Gmail web, Superhuman, Spark precedent |
-| Expansion behavior | Multi-open with "Collapse All" | Flexible for comparing messages; escape hatch when thread gets unwieldy |
+| Expansion behavior | Multi-open with "Collapse Others" | Flexible for comparing messages; escape hatch when thread gets unwieldy |
 | Liquid Glass on cards | No | Apple HIG: "Don't use Liquid Glass in the content layer" |
 | Chat bubbles | Removed | Email is not instant messaging; bubbles waste horizontal space and look informal |
 | WebView instantiation | Only for expanded cards | Collapsed cards use plain-text snippet; major performance improvement |
@@ -40,7 +40,7 @@ ScrollViewReader { proxy in
             Calendar invite card (if detected)
 
             // Conversation header (NEW)
-            "N messages" label + "Collapse All" button
+            "N messages" label + "Collapse Others" button
 
             // Conversation cards (NEW)
             LazyVStack(spacing: 1) {
@@ -63,9 +63,14 @@ ScrollViewReader { proxy in
 - **Removed:** Large sender header (40pt avatar + name + email + date) at top level — each card now has its own compact header
 - **Removed:** Separate hero rendering of latest message body
 - **Removed:** `conversationSection` with chat bubbles
-- **Added:** Conversation header row with message count and "Collapse All"
+- **Removed:** `showSenderInfo` and `senderAvatarSize` state variables (dead state after header removal)
+- **Added:** Conversation header row with message count and "Collapse Others"
 - **Added:** Unified `LazyVStack` of `ThreadMessageCardView` cards
 - **Kept:** Subject, labels, insights, tracker banner, calendar invite, reply bar — all unchanged
+
+### Sender info popover
+
+The current sender header shows a `SenderInfoPopover` on hover over the sender email. In the new card design, this popover is available on the **expanded card's recipients line** — hovering/clicking the sender email address in the expanded header triggers the same `SenderInfoPopover(message:email:)`. Collapsed cards do not show the popover.
 
 ## ThreadMessageCardView
 
@@ -81,7 +86,7 @@ ScrollViewReader { proxy in
 |---------|------|
 | Avatar | 24pt, existing `AvatarView` |
 | Sender name | `Typography.calloutSemibold`, `.primary`. Shows "Me" for sent messages |
-| Snippet | `message.snippet` (Gmail API plain text), `Typography.callout`, `.secondary`, `.lineLimit(1)` |
+| Snippet | `message.snippet` (Gmail API plain text), `Typography.callout`, `.secondary`, `.lineLimit(1)`. Fallback if nil: `message.plainBody?.prefix(100)` or empty string |
 | Timestamp | `date.formattedRelative`, `Typography.captionRegular`, `.tertiary` |
 | Sent-by-me | 2pt accent-colored leading border via `.overlay(Rectangle().frame(width: 2).foregroundStyle(.accent), alignment: .leading)` |
 | Hover | `.quaternary` fill background |
@@ -137,16 +142,14 @@ Initialized with the latest message ID on thread load.
 
 ### Animation
 
-- Toggle wrapped in `withAnimation(SerifAnimation.springSnappy)` (0.3s response, 0.8 damping)
-- Content clips with `.clipped()` during animation
-- Expanded card body fades in with 0.15s opacity transition after card finishes expanding (hides WKWebView height measurement delay)
-- Collapse is instant clip (no fade-out — feels snappier)
+- **Expand:** Toggle wrapped in `withAnimation(SerifAnimation.springSnappy)` (0.3s response, 0.8 damping). Content clips with `.clipped()` during animation. The HTML body fades in with a separate `.animation(.easeIn(duration: 0.15), value: isExpanded)` on the body container — this runs after the spring settles and hides the WKWebView height measurement delay.
+- **Collapse:** Use `.transaction { $0.animation = nil }` on the body content to make collapse instant (no fade-out — feels snappier). The card height still animates via the parent spring.
 
-### Collapse All
+### Collapse Others
 
-- Appears in conversation header row: "N messages" label left, "Collapse All" button right
+- Appears in conversation header row: "N messages" label left, "Collapse Others" button right
 - Only visible when 2+ cards are expanded
-- Resets `expandedMessageIDs` to `{latestMessageID}`
+- Resets `expandedMessageIDs` to `{latestMessageID}` (keeps latest expanded, collapses all others)
 - Animated with `SerifAnimation.springSnappy`
 
 ### Auto-scroll
@@ -158,25 +161,49 @@ Initialized with the latest message ID on thread load.
 
 ### EmailDetailViewModel
 
-- **Add:** `allMessagesChronological: [GmailMessage]` — all messages sorted by `internalDate` ascending
+- **Add:** `allMessagesChronological: [GmailMessage]` — uses the Gmail API's native array order (already chronological ascending). No sort needed; the API guarantees ordering by `internalDate`.
 - **Remove:** `olderThreadMessages` computed property (no longer needed)
-- **Keep:** `resolvedMessageHTML: [String: String]` — already keyed by message ID, works as-is
-- **Keep:** `latestMessage` — still needed for thread metadata (subject, labels, etc.)
-- **Keep:** Inline image resolution — already per-message via `resolveInlineImagesForOlderMessages`
+- **Remove:** `resolvedHTML: String?` (the single-message property for latest)
+- **Modify:** `resolvedMessageHTML: [String: String]` — now stores resolved HTML for ALL messages including the latest. The existing `resolveInlineImages(for:)` method is updated to write to `resolvedMessageHTML[message.id]` instead of the separate `resolvedHTML` property.
+- **Modify:** `loadAndPreview` and `downloadAndSave` methods — accept a `messageID: String` parameter instead of hardcoding to `latestMessage`
+- **Keep:** `latestMessage` — still needed for thread metadata (subject, labels, etc.) and for initializing `expandedMessageIDs`
+- **Keep:** `resolveInlineImagesForOlderMessages` — already writes to the per-message dict
 
 ### ThreadMessageCardView inputs
 
 ```swift
 struct ThreadMessageCardView: View {
     let message: GmailMessage
-    @Binding var isExpanded: Bool
+    let isExpanded: Bool          // plain value, not Binding
     let fromAddress: String
     var resolvedHTML: String?
+    var onToggle: () -> Void      // callback to toggle expansion
     var onOpenLink: ((URL) -> Void)?
     var attachmentPairs: [(Attachment, GmailMessagePart?)]
     var onPreviewAttachment: ((Attachment, GmailMessagePart) -> Void)?
     var onDownloadAttachment: ((Attachment, GmailMessagePart) -> Void)?
 }
+```
+
+The card receives `isExpanded` as a plain `Bool` and calls `onToggle` when the header is tapped. The parent (`EmailDetailView`) manages the `expandedMessageIDs: Set<String>` and passes the derived state down:
+
+```swift
+ThreadMessageCardView(
+    message: message,
+    isExpanded: expandedMessageIDs.contains(message.id),
+    fromAddress: fromAddress,
+    resolvedHTML: detailVM.resolvedMessageHTML[message.id],
+    onToggle: {
+        withAnimation(SerifAnimation.springSnappy) {
+            if expandedMessageIDs.contains(message.id) {
+                expandedMessageIDs.remove(message.id)
+            } else {
+                expandedMessageIDs.insert(message.id)
+            }
+        }
+    },
+    // ... other closures
+)
 ```
 
 ## Files Changed
@@ -185,7 +212,7 @@ struct ThreadMessageCardView: View {
 |------|--------|---------|
 | `Views/EmailDetail/ThreadMessageCardView.swift` | Create | New collapsible card component |
 | `Views/EmailDetail/EmailDetailView.swift` | Modify | Replace hero+bubbles with unified card list, add `expandedMessageIDs`, add conversation header with Collapse All |
-| `ViewModels/EmailDetailViewModel.swift` | Modify | Add `allMessagesChronological`, remove `olderThreadMessages` |
+| `ViewModels/EmailDetailViewModel.swift` | Modify | Add `allMessagesChronological`, remove `olderThreadMessages`, unify `resolvedHTML` into `resolvedMessageHTML`, add `messageID` param to attachment methods |
 | `Views/EmailDetail/GmailThreadMessageView.swift` | Modify | Remove `ChatBubbleShape` and the view body; keep `stripQuotedHTML` as static utility |
 
 ### Not changed
