@@ -18,7 +18,7 @@ The UI follows a three-plane model:
 | Plane | Material | Use |
 |-------|----------|-----|
 | **Base** | Solid/opaque (`.quinary` + `.separator` stroke via `CardStyle`) | Content cards, email body, settings cards |
-| **Navigation** | `.glassEffect(.regular)` | Toolbar capsules, category tabs, bulk action bars |
+| **Navigation** | `.glassEffect(.regular)` | Category tabs, bulk action bars, smart reply chips |
 | **Transient** | `.glassEffect(.regular)` + `.elevation(.transient)` via `floatingPanelStyle()` | Toasts, popovers, slide panels |
 
 ## Files
