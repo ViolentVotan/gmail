@@ -10,17 +10,20 @@ final class EmailDetailViewModel {
     var error:           String?
     var trackerResult:   TrackerResult?
     var allowTrackers    = false
-    var resolvedHTML:    String?
     /// Resolved inline-image HTML for each thread message (keyed by message ID).
     var resolvedMessageHTML: [String: String] = [:]
     var calendarInvite:  CalendarInvite?
     var rsvpInProgress   = false
 
-    /// HTML to render: sanitized (trackers stripped) or original when user allows.
-    var displayHTML: String? {
+    /// Tracker-sanitized HTML for the latest message, or nil if no tracker analysis ran.
+    var trackerSanitizedHTML: String? {
         guard let result = trackerResult else { return nil }
         return allowTrackers ? result.originalHTML : result.sanitizedHTML
     }
+
+    /// Compatibility shim — will be removed in Task 4.
+    var resolvedHTML: String? { latestMessage.flatMap { resolvedMessageHTML[$0.id] } }
+    var displayHTML: String? { trackerSanitizedHTML }
 
     var blockedTrackerCount: Int { trackerResult?.trackerCount ?? 0 }
     var hasBlockedTrackers: Bool { !allowTrackers && (trackerResult?.hasTrackers ?? false) }
@@ -49,7 +52,7 @@ final class EmailDetailViewModel {
         allowTrackers = false
         defer { isLoading = false }
 
-        resolvedHTML = nil
+        resolvedMessageHTML.removeAll()
 
         // DB fast path: load thread from local database (instant)
         if let db = mailDatabase {
@@ -197,12 +200,10 @@ final class EmailDetailViewModel {
 
     /// Downloads inline CID images and replaces cid: references with data: URIs in the HTML.
     private func resolveInlineImages(for message: GmailMessage) async {
-        guard !message.inlineParts.isEmpty else { resolvedHTML = nil; return }
-
-        let baseHTML = displayHTML ?? message.htmlBody ?? ""
-        guard !baseHTML.isEmpty else { resolvedHTML = nil; return }
-
-        resolvedHTML = await Self.replaceCIDReferences(in: baseHTML, message: message, accountID: accountID)
+        guard !message.inlineParts.isEmpty else { return }
+        let baseHTML = trackerSanitizedHTML ?? message.htmlBody ?? ""
+        guard !baseHTML.isEmpty else { return }
+        resolvedMessageHTML[message.id] = await Self.replaceCIDReferences(in: baseHTML, message: message, accountID: accountID)
     }
 
     /// Resolves inline CID images for older thread messages in parallel and stores results per message ID.
@@ -435,29 +436,50 @@ final class EmailDetailViewModel {
     func loadAndPreview(
         attachment: Attachment,
         part: GmailMessagePart,
+        messageID: String,
         onPreviewAttachment: ((Data?, String, Attachment.FileType) -> Void)?
     ) async {
         onPreviewAttachment?(nil, attachment.name, attachment.fileType)
-        guard let msgID = latestMessage?.id else { return }
-        guard let data = try? await downloadAttachment(messageID: msgID, part: part) else { return }
+        guard let data = try? await downloadAttachment(messageID: messageID, part: part) else { return }
         onPreviewAttachment?(data, attachment.name, attachment.fileType)
     }
 
     func downloadAndSave(
         attachment: Attachment,
-        part: GmailMessagePart
+        part: GmailMessagePart,
+        messageID: String
     ) async -> Data? {
         do {
-            guard let msgID = latestMessage?.id else { return nil }
-            return try await downloadAttachment(messageID: msgID, part: part)
+            return try await downloadAttachment(messageID: messageID, part: part)
         } catch {
             ToastManager.shared.show(message: "Download failed: \(error.localizedDescription)", type: .error)
             return nil
         }
     }
 
+    /// Attachment + part tuples for a specific message.
+    func attachmentPairsForMessage(_ message: GmailMessage) -> [(Attachment, GmailMessagePart?)] {
+        message.attachmentParts.map { part in
+            (GmailDataTransformer.makeAttachment(from: part, messageId: message.id), part)
+        }
+    }
+
+    /// Compatibility shim — will be removed in Task 4.
+    func loadAndPreview(attachment: Attachment, part: GmailMessagePart, onPreviewAttachment: ((Data?, String, Attachment.FileType) -> Void)?) async {
+        guard let msgID = latestMessage?.id else { return }
+        await loadAndPreview(attachment: attachment, part: part, messageID: msgID, onPreviewAttachment: onPreviewAttachment)
+    }
+    func downloadAndSave(attachment: Attachment, part: GmailMessagePart) async -> Data? {
+        guard let msgID = latestMessage?.id else { return nil }
+        return await downloadAndSave(attachment: attachment, part: part, messageID: msgID)
+    }
+
     // MARK: - Convenience
 
     var messages: [GmailMessage] { thread?.messages ?? [] }
     var latestMessage: GmailMessage? { messages.last }
+
+    /// All thread messages in chronological order (oldest first).
+    /// Uses Gmail API's native array order — already sorted by internalDate ascending.
+    var allMessagesChronological: [GmailMessage] { messages }
 }
