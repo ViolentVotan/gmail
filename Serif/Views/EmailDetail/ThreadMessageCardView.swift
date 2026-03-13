@@ -6,7 +6,7 @@ struct ThreadMessageCardView: View {
     let isExpanded: Bool
     let fromAddress: String
     let isLast: Bool
-    var resolvedHTML: String?
+    let resolvedHTML: String?
     var onToggle: () -> Void
     var onOpenLink: ((URL) -> Void)?
     var attachmentPairs: [(Attachment, GmailMessagePart?)] = []
@@ -68,16 +68,23 @@ struct ThreadMessageCardView: View {
     // MARK: - Recipients line
 
     private var recipientsLine: String {
-        let to = message.to
-        let parts = to.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-        let displayParts = parts.prefix(2).map { part in
-            if part.lowercased() == fromAddress.lowercased() { return "me" }
+        let parts = message.to.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        guard !parts.isEmpty else { return sender.email }
+        let displayParts = parts.prefix(2).map { part -> String in
+            // Extract email from "Name <email>" format for comparison
+            let candidateEmail: String
+            if let lt = part.firstIndex(of: "<"), let gt = part.lastIndex(of: ">"), lt < gt {
+                candidateEmail = String(part[part.index(after: lt)..<gt])
+            } else {
+                candidateEmail = part
+            }
+            if candidateEmail.lowercased() == fromAddress.lowercased() { return "me" }
             if let angleBracket = part.firstIndex(of: "<") {
                 return String(part[part.startIndex..<angleBracket]).trimmingCharacters(in: .whitespaces)
             }
             return part
         }
-        let remaining = parts.count - 2
+        let remaining = max(0, parts.count - 2)
         var result = "\(sender.email) \u{2192} \(displayParts.joined(separator: ", "))"
         if remaining > 0 { result += ", +\(remaining)" }
         return result
@@ -104,11 +111,7 @@ struct ThreadMessageCardView: View {
             if isExpanded {
                 expandedContent
                     .clipped()
-                    .opacity(isExpanded ? 1 : 0)
-                    .animation(.easeIn(duration: 0.15), value: isExpanded)
-                    .transaction { t in
-                        if !isExpanded { t.animation = nil }
-                    }
+                    .transition(.opacity.animation(.easeIn(duration: 0.15)))
             }
 
             if !isLast {
@@ -131,11 +134,14 @@ struct ThreadMessageCardView: View {
 
     private var headerRow: some View {
         HStack(spacing: 8) {
-            if message.isUnread {
-                Circle()
-                    .fill(Color.accentColor)
-                    .frame(width: 6, height: 6)
+            ZStack {
+                if message.isUnread {
+                    Circle()
+                        .fill(Color.accentColor)
+                        .frame(width: 6, height: 6)
+                }
             }
+            .frame(width: 6)
 
             AvatarView(
                 initials: sender.initials,
@@ -187,7 +193,7 @@ struct ThreadMessageCardView: View {
                 }
             }
         }
-        .padding(.horizontal, Spacing.md)
+        .padding(.horizontal, Spacing.xl)
         .padding(.vertical, Spacing.sm)
     }
 
@@ -197,11 +203,11 @@ struct ThreadMessageCardView: View {
         VStack(alignment: .leading, spacing: 0) {
             Divider()
                 .background(Color(.separatorColor).opacity(0.5))
-                .padding(.horizontal, Spacing.md)
+                .padding(.horizontal, Spacing.xl)
 
             HTMLEmailView(html: renderedHTML, contentHeight: $contentHeight, onOpenLink: onOpenLink)
                 .frame(height: contentHeight)
-                .padding(.horizontal, Spacing.md)
+                .padding(.horizontal, Spacing.xl)
                 .padding(.top, Spacing.sm)
                 .padding(.bottom, cachedHTMLParts.quoted != nil ? Spacing.xs : Spacing.md)
 
@@ -223,7 +229,7 @@ struct ThreadMessageCardView: View {
                     .background(Capsule().fill(.quaternary))
                 }
                 .buttonStyle(.plain)
-                .padding(.horizontal, Spacing.md)
+                .padding(.horizontal, Spacing.xl)
                 .padding(.bottom, Spacing.md)
             }
 
@@ -247,7 +253,7 @@ struct ThreadMessageCardView: View {
                         }
                     }
                 }
-                .padding(.horizontal, Spacing.md)
+                .padding(.horizontal, Spacing.xl)
                 .padding(.bottom, Spacing.md)
             }
         }

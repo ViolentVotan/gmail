@@ -321,7 +321,6 @@ struct EmailDetailView: View {
                     .id(message.id)
                 }
             }
-            .padding(.horizontal, Spacing.xl)
         }
     }
 
