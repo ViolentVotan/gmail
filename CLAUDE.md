@@ -18,7 +18,6 @@ Requires **Xcode 26.3+** (full IDE, not just command-line tools).
 | Build | `xcodebuild -scheme Serif -configuration Debug build` |
 | Test | `xcodebuild -scheme Serif -destination 'platform=macOS' test` |
 | Release | `./scripts/release.sh` |
-| Verify in IDE | Use XcodeBuildMCP to verify compilation |
 
 ## Setup
 
