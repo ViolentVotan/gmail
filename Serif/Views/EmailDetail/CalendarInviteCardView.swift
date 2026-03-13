@@ -93,13 +93,9 @@ struct CalendarInviteCardView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(16)
-        .background(.regularMaterial)
-        .cornerRadius(10)
-        .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color(.separatorColor), lineWidth: 1)
-        )
+        .cardStyle()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Calendar invite: \(invite.summary)")
     }
 
     // MARK: - Helpers

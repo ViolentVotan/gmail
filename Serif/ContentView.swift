@@ -299,7 +299,6 @@ struct ContentView: View {
             .onChange(of: coordinator.selectedLabel?.id) { _, _ in coordinator.handleLabelChange() }
             .onChange(of: coordinator.selectedAccountID) { _, newValue in coordinator.handleAccountChange(newValue) }
             .onChange(of: coordinator.authViewModel.accounts) { _, newValue in coordinator.handleAccountsChange(newValue) }
-            .onChange(of: coordinator.mailboxViewModel.messages.count) { _, _ in }
             .onChange(of: NetworkMonitor.shared.isConnected) { _, connected in
                 if connected { OfflineActionQueue.shared.startDraining() }
             }

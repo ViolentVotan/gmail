@@ -11,8 +11,11 @@ struct BulkActionBarView: View {
     let onMoveToInbox: () -> Void
     let onDeselectAll: () -> Void
 
+    @ScaledMetric(relativeTo: .title3) private var tileWidth: CGFloat = 64
+    @ScaledMetric(relativeTo: .title3) private var tileHeight: CGFloat = 56
+
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: Spacing.xl) {
             Spacer()
 
             Image(systemName: "checkmark.circle.fill")
@@ -20,10 +23,10 @@ struct BulkActionBarView: View {
                 .foregroundStyle(.tint)
 
             Text("\(count) emails selected")
-                .font(.title3.weight(.semibold))
+                .font(Typography.title)
                 .foregroundStyle(.primary)
 
-            HStack(spacing: 12) {
+            HStack(spacing: Spacing.md) {
                 if selectedFolder != .archive {
                     actionButton(icon: "archivebox", label: "Archive", action: onArchive)
                 }
@@ -42,16 +45,11 @@ struct BulkActionBarView: View {
                 onDeselectAll()
             } label: {
                 Text("Deselect All")
-                    .font(.subheadline.weight(.medium))
+                    .font(Typography.subhead)
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6)
-                    .background(.regularMaterial)
-                    .cornerRadius(6)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 6)
-                            .stroke(.separator, lineWidth: 1)
-                    )
+                    .padding(.horizontal, Spacing.lg)
+                    .padding(.vertical, Spacing.sm)
+                    .glassEffect(.regular, in: .rect(cornerRadius: CornerRadius.sm))
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Deselect All")
@@ -69,16 +67,11 @@ struct BulkActionBarView: View {
                 Image(systemName: icon)
                     .font(.title3)
                 Text(label)
-                    .font(.caption.weight(.medium))
+                    .font(Typography.caption)
             }
             .foregroundStyle(destructive ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
-            .frame(width: 64, height: 56)
-            .background(.regularMaterial)
-            .cornerRadius(10)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(.separator, lineWidth: 1)
-            )
+            .frame(width: tileWidth, height: tileHeight)
+            .glassEffect(.regular, in: .rect(cornerRadius: CornerRadius.md))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)

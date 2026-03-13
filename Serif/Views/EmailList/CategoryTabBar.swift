@@ -29,31 +29,50 @@ struct CategoryTabBar: View {
     }
 
     private func categoryTab(_ category: InboxCategory) -> some View {
-        Button {
+        let isSelected = selectedCategory == category
+
+        return Button {
             selectedCategory = category
         } label: {
             HStack(spacing: 4) {
                 Text(category.displayName)
                     .font(.subheadline)
-                    .fontWeight(selectedCategory == category ? .semibold : .regular)
+                    .fontWeight(isSelected ? .semibold : .regular)
 
                 if let count = unreadCounts[category], count > 0 {
                     Text("\(count)")
                         .font(.caption2.weight(.medium))
                         .padding(.horizontal, 5)
                         .padding(.vertical, 1)
-                        .background(selectedCategory == category ? Color.accentColor : .secondary.opacity(0.2))
-                        .foregroundStyle(selectedCategory == category ? .white : .secondary)
+                        .background(isSelected ? Color.accentColor : .secondary.opacity(0.2))
+                        .foregroundStyle(isSelected ? .white : .secondary)
                         .clipShape(Capsule())
                 }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .background(selectedCategory == category ? Color.accentColor.opacity(0.1) : .clear)
-            .clipShape(Capsule())
+            .modifier(TabBackground(isSelected: isSelected))
         }
         .buttonStyle(.plain)
-        .foregroundStyle(selectedCategory == category ? Color.accentColor : .secondary)
+        .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+        .accessibilityLabel(category.displayName)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+}
+
+private struct TabBackground: ViewModifier {
+    let isSelected: Bool
+
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            if isSelected {
+                content.glassEffect(.regular, in: .capsule)
+            } else {
+                content
+            }
+        } else {
+            content.background(isSelected ? Color.accentColor.opacity(0.1) : .clear, in: .capsule)
+        }
     }
 }
 

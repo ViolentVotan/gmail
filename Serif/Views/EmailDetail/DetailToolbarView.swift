@@ -29,9 +29,10 @@ struct DetailToolbarView: View {
     @State private var isUnsubscribing = false
     @State private var showSnoozePicker = false
     @Binding var didUnsubscribe: Bool
+    @ScaledMetric(relativeTo: .body) private var buttonSize: CGFloat = 30
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.md) {
             Spacer()
 
             // Unsubscribe button — only shown for mailing lists
@@ -39,15 +40,15 @@ struct DetailToolbarView: View {
                 if alreadyUnsubscribed {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark")
-                            .font(.caption2.weight(.semibold))
+                            .font(Typography.captionSmall)
                         Text("Unsubscribed")
-                            .font(.subheadline.weight(.medium))
+                            .font(Typography.subhead)
                     }
                     .foregroundStyle(.tertiary)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                     .background(.quaternary)
-                    .cornerRadius(6)
+                    .clipShape(.rect(cornerRadius: CornerRadius.sm))
                 } else {
                     Button {
                         isUnsubscribing = true
@@ -63,13 +64,13 @@ struct DetailToolbarView: View {
                                 ProgressView().scaleEffect(0.6).frame(width: 12, height: 12)
                             }
                             Text("Unsubscribe")
-                                .font(.subheadline.weight(.medium))
+                                .font(Typography.subhead)
                         }
                         .foregroundStyle(Color.red)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
                         .background(Color.red.opacity(0.1))
-                        .cornerRadius(6)
+                        .clipShape(.rect(cornerRadius: CornerRadius.sm))
                     }
                     .buttonStyle(.plain)
                     .disabled(isUnsubscribing)
@@ -93,10 +94,10 @@ struct DetailToolbarView: View {
                 } label: {
                     Image(systemName: "clock")
                         .font(.body)
-                        .frame(width: 28, height: 28)
+                        .frame(width: buttonSize, height: buttonSize)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.glass)
                 .help("Snooze")
                 .popover(isPresented: $showSnoozePicker) {
                     SnoozePickerView { date in
@@ -151,24 +152,26 @@ struct DetailToolbarView: View {
             } label: {
                 Image(systemName: "ellipsis")
                     .font(.body)
-                    .frame(width: 28, height: 28)
+                    .frame(width: buttonSize, height: buttonSize)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glass)
             .help("More")
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 10)
+        .padding(.horizontal, Spacing.xl)
+        .padding(.vertical, Spacing.sm)
+        .glassEffect(.regular, in: .capsule)
+        .elevation(.navigation)
     }
 
     private func toolbarButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.body)
-                .frame(width: 28, height: 28)
+                .frame(width: buttonSize, height: buttonSize)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.glass)
         .help(label)
     }
 }

@@ -78,8 +78,8 @@ struct TrackerBannerView: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .background(.regularMaterial)
-        .cornerRadius(8)
+        .cardStyle()
+        .accessibilityLabel("Blocked \(trackerCount) trackers")
     }
 
     // MARK: - Grouped trackers

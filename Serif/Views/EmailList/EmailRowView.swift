@@ -141,7 +141,7 @@ struct EmailRowView: View {
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
             .background(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: CornerRadius.sm)
                     .fill(isSelected ? AnyShapeStyle(.tint.opacity(0.1)) : (isHovered ? AnyShapeStyle(.fill.quaternary) : AnyShapeStyle(Color.clear)))
             )
             .padding(.horizontal, 8)

@@ -10,10 +10,10 @@ struct ToastOverlayView: View {
                 toastCard(toast)
                     .id(toast.id)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .padding(.bottom, 28)
+                    .padding(.bottom, Spacing.xxl)
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: toastMgr.currentToast?.id)
+        .animation(SerifAnimation.springDefault, value: toastMgr.currentToast?.id)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(false)
     }
@@ -23,15 +23,15 @@ struct ToastOverlayView: View {
             if #available(macOS 26.0, *) {
                 toastContent(toast)
                     .glassEffect(.regular, in: .rect(cornerRadius: CornerRadius.md))
-                    .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
+                    .elevation(.transient)
             } else {
                 toastContent(toast)
                     .background(
                         RoundedRectangle(cornerRadius: CornerRadius.md)
                             .fill(.regularMaterial)
-                            .shadow(color: .black.opacity(0.2), radius: 12, x: 0, y: 4)
                     )
                     .clipShape(RoundedRectangle(cornerRadius: CornerRadius.md))
+                    .elevation(.transient)
             }
         }
         .frame(width: 320)
@@ -40,16 +40,16 @@ struct ToastOverlayView: View {
     private func toastContent(_ toast: ToastMessage) -> some View {
         HStack(spacing: 10) {
             Image(systemName: iconName(toast.type))
-                .font(.body.weight(.medium))
+                .font(Typography.bodyMedium)
                 .foregroundColor(iconColor(toast.type))
             Text(toast.message)
-                .font(.body.weight(.medium))
+                .font(Typography.bodyMedium)
                 .foregroundStyle(.primary)
                 .lineLimit(2)
             Spacer()
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.md)
         .accessibilityAddTraits(.updatesFrequently)
         .onAppear {
             if let toast = toastMgr.currentToast {

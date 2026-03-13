@@ -28,7 +28,7 @@ struct SlidePanel<Content: View>: View {
                 // Header
                 HStack {
                     Text(title)
-                        .font(.title3.bold())
+                        .font(Typography.title)
                         .foregroundStyle(.primary)
                     Spacer()
                     Button { isPresented = false } label: {
@@ -40,7 +40,7 @@ struct SlidePanel<Content: View>: View {
                     }
                     .buttonStyle(.glass)
                 }
-                .padding(20)
+                .padding(Spacing.xl)
 
                 Divider()
 
@@ -55,7 +55,7 @@ struct SlidePanel<Content: View>: View {
             .frame(maxHeight: .infinity)
             .background(.ultraThinMaterial, in: .rect(cornerRadius: 0))
             .glassEffect(.regular, in: .rect(cornerRadius: 0))
-            .shadow(color: .black.opacity(0.1), radius: 16, x: 4, y: 0)
+            .elevation(.elevated)
             .offset(x: isPresented ? 0 : -(panelWidth + 60))
             .animation(SerifAnimation.springDefault, value: isPresented)
 

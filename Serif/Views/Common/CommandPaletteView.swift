@@ -9,6 +9,7 @@ struct CommandPaletteView: View {
             Divider()
             commandList
         }
+        .accessibilityLabel("Command palette")
         .frame(width: 500)
         .frame(maxHeight: 400)
         .floatingPanelStyle(cornerRadius: CornerRadius.md)
@@ -39,7 +40,7 @@ struct CommandPaletteView: View {
                 .font(.title3)
                 .onSubmit { viewModel.executeSelected() }
         }
-        .padding(12)
+        .padding(Spacing.md)
     }
 
     private var commandList: some View {
@@ -65,9 +66,11 @@ struct CommandPaletteView: View {
             Text(command.title)
             Spacer()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, Spacing.md)
+        .padding(.vertical, Spacing.sm)
         .background(isSelected ? Color.accentColor.opacity(0.15) : .clear)
         .contentShape(Rectangle())
+        .accessibilityLabel(command.title)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

@@ -181,7 +181,7 @@ struct EmailListView: View {
                 }
             }
             .listStyle(.plain)
-            .scrollEdgeEffectStyle(.automatic, for: .all)
+            .scrollEdgeEffectStyle(.hard, for: .top)
         } else {
             emailScrollView
         }
@@ -267,7 +267,7 @@ struct EmailListView: View {
         .onKeyPress(characters: CharacterSet(charactersIn: "s")) { _ in handleKeyS() }
         .onKeyPress(characters: CharacterSet(charactersIn: "u")) { _ in handleKeyU() }
         .onKeyPress(characters: CharacterSet(charactersIn: "r")) { _ in handleKeyR() }
-        .scrollEdgeEffectStyle(.automatic, for: .all)
+        .scrollEdgeEffectStyle(.hard, for: .top)
         .accessibilityRotor("Unread Emails") {
             ForEach(emails.filter { !$0.isRead }) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)

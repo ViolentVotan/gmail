@@ -96,7 +96,7 @@ struct GmailThreadMessageView: View {
                 }
                 .padding(10)
                 .frame(maxWidth: 500, alignment: .leading)
-                .background(isSentByMe ? AnyShapeStyle(Color.accentColor.opacity(0.12)) : AnyShapeStyle(.regularMaterial))
+                .background(isSentByMe ? AnyShapeStyle(Color.accentColor.opacity(0.06)) : AnyShapeStyle(.fill.quinary))
                 .clipShape(ChatBubbleShape(isSentByMe: isSentByMe))
 
                 if let date = message.date {

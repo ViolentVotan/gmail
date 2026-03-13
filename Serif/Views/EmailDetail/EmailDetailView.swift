@@ -172,9 +172,6 @@ struct EmailDetailView: View {
                 didUnsubscribe: $didUnsubscribe
             )
 
-            Divider()
-                .background(Color(.separatorColor))
-
             ZStack(alignment: .bottom) {
                 if detailVM.isLoading && detailVM.thread == nil {
                     EmailDetailSkeletonView()
@@ -320,6 +317,8 @@ struct EmailDetailView: View {
                         )
                         withAnimation { labelSuggestions = suggestions }
                     }
+                    .contentTransition(.opacity)
+                    .animation(SerifAnimation.springSnappy, value: email.id)
                 }
 
                 // Floating reply bar

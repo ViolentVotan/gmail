@@ -59,10 +59,8 @@ struct InsightCardView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .background(.regularMaterial)
-                .cornerRadius(8)
+                .cardStyle()
+                .accessibilityElement(children: .combine)
                 .transition(.opacity.combined(with: .scale(scale: 0.97)))
             }
         }

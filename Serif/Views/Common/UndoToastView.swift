@@ -1,5 +1,28 @@
 import SwiftUI
 
+// MARK: - Shared glass modifier for transient toasts
+
+private struct TransientGlassModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(macOS 26.0, *) {
+            content
+                .glassEffect(.regular, in: .rect(cornerRadius: CornerRadius.md))
+                .elevation(.transient)
+        } else {
+            content
+                .background(RoundedRectangle(cornerRadius: CornerRadius.md).fill(.regularMaterial))
+                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.md))
+                .elevation(.transient)
+        }
+    }
+}
+
+private extension View {
+    func transientGlass() -> some View {
+        modifier(TransientGlassModifier())
+    }
+}
+
 // MARK: - Offline Toast
 
 struct OfflineToastView: View {
@@ -11,27 +34,22 @@ struct OfflineToastView: View {
             if !network.isConnected {
                 HStack(spacing: 10) {
                     Image(systemName: "wifi.slash")
-                        .font(.body.weight(.medium))
+                        .font(Typography.bodyMedium)
                         .foregroundColor(.orange)
                     Text("No internet connection")
-                        .font(.body.weight(.medium))
+                        .font(Typography.bodyMedium)
                         .foregroundStyle(.primary)
                     Spacer()
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(.regularMaterial)
-                        .shadow(color: .black.opacity(0.2), radius: 12, x: 0, y: 4)
-                )
-                .clipShape(RoundedRectangle(cornerRadius: 12))
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.md)
+                .transientGlass()
                 .frame(width: 320)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
-                .padding(.bottom, 28)
+                .padding(.bottom, Spacing.xxl)
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: network.isConnected)
+        .animation(SerifAnimation.springDefault, value: network.isConnected)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(false)
     }
@@ -49,10 +67,10 @@ struct UndoToastView: View {
                 toastCard(action)
                     .id(action.id)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .padding(.bottom, 28)
+                    .padding(.bottom, Spacing.xxl)
             }
         }
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: undoMgr.currentAction?.id)
+        .animation(SerifAnimation.springDefault, value: undoMgr.currentAction?.id)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .allowsHitTesting(undoMgr.currentAction != nil)
     }
@@ -61,24 +79,24 @@ struct UndoToastView: View {
         VStack(spacing: 0) {
             HStack(spacing: 14) {
                 Text(action.label)
-                    .font(.body.weight(.medium))
+                    .font(Typography.bodyMedium)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
 
                 Spacer()
 
                 Button("Undo") { undoMgr.undo() }
-                    .font(.body.weight(.semibold))
+                    .font(Typography.bodySemibold)
                     .foregroundStyle(.tint)
                     .buttonStyle(.plain)
 
                 Text("\(max(1, Int(ceil(undoMgr.timeRemaining))))s")
-                    .font(.caption.weight(.medium).monospacedDigit())
+                    .font(Typography.caption.monospacedDigit())
                     .foregroundStyle(.tertiary)
                     .frame(width: 26, alignment: .trailing)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.md)
 
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
@@ -91,12 +109,7 @@ struct UndoToastView: View {
             }
             .frame(height: 3)
         }
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(.regularMaterial)
-                .shadow(color: .black.opacity(0.2), radius: 12, x: 0, y: 4)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .transientGlass()
         .frame(width: 320)
     }
 }
