@@ -28,6 +28,7 @@ State management layer between Services and Views. Each ViewModel uses the `@Obs
 | `EmailActionCoordinator.swift` | Email mutations (archive, delete, star, labels) with bulk-action concurrency via `TaskGroup` |
 | `EmailDetailViewModel.swift` | Thread loading with DB fast path then API refresh, attachment download. Business logic: compose mode construction (reply/replyAll/forward), attachment transforms, label suggestion application. |
 | `EmailSummaryViewModel.swift` | Apple Foundation Models email summary generation with streaming support |
+| `FiltersViewModel.swift` | Gmail filters state: load, create, delete. Integrates with `GmailFilterService`. Account-aware. |
 | `MailboxViewModel.swift` | Email list, pagination, delta sync, stale pruning, GRDB ValueObservation for reactive updates, FTS5 local search. Targeted in-place updates for single-message mutations. |
 | `PanelCoordinator.swift` | Side panel state (shortcuts, debug, original message, attachments, browser) |
-| `UpdaterViewModel.swift` | Sparkle auto-update state |
+| `SyncProgressManager.swift` | Sync UI progress state (bubble visibility, debounce/linger timers). `SyncPhase` enum: idle, syncing, success, error. Account-aware, environment-injected. |

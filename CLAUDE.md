@@ -69,6 +69,5 @@ Both share the same `sourcekit-lsp` server and Xcode build index — build in Xc
 
 ## Gotchas
 
-- TokenStore encryption key stored alongside ciphertext (known security issue from review)
 - Some computed properties re-sort on every render (performance issue — known)
 - Multi-account stores (`SnoozeStore`, `ScheduledSendStore`, `OfflineActionQueue`) use per-account file persistence — `load()` merges, not replaces

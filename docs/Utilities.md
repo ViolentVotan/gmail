@@ -13,6 +13,7 @@ Pure helper functions, extensions, and constants. Zero state, zero side effects.
 
 | File | Role |
 |------|------|
+| `Color+Hex.swift` | SwiftUI `Color` extension: `hexString` property (Color → #RRGGBB), `init(hex:)` initializer (hex string → Color) |
 | `Constants.swift` | Shared constants: `UserDefaultsKey` enum, `GmailSystemLabel` enum |
 | `DateFormatting.swift` | Date display helpers (relative time, formatted dates) |
 | `FileUtils.swift` | File system helpers (temp dirs, file size formatting) |

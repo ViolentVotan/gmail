@@ -32,7 +32,7 @@ The UI follows a three-plane model:
 
 | Token | Values |
 |-------|--------|
-| `Spacing` | `xs` (4), `sm` (8), `md` (12), `lg` (16), `xl` (24), `xxl` (32), `xxxl` (48) |
+| `Spacing` | `xs` (4), `sm` (8), `md` (12), `lg` (16), `xl` (24), `xxl` (32) |
 | `CornerRadius` | `xs` (4), `sm` (6), `md` (12), `lg` (16), `xl` (24) |
 | `ButtonSize` | `sm` (26), `md` (28), `lg` (30) |
 | `SerifAnimation` | `springDefault`, `springSnappy`, `springGentle` |
@@ -42,8 +42,7 @@ The UI follows a three-plane model:
 
 | Modifier | Effect |
 |----------|--------|
-| `.elevation(.navigation / .transient / .elevated)` | Shadow scale (tight → wide) for spatial depth |
-| `.selectableRowStyle(isSelected:isHovered:)` | Tint/primary/secondary foreground based on state |
+| `.elevation(.transient / .elevated)` | Shadow scale for spatial depth |
 | `.floatingPanelStyle()` | Liquid Glass + transient elevation for floating surfaces |
 | `.glassOrMaterial(in:interactive:)` | Liquid Glass on macOS 26+ with `.regularMaterial` fallback |
 | `.transientGlass()` | Glass + transient elevation for toast cards (macOS 26+ / material fallback) |

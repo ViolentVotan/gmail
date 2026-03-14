@@ -15,7 +15,10 @@ Business logic, networking, and side effects. This is the **only** layer that ta
 ## Subfolders
 
 ### `Auth/`
-OAuth flow, token storage (Keychain), token refresh. `OAuthService` handles the Google OAuth PKCE flow. `TokenStore` persists tokens securely.
+OAuth flow, token storage (Keychain), token refresh. `OAuthService` handles the Google OAuth PKCE flow. `TokenStore` persists tokens securely. `AuthToken` is the token value type (`Codable`, `Sendable`) with expiration tracking (60-second pre-refresh buffer).
+
+### `Protocols/`
+- `MessageFetching` — Protocol abstracting the Gmail message API surface (`@MainActor`, `Sendable`, typed throws). `GmailMessageService` conforms. Enables testing via mocks.
 
 ### `Gmail/`
 Gmail REST API wrappers. One service per domain:

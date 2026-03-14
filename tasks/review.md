@@ -39,7 +39,7 @@ After deduplication: **~30 unique findings**. Several were flagged by multiple a
 ## Deferred (needs architecture discussion or broader refactor)
 
 ### Security — Critical
-- **TokenStore: encryption key stored alongside ciphertext** — Key and encrypted tokens both in UserDefaults. AES-256-GCM provides zero benefit. Fix: store symmetric key in Keychain with `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`.
+- ~~**TokenStore: encryption key stored alongside ciphertext**~~ — **RESOLVED.** Encryption key now stored in macOS Keychain with `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`.
 
 ### Security — High
 - **WKWebView navigation policy too permissive** — `decidePolicyFor` allows all non-`linkActivated` navigations. Malicious email HTML could trigger programmatic navigation to `file://` or `javascript:` URIs. Fix: default to `.cancel`, allow only the initial `loadHTMLString` load. Also set `javaScriptEnabled = false` for the email reader.
