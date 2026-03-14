@@ -281,7 +281,6 @@ struct EmailDetailView: View {
                     let isLastCard = index == allMessages.count - 1
                     ThreadMessageCardView(
                         message: message,
-                        email: email,
                         isExpanded: expandedMessageIDs.contains(message.id),
                         fromAddress: fromAddress,
                         isLast: isLastCard,

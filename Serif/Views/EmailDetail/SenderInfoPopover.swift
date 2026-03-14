@@ -2,11 +2,11 @@ import SwiftUI
 
 struct SenderInfoPopover: View {
     let message: GmailMessage
-    let email: Email
 
     private var fromDisplay: String {
-        let name = email.sender.name
-        let addr = email.sender.email
+        let contact = GmailDataTransformer.parseContact(message.from)
+        let name = contact.name
+        let addr = contact.email
         if name.isEmpty || name == addr { return addr }
         return "\(name) <\(addr)>"
     }

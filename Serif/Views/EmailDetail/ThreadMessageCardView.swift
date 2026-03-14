@@ -2,7 +2,6 @@ import SwiftUI
 
 struct ThreadMessageCardView: View {
     let message: GmailMessage
-    let email: Email
     let isExpanded: Bool
     let fromAddress: String
     let isLast: Bool
@@ -25,7 +24,6 @@ struct ThreadMessageCardView: View {
 
     init(
         message: GmailMessage,
-        email: Email,
         isExpanded: Bool,
         fromAddress: String,
         isLast: Bool = false,
@@ -37,7 +35,6 @@ struct ThreadMessageCardView: View {
         onDownloadAttachment: ((Attachment, GmailMessagePart) -> Void)? = nil
     ) {
         self.message = message
-        self.email = email
         self.isExpanded = isExpanded
         self.fromAddress = fromAddress
         self.isLast = isLast
@@ -188,7 +185,7 @@ struct ThreadMessageCardView: View {
                         .lineLimit(1)
                         .onHover { showSenderInfo = $0 }
                         .popover(isPresented: $showSenderInfo, arrowEdge: .bottom) {
-                            SenderInfoPopover(message: message, email: email)
+                            SenderInfoPopover(message: message)
                         }
                 }
             }
