@@ -2,6 +2,9 @@ import SwiftUI
 
 struct SignaturesSettingsView: View {
     let accountID: String
+    var loadSendAs: (String) async throws -> [GmailSendAs] = { accountID in
+        try await GmailProfileService.shared.listSendAs(accountID: accountID)
+    }
 
     @State private var aliases: [GmailSendAs] = []
     @State private var isLoading = false
@@ -23,7 +26,7 @@ struct SignaturesSettingsView: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                     Button("Retry") {
-                        Task { await loadAliases() }
+                        Task { await fetchAliases() }
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(Color.accentColor)
@@ -37,7 +40,7 @@ struct SignaturesSettingsView: View {
                 .listStyle(.inset)
             }
         }
-        .task { await loadAliases() }
+        .task { await fetchAliases() }
         .sheet(item: $selectedAlias) { alias in
             SignatureEditorView(
                 alias: alias,
@@ -108,11 +111,11 @@ struct SignaturesSettingsView: View {
 
     // MARK: - Data Loading
 
-    private func loadAliases() async {
+    private func fetchAliases() async {
         isLoading = true
         errorMessage = nil
         do {
-            aliases = try await GmailProfileService.shared.listSendAs(accountID: accountID)
+            aliases = try await loadSendAs(accountID)
         } catch {
             errorMessage = "Could not load signatures: \(error.localizedDescription)"
         }
