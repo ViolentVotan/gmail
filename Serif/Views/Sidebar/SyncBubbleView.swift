@@ -26,6 +26,10 @@ struct SyncBubbleView: View {
             ProgressView()
                 .controlSize(.small)
                 .tint(.accentColor)
+        case .initialSync, .bodyPrefetch:
+            ProgressView()
+                .controlSize(.small)
+                .tint(.accentColor)
         case .success:
             Image(systemName: "checkmark")
                 .foregroundStyle(.green)
@@ -53,6 +57,14 @@ struct SyncBubbleView: View {
                 Text("Syncing")
                     .foregroundStyle(.secondary)
             }
+        case .initialSync(let synced, let estimated):
+            Text("Syncing \(synced) / ~\(estimated)")
+                .foregroundStyle(.secondary)
+                .contentTransition(.numericText())
+        case .bodyPrefetch(let remaining):
+            Text("\(remaining) bodies remaining")
+                .foregroundStyle(.secondary)
+                .contentTransition(.numericText())
         case .success:
             Text("Synced")
                 .foregroundStyle(.secondary)
