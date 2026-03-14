@@ -26,7 +26,7 @@ final class SyncProgressManager {
 
     // MARK: - Constants
 
-    private let debounceDelay: Duration = .milliseconds(800)
+    private let debounceDelay: Duration = .milliseconds(150)
     private let successLinger: Duration = .seconds(1.5)
     private let errorLinger: Duration = .seconds(2.5)
 
