@@ -43,9 +43,8 @@ final class ScheduledSendStore {
 
     /// Flat view of all items across all accounts. Preserves the public API
     /// shape that callers (e.g. AppCoordinator) depend on.
-    private(set) var items: [ScheduledSendItem] {
-        get { itemsByAccount.values.flatMap { $0 } }
-        set { assertionFailure("Mutate itemsByAccount instead") }
+    var items: [ScheduledSendItem] {
+        itemsByAccount.values.flatMap { $0 }
     }
 
     func load(accountID: String) {
