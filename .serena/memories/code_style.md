@@ -29,16 +29,16 @@ Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). Al
 
 ## Architecture (MVVM)
 - **Services**: Singletons via `static let shared` + `private init()`. `@MainActor` when touching UI state; `@concurrent` on I/O-bound methods. Dependency injection via initializer params for testability.
-- **ViewModels**: `@Observable @MainActor final class` — 11 VMs follow this pattern (incl. `FiltersViewModel`). No `@Published`, no `ObservableObject`. Properties are plain `var` tracked by `@Observable` macro.
+- **ViewModels**: `@Observable @MainActor final class` — 13 VMs follow this pattern (incl. `MailStore`, `SyncProgressManager`, `FiltersViewModel`). No `@Published`, no `ObservableObject`. Properties are plain `var` tracked by `@Observable` macro.
 - **Views**: Pure SwiftUI rendering. No business logic. Access data via ViewModels only.
 - **Models**: Value types (struct). Never reference services.
 - **Exception**: `WebRichTextEditorState` stays as `ObservableObject` with `@Published` + `import Combine` — NSViewRepresentable bridge requirement.
 
 ## SwiftUI Patterns
-- **`@Observable`** macro on all 11 VMs, `MailStore`, `AppearanceManager`, and services (`OfflineActionQueue`, `SubscriptionsStore`, `SnoozeMonitor`, `ToastManager`, `UndoActionManager`, `ScheduledSendStore`, `SnoozeStore`, `APILogger`, `ThumbnailCache`, `NetworkMonitor`)
+- **`@Observable`** macro on all 13 VMs (incl. `MailStore`, `SyncProgressManager`), `AppearanceManager`, and services (`OfflineActionQueue`, `SubscriptionsStore`, `SnoozeMonitor`, `ToastManager`, `UndoActionManager`, `ScheduledSendStore`, `SnoozeStore`, `APILogger`, `ThumbnailCache`, `NetworkMonitor`)
 - **`@State`** for ViewModel ownership in views (not `@StateObject`)
 - **`@Bindable`** for child views needing two-way bindings to `@Observable` objects
-- **Theming**: `AppearanceManager` (`@Observable @MainActor final class`) owns light/dark preference; `DesignTokens.swift` provides static enums (`Spacing`, `Typography`, `CornerRadius`, `SerifAnimation`) and view modifiers (`elevation`, `floatingPanelStyle`, `glassOrMaterial`). Use standard `@Environment(\.colorScheme)` for light/dark — there is no custom theme environment key.
+- **Theming**: `AppearanceManager` (`@Observable @MainActor final class`) owns light/dark preference; `DesignTokens.swift` provides static enums (`Spacing`, `ButtonSize`, `CornerRadius`, `SerifAnimation`, `Typography`) and view modifiers (`elevation`, `destructiveActionStyle`, `floatingPanelStyle`, `glassOrMaterial`). Use standard `@Environment(\.colorScheme)` for light/dark — there is no custom theme environment key.
 - **`@StateObject`** only for `WebRichTextEditorState` (3 usages — the sole `ObservableObject`)
 - No `@EnvironmentObject` anywhere — fully migrated away
 - `@State` for local view state, `@Binding` for parent-child communication
@@ -89,7 +89,7 @@ Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). Al
 ### Records
 - Pattern: `struct FooRecord: Codable, Identifiable, FetchableRecord, PersistableRecord` (omit `Identifiable` for join tables like `MessageLabelRecord` and single-row tables like `AccountSyncStateRecord`)
 - Column strategy on every record: `static let databaseColumnDecodingStrategy: DatabaseColumnDecodingStrategy = .convertFromSnakeCase` / `.convertToSnakeCase` — Swift camelCase properties map to snake_case columns
-- 8 record types: `MessageRecord`, `LabelRecord`, `MessageLabelRecord`, `AttachmentRecord`, `EmailTagRecord`, `ContactRecord`, `FolderSyncStateRecord`, `AccountSyncStateRecord`
+- 7 record types: `MessageRecord`, `LabelRecord`, `MessageLabelRecord`, `AttachmentRecord`, `EmailTagRecord`, `ContactRecord`, `AccountSyncStateRecord`
 - `databaseTableName` is set explicitly on every record (e.g. `"messages"`, `"labels"`, `"message_labels"`)
 
 ### Associations

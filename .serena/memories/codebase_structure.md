@@ -13,7 +13,7 @@ Serif/                      # Main app
 │   ├── MailDatabaseQueries.swift
 │   ├── FTSManager.swift
 │   └── CacheMigration.swift
-├── Models/                  # Data models (Email, GmailAccount, MailStore, ComposeMode, etc.)
+├── Models/                  # Data models (Email, GmailAccount, ComposeMode, OfflineAction, etc.)
 ├── Services/                # Business logic & API
 │   ├── Auth/                # OAuth & token management
 │   ├── Gmail/               # Gmail API clients
@@ -30,6 +30,8 @@ Serif/                      # Main app
 │   ├── PanelCoordinator     # Panel state management
 │   ├── AuthViewModel        # Authentication flow
 │   ├── AttachmentStore      # Attachment state
+│   ├── SyncProgressManager  # Sync progress UI state (liquid glass bubble)
+│   ├── MailStore            # Account/folder state management
 │   └── ComposeModeInitializer # Compose mode helpers (structs)
 ├── Views/                   # SwiftUI components
 │   ├── Sidebar/             # Left panel
@@ -44,8 +46,8 @@ Serif/                      # Main app
 ├── Intents/                 # App Intents (Shortcuts, Spotlight, Siri)
 ├── Theme/                   # AppearanceManager, DesignTokens
 ├── Utilities/               # Pure helpers
-└── Resources/               # Assets.xcassets, Fonts/
-SerifTests/                 # Unit tests (root + Database/ subdirectory)
+└── Resources/               # Assets.xcassets, editor.js
+SerifTests/                 # Unit tests (root + Database/ + Mocks/ subdirectories)
 docs/                       # Architecture docs + superpowers/ specs & plans
 .github/workflows/          # CI: release.yml (signing, notarization, DMG)
 scripts/                    # release.sh
@@ -65,6 +67,9 @@ Views never call Services directly. ViewModels are the single bridge.
 - `TrackerBlockerService` — Strips tracking pixels/domains
 - `UndoActionManager` — Queued destructive actions with countdown
 - `BackgroundSyncer` — Actor for bulk API sync → DB writes
+- `FullSyncEngine` — Orchestrates full mailbox sync (initial + periodic)
+- `MessageFetchService` — Message fetch flow with @Observable progress tracking
+- `LabelSyncService` — Label sync with etag-based caching
 - `OfflineActionQueue` — Queues actions when offline, replays on reconnect
 - `NetworkMonitor` — Observes network reachability
 - `SnoozeStore` / `ScheduledSendStore` — Per-account snooze & schedule-send persistence

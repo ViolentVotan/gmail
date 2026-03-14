@@ -203,7 +203,7 @@ final class MailboxViewModel {
     /// Refreshes the current folder. If the label/query changed, starts a new observation.
     /// Otherwise the sync engine handles incremental sync and ValueObservation updates UI.
     func refreshCurrentFolder(labelIDs: [String], query: String? = nil) async {
-        if labelIDs != currentLabelIDs || query != currentQuery {
+        if labelIDs != currentLabelIDs || query != currentQuery || messageObservation == nil {
             await loadFolder(labelIDs: labelIDs, query: query)
         }
         // Otherwise: sync engine handles incremental sync, ValueObservation updates UI
