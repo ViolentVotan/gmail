@@ -2,7 +2,6 @@ private import os
 import SwiftUI
 
 /// Handles incremental delta sync via the Gmail History API.
-@MainActor
 final class HistorySyncService {
 
     nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "HistorySync")
@@ -26,20 +25,17 @@ final class HistorySyncService {
     /// Attempts incremental sync using Gmail History API.
     /// - Parameters:
     ///   - accountID: The account to sync.
+    ///   - startHistoryId: The history ID to start syncing from.
     ///   - labelId: Optional label to filter history by.
     ///   - existingMessageIDs: IDs of messages currently displayed, used to avoid
     ///     re-fetching messages we already have and to scope label-change refreshes.
     /// Returns a `SyncResult` with the changes to apply.
     func syncViaHistory(
         accountID: String,
+        startHistoryId: String,
         labelId: String? = nil,
-        existingMessageIDs: Set<String>
+        existingMessageIDs: Set<String> = []
     ) async -> SyncResult {
-        guard let account = AccountStore.shared.accounts.first(where: { $0.id == accountID }),
-              let startHistoryId = account.historyId else {
-            return SyncResult(succeeded: false)
-        }
-
         var result = SyncResult()
 
         do {
@@ -136,7 +132,6 @@ final class HistorySyncService {
         } catch {
             if case .httpError(let code, _) = error, code == 404 {
                 // historyId expired — fall back to full refresh
-                updateStoredHistoryId(nil, accountID: accountID)
                 return SyncResult(succeeded: false)
             }
             // Rate-limit (429), server errors (5xx), and other API errors are retriable —
@@ -149,10 +144,4 @@ final class HistorySyncService {
         }
     }
 
-    /// Updates the persisted historyId for the given account.
-    func updateStoredHistoryId(_ historyId: String?, accountID: String) {
-        guard var account = AccountStore.shared.accounts.first(where: { $0.id == accountID }) else { return }
-        account.historyId = historyId
-        AccountStore.shared.update(account)
-    }
 }

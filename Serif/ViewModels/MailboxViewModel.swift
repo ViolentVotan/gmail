@@ -768,7 +768,10 @@ final class MailboxViewModel {
 
             // Update history ID for delta sync
             if reset, let latestHistoryId = resolved.compactMap(\.historyId).first {
-                historyService.updateStoredHistoryId(latestHistoryId, accountID: accountID)
+                if var account = AccountStore.shared.accounts.first(where: { $0.id == accountID }) {
+                    account.historyId = latestHistoryId
+                    AccountStore.shared.update(account)
+                }
             }
 
             syncProgressManager?.syncCompleted()
@@ -813,9 +816,15 @@ final class MailboxViewModel {
     /// Applies the result of a history sync to the VM's observable state.
     private func applyHistorySync(labelId: String?) async -> Bool {
         syncProgressManager?.syncStarted()
+        guard let account = AccountStore.shared.accounts.first(where: { $0.id == accountID }),
+              let startHistoryId = account.historyId else {
+            syncProgressManager?.syncFailed()
+            return false
+        }
         let existingIDs = Set(messages.map(\.id))
         let result = await historyService.syncViaHistory(
             accountID: accountID,
+            startHistoryId: startHistoryId,
             labelId: labelId,
             existingMessageIDs: existingIDs
         )
@@ -872,7 +881,10 @@ final class MailboxViewModel {
         recomputeEmails()
 
         if let historyId = result.latestHistoryId {
-            historyService.updateStoredHistoryId(historyId, accountID: accountID)
+            if var account = AccountStore.shared.accounts.first(where: { $0.id == accountID }) {
+                account.historyId = historyId
+                AccountStore.shared.update(account)
+            }
         }
 
         if let err = result.error { error = err }
