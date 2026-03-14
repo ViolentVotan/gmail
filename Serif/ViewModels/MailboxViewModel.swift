@@ -22,7 +22,6 @@ final class MailboxViewModel {
     var error:         String?
     var labels:        [GmailLabel] = []
     var sendAsAliases:         [GmailSendAs] = []
-    var readIDs:               Set<String> = []
     var categoryUnreadCounts:  [InboxCategory: Int] = [:]
     /// Set by `restoreLabelsInDatabase` so the UI can re-select the restored email.
     var lastRestoredMessageID: String?
@@ -287,89 +286,80 @@ final class MailboxViewModel {
         messageObservation?.cancel()
         messageObservation = nil
         accountID = id
-        readIDs   = []
         error     = nil
         emails    = []
     }
 
     // MARK: - Mutations
 
-    /// Marks a message as read by ID. Updates the DB read flag and calls the API.
+    /// Marks a message as read. Optimistic DB write → API call → revert on failure.
     func markAsRead(_ messageID: String) async {
-        guard !readIDs.contains(messageID) else { return }
-        readIDs.insert(messageID)
-        // Optimistic DB update — ValueObservation will refresh emails
+        let original = updateLabelsInDatabase(messageID, addLabelIds: [], removeLabelIds: [GmailSystemLabel.unread])
         updateReadFlagInDatabase(messageID, isRead: true)
-        updateEmailInPlace(messageID) { $0.isRead = true }
-        try? await api.markAsRead(id: messageID, accountID: accountID)
-    }
-
-    /// Updates local state for messages already marked as read by another component (e.g. EmailDetailVM).
-    func applyReadLocally(_ messageIDs: [String]) {
-        for id in messageIDs {
-            readIDs.insert(id)
-            updateReadFlagInDatabase(id, isRead: true)
-            updateEmailInPlace(id) { $0.isRead = true }
-        }
-    }
-
-    func markAsUnread(_ messageID: String) async {
-        readIDs.remove(messageID)
-        updateReadFlagInDatabase(messageID, isRead: false)
-        updateEmailInPlace(messageID) { $0.isRead = false }
         do {
-            try await api.markAsUnread(id: messageID, accountID: accountID)
-        } catch { self.error = error.localizedDescription }
-    }
-
-    func toggleStar(_ messageID: String, isStarred: Bool) async {
-        // Optimistic DB update
-        if isStarred {
-            updateLabelsInDatabase(messageID, addLabelIds: [], removeLabelIds: [GmailSystemLabel.starred])
-        } else {
-            updateLabelsInDatabase(messageID, addLabelIds: [GmailSystemLabel.starred], removeLabelIds: [])
-        }
-        updateEmailInPlace(messageID) { $0.isStarred = !isStarred }
-        do {
-            try await api.setStarred(!isStarred, id: messageID, accountID: accountID)
+            try await api.markAsRead(id: messageID, accountID: accountID)
         } catch {
-            // Revert on failure
-            if isStarred {
-                updateLabelsInDatabase(messageID, addLabelIds: [GmailSystemLabel.starred], removeLabelIds: [])
-            } else {
-                updateLabelsInDatabase(messageID, addLabelIds: [], removeLabelIds: [GmailSystemLabel.starred])
-            }
-            updateEmailInPlace(messageID) { $0.isStarred = isStarred }
+            if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
+            updateReadFlagInDatabase(messageID, isRead: false)
             self.error = error.localizedDescription
         }
     }
 
+    /// Updates DB read state for messages already marked as read by another component (e.g. EmailDetailVM).
+    func applyReadLocally(_ messageIDs: [String]) {
+        for id in messageIDs {
+            updateLabelsInDatabase(id, addLabelIds: [], removeLabelIds: [GmailSystemLabel.unread])
+            updateReadFlagInDatabase(id, isRead: true)
+        }
+    }
+
+    /// Marks a message as unread. Optimistic DB write → API call → revert on failure.
+    func markAsUnread(_ messageID: String) async {
+        let original = updateLabelsInDatabase(messageID, addLabelIds: [GmailSystemLabel.unread], removeLabelIds: [])
+        updateReadFlagInDatabase(messageID, isRead: false)
+        do {
+            try await api.markAsUnread(id: messageID, accountID: accountID)
+        } catch {
+            if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
+            updateReadFlagInDatabase(messageID, isRead: true)
+            self.error = error.localizedDescription
+        }
+    }
+
+    /// Toggles star on a message. Optimistic DB write → API call → revert on failure.
+    func toggleStar(_ messageID: String, isStarred: Bool) async {
+        let addLabels = isStarred ? [String]() : [GmailSystemLabel.starred]
+        let removeLabels = isStarred ? [GmailSystemLabel.starred] : [String]()
+        let original = updateLabelsInDatabase(messageID, addLabelIds: addLabels, removeLabelIds: removeLabels)
+        do {
+            try await api.setStarred(!isStarred, id: messageID, accountID: accountID)
+        } catch {
+            if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
+            self.error = error.localizedDescription
+        }
+    }
+
+    /// Trashes a message. Optimistic DB write → API call → reconcile or revert.
     func trash(_ messageID: String) async {
+        let original = updateLabelsInDatabase(messageID, addLabelIds: [GmailSystemLabel.trash], removeLabelIds: [GmailSystemLabel.inbox])
         do {
             let updated = try await api.trashMessage(id: messageID, accountID: accountID)
             reconcileLabelsInDatabase(messageID, serverLabelIds: updated.labelIds ?? [])
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
+            self.error = error.localizedDescription
+        }
     }
 
+    /// Archives a message. Optimistic DB write → API call → revert on failure.
     func archive(_ messageID: String) async {
+        let original = updateLabelsInDatabase(messageID, addLabelIds: [], removeLabelIds: [GmailSystemLabel.inbox])
         do {
             try await api.archiveMessage(id: messageID, accountID: accountID)
-        } catch { self.error = error.localizedDescription }
-    }
-
-    /// No-op: optimistic removal is handled via DB label writes (see `updateLabelsInDatabase`).
-    /// The `EmailActionCoordinator` already performs DB label updates before calling this.
-    /// ValueObservation drives the UI, so no in-memory array manipulation is needed.
-    @discardableResult
-    func removeOptimistically(_ messageID: String) -> GmailMessage? {
-        // DB label writes trigger ValueObservation — no in-memory removal needed.
-        return nil
-    }
-
-    /// No-op: restoration is handled via `restoreLabelsInDatabase`.
-    /// ValueObservation will automatically re-include the message in the email list.
-    func restoreOptimistically(_ message: GmailMessage) {
-        lastRestoredMessageID = message.id
+        } catch {
+            if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
+            self.error = error.localizedDescription
+        }
     }
 
     /// Optimistically updates labels in the database so ValueObservation reflects the change.
@@ -486,49 +476,77 @@ final class MailboxViewModel {
         }
     }
 
+    /// Moves a message to inbox. Optimistic DB write → API call → revert on failure.
     func moveToInbox(_ messageID: String) async {
+        let original = updateLabelsInDatabase(messageID, addLabelIds: [GmailSystemLabel.inbox], removeLabelIds: [])
         do {
             try await api.modifyLabels(
                 id: messageID, add: [GmailSystemLabel.inbox], remove: [], accountID: accountID
             )
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
+            self.error = error.localizedDescription
+        }
     }
 
+    /// Untrashes a message. Optimistic DB write → API call → reconcile or revert.
     func untrash(_ messageID: String) async {
+        let original = updateLabelsInDatabase(messageID, addLabelIds: [], removeLabelIds: [GmailSystemLabel.trash])
         do {
             let updated = try await api.untrashMessage(id: messageID, accountID: accountID)
             reconcileLabelsInDatabase(messageID, serverLabelIds: updated.labelIds ?? [])
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
+            self.error = error.localizedDescription
+        }
     }
 
+    /// Permanently deletes a message. Removes all labels from DB optimistically.
     func deletePermanently(_ messageID: String) async {
+        let original = removeAllLabelsInDatabase(messageID)
         do {
             try await api.deleteMessagePermanently(id: messageID, accountID: accountID)
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
+            self.error = error.localizedDescription
+        }
     }
 
+    /// Marks a message as not spam. Optimistic DB write → API call → revert on failure.
     func unspam(_ messageID: String) async {
+        let original = updateLabelsInDatabase(messageID, addLabelIds: [GmailSystemLabel.inbox], removeLabelIds: [GmailSystemLabel.spam])
         do {
             try await api.modifyLabels(
                 id: messageID, add: [GmailSystemLabel.inbox], remove: [GmailSystemLabel.spam], accountID: accountID
             )
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
+            self.error = error.localizedDescription
+        }
     }
 
+    /// Marks a message as spam. Optimistic DB write → API call → revert on failure.
     func spam(_ messageID: String) async {
+        let original = updateLabelsInDatabase(messageID, addLabelIds: [GmailSystemLabel.spam], removeLabelIds: [GmailSystemLabel.inbox])
         do {
             try await api.spamMessage(id: messageID, accountID: accountID)
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
+            self.error = error.localizedDescription
+        }
     }
 
+    /// Adds a label to a message. Optimistic DB write → API call → revert on failure.
     func addLabel(_ labelID: String, to messageID: String) async {
+        let original = updateLabelsInDatabase(messageID, addLabelIds: [labelID], removeLabelIds: [])
         do {
             try await api.modifyLabels(
                 id: messageID, add: [labelID], remove: [], accountID: accountID
             )
-            // Reconcile DB labels after API mutation
-            reconcileLabelsInDatabase(messageID, serverLabelIds: []) // Will be updated by sync engine
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
+            self.error = error.localizedDescription
+        }
     }
 
     @discardableResult
@@ -544,12 +562,17 @@ final class MailboxViewModel {
         }
     }
 
+    /// Removes a label from a message. Optimistic DB write → API call → revert on failure.
     func removeLabel(_ labelID: String, from messageID: String) async {
+        let original = updateLabelsInDatabase(messageID, addLabelIds: [], removeLabelIds: [labelID])
         do {
             try await api.modifyLabels(
                 id: messageID, add: [], remove: [labelID], accountID: accountID
             )
-        } catch { self.error = error.localizedDescription }
+        } catch {
+            if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
+            self.error = error.localizedDescription
+        }
     }
 
     // MARK: - GmailMessage → Email conversion
@@ -616,9 +639,4 @@ final class MailboxViewModel {
         }
     }
 
-    private func updateEmailInPlace(_ messageID: String, update: (inout Email) -> Void) {
-        if let idx = emails.firstIndex(where: { $0.gmailMessageID == messageID }) {
-            update(&emails[idx])
-        }
-    }
 }
