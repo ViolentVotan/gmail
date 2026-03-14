@@ -50,6 +50,19 @@ extension Date {
         return f
     }()
 
+    private static let dayTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE, h:mm a"
+        return f
+    }()
+
+    private static let gmailQueryFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy/MM/dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f
+    }()
+
     // MARK: - Formatted properties
 
     /// Formats a date relative to today: time for today, "Yesterday", or "MMM d" otherwise.
@@ -64,6 +77,21 @@ extension Date {
         } else {
             return Self.shortDateFormatter.string(from: self)
         }
+    }
+
+    /// Time only: "2:34 PM".
+    var formattedTime: String {
+        Self.timeFormatter.string(from: self)
+    }
+
+    /// Day abbreviation + time: "Mon, 8:00 AM".
+    var formattedDayTime: String {
+        Self.dayTimeFormatter.string(from: self)
+    }
+
+    /// Gmail API query format: "2026/03/14".
+    var formattedGmailQuery: String {
+        Self.gmailQueryFormatter.string(from: self)
     }
 
     /// Medium date with short time: "Mar 1, 2025, 2:34 PM".

@@ -86,15 +86,10 @@ struct SnoozePickerView: View {
             return calendar.date(bySettingHour: 8, minute: 0, second: 0, of: monday) ?? monday
         }()
 
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        let dayFormatter = DateFormatter()
-        dayFormatter.dateFormat = "EEE, h:mm a"
-
         return [
-            ("Later Today", "clock", formatter.string(from: laterToday), laterToday),
+            ("Later Today", "clock", laterToday.formattedTime, laterToday),
             ("Tomorrow Morning", "sunrise", "8:00 AM", tomorrowMorning),
-            ("Next Week", "calendar", dayFormatter.string(from: nextMonday), nextMonday),
+            ("Next Week", "calendar", nextMonday.formattedDayTime, nextMonday),
         ]
     }
 }
