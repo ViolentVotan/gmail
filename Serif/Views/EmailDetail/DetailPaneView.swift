@@ -21,6 +21,14 @@ struct DetailPaneView: View {
     private var panelCoordinator: PanelCoordinator { coordinator.panelCoordinator }
     private var attachmentIndexer: AttachmentIndexer? { coordinator.attachmentIndexer }
 
+    /// Resolves the best send-as alias for the given email, falling back to the primary account address.
+    private func resolvedFromAddress(for email: Email) -> String {
+        mailboxViewModel.sendAsAliases.bestAlias(
+            toRecipients: email.recipients.map(\.email),
+            ccRecipients: email.cc.map(\.email)
+        ) ?? fromAddress
+    }
+
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
     private var isEditingDraft: Bool {
@@ -66,11 +74,24 @@ struct DetailPaneView: View {
     // MARK: - Compose
 
     private func composeView(draftId: UUID) -> some View {
-        ComposeView(
+        let resolvedFrom: String = {
+            switch composeMode {
+            case .reply(_, _, _, _, let threadID),
+                 .replyAll(_, _, _, _, _, let threadID):
+                if let original = mailboxViewModel.emails.first(where: { $0.gmailThreadID == threadID }) {
+                    return resolvedFromAddress(for: original)
+                }
+                return fromAddress
+            default:
+                return fromAddress
+            }
+        }()
+
+        return ComposeView(
             mailStore: mailStore,
             draftId: draftId,
             accountID: accountID,
-            fromAddress: fromAddress,
+            fromAddress: resolvedFrom,
             mode: composeMode,
             sendAsAliases: mailboxViewModel.sendAsAliases,
             signatureForNew: signatureForNew,
@@ -153,7 +174,7 @@ struct DetailPaneView: View {
             actions: actions,
             attachmentIndexer: attachmentIndexer,
             allLabels: mailboxViewModel.labels,
-            fromAddress: fromAddress,
+            fromAddress: resolvedFromAddress(for: email),
             mailDatabase: coordinator.mailDatabase
         )
         .id(email.id)
