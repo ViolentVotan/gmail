@@ -43,7 +43,6 @@ enum Typography {
 
     // Title
     static let title: Font = .title3.bold()
-    static let titleSemibold: Font = .title3.weight(.semibold)
 
     // Headline
     static let headline: Font = .headline
@@ -65,7 +64,6 @@ enum Typography {
 
     // Footnote
     static let footnote: Font = .footnote
-    static let footnoteMedium: Font = .footnote.weight(.medium)
 
     // Caption
     static let caption: Font = .caption.weight(.medium)

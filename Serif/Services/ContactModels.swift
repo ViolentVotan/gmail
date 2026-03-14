@@ -17,20 +17,6 @@ final class ContactStore {
     static let shared = ContactStore()
     private init() {}
 
-    func contacts(for accountID: String) -> [StoredContact] {
-        (try? MailDatabase.shared(for: accountID).dbPool.read { db in
-            try MailDatabaseQueries.allContacts(in: db).map {
-                StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
-            }
-        }) ?? []
-    }
-
-    func contactCount(for accountID: String) -> Int {
-        (try? MailDatabase.shared(for: accountID).dbPool.read { db in
-            try MailDatabaseQueries.contactCount(in: db)
-        }) ?? 0
-    }
-
     /// Clean up legacy UserDefaults keys when an account is removed.
     func deleteAccount(_ accountID: String) {
         UserDefaults.standard.removeObject(forKey: "com.vikingz.serif.contacts.\(accountID)")

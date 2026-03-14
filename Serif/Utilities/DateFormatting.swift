@@ -52,23 +52,6 @@ extension Date {
 
     // MARK: - Formatted properties
 
-    /// Full date with time, for detail views: "Mar 1, 2025 at 2:34 PM" or "Today at 2:34 PM".
-    var formattedFull: String {
-        let calendar = Calendar.current
-        let time = Self.timeFormatter.string(from: self)
-
-        if calendar.isDateInToday(self) {
-            return "Today, \(time)"
-        } else if calendar.isDateInYesterday(self) {
-            return "Yesterday, \(time)"
-        } else {
-            let dateFmt = calendar.component(.year, from: self) != calendar.component(.year, from: Date())
-                ? Self.shortDateYearFormatter
-                : Self.shortDateFormatter
-            return "\(dateFmt.string(from: self)), \(time)"
-        }
-    }
-
     /// Formats a date relative to today: time for today, "Yesterday", or "MMM d" otherwise.
     var formattedRelative: String {
         let calendar = Calendar.current

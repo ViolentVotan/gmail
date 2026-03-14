@@ -123,8 +123,6 @@ enum MailDatabaseMigrations {
                 t.primaryKey("id", .integer).check { $0 == 1 }
                 t.column("contacts_sync_token", .text)
                 t.column("other_contacts_sync_token", .text)
-                t.column("labels_etag", .text)
-                t.column("last_contacts_sync", .double)
             }
             // Seed the single row
             try db.execute(sql: "INSERT INTO account_sync_state (id) VALUES (1)")

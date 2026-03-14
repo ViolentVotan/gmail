@@ -1,15 +1,6 @@
 import SwiftUI
 
 extension Color {
-    /// Converts this Color to a hex string (#RRGGBB).
-    var hexString: String {
-        guard let nsColor = NSColor(self).usingColorSpace(.sRGB) else { return "#000000" }
-        let r = Int(nsColor.redComponent * 255)
-        let g = Int(nsColor.greenComponent * 255)
-        let b = Int(nsColor.blueComponent * 255)
-        return String(format: "#%02X%02X%02X", r, g, b)
-    }
-
     init(hex: String) {
         let hex = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
         var int: UInt64 = 0
