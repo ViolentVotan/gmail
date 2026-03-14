@@ -36,7 +36,7 @@ A native macOS Gmail client. No Electron. No web wrapper. Just Swift, SwiftUI, a
 
 | | |
 |---|---|
-| 💬 **Chat-style threads** | Conversations with bubbles, quote collapsing, and thread grouping |
+| 💬 **Conversation threads** | Collapsible message cards, quote stripping, and thread grouping |
 | 🔒 **Tracker blocking** | Spy pixels, tracking links, and CSS trackers — 180+ domains stripped automatically |
 | 🔍 **Smart search** | Gmail query syntax + FTS5 local full-text search across your entire mailbox |
 | 🤖 **Apple Intelligence** | On-device email summaries, classification, and smart reply suggestions (macOS 26+) |
