@@ -45,8 +45,7 @@ final class AuthViewModel {
                 messagesTotal:     profile.messagesTotal,
                 threadsTotal:      profile.threadsTotal,
                 signature:         signature,
-                unreadCount:       0,
-                historyId:         profile.historyId
+                unreadCount:       0
             )
             AccountStore.shared.add(account)
             accounts = AccountStore.shared.accounts

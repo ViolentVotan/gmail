@@ -10,7 +10,6 @@ struct GmailAccount: Identifiable, Codable, Equatable, Sendable {
     var threadsTotal:      Int
     var signature:         String?
     var unreadCount:       Int
-    var historyId:         String?
     var accentColor:       String?
 }
 
