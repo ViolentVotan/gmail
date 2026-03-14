@@ -150,40 +150,6 @@ actor BackgroundSyncer {
         }
     }
 
-    // MARK: - Body Eviction
-
-    /// Evict bodies older than the given date.
-    func evictBodies(olderThan date: Date) throws {
-        try db.dbPool.write { db in
-            let cutoff = date.timeIntervalSince1970
-
-            // Get messages to evict
-            let toEvict = try MessageRecord.fetchAll(db, sql: """
-                SELECT * FROM messages
-                WHERE internal_date < ? AND full_body_fetched = 1
-            """, arguments: [cutoff])
-
-            // Update FTS for each (remove body, keep subject/snippet/sender)
-            for msg in toEvict {
-                try FTSManager.evictBody(
-                    gmailId: msg.gmailId,
-                    subject: msg.subject,
-                    snippet: msg.snippet,
-                    senderName: msg.senderName,
-                    senderEmail: msg.senderEmail,
-                    in: db
-                )
-            }
-
-            // Null out bodies
-            try db.execute(sql: """
-                UPDATE messages
-                SET body_html = NULL, body_plain = NULL, full_body_fetched = 0
-                WHERE internal_date < ? AND full_body_fetched = 1
-            """, arguments: [cutoff])
-        }
-    }
-
     // MARK: - History Delta Sync
 
     /// Apply history delta: insert new, delete removed, update labels.

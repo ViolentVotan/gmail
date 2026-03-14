@@ -350,7 +350,6 @@ final class AppCoordinator {
                                 messageService: GmailMessageService.shared,
                                 accountID: account.id
                             )
-                            try? await syncer.evictBodies(olderThan: Calendar.current.date(byAdding: .day, value: -90, to: .now)!)
                             await syncProgressManager.syncCompleted()
                         } catch {
                             await syncProgressManager.syncFailed()
@@ -470,7 +469,6 @@ final class AppCoordinator {
                             messageService: GmailMessageService.shared,
                             accountID: id
                         )
-                        try? await syncer.evictBodies(olderThan: Calendar.current.date(byAdding: .day, value: -90, to: .now)!)
                         await syncProgressManager.syncCompleted()
                     } catch {
                         await syncProgressManager.syncFailed()
