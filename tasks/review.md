@@ -45,21 +45,27 @@ After deduplication: **~30 unique findings**. Several were flagged by multiple a
 - **WKWebView navigation policy too permissive** — `decidePolicyFor` allows all non-`linkActivated` navigations. Malicious email HTML could trigger programmatic navigation to `file://` or `javascript:` URIs. Fix: default to `.cancel`, allow only the initial `loadHTMLString` load. Also set `javaScriptEnabled = false` for the email reader.
 
 ### Performance — High
-- **`emails` computed property re-sorts on every render** — `MailboxViewModel.emails` does O(N log N) sort + full `makeEmail` conversion on every SwiftUI body evaluation. Fix: cache as `@Published var emails` and recompute only when `messages` or `labels` change.
-- **MailCacheStore blocking main thread** — All JSON encode/decode + file I/O is synchronous, called from `@MainActor` context. Fix: make save async via `Task.detached(priority: .utility)`.
-- **N+1 stale message verification** — Sequential per-message API calls in `performFetch`. Fix: use existing `getMessages(ids:)` batch API.
+- ~~**`emails` computed property re-sorts on every render**~~ — **RESOLVED.** `emails` was already a stored `private(set) var`. Coalesced `applyHistorySync` mutations with `suppressRecompute` to avoid 3-4 redundant recomputes per sync cycle.
+- ~~**MailCacheStore blocking main thread**~~ — **NOT AN ISSUE.** No `MailCacheStore` class exists in codebase — review artifact.
+- ~~**N+1 stale message verification**~~ — **ALREADY FIXED.** `verifyMessages()` in `MessageFetchService` already uses `getMessages(ids:)` batch API.
 
 ### Architecture
-- **Views calling Services directly** (4 locations) — `ReplyBarView`, `SettingsCardsView`, `AttachmentExplorerView`, `SignatureEditorView`. Fix: move to ViewModel/coordinator callbacks.
+- ~~**Views calling Services directly**~~ — **PARTIALLY RESOLVED.** `SignaturesSettingsView` extracted to injected callback. Remaining views (AvatarView, UnifiedToastLayer, AttachmentCardView) access `@Observable` caches/monitors for pure presentation — adding ViewModel indirection would be over-engineering.
 - **EmailDetailVM mark-as-read bypasses MailboxVM** — Unread counts drift until next refresh. Fix: route through MailboxVM callback.
 - **`mailStore ?? MailStore()` ephemeral fallback** — `EmailDetailView.swift:272` creates disconnected instance, draft saves are lost. Fix: make `mailStore` non-optional.
 
 ### DRY
-- **`resolveInlineImages` duplicated** — Same TaskGroup logic in two methods. Fix: extract shared helper.
-- **File-size formatting** in 3 places — Promote `GmailDataTransformer.sizeString` to internal.
-- **Date formatting** in 3 places — Replace inline `DateFormatter` with `Date.formattedFull`.
+- ~~**`resolveInlineImages` duplicated**~~ — **NOT DUPLICATED.** Both methods delegate to shared `replaceCIDReferences()` helper; they differ intentionally (latest uses tracker-sanitized HTML, older use raw HTML).
+- ~~**File-size formatting**~~ — **RESOLVED.** Unified on `ByteCountFormatter.string(fromByteCount:countStyle:)` via `GmailDataTransformer.sizeString`.
+- ~~**Date formatting**~~ — **RESOLVED.** Centralized to cached formatters in `DateFormatting.swift` (`formattedTime`, `formattedDayTime`, `formattedGmailQuery`).
 
 ### Efficiency
-- **`allEmbeddings` unbounded load** — Loads entire embedding table into memory on every semantic search fallback. Fix: cap with LIMIT or use ANN index.
-- **Sequential older message inline image resolution** — Serialized across messages. Fix: wrap outer loop in TaskGroup.
-- **`markAsRead` sequential per thread message** — O(N) serial API calls. Fix: use TaskGroup or batch modify.
+- ~~**`allEmbeddings` unbounded load**~~ — **ALREADY CAPPED.** `allEmbeddings(accountID:limit:)` has `limit: Int = 1000` default.
+- ~~**Sequential older message inline image resolution**~~ — **ALREADY PARALLEL.** `resolveInlineImagesForOlderMessages()` uses `withTaskGroup`.
+- ~~**`markAsRead` sequential per thread message**~~ — **ALREADY CONCURRENT.** `EmailDetailViewModel.loadThread` uses `withTaskGroup` for marking unread messages.
+
+### Code Quality (resolved 2026-03-14)
+- ~~**Empty catch block in WebRichTextEditorCoordinator**~~ — Added os.Logger warning for failed image writes.
+- ~~**Unguarded `print()` in production**~~ — Replaced with os.Logger across HistorySyncService, OfflineActionQueue, AttachmentIndexer, MailboxViewModel, WebRichTextEditorCoordinator.
+- ~~**`assertionFailure` setter traps**~~ — SnoozeStore and ScheduledSendStore `items` are now read-only computed properties.
+- ~~**MailStore in Models/**~~ — Moved to ViewModels/ (architecturally a ViewModel).
