@@ -29,6 +29,9 @@ final class PeopleAPIService {
     /// Forces a network refresh of contacts, replacing the local cache.
     func refreshContacts(accountID: String) async {
         await fetchAndStoreContacts(accountID: accountID)
+        if UserDefaults.standard.bool(forKey: "syncDirectoryContacts") {
+            await fetchDirectoryPeople(accountID: accountID)
+        }
     }
 
     /// Extracts StoredContacts from a PersonResource array, updating the photo cache.
@@ -244,6 +247,92 @@ final class PeopleAPIService {
         }
         print("[Serif] Total unique contacts stored: \(unique.count)")
     }
+
+    /// Fetches Google Workspace directory contacts (domain profiles + contacts).
+    /// Gracefully skips if the directory.readonly scope isn't granted (403).
+    private func fetchDirectoryPeople(accountID: String) async {
+        let mailDB = try? MailDatabase.shared(for: accountID)
+
+        do {
+            let dirSyncToken: String? = try? await mailDB?.dbPool.read { db in
+                try MailDatabaseQueries.syncState(in: db)?.directorySyncToken
+            }
+            var newDirSyncToken: String?
+            var directoryContacts: [StoredContact] = []
+
+            if let dirSyncToken {
+                // Incremental sync
+                do {
+                    var incPageToken: String? = nil
+                    repeat {
+                        let encodedToken = dirSyncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? dirSyncToken
+                        var urlStr = "https://people.googleapis.com/v1/people:listDirectoryPeople"
+                            + "?sources=DIRECTORY_SOURCE_TYPE_DOMAIN_CONTACT"
+                            + "&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE"
+                            + "&readMask=metadata,names,emailAddresses,photos"
+                            + "&syncToken=\(encodedToken)"
+                            + "&pageSize=1000"
+                        if let pt = incPageToken { urlStr += "&pageToken=\(pt)" }
+                        let response: DirectoryPeopleResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
+                        directoryContacts.append(contentsOf: parseContacts(from: response.people ?? []))
+                        incPageToken = response.nextPageToken
+                        newDirSyncToken = response.nextSyncToken ?? newDirSyncToken
+                    } while incPageToken != nil
+                } catch {
+                    let isGone = if case GmailAPIError.httpError(410, _) = error { true } else { false }
+                    if isGone {
+                        try? await mailDB?.dbPool.write { db in
+                            try MailDatabaseQueries.updateSyncState({ $0.directorySyncToken = nil }, in: db)
+                        }
+                        // Will do full fetch below
+                    } else {
+                        throw error
+                    }
+                }
+            }
+
+            if dirSyncToken == nil || newDirSyncToken == nil {
+                // Full fetch
+                directoryContacts = []
+                var pageToken: String? = nil
+                repeat {
+                    var urlStr = "https://people.googleapis.com/v1/people:listDirectoryPeople"
+                        + "?sources=DIRECTORY_SOURCE_TYPE_DOMAIN_CONTACT"
+                        + "&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE"
+                        + "&readMask=metadata,names,emailAddresses,photos"
+                        + "&requestSyncToken=true&pageSize=1000"
+                    if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
+                    let response: DirectoryPeopleResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
+                    directoryContacts.append(contentsOf: parseContacts(from: response.people ?? []))
+                    pageToken = response.nextPageToken
+                    newDirSyncToken = response.nextSyncToken ?? newDirSyncToken
+                } while pageToken != nil
+            }
+
+            if let newDirSyncToken {
+                try? await mailDB?.dbPool.write { db in
+                    try MailDatabaseQueries.updateSyncState({ $0.directorySyncToken = newDirSyncToken }, in: db)
+                }
+            }
+
+            // Upsert directory contacts
+            if let mailDB, !directoryContacts.isEmpty {
+                let syncer = BackgroundSyncer(db: mailDB)
+                let tuples = directoryContacts.map {
+                    (email: $0.email, name: Optional($0.name), photoUrl: $0.photoURL, source: "directory", resourceName: nil as String?)
+                }
+                try? await syncer.upsertContacts(tuples)
+            }
+
+        } catch {
+            // 403 = scope not granted — skip silently
+            if case GmailAPIError.httpError(403, _) = error {
+                print("[Serif] Directory contacts skipped — scope not granted")
+            } else {
+                print("[Serif] Directory contacts error: \(error)")
+            }
+        }
+    }
 }
 
 // MARK: - People API response models
@@ -256,6 +345,12 @@ struct PeopleConnectionsResponse: Decodable {
 
 struct OtherContactsResponse: Decodable {
     let otherContacts: [PersonResource]?
+    let nextPageToken: String?
+    let nextSyncToken: String?
+}
+
+struct DirectoryPeopleResponse: Decodable {
+    let people: [PersonResource]?
     let nextPageToken: String?
     let nextSyncToken: String?
 }

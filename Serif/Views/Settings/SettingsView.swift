@@ -7,9 +7,9 @@ struct SettingsView: View {
     // Use the same @AppStorage keys as AppCoordinator and UndoActionManager
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("undoDuration") private var undoDuration = 5
-    @AppStorage("refreshInterval") private var refreshInterval = 120
     @AppStorage("showDebugMenu") private var showDebugMenu = false
     @AppStorage("aiLabelSuggestions") private var aiLabelSuggestions = true
+    @AppStorage("syncDirectoryContacts") private var syncDirectoryContacts = false
 
     var body: some View {
         TabView {
@@ -52,13 +52,25 @@ struct SettingsView: View {
                     Text("20 seconds").tag(20)
                     Text("30 seconds").tag(30)
                 }
+            }
 
-                Picker("Auto-refresh interval", selection: $refreshInterval) {
-                    Text("2 minutes").tag(120)
-                    Text("5 minutes").tag(300)
-                    Text("10 minutes").tag(600)
-                    Text("60 minutes").tag(3600)
-                }
+            Section("Google Workspace") {
+                Toggle("Sync directory contacts", isOn: $syncDirectoryContacts)
+                    .help("Sync contacts from your organization's directory. Requires additional permissions.")
+                    .onChange(of: syncDirectoryContacts) { _, enabled in
+                        if enabled {
+                            Task {
+                                do {
+                                    try await OAuthService.shared.reauthorize(
+                                        accountID: AccountStore.shared.selectedAccountID ?? "",
+                                        presentingWindow: NSApp.keyWindow
+                                    )
+                                } catch {
+                                    syncDirectoryContacts = false
+                                }
+                            }
+                        }
+                    }
             }
         }
         .formStyle(.grouped)

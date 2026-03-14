@@ -120,25 +120,6 @@ actor BackgroundSyncer {
         }
     }
 
-    // MARK: - Body Pre-fetch
-
-    /// Pre-fetch full message bodies for messages that only have metadata.
-    /// Fetches newest first in batches. Runs until all visible messages have bodies.
-    func preFetchBodies(messageService: GmailMessageService, accountID: String) async throws {
-        let toFetch = try await db.dbPool.read { db in
-            try MailDatabaseQueries.messagesNeedingBodies(limit: 50, in: db)
-        }
-        guard !toFetch.isEmpty else { return }
-
-        let ids = toFetch.map(\.gmailId)
-        let fullMessages = try await messageService.getMessages(ids: ids, accountID: accountID, format: "full")
-
-        let updates: [(gmailId: String, html: String?, plain: String?)] = fullMessages.map { msg in
-            (gmailId: msg.id, html: msg.htmlBody, plain: msg.plainBody)
-        }
-        try updateBodies(updates)
-    }
-
     // MARK: - Label Sync
 
     /// Upsert labels from API.
@@ -147,40 +128,6 @@ actor BackgroundSyncer {
             for gmail in gmailLabels {
                 try LabelRecord(from: gmail).upsert(db)
             }
-        }
-    }
-
-    // MARK: - Body Eviction
-
-    /// Evict bodies older than the given date.
-    func evictBodies(olderThan date: Date) throws {
-        try db.dbPool.write { db in
-            let cutoff = date.timeIntervalSince1970
-
-            // Get messages to evict
-            let toEvict = try MessageRecord.fetchAll(db, sql: """
-                SELECT * FROM messages
-                WHERE internal_date < ? AND full_body_fetched = 1
-            """, arguments: [cutoff])
-
-            // Update FTS for each (remove body, keep subject/snippet/sender)
-            for msg in toEvict {
-                try FTSManager.evictBody(
-                    gmailId: msg.gmailId,
-                    subject: msg.subject,
-                    snippet: msg.snippet,
-                    senderName: msg.senderName,
-                    senderEmail: msg.senderEmail,
-                    in: db
-                )
-            }
-
-            // Null out bodies
-            try db.execute(sql: """
-                UPDATE messages
-                SET body_html = NULL, body_plain = NULL, full_body_fetched = 0
-                WHERE internal_date < ? AND full_body_fetched = 1
-            """, arguments: [cutoff])
         }
     }
 
@@ -299,9 +246,4 @@ actor BackgroundSyncer {
         }
     }
 
-    func deleteAllContacts() throws {
-        _ = try db.dbPool.write { db in
-            try ContactRecord.deleteAll(db)
-        }
-    }
 }

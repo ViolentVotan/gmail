@@ -21,7 +21,6 @@ final class EmailActionCoordinator {
     func archiveEmail(_ email: Email, selectNext: (Email?) -> Void) {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
-        let removed = vm.removeOptimistically(msgID)
         let originalLabels = vm.updateLabelsInDatabase(
             msgID,
             addLabelIds: [],
@@ -39,8 +38,10 @@ final class EmailActionCoordinator {
             label: "Archived",
             onConfirm: { Task { await vm.archive(msgID) } },
             onUndo: {
-                if let msg = removed { vm.restoreOptimistically(msg) }
-                if let labels = originalLabels { vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels) }
+                if let labels = originalLabels {
+                    vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
+                    vm.lastRestoredMessageID = msgID
+                }
             }
         )
     }
@@ -58,7 +59,6 @@ final class EmailActionCoordinator {
         }
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
-        let removed = vm.removeOptimistically(msgID)
         let originalLabels = vm.updateLabelsInDatabase(
             msgID,
             addLabelIds: [GmailSystemLabel.trash],
@@ -76,8 +76,10 @@ final class EmailActionCoordinator {
             label: "Moved to Trash",
             onConfirm: { Task { await vm.trash(msgID) } },
             onUndo: {
-                if let msg = removed { vm.restoreOptimistically(msg) }
-                if let labels = originalLabels { vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels) }
+                if let labels = originalLabels {
+                    vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
+                    vm.lastRestoredMessageID = msgID
+                }
             }
         )
     }
@@ -95,7 +97,6 @@ final class EmailActionCoordinator {
     func markSpamEmail(_ email: Email, selectNext: @escaping (Email?) -> Void) {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
-        let removed = vm.removeOptimistically(msgID)
         let originalLabels = vm.updateLabelsInDatabase(
             msgID,
             addLabelIds: [GmailSystemLabel.spam],
@@ -106,8 +107,10 @@ final class EmailActionCoordinator {
             label: "Marked as Spam",
             onConfirm: { Task { await vm.spam(msgID) } },
             onUndo: {
-                if let msg = removed { vm.restoreOptimistically(msg) }
-                if let labels = originalLabels { vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels) }
+                if let labels = originalLabels {
+                    vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
+                    vm.lastRestoredMessageID = msgID
+                }
             }
         )
     }
@@ -143,8 +146,7 @@ final class EmailActionCoordinator {
     func moveToInboxEmail(_ email: Email, selectedFolder: Folder, selectNext: (Email?) -> Void) {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
-        let removed = vm.removeOptimistically(msgID)
-        let removeLabels = selectedFolder == .trash ? [GmailSystemLabel.trash] : []
+        let removeLabels = selectedFolder == .trash ? [GmailSystemLabel.trash] : [String]()
         let originalLabels = vm.updateLabelsInDatabase(
             msgID,
             addLabelIds: [GmailSystemLabel.inbox],
@@ -156,8 +158,10 @@ final class EmailActionCoordinator {
                 label: "Moved to Inbox",
                 onConfirm: { Task { await vm.untrash(msgID) } },
                 onUndo: {
-                    if let msg = removed { vm.restoreOptimistically(msg) }
-                    if let labels = originalLabels { vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels) }
+                    if let labels = originalLabels {
+                        vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
+                        vm.lastRestoredMessageID = msgID
+                    }
                 }
             )
         } else {
@@ -165,8 +169,10 @@ final class EmailActionCoordinator {
                 label: "Moved to Inbox",
                 onConfirm: { Task { await vm.moveToInbox(msgID) } },
                 onUndo: {
-                    if let msg = removed { vm.restoreOptimistically(msg) }
-                    if let labels = originalLabels { vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels) }
+                    if let labels = originalLabels {
+                        vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
+                        vm.lastRestoredMessageID = msgID
+                    }
                 }
             )
         }
@@ -175,7 +181,6 @@ final class EmailActionCoordinator {
     func deletePermanentlyEmail(_ email: Email, selectNext: (Email?) -> Void) {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
-        let removed = vm.removeOptimistically(msgID)
         // Remove all labels from DB so ValueObservation won't bring it back
         let originalLabels = vm.removeAllLabelsInDatabase(msgID)
         selectNext(nil)
@@ -183,8 +188,10 @@ final class EmailActionCoordinator {
             label: "Deleted permanently",
             onConfirm: { Task { await vm.deletePermanently(msgID) } },
             onUndo: {
-                if let msg = removed { vm.restoreOptimistically(msg) }
-                if let labels = originalLabels { vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels) }
+                if let labels = originalLabels {
+                    vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
+                    vm.lastRestoredMessageID = msgID
+                }
             }
         )
     }
@@ -192,7 +199,6 @@ final class EmailActionCoordinator {
     func markNotSpamEmail(_ email: Email, selectNext: (Email?) -> Void) {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
-        let removed = vm.removeOptimistically(msgID)
         let originalLabels = vm.updateLabelsInDatabase(
             msgID,
             addLabelIds: [GmailSystemLabel.inbox],
@@ -203,8 +209,10 @@ final class EmailActionCoordinator {
             label: "Moved to Inbox",
             onConfirm: { Task { await vm.unspam(msgID) } },
             onUndo: {
-                if let msg = removed { vm.restoreOptimistically(msg) }
-                if let labels = originalLabels { vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels) }
+                if let labels = originalLabels {
+                    vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
+                    vm.lastRestoredMessageID = msgID
+                }
             }
         )
     }
@@ -212,7 +220,12 @@ final class EmailActionCoordinator {
     func snoozeEmail(_ email: Email, until date: Date, selectNext: (Email?) -> Void) {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
-        let removed = vm.removeOptimistically(msgID)
+        // Optimistic DB write: remove from inbox so ValueObservation hides it
+        let originalLabels = vm.updateLabelsInDatabase(
+            msgID,
+            addLabelIds: [],
+            removeLabelIds: [GmailSystemLabel.inbox]
+        )
         selectNext(nil)
 
         let item = SnoozedItem(
@@ -231,7 +244,12 @@ final class EmailActionCoordinator {
                 SnoozeStore.shared.add(item)
                 Task { await vm.archive(msgID) }
             },
-            onUndo: { if let msg = removed { vm.restoreOptimistically(msg) } }
+            onUndo: {
+                if let labels = originalLabels {
+                    vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
+                    vm.lastRestoredMessageID = msgID
+                }
+            }
         )
     }
 
@@ -275,7 +293,6 @@ final class EmailActionCoordinator {
     func bulkArchive(_ emails: [Email], onClear: () -> Void) {
         let vm = mailboxViewModel
         let msgIDs = emails.compactMap(\.gmailMessageID)
-        let removed = msgIDs.compactMap { vm.removeOptimistically($0) }
         var originalLabelsMap: [String: [String]] = [:]
         for id in msgIDs {
             if let labels = vm.updateLabelsInDatabase(id, addLabelIds: [], removeLabelIds: [GmailSystemLabel.inbox]) {
@@ -294,7 +311,6 @@ final class EmailActionCoordinator {
             label: "Archived \(msgIDs.count) emails",
             onConfirm: { Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.archive(id) } } } } },
             onUndo: {
-                for msg in removed { vm.restoreOptimistically(msg) }
                 for (id, labels) in originalLabelsMap {
                     vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
                 }
@@ -305,7 +321,6 @@ final class EmailActionCoordinator {
     func bulkDelete(_ emails: [Email], onClear: () -> Void) {
         let vm = mailboxViewModel
         let msgIDs = emails.compactMap(\.gmailMessageID)
-        let removed = msgIDs.compactMap { vm.removeOptimistically($0) }
         var originalLabelsMap: [String: [String]] = [:]
         for id in msgIDs {
             if let labels = vm.updateLabelsInDatabase(id, addLabelIds: [GmailSystemLabel.trash], removeLabelIds: [GmailSystemLabel.inbox]) {
@@ -324,7 +339,6 @@ final class EmailActionCoordinator {
             label: "Trashed \(msgIDs.count) emails",
             onConfirm: { Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.trash(id) } } } } },
             onUndo: {
-                for msg in removed { vm.restoreOptimistically(msg) }
                 for (id, labels) in originalLabelsMap {
                     vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
                 }
@@ -340,19 +354,15 @@ final class EmailActionCoordinator {
     }
 
     func bulkMarkRead(_ emails: [Email], onClear: () -> Void) {
-        let msgs = emails.compactMap { e -> GmailMessage? in
-            guard let msgID = e.gmailMessageID else { return nil }
-            return mailboxViewModel.messages.first { $0.id == msgID }
-        }
+        let msgIDs = emails.compactMap(\.gmailMessageID)
         onClear()
         let vm = mailboxViewModel
-        Task { await withTaskGroup(of: Void.self) { group in for msg in msgs { group.addTask { await vm.markAsRead(msg) } } } }
+        Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.markAsRead(id) } } } }
     }
 
     func bulkMoveToInbox(_ emails: [Email], selectedFolder: Folder, onClear: () -> Void) {
         let vm = mailboxViewModel
         let msgIDs = emails.compactMap(\.gmailMessageID)
-        let removed = msgIDs.compactMap { vm.removeOptimistically($0) }
         let removeLabels = selectedFolder == .trash ? [GmailSystemLabel.trash] : [String]()
         var originalLabelsMap: [String: [String]] = [:]
         for id in msgIDs {
@@ -366,7 +376,6 @@ final class EmailActionCoordinator {
                 label: "Moved \(msgIDs.count) to Inbox",
                 onConfirm: { Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.untrash(id) } } } } },
                 onUndo: {
-                    for msg in removed { vm.restoreOptimistically(msg) }
                     for (id, labels) in originalLabelsMap {
                         vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
                     }
@@ -377,7 +386,6 @@ final class EmailActionCoordinator {
                 label: "Moved \(msgIDs.count) to Inbox",
                 onConfirm: { Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.moveToInbox(id) } } } } },
                 onUndo: {
-                    for msg in removed { vm.restoreOptimistically(msg) }
                     for (id, labels) in originalLabelsMap {
                         vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
                     }

@@ -18,20 +18,6 @@ import Foundation
         )
     }
 
-    private func makeGmailMessage(id: String = "msg_1") -> GmailMessage {
-        GmailMessage(
-            id: id,
-            threadId: "thread_1",
-            labelIds: ["INBOX"],
-            snippet: "Preview",
-            internalDate: nil,
-            payload: nil,
-            sizeEstimate: nil,
-            historyId: nil,
-            raw: nil
-        )
-    }
-
     private func makeCoordinator() -> (EmailActionCoordinator, MailboxViewModel) {
         let vm = MailboxViewModel(accountID: "test")
         let store = MailStore()
@@ -46,8 +32,6 @@ import Foundation
     /// when the current folder became empty (e.g. Drafts after deleting all drafts).
     @Test func archiveEmail_doesNotAutoSelectNext() {
         let (coordinator, vm) = makeCoordinator()
-        let msg = makeGmailMessage()
-        vm.messages = [msg]
         let email = makeTestEmail()
 
         var receivedEmail: Email? = Email(
@@ -62,8 +46,6 @@ import Foundation
 
     @Test func deleteEmail_doesNotAutoSelectNext() {
         let (coordinator, vm) = makeCoordinator()
-        let msg = makeGmailMessage()
-        vm.messages = [msg]
         let email = makeTestEmail()
 
         var receivedEmail: Email? = Email(
@@ -78,8 +60,6 @@ import Foundation
 
     @Test func moveToInboxEmail_doesNotAutoSelectNext() {
         let (coordinator, vm) = makeCoordinator()
-        let msg = makeGmailMessage()
-        vm.messages = [msg]
         let email = makeTestEmail()
 
         var receivedEmail: Email? = Email(
@@ -94,8 +74,6 @@ import Foundation
 
     @Test func deletePermanentlyEmail_doesNotAutoSelectNext() {
         let (coordinator, vm) = makeCoordinator()
-        let msg = makeGmailMessage()
-        vm.messages = [msg]
         let email = makeTestEmail()
 
         var receivedEmail: Email? = Email(
@@ -110,8 +88,6 @@ import Foundation
 
     @Test func markNotSpamEmail_doesNotAutoSelectNext() {
         let (coordinator, vm) = makeCoordinator()
-        let msg = makeGmailMessage()
-        vm.messages = [msg]
         let email = makeTestEmail()
 
         var receivedEmail: Email? = Email(

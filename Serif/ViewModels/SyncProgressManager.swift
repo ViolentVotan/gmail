@@ -3,7 +3,9 @@ import SwiftUI
 
 enum SyncPhase: Equatable {
     case idle
-    case syncing(remaining: Int?)   // nil = quick sync, non-nil = large sync (≥50)
+    case initialSync(synced: Int, estimated: Int)
+    case bodyPrefetch(remaining: Int)
+    case syncing(remaining: Int?)   // incremental sync — nil = quick, non-nil = large (≥50)
     case success
     case error(String)
 }
@@ -55,6 +57,30 @@ final class SyncProgressManager {
         guard case .syncing = phase else { return }
         withAnimation(SerifAnimation.springDefault) {
             phase = .syncing(remaining: remaining >= 50 ? remaining : nil)
+        }
+    }
+
+    /// Call to report initial sync progress.
+    func initialSyncProgress(synced: Int, estimated: Int) {
+        lingerTask?.cancel()
+        lingerTask = nil
+        debounceActive = false // always show initial sync
+        withAnimation(SerifAnimation.springDefault) {
+            phase = .initialSync(synced: synced, estimated: estimated)
+        }
+    }
+
+    /// Call to report body pre-fetch progress.
+    func bodyPrefetchProgress(remaining: Int) {
+        guard remaining > 0 else {
+            syncCompleted()
+            return
+        }
+        lingerTask?.cancel()
+        lingerTask = nil
+        debounceActive = false
+        withAnimation(SerifAnimation.springDefault) {
+            phase = .bodyPrefetch(remaining: remaining)
         }
     }
 

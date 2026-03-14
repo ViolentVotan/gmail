@@ -4,7 +4,6 @@ import Foundation
 
 enum UserDefaultsKey {
     static let undoDuration = "undoDuration"
-    static let refreshInterval = "refreshInterval"
     static let appearancePreference = "appearancePreference"
     static let attachmentScanMonths = "attachmentScanMonths"
 

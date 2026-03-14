@@ -53,7 +53,7 @@ Email composer — `ComposeView` for the full compose form with rich text editor
 Attachment explorer with grid view, thumbnails, file type filtering, and search.
 
 ### `Settings/`
-Tabbed settings view (General, Advanced) registered as a macOS `Settings` scene — opens via Cmd+,. Receives `AppearanceManager` via `@Bindable` from `SerifApp` for appearance preference; uses `@AppStorage` for other settings (notifications, undo duration, refresh interval).
+Tabbed settings view (General, Advanced) registered as a macOS `Settings` scene — opens via Cmd+,. Receives `AppearanceManager` via `@Bindable` from `SerifApp` for appearance preference; uses `@AppStorage` for other settings (notifications, undo duration, directory contacts sync).
 - `FiltersSettingsView` — Gmail filter list with create/edit/delete actions.
 - `FilterEditorView` — Filter rule editor (criteria + actions) for creating/editing Gmail filters.
 
