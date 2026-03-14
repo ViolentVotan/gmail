@@ -12,36 +12,32 @@ private struct MessageWithAssociations: Decodable, FetchableRecord {
 }
 
 /// Drives the email list for a given account and folder.
+///
+/// DB-only architecture: folder loads start a `ValueObservation` on the label;
+/// the sync engine populates the database, and observation drives the UI.
 @Observable
 @MainActor
 final class MailboxViewModel {
-    var messages:      [GmailMessage] = [] { didSet { recomputeEmails() } }
     var isLoading      = false
     var error:         String?
-    var nextPageToken: String?
-    var labels:                [GmailLabel] = [] { didSet { recomputeEmails() } }
+    var labels:        [GmailLabel] = []
     var sendAsAliases:         [GmailSendAs] = []
     var readIDs:               Set<String> = []
     var categoryUnreadCounts:  [InboxCategory: Int] = [:]
-    /// Set by `restoreOptimistically` so the UI can re-select the restored email.
+    /// Set by `restoreLabelsInDatabase` so the UI can re-select the restored email.
     var lastRestoredMessageID: String?
     private(set) var emails: [Email] = []
 
     var priorityFilterEnabled: Bool = false
 
     var accountID: String
-    var attachmentIndexer: AttachmentIndexer? {
-        didSet { fetchService.attachmentIndexer = attachmentIndexer }
-    }
+    var attachmentIndexer: AttachmentIndexer?
     private var currentLabelIDs: [String] = [GmailSystemLabel.inbox]
     private var currentQuery:    String?
-    private var suppressRecompute = false
 
     // MARK: - Services
 
-    private(set) var mailDatabase: MailDatabase? {
-        didSet { fetchService.mailDatabase = mailDatabase }
-    }
+    private(set) var mailDatabase: MailDatabase?
     private(set) var backgroundSyncer: BackgroundSyncer?
 
     /// Update the mail database for this view model.
@@ -62,9 +58,7 @@ final class MailboxViewModel {
 
     nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "Mailbox")
     private let api: MessageFetching
-    private let fetchService: MessageFetchService
     private let labelService: LabelSyncService
-    private let historyService: HistorySyncService
     @ObservationIgnored nonisolated(unsafe) private var messageObservation: (any DatabaseCancellable)?
     @ObservationIgnored nonisolated(unsafe) private var enrichmentTask: Task<Void, Never>?
 
@@ -74,42 +68,12 @@ final class MailboxViewModel {
     ) {
         self.accountID = accountID
         self.api = api
-        self.fetchService   = MessageFetchService(api: api)
-        self.labelService   = LabelSyncService()
-        self.historyService = HistorySyncService(api: api)
-        // Wire up the makeEmail closure for background analysis.
-        fetchService.makeEmail = { [weak self] msg in
-            guard let self else {
-                return Email(sender: Contact(name: "", email: ""), subject: "", body: "")
-            }
-            return self.makeEmail(from: msg)
-        }
-        fetchService.accountID = accountID
+        self.labelService = LabelSyncService()
     }
 
     deinit {
         messageObservation?.cancel()
         enrichmentTask?.cancel()
-    }
-
-    // MARK: - GmailMessage → Email (cached)
-
-    /// Recomputes the `emails` array from `messages` and `labels`.
-    /// Called automatically via `didSet` on both properties.
-    private func recomputeEmails() {
-        guard !suppressRecompute else { return }
-        let grouped = Dictionary(grouping: messages) { $0.threadId }
-        let representatives: [(GmailMessage, Int)] = grouped.map { (_, msgs) in
-            let sorted = msgs.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
-            return (sorted[0], msgs.count)
-        }
-        emails = representatives
-            .sorted { ($0.0.date ?? .distantPast) > ($1.0.date ?? .distantPast) }
-            .map { (msg, count) in
-                var email = makeEmail(from: msg)
-                email.threadMessageCount = count
-                return email
-            }
     }
 
     // MARK: - Database Observation
@@ -175,28 +139,27 @@ final class MailboxViewModel {
 
     // MARK: - Load
 
-    /// Cancels any in-flight fetch and starts a new folder load.
+    /// Loads a folder by starting a DB observation on the label.
+    /// Search queries are handled via FTS + API.
     func loadFolder(labelIDs: [String], query: String? = nil) async {
-        // DB fast path: serve from local database instantly
-        if query == nil, let labelId = labelIDs.first, mailDatabase != nil {
-            startObservingLabel(labelId)
+        currentLabelIDs = labelIDs
+        currentQuery = query
+
+        if let query, !query.isEmpty {
+            // Search still uses FTS for local, API for server-side
+            await search(query: query)
+            return
         }
 
-        let isFolderChange = labelIDs != currentLabelIDs || query != currentQuery
-        currentLabelIDs = labelIDs
-        currentQuery    = query
-        cancelActiveFetch()
-        let gen = fetchService.nextGeneration()
-        fetchService.setActiveFetchTask(Task {
-            await self.performFetch(reset: true, clearFirst: isFolderChange, generation: gen)
-        })
-        await fetchService.awaitActiveFetch()
+        // DB-only path: start observing the label
+        if let labelId = labelIDs.first, mailDatabase != nil {
+            startObservingLabel(labelId)
+        }
     }
 
     /// Cancels any in-flight fetch and starts a new search.
     func search(query: String) async {
         let newQuery = query.isEmpty ? nil : query
-        let isNewQuery = newQuery != currentQuery
         currentQuery = newQuery
 
         // FTS fast path: search local database first for instant results
@@ -209,12 +172,7 @@ final class MailboxViewModel {
             }
         }
 
-        cancelActiveFetch()
-        let gen = fetchService.nextGeneration()
-        fetchService.setActiveFetchTask(Task {
-            await self.performFetch(reset: true, clearFirst: isNewQuery, generation: gen)
-        })
-        await fetchService.awaitActiveFetch()
+        // TODO: Task 11 — add server-side search fallback for queries with no local results
     }
 
     /// Search local FTS5 index and return Email results.
@@ -238,16 +196,18 @@ final class MailboxViewModel {
         }
     }
 
+    /// No-op: sync engine provides all messages via DB.
     func loadMore() async {
-        guard nextPageToken != nil else { return }
-        let gen = fetchService.currentGeneration
-        await performFetch(reset: false, generation: gen)
+        // No-op: sync engine provides all messages via DB
     }
 
-    /// Cancel any in-flight search/load task. Called from the view layer
-    /// when a new search or folder navigation begins.
-    func cancelActiveFetch() {
-        fetchService.cancelActiveFetch()
+    /// Refreshes the current folder. If the label/query changed, starts a new observation.
+    /// Otherwise the sync engine handles incremental sync and ValueObservation updates UI.
+    func refreshCurrentFolder(labelIDs: [String], query: String? = nil) async {
+        if labelIDs != currentLabelIDs || query != currentQuery {
+            await loadFolder(labelIDs: labelIDs, query: query)
+        }
+        // Otherwise: sync engine handles incremental sync, ValueObservation updates UI
     }
 
     // MARK: - Labels & Metadata
@@ -326,112 +286,60 @@ final class MailboxViewModel {
     func switchAccount(_ id: String) async {
         messageObservation?.cancel()
         messageObservation = nil
-        cancelActiveFetch()
-        accountID              = id
-        fetchService.accountID = id
-        nextPageToken = nil
-        readIDs       = []
-        error         = nil
-        fetchService.resetState()
-        messages = []
-    }
-
-    // MARK: - Delta Sync via History API
-
-    /// Refreshes the current folder using delta sync when possible,
-    /// falling back to full re-fetch.
-    func refreshCurrentFolder(labelIDs: [String], query: String? = nil) async {
-        let isSameFolder = labelIDs == currentLabelIDs && query == currentQuery
-
-        // Only attempt delta sync if:
-        // 1. Same folder (not a folder switch)
-        // 2. No search query (history API doesn't support queries)
-        // 3. We have cached messages (not first load)
-        // 4. Single label ID or no label (history API filters by one label)
-        if isSameFolder && query == nil && !messages.isEmpty && labelIDs.count <= 1 {
-            let success = await applyHistorySync(labelId: labelIDs.first)
-            if success { return }
-        }
-
-        // Full refresh (existing path)
-        await loadFolder(labelIDs: labelIDs, query: query)
+        accountID = id
+        readIDs   = []
+        error     = nil
+        emails    = []
     }
 
     // MARK: - Mutations
 
-    func markAsRead(_ message: GmailMessage) async {
-        guard message.isUnread && !readIDs.contains(message.id) else { return }
-        readIDs.insert(message.id)
-        if let idx = messages.firstIndex(where: { $0.id == message.id }) {
-            suppressRecompute = true
-            messages[idx].labelIds?.removeAll { $0 == GmailSystemLabel.unread }
-            suppressRecompute = false
-            fetchService.messageCache[message.id] = messages[idx]
-            updateEmailInPlace(message.id) { $0.isRead = true }
-        }
-        try? await api.markAsRead(id: message.id, accountID: accountID)
+    /// Marks a message as read by ID. Updates the DB read flag and calls the API.
+    func markAsRead(_ messageID: String) async {
+        guard !readIDs.contains(messageID) else { return }
+        readIDs.insert(messageID)
+        // Optimistic DB update — ValueObservation will refresh emails
+        updateReadFlagInDatabase(messageID, isRead: true)
+        updateEmailInPlace(messageID) { $0.isRead = true }
+        try? await api.markAsRead(id: messageID, accountID: accountID)
     }
 
     /// Updates local state for messages already marked as read by another component (e.g. EmailDetailVM).
     func applyReadLocally(_ messageIDs: [String]) {
-        suppressRecompute = true
         for id in messageIDs {
             readIDs.insert(id)
-            if let idx = messages.firstIndex(where: { $0.id == id }) {
-                messages[idx].labelIds?.removeAll { $0 == GmailSystemLabel.unread }
-                fetchService.messageCache[id] = messages[idx]
-            }
-        }
-        suppressRecompute = false
-        // In-place update instead of full list rebuild — only the read flag changed
-        for id in messageIDs {
+            updateReadFlagInDatabase(id, isRead: true)
             updateEmailInPlace(id) { $0.isRead = true }
         }
     }
 
     func markAsUnread(_ messageID: String) async {
-        if let idx = messages.firstIndex(where: { $0.id == messageID }) {
-            suppressRecompute = true
-            if messages[idx].labelIds?.contains(GmailSystemLabel.unread) == false {
-                messages[idx].labelIds?.append(GmailSystemLabel.unread)
-            }
-            suppressRecompute = false
-            fetchService.messageCache[messageID] = messages[idx]
-            updateEmailInPlace(messageID) { $0.isRead = false }
-        }
         readIDs.remove(messageID)
+        updateReadFlagInDatabase(messageID, isRead: false)
+        updateEmailInPlace(messageID) { $0.isRead = false }
         do {
             try await api.markAsUnread(id: messageID, accountID: accountID)
         } catch { self.error = error.localizedDescription }
     }
 
     func toggleStar(_ messageID: String, isStarred: Bool) async {
-        if let idx = messages.firstIndex(where: { $0.id == messageID }) {
-            suppressRecompute = true
-            if isStarred {
-                messages[idx].labelIds?.removeAll { $0 == GmailSystemLabel.starred }
-            } else {
-                messages[idx].labelIds?.append(GmailSystemLabel.starred)
-            }
-            suppressRecompute = false
-            fetchService.messageCache[messageID] = messages[idx]
-            updateEmailInPlace(messageID) { $0.isStarred = !isStarred }
+        // Optimistic DB update
+        if isStarred {
+            updateLabelsInDatabase(messageID, addLabelIds: [], removeLabelIds: [GmailSystemLabel.starred])
+        } else {
+            updateLabelsInDatabase(messageID, addLabelIds: [GmailSystemLabel.starred], removeLabelIds: [])
         }
+        updateEmailInPlace(messageID) { $0.isStarred = !isStarred }
         do {
             try await api.setStarred(!isStarred, id: messageID, accountID: accountID)
         } catch {
             // Revert on failure
-            if let idx = messages.firstIndex(where: { $0.id == messageID }) {
-                suppressRecompute = true
-                if isStarred {
-                    messages[idx].labelIds?.append(GmailSystemLabel.starred)
-                } else {
-                    messages[idx].labelIds?.removeAll { $0 == GmailSystemLabel.starred }
-                }
-                suppressRecompute = false
-                fetchService.messageCache[messageID] = messages[idx]
-                updateEmailInPlace(messageID) { $0.isStarred = isStarred }
+            if isStarred {
+                updateLabelsInDatabase(messageID, addLabelIds: [GmailSystemLabel.starred], removeLabelIds: [])
+            } else {
+                updateLabelsInDatabase(messageID, addLabelIds: [], removeLabelIds: [GmailSystemLabel.starred])
             }
+            updateEmailInPlace(messageID) { $0.isStarred = isStarred }
             self.error = error.localizedDescription
         }
     }
@@ -440,37 +348,27 @@ final class MailboxViewModel {
         do {
             let updated = try await api.trashMessage(id: messageID, accountID: accountID)
             reconcileLabelsInDatabase(messageID, serverLabelIds: updated.labelIds ?? [])
-            removeFromLocalState(messageID)
         } catch { self.error = error.localizedDescription }
     }
 
     func archive(_ messageID: String) async {
         do {
             try await api.archiveMessage(id: messageID, accountID: accountID)
-            removeFromLocalState(messageID)
         } catch { self.error = error.localizedDescription }
     }
 
-    /// Removes a message from the in-memory list immediately (optimistic UI).
-    /// Returns the removed message so it can be put back if the action is undone.
+    /// No-op: optimistic removal is handled via DB label writes (see `updateLabelsInDatabase`).
+    /// The `EmailActionCoordinator` already performs DB label updates before calling this.
+    /// ValueObservation drives the UI, so no in-memory array manipulation is needed.
     @discardableResult
     func removeOptimistically(_ messageID: String) -> GmailMessage? {
-        guard let idx = messages.firstIndex(where: { $0.id == messageID }) else { return nil }
-        let msg = messages[idx]
-        _ = withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
-            messages.remove(at: idx)
-        }
-        return msg
+        // DB label writes trigger ValueObservation — no in-memory removal needed.
+        return nil
     }
 
-    /// Re-inserts a previously removed message at its original date position (undo path).
+    /// No-op: restoration is handled via `restoreLabelsInDatabase`.
+    /// ValueObservation will automatically re-include the message in the email list.
     func restoreOptimistically(_ message: GmailMessage) {
-        fetchService.messageCache[message.id] = message
-        let date = message.date ?? .distantPast
-        let insertIdx = messages.firstIndex { ($0.date ?? .distantPast) < date } ?? messages.endIndex
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
-            messages.insert(message, at: insertIdx)
-        }
         lastRestoredMessageID = message.id
     }
 
@@ -578,17 +476,12 @@ final class MailboxViewModel {
     }
 
     private func emptyFolder(action: @Sendable () async throws -> Void) async {
-        let backup = messages
-        let cacheBackup = fetchService.messageCache
-        messages.removeAll()
-        fetchService.messageCache.removeAll()
         do {
             try await action()
+            // Sync engine will detect changes on next delta sync; ValueObservation updates UI.
         } catch GmailAPIError.partialFailure {
             self.error = "Some messages could not be deleted"
         } catch {
-            messages = backup
-            fetchService.messageCache = cacheBackup
             self.error = error.localizedDescription
         }
     }
@@ -598,7 +491,6 @@ final class MailboxViewModel {
             try await api.modifyLabels(
                 id: messageID, add: [GmailSystemLabel.inbox], remove: [], accountID: accountID
             )
-            removeFromLocalState(messageID)
         } catch { self.error = error.localizedDescription }
     }
 
@@ -606,14 +498,12 @@ final class MailboxViewModel {
         do {
             let updated = try await api.untrashMessage(id: messageID, accountID: accountID)
             reconcileLabelsInDatabase(messageID, serverLabelIds: updated.labelIds ?? [])
-            removeFromLocalState(messageID)
         } catch { self.error = error.localizedDescription }
     }
 
     func deletePermanently(_ messageID: String) async {
         do {
             try await api.deleteMessagePermanently(id: messageID, accountID: accountID)
-            removeFromLocalState(messageID)
         } catch { self.error = error.localizedDescription }
     }
 
@@ -622,26 +512,22 @@ final class MailboxViewModel {
             try await api.modifyLabels(
                 id: messageID, add: [GmailSystemLabel.inbox], remove: [GmailSystemLabel.spam], accountID: accountID
             )
-            removeFromLocalState(messageID)
         } catch { self.error = error.localizedDescription }
     }
 
     func spam(_ messageID: String) async {
         do {
             try await api.spamMessage(id: messageID, accountID: accountID)
-            removeFromLocalState(messageID)
         } catch { self.error = error.localizedDescription }
     }
 
     func addLabel(_ labelID: String, to messageID: String) async {
         do {
-            let updated = try await api.modifyLabels(
+            try await api.modifyLabels(
                 id: messageID, add: [labelID], remove: [], accountID: accountID
             )
-            if let idx = messages.firstIndex(where: { $0.id == messageID }) {
-                messages[idx].labelIds = updated.labelIds
-                fetchService.messageCache[messageID] = messages[idx]
-            }
+            // Reconcile DB labels after API mutation
+            reconcileLabelsInDatabase(messageID, serverLabelIds: []) // Will be updated by sync engine
         } catch { self.error = error.localizedDescription }
     }
 
@@ -651,7 +537,6 @@ final class MailboxViewModel {
             let newLabel = try await GmailLabelService.shared.createLabel(name: name, accountID: accountID)
             labels.append(newLabel)
             await addLabel(newLabel.id, to: messageID)
-            // labels is @Observable-tracked — changing it triggers didSet → recomputeEmails()
             return newLabel.id
         } catch {
             self.error = error.localizedDescription
@@ -661,13 +546,9 @@ final class MailboxViewModel {
 
     func removeLabel(_ labelID: String, from messageID: String) async {
         do {
-            let updated = try await api.modifyLabels(
+            try await api.modifyLabels(
                 id: messageID, add: [], remove: [labelID], accountID: accountID
             )
-            if let idx = messages.firstIndex(where: { $0.id == messageID }) {
-                messages[idx].labelIds = updated.labelIds
-                fetchService.messageCache[messageID] = messages[idx]
-            }
         } catch { self.error = error.localizedDescription }
     }
 
@@ -708,193 +589,31 @@ final class MailboxViewModel {
         )
     }
 
-    // MARK: - Private fetch orchestration
+    // MARK: - Private helpers
 
-    private func performFetch(reset: Bool, clearFirst: Bool = false, generation: UInt64) async {
-        guard !accountID.isEmpty else { return }
-
-        if reset && clearFirst {
-            messages = []
-        }
-
-        isLoading = true
-        error     = nil
-        syncProgressManager?.syncStarted()
-        defer { isLoading = false }
-
+    /// Optimistically updates the is_read flag in the database.
+    private func updateReadFlagInDatabase(_ messageID: String, isRead: Bool) {
+        guard let db = mailDatabase else { return }
         do {
-            // API sync: fetch latest message list
-            let list = try await fetchService.listMessages(
-                accountID: accountID,
-                currentLabelIDs: currentLabelIDs,
-                currentQuery: currentQuery,
-                pageToken: reset ? nil : nextPageToken
-            )
-            guard !fetchService.isStale(generation: generation) else { return }
-
-            if let estimate = list.resultSizeEstimate {
-                syncProgressManager?.syncProgress(remaining: estimate)
-            }
-
-            let refs = list.messages ?? []
-            nextPageToken = list.nextPageToken
-
-            // Fetch missing messages from API
-            let fetched = try await fetchService.fetchMissingMessages(refs: refs, accountID: accountID)
-            guard !fetchService.isStale(generation: generation) else { return }
-
-            let resolved = fetchService.resolveFromCache(refs)
-
-            // Write to DB via BackgroundSyncer (ValueObservation will update UI)
-            if let syncer = backgroundSyncer, !resolved.isEmpty {
-                let labelIds = Array(Set(resolved.flatMap { $0.labelIds ?? [] }))
-                try? await syncer.upsertMessages(resolved, ensureLabels: labelIds)
-            }
-
-            let fetchedCount = resolved.count
-            if let estimate = list.resultSizeEstimate, estimate > fetchedCount {
-                syncProgressManager?.syncProgress(remaining: estimate - fetchedCount)
-            }
-
-            // Background analysis (subscriptions, attachments, AI classification)
-            if !fetched.isEmpty {
-                fetchService.analyzeInBackground(fetched)
-            }
-
-            // Stale pruning: remove messages that disappeared from API
-            if reset && !refs.isEmpty {
-                await pruneStaleMessages(refs: refs, generation: generation)
-            }
-
-            // Update history ID for delta sync
-            if reset, let latestHistoryId = resolved.compactMap(\.historyId).first {
-                if var account = AccountStore.shared.accounts.first(where: { $0.id == accountID }) {
-                    account.historyId = latestHistoryId
-                    AccountStore.shared.update(account)
+            try db.dbPool.write { database in
+                try database.execute(
+                    sql: "UPDATE messages SET is_read = ? WHERE gmail_id = ?",
+                    arguments: [isRead, messageID]
+                )
+                // Also update label associations: add/remove UNREAD label
+                if isRead {
+                    try database.execute(
+                        sql: "DELETE FROM message_labels WHERE message_id = ? AND label_id = ?",
+                        arguments: [messageID, GmailSystemLabel.unread]
+                    )
+                } else {
+                    try MessageLabelRecord(messageId: messageID, labelId: GmailSystemLabel.unread)
+                        .insert(database, onConflict: .ignore)
                 }
             }
-
-            syncProgressManager?.syncCompleted()
-        } catch is CancellationError {
-            // Silently swallow
         } catch {
-            guard !fetchService.isStale(generation: generation) else { return }
-            self.error = error.localizedDescription
-            syncProgressManager?.syncFailed()
+            Self.logger.error("Read flag DB update failed: \(error.localizedDescription, privacy: .public)")
         }
-    }
-
-    private func pruneStaleMessages(refs: [GmailMessageRef], generation: UInt64) async {
-        let serverIDs = Set(refs.map(\.id))
-        // Use messages currently in the list as suspects
-        let suspectIDs = messages.filter { !serverIDs.contains($0.id) }.map(\.id)
-        guard !suspectIDs.isEmpty else { return }
-        guard !fetchService.isStale(generation: generation) else { return }
-
-        let verified = await fetchService.verifyMessages(ids: suspectIDs, accountID: accountID, api: api)
-        var staleIDs: [String] = []
-        let folderLabels = Set(currentLabelIDs)
-        for id in suspectIDs {
-            if let msg = verified[id] {
-                if !folderLabels.isEmpty,
-                   let msgLabels = msg.labelIds,
-                   folderLabels.isDisjoint(with: Set(msgLabels)) {
-                    staleIDs.append(id)
-                }
-            } else {
-                staleIDs.append(id)
-            }
-        }
-        if !staleIDs.isEmpty {
-            if let syncer = backgroundSyncer {
-                try? await syncer.deleteMessages(gmailIds: staleIDs)
-            }
-            for id in staleIDs { fetchService.messageCache[id] = nil }
-        }
-    }
-
-    /// Applies the result of a history sync to the VM's observable state.
-    private func applyHistorySync(labelId: String?) async -> Bool {
-        syncProgressManager?.syncStarted()
-        guard let account = AccountStore.shared.accounts.first(where: { $0.id == accountID }),
-              let startHistoryId = account.historyId else {
-            syncProgressManager?.syncFailed()
-            return false
-        }
-        let existingIDs = Set(messages.map(\.id))
-        let result = await historyService.syncViaHistory(
-            accountID: accountID,
-            startHistoryId: startHistoryId,
-            labelId: labelId,
-            existingMessageIDs: existingIDs
-        )
-        guard result.succeeded else {
-            syncProgressManager?.syncFailed()
-            return false
-        }
-
-        // Write delta to DB (ValueObservation will update UI)
-        if let syncer = backgroundSyncer {
-            var labelUpdates: [(gmailId: String, labelIds: [String])] = []
-            for msg in result.refreshedMessages {
-                labelUpdates.append((gmailId: msg.id, labelIds: msg.labelIds ?? []))
-            }
-            try? await syncer.applyDelta(
-                newMessages: result.newMessages,
-                deletedIds: Array(result.deletedIDs),
-                labelUpdates: labelUpdates
-            )
-        }
-
-        // Update in-memory state for immediate responsiveness.
-        // Suppress recompute during the batch — call once at the end.
-        suppressRecompute = true
-        if !result.deletedIDs.isEmpty {
-            withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
-                messages.removeAll { result.deletedIDs.contains($0.id) }
-            }
-            for id in result.deletedIDs { fetchService.messageCache[id] = nil }
-        }
-
-        if !result.newMessages.isEmpty {
-            for msg in result.newMessages { fetchService.messageCache[msg.id] = msg }
-            withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
-                messages.insert(contentsOf: result.newMessages, at: 0)
-            }
-            fetchService.analyzeInBackground(result.newMessages)
-        }
-
-        for msg in result.refreshedMessages {
-            fetchService.messageCache[msg.id] = msg
-            if let labelId, let msgLabels = msg.labelIds, !msgLabels.contains(labelId) {
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
-                    messages.removeAll { $0.id == msg.id }
-                }
-                fetchService.messageCache[msg.id] = nil
-            } else {
-                if let idx = messages.firstIndex(where: { $0.id == msg.id }) {
-                    messages[idx] = msg
-                }
-            }
-        }
-        suppressRecompute = false
-        recomputeEmails()
-
-        if let historyId = result.latestHistoryId {
-            if var account = AccountStore.shared.accounts.first(where: { $0.id == accountID }) {
-                account.historyId = historyId
-                AccountStore.shared.update(account)
-            }
-        }
-
-        if let err = result.error { error = err }
-        syncProgressManager?.syncCompleted()
-        return true
-    }
-
-    private func removeFromLocalState(_ messageID: String) {
-        messages.removeAll { $0.id == messageID }
-        fetchService.messageCache[messageID] = nil
     }
 
     private func updateEmailInPlace(_ messageID: String, update: (inout Email) -> Void) {

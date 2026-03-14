@@ -340,13 +340,10 @@ final class EmailActionCoordinator {
     }
 
     func bulkMarkRead(_ emails: [Email], onClear: () -> Void) {
-        let msgs = emails.compactMap { e -> GmailMessage? in
-            guard let msgID = e.gmailMessageID else { return nil }
-            return mailboxViewModel.messages.first { $0.id == msgID }
-        }
+        let msgIDs = emails.compactMap(\.gmailMessageID)
         onClear()
         let vm = mailboxViewModel
-        Task { await withTaskGroup(of: Void.self) { group in for msg in msgs { group.addTask { await vm.markAsRead(msg) } } } }
+        Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.markAsRead(id) } } } }
     }
 
     func bulkMoveToInbox(_ emails: [Email], selectedFolder: Folder, onClear: () -> Void) {

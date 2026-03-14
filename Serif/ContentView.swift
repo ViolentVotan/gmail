@@ -265,11 +265,9 @@ struct ContentView: View {
 
                         Button {
                             guard let msgID = email.gmailMessageID else { return }
-                            let starred = coordinator.mailboxViewModel.messages.first(where: { $0.id == msgID })?.isStarred ?? email.isStarred
-                            Task { await coordinator.mailboxViewModel.toggleStar(msgID, isStarred: starred) }
+                            Task { await coordinator.mailboxViewModel.toggleStar(msgID, isStarred: email.isStarred) }
                         } label: {
-                            let starred = coordinator.mailboxViewModel.messages.first(where: { $0.id == email.gmailMessageID })?.isStarred ?? email.isStarred
-                            Label(starred ? "Remove from Favorites" : "Add to Favorites", systemImage: starred ? "star.slash" : "star")
+                            Label(email.isStarred ? "Remove from Favorites" : "Add to Favorites", systemImage: email.isStarred ? "star.slash" : "star")
                         }
 
                         Button {
@@ -284,11 +282,10 @@ struct ContentView: View {
 
                         Divider()
 
-                        Button {
-                            if let msg = coordinator.mailboxViewModel.messages.first(where: { $0.id == email.gmailMessageID }) {
-                                coordinator.actionCoordinator.printEmail(message: msg, email: email)
-                            }
-                        } label: { Label("Print", systemImage: "printer") }
+                        // Print requires full GmailMessage from detail view
+                        // TODO: Task 12 — restore print from context menu using DB data
+                        Button {} label: { Label("Print", systemImage: "printer") }
+                            .disabled(true)
 
                         Divider()
 

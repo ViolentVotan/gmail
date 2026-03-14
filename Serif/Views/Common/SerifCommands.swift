@@ -32,14 +32,13 @@ struct SerifCommands: Commands {
     private var hasSelection: Bool { selectedEmail != nil }
     private var isInbox: Bool { coordinator?.selectedFolder == .inbox }
 
-    /// Read live state from the mailbox viewmodel (source of truth) rather than
-    /// the selectedEmail snapshot which may be stale.
-    private var liveMessage: GmailMessage? {
+    /// Live state from the `emails` array driven by DB observation.
+    private var liveEmail: Email? {
         guard let msgID = selectedEmail?.gmailMessageID else { return nil }
-        return coordinator?.mailboxViewModel.messages.first { $0.id == msgID }
+        return coordinator?.mailboxViewModel.emails.first { $0.gmailMessageID == msgID }
     }
-    private var isStarred: Bool { liveMessage?.isStarred ?? selectedEmail?.isStarred ?? false }
-    private var isRead: Bool { !(liveMessage?.isUnread ?? !(selectedEmail?.isRead ?? true)) }
+    private var isStarred: Bool { liveEmail?.isStarred ?? selectedEmail?.isStarred ?? false }
+    private var isRead: Bool { liveEmail?.isRead ?? selectedEmail?.isRead ?? true }
 
     var body: some Commands {
         messageMenu
@@ -92,8 +91,8 @@ struct SerifCommands: Commands {
                 guard let coordinator, let email = selectedEmail, let msgID = email.gmailMessageID else { return }
                 if isRead {
                     coordinator.actionCoordinator.markUnreadEmail(email)
-                } else if let message = coordinator.mailboxViewModel.messages.first(where: { $0.id == msgID }) {
-                    Task { await coordinator.mailboxViewModel.markAsRead(message) }
+                } else {
+                    Task { await coordinator.mailboxViewModel.markAsRead(msgID) }
                 }
             } label: {
                 Label(isRead ? "Mark as Unread" : "Mark as Read", systemImage: isRead ? "envelope.badge" : "envelope.open")
