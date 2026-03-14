@@ -15,7 +15,7 @@ final class NetworkMonitor {
                 self?.isConnected = path.status == .satisfied
             }
         }
-        monitor.start(queue: DispatchQueue(label: "com.serif.network-monitor"))
+        monitor.start(queue: DispatchQueue(label: "com.vikingz.serif.network-monitor"))
     }
 
     deinit {

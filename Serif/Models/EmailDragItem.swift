@@ -12,5 +12,5 @@ struct EmailDragItem: Codable, Transferable {
 }
 
 extension UTType {
-    static let emailDragItem = UTType(exportedAs: "com.genyus.serif.email-drag-item")
+    static let emailDragItem = UTType(exportedAs: "com.vikingz.serif.email-drag-item")
 }

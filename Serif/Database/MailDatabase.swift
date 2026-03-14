@@ -10,7 +10,7 @@ final class MailDatabase: Sendable {
     /// Default base directory for mail databases.
     static var defaultBaseDirectory: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("com.genyus.serif.app/mail-db", isDirectory: true)
+            .appendingPathComponent("com.vikingz.serif.app/mail-db", isDirectory: true)
     }
 
     /// Creates or opens the database for the given account.

@@ -139,7 +139,7 @@ final class OfflineActionQueue {
 
     private func fileURL(for accountID: String) -> URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("com.genyus.serif.app/offline-queue/\(accountID).json")
+            .appendingPathComponent("com.vikingz.serif.app/offline-queue/\(accountID).json")
     }
 }
 

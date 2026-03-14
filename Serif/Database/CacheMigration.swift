@@ -10,7 +10,7 @@ struct FolderCache: Codable, Sendable {
 /// One-time migration from JSON file cache to GRDB database.
 /// Runs on first launch after the database layer is introduced.
 enum CacheMigration {
-    private static let migrationKeyPrefix = "com.serif.dbMigrationCompleted"
+    private static let migrationKeyPrefix = "com.vikingz.serif.dbMigrationCompleted"
 
     static func needsMigration(accountID: String) -> Bool {
         !UserDefaults.standard.bool(forKey: "\(migrationKeyPrefix).\(accountID)")
@@ -47,7 +47,7 @@ enum CacheMigration {
 
     private static var cacheBaseDir: URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("com.genyus.serif.app/mail-cache", isDirectory: true)
+            .appendingPathComponent("com.vikingz.serif.app/mail-cache", isDirectory: true)
     }
 
     private static func cacheFileURL(accountID: String, folderKey: String) -> URL {

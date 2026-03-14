@@ -9,7 +9,7 @@ final class GmailAPIClient {
     private init() {}
 
     private let baseURL = "https://gmail.googleapis.com/gmail/v1"
-    nonisolated private static let logger = Logger(subsystem: "com.genyus.serif", category: "GmailAPI")
+    nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "GmailAPI")
     private var refreshTasks: [String: Task<AuthToken, Error>] = [:]
     private var refreshGeneration: [String: Int] = [:]
 

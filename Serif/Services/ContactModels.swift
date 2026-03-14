@@ -33,9 +33,9 @@ final class ContactStore {
 
     /// Clean up legacy UserDefaults keys when an account is removed.
     func deleteAccount(_ accountID: String) {
-        UserDefaults.standard.removeObject(forKey: "com.serif.contacts.\(accountID)")
-        UserDefaults.standard.removeObject(forKey: "com.serif.contacts.syncToken.\(accountID)")
-        UserDefaults.standard.removeObject(forKey: "com.serif.contacts.otherSyncToken.\(accountID)")
+        UserDefaults.standard.removeObject(forKey: "com.vikingz.serif.contacts.\(accountID)")
+        UserDefaults.standard.removeObject(forKey: "com.vikingz.serif.contacts.syncToken.\(accountID)")
+        UserDefaults.standard.removeObject(forKey: "com.vikingz.serif.contacts.otherSyncToken.\(accountID)")
     }
 }
 

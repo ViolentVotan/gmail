@@ -30,7 +30,7 @@ final class AccountStore: @unchecked Sendable {
 
     private init() { migrateColors() }
 
-    private let key = "com.serif.accounts"
+    private let key = "com.vikingz.serif.accounts"
     private var _cachedAccounts: [GmailAccount]?
 
     var accounts: [GmailAccount] {

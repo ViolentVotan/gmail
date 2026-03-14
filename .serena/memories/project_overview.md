@@ -5,7 +5,7 @@ Native macOS Gmail client. Swift 6.2 / SwiftUI. 3-column layout (sidebar, email 
 ## Target
 - macOS 26+
 - Xcode 26.3
-- Bundle: `com.genyus.serif.app`
+- Bundle: `com.vikingz.serif.app`
 
 ## Key Features
 - Multi-account Gmail via OAuth 2.0

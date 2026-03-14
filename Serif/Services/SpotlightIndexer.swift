@@ -48,9 +48,9 @@ final class SpotlightIndexer {
         guard !legacyCleaned else { return }
         legacyCleaned = true
         Task.detached {
-            // Remove legacy items indexed as CSSearchableItem with domain "com.serif.emails"
+            // Remove legacy items indexed as CSSearchableItem with domain "com.vikingz.serif.emails"
             try? await CSSearchableIndex.default().deleteSearchableItems(
-                withDomainIdentifiers: ["com.serif.emails"]
+                withDomainIdentifiers: ["com.vikingz.serif.emails"]
             )
         }
     }

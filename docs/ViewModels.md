@@ -8,7 +8,7 @@ State management layer between Services and Views. Each ViewModel uses the `@Obs
 - ViewModels do **not** import SwiftUI views. They may import `SwiftUI` for animations.
 - One ViewModel per major screen/domain.
 - **DB-first pattern**: load from GRDB database -> show instantly -> refresh from API -> BackgroundSyncer writes to DB -> ValueObservation updates UI.
-  - Database: per-account GRDB SQLite (`~/Library/Application Support/com.genyus.serif.app/mail-db/`)
+  - Database: per-account GRDB SQLite (`~/Library/Application Support/com.vikingz.serif.app/mail-db/`)
   - In-memory cache: `messageCache: [String: GmailMessage]` in MessageFetchService avoids redundant API fetches
 - **Optimistic UI**: update state before the API call. Revert on failure.
 - ViewModels are **account-aware**: `accountID` is always a parameter or stored property.

@@ -19,7 +19,7 @@ final class AvatarCache {
 
     private let cacheDir: URL = FileManager.default
         .urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("com.serif.avatars")
+        .appendingPathComponent("com.vikingz.serif.avatars")
 
     func image(for urlString: String) async -> NSImage? {
         let key = cacheKey(for: urlString) as NSString

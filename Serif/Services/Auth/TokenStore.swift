@@ -13,11 +13,11 @@ final class TokenStore {
     }
 
     private let defaults      = UserDefaults.standard
-    private let keyPrefix     = "com.serif.token."
-    private let accountsKey   = "com.serif.token.accounts"
-    private let keychainService = "com.serif.token"
+    private let keyPrefix     = "com.vikingz.serif.token."
+    private let accountsKey   = "com.vikingz.serif.token.accounts"
+    private let keychainService = "com.vikingz.serif.token"
     private let keychainAccount = "encryption-key"
-    private let legacyKeyUD    = "com.serif.token.key"
+    private let legacyKeyUD    = "com.vikingz.serif.token.key"
 
     // MARK: - Symmetric key (Keychain)
 

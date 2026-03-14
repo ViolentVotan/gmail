@@ -4,7 +4,7 @@ Per-account GRDB SQLite persistence layer. Replaces the previous JSON file cache
 
 ## Guidelines
 
-- One SQLite database per Gmail account at `~/Library/Application Support/com.genyus.serif.app/mail-db/{accountID}.sqlite`.
+- One SQLite database per Gmail account at `~/Library/Application Support/com.vikingz.serif.app/mail-db/{accountID}.sqlite`.
 - WAL mode with `synchronous = NORMAL` for concurrent reads during writes.
 - All record types use snake_case column mapping (`databaseColumnDecodingStrategy`/`databaseColumnEncodingStrategy`).
 - Schema changes go through `MailDatabaseMigrations` — never modify tables outside the migrator.

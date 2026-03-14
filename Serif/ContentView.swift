@@ -142,7 +142,7 @@ struct ContentView: View {
                 }
                 return .handled
             }
-            .userActivity("com.genyus.serif.viewEmail", isActive: coordinator.selectedEmail != nil) { activity in
+            .userActivity("com.vikingz.serif.viewEmail", isActive: coordinator.selectedEmail != nil) { activity in
                 guard let email = coordinator.selectedEmail else { return }
                 activity.title = email.subject
                 activity.isEligibleForHandoff = true
@@ -153,7 +153,7 @@ struct ContentView: View {
                     "accountID": coordinator.accountID
                 ]
             }
-            .onContinueUserActivity("com.genyus.serif.viewEmail") { activity in
+            .onContinueUserActivity("com.vikingz.serif.viewEmail") { activity in
                 guard let emailID = activity.userInfo?["emailID"] as? String,
                       let uuid = UUID(uuidString: emailID),
                       let email = coordinator.mailboxViewModel.emails.first(where: { $0.id == uuid })
@@ -161,7 +161,7 @@ struct ContentView: View {
                 coordinator.selectedEmail = email
                 coordinator.selectedEmailIDs = [emailID]
             }
-            .userActivity("com.genyus.serif.composeEmail", isActive: coordinator.isComposeActive) { activity in
+            .userActivity("com.vikingz.serif.composeEmail", isActive: coordinator.isComposeActive) { activity in
                 activity.title = "Composing email"
                 activity.isEligibleForHandoff = true
             }

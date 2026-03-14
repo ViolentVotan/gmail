@@ -29,7 +29,7 @@ final class ThumbnailCache {
     /// Directory for disk-cached thumbnails.
     private let cacheDirectory: URL = {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        let dir = caches.appendingPathComponent("com.serif.thumbnails", isDirectory: true)
+        let dir = caches.appendingPathComponent("com.vikingz.serif.thumbnails", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }()
@@ -143,7 +143,7 @@ final class ThumbnailCache {
     private nonisolated func saveToDisk(image: NSImage, id: String) {
         let safeName = id.replacingOccurrences(of: "/", with: "_")
         let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("com.serif.thumbnails", isDirectory: true)
+            .appendingPathComponent("com.vikingz.serif.thumbnails", isDirectory: true)
         let url = cacheDir.appendingPathComponent(safeName + ".jpg")
         Task.detached(priority: .utility) {
             guard let tiff = image.tiffRepresentation,

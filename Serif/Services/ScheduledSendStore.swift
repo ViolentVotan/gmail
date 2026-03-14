@@ -80,6 +80,6 @@ final class ScheduledSendStore {
 
     private func fileURL(for accountID: String) -> URL {
         FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("com.genyus.serif.app/mail-cache/\(accountID)/scheduled.json")
+            .appendingPathComponent("com.vikingz.serif.app/mail-cache/\(accountID)/scheduled.json")
     }
 }
