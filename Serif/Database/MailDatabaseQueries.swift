@@ -82,4 +82,14 @@ enum MailDatabaseQueries {
         try record.upsert(db)
     }
 
+    /// Count of messages without bodies (for body pre-fetch progress).
+    static func messagesWithoutBodiesCount(in db: Database) throws -> Int {
+        try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM messages WHERE full_body_fetched = 0") ?? 0
+    }
+
+    /// Total message count in the database.
+    static func totalMessageCount(in db: Database) throws -> Int {
+        try MessageRecord.fetchCount(db)
+    }
+
 }

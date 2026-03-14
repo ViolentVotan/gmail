@@ -7,6 +7,7 @@ enum MailDatabaseMigrations {
         migrator.eraseDatabaseOnSchemaChange = true
         #endif
         registerV1(&migrator)
+        registerV2(&migrator)
         return migrator
     }
 
@@ -139,6 +140,22 @@ enum MailDatabaseMigrations {
                     tokenize='porter unicode61'
                 )
             """)
+        }
+    }
+
+    private static func registerV2(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v2_sync_state") { db in
+            try db.alter(table: "account_sync_state") { t in
+                t.add(column: "last_history_id", .text)
+                t.add(column: "initial_sync_complete", .boolean).notNull().defaults(to: false)
+                t.add(column: "initial_sync_page_token", .text)
+                t.add(column: "total_messages_estimate", .integer)
+                t.add(column: "synced_message_count", .integer).notNull().defaults(to: 0)
+                t.add(column: "last_sync_at", .double)
+                t.add(column: "last_body_prefetch_at", .double)
+                t.add(column: "directory_sync_token", .text)
+            }
+            try db.drop(table: "folder_sync_state")
         }
     }
 }
