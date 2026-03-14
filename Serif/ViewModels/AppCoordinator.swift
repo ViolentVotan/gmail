@@ -11,6 +11,7 @@ final class AppCoordinator {
     let mailboxViewModel: MailboxViewModel
     let actionCoordinator: EmailActionCoordinator
     let panelCoordinator = PanelCoordinator()
+    let syncProgressManager = SyncProgressManager()
     let attachmentStore: AttachmentStore
 
     private(set) var mailDatabase: MailDatabase?
@@ -306,6 +307,7 @@ final class AppCoordinator {
                 await setupDatabase(for: account.id)
                 mailboxViewModel.setMailDatabase(self.mailDatabase)
                 mailboxViewModel.setBackgroundSyncer(self.backgroundSyncer)
+                mailboxViewModel.setSyncProgressManager(self.syncProgressManager)
                 await indexer.setProgressUpdate { [weak attachmentStore] in
                     Task { await attachmentStore?.refresh() }
                 }
@@ -320,11 +322,17 @@ final class AppCoordinator {
                 await indexer.scanForAttachments()
                 // Pre-fetch bodies at low priority after initial sync
                 if let syncer = self.backgroundSyncer {
-                    Task.detached(priority: .utility) {
-                        try? await syncer.preFetchBodies(
-                            messageService: GmailMessageService.shared,
-                            accountID: account.id
-                        )
+                    Task.detached(priority: .utility) { [syncProgressManager = self.syncProgressManager] in
+                        await syncProgressManager.syncStarted()
+                        do {
+                            try await syncer.preFetchBodies(
+                                messageService: GmailMessageService.shared,
+                                accountID: account.id
+                            )
+                            await syncProgressManager.syncCompleted()
+                        } catch {
+                            await syncProgressManager.syncFailed()
+                        }
                     }
                 }
             }
@@ -411,6 +419,7 @@ final class AppCoordinator {
             await indexer.setProgressUpdate { [weak attachmentStore] in
                 Task { await attachmentStore?.refresh() }
             }
+            syncProgressManager.reset()
             await mailboxViewModel.switchAccount(id)
             mailboxViewModel.setMailDatabase(self.mailDatabase)
             mailboxViewModel.setBackgroundSyncer(self.backgroundSyncer)

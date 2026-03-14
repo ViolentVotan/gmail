@@ -16,6 +16,8 @@ struct SidebarView: View {
     var onDropToSpam: ((String, String) -> Void)?
     var onDropToLabel: ((String, String, String) -> Void)?
 
+    @Environment(SyncProgressManager.self) private var syncProgress
+
     @State private var labelToRename: GmailLabel?
     @State private var labelToDelete: GmailLabel?
     @State private var renameText = ""
@@ -87,6 +89,17 @@ struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: 200, ideal: 240)
+        .safeAreaInset(edge: .bottom) {
+            SyncBubbleView(phase: syncProgress.phase)
+                .padding(Spacing.sm)
+                .opacity(syncProgress.isVisible ? 1 : 0)
+                .frame(height: syncProgress.isVisible ? nil : 0, alignment: .bottom)
+                .clipped()
+                .animation(
+                    syncProgress.isVisible ? SerifAnimation.springSnappy : SerifAnimation.springGentle,
+                    value: syncProgress.isVisible
+                )
+        }
         .accessibilityRotor("Folders") {
             ForEach(Folder.allCases.filter { $0 != .labels }) { folder in
                 AccessibilityRotorEntry(folder.rawValue, id: folder.id)

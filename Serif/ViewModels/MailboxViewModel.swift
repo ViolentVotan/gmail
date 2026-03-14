@@ -50,6 +50,12 @@ final class MailboxViewModel {
         self.backgroundSyncer = syncer
     }
 
+    private(set) var syncProgressManager: SyncProgressManager?
+
+    func setSyncProgressManager(_ manager: SyncProgressManager) {
+        self.syncProgressManager = manager
+    }
+
     private let api: MessageFetching
     private let fetchService: MessageFetchService
     private let labelService: LabelSyncService
@@ -700,6 +706,7 @@ final class MailboxViewModel {
 
         isLoading = true
         error     = nil
+        syncProgressManager?.syncStarted()
         defer { isLoading = false }
 
         do {
@@ -711,6 +718,10 @@ final class MailboxViewModel {
                 pageToken: reset ? nil : nextPageToken
             )
             guard !fetchService.isStale(generation: generation) else { return }
+
+            if let estimate = list.resultSizeEstimate {
+                syncProgressManager?.syncProgress(remaining: estimate)
+            }
 
             let refs = list.messages ?? []
             nextPageToken = list.nextPageToken
@@ -725,6 +736,11 @@ final class MailboxViewModel {
             if let syncer = backgroundSyncer, !resolved.isEmpty {
                 let labelIds = Array(Set(resolved.flatMap { $0.labelIds ?? [] }))
                 try? await syncer.upsertMessages(resolved, ensureLabels: labelIds)
+            }
+
+            let fetchedCount = resolved.count
+            if let estimate = list.resultSizeEstimate, estimate > fetchedCount {
+                syncProgressManager?.syncProgress(remaining: estimate - fetchedCount)
             }
 
             // Background analysis (subscriptions, attachments, AI classification)
@@ -742,11 +758,13 @@ final class MailboxViewModel {
                 historyService.updateStoredHistoryId(latestHistoryId, accountID: accountID)
             }
 
+            syncProgressManager?.syncCompleted()
         } catch is CancellationError {
             // Silently swallow
         } catch {
             guard !fetchService.isStale(generation: generation) else { return }
             self.error = error.localizedDescription
+            syncProgressManager?.syncFailed()
         }
     }
 
@@ -781,13 +799,17 @@ final class MailboxViewModel {
 
     /// Applies the result of a history sync to the VM's observable state.
     private func applyHistorySync(labelId: String?) async -> Bool {
+        syncProgressManager?.syncStarted()
         let existingIDs = Set(messages.map(\.id))
         let result = await historyService.syncViaHistory(
             accountID: accountID,
             labelId: labelId,
             existingMessageIDs: existingIDs
         )
-        guard result.succeeded else { return false }
+        guard result.succeeded else {
+            syncProgressManager?.syncFailed()
+            return false
+        }
 
         // Write delta to DB (ValueObservation will update UI)
         if let syncer = backgroundSyncer {
@@ -837,6 +859,7 @@ final class MailboxViewModel {
         }
 
         if let err = result.error { error = err }
+        syncProgressManager?.syncCompleted()
         return true
     }
 

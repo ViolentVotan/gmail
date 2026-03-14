@@ -121,6 +121,7 @@ struct ContentView: View {
                     .focused($appFocus, equals: .detail)
                 }
             }
+            .environment(coordinator.syncProgressManager)
             .navigationSplitViewStyle(.balanced)
             .windowResizeAnchor(.top)
             .onKeyPress(.tab, phases: .down) { keyPress in
