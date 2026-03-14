@@ -54,8 +54,8 @@ let resolvedFrom: String = {
     switch composeMode {
     case .reply(_, _, _, _, let threadID),
          .replyAll(_, _, _, _, _, let threadID):
-        if let original = mailStore.emails.first(where: {
-            $0.gmailThreadID == threadID && !$0.isDraft
+        if let original = mailboxViewModel.emails.first(where: {
+            $0.gmailThreadID == threadID
         }) {
             return mailboxViewModel.sendAsAliases.bestAlias(
                 toRecipients: original.recipients.map(\.email),
@@ -69,6 +69,8 @@ let resolvedFrom: String = {
 }()
 ```
 
+Note: `mailboxViewModel.emails` is used (not `mailStore.emails`) because `mailStore.emails` only contains local drafts. `mailboxViewModel.emails` contains thread-grouped messages from the GRDB database via `ValueObservation`.
+
 Pass `resolvedFrom` instead of `fromAddress` at line 73. This flows into `ComposeView._selectedAliasEmail` and `ComposeViewModel.fromAddress`, so the full compose window also auto-selects the correct alias.
 
 ## No Changes Needed
@@ -80,7 +82,7 @@ Pass `resolvedFrom` instead of `fromAddress` at line 73. This flows into `Compos
 - **`AppCoordinator.fromAddress`** — stays as the fallback default
 - **`GmailSendAs` model** — stays as-is
 - **`GmailSendService`** — already sends with whatever `fromAddress` is set
-- **Signature handling** — `ComposeView` already loads the correct signature based on `selectedAliasEmail` at init time
+- **Signature handling** — `ComposeView` initializes `selectedAliasEmail` from `fromAddress`; the correct alias-specific signature loads when the mode is applied. Note: `onChange(of: selectedAliasEmail)` doesn't fire for the initial value, so there's a pre-existing edge case where the initial signature may not match if it was set independently (see Edge Cases)
 
 ## Edge Cases
 
@@ -91,6 +93,8 @@ Pass `resolvedFrom` instead of `fromAddress` at line 73. This flows into `Compos
 | Email sent by user (reply to own message) | User's alias likely in sender, not recipients — falls back to primary (correct) |
 | Thread lookup misses in ComposeView | Falls back to primary — safe degradation |
 | New compose / forward | Mode is `.new` or `.forward` — skips resolution, uses primary |
+| Latest thread message is user's own reply | Thread representative's recipients are external contacts, not the user's alias — correctly falls back to primary (matches Gmail web) |
+| Signature mismatch with auto-selected alias | Pre-existing: `onChange(of: selectedAliasEmail)` doesn't fire for the initial value. If the preferred reply signature differs from the auto-resolved alias's signature, the initial signature may not match. Acceptable for now; can be addressed separately. |
 
 ## Testing
 
