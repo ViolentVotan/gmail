@@ -18,8 +18,8 @@ Per-account GRDB SQLite persistence layer. Replaces the previous JSON file cache
 | File | Role |
 |------|------|
 | `MailDatabase.swift` | `DatabasePool` owner — WAL pragmas, foreign keys, cache size, integrity check, per-account path, `deleteDatabase(accountID:)`, `shared(for:)` instance cache |
-| `MailDatabaseMigrations.swift` | v1 schema: 8 tables (`messages`, `labels`, `message_labels`, `contacts`, `attachments`, `email_tags`, `folder_sync_state`, `account_sync_state`), FTS5 virtual table `messages_fts`, 8 indexes |
-| `MailDatabaseQueries.swift` | Static read queries: `messagesForLabel`, `messagesForThread`, `unreadCount`, `labels`, `messagesNeedingBodies`, `messageExists`, `allContacts`, `contactCount`, `syncState`, `updateSyncState` |
+| `MailDatabaseMigrations.swift` | v1 schema: 8 tables (`messages`, `labels`, `message_labels`, `contacts`, `attachments`, `email_tags`, `folder_sync_state`, `account_sync_state`), FTS5 virtual table `messages_fts`, 8 indexes. v2 migration: extends `account_sync_state` with sync engine columns (`last_history_id`, `initial_sync_complete`, `initial_sync_page_token`, `synced_message_count`, `total_messages_estimate`, `last_sync_at`, `last_body_prefetch_at`, `directory_sync_token`), drops `folder_sync_state`. |
+| `MailDatabaseQueries.swift` | Static read queries: `messagesForLabel`, `messagesForThread`, `unreadCount`, `labels`, `messagesNeedingBodies`, `messagesWithoutBodiesCount`, `totalMessageCount`, `messageExists`, `allContacts`, `contactCount`, `syncState`, `updateSyncState` |
 | `FTSManager.swift` | FTS5 maintenance: `index`, `update`, `delete`, `evictBody`, `indexBatch`, `search` |
 | `CacheMigration.swift` | One-time JSON cache → GRDB migration (labels, messages, AI tags). Runs on first launch per account. |
 
@@ -33,8 +33,7 @@ Per-account GRDB SQLite persistence layer. Replaces the previous JSON file cache
 | `ContactRecord.swift` | Contact record with photo URL |
 | `AttachmentRecord.swift` | Attachment metadata record |
 | `EmailTagRecord.swift` | AI classification tags (needsReply, fyiOnly, hasDeadline, financial) |
-| `FolderSyncStateRecord.swift` | Per-folder sync state (historyId, nextPageToken) |
-| `AccountSyncStateRecord.swift` | Per-account sync state (contacts sync tokens, labels etag) |
+| `AccountSyncStateRecord.swift` | Per-account sync state (contacts sync tokens, history ID, initial sync progress, body prefetch tracking, directory sync token) |
 
 ### `Services/BackgroundSyncer.swift`
 
@@ -43,15 +42,13 @@ Actor that centralizes all bulk DB writes:
 - `deleteMessages(gmailIds:)` — removes messages + FTS entries
 - `updateBodies(_:)` — writes pre-fetched full bodies + updates FTS
 - `upsertLabels(_:)` — bulk label sync
-- `upsertContacts(_:)` / `deleteContacts(emails:)` / `deleteAllContacts()` — contact CRUD
+- `upsertContacts(_:)` / `deleteContacts(emails:)` — contact CRUD
 - `applyDelta(newMessages:deletedIds:labelUpdates:)` — history delta sync
-- `preFetchBodies(messageService:accountID:)` — background body download
-- `evictBodies(olderThan:)` — reclaims disk space for old message bodies
 
 ## Data Flow
 
 ```
-Gmail API → MessageFetchService (API pagination)
+Gmail API → FullSyncEngine (orchestrates all sync: initial, incremental, body prefetch)
          → BackgroundSyncer (writes to GRDB)
          → ValueObservation fires (MailboxViewModel)
          → emails property updates → SwiftUI re-renders
@@ -63,4 +60,5 @@ Gmail API → MessageFetchService (API pagination)
 - **DB identity check**: `handleDatabaseUpdate` guards with `db === mailDatabase` to prevent cross-account races.
 - **Nonisolated enrichment**: `enrichRecords` is a `nonisolated static func` to avoid blocking MainActor during DB reads.
 - **Body preservation**: Metadata-only syncs (no body content) write records without overwriting previously-fetched bodies.
-- **FTS5 search**: `MailboxViewModel.search()` queries FTS locally first, falls back to Gmail API for broader results.
+- **FTS5 search**: `MailboxViewModel.search()` queries FTS locally.
+- **Optimistic mutations**: All email mutations (read, star, archive, trash, spam) write to DB first → ValueObservation updates UI → API call → revert on failure.
