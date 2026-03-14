@@ -389,14 +389,6 @@ struct ContentView: View {
                     coordinator.selectedEmailIDs = [restoredEmail.id.uuidString]
                 }
             }
-            .onReceive(Timer.publish(every: TimeInterval(coordinator.refreshInterval), on: .main, in: .common).autoconnect()) { _ in
-                guard !coordinator.mailboxViewModel.isLoading, !coordinator.mailboxViewModel.accountID.isEmpty else { return }
-                coordinator.lastRefreshedAt = Date()
-                Task {
-                    await coordinator.loadCurrentFolder()
-                    await coordinator.mailboxViewModel.loadCategoryUnreadCounts()
-                }
-            }
     }
 
 }

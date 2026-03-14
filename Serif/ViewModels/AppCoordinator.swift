@@ -16,6 +16,7 @@ final class AppCoordinator {
 
     private(set) var mailDatabase: MailDatabase?
     private(set) var backgroundSyncer: BackgroundSyncer?
+    private(set) var syncEngine: FullSyncEngine?
     private var pendingDraftSelection: Email?
     private var lifecycleTask: Task<Void, Never>?
     private var cachedSnoozedEmails: [Email] = []
@@ -304,6 +305,8 @@ final class AppCoordinator {
                 await mailboxViewModel.loadFolder(labelIDs: [], query: query)
             }
         }
+        // Trigger sync engine to check for new messages immediately
+        await syncEngine?.triggerIncrementalSync()
     }
 
     // MARK: - Lifecycle Handlers
@@ -329,6 +332,13 @@ final class AppCoordinator {
                 mailboxViewModel.setMailDatabase(self.mailDatabase)
                 mailboxViewModel.setBackgroundSyncer(self.backgroundSyncer)
                 mailboxViewModel.setSyncProgressManager(self.syncProgressManager)
+                // Start sync engine
+                if let db = self.mailDatabase, let syncer = self.backgroundSyncer {
+                    let engine = FullSyncEngine(accountID: account.id, db: db, syncer: syncer)
+                    await engine.setProgressManager(self.syncProgressManager)
+                    self.syncEngine = engine
+                    await engine.start()
+                }
                 await indexer.setProgressUpdate { [weak attachmentStore] in
                     Task { await attachmentStore?.refresh() }
                 }
@@ -341,21 +351,6 @@ final class AppCoordinator {
                 lastRefreshedAt = Date()
                 await indexer.resumePending()
                 await indexer.scanForAttachments()
-                // Pre-fetch bodies at low priority after initial sync
-                if let syncer = self.backgroundSyncer {
-                    Task.detached(priority: .utility) { [syncProgressManager = self.syncProgressManager] in
-                        await syncProgressManager.syncStarted()
-                        do {
-                            try await syncer.preFetchBodies(
-                                messageService: GmailMessageService.shared,
-                                accountID: account.id
-                            )
-                            await syncProgressManager.syncCompleted()
-                        } catch {
-                            await syncProgressManager.syncFailed()
-                        }
-                    }
-                }
             }
         } else {
             selectedEmail = mailStore.emails(for: .inbox).first
@@ -442,6 +437,9 @@ final class AppCoordinator {
         lifecycleTask?.cancel()
         lifecycleTask = Task {
             await attachmentStore.refresh()
+            // Stop old sync engine
+            await syncEngine?.stop()
+            syncEngine = nil
             await setupDatabase(for: id)
             await indexer.setProgressUpdate { [weak attachmentStore] in
                 Task { await attachmentStore?.refresh() }
@@ -460,20 +458,12 @@ final class AppCoordinator {
             _ = await (folderLoad, labelsLoad, sendAsLoad, categoryLoad, photosLoad)
             await indexer.resumePending()
             await indexer.scanForAttachments()
-            // Pre-fetch bodies at low priority after account switch
-            if let syncer = self.backgroundSyncer {
-                Task.detached(priority: .utility) { [syncProgressManager = self.syncProgressManager] in
-                    await syncProgressManager.syncStarted()
-                    do {
-                        try await syncer.preFetchBodies(
-                            messageService: GmailMessageService.shared,
-                            accountID: id
-                        )
-                        await syncProgressManager.syncCompleted()
-                    } catch {
-                        await syncProgressManager.syncFailed()
-                    }
-                }
+            // Start new sync engine
+            if let db = self.mailDatabase, let syncer = self.backgroundSyncer {
+                let engine = FullSyncEngine(accountID: id, db: db, syncer: syncer)
+                await engine.setProgressManager(self.syncProgressManager)
+                self.syncEngine = engine
+                await engine.start()
             }
         }
     }
