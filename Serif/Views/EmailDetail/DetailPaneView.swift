@@ -22,11 +22,30 @@ struct DetailPaneView: View {
     private var attachmentIndexer: AttachmentIndexer? { coordinator.attachmentIndexer }
 
     /// Resolves the best send-as alias for the given email, falling back to the primary account address.
+    /// For outgoing folders (Sent), recipients are outbound contacts — no alias will match, so this
+    /// safely falls back to the primary address.
     private func resolvedFromAddress(for email: Email) -> String {
         mailboxViewModel.sendAsAliases.bestAlias(
             toRecipients: email.recipients.map(\.email),
             ccRecipients: email.cc.map(\.email)
         ) ?? fromAddress
+    }
+
+    /// Resolves the from address for compose mode by looking up the original thread's email.
+    /// Note: mailboxViewModel.emails contains thread representatives for the current folder only.
+    /// If the original thread is not loaded (e.g., editing a draft from the Drafts folder),
+    /// alias resolution falls back to the primary address.
+    private func resolvedFromAddressForCompose() -> String {
+        switch composeMode {
+        case .reply(_, _, _, _, let threadID),
+             .replyAll(_, _, _, _, _, let threadID):
+            if let original = mailboxViewModel.emails.first(where: { $0.gmailThreadID == threadID }) {
+                return resolvedFromAddress(for: original)
+            }
+            return fromAddress
+        default:
+            return fromAddress
+        }
     }
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
@@ -74,24 +93,11 @@ struct DetailPaneView: View {
     // MARK: - Compose
 
     private func composeView(draftId: UUID) -> some View {
-        let resolvedFrom: String = {
-            switch composeMode {
-            case .reply(_, _, _, _, let threadID),
-                 .replyAll(_, _, _, _, _, let threadID):
-                if let original = mailboxViewModel.emails.first(where: { $0.gmailThreadID == threadID }) {
-                    return resolvedFromAddress(for: original)
-                }
-                return fromAddress
-            default:
-                return fromAddress
-            }
-        }()
-
-        return ComposeView(
+        ComposeView(
             mailStore: mailStore,
             draftId: draftId,
             accountID: accountID,
-            fromAddress: resolvedFrom,
+            fromAddress: resolvedFromAddressForCompose(),
             mode: composeMode,
             sendAsAliases: mailboxViewModel.sendAsAliases,
             signatureForNew: signatureForNew,
