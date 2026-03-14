@@ -48,13 +48,12 @@ class WebRichTextEditorCoordinator: NSObject, WKScriptMessageHandler, WKNavigati
 
     // MARK: - WKNavigationDelegate
 
-    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+    func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction) async -> WKNavigationActionPolicy {
         if navigationAction.navigationType == .linkActivated {
             // Links are handled by the JS popover in editor mode — don't open externally
-            decisionHandler(.cancel)
-        } else {
-            decisionHandler(.allow)
+            return .cancel
         }
+        return .allow
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

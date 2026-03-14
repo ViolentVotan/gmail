@@ -53,6 +53,7 @@ final class PeopleAPIService {
     /// Uses sync tokens for incremental updates when available.
     private func fetchAndStoreContacts(accountID: String) async {
         var allContacts: [StoredContact] = []
+        var deletedEmails = Set<String>()
 
         let mailDB = try? MailDatabase.shared(for: accountID)
 
@@ -80,13 +81,14 @@ final class PeopleAPIService {
                         if let pt = incPageToken { urlStr += "&pageToken=\(pt)" }
                         let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
                         // Remove deleted contacts
-                        let deletedEmails = Set(
+                        let pageDeletedEmails = Set(
                             (response.connections ?? [])
                                 .filter { $0.metadata?.deleted == true }
                                 .flatMap { $0.emailAddresses?.compactMap { $0.value?.lowercased() } ?? [] }
                         )
-                        allContacts.removeAll { deletedEmails.contains($0.email) }
-                        for email in deletedEmails {
+                        allContacts.removeAll { pageDeletedEmails.contains($0.email) }
+                        deletedEmails.formUnion(pageDeletedEmails)
+                        for email in pageDeletedEmails {
                             ContactPhotoCache.shared.remove(email)
                         }
 
@@ -167,12 +169,13 @@ final class PeopleAPIService {
                         let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
                         // Handle deletions
-                        let deletedEmails = Set(
+                        let otherDeletedEmails = Set(
                             (response.otherContacts ?? [])
                                 .filter { $0.metadata?.deleted == true }
                                 .flatMap { $0.emailAddresses?.compactMap { $0.value?.lowercased() } ?? [] }
                         )
-                        allContacts.removeAll { deletedEmails.contains($0.email) }
+                        allContacts.removeAll { otherDeletedEmails.contains($0.email) }
+                        deletedEmails.formUnion(otherDeletedEmails)
 
                         // Merge non-deleted
                         let nonDeleted = (response.otherContacts ?? []).filter { $0.metadata?.deleted != true }
@@ -232,6 +235,10 @@ final class PeopleAPIService {
         let unique = allContacts.filter { seen.insert($0.email).inserted }
         if let mailDB {
             let syncer = BackgroundSyncer(db: mailDB)
+            // Delete contacts that were removed during incremental sync
+            if !deletedEmails.isEmpty {
+                try? await syncer.deleteContacts(emails: Array(deletedEmails))
+            }
             let tuples = unique.map { (email: $0.email, name: Optional($0.name), photoUrl: $0.photoURL, source: "people_api", resourceName: nil as String?) }
             try? await syncer.upsertContacts(tuples)
         }

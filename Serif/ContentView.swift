@@ -211,7 +211,7 @@ struct ContentView: View {
             if let email = coordinator.selectedEmail {
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button {
-                        coordinator.startCompose(mode: EmailDetailViewModel.replyMode(for: email, fromAddress: coordinator.fromAddress))
+                        coordinator.startCompose(mode: EmailDetailViewModel.replyMode(for: email))
                     } label: {
                         Label("Reply", systemImage: "arrowshape.turn.up.left")
                     }
@@ -254,7 +254,7 @@ struct ContentView: View {
                 ToolbarItem(placement: .automatic) {
                     Menu {
                         Button {
-                            coordinator.startCompose(mode: EmailDetailViewModel.replyAllMode(for: email, fromAddress: coordinator.fromAddress))
+                            coordinator.startCompose(mode: EmailDetailViewModel.replyAllMode(for: email))
                         } label: { Label("Reply All", systemImage: "arrowshape.turn.up.left.2") }
 
                         Button {
@@ -339,11 +339,8 @@ struct ContentView: View {
             .onChange(of: coordinator.signatureForNew) { _, _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
             .onChange(of: coordinator.signatureForReply) { _, _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
             .onReceive(NotificationCenter.default.publisher(for: .composeEmailFromIntent)) { notification in
-                coordinator.composeNewEmail()
-                if let recipient = notification.userInfo?["recipient"] as? String, !recipient.isEmpty,
-                   let draft = coordinator.mailStore.emails.first(where: { $0.isDraft && $0.recipients.isEmpty && $0.body.isEmpty }) {
-                    coordinator.mailStore.updateDraft(id: draft.id, subject: "", body: "", to: recipient, cc: "")
-                }
+                let recipient = notification.userInfo?["recipient"] as? String
+                coordinator.composeNewEmail(recipient: recipient)
             }
             .onReceive(NotificationCenter.default.publisher(for: .searchEmailFromIntent)) { notification in
                 coordinator.selectedFolder = .inbox

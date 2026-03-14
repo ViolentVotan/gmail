@@ -8,6 +8,4 @@ struct AccountSyncStateRecord: Codable, FetchableRecord, PersistableRecord {
     var id: Int = 1
     var contactsSyncToken: String?
     var otherContactsSyncToken: String?
-    var labelsEtag: String?
-    var lastContactsSync: Double?
 }

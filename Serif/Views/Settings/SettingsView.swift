@@ -17,6 +17,10 @@ struct SettingsView: View {
                 generalTab
             }
 
+            Tab("Signatures", systemImage: "signature") {
+                SignaturesSettingsView(accountID: accountID)
+            }
+
             Tab("Filters", systemImage: "line.3.horizontal.decrease.circle") {
                 FiltersSettingsView(accountID: accountID)
             }
@@ -25,7 +29,7 @@ struct SettingsView: View {
                 advancedTab
             }
         }
-        .frame(width: 450, height: 300)
+        .frame(width: 450, height: 320)
     }
 
     private var generalTab: some View {

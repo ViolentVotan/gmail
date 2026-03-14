@@ -89,7 +89,9 @@ final class AppCoordinator {
         if selectedFolder == .subscriptions { return SubscriptionsStore.shared.entries }
         if selectedFolder == .snoozed { return cachedSnoozedEmails }
         if selectedFolder == .scheduled { return cachedScheduledEmails }
-        return mailboxViewModel.emails
+        let base = mailboxViewModel.emails
+        guard mailboxViewModel.priorityFilterEnabled else { return base }
+        return base.filter { $0.gmailLabelIDs.contains(GmailSystemLabel.important) }
     }
 
     var listIsLoading: Bool {
@@ -196,9 +198,12 @@ final class AppCoordinator {
         }
     }
 
-    func composeNewEmail() {
+    func composeNewEmail(recipient: String? = nil) {
         composeMode = .new
         let draft = mailStore.createDraft()
+        if let recipient, !recipient.isEmpty {
+            mailStore.updateDraft(id: draft.id, subject: "", body: "", to: recipient, cc: "")
+        }
         if selectedFolder == .drafts {
             selectedEmail = draft
         } else {
@@ -345,6 +350,7 @@ final class AppCoordinator {
                                 messageService: GmailMessageService.shared,
                                 accountID: account.id
                             )
+                            try? await syncer.evictBodies(olderThan: Calendar.current.date(byAdding: .day, value: -90, to: .now)!)
                             await syncProgressManager.syncCompleted()
                         } catch {
                             await syncProgressManager.syncFailed()
@@ -445,6 +451,8 @@ final class AppCoordinator {
             await mailboxViewModel.switchAccount(id)
             mailboxViewModel.setMailDatabase(self.mailDatabase)
             mailboxViewModel.setBackgroundSyncer(self.backgroundSyncer)
+            mailboxViewModel.setSyncProgressManager(self.syncProgressManager)
+            SummaryService.shared.accountID = id
             async let folderLoad: Void = loadCurrentFolder()
             async let labelsLoad: Void = mailboxViewModel.loadLabels()
             async let sendAsLoad: Void = mailboxViewModel.loadSendAs()
@@ -453,6 +461,22 @@ final class AppCoordinator {
             _ = await (folderLoad, labelsLoad, sendAsLoad, categoryLoad, photosLoad)
             await indexer.resumePending()
             await indexer.scanForAttachments()
+            // Pre-fetch bodies at low priority after account switch
+            if let syncer = self.backgroundSyncer {
+                Task.detached(priority: .utility) { [syncProgressManager = self.syncProgressManager] in
+                    await syncProgressManager.syncStarted()
+                    do {
+                        try await syncer.preFetchBodies(
+                            messageService: GmailMessageService.shared,
+                            accountID: id
+                        )
+                        try? await syncer.evictBodies(olderThan: Calendar.current.date(byAdding: .day, value: -90, to: .now)!)
+                        await syncProgressManager.syncCompleted()
+                    } catch {
+                        await syncProgressManager.syncFailed()
+                    }
+                }
+            }
         }
     }
 

@@ -61,6 +61,20 @@ struct ReplyBarView: View {
         VStack(spacing: 0) {
             if !isExpanded && !smartReplySuggestions.isEmpty {
                 SmartReplyChipsView(suggestions: smartReplySuggestions) { suggestion in
+                    if replyTo.isEmpty {
+                        replyTo = email.sender.email
+                    }
+                    let escaped = suggestion
+                        .replacingOccurrences(of: "&", with: "&amp;")
+                        .replacingOccurrences(of: "<", with: "&lt;")
+                        .replacingOccurrences(of: ">", with: "&gt;")
+                    let html = "<p>\(escaped)</p>"
+                    replyHTML = html
+                    editorState.setHTML(html)
+                    loadExistingDraft()
+                    withAnimation(SerifAnimation.springSnappy) {
+                        isExpanded = true
+                    }
                     onSmartReplySelect?(suggestion)
                 }
             }
@@ -531,15 +545,16 @@ private struct ClickOutsideDetector: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    class Coordinator {
+    @MainActor class Coordinator {
         weak var anchorView: NSView?
         var isExpanded = false
         var onClickOutside: (() -> Void)?
-        private var monitor: Any?
+        nonisolated(unsafe) private var monitor: Any?
 
         func install() {
             monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
-                self?.handleClick(event)
+                // NSEvent local monitors fire on the main thread
+                MainActor.assumeIsolated { self?.handleClick(event) }
                 return event
             }
         }
@@ -552,9 +567,7 @@ private struct ClickOutsideDetector: NSViewRepresentable {
             }
             let clickInAnchor = anchor.convert(event.locationInWindow, from: nil)
             if !anchor.bounds.contains(clickInAnchor) {
-                // NSEvent monitors fire on the main thread
-                nonisolated(unsafe) let action = onClickOutside
-                MainActor.assumeIsolated { action?() }
+                onClickOutside?()
             }
         }
 

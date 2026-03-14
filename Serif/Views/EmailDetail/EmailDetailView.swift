@@ -100,7 +100,8 @@ struct EmailDetailView: View {
                                 await detailVM.generateQuickReplies(for: email)
                             },
                             onLoadDraft: actions.onLoadDraft,
-                            smartReplySuggestions: detailVM.smartReplySuggestions
+                            smartReplySuggestions: detailVM.smartReplySuggestions,
+                            onSmartReplySelect: { _ in }
                         )
                         .padding(.horizontal, Spacing.lg)
                         .padding(.bottom, Spacing.lg)

@@ -286,9 +286,8 @@ struct HTMLEmailView: NSViewRepresentable {
 
         func webView(
             _ webView: WKWebView,
-            decidePolicyFor navigationAction: WKNavigationAction,
-            decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
-        ) {
+            decidePolicyFor navigationAction: WKNavigationAction
+        ) async -> WKNavigationActionPolicy {
             // Open clicked links externally (or via the provided callback)
             if navigationAction.navigationType == .linkActivated,
                let url = navigationAction.request.url {
@@ -297,8 +296,7 @@ struct HTMLEmailView: NSViewRepresentable {
                 } else {
                     NSWorkspace.shared.open(url)
                 }
-                decisionHandler(.cancel)
-                return
+                return .cancel
             }
 
             // Only allow the initial HTML load (about:blank from loadHTMLString)
@@ -307,10 +305,9 @@ struct HTMLEmailView: NSViewRepresentable {
                   navigationAction.request.url?.scheme == "about"
                       || navigationAction.request.url?.absoluteString == "about:blank"
             else {
-                decisionHandler(.cancel)
-                return
+                return .cancel
             }
-            decisionHandler(.allow)
+            return .allow
         }
     }
 }

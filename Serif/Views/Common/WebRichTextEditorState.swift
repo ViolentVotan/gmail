@@ -2,7 +2,7 @@ import AppKit
 import WebKit
 import Combine
 
-final class WebRichTextEditorState: ObservableObject {
+@MainActor final class WebRichTextEditorState: ObservableObject {
     // Formatting state (updated by JS selectionChanged)
     @Published var isBold = false
     @Published var isItalic = false

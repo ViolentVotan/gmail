@@ -13,7 +13,6 @@ struct ListPaneView: View {
     let coordinator: AppCoordinator
 
     @State private var selectedCategory: InboxCategory = .all
-    @State private var priorityFilterOn: Bool = false
 
     // MARK: - Convenience Accessors
 
@@ -55,9 +54,10 @@ struct ListPaneView: View {
                 .background(.yellow.opacity(0.1))
             }
             if selectedFolder == .inbox {
+                @Bindable var vm = coordinator.mailboxViewModel
                 CategoryTabBar(
                     selectedCategory: $selectedCategory,
-                    priorityFilterOn: $priorityFilterOn,
+                    priorityFilterOn: $vm.priorityFilterEnabled,
                     unreadCounts: coordinator.mailboxViewModel.categoryUnreadCounts
                 )
                 Divider()
@@ -88,16 +88,13 @@ struct ListPaneView: View {
                 onMarkNotSpam:       { actionCoordinator.markNotSpamEmail($0, selectNext: { coordinator.selectNext($0) }) },
                 onSnooze:            { actionCoordinator.snoozeEmail($0, until: $1, selectNext: { coordinator.selectNext($0) }) },
                 onReply: { email in
-                    let vm = EmailDetailViewModel(accountID: coordinator.accountID)
-                    coordinator.startCompose(mode: vm.replyMode(email: email))
+                    coordinator.startCompose(mode: EmailDetailViewModel.replyMode(for: email))
                 },
                 onReplyAll: { email in
-                    let vm = EmailDetailViewModel(accountID: coordinator.accountID)
-                    coordinator.startCompose(mode: vm.replyAllMode(email: email))
+                    coordinator.startCompose(mode: EmailDetailViewModel.replyAllMode(for: email))
                 },
                 onForward: { email in
-                    let vm = EmailDetailViewModel(accountID: coordinator.accountID)
-                    coordinator.startCompose(mode: vm.forwardMode(email: email))
+                    coordinator.startCompose(mode: EmailDetailViewModel.forwardMode(for: email))
                 },
                 onBulkArchive:    { actionCoordinator.bulkArchive(selectedEmails, onClear: clearSelection) },
                 onBulkDelete:     { actionCoordinator.bulkDelete(selectedEmails, onClear: clearSelection) },

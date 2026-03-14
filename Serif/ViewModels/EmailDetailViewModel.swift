@@ -25,13 +25,15 @@ final class EmailDetailViewModel {
     var hasBlockedTrackers: Bool { !allowTrackers && (trackerResult?.hasTrackers ?? false) }
 
     @ObservationIgnored let accountID: String
+    @ObservationIgnored private let api: any MessageFetching
     @ObservationIgnored var attachmentIndexer: AttachmentIndexer?
     @ObservationIgnored var onMessagesRead: (([String]) -> Void)?
     @ObservationIgnored var mailDatabase: MailDatabase?
     @ObservationIgnored nonisolated(unsafe) private var backgroundTasks: [Task<Void, Never>] = []
 
-    init(accountID: String) {
+    init(accountID: String, api: any MessageFetching = GmailMessageService.shared) {
         self.accountID = accountID
+        self.api = api
     }
 
     deinit {
@@ -74,7 +76,7 @@ final class EmailDetailViewModel {
 
         // Refresh from API
         do {
-            let fresh = try await GmailMessageService.shared.getThread(id: id, accountID: accountID)
+            let fresh = try await api.getThread(id: id, accountID: accountID)
             thread = fresh
             await analyzeTrackers()
             detectCalendarInvite()
@@ -98,8 +100,8 @@ final class EmailDetailViewModel {
             if !unreadMessages.isEmpty {
                 await withTaskGroup(of: Void.self) { group in
                     for message in unreadMessages {
-                        group.addTask { [accountID] in
-                            try? await GmailMessageService.shared.markAsRead(id: message.id, accountID: accountID)
+                        group.addTask { [accountID, api] in
+                            try? await api.markAsRead(id: message.id, accountID: accountID)
                         }
                     }
                 }
@@ -199,19 +201,20 @@ final class EmailDetailViewModel {
         guard !message.inlineParts.isEmpty else { return }
         let baseHTML = trackerSanitizedHTML ?? message.htmlBody ?? ""
         guard !baseHTML.isEmpty else { return }
-        resolvedMessageHTML[message.id] = await Self.replaceCIDReferences(in: baseHTML, message: message, accountID: accountID)
+        resolvedMessageHTML[message.id] = await Self.replaceCIDReferences(in: baseHTML, message: message, accountID: accountID, api: api)
     }
 
     /// Resolves inline CID images for older thread messages in parallel and stores results per message ID.
     private func resolveInlineImagesForOlderMessages(_ messages: [GmailMessage]) async {
         let accountID = self.accountID
+        let api = self.api
         await withTaskGroup(of: (String, String).self) { group in
             for message in messages {
                 guard !message.inlineParts.isEmpty else { continue }
                 guard let baseHTML = message.htmlBody, !baseHTML.isEmpty else { continue }
 
                 group.addTask {
-                    let result = await Self.replaceCIDReferences(in: baseHTML, message: message, accountID: accountID)
+                    let result = await Self.replaceCIDReferences(in: baseHTML, message: message, accountID: accountID, api: api)
                     return (message.id, result)
                 }
             }
@@ -222,7 +225,7 @@ final class EmailDetailViewModel {
     }
 
     /// Shared helper: downloads inline CID attachments and replaces cid: references with data: URIs.
-    @concurrent private static func replaceCIDReferences(in html: String, message: GmailMessage, accountID: String) async -> String {
+    @concurrent private static func replaceCIDReferences(in html: String, message: GmailMessage, accountID: String, api: any MessageFetching) async -> String {
         var result = html
         await withTaskGroup(of: (String, String, Data?).self) { group in
             for part in message.inlineParts {
@@ -230,7 +233,7 @@ final class EmailDetailViewModel {
                       let attachmentID = part.body?.attachmentId,
                       let mime = part.mimeType else { continue }
                 group.addTask {
-                    let data = try? await GmailMessageService.shared.getAttachment(
+                    let data = try? await api.getAttachment(
                         messageID: message.id,
                         attachmentID: attachmentID,
                         accountID: accountID
@@ -253,7 +256,7 @@ final class EmailDetailViewModel {
         guard let attachmentID = part.body?.attachmentId else {
             throw GmailAPIError.decodingError(URLError(.badServerResponse))
         }
-        return try await GmailMessageService.shared.getAttachment(
+        return try await api.getAttachment(
             messageID:    messageID,
             attachmentID: attachmentID,
             accountID:    accountID
@@ -348,13 +351,13 @@ final class EmailDetailViewModel {
             .replacingOccurrences(of: "\"", with: "&quot;")
     }
 
-    static func replyMode(for email: Email, fromAddress: String = "", latestHTMLBody: String? = nil) -> ComposeMode {
+    static func replyMode(for email: Email, latestHTMLBody: String? = nil) -> ComposeMode {
         let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
         return .reply(to: email.sender.email, subject: sub, quotedBody: quotedHTML(for: email, latestHTMLBody: latestHTMLBody),
                       replyToMessageID: email.gmailMessageID ?? "", threadID: email.gmailThreadID ?? "")
     }
 
-    static func replyAllMode(for email: Email, fromAddress: String = "", latestHTMLBody: String? = nil) -> ComposeMode {
+    static func replyAllMode(for email: Email, latestHTMLBody: String? = nil) -> ComposeMode {
         let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
         let toField = ([email.sender.email] + email.recipients.map(\.email)).joined(separator: ", ")
         return .replyAll(to: toField, cc: email.cc.map(\.email).joined(separator: ", "),

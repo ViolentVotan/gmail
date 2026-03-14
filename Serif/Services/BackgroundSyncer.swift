@@ -43,6 +43,31 @@ actor BackgroundSyncer {
                     try MessageLabelRecord(messageId: record.gmailId, labelId: labelId).insert(db)
                 }
 
+                // Attachments: replace existing records for this message
+                try db.execute(
+                    sql: "DELETE FROM attachments WHERE message_id = ?",
+                    arguments: [record.gmailId]
+                )
+                for part in gmail.attachmentParts {
+                    guard let attachmentId = part.body?.attachmentId else { continue }
+                    let attachment = AttachmentRecord(
+                        id: "\(record.gmailId)_\(attachmentId)",
+                        messageId: record.gmailId,
+                        gmailAttachmentId: attachmentId,
+                        filename: part.filename,
+                        mimeType: part.mimeType,
+                        fileType: part.filename.flatMap { String($0.split(separator: ".").last ?? "") },
+                        size: part.body?.size,
+                        contentId: part.contentID,
+                        direction: nil,
+                        indexingStatus: "pending",
+                        extractedText: nil,
+                        indexedAt: nil,
+                        retryCount: 0
+                    )
+                    try attachment.insert(db)
+                }
+
                 // FTS: index or update
                 if existed {
                     try FTSManager.update(message: record, in: db)
@@ -125,31 +150,6 @@ actor BackgroundSyncer {
         }
     }
 
-    // MARK: - Sync State
-
-    /// Update folder sync state.
-    func updateFolderSyncState(folderKey: String, historyId: String?, nextPageToken: String?, fullSync: Bool) throws {
-        try db.dbPool.write { db in
-            var state = try FolderSyncStateRecord.fetchOne(db, key: folderKey)
-                ?? FolderSyncStateRecord(folderKey: folderKey)
-            state.historyId = historyId ?? state.historyId
-            state.nextPageToken = nextPageToken
-            if fullSync {
-                state.lastFullSync = Date().timeIntervalSince1970
-            } else {
-                state.lastDeltaSync = Date().timeIntervalSince1970
-            }
-            try state.upsert(db)
-        }
-    }
-
-    /// Get folder sync state.
-    func folderSyncState(forKey key: String) throws -> FolderSyncStateRecord? {
-        try db.dbPool.read { db in
-            try FolderSyncStateRecord.fetchOne(db, key: key)
-        }
-    }
-
     // MARK: - Body Eviction
 
     /// Evict bodies older than the given date.
@@ -218,6 +218,31 @@ actor BackgroundSyncer {
                     try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).upsert(db)
                     try MessageLabelRecord(messageId: record.gmailId, labelId: labelId).insert(db)
                 }
+                // Attachments: replace existing records for this message
+                try db.execute(
+                    sql: "DELETE FROM attachments WHERE message_id = ?",
+                    arguments: [record.gmailId]
+                )
+                for part in gmail.attachmentParts {
+                    guard let attachmentId = part.body?.attachmentId else { continue }
+                    let attachment = AttachmentRecord(
+                        id: "\(record.gmailId)_\(attachmentId)",
+                        messageId: record.gmailId,
+                        gmailAttachmentId: attachmentId,
+                        filename: part.filename,
+                        mimeType: part.mimeType,
+                        fileType: part.filename.flatMap { String($0.split(separator: ".").last ?? "") },
+                        size: part.body?.size,
+                        contentId: part.contentID,
+                        direction: nil,
+                        indexingStatus: "pending",
+                        extractedText: nil,
+                        indexedAt: nil,
+                        retryCount: 0
+                    )
+                    try attachment.insert(db)
+                }
+
                 if existed {
                     try FTSManager.update(message: record, in: db)
                 } else {
@@ -269,13 +294,13 @@ actor BackgroundSyncer {
     }
 
     func deleteContacts(emails: [String]) throws {
-        try db.dbPool.write { db in
+        _ = try db.dbPool.write { db in
             try ContactRecord.filter(emails.map { $0.lowercased() }.contains(Column("email"))).deleteAll(db)
         }
     }
 
     func deleteAllContacts() throws {
-        try db.dbPool.write { db in
+        _ = try db.dbPool.write { db in
             try ContactRecord.deleteAll(db)
         }
     }

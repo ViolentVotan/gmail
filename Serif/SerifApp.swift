@@ -7,6 +7,7 @@ struct SerifApp: App {
 
     init() {
         NotificationService.shared.setup()
+        SerifShortcuts.updateAppShortcutParameters()
     }
 
     var body: some Scene {

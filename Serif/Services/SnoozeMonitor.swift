@@ -43,7 +43,7 @@ final class SnoozeMonitor {
                 )
                 SnoozeStore.shared.remove(messageId: item.messageId, accountID: item.accountID)
             } catch {
-                if case .httpError(404, _) = error as? GmailAPIError {
+                if case .httpError(404, _) = error {
                     SnoozeStore.shared.remove(messageId: item.messageId, accountID: item.accountID)
                 }
             }
@@ -58,7 +58,7 @@ final class SnoozeMonitor {
                 ScheduledSendStore.shared.remove(draftId: item.draftId, accountID: item.accountID)
                 ToastManager.shared.show(message: "Scheduled email sent: \(item.subject)")
             } catch {
-                if case .httpError(404, _) = error as? GmailAPIError {
+                if case .httpError(404, _) = error {
                     ScheduledSendStore.shared.remove(draftId: item.draftId, accountID: item.accountID)
                 }
             }

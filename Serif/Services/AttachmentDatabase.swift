@@ -245,7 +245,7 @@ actor AttachmentDatabase {
 
         if let embedding {
             let data = serializeEmbedding(embedding)
-            data.withUnsafeBytes { buf in
+            _ = data.withUnsafeBytes { buf in
                 sqlite3_bind_blob(stmt, 2, buf.baseAddress, Int32(data.count), SQLITE_TRANSIENT)
             }
         } else {

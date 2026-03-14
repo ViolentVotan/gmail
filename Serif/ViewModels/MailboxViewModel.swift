@@ -26,6 +26,8 @@ final class MailboxViewModel {
     var lastRestoredMessageID: String?
     private(set) var emails: [Email] = []
 
+    var priorityFilterEnabled: Bool = false
+
     var accountID: String
     var attachmentIndexer: AttachmentIndexer? {
         didSet { fetchService.attachmentIndexer = attachmentIndexer }
@@ -453,7 +455,7 @@ final class MailboxViewModel {
     func removeOptimistically(_ messageID: String) -> GmailMessage? {
         guard let idx = messages.firstIndex(where: { $0.id == messageID }) else { return nil }
         let msg = messages[idx]
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+        _ = withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
             messages.remove(at: idx)
         }
         return msg

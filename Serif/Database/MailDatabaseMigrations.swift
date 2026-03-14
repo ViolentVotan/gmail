@@ -109,6 +109,7 @@ enum MailDatabaseMigrations {
             }
 
             // -- folder_sync_state --
+            // Legacy: table exists but is unused; retained for migration compatibility
             try db.create(table: "folder_sync_state") { t in
                 t.primaryKey("folder_key", .text)
                 t.column("history_id", .text)

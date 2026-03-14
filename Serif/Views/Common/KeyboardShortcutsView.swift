@@ -59,16 +59,18 @@ private struct KeyboardEventMonitor: NSViewRepresentable {
         }
 
         private var isTextInputFocused: Bool {
-            guard let responder = NSApp.keyWindow?.firstResponder else { return false }
-            if responder is NSTextView || responder is NSTextField { return true }
-            // WKWebView uses an internal NSView subclass as first responder;
-            // walk up the view hierarchy to detect it.
-            var view = responder as? NSView
-            while let v = view {
-                if v is WKWebView { return true }
-                view = v.superview
+            MainActor.assumeIsolated {
+                guard let responder = NSApp.keyWindow?.firstResponder else { return false }
+                if responder is NSTextView || responder is NSTextField { return true }
+                // WKWebView uses an internal NSView subclass as first responder;
+                // walk up the view hierarchy to detect it.
+                var view = responder as? NSView
+                while let v = view {
+                    if v is WKWebView { return true }
+                    view = v.superview
+                }
+                return false
             }
-            return false
         }
 
         private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
@@ -78,7 +80,7 @@ private struct KeyboardEventMonitor: NSViewRepresentable {
             let chars = event.charactersIgnoringModifiers
 
             // NSEvent monitors fire on the main thread — safe to access MainActor state directly.
-            nonisolated(unsafe) let coord = coordinator
+            let coord = coordinator
 
             // Escape — close any open panel (takes priority over everything)
             if keyCode == 53 {
