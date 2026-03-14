@@ -165,7 +165,7 @@ extension MessageRecord {
             Attachment(
                 name: record.filename ?? "Attachment",
                 fileType: Attachment.FileType.from(fileExtension: (record.filename as NSString?)?.pathExtension ?? ""),
-                size: record.size.map { ByteCountFormatter.string(fromByteCount: Int64($0), countStyle: .file) } ?? "",
+                size: record.size.map { GmailDataTransformer.sizeString($0) } ?? "",
                 gmailAttachmentId: record.gmailAttachmentId,
                 gmailMessageId: record.messageId,
                 mimeType: record.mimeType

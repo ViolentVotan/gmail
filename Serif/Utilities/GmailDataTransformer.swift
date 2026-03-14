@@ -97,13 +97,10 @@ enum GmailDataTransformer {
     }
 
     static func sizeString(_ bytes: Int) -> String {
-        if bytes < 1_024       { return "\(bytes) B" }
-        if bytes < 1_048_576   { return String(format: "%.0f KB", Double(bytes) / 1_024) }
-        return String(format: "%.1f MB", Double(bytes) / 1_048_576)
+        ByteCountFormatter.string(fromByteCount: Int64(bytes), countStyle: .file)
     }
 
-    /// Formats Int64 byte counts to human-readable strings.
     static func sizeString(_ bytes: Int64) -> String {
-        sizeString(Int(bytes))
+        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 }

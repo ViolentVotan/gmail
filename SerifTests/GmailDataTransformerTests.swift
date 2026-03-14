@@ -152,7 +152,7 @@ import Foundation
         #expect(attachment.gmailAttachmentId == "att_001")
         #expect(attachment.gmailMessageId == "msg_123")
         #expect(attachment.mimeType == "application/pdf")
-        #expect(attachment.size == "512 KB")
+        #expect(attachment.size == ByteCountFormatter.string(fromByteCount: 524288, countStyle: .file))
     }
 
     @Test func makeAttachmentNoFilename() {
@@ -170,17 +170,14 @@ import Foundation
         #expect(attachment.fileType == .document) // no extension -> document
     }
 
-    @Test(arguments: [
-        (500, "500 B"),
-        (51200, "50 KB"),
-        (5_242_880, "5.0 MB"),
-    ] as [(Int, String)])
-    func makeAttachmentSizeFormatting(size: Int, expected: String) {
+    @Test(arguments: [500, 51200, 5_242_880])
+    func makeAttachmentSizeFormatting(size: Int) {
         let part = GmailMessagePart(
             partId: "1", mimeType: nil, filename: "file.txt", headers: nil,
             body: GmailMessageBody(attachmentId: nil, size: size, data: nil), parts: nil
         )
         let attachment = GmailDataTransformer.makeAttachment(from: part, messageId: "m1")
+        let expected = ByteCountFormatter.string(fromByteCount: Int64(size), countStyle: .file)
         #expect(attachment.size == expected)
     }
 }
