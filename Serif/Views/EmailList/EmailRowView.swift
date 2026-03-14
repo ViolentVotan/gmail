@@ -32,7 +32,7 @@ struct EmailRowView: View {
 
         self.labelBadges = email.labels.map { .label($0) }
 
-        if let tags = EmailClassifier.shared.cachedTags(for: email.gmailMessageID ?? "") {
+        if let tags = email.tags {
             self.tagBadges = tags.activeTags.map { .tag(label: $0.label, color: $0.color) }
         } else {
             self.tagBadges = []

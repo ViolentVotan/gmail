@@ -30,6 +30,19 @@ final class AppCoordinator {
     var selectedEmail: Email?
     var selectedEmailIDs: Set<String> = []
 
+    // MARK: - Contacts
+
+    private(set) var contacts: [StoredContact] = []
+
+    func loadContacts() {
+        guard !accountID.isEmpty else { return }
+        contacts = (try? MailDatabase.shared(for: accountID).dbPool.read { db in
+            try MailDatabaseQueries.allContacts(in: db).map {
+                StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
+            }
+        }) ?? []
+    }
+
     // MARK: - UI State
 
     var searchResetTrigger = 0
@@ -90,7 +103,9 @@ final class AppCoordinator {
     }
 
     var fromAddress: String {
-        authViewModel.primaryAccount?.email ?? ""
+        authViewModel.accounts.first(where: { $0.id == selectedAccountID })?.email
+            ?? authViewModel.primaryAccount?.email
+            ?? ""
     }
 
     private func refreshSnoozedCache() {
@@ -291,6 +306,7 @@ final class AppCoordinator {
     func handleAppear() {
         if let account = authViewModel.primaryAccount {
             selectedAccountID = account.id
+            AccountStore.shared.selectedAccountID = account.id
             mailboxViewModel.accountID = account.id
             mailStore.accountID = account.id
             SubscriptionsStore.shared.accountID = account.id
@@ -391,6 +407,8 @@ final class AppCoordinator {
         guard let id = newID else { return }
         // Skip if handleAppear already set up this account
         guard mailboxViewModel.accountID != id else { return }
+        // Keep AccountStore in sync so Settings scene can read the selected account
+        AccountStore.shared.selectedAccountID = id
         // Save current account's signatures before switching
         let oldID = mailboxViewModel.accountID
         if !oldID.isEmpty { saveSignatures(for: oldID) }
@@ -405,6 +423,10 @@ final class AppCoordinator {
         mailStore.accountID = id
         SubscriptionsStore.shared.accountID = id
         attachmentStore.accountID = id
+        // Reload per-account stores for the new account
+        SnoozeStore.shared.load(accountID: id)
+        ScheduledSendStore.shared.load(accountID: id)
+        OfflineActionQueue.shared.load(accountID: id)
         let indexer = AttachmentIndexer(
             database: .shared,
             messageService: GmailMessageService.shared,

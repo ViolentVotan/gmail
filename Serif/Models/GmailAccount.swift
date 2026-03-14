@@ -31,7 +31,15 @@ final class AccountStore: @unchecked Sendable {
     private init() { migrateColors() }
 
     private let key = "com.vikingz.serif.accounts"
+    private let selectedAccountIDKey = "com.vikingz.serif.selectedAccountID"
     private var _cachedAccounts: [GmailAccount]?
+
+    /// The currently selected account ID, kept in sync by AppCoordinator.
+    /// Used by Settings scene (outside WindowGroup) to show the right account.
+    var selectedAccountID: String? {
+        get { UserDefaults.standard.string(forKey: selectedAccountIDKey) }
+        set { UserDefaults.standard.set(newValue, forKey: selectedAccountIDKey) }
+    }
 
     var accounts: [GmailAccount] {
         get {

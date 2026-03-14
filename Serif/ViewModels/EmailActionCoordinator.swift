@@ -11,6 +11,11 @@ final class EmailActionCoordinator {
         self.mailStore = mailStore
     }
 
+    // MARK: - Network / Offline state
+
+    var isConnected: Bool { NetworkMonitor.shared.isConnected }
+    var pendingOfflineActionCount: Int { OfflineActionQueue.shared.pendingCount }
+
     // MARK: - Single email actions
 
     func archiveEmail(_ email: Email, selectNext: (Email?) -> Void) {
@@ -127,6 +132,12 @@ final class EmailActionCoordinator {
 
     func loadDraft(id: String, accountID: String, format: String = "full") async throws -> GmailDraft? {
         try await GmailDraftService.shared.getDraft(id: id, accountID: accountID, format: format)
+    }
+
+    // MARK: - Print
+
+    func printEmail(message: GmailMessage, email: Email) {
+        EmailPrintService.shared.printEmail(message: message, email: email)
     }
 
     func moveToInboxEmail(_ email: Email, selectedFolder: Folder, selectNext: (Email?) -> Void) {

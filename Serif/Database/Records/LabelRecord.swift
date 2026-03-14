@@ -34,5 +34,4 @@ struct LabelRecord: Codable, Identifiable, FetchableRecord, PersistableRecord {
 
 extension LabelRecord {
     static let messageLabels = hasMany(MessageLabelRecord.self, using: ForeignKey(["label_id"]))
-    static let messages = hasMany(MessageRecord.self, through: messageLabels, using: MessageLabelRecord.message)
 }

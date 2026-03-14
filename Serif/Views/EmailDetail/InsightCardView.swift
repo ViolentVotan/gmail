@@ -2,37 +2,12 @@
 import SwiftUI
 
 @available(macOS 26.0, *)
-@Observable @MainActor
-private final class InsightCardViewModel {
-    private(set) var insight: EmailInsightSnapshot?
-    private var insightTask: Task<Void, Never>?
-
-    func startStreaming(for email: Email) {
-        insightTask?.cancel()
-        insight = nil
-        insightTask = Task {
-            let stream = SummaryService.shared.insight(for: email)
-            for await snapshot in stream {
-                guard !Task.isCancelled else { return }
-                insight = snapshot
-            }
-        }
-    }
-
-    func cancel() {
-        insightTask?.cancel()
-    }
-}
-
-@available(macOS 26.0, *)
 struct InsightCardView: View {
-    let email: Email
-
-    @State private var viewModel = InsightCardViewModel()
+    let insight: EmailInsightSnapshot?
 
     var body: some View {
         Group {
-            if let insight = viewModel.insight, hasContent(insight) {
+            if let insight, hasContent(insight) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 6) {
                         Label("Apple Intelligence", systemImage: "apple.intelligence")
@@ -86,13 +61,7 @@ struct InsightCardView: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.97)))
             }
         }
-        .animation(.easeOut(duration: 0.2), value: viewModel.insight?.summary)
-        .task(id: email.id) {
-            viewModel.startStreaming(for: email)
-        }
-        .onDisappear {
-            viewModel.cancel()
-        }
+        .animation(.easeOut(duration: 0.2), value: insight?.summary)
     }
 
     private func hasContent(_ snapshot: EmailInsightSnapshot) -> Bool {

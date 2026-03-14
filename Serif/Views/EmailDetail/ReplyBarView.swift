@@ -409,7 +409,7 @@ struct ReplyBarView: View {
         isSending = false
 
         if composeVM.isSent {
-            ToastManager.shared.show(message: "Reply sent", type: .success)
+            composeVM.showToast("Reply sent", type: .success)
             collapse()
         } else {
             sendError = composeVM.error
@@ -423,7 +423,7 @@ struct ReplyBarView: View {
         case .attachment:
             attachments.append(url)
         case .unsupported(let message):
-            ToastManager.shared.show(message: message, type: .error)
+            composeVM.showToast(message, type: .error)
         }
     }
 

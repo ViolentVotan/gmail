@@ -120,6 +120,7 @@ final class SubscriptionsStore {
         isAnalyzing   = true
 
         let expectedAccountID = accountID
+        analysisTask?.cancel()
         analysisTask = Task {
             defer {
                 if accountID == expectedAccountID {

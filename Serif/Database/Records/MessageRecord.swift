@@ -124,7 +124,7 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord 
 
 extension MessageRecord {
     /// Convert to UI Email model for display in list views.
-    func toEmail(labels: [LabelRecord], tags: EmailTagRecord?) -> Email {
+    func toEmail(labels: [LabelRecord], tags: EmailTagRecord?, attachments: [AttachmentRecord] = []) -> Email {
         let sender = Contact(
             name: senderName ?? senderEmail ?? "Unknown",
             email: senderEmail ?? ""
@@ -161,6 +161,26 @@ extension MessageRecord {
         let isDraft = systemLabelIds.contains("DRAFT")
         let gmailLabelIDs = labels.map { $0.gmailId }
 
+        let attachmentModels = attachments.map { record in
+            Attachment(
+                name: record.filename ?? "Attachment",
+                fileType: Attachment.FileType.from(fileExtension: (record.filename as NSString?)?.pathExtension ?? ""),
+                size: record.size.map { ByteCountFormatter.string(fromByteCount: Int64($0), countStyle: .file) } ?? "",
+                gmailAttachmentId: record.gmailAttachmentId,
+                gmailMessageId: record.messageId,
+                mimeType: record.mimeType
+            )
+        }
+
+        let emailTags: EmailTags? = tags.map { record in
+            EmailTags(
+                needsReply: record.needsReply,
+                fyiOnly: record.fyiOnly,
+                hasDeadline: record.hasDeadline,
+                financial: record.financial
+            )
+        }
+
         return Email(
             sender: sender,
             recipients: toList.map { Contact(name: $0, email: $0) },
@@ -172,7 +192,7 @@ extension MessageRecord {
             isRead: isRead,
             isStarred: isStarred,
             hasAttachments: hasAttachments,
-            attachments: [],
+            attachments: attachmentModels,
             folder: folder,
             labels: userLabels,
             isDraft: isDraft,
@@ -182,7 +202,8 @@ extension MessageRecord {
             gmailLabelIDs: gmailLabelIDs,
             threadMessageCount: threadMessageCount,
             isFromMailingList: isFromMailingList,
-            unsubscribeURL: unsubscribeUrl.flatMap { URL(string: $0) }
+            unsubscribeURL: unsubscribeUrl.flatMap { URL(string: $0) },
+            tags: emailTags
         )
     }
 

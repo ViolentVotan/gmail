@@ -93,7 +93,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
                 NotificationCenter.default.post(
                     name: .openEmailFromIntent,
                     object: nil,
-                    userInfo: ["messageId": messageId]
+                    userInfo: ["messageId": messageId, "accountID": accountID]
                 )
             }
         }

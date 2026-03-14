@@ -27,6 +27,7 @@ struct Email: Identifiable, Equatable, Sendable {
     // Mailing-list / unsubscribe
     var isFromMailingList: Bool
     var unsubscribeURL: URL?
+    var tags: EmailTags?
 
     init(
         id: UUID = UUID(),
@@ -51,7 +52,8 @@ struct Email: Identifiable, Equatable, Sendable {
         gmailLabelIDs: [String] = [],
         threadMessageCount: Int = 1,
         isFromMailingList: Bool = false,
-        unsubscribeURL: URL? = nil
+        unsubscribeURL: URL? = nil,
+        tags: EmailTags? = nil
     ) {
         self.id = id
         self.sender = sender
@@ -76,6 +78,7 @@ struct Email: Identifiable, Equatable, Sendable {
         self.threadMessageCount = threadMessageCount
         self.isFromMailingList = isFromMailingList
         self.unsubscribeURL = unsubscribeURL
+        self.tags = tags
     }
 
     /// Decodes HTML entities (e.g. `&#39;` → `'`, `&amp;` → `&`) from Gmail snippets.

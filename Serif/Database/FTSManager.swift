@@ -43,13 +43,6 @@ enum FTSManager {
         )
     }
 
-    /// Batch index multiple messages. Call inside a write transaction.
-    static func indexBatch(_ messages: [MessageRecord], in db: Database) throws {
-        for message in messages {
-            try index(message: message, in: db)
-        }
-    }
-
     /// Search messages by query string. Returns matching MessageRecords ordered by relevance.
     static func search(query: String, in db: Database, limit: Int = 100) throws -> [MessageRecord] {
         guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }

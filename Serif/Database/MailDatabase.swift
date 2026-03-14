@@ -52,9 +52,14 @@ final class MailDatabase: Sendable {
     }
 
     /// Deletes the database file and WAL/SHM files.
-    /// IMPORTANT: Close the MailDatabase instance (call `close()`) before calling this,
-    /// otherwise WAL/SHM files may be locked and file removal can fail silently.
+    /// Acquires `instanceLock`, closes and removes any cached shared instance, then
+    /// deletes the on-disk SQLite, WAL, and SHM files.
     static func deleteDatabase(accountID: String, baseDirectory: URL? = nil) {
+        instanceLock.lock()
+        let existing = sharedInstances.removeValue(forKey: accountID)
+        instanceLock.unlock()
+        existing?.close()
+
         let dir = baseDirectory ?? defaultBaseDirectory
         let base = dir.appendingPathComponent("\(accountID).sqlite").path
         for suffix in ["", "-wal", "-shm"] {

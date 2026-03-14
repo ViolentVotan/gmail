@@ -286,7 +286,7 @@ struct ContentView: View {
 
                         Button {
                             if let msg = coordinator.mailboxViewModel.messages.first(where: { $0.id == email.gmailMessageID }) {
-                                EmailPrintService.shared.printEmail(message: msg, email: email)
+                                coordinator.actionCoordinator.printEmail(message: msg, email: email)
                             }
                         } label: { Label("Print", systemImage: "printer") }
 
@@ -376,9 +376,13 @@ struct ContentView: View {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .openEmailFromIntent)) { notification in
-                if let messageId = notification.userInfo?["messageId"] as? String {
-                    coordinator.navigateToMessage(gmailMessageID: messageId)
+                guard let messageId = notification.userInfo?["messageId"] as? String else { return }
+                if let accountID = notification.userInfo?["accountID"] as? String,
+                   !accountID.isEmpty,
+                   coordinator.selectedAccountID != accountID {
+                    coordinator.selectedAccountID = accountID
                 }
+                coordinator.navigateToMessage(gmailMessageID: messageId)
             }
             .onChange(of: coordinator.mailboxViewModel.lastRestoredMessageID) { _, msgID in
                 guard let msgID else { return }

@@ -38,12 +38,12 @@ struct ListPaneView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if !NetworkMonitor.shared.isConnected {
+            if !actionCoordinator.isConnected {
                 HStack {
                     Image(systemName: "wifi.slash")
                     Text("You're offline. Changes will sync when connected.")
-                    if OfflineActionQueue.shared.pendingCount > 0 {
-                        Text("(\(OfflineActionQueue.shared.pendingCount) pending)")
+                    if actionCoordinator.pendingOfflineActionCount > 0 {
+                        Text("(\(actionCoordinator.pendingOfflineActionCount) pending)")
                             .fontWeight(.medium)
                     }
                     Spacer()

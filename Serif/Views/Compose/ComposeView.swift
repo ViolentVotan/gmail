@@ -118,13 +118,13 @@ struct ComposeView: View {
 
             Divider()
 
-            if composeVM.isSending, let _ = UndoActionManager.shared.currentAction {
+            if composeVM.isSending, let _ = composeVM.currentUndoAction {
                 HStack {
-                    Text("Sending in \(Int(UndoActionManager.shared.timeRemaining))s...")
+                    Text("Sending in \(Int(composeVM.undoTimeRemaining))s...")
                         .font(Typography.subheadRegular)
                     Spacer()
                     Button("Undo") {
-                        UndoActionManager.shared.undo()
+                        composeVM.undoLastAction()
                     }
                     .buttonStyle(.bordered)
                 }
@@ -276,7 +276,7 @@ struct ComposeView: View {
         case .attachment:
             attachments.append(url)
         case .unsupported(let message):
-            ToastManager.shared.show(message: message, type: .error)
+            composeVM.showToast(message, type: .error)
         }
     }
 
@@ -402,12 +402,12 @@ struct ComposeView: View {
         default:   isReplyOrForward = true
         }
         let preferredEmail = isReplyOrForward ? signatureForReply : signatureForNew
-        let newSig = SignatureResolver.signatureHTMLForAlias(
+        let newSig = composeVM.signatureHTMLForAlias(
             aliasEmail,
             aliases: sendAsAliases,
             fallbackPreferredEmail: preferredEmail
         )
-        let result = SignatureResolver.replaceHTMLSignature(
+        let result = composeVM.replaceHTMLSignature(
             in: bodyHTML,
             currentSignature: currentSignatureHTML,
             newSignature: newSig

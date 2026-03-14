@@ -7,6 +7,7 @@ private struct MessageWithAssociations: Decodable, FetchableRecord {
     var message: MessageRecord
     var labels: [LabelRecord]
     var tags: EmailTagRecord?
+    var attachments: [AttachmentRecord]
 }
 
 /// Drives the email list for a given account and folder.
@@ -112,15 +113,17 @@ final class MailboxViewModel {
     func startObservingLabel(_ labelId: String) {
         messageObservation?.cancel()
         guard let db = mailDatabase else { return }
-        // Use GRDB association prefetching: 3 queries instead of N+1.
+        // Use GRDB association prefetching: 4 queries instead of N+1.
         // Query 1: SELECT m.* FROM messages … (filtered by label)
         // Query 2: SELECT l.* FROM labels WHERE … IN (...) (batch)
         // Query 3: SELECT t.* FROM email_tags WHERE … IN (...) (batch)
+        // Query 4: SELECT a.* FROM attachments WHERE … IN (...) (batch)
         let request = MessageRecord
             .joining(required: MessageRecord.messageLabels
                 .filter(Column("label_id") == labelId))
             .including(all: MessageRecord.labels)
             .including(optional: MessageRecord.tags)
+            .including(all: MessageRecord.attachments)
             .order(Column("internal_date").desc)
             .limit(200)
             .asRequest(of: MessageWithAssociations.self)
@@ -156,7 +159,7 @@ final class MailboxViewModel {
     /// Pure computation — no database access needed.
     private static func threadedEmails(from records: [MessageWithAssociations]) -> [Email] {
         let emails = records.map { row in
-            row.message.toEmail(labels: row.labels, tags: row.tags)
+            row.message.toEmail(labels: row.labels, tags: row.tags, attachments: row.attachments)
         }
         let grouped = Dictionary(grouping: emails) { $0.gmailThreadID ?? $0.gmailMessageID ?? $0.id.uuidString }
         return grouped.values.compactMap { threadEmails -> Email? in
@@ -217,7 +220,13 @@ final class MailboxViewModel {
                 let records = try FTSManager.search(query: query, in: database)
                 return try records.map { record in
                     let labels = try MailDatabaseQueries.labels(forMessage: record.gmailId, in: database)
-                    return record.toEmail(labels: labels, tags: nil)
+                    let tags = try EmailTagRecord
+                        .filter(Column("message_id") == record.gmailId)
+                        .fetchOne(database)
+                    let attachments = try AttachmentRecord
+                        .filter(Column("message_id") == record.gmailId)
+                        .fetchAll(database)
+                    return record.toEmail(labels: labels, tags: tags, attachments: attachments)
                 }
             }
         } catch {

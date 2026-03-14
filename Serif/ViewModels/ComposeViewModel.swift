@@ -326,6 +326,47 @@ final class ComposeViewModel {
         }
     }
 
+    // MARK: - Undo forwarding
+
+    var currentUndoAction: PendingUndoAction? { UndoActionManager.shared.currentAction }
+    var undoTimeRemaining: Double { UndoActionManager.shared.timeRemaining }
+
+    func undoLastAction() {
+        UndoActionManager.shared.undo()
+    }
+
+    // MARK: - Toast forwarding
+
+    func showToast(_ message: String, type: ToastType = .info) {
+        ToastManager.shared.show(message: message, type: type)
+    }
+
+    // MARK: - Signature forwarding
+
+    func signatureHTMLForAlias(
+        _ aliasEmail: String,
+        aliases: [GmailSendAs],
+        fallbackPreferredEmail: String
+    ) -> String {
+        SignatureResolver.signatureHTMLForAlias(
+            aliasEmail,
+            aliases: aliases,
+            fallbackPreferredEmail: fallbackPreferredEmail
+        )
+    }
+
+    func replaceHTMLSignature(
+        in bodyHTML: String,
+        currentSignature: String,
+        newSignature: String
+    ) -> (body: String, signature: String) {
+        SignatureResolver.replaceHTMLSignature(
+            in: bodyHTML,
+            currentSignature: currentSignature,
+            newSignature: newSignature
+        )
+    }
+
     // MARK: - Helpers
 
     private func splitAddresses(_ raw: String) -> [String] {

@@ -10,6 +10,7 @@ struct EmailDetailView: View {
     var mailStore: MailStore
 
     @State private var detailVM: EmailDetailViewModel
+    @State private var summaryVM = EmailSummaryViewModel()
     @State private var didUnsubscribe = false
     @State private var showOriginalInviteEmail = false
     @State private var expandedMessageIDs: Set<String> = []
@@ -206,9 +207,13 @@ struct EmailDetailView: View {
 
             #if canImport(FoundationModels)
             if #available(macOS 26.0, *) {
-                InsightCardView(email: email)
+                InsightCardView(insight: summaryVM.insight)
                     .padding(.horizontal, Spacing.xl)
                     .padding(.bottom, Spacing.md)
+                    .task(id: email.id) {
+                        summaryVM.cancelStreaming()
+                        summaryVM.startStreaming(for: email)
+                    }
             }
             #endif
 

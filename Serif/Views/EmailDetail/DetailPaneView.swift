@@ -1,5 +1,4 @@
 import SwiftUI
-import GRDB
 
 struct DetailPaneView: View {
     let selectedEmail: Email?
@@ -76,15 +75,12 @@ struct DetailPaneView: View {
             sendAsAliases: mailboxViewModel.sendAsAliases,
             signatureForNew: signatureForNew,
             signatureForReply: signatureForReply,
-            contacts: (try? MailDatabase.shared(for: accountID).dbPool.read { db in
-                try MailDatabaseQueries.allContacts(in: db).map {
-                    StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
-                }
-            }) ?? [],
+            contacts: coordinator.contacts,
             onDiscard: { coordinator.discardDraft(id: draftId) },
             onOpenLink: { url in panelCoordinator.openInAppBrowser(url: url) }
         )
         .id(draftId)
+        .onAppear { coordinator.loadContacts() }
     }
 
     // MARK: - Email Detail
@@ -136,7 +132,7 @@ struct DetailPaneView: View {
             await actionCoordinator.unsubscribe(url: url, oneClick: oneClick, messageID: msgID, accountID: accountID)
         }
         actions.onPrint = { msg, email in
-            EmailPrintService.shared.printEmail(message: msg, email: email)
+            actionCoordinator.printEmail(message: msg, email: email)
         }
         actions.checkUnsubscribed = { msgID in
             actionCoordinator.isUnsubscribed(messageID: msgID, accountID: accountID)
