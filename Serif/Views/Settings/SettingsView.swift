@@ -9,6 +9,7 @@ struct SettingsView: View {
     @AppStorage("undoDuration") private var undoDuration = 5
     @AppStorage("showDebugMenu") private var showDebugMenu = false
     @AppStorage("aiLabelSuggestions") private var aiLabelSuggestions = true
+    @AppStorage("syncDirectoryContacts") private var syncDirectoryContacts = false
 
     var body: some View {
         TabView {
@@ -51,6 +52,25 @@ struct SettingsView: View {
                     Text("20 seconds").tag(20)
                     Text("30 seconds").tag(30)
                 }
+            }
+
+            Section("Google Workspace") {
+                Toggle("Sync directory contacts", isOn: $syncDirectoryContacts)
+                    .help("Sync contacts from your organization's directory. Requires additional permissions.")
+                    .onChange(of: syncDirectoryContacts) { _, enabled in
+                        if enabled {
+                            Task {
+                                do {
+                                    try await OAuthService.shared.reauthorize(
+                                        accountID: AccountStore.shared.selectedAccountID ?? "",
+                                        presentingWindow: NSApp.keyWindow
+                                    )
+                                } catch {
+                                    syncDirectoryContacts = false
+                                }
+                            }
+                        }
+                    }
             }
         }
         .formStyle(.grouped)

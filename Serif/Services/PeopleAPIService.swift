@@ -29,7 +29,9 @@ final class PeopleAPIService {
     /// Forces a network refresh of contacts, replacing the local cache.
     func refreshContacts(accountID: String) async {
         await fetchAndStoreContacts(accountID: accountID)
-        await fetchDirectoryPeople(accountID: accountID)
+        if UserDefaults.standard.bool(forKey: "syncDirectoryContacts") {
+            await fetchDirectoryPeople(accountID: accountID)
+        }
     }
 
     /// Extracts StoredContacts from a PersonResource array, updating the photo cache.
