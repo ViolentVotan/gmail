@@ -8,6 +8,7 @@ final class HistorySyncService {
 
     private let api: MessageFetching
 
+    @MainActor
     init(api: MessageFetching = GmailMessageService.shared) {
         self.api = api
     }
@@ -105,7 +106,7 @@ final class HistorySyncService {
                         .trimmingCharacters(in: .whitespaces)
                         .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
                         ?? fromRaw
-                    NotificationService.shared.notifyNewEmail(
+                    await NotificationService.shared.notifyNewEmail(
                         messageId: msg.id,
                         threadId: msg.threadId,
                         senderName: senderName.isEmpty ? fromRaw : senderName,
