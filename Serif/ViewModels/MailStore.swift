@@ -1,7 +1,6 @@
 import Foundation
 import Observation
 
-// MARK: - TODO: Move to ViewModels/ — this is architecturally a ViewModel
 @Observable @MainActor
 final class MailStore {
     var emails: [Email]
