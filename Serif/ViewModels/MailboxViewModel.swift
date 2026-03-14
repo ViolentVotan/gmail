@@ -1,4 +1,5 @@
 import GRDB
+private import os
 import SwiftUI
 
 /// A message with its eagerly-loaded labels and optional tag.
@@ -59,6 +60,7 @@ final class MailboxViewModel {
         self.syncProgressManager = manager
     }
 
+    nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "Mailbox")
     private let api: MessageFetching
     private let fetchService: MessageFetchService
     private let labelService: LabelSyncService
@@ -503,7 +505,7 @@ final class MailboxViewModel {
                 return currentLabels
             }
         } catch {
-            print("Optimistic DB label update failed: \(error)")
+            Self.logger.error("Optimistic DB label update failed: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }
@@ -524,7 +526,7 @@ final class MailboxViewModel {
                 return currentLabels
             }
         } catch {
-            print("Optimistic DB label removal failed: \(error)")
+            Self.logger.error("Optimistic DB label removal failed: \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }
@@ -543,7 +545,7 @@ final class MailboxViewModel {
                 }
             }
         } catch {
-            print("Label restore failed: \(error)")
+            Self.logger.error("Label restore failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -563,7 +565,7 @@ final class MailboxViewModel {
                 }
             }
         } catch {
-            print("Label reconciliation failed: \(error)")
+            Self.logger.error("Label reconciliation failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -835,7 +837,9 @@ final class MailboxViewModel {
             )
         }
 
-        // Update in-memory state for immediate responsiveness
+        // Update in-memory state for immediate responsiveness.
+        // Suppress recompute during the batch — call once at the end.
+        suppressRecompute = true
         if !result.deletedIDs.isEmpty {
             withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
                 messages.removeAll { result.deletedIDs.contains($0.id) }
@@ -864,6 +868,8 @@ final class MailboxViewModel {
                 }
             }
         }
+        suppressRecompute = false
+        recomputeEmails()
 
         if let historyId = result.latestHistoryId {
             historyService.updateStoredHistoryId(historyId, accountID: accountID)
