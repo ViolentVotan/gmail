@@ -36,6 +36,7 @@ import GRDB
         #expect(state == .idle)
     }
 
+    @MainActor
     private func makeMockEngine() async throws -> FullSyncEngine {
         let tmpDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("serif-test-\(UUID().uuidString)")
