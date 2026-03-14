@@ -1,3 +1,5 @@
+import Foundation
+
 extension Array where Element == GmailSendAs {
     /// Returns the `sendAsEmail` of the best matching alias for a received email,
     /// checking To recipients first, then Cc. Returns `nil` if no alias matches.
