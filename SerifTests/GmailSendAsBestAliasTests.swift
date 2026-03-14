@@ -46,4 +46,12 @@ import Testing
         let result = aliases.bestAlias(toRecipients: [], ccRecipients: [])
         #expect(result == nil)
     }
+
+    @Test func multipleToMatches_firstRecipientWins() {
+        let result = aliases.bestAlias(
+            toRecipients: ["work@company.com", "alias@example.com"],
+            ccRecipients: []
+        )
+        #expect(result == "work@company.com")
+    }
 }
