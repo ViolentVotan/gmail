@@ -7,7 +7,21 @@ enum GmailDataTransformer {
 
     // MARK: - Contact Parsing
 
+    /// Parses a raw contact string into a `Contact`, resolving avatar URLs via main-actor singletons.
+    /// Call from `@MainActor` contexts (views, view models) where avatar resolution is needed.
     @MainActor static func parseContact(_ raw: String) -> Contact {
+        let core = parseContactCore(raw)
+        return Contact(name: core.name, email: core.email,
+                       avatarColor: core.avatarColor, avatarURL: resolveAvatarURL(for: core.email))
+    }
+
+    /// Parses a comma-separated list of raw contacts, resolving avatar URLs.
+    @MainActor static func parseContacts(_ raw: String) -> [Contact] {
+        splitRawContacts(raw).map { parseContact($0) }
+    }
+
+    /// Pure parsing without avatar resolution — safe to call from any isolation context.
+    static func parseContactCore(_ raw: String) -> Contact {
         let trimmed = raw.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return Contact(name: "Unknown", email: "") }
         if let ltIdx = trimmed.lastIndex(of: "<"),
@@ -18,13 +32,14 @@ enum GmailDataTransformer {
                 .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
             let email = String(trimmed[trimmed.index(after: ltIdx)..<gtIdx]).trimmingCharacters(in: .whitespaces)
             return Contact(name: name.isEmpty ? email : name, email: email,
-                           avatarColor: avatarColor(for: email), avatarURL: resolveAvatarURL(for: email))
+                           avatarColor: avatarColor(for: email))
         }
         return Contact(name: trimmed, email: trimmed,
-                       avatarColor: avatarColor(for: trimmed), avatarURL: resolveAvatarURL(for: trimmed))
+                       avatarColor: avatarColor(for: trimmed))
     }
 
-    @MainActor static func parseContacts(_ raw: String) -> [Contact] {
+    /// Splits a raw comma-separated contact string into individual entries.
+    private static func splitRawContacts(_ raw: String) -> [String] {
         guard !raw.isEmpty else { return [] }
         // Split on commas while respecting quoted strings and angle brackets.
         // e.g. `"Doe, John" <john@example.com>, Jane <jane@example.com>`
@@ -57,7 +72,7 @@ enum GmailDataTransformer {
         }
         let last = current.trimmingCharacters(in: .whitespaces)
         if !last.isEmpty { parts.append(last) }
-        return parts.map { parseContact($0) }
+        return parts
     }
 
     // MARK: - Attachment

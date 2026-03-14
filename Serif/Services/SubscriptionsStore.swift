@@ -65,11 +65,12 @@ final class SubscriptionsStore {
         }
     }
 
-    private var processedIDs  = Set<String>()   // per-session dedup
-    private var validatedIDs  = Set<String>()   // persisted validated subscription IDs
-    private let urlCache      = URLValidityCache()
-    private var pendingCount  = 0               // tracks concurrent analysis tasks
-    private var analysisTask: Task<Void, Never>?
+    private var processedIDs      = Set<String>()   // per-session dedup
+    private var validatedIDs      = Set<String>()   // persisted validated subscription IDs
+    private let urlCache          = URLValidityCache()
+    private var pendingCount      = 0               // tracks concurrent analysis tasks
+    private var analysisTask:     Task<Void, Never>?
+    private var analysisGeneration = 0              // prevents stale defer blocks from corrupting state
 
     private init() {}
 
@@ -116,17 +117,18 @@ final class SubscriptionsStore {
         // Mark as seen immediately so concurrent calls don't re-process
         candidates.compactMap(\.gmailMessageID).forEach { processedIDs.insert($0) }
 
-        // Cancel any in-flight analysis and reset pending count before re-incrementing,
-        // since the old task's defer block may not have decremented yet.
+        // Cancel any in-flight analysis and bump the generation so the old
+        // task's defer block won't corrupt the new task's state.
         analysisTask?.cancel()
-        pendingCount   = 0
-        pendingCount  += 1
+        analysisGeneration += 1
+        let currentGeneration = analysisGeneration
+        pendingCount   = 1
         isAnalyzing    = true
 
         let expectedAccountID = accountID
         analysisTask = Task {
             defer {
-                if accountID == expectedAccountID {
+                if currentGeneration == analysisGeneration {
                     pendingCount -= 1
                     if pendingCount == 0 { isAnalyzing = false }
                 }

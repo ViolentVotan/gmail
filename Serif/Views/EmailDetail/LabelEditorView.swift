@@ -27,15 +27,6 @@ struct LabelEditorView: View {
         dismissedLabelSuggestionsRaw = ids.joined(separator: ",")
     }
 
-    private var currentUserLabels: [GmailLabel] {
-        let ids = Set(currentLabelIDs)
-        return allLabels.filter { !$0.isSystemLabel && ids.contains($0.id) }
-    }
-
-    private var availableUserLabels: [GmailLabel] {
-        allLabels.filter { !$0.isSystemLabel }
-    }
-
     private func emailLabel(from gmailLabel: GmailLabel) -> EmailLabel {
         EmailLabel(
             id: GmailDataTransformer.deterministicUUID(from: gmailLabel.id),
@@ -45,16 +36,39 @@ struct LabelEditorView: View {
         )
     }
 
-    private var showDropdown: Bool {
-        isLabelFieldFocused && !labelSearchText.trimmingCharacters(in: .whitespaces).isEmpty
-            && (!filteredLabels.isEmpty || showCreateOption)
-    }
-
     @State private var isAddingLabel = false
 
+    /// Pre-computed label data to avoid redundant linear scans per render.
+    private var precomputed: (
+        currentUser: [GmailLabel],
+        filtered: [GmailLabel],
+        showCreate: Bool,
+        items: [DropdownItem],
+        shouldShowDropdown: Bool,
+        query: String
+    ) {
+        let currentIDSet = Set(currentLabelIDs)
+        let userLabels = allLabels.filter { !$0.isSystemLabel }
+        let currentUser = userLabels.filter { currentIDSet.contains($0.id) }
+        let query = labelSearchText.trimmingCharacters(in: .whitespaces)
+        let queryLower = query.lowercased()
+        let filtered: [GmailLabel] = queryLower.isEmpty
+            ? []
+            : userLabels.filter { $0.displayName.lowercased().contains(queryLower) }
+        let showCreate = !query.isEmpty
+            && !userLabels.contains { $0.displayName.caseInsensitiveCompare(query) == .orderedSame }
+        var items: [DropdownItem] = filtered.map { .existing($0) }
+        if showCreate { items.append(.create(query)) }
+        let shouldShowDropdown = isLabelFieldFocused && !query.isEmpty
+            && (!filtered.isEmpty || showCreate)
+        return (currentUser, filtered, showCreate, items, shouldShowDropdown, query)
+    }
+
     var body: some View {
+        let data = precomputed
+
         HStack(spacing: 6) {
-            ForEach(currentUserLabels) { label in
+            ForEach(data.currentUser) { label in
                 LabelChipView(label: emailLabel(from: label), isRemovable: true) {
                     let newIDs = currentLabelIDs.filter { $0 != label.id }
                     detailVM.updateLabelIDs(newIDs)
@@ -78,9 +92,9 @@ struct LabelEditorView: View {
                     .font(Typography.subheadRegular)
                     .foregroundStyle(.primary)
                     .onChange(of: labelSearchText) { _, _ in highlightedIndex = 0 }
-                    .onSubmit { confirmHighlighted() }
+                    .onSubmit { confirmHighlighted(items: data.items, showCreate: data.showCreate) }
                     .onKeyPress(.downArrow) {
-                        highlightedIndex = min(highlightedIndex + 1, dropdownItems.count - 1)
+                        highlightedIndex = min(highlightedIndex + 1, data.items.count - 1)
                         return .handled
                     }
                     .onKeyPress(.upArrow) {
@@ -95,8 +109,8 @@ struct LabelEditorView: View {
                 }
                 .frame(minWidth: 80, maxWidth: 160)
                 .overlay(alignment: .topLeading) {
-                    if showDropdown {
-                        autocompleteDropdown
+                    if data.shouldShowDropdown {
+                        autocompleteDropdown(items: data.items)
                             .offset(y: 24)
                     }
                 }
@@ -123,12 +137,6 @@ struct LabelEditorView: View {
     private enum DropdownItem {
         case existing(GmailLabel)
         case create(String)
-    }
-
-    private var dropdownItems: [DropdownItem] {
-        var items: [DropdownItem] = filteredLabels.map { .existing($0) }
-        if showCreateOption { items.append(.create(labelSearchText.trimmingCharacters(in: .whitespaces))) }
-        return items
     }
 
     private static let rowHeight: CGFloat = 38
@@ -177,9 +185,8 @@ struct LabelEditorView: View {
         .buttonStyle(.plain)
     }
 
-    private var autocompleteDropdown: some View {
-        let items = dropdownItems
-        return ScrollViewReader { proxy in
+    private func autocompleteDropdown(items: [DropdownItem]) -> some View {
+        ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(items.enumerated()), id: \.offset) { index, item in
@@ -214,28 +221,15 @@ struct LabelEditorView: View {
         .shadow(color: .black.opacity(0.04), radius: 3, y: 2)
     }
 
-    private func confirmHighlighted() {
-        let items = dropdownItems
+    private func confirmHighlighted(items: [DropdownItem], showCreate: Bool) {
         guard !items.isEmpty, highlightedIndex < items.count else {
-            if showCreateOption { createNewLabel() }
+            if showCreate { createNewLabel() }
             return
         }
         switch items[highlightedIndex] {
         case .existing(let label): addLabel(label)
         case .create: createNewLabel()
         }
-    }
-
-    private var filteredLabels: [GmailLabel] {
-        let query = labelSearchText.trimmingCharacters(in: .whitespaces).lowercased()
-        guard !query.isEmpty else { return [] }
-        return availableUserLabels.filter { $0.displayName.lowercased().contains(query) }
-    }
-
-    private var showCreateOption: Bool {
-        let query = labelSearchText.trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty else { return false }
-        return !availableUserLabels.contains { $0.displayName.caseInsensitiveCompare(query) == .orderedSame }
     }
 
     private func addLabel(_ label: GmailLabel) {

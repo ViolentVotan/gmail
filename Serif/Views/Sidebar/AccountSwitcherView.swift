@@ -6,6 +6,7 @@ struct AccountSwitcherView: View {
     let isExpanded: Bool
     let onSignIn: () async -> Void
     let isSigningIn: Bool
+    var onSignOut: ((GmailAccount) -> Void)?
     var onExpandSidebar: (() -> Void)?
 
     private var selectedAccount: GmailAccount? {
@@ -31,6 +32,13 @@ struct AccountSwitcherView: View {
                         selectedAccountID = account.id
                     } else {
                         onExpandSidebar?()
+                    }
+                }
+                .contextMenu {
+                    Text(account.email)
+                    Divider()
+                    Button("Sign Out", role: .destructive) {
+                        onSignOut?(account)
                     }
                 }
                 .frame(width: visible ? avatarSize : 0, height: avatarSize)

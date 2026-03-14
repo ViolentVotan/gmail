@@ -124,10 +124,11 @@ final class EmailDetailViewModel {
             trackerResult = nil
             return
         }
-        let result = await Task.detached {
-            TrackerBlockerService.shared.sanitize(html: html)
-        }.value
-        trackerResult = result
+        trackerResult = await sanitizeOffMainActor(html: html)
+    }
+
+    @concurrent private func sanitizeOffMainActor(html: String) async -> TrackerResult {
+        TrackerBlockerService.shared.sanitize(html: html)
     }
 
     // MARK: - Calendar invite detection

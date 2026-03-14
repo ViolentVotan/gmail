@@ -140,22 +140,25 @@ final class ThumbnailCache {
         return NSImage(contentsOf: url)
     }
 
-    private nonisolated func saveToDisk(image: NSImage, id: String) {
+    private func saveToDisk(image: NSImage, id: String) {
         let safeName = id.replacingOccurrences(of: "/", with: "_")
-        let cacheDir = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("com.vikingz.serif.thumbnails", isDirectory: true)
-        let url = cacheDir.appendingPathComponent(safeName + ".jpg")
-        Task.detached(priority: .utility) {
-            guard let tiff = image.tiffRepresentation,
-                  let rep = NSBitmapImageRep(data: tiff),
-                  let jpeg = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.75])
-            else { return }
-            do {
-                try FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
-                try jpeg.write(to: url)
-            } catch {
-                // Directory may have been removed by concurrent clearAll(); skip silently
-            }
+        let url = cacheDirectory.appendingPathComponent(safeName + ".jpg")
+        let cacheDir = cacheDirectory
+        Task {
+            await Self.writeThumbnail(image: image, url: url, cacheDir: cacheDir)
+        }
+    }
+
+    @concurrent private static func writeThumbnail(image: NSImage, url: URL, cacheDir: URL) async {
+        guard let tiff = image.tiffRepresentation,
+              let rep = NSBitmapImageRep(data: tiff),
+              let jpeg = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.75])
+        else { return }
+        do {
+            try FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+            try jpeg.write(to: url)
+        } catch {
+            // Directory may have been removed by concurrent clearAll(); skip silently
         }
     }
 

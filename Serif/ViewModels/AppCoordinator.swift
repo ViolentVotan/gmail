@@ -1,8 +1,11 @@
 import SwiftUI
+private import os
 
 @Observable
 @MainActor
 final class AppCoordinator {
+
+    nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "AppCoordinator")
 
     // MARK: - Child ViewModels
 
@@ -19,6 +22,7 @@ final class AppCoordinator {
     private(set) var syncEngine: FullSyncEngine?
     private var pendingDraftSelection: Email?
     private var lifecycleTask: Task<Void, Never>?
+    private var markReadTask: Task<Void, Never>?
     private var cachedSnoozedEmails: [Email] = []
     private var cachedScheduledEmails: [Email] = []
 
@@ -241,16 +245,19 @@ final class AppCoordinator {
 
     // MARK: - Database Lifecycle
 
+    @concurrent
+    private func openDatabase(for accountID: String) async throws -> MailDatabase {
+        let database = try MailDatabase.shared(for: accountID)
+        guard try database.integrityCheck() else {
+            MailDatabase.deleteDatabase(accountID: accountID)
+            return try MailDatabase.shared(for: accountID)
+        }
+        return database
+    }
+
     private func setupDatabase(for accountID: String) async {
         do {
-            let db = try await Task.detached(priority: .userInitiated) {
-                let database = try MailDatabase.shared(for: accountID)
-                guard try database.integrityCheck() else {
-                    MailDatabase.deleteDatabase(accountID: accountID)
-                    return try MailDatabase.shared(for: accountID)
-                }
-                return database
-            }.value
+            let db = try await openDatabase(for: accountID)
             // Guard against account switching race
             guard self.selectedAccountID == accountID else { return }
             self.mailDatabase = db
@@ -260,7 +267,7 @@ final class AppCoordinator {
                 CacheMigration.cleanupOldCache()
             }
         } catch {
-            print("Failed to create database for \(accountID): \(error)")
+            Self.logger.error("Failed to create database for \(accountID): \(error)")
             self.mailDatabase = nil
             self.backgroundSyncer = nil
         }
@@ -292,7 +299,7 @@ final class AppCoordinator {
         case .scheduled:
             refreshScheduledCache()
         case .subscriptions:
-            break
+            SubscriptionsStore.shared.analyze(mailboxViewModel.emails)
         case .attachments:
             await mailboxViewModel.loadFolder(labelIDs: [], query: "has:attachment")
         default:
@@ -367,7 +374,9 @@ final class AppCoordinator {
         searchResetTrigger += 1
         if folder != .labels { selectedLabel = nil }
         lifecycleTask?.cancel()
-        if folder == .snoozed {
+        if folder == .subscriptions {
+            SubscriptionsStore.shared.analyze(mailboxViewModel.emails)
+        } else if folder == .snoozed {
             refreshSnoozedCache()
         } else if folder == .scheduled {
             refreshScheduledCache()
@@ -426,6 +435,7 @@ final class AppCoordinator {
         SnoozeStore.shared.load(accountID: id)
         ScheduledSendStore.shared.load(accountID: id)
         OfflineActionQueue.shared.load(accountID: id)
+        loadContacts()
         let indexer = AttachmentIndexer(
             database: .shared,
             messageService: GmailMessageService.shared,
@@ -479,8 +489,10 @@ final class AppCoordinator {
         guard let email else { return }
         SpotlightIndexer.shared.indexEmail(email)
         guard let msgID = email.gmailMessageID, !email.isRead else { return }
-        Task {
+        markReadTask?.cancel()
+        markReadTask = Task {
             await mailboxViewModel.markAsRead(msgID)
+            guard !Task.isCancelled else { return }
             await mailboxViewModel.loadCategoryUnreadCounts()
         }
     }

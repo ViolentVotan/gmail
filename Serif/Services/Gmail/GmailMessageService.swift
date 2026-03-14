@@ -20,7 +20,7 @@ final class GmailMessageService {
         var path = "/users/me/messages?maxResults=\(maxResults)"
         for label in labelIDs { path += GmailPathBuilder.labelQueryParam(label) }
         if let q = query, !q.isEmpty {
-            path += "&q=\(q.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? q)"
+            path += "&q=\(q.addingPercentEncoding(withAllowedCharacters: GmailPathBuilder.queryAllowed) ?? q)"
         }
         if let token = pageToken { path += "&pageToken=\(token)" }
         return try await client.request(

@@ -291,8 +291,8 @@ final class PeopleAPIService {
                 }
             }
 
-            if dirSyncToken == nil || newDirSyncToken == nil {
-                // Full fetch
+            if dirSyncToken == nil {
+                // No sync token means we haven't done initial fetch — do full fetch
                 directoryContacts = []
                 var pageToken: String? = nil
                 repeat {

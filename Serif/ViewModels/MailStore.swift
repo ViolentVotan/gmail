@@ -1,8 +1,12 @@
 import Foundation
 import Observation
+private import os
 
 @Observable @MainActor
 final class MailStore {
+
+    nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "MailStore")
+
     var emails: [Email]
     var gmailDrafts: [Email] = []
     var isLoadingGmailDrafts = false
@@ -121,7 +125,7 @@ final class MailStore {
             }
         } catch {
             // Silently fail — keep existing cached drafts if any
-            print("[GmailDraftSync] Error: \(error.localizedDescription)")
+            Self.logger.error("Gmail draft sync failed: \(error.localizedDescription)")
         }
     }
 

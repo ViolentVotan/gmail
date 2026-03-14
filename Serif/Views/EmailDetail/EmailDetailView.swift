@@ -58,7 +58,7 @@ struct EmailDetailView: View {
         self.fromAddress = fromAddress
         let vm = EmailDetailViewModel(accountID: accountID)
         vm.mailDatabase = mailDatabase
-        self.detailVM = vm
+        self._detailVM = State(initialValue: vm)
     }
 
     // MARK: - Derived content (delegated to ViewModel)
@@ -101,7 +101,22 @@ struct EmailDetailView: View {
                             },
                             onLoadDraft: actions.onLoadDraft,
                             smartReplySuggestions: detailVM.smartReplySuggestions,
-                            onSmartReplySelect: { _ in }
+                            onSmartReplySelect: { suggestion in
+                                let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
+                                let escaped = suggestion
+                                    .replacingOccurrences(of: "&", with: "&amp;")
+                                    .replacingOccurrences(of: "<", with: "&lt;")
+                                    .replacingOccurrences(of: ">", with: "&gt;")
+                                let body = "<p>\(escaped)</p>"
+                                let mode = ComposeMode.reply(
+                                    to: email.sender.email,
+                                    subject: sub,
+                                    quotedBody: body,
+                                    replyToMessageID: email.gmailMessageID ?? "",
+                                    threadID: email.gmailThreadID ?? ""
+                                )
+                                actions.onReply?(mode)
+                            }
                         )
                         .padding(.horizontal, Spacing.lg)
                         .padding(.bottom, Spacing.lg)

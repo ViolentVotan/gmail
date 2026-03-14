@@ -5,8 +5,7 @@ extension Date {
 
     private static let timeFormatter: DateFormatter = {
         let f = DateFormatter()
-        f.dateFormat = "h:mm a"
-        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeStyle = .short
         return f
     }()
 
@@ -79,7 +78,7 @@ extension Date {
         }
     }
 
-    /// Time only: "2:34 PM".
+    /// Time only, respecting locale (e.g. "2:34 PM" or "14:34").
     var formattedTime: String {
         Self.timeFormatter.string(from: self)
     }

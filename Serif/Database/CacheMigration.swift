@@ -129,6 +129,8 @@ enum CacheMigration {
         let now = Date().timeIntervalSince1970
         try? await db.dbPool.write { grdb in
             for (messageId, tag) in tags {
+                // Skip tags for messages that no longer exist (orphaned FK)
+                guard try MessageRecord.exists(grdb, key: messageId) else { continue }
                 let record = EmailTagRecord(
                     messageId: messageId,
                     needsReply: tag.needsReply,
@@ -138,7 +140,11 @@ enum CacheMigration {
                     classifiedAt: now,
                     classifierVersion: nil
                 )
-                try record.upsert(grdb)
+                do {
+                    try record.upsert(grdb)
+                } catch {
+                    print("[CacheMigration] Failed to migrate tag for \(messageId): \(error)")
+                }
             }
         }
     }

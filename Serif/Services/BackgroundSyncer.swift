@@ -27,7 +27,7 @@ actor BackgroundSyncer {
 
             for gmail in gmailMessages {
                 let record = MessageRecord(from: gmail)
-                let existed = try MessageRecord.filter(key: record.gmailId).fetchCount(db) > 0
+                let existed = try MessageRecord.exists(db, key: record.gmailId)
 
                 try record.upsert(db)
                 affectedThreadIds.insert(record.threadId)
@@ -157,7 +157,7 @@ actor BackgroundSyncer {
             // Insert new messages
             for gmail in newMessages {
                 let record = MessageRecord(from: gmail)
-                let existed = try MessageRecord.filter(key: record.gmailId).fetchCount(db) > 0
+                let existed = try MessageRecord.exists(db, key: record.gmailId)
                 try record.upsert(db)
                 affectedThreadIds.insert(record.threadId)
                 try db.execute(sql: "DELETE FROM message_labels WHERE message_id = ?", arguments: [record.gmailId])
@@ -198,6 +198,10 @@ actor BackgroundSyncer {
             }
 
             // Update labels on existing messages
+            // NOTE: Label updates only modify is_read/is_starred and message_labels rows.
+            // FTS index is NOT updated here because no searchable fields (subject, body, sender)
+            // change during label-only operations. If the interface changes to pass updated
+            // content through label updates, FTS must be updated too.
             for update in labelUpdates {
                 try db.execute(sql: "DELETE FROM message_labels WHERE message_id = ?", arguments: [update.gmailId])
                 for labelId in update.labelIds {

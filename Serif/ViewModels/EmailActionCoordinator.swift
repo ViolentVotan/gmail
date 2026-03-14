@@ -34,10 +34,15 @@ final class EmailActionCoordinator {
             ToastManager.shared.show(message: "Archived (will sync when online)")
             return
         }
+        let expectedAccountID = vm.accountID
         UndoActionManager.shared.schedule(
             label: "Archived",
-            onConfirm: { Task { await vm.archive(msgID) } },
+            onConfirm: { Task {
+                guard vm.accountID == expectedAccountID else { return }
+                await vm.archive(msgID)
+            } },
             onUndo: {
+                guard vm.accountID == expectedAccountID else { return }
                 if let labels = originalLabels {
                     vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
                     vm.lastRestoredMessageID = msgID
@@ -72,10 +77,15 @@ final class EmailActionCoordinator {
             ToastManager.shared.show(message: "Moved to Trash (will sync when online)")
             return
         }
+        let expectedAccountID = vm.accountID
         UndoActionManager.shared.schedule(
             label: "Moved to Trash",
-            onConfirm: { Task { await vm.trash(msgID) } },
+            onConfirm: { Task {
+                guard vm.accountID == expectedAccountID else { return }
+                await vm.trash(msgID)
+            } },
             onUndo: {
+                guard vm.accountID == expectedAccountID else { return }
                 if let labels = originalLabels {
                     vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
                     vm.lastRestoredMessageID = msgID
@@ -135,10 +145,15 @@ final class EmailActionCoordinator {
             ToastManager.shared.show(message: "Marked as Spam (will sync when online)")
             return
         }
+        let expectedAccountID = vm.accountID
         UndoActionManager.shared.schedule(
             label: "Marked as Spam",
-            onConfirm: { Task { await vm.spam(msgID) } },
+            onConfirm: { Task {
+                guard vm.accountID == expectedAccountID else { return }
+                await vm.spam(msgID)
+            } },
             onUndo: {
+                guard vm.accountID == expectedAccountID else { return }
                 if let labels = originalLabels {
                     vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
                     vm.lastRestoredMessageID = msgID
@@ -189,11 +204,16 @@ final class EmailActionCoordinator {
             removeLabelIds: removeLabels
         )
         selectNext(nil)
+        let expectedAccountID = vm.accountID
         if selectedFolder == .trash {
             UndoActionManager.shared.schedule(
                 label: "Moved to Inbox",
-                onConfirm: { Task { await vm.untrash(msgID) } },
+                onConfirm: { Task {
+                    guard vm.accountID == expectedAccountID else { return }
+                    await vm.untrash(msgID)
+                } },
                 onUndo: {
+                    guard vm.accountID == expectedAccountID else { return }
                     if let labels = originalLabels {
                         vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
                         vm.lastRestoredMessageID = msgID
@@ -203,8 +223,12 @@ final class EmailActionCoordinator {
         } else {
             UndoActionManager.shared.schedule(
                 label: "Moved to Inbox",
-                onConfirm: { Task { await vm.moveToInbox(msgID) } },
+                onConfirm: { Task {
+                    guard vm.accountID == expectedAccountID else { return }
+                    await vm.moveToInbox(msgID)
+                } },
                 onUndo: {
+                    guard vm.accountID == expectedAccountID else { return }
                     if let labels = originalLabels {
                         vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
                         vm.lastRestoredMessageID = msgID
@@ -224,10 +248,15 @@ final class EmailActionCoordinator {
         // Remove all labels from DB so ValueObservation won't bring it back
         let originalLabels = vm.removeAllLabelsInDatabase(msgID)
         selectNext(nil)
+        let expectedAccountID = vm.accountID
         UndoActionManager.shared.schedule(
             label: "Deleted permanently",
-            onConfirm: { Task { await vm.deletePermanently(msgID) } },
+            onConfirm: { Task {
+                guard vm.accountID == expectedAccountID else { return }
+                await vm.deletePermanently(msgID)
+            } },
             onUndo: {
+                guard vm.accountID == expectedAccountID else { return }
                 if let labels = originalLabels {
                     vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
                     vm.lastRestoredMessageID = msgID
@@ -249,10 +278,15 @@ final class EmailActionCoordinator {
             removeLabelIds: [GmailSystemLabel.spam]
         )
         selectNext(nil)
+        let expectedAccountID = vm.accountID
         UndoActionManager.shared.schedule(
             label: "Moved to Inbox",
-            onConfirm: { Task { await vm.unspam(msgID) } },
+            onConfirm: { Task {
+                guard vm.accountID == expectedAccountID else { return }
+                await vm.unspam(msgID)
+            } },
             onUndo: {
+                guard vm.accountID == expectedAccountID else { return }
                 if let labels = originalLabels {
                     vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
                     vm.lastRestoredMessageID = msgID
@@ -286,13 +320,16 @@ final class EmailActionCoordinator {
             senderName: email.sender.name
         )
 
+        let expectedAccountID = vm.accountID
         UndoActionManager.shared.schedule(
             label: "Snoozed",
             onConfirm: {
+                guard vm.accountID == expectedAccountID else { return }
                 SnoozeStore.shared.add(item)
                 Task { await vm.archive(msgID) }
             },
             onUndo: {
+                guard vm.accountID == expectedAccountID else { return }
                 if let labels = originalLabels {
                     vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
                     vm.lastRestoredMessageID = msgID
@@ -355,10 +392,15 @@ final class EmailActionCoordinator {
             ToastManager.shared.show(message: "Archived \(msgIDs.count) emails (will sync when online)")
             return
         }
+        let expectedAccountID = vm.accountID
         UndoActionManager.shared.schedule(
             label: "Archived \(msgIDs.count) emails",
-            onConfirm: { Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.archive(id) } } } } },
+            onConfirm: { Task {
+                guard vm.accountID == expectedAccountID else { return }
+                await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.archive(id) } } }
+            } },
             onUndo: {
+                guard vm.accountID == expectedAccountID else { return }
                 for (id, labels) in originalLabelsMap {
                     vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
                 }
@@ -383,10 +425,15 @@ final class EmailActionCoordinator {
             ToastManager.shared.show(message: "Moved \(msgIDs.count) emails to Trash (will sync when online)")
             return
         }
+        let expectedAccountID = vm.accountID
         UndoActionManager.shared.schedule(
             label: "Trashed \(msgIDs.count) emails",
-            onConfirm: { Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.trash(id) } } } } },
+            onConfirm: { Task {
+                guard vm.accountID == expectedAccountID else { return }
+                await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.trash(id) } } }
+            } },
             onUndo: {
+                guard vm.accountID == expectedAccountID else { return }
                 for (id, labels) in originalLabelsMap {
                     vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
                 }
@@ -419,11 +466,16 @@ final class EmailActionCoordinator {
             }
         }
         onClear()
+        let expectedAccountID = vm.accountID
         if selectedFolder == .trash {
             UndoActionManager.shared.schedule(
                 label: "Moved \(msgIDs.count) to Inbox",
-                onConfirm: { Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.untrash(id) } } } } },
+                onConfirm: { Task {
+                    guard vm.accountID == expectedAccountID else { return }
+                    await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.untrash(id) } } }
+                } },
                 onUndo: {
+                    guard vm.accountID == expectedAccountID else { return }
                     for (id, labels) in originalLabelsMap {
                         vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
                     }
@@ -432,8 +484,12 @@ final class EmailActionCoordinator {
         } else {
             UndoActionManager.shared.schedule(
                 label: "Moved \(msgIDs.count) to Inbox",
-                onConfirm: { Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.moveToInbox(id) } } } } },
+                onConfirm: { Task {
+                    guard vm.accountID == expectedAccountID else { return }
+                    await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.moveToInbox(id) } } }
+                } },
                 onUndo: {
+                    guard vm.accountID == expectedAccountID else { return }
                     for (id, labels) in originalLabelsMap {
                         vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
                     }

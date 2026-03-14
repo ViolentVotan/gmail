@@ -15,6 +15,7 @@ struct SidebarView: View {
     var onDropToArchive: ((String, String) -> Void)?
     var onDropToSpam: ((String, String) -> Void)?
     var onDropToLabel: ((String, String, String) -> Void)?
+    var onSignOut: ((GmailAccount) -> Void)?
 
     @Environment(SyncProgressManager.self) private var syncProgress
 
@@ -65,7 +66,8 @@ struct SidebarView: View {
                 selectedAccountID: $selectedAccountID,
                 isExpanded: true,
                 onSignIn: { await authViewModel.signIn() },
-                isSigningIn: authViewModel.isSigningIn
+                isSigningIn: authViewModel.isSigningIn,
+                onSignOut: onSignOut
             ) { }
             .padding(.vertical, 8)
             .padding(.horizontal, 12)

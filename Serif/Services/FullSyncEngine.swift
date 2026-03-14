@@ -24,13 +24,14 @@ actor FullSyncEngine {
     private let syncer: BackgroundSyncer
     private let api: MessageFetching
     private let quota: QuotaTracker
-    private nonisolated(unsafe) var progressManager: SyncProgressManager?
+    private var progressManager: SyncProgressManager?
 
     // MARK: - Tasks
 
     private var syncTask: Task<Void, Never>?
     private var bodyPrefetchTask: Task<Void, Never>?
     private var incrementalTask: Task<Void, Never>?
+    private var triggeredSyncTask: Task<Void, Never>?
     private var contactTask: Task<Void, Never>?
     private var labelRefreshTask: Task<Void, Never>?
 
@@ -63,7 +64,6 @@ actor FullSyncEngine {
         self.quota = quota
     }
 
-    @MainActor
     func setProgressManager(_ manager: SyncProgressManager) {
         progressManager = manager
     }
@@ -79,11 +79,13 @@ actor FullSyncEngine {
         syncTask?.cancel()
         bodyPrefetchTask?.cancel()
         incrementalTask?.cancel()
+        triggeredSyncTask?.cancel()
         contactTask?.cancel()
         labelRefreshTask?.cancel()
         syncTask = nil
         bodyPrefetchTask = nil
         incrementalTask = nil
+        triggeredSyncTask = nil
         contactTask = nil
         labelRefreshTask = nil
         state = .idle
@@ -92,7 +94,8 @@ actor FullSyncEngine {
     /// Request an immediate incremental sync (e.g., user pulled to refresh).
     func triggerIncrementalSync() {
         guard state == .monitoring else { return }
-        Task { await syncIncremental() }
+        triggeredSyncTask?.cancel()
+        triggeredSyncTask = Task { await syncIncremental() }
     }
 
     // MARK: - Main Lifecycle
@@ -143,7 +146,6 @@ actor FullSyncEngine {
     private func performInitialSync(resumeFrom pageToken: String?) async -> Bool {
         Self.logger.info("Starting initial sync for \(self.accountID)")
         var currentPageToken = pageToken
-        var firstHistoryId: String?
         var totalEstimate: Int?
         var syncedCount = 0
 
@@ -157,6 +159,20 @@ actor FullSyncEngine {
         await syncLabels()
 
         do {
+            // Capture a reliable historyId from the profile before listing messages.
+            // Using messages.list would yield a stale historyId if new mail arrives
+            // during the (potentially long) initial sync.
+            await quota.waitForBudget(1) // users.getProfile = 1 unit
+            let profile = try await GmailProfileService.shared.getProfile(accountID: accountID)
+            let profileHistoryId = profile.historyId
+
+            // Persist the profile historyId immediately so incremental sync can
+            // resume from this point even if initial sync is interrupted.
+            let capturedProfileHistoryId = profileHistoryId
+            await writeSyncState { state in
+                state.lastHistoryId = capturedProfileHistoryId
+            }
+
             repeat {
                 guard !Task.isCancelled else { return false }
 
@@ -188,11 +204,6 @@ actor FullSyncEngine {
                     ids: ids, accountID: accountID, format: "metadata"
                 )
 
-                // Store historyId from the first (newest) batch only
-                if firstHistoryId == nil, let hid = messages.compactMap(\.historyId).first {
-                    firstHistoryId = hid
-                }
-
                 // Write to DB
                 let labelIds = Array(Set(messages.flatMap { $0.labelIds ?? [] }))
                 try await syncer.upsertMessages(messages, ensureLabels: labelIds)
@@ -202,15 +213,11 @@ actor FullSyncEngine {
                 // Persist resume state
                 let capturedSyncedCount = syncedCount
                 let capturedTotalEstimate = totalEstimate
-                let capturedHistoryId = firstHistoryId
                 let nextPageToken = response.nextPageToken
                 await writeSyncState { state in
                     state.initialSyncPageToken = nextPageToken
                     state.syncedMessageCount = capturedSyncedCount
                     state.totalMessagesEstimate = capturedTotalEstimate
-                    if let hid = capturedHistoryId {
-                        state.lastHistoryId = hid
-                    }
                 }
 
                 // Report progress
@@ -264,9 +271,6 @@ actor FullSyncEngine {
               let startHistoryId = syncState.lastHistoryId else { return }
 
         do {
-            await quota.waitForBudget(2) // history.list = 2 units
-            guard !Task.isCancelled else { return }
-
             var allAdded: [String] = []
             var allDeleted: Set<String> = []
             var labelChanges: Set<String> = []
@@ -274,6 +278,9 @@ actor FullSyncEngine {
             var pageToken: String? = nil
 
             repeat {
+                await quota.waitForBudget(2) // history.list = 2 units per page
+                guard !Task.isCancelled else { return }
+
                 let response = try await api.listHistory(
                     accountID: accountID,
                     startHistoryId: startHistoryId,
@@ -522,9 +529,8 @@ actor FullSyncEngine {
         }
     }
 
-    @MainActor
-    private func reportProgress(_ action: @MainActor (SyncProgressManager) -> Void) {
+    private func reportProgress(_ action: @Sendable @MainActor (SyncProgressManager) -> Void) async {
         guard let manager = progressManager else { return }
-        action(manager)
+        await MainActor.run { action(manager) }
     }
 }

@@ -270,7 +270,7 @@ final class GmailAPIClient {
     }
 
     /// Fetches a single batch of IDs and decodes results.
-    private func fetchSingleBatch<T: Decodable & Sendable>(
+    @concurrent private func fetchSingleBatch<T: Decodable & Sendable>(
         chunk: [String],
         pathBuilder: @Sendable (String) -> String,
         accountID: String
@@ -362,14 +362,14 @@ final class GmailAPIClient {
             part += "Content-Type: application/json\r\n"
             if let bodyData = req.body, let bodyStr = String(data: bodyData, encoding: .utf8) {
                 part += "Content-Length: \(bodyData.count)\r\n\r\n"
-                part += bodyStr
+                part += bodyStr + "\r\n"
             } else {
                 part += "\r\n"
             }
             bodyParts.append(part)
         }
 
-        let fullBody = bodyParts.joined(separator: "\r\n") + "\r\n--\(boundary)--"
+        let fullBody = bodyParts.joined() + "--\(boundary)--"
         guard let bodyData = fullBody.data(using: .utf8) else { throw .encodingError(URLError(.cannotParseResponse)) }
 
         guard let url = URL(string: "https://www.googleapis.com/batch/gmail/v1") else { throw .invalidURL }
@@ -477,8 +477,16 @@ final class GmailAPIClient {
     }
 
     /// Forces a token refresh (invalidates cached token). Used for 401 auto-retry.
+    /// If a refresh is already in flight, awaits it instead of starting a new one
+    /// (avoids double-refresh when concurrent 401s race).
     private func refreshAndRetry(accountID: String) async throws(GmailAPIError) -> AuthToken {
-        refreshTasks[accountID] = nil
+        if let existing = refreshTasks[accountID] {
+            do {
+                return try await existing.value
+            } catch {
+                throw .wrap(error)
+            }
+        }
         return try await performRefresh(for: accountID)
     }
 
@@ -555,7 +563,7 @@ final class GmailAPIClient {
                 responseBodyData: data, responseSize: data.count, durationMs: ms, fromCache: false
             ))
             if let encoding = respHeaders["Content-Encoding"] {
-                print("[GmailAPI] Compression: \(encoding) for \(path)")
+                Self.logger.debug("Compression: \(encoding) for \(path)")
             }
             return data
         } catch {
@@ -735,7 +743,7 @@ enum RetryPolicy {
 
 enum GmailPathBuilder {
     /// Query-safe characters — `.urlQueryAllowed` minus `+` (which means space in query strings).
-    private static let queryAllowed: CharacterSet = {
+    static let queryAllowed: CharacterSet = {
         var cs = CharacterSet.urlQueryAllowed
         cs.remove("+")
         return cs

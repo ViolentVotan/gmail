@@ -27,7 +27,7 @@ enum HTMLTemplate {
         <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'nonce-\(nonce)'; frame-src 'none';">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'nonce-\(nonce)'; style-src 'unsafe-inline'; frame-src 'none';">
         <style>
         :root {
             --text-color: \(textColor);
@@ -171,8 +171,9 @@ enum HTMLTemplate {
             options: [.regularExpression, .caseInsensitive]
         )
         // Remove event handler attributes (on*=)
+        // Use [\\s\\S]*? instead of .*? so newlines inside quoted values are matched.
         result = result.replacingOccurrences(
-            of: "\\bon\\w+\\s*=\\s*([\"']).*?\\1",
+            of: "\\bon\\w+\\s*=\\s*([\"'])[\\s\\S]*?\\1",
             with: "",
             options: [.regularExpression, .caseInsensitive]
         )

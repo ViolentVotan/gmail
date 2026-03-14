@@ -53,7 +53,7 @@ enum MailDatabaseQueries {
 
     /// Check if a message exists in the database.
     static func messageExists(_ gmailId: String, in db: Database) throws -> Bool {
-        try MessageRecord.fetchOne(db, key: gmailId) != nil
+        try MessageRecord.exists(db, key: gmailId)
     }
 
     // MARK: - Contacts

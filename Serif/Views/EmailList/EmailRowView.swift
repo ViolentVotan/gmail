@@ -15,20 +15,21 @@ struct EmailRowView: View {
     @ScaledMetric(relativeTo: .caption2) private var threadBadgeSize: CGFloat = 18
 
     /// Cached at init to avoid per-render allocations.
-    private let nudgeText: String?
-    /// Cached at init to avoid per-render allocations.
     private let labelBadges: [BadgeItem]
     /// Cached at init to avoid per-render allocations and direct service access.
     private let tagBadges: [BadgeItem]
+
+    /// Recomputed each render so the text stays fresh across day boundaries.
+    private var nudgeText: String? {
+        let daysAgo = Calendar.current.dateComponents([.day], from: email.date, to: Date()).day ?? 0
+        return daysAgo >= 3 ? "Received \(daysAgo) days ago" : nil
+    }
 
     init(email: Email, isSelected: Bool, accountID: String, action: @escaping () -> Void) {
         self.email = email
         self.isSelected = isSelected
         self.accountID = accountID
         self.action = action
-
-        let daysAgo = Calendar.current.dateComponents([.day], from: email.date, to: Date()).day ?? 0
-        self.nudgeText = daysAgo >= 3 ? "Received \(daysAgo) days ago" : nil
 
         self.labelBadges = email.labels.map { .label($0) }
 

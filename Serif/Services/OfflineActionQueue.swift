@@ -25,8 +25,9 @@ final class OfflineActionQueue {
         let url = fileURL(for: accountID)
         guard let data = try? Data(contentsOf: url),
               let contents = try? JSONDecoder().decode(OfflineQueueFileContents.self, from: data) else { return }
-        pendingActions.removeAll { $0.accountID == accountID }
-        pendingActions.append(contentsOf: contents.actions)
+        let existingIds = Set(pendingActions.filter { $0.accountID == accountID }.map { $0.id })
+        let newFromDisk = contents.actions.filter { !existingIds.contains($0.id) }
+        pendingActions.append(contentsOf: newFromDisk)
     }
 
     func startDraining() {
@@ -99,7 +100,7 @@ final class OfflineActionQueue {
             case .addLabel:
                 guard let labelId = action.metadata["labelId"] else {
                     Self.logger.warning("addLabel action missing labelId — skipping message \(msgId, privacy: .public)")
-                    remainingIds.removeFirst()
+                    remainingIds.removeAll { $0 == msgId }
                     persistRemainingIds(remainingIds, for: action)
                     continue
                 }
@@ -107,7 +108,7 @@ final class OfflineActionQueue {
             case .removeLabel:
                 guard let labelId = action.metadata["labelId"] else {
                     Self.logger.warning("removeLabel action missing labelId — skipping message \(msgId, privacy: .public)")
-                    remainingIds.removeFirst()
+                    remainingIds.removeAll { $0 == msgId }
                     persistRemainingIds(remainingIds, for: action)
                     continue
                 }
@@ -116,7 +117,7 @@ final class OfflineActionQueue {
                 try await GmailMessageService.shared.spamMessage(id: msgId, accountID: action.accountID)
             }
             // Message succeeded — prune it so a retry skips it.
-            remainingIds.removeFirst()
+            remainingIds.removeAll { $0 == msgId }
             persistRemainingIds(remainingIds, for: action)
         }
     }

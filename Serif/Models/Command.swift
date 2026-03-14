@@ -9,7 +9,7 @@ extension Command {
     }
 }
 
-struct Command: Identifiable {
+struct Command: Identifiable, Sendable {
     let id: String  // Stable ID like "action.compose", "folder.inbox"
     let title: String
     let subtitle: String?

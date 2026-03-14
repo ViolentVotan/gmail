@@ -3,15 +3,18 @@ import SwiftUI
 @Observable
 @MainActor
 final class CommandPaletteViewModel {
-    var query = ""
+    var query: String = "" {
+        didSet { updateFilteredCommands() }
+    }
     var isVisible = false
     var selectedIndex = 0
 
     private var allCommands: [Command] = []
+    private(set) var filteredCommands: [Command] = []
 
-    var filteredCommands: [Command] {
+    private func updateFilteredCommands() {
         let matched = query.isEmpty ? allCommands : allCommands.filter { $0.matches(query) }
-        return Array(matched.prefix(10))
+        filteredCommands = Array(matched.prefix(10))
     }
 
     func toggle() {
@@ -86,6 +89,7 @@ final class CommandPaletteViewModel {
                 NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
             },
         ]
+        updateFilteredCommands()
     }
 
 }

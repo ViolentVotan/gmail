@@ -7,6 +7,7 @@ struct SlidePanelsOverlay: View {
     @Binding var selectedAccountID: String?
     var attachmentStore: AttachmentStore
     var mailStore: MailStore
+    var mailDatabase: MailDatabase?
 
     var body: some View {
         helpPanel
@@ -90,17 +91,65 @@ struct SlidePanelsOverlay: View {
                     email: email,
                     accountID: panels.previewAccountID,
                     mailStore: mailStore,
-                    actions: {
-                        var a = EmailDetailActions()
-                        a.onPreviewAttachment = { data, name, fileType in
-                            panels.previewAttachment(data: data, name: name, fileType: fileType)
-                        }
-                        return a
-                    }()
+                    actions: buildPreviewActions(for: email),
+                    mailDatabase: mailDatabase
                 )
             }
         }
         .zIndex(10)
+    }
+
+    /// Builds actions for the email preview panel, wiring everything
+    /// that can work without a full AppCoordinator/MailboxViewModel.
+    private func buildPreviewActions(for email: Email) -> EmailDetailActions {
+        let accountID = panels.previewAccountID
+
+        var actions = EmailDetailActions()
+
+        // Content
+        actions.onPreviewAttachment = { data, name, fileType in
+            panels.previewAttachment(data: data, name: name, fileType: fileType)
+        }
+        actions.onShowOriginal = { msg, acctID in
+            panels.showOriginalMessage(message: msg, accountID: acctID)
+        }
+        actions.onDownloadMessage = { msg, acctID in
+            panels.downloadMessage(message: msg, accountID: acctID)
+        }
+        actions.onOpenLink = { url in
+            panels.openInAppBrowser(url: url)
+        }
+        actions.onPrint = { msg, email in
+            EmailPrintService.shared.printEmail(message: msg, email: email)
+        }
+
+        // Email mutations (direct service calls — no undo support in preview)
+        actions.onToggleStar = { isCurrentlyStarred in
+            guard let msgID = email.gmailMessageID else { return }
+            Task { try? await GmailMessageService.shared.setStarred(!isCurrentlyStarred, id: msgID, accountID: accountID) }
+        }
+        actions.onMarkUnread = {
+            guard let msgID = email.gmailMessageID else { return }
+            Task { try? await GmailMessageService.shared.markAsUnread(id: msgID, accountID: accountID) }
+        }
+
+        // Unsubscribe
+        actions.onUnsubscribe = { url, oneClick, msgID in
+            await UnsubscribeService.shared.unsubscribe(url: url, oneClick: oneClick, messageID: msgID, accountID: accountID)
+        }
+        actions.checkUnsubscribed = { msgID in
+            UnsubscribeService.shared.isUnsubscribed(messageID: msgID, accountID: accountID)
+        }
+        actions.extractBodyUnsubscribeURL = { html in
+            UnsubscribeService.extractBodyUnsubscribeURL(from: html)
+        }
+
+        // Draft loading
+        actions.onLoadDraft = { draftID, acctID in
+            try await GmailDraftService.shared.getDraft(id: draftID, accountID: acctID, format: "full")
+        }
+
+        return actions
     }
 
     // MARK: - Web Browser

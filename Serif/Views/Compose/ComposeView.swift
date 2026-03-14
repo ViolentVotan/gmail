@@ -56,10 +56,10 @@ struct ComposeView: View {
         self.onDiscard         = onDiscard
         self.onOpenLink        = onOpenLink
         self._selectedAliasEmail = State(initialValue: fromAddress)
-        self.composeVM         = ComposeViewModel(
+        self._composeVM = State(initialValue: ComposeViewModel(
             accountID: accountID,
             fromAddress: fromAddress
-        )
+        ))
     }
 
     private var draft: Email? {

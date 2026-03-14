@@ -50,11 +50,11 @@ struct ReplyBarView: View {
         self.onLoadDraft = onLoadDraft
         self.smartReplySuggestions = smartReplySuggestions
         self.onSmartReplySelect = onSmartReplySelect
-        self.composeVM = ComposeViewModel(
+        self._composeVM = State(initialValue: ComposeViewModel(
             accountID: accountID,
             fromAddress: fromAddress,
             threadID: email.gmailThreadID
-        )
+        ))
     }
 
     var body: some View {
@@ -448,8 +448,8 @@ struct ReplyBarView: View {
     }
 
     private func loadExistingDraft() {
-        guard email.gmailThreadID != nil,
-              mailStore.replyDrafts[email.gmailThreadID!] != nil else { return }
+        guard let threadID = email.gmailThreadID,
+              mailStore.replyDrafts[threadID] != nil else { return }
         isLoadingDraft = true
         Task {
             let result = await composeVM.loadExistingDraft(
@@ -465,8 +465,6 @@ struct ReplyBarView: View {
                     try? await Task.sleep(for: .seconds(0.5))
                     isInitialLoad = false
                 }
-            } else if result != nil {
-                isLoadingDraft = false
             } else {
                 isLoadingDraft = false
             }

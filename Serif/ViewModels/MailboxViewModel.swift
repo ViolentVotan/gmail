@@ -58,8 +58,8 @@ final class MailboxViewModel {
     nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "Mailbox")
     private let api: MessageFetching
     private let labelService: LabelSyncService
-    @ObservationIgnored nonisolated(unsafe) private var messageObservation: (any DatabaseCancellable)?
-    @ObservationIgnored nonisolated(unsafe) private var enrichmentTask: Task<Void, Never>?
+    @ObservationIgnored private var messageObservation: (any DatabaseCancellable)?
+    @ObservationIgnored private var enrichmentTask: Task<Void, Never>?
 
     init(
         accountID: String,
@@ -112,7 +112,7 @@ final class MailboxViewModel {
         // Stale check: ignore updates from a previous account's database
         guard db === mailDatabase else { return }
         enrichmentTask?.cancel()
-        enrichmentTask = Task {
+        enrichmentTask = Task { @MainActor in
             let threadEmails = Self.threadedEmails(from: records)
             guard !Task.isCancelled else { return }
             guard db === self.mailDatabase else { return }
@@ -509,11 +509,22 @@ final class MailboxViewModel {
         }
     }
 
-    /// Permanently deletes a message. Removes all labels from DB optimistically.
+    /// Permanently deletes a message. Removes all labels from DB optimistically,
+    /// then deletes the message record itself after a successful API call.
     func deletePermanently(_ messageID: String) async {
         let original = removeAllLabelsInDatabase(messageID)
         do {
             try await api.deleteMessagePermanently(id: messageID, accountID: accountID)
+            // Delete the message record (CASCADE handles message_labels, email_tags, attachments).
+            // Use BackgroundSyncer when available for FTS cleanup; fall back to direct delete.
+            if let syncer = backgroundSyncer {
+                try? await syncer.deleteMessages(gmailIds: [messageID])
+            } else {
+                try? await mailDatabase?.dbPool.write { db in
+                    try FTSManager.delete(gmailId: messageID, in: db)
+                    try MessageRecord.deleteOne(db, key: messageID)
+                }
+            }
         } catch {
             if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
             self.error = error.localizedDescription
