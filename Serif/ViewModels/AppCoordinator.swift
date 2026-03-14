@@ -63,9 +63,6 @@ final class AppCoordinator {
     var undoDuration: Int = { let v = UserDefaults.standard.integer(forKey: UserDefaultsKey.undoDuration); return v != 0 ? v : 5 }() {
         didSet { UserDefaults.standard.set(undoDuration, forKey: UserDefaultsKey.undoDuration) }
     }
-    var refreshInterval: Int = { let v = UserDefaults.standard.integer(forKey: UserDefaultsKey.refreshInterval); return v != 0 ? v : 120 }() {
-        didSet { UserDefaults.standard.set(refreshInterval, forKey: UserDefaultsKey.refreshInterval) }
-    }
 
     // MARK: - Init
 

@@ -7,7 +7,6 @@ struct SettingsView: View {
     // Use the same @AppStorage keys as AppCoordinator and UndoActionManager
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
     @AppStorage("undoDuration") private var undoDuration = 5
-    @AppStorage("refreshInterval") private var refreshInterval = 120
     @AppStorage("showDebugMenu") private var showDebugMenu = false
     @AppStorage("aiLabelSuggestions") private var aiLabelSuggestions = true
 
@@ -51,13 +50,6 @@ struct SettingsView: View {
                     Text("10 seconds").tag(10)
                     Text("20 seconds").tag(20)
                     Text("30 seconds").tag(30)
-                }
-
-                Picker("Auto-refresh interval", selection: $refreshInterval) {
-                    Text("2 minutes").tag(120)
-                    Text("5 minutes").tag(300)
-                    Text("10 minutes").tag(600)
-                    Text("60 minutes").tag(3600)
                 }
             }
         }
