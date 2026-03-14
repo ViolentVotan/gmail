@@ -1,9 +1,11 @@
 import Foundation
+private import os
 
 @Observable
 @MainActor
 final class OfflineActionQueue {
     static let shared = OfflineActionQueue()
+    nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "OfflineQueue")
     private init() {}
 
     private(set) var pendingActions: [OfflineAction] = []
@@ -47,7 +49,7 @@ final class OfflineActionQueue {
                         pendingActions.removeFirst()
                         save(accountID: action.accountID)
                     } else {
-                        print("[OfflineActionQueue] Drain error: \(error), retrying in \(retryDelay)s")
+                        Self.logger.warning("Drain error: \(error.localizedDescription, privacy: .public), retrying in \(self.retryDelay)s")
                         hitError = true
                         break
                     }
@@ -93,7 +95,7 @@ final class OfflineActionQueue {
                 try await GmailMessageService.shared.markAsUnread(id: msgId, accountID: action.accountID)
             case .addLabel:
                 guard let labelId = action.metadata["labelId"] else {
-                    print("[OfflineActionQueue] addLabel action missing labelId — skipping message \(msgId)")
+                    Self.logger.warning("addLabel action missing labelId — skipping message \(msgId, privacy: .public)")
                     remainingIds.removeFirst()
                     persistRemainingIds(remainingIds, for: action)
                     continue
@@ -101,7 +103,7 @@ final class OfflineActionQueue {
                 try await GmailMessageService.shared.modifyLabels(id: msgId, add: [labelId], remove: [], accountID: action.accountID)
             case .removeLabel:
                 guard let labelId = action.metadata["labelId"] else {
-                    print("[OfflineActionQueue] removeLabel action missing labelId — skipping message \(msgId)")
+                    Self.logger.warning("removeLabel action missing labelId — skipping message \(msgId, privacy: .public)")
                     remainingIds.removeFirst()
                     persistRemainingIds(remainingIds, for: action)
                     continue

@@ -1,6 +1,8 @@
+private import os
 import WebKit
 
 class WebRichTextEditorCoordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
+    nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "RichTextEditor")
     var parent: WebRichTextEditorRepresentable
 
     init(_ parent: WebRichTextEditorRepresentable) {
@@ -33,7 +35,7 @@ class WebRichTextEditorCoordinator: NSObject, WKScriptMessageHandler, WKNavigati
                 }
 
             case "fileDropped":
-                break  // Non-image file drops not yet supported
+                Self.logger.info("Non-image file drop ignored (not supported)")
 
             case "openLink":
                 if let urlString = dict["url"] as? String, let url = URL(string: urlString) {
@@ -85,6 +87,8 @@ class WebRichTextEditorCoordinator: NSObject, WKScriptMessageHandler, WKNavigati
             Task {
                 parent.state.insertImage(from: tempURL)
             }
-        } catch {}
+        } catch {
+            Self.logger.warning("Failed to write dropped image to temp file: \(error.localizedDescription, privacy: .public)")
+        }
     }
 }

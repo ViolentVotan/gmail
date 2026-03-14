@@ -1,6 +1,8 @@
 import Foundation
+private import os
 
 actor AttachmentIndexer {
+    nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "AttachmentIndexer")
     private let database: AttachmentDatabase
     private let messageService: any MessageFetching
     private let accountID: String
@@ -126,14 +128,14 @@ actor AttachmentIndexer {
             case .text(let text):
                 let embedding = ContentExtractor.generateEmbedding(for: text)
                 await database.updateIndexedContent(id: att.id, text: text, embedding: embedding, status: .indexed)
-                print("[AttachmentIndexer] Indexed: \(att.filename)")
+                Self.logger.info("Indexed: \(att.filename, privacy: .public)")
             case .unsupported:
                 await database.updateIndexedContent(id: att.id, text: nil, embedding: nil, status: .unsupported)
-                print("[AttachmentIndexer] Unsupported: \(att.filename)")
+                Self.logger.info("Unsupported: \(att.filename, privacy: .public)")
             }
         } catch {
             await database.incrementRetry(id: att.id)
-            print("[AttachmentIndexer] Failed: \(att.filename) — \(error)")
+            Self.logger.error("Failed: \(att.filename, privacy: .public) — \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -175,9 +177,7 @@ actor AttachmentIndexer {
         // Build query with date filter if applicable
         var query = "has:attachment"
         if let cutoff = cutoffDate {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy/MM/dd"
-            query += " after:\(formatter.string(from: cutoff))"
+            query += " after:\(cutoff.formattedGmailQuery)"
         }
 
         // Load persisted scan state
@@ -247,7 +247,7 @@ actor AttachmentIndexer {
                             try await Task.sleep(nanoseconds: monitor.recommendedDelay(base: 300_000_000))
                         }
                     }
-                    print("[AttachmentIndexer] Scanned page: \(totalDiscovered) messages with attachments (total scanned: \(totalScanned))")
+                    Self.logger.info("Scanned page: \(totalDiscovered, privacy: .public) messages with attachments (total scanned: \(totalScanned, privacy: .public))")
                 }
 
                 // Persist scan progress after each page
@@ -265,11 +265,11 @@ actor AttachmentIndexer {
 
             if totalDiscovered > 0 {
                 let depthLabel = cutoffDate.map { "\($0.formatted(.dateTime.month().year()))" } ?? "all time"
-                print("[AttachmentIndexer] Scan complete: \(totalDiscovered) new messages out of \(totalScanned) scanned (depth: \(depthLabel))")
+                Self.logger.info("Scan complete: \(totalDiscovered, privacy: .public) new messages out of \(totalScanned, privacy: .public) scanned (depth: \(depthLabel, privacy: .public))")
             }
         } catch {
             // On error, the current pageToken is already saved from the last successful page
-            print("[AttachmentIndexer] Scan failed: \(error)")
+            Self.logger.error("Scan failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -306,7 +306,7 @@ actor AttachmentIndexer {
                 )
                 alreadyFull.append(contentsOf: full)
             } catch {
-                print("[AttachmentIndexer] Failed to re-fetch for attachments: \(error)")
+                Self.logger.error("Failed to re-fetch for attachments: \(error.localizedDescription, privacy: .public)")
             }
         }
 

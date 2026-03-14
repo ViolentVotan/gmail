@@ -1,8 +1,11 @@
+private import os
 import SwiftUI
 
 /// Handles incremental delta sync via the Gmail History API.
 @MainActor
 final class HistorySyncService {
+
+    nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "HistorySync")
 
     private let api: MessageFetching
 
@@ -139,7 +142,7 @@ final class HistorySyncService {
             // Rate-limit (429), server errors (5xx), and other API errors are retriable —
             // mark as failed so the caller shows a stale-data indicator rather than
             // silently swallowing the error.
-            print("[HistorySyncService] API error during sync: \(error)")
+            Self.logger.error("API error during sync: \(error.localizedDescription, privacy: .public)")
             result.succeeded = false
             result.error = error.localizedDescription
             return result
