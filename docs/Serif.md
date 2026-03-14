@@ -34,8 +34,8 @@ macOS Gmail client built with Swift/SwiftUI. `NavigationSplitView` 3-column layo
 
 ## Key Patterns
 
-- **Delta sync**: `HistorySyncService` uses Gmail History API for incremental folder updates. Falls back to full refresh if historyId expires (404).
-- **Stale detection**: `MailboxViewModel` verifies database messages against Gmail on each fetch, pruning messages that were deleted or moved.
+- **Delta sync**: `FullSyncEngine` uses Gmail History API for incremental polling (15-60s adaptive). Falls back to full re-sync if historyId expires (404) via `needsFullResync` flag.
+- **Offline queue**: `OfflineActionQueue` queues mutations (archive, trash, star, spam, etc.) when offline and drains on reconnect.
 - **Draft lifecycle**: Drafts auto-save with a 2s debounce. Quick replies persist their link (threadID -> gmailDraftID) across sessions via `MailStore.replyDrafts`.
 - **Tracker blocking**: `TrackerBlockerService` strips tracking pixels, known tracker domains, and CSS background-image trackers from email HTML.
 - **Undo system**: `UndoActionManager` queues destructive actions with a configurable countdown. Actions execute after timeout unless cancelled.

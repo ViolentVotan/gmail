@@ -11,6 +11,7 @@ final class GmailProfileService {
     @concurrent func getProfile(accountID: String) async throws(GmailAPIError) -> GmailProfile {
         try await client.request(
             path: "/users/me/profile",
+            fields: "emailAddress,historyId,messagesTotal,threadsTotal",
             accountID: accountID
         )
     }

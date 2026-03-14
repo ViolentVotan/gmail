@@ -15,11 +15,9 @@ struct GmailAccount: Identifiable, Codable, Equatable, Sendable {
 
 /// Persists the list of connected accounts to UserDefaults.
 /// Tokens are stored separately in the Keychain via TokenStore.
-/// Thread-safe via UserDefaults (which is itself thread-safe).
-/// Thread-safe when all mutations are called from @MainActor (which they are in practice).
-/// The `@unchecked Sendable` conformance allows cross-isolation passing of the shared instance.
-/// All mutating methods (add, remove, update*) are called exclusively from @MainActor contexts.
-final class AccountStore: @unchecked Sendable {
+/// All access is confined to @MainActor, eliminating the need for @unchecked Sendable.
+@MainActor
+final class AccountStore {
     static let shared = AccountStore()
 
     static let accentPalette = [
@@ -75,7 +73,7 @@ final class AccountStore: @unchecked Sendable {
 
     /// Removes an account and its associated data.
     /// Note: Caller must also call `SubscriptionsStore.shared.deleteAccount(id)` from `@MainActor` context.
-    @MainActor func remove(id: String) {
+    func remove(id: String) {
         accounts = accounts.filter { $0.id != id }
         TokenStore.shared.delete(for: id)
         Task { await AttachmentDatabase.shared.deleteByAccountID(id) }

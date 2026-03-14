@@ -244,10 +244,10 @@ final class AppCoordinator {
     private func setupDatabase(for accountID: String) async {
         do {
             let db = try await Task.detached(priority: .userInitiated) {
-                let database = try MailDatabase(accountID: accountID)
+                let database = try MailDatabase.shared(for: accountID)
                 guard try database.integrityCheck() else {
                     MailDatabase.deleteDatabase(accountID: accountID)
-                    return try MailDatabase(accountID: accountID)
+                    return try MailDatabase.shared(for: accountID)
                 }
                 return database
             }.value
@@ -308,13 +308,14 @@ final class AppCoordinator {
 
     // MARK: - Lifecycle Handlers
 
-    func handleAppear() {
+    func handleAppear() async {
         if let account = authViewModel.primaryAccount {
             selectedAccountID = account.id
             AccountStore.shared.selectedAccountID = account.id
             mailboxViewModel.accountID = account.id
             mailStore.accountID = account.id
             SubscriptionsStore.shared.accountID = account.id
+            SummaryService.shared.accountID = account.id
             attachmentStore.accountID = account.id
             loadSignatures(for: account.id)
             let indexer = AttachmentIndexer(
@@ -324,31 +325,32 @@ final class AppCoordinator {
             )
             attachmentIndexer = indexer
             mailboxViewModel.attachmentIndexer = indexer
-            Task {
-                await setupDatabase(for: account.id)
-                mailboxViewModel.setMailDatabase(self.mailDatabase)
-                mailboxViewModel.setBackgroundSyncer(self.backgroundSyncer)
-                mailboxViewModel.setSyncProgressManager(self.syncProgressManager)
-                // Start sync engine
-                if let db = self.mailDatabase, let syncer = self.backgroundSyncer {
-                    let engine = FullSyncEngine(accountID: account.id, db: db, syncer: syncer)
-                    await engine.setProgressManager(self.syncProgressManager)
-                    self.syncEngine = engine
-                    await engine.start()
-                }
-                await indexer.setProgressUpdate { [weak attachmentStore] in
-                    Task { await attachmentStore?.refresh() }
-                }
-                async let folderLoad: Void = loadCurrentFolder()
-                async let labelsLoad: Void = mailboxViewModel.loadLabels()
-                async let sendAsLoad: Void = mailboxViewModel.loadSendAs()
-                async let categoryLoad: Void = mailboxViewModel.loadCategoryUnreadCounts()
-                async let photosLoad: Void = PeopleAPIService.shared.loadContactPhotos(accountID: account.id)
-                _ = await (folderLoad, labelsLoad, sendAsLoad, categoryLoad, photosLoad)
-                lastRefreshedAt = Date()
-                await indexer.resumePending()
-                await indexer.scanForAttachments()
+            await setupDatabase(for: account.id)
+            guard !Task.isCancelled else { return }
+            mailboxViewModel.setMailDatabase(self.mailDatabase)
+            mailboxViewModel.setBackgroundSyncer(self.backgroundSyncer)
+            mailboxViewModel.setSyncProgressManager(self.syncProgressManager)
+            // Start sync engine
+            if let db = self.mailDatabase, let syncer = self.backgroundSyncer {
+                let engine = FullSyncEngine(accountID: account.id, db: db, syncer: syncer)
+                await engine.setProgressManager(self.syncProgressManager)
+                self.syncEngine = engine
+                await engine.start()
             }
+            guard !Task.isCancelled else { return }
+            await indexer.setProgressUpdate { [weak attachmentStore] in
+                Task { await attachmentStore?.refresh() }
+            }
+            async let folderLoad: Void = loadCurrentFolder()
+            async let labelsLoad: Void = mailboxViewModel.loadLabels()
+            async let sendAsLoad: Void = mailboxViewModel.loadSendAs()
+            async let categoryLoad: Void = mailboxViewModel.loadCategoryUnreadCounts()
+            async let photosLoad: Void = PeopleAPIService.shared.loadContactPhotos(accountID: account.id)
+            _ = await (folderLoad, labelsLoad, sendAsLoad, categoryLoad, photosLoad)
+            guard !Task.isCancelled else { return }
+            lastRefreshedAt = Date()
+            await indexer.resumePending()
+            await indexer.scanForAttachments()
         } else {
             selectedEmail = mailStore.emails(for: .inbox).first
         }
@@ -437,12 +439,15 @@ final class AppCoordinator {
             // Stop old sync engine
             await syncEngine?.stop()
             syncEngine = nil
+            guard !Task.isCancelled, self.selectedAccountID == id else { return }
             await setupDatabase(for: id)
+            guard !Task.isCancelled, self.selectedAccountID == id else { return }
             await indexer.setProgressUpdate { [weak attachmentStore] in
                 Task { await attachmentStore?.refresh() }
             }
             syncProgressManager.reset()
             await mailboxViewModel.switchAccount(id)
+            guard !Task.isCancelled, self.selectedAccountID == id else { return }
             mailboxViewModel.setMailDatabase(self.mailDatabase)
             mailboxViewModel.setBackgroundSyncer(self.backgroundSyncer)
             mailboxViewModel.setSyncProgressManager(self.syncProgressManager)
@@ -453,6 +458,7 @@ final class AppCoordinator {
             async let categoryLoad: Void = mailboxViewModel.loadCategoryUnreadCounts()
             async let photosLoad: Void = PeopleAPIService.shared.loadContactPhotos(accountID: id)
             _ = await (folderLoad, labelsLoad, sendAsLoad, categoryLoad, photosLoad)
+            guard !Task.isCancelled, self.selectedAccountID == id else { return }
             await indexer.resumePending()
             await indexer.scanForAttachments()
             // Start new sync engine

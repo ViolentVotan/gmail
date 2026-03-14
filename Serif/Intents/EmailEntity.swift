@@ -47,9 +47,24 @@ struct EmailEntityQuery: EntityStringQuery {
     }
 
     func entities(for identifiers: [String]) async throws -> [EmailEntity] {
-        let messages = await allCachedMessages()
-        let idSet = Set(identifiers)
-        return messages.filter { idSet.contains($0.id) }
+        var entities: [EmailEntity] = []
+        let accounts = await MainActor.run { AccountStore.shared.accounts }
+        for account in accounts {
+            guard let db = try? MailDatabase.shared(for: account.id) else { continue }
+            for id in identifiers {
+                if let record = try? await db.dbPool.read({ db in
+                    try MessageRecord.fetchOne(db, key: id)
+                }) {
+                    entities.append(EmailEntity(
+                        id: record.gmailId,
+                        subject: record.subject ?? "",
+                        senderName: record.senderName ?? record.senderEmail ?? "",
+                        date: Date(timeIntervalSince1970: record.internalDate)
+                    ))
+                }
+            }
+        }
+        return entities
     }
 
     func suggestedEntities() async throws -> [EmailEntity] {
@@ -59,7 +74,7 @@ struct EmailEntityQuery: EntityStringQuery {
     // MARK: - Private
 
     private func allCachedMessages() async -> [EmailEntity] {
-        let accounts = AccountStore.shared.accounts
+        let accounts = await MainActor.run { AccountStore.shared.accounts }
         var entities: [EmailEntity] = []
         for account in accounts {
             guard let db = try? MailDatabase.shared(for: account.id) else { continue }

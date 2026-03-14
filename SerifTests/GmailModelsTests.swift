@@ -470,19 +470,22 @@ import Foundation
     @Test func gmailLabelIsSystemLabel() throws {
         let inbox = GmailLabel(id: "INBOX", name: "INBOX", type: "system",
                                messagesTotal: nil, messagesUnread: nil,
-                               threadsTotal: nil, threadsUnread: nil, color: nil)
+                               threadsTotal: nil, threadsUnread: nil, color: nil,
+                               labelListVisibility: nil, messageListVisibility: nil)
         #expect(inbox.isSystemLabel)
 
         let custom = GmailLabel(id: "Label_1", name: "MyLabel", type: "user",
                                 messagesTotal: nil, messagesUnread: nil,
-                                threadsTotal: nil, threadsUnread: nil, color: nil)
+                                threadsTotal: nil, threadsUnread: nil, color: nil,
+                               labelListVisibility: nil, messageListVisibility: nil)
         #expect(!custom.isSystemLabel)
     }
 
     @Test func gmailLabelDisplayNameNoSlash() throws {
         let label = GmailLabel(id: "L1", name: "SimpleLabel", type: nil,
                                messagesTotal: nil, messagesUnread: nil,
-                               threadsTotal: nil, threadsUnread: nil, color: nil)
+                               threadsTotal: nil, threadsUnread: nil, color: nil,
+                               labelListVisibility: nil, messageListVisibility: nil)
         #expect(label.displayName == "SimpleLabel")
     }
 
@@ -491,14 +494,16 @@ import Foundation
             id: "L1", name: "Colored",
             type: nil, messagesTotal: nil, messagesUnread: nil,
             threadsTotal: nil, threadsUnread: nil,
-            color: GmailLabelColor(textColor: "#ff0000", backgroundColor: "#00ff00")
+            color: GmailLabelColor(textColor: "#ff0000", backgroundColor: "#00ff00"),
+            labelListVisibility: nil, messageListVisibility: nil
         )
         #expect(withColor.resolvedBgColor == "#00ff00")
         #expect(withColor.resolvedTextColor == "#ff0000")
 
         let withoutColor = GmailLabel(id: "L2", name: "NoColor", type: nil,
                                       messagesTotal: nil, messagesUnread: nil,
-                                      threadsTotal: nil, threadsUnread: nil, color: nil)
+                                      threadsTotal: nil, threadsUnread: nil, color: nil,
+                               labelListVisibility: nil, messageListVisibility: nil)
         // Should fall back to palette - just verify it returns a non-empty string
         #expect(!withoutColor.resolvedBgColor.isEmpty)
         #expect(!withoutColor.resolvedTextColor.isEmpty)

@@ -131,7 +131,7 @@ final class MailboxViewModel {
         let grouped = Dictionary(grouping: emails) { $0.gmailThreadID ?? $0.gmailMessageID ?? $0.id.uuidString }
         return grouped.values.compactMap { threadEmails -> Email? in
             var latest = threadEmails.sorted { $0.date > $1.date }.first
-            latest?.threadMessageCount = threadEmails.count
+            latest?.threadMessageCount = threadEmails.map(\.threadMessageCount).max() ?? threadEmails.count
             return latest
         }.sorted { $0.date > $1.date }
     }
@@ -175,29 +175,35 @@ final class MailboxViewModel {
     }
 
     /// Search local FTS5 index and return Email results.
+    /// Uses association prefetching (4 queries total) instead of N+1 per result.
     private nonisolated static func localSearch(query: String, db: MailDatabase) async -> [Email] {
         do {
             return try await db.dbPool.read { database in
-                let records = try FTSManager.search(query: query, in: database)
-                return try records.map { record in
-                    let labels = try MailDatabaseQueries.labels(forMessage: record.gmailId, in: database)
-                    let tags = try EmailTagRecord
-                        .filter(Column("message_id") == record.gmailId)
-                        .fetchOne(database)
-                    let attachments = try AttachmentRecord
-                        .filter(Column("message_id") == record.gmailId)
-                        .fetchAll(database)
-                    return record.toEmail(labels: labels, tags: tags, attachments: attachments)
+                // FTS5 match to get gmail_ids
+                guard let pattern = FTS5Pattern(matchingAllTokensIn: query) else { return [] }
+
+                // Use association prefetching: 1 query for messages + 3 batch queries for associations
+                let request = MessageRecord
+                    .filter(sql: """
+                        gmail_id IN (
+                            SELECT gmail_id FROM messages_fts WHERE messages_fts MATCH ?
+                        )
+                    """, arguments: [pattern])
+                    .including(all: MessageRecord.labels)
+                    .including(optional: MessageRecord.tags)
+                    .including(all: MessageRecord.attachments)
+                    .order(Column("internal_date").desc)
+                    .limit(100)
+                    .asRequest(of: MessageWithAssociations.self)
+
+                let rows = try request.fetchAll(database)
+                return rows.map { row in
+                    row.message.toEmail(labels: row.labels, tags: row.tags, attachments: row.attachments)
                 }
             }
         } catch {
             return []
         }
-    }
-
-    /// No-op: sync engine provides all messages via DB.
-    func loadMore() async {
-        // No-op: sync engine provides all messages via DB
     }
 
     /// Refreshes the current folder. If the label/query changed, starts a new observation.
@@ -228,7 +234,9 @@ final class MailboxViewModel {
             let updated = GmailLabel(id: label.id, name: newName, type: label.type,
                                       messagesTotal: label.messagesTotal, messagesUnread: label.messagesUnread,
                                       threadsTotal: label.threadsTotal, threadsUnread: label.threadsUnread,
-                                      color: label.color)
+                                      color: label.color,
+                                      labelListVisibility: label.labelListVisibility,
+                                      messageListVisibility: label.messageListVisibility)
             labels[idx] = updated
         }
         do {
@@ -293,14 +301,14 @@ final class MailboxViewModel {
     // MARK: - Mutations
 
     /// Marks a message as read. Optimistic DB write → API call → revert on failure.
+    /// Uses a single transaction to update both labels and read flag, avoiding double ValueObservation notifications.
     func markAsRead(_ messageID: String) async {
-        let original = updateLabelsInDatabase(messageID, addLabelIds: [], removeLabelIds: [GmailSystemLabel.unread])
-        updateReadFlagInDatabase(messageID, isRead: true)
+        let original = markAsReadInDatabase(messageID, isRead: true)
         do {
             try await api.markAsRead(id: messageID, accountID: accountID)
         } catch {
             if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            updateReadFlagInDatabase(messageID, isRead: false)
+            markAsReadInDatabase(messageID, isRead: false)
             self.error = error.localizedDescription
         }
     }
@@ -386,7 +394,7 @@ final class MailboxViewModel {
 
                 // Add specified labels (ignore if already present from concurrent sync)
                 for labelId in addLabelIds {
-                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).upsert(database)
+                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).insert(database, onConflict: .ignore)
                     try MessageLabelRecord(messageId: messageID, labelId: labelId).insert(database, onConflict: .ignore)
                 }
 
@@ -448,7 +456,7 @@ final class MailboxViewModel {
                     arguments: [messageID]
                 )
                 for labelId in serverLabelIds {
-                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).upsert(database)
+                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).insert(database, onConflict: .ignore)
                     try MessageLabelRecord(messageId: messageID, labelId: labelId).insert(database, onConflict: .ignore)
                 }
             }
@@ -613,6 +621,46 @@ final class MailboxViewModel {
     }
 
     // MARK: - Private helpers
+
+    /// Combined label + read flag update in a single transaction.
+    /// Returns original label IDs for undo. Avoids double ValueObservation notifications.
+    @discardableResult
+    private func markAsReadInDatabase(_ messageID: String, isRead: Bool) -> [String]? {
+        guard let db = mailDatabase else { return nil }
+        do {
+            return try db.dbPool.write { database in
+                // Read current labels for undo
+                let currentLabels = try String.fetchAll(database, sql:
+                    "SELECT label_id FROM message_labels WHERE message_id = ?",
+                    arguments: [messageID]
+                )
+
+                // Update label associations: add/remove UNREAD label
+                if isRead {
+                    try database.execute(
+                        sql: "DELETE FROM message_labels WHERE message_id = ? AND label_id = ?",
+                        arguments: [messageID, GmailSystemLabel.unread]
+                    )
+                } else {
+                    try LabelRecord(gmailId: GmailSystemLabel.unread, name: GmailSystemLabel.unread, type: nil, bgColor: nil, textColor: nil)
+                        .insert(database, onConflict: .ignore)
+                    try MessageLabelRecord(messageId: messageID, labelId: GmailSystemLabel.unread)
+                        .insert(database, onConflict: .ignore)
+                }
+
+                // Update denormalized read flag
+                try database.execute(
+                    sql: "UPDATE messages SET is_read = ? WHERE gmail_id = ?",
+                    arguments: [isRead, messageID]
+                )
+
+                return currentLabels
+            }
+        } catch {
+            Self.logger.error("Combined mark-as-read DB update failed: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
 
     /// Optimistically updates the is_read flag in the database.
     private func updateReadFlagInDatabase(_ messageID: String, isRead: Bool) {

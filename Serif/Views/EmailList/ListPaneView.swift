@@ -111,7 +111,6 @@ struct ListPaneView: View {
                         coordinator.emptySpamRequested(count: count)
                     }
                 },
-                onLoadMore: { Task { await mailboxViewModel.loadMore() } },
                 onSearch: { query in
                     if query.isEmpty {
                         Task { await coordinator.loadCurrentFolder() }

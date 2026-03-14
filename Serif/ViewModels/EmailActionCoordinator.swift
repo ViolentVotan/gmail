@@ -86,12 +86,37 @@ final class EmailActionCoordinator {
 
     func toggleStarEmail(_ email: Email) {
         guard let msgID = email.gmailMessageID else { return }
-        Task { await mailboxViewModel.toggleStar(msgID, isStarred: email.isStarred) }
+        let vm = mailboxViewModel
+        guard NetworkMonitor.shared.isConnected else {
+            let actionType: OfflineAction.ActionType = email.isStarred ? .unstar : .star
+            OfflineActionQueue.shared.enqueue(OfflineAction(
+                actionType: actionType, messageIds: [msgID], accountID: vm.accountID
+            ))
+            // Optimistic DB update so UI reflects the change immediately
+            _ = vm.updateLabelsInDatabase(
+                msgID,
+                addLabelIds: email.isStarred ? [] : [GmailSystemLabel.starred],
+                removeLabelIds: email.isStarred ? [GmailSystemLabel.starred] : []
+            )
+            ToastManager.shared.show(message: email.isStarred ? "Unstarred (will sync when online)" : "Starred (will sync when online)")
+            return
+        }
+        Task { await vm.toggleStar(msgID, isStarred: email.isStarred) }
     }
 
     func markUnreadEmail(_ email: Email) {
         guard let msgID = email.gmailMessageID else { return }
-        Task { await mailboxViewModel.markAsUnread(msgID) }
+        let vm = mailboxViewModel
+        guard NetworkMonitor.shared.isConnected else {
+            OfflineActionQueue.shared.enqueue(OfflineAction(
+                actionType: .markUnread, messageIds: [msgID], accountID: vm.accountID
+            ))
+            // Optimistic DB update
+            _ = vm.updateLabelsInDatabase(msgID, addLabelIds: [GmailSystemLabel.unread], removeLabelIds: [])
+            ToastManager.shared.show(message: "Marked unread (will sync when online)")
+            return
+        }
+        Task { await vm.markAsUnread(msgID) }
     }
 
     func markSpamEmail(_ email: Email, selectNext: @escaping (Email?) -> Void) {
@@ -103,6 +128,13 @@ final class EmailActionCoordinator {
             removeLabelIds: [GmailSystemLabel.inbox]
         )
         selectNext(nil)
+        guard NetworkMonitor.shared.isConnected else {
+            OfflineActionQueue.shared.enqueue(OfflineAction(
+                actionType: .spam, messageIds: [msgID], accountID: vm.accountID
+            ))
+            ToastManager.shared.show(message: "Marked as Spam (will sync when online)")
+            return
+        }
         UndoActionManager.shared.schedule(
             label: "Marked as Spam",
             onConfirm: { Task { await vm.spam(msgID) } },
@@ -146,6 +178,10 @@ final class EmailActionCoordinator {
     func moveToInboxEmail(_ email: Email, selectedFolder: Folder, selectNext: (Email?) -> Void) {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
+        guard NetworkMonitor.shared.isConnected else {
+            ToastManager.shared.show(message: "Move to Inbox requires internet connection", type: .error)
+            return
+        }
         let removeLabels = selectedFolder == .trash ? [GmailSystemLabel.trash] : [String]()
         let originalLabels = vm.updateLabelsInDatabase(
             msgID,
@@ -181,6 +217,10 @@ final class EmailActionCoordinator {
     func deletePermanentlyEmail(_ email: Email, selectNext: (Email?) -> Void) {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
+        guard NetworkMonitor.shared.isConnected else {
+            ToastManager.shared.show(message: "Permanent delete requires internet connection", type: .error)
+            return
+        }
         // Remove all labels from DB so ValueObservation won't bring it back
         let originalLabels = vm.removeAllLabelsInDatabase(msgID)
         selectNext(nil)
@@ -199,6 +239,10 @@ final class EmailActionCoordinator {
     func markNotSpamEmail(_ email: Email, selectNext: (Email?) -> Void) {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
+        guard NetworkMonitor.shared.isConnected else {
+            ToastManager.shared.show(message: "Not Spam requires internet connection", type: .error)
+            return
+        }
         let originalLabels = vm.updateLabelsInDatabase(
             msgID,
             addLabelIds: [GmailSystemLabel.inbox],
@@ -220,6 +264,10 @@ final class EmailActionCoordinator {
     func snoozeEmail(_ email: Email, until date: Date, selectNext: (Email?) -> Void) {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
+        guard NetworkMonitor.shared.isConnected else {
+            ToastManager.shared.show(message: "Snooze requires internet connection", type: .error)
+            return
+        }
         // Optimistic DB write: remove from inbox so ValueObservation hides it
         let originalLabels = vm.updateLabelsInDatabase(
             msgID,

@@ -60,8 +60,8 @@ final class AttachmentStore {
 
     @ObservationIgnored private let database: AttachmentDatabase
     @ObservationIgnored private let searchService: AttachmentSearchService
-    @ObservationIgnored nonisolated(unsafe) private var searchTask: Task<Void, Never>?
-    @ObservationIgnored nonisolated(unsafe) private var debounceTask: Task<Void, Never>?
+    @ObservationIgnored private var searchTask: Task<Void, Never>?
+    @ObservationIgnored private var debounceTask: Task<Void, Never>?
     @ObservationIgnored var accountID: String = ""
 
     @ObservationIgnored var indexer: AttachmentIndexer?

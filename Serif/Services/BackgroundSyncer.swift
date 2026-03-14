@@ -17,17 +17,17 @@ actor BackgroundSyncer {
     /// Handles: message records, label records, message_labels join, FTS index, thread counts.
     func upsertMessages(_ gmailMessages: [GmailMessage], ensureLabels labelIds: [String]) throws {
         try db.dbPool.write { db in
-            // Ensure label records exist
+            // Ensure label records exist (insert placeholder only if absent — preserves synced metadata)
             for labelId in labelIds {
                 let label = LabelRecord(gmailId: labelId, name: labelId, type: "system", bgColor: nil, textColor: nil)
-                try label.upsert(db)
+                try label.insert(db, onConflict: .ignore)
             }
 
             var affectedThreadIds = Set<String>()
 
             for gmail in gmailMessages {
                 let record = MessageRecord(from: gmail)
-                let existed = try MessageRecord.fetchOne(db, key: record.gmailId) != nil
+                let existed = try MessageRecord.filter(key: record.gmailId).fetchCount(db) > 0
 
                 try record.upsert(db)
                 affectedThreadIds.insert(record.threadId)
@@ -38,8 +38,8 @@ actor BackgroundSyncer {
                     arguments: [record.gmailId]
                 )
                 for labelId in gmail.labelIds ?? [] {
-                    // Ensure custom label exists
-                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).upsert(db)
+                    // Ensure custom label exists (placeholder only — preserves synced metadata)
+                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).insert(db, onConflict: .ignore)
                     try MessageLabelRecord(messageId: record.gmailId, labelId: labelId).insert(db)
                 }
 
@@ -80,9 +80,9 @@ actor BackgroundSyncer {
             for threadId in affectedThreadIds {
                 try db.execute(sql: """
                     UPDATE messages SET thread_message_count = (
-                        SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = messages.thread_id
+                        SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = ?
                     ) WHERE thread_id = ?
-                """, arguments: [threadId])
+                """, arguments: [threadId, threadId])
             }
         }
     }
@@ -157,12 +157,12 @@ actor BackgroundSyncer {
             // Insert new messages
             for gmail in newMessages {
                 let record = MessageRecord(from: gmail)
-                let existed = try MessageRecord.fetchOne(db, key: record.gmailId) != nil
+                let existed = try MessageRecord.filter(key: record.gmailId).fetchCount(db) > 0
                 try record.upsert(db)
                 affectedThreadIds.insert(record.threadId)
                 try db.execute(sql: "DELETE FROM message_labels WHERE message_id = ?", arguments: [record.gmailId])
                 for labelId in gmail.labelIds ?? [] {
-                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).upsert(db)
+                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).insert(db, onConflict: .ignore)
                     try MessageLabelRecord(messageId: record.gmailId, labelId: labelId).insert(db)
                 }
                 // Attachments: replace existing records for this message
@@ -201,7 +201,7 @@ actor BackgroundSyncer {
             for update in labelUpdates {
                 try db.execute(sql: "DELETE FROM message_labels WHERE message_id = ?", arguments: [update.gmailId])
                 for labelId in update.labelIds {
-                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).upsert(db)
+                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).insert(db, onConflict: .ignore)
                     try MessageLabelRecord(messageId: update.gmailId, labelId: labelId).insert(db)
                 }
                 // Update denormalized columns
@@ -216,9 +216,9 @@ actor BackgroundSyncer {
             for threadId in affectedThreadIds {
                 try db.execute(sql: """
                     UPDATE messages SET thread_message_count = (
-                        SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = messages.thread_id
+                        SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = ?
                     ) WHERE thread_id = ?
-                """, arguments: [threadId])
+                """, arguments: [threadId, threadId])
             }
         }
     }

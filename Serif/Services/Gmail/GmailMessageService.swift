@@ -48,7 +48,11 @@ final class GmailMessageService {
 
     /// Fetches the raw RFC 2822 source of a message.
     @concurrent func getRawMessage(id: String, accountID: String) async throws(GmailAPIError) -> GmailMessage {
-        try await getMessage(id: id, accountID: accountID, format: "raw")
+        try await client.request(
+            path: "/users/me/messages/\(id)?format=raw",
+            fields: "id,threadId,raw",
+            accountID: accountID
+        )
     }
 
     /// Fetches a batch of messages using Gmail's batch API (up to 50 per request).
@@ -217,6 +221,7 @@ final class GmailMessageService {
     @concurrent func getAttachment(messageID: String, attachmentID: String, accountID: String) async throws(GmailAPIError) -> Data {
         let response: GmailAttachmentResponse = try await client.request(
             path: "/users/me/messages/\(messageID)/attachments/\(attachmentID)",
+            fields: "data,size",
             accountID: accountID
         )
         guard let data = Data(base64URLEncoded: response.data) else {

@@ -466,25 +466,6 @@ actor AttachmentDatabase {
         return results
     }
 
-    // MARK: - Storage Info
-
-    /// Total size on disk (main DB + WAL + SHM files) in bytes.
-    nonisolated func databaseSizeBytes() -> Int64 {
-        let fm = FileManager.default
-        let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let dir = support.appendingPathComponent("com.vikingz.serif.app", isDirectory: true)
-        let basePath = dir.appendingPathComponent("attachment-index.sqlite").path
-        var total: Int64 = 0
-        for suffix in ["", "-wal", "-shm"] {
-            let filePath = basePath + suffix
-            if let attrs = try? fm.attributesOfItem(atPath: filePath),
-               let size = attrs[.size] as? Int64 {
-                total += size
-            }
-        }
-        return total
-    }
-
     // MARK: - Scanned Messages
 
     /// Returns all message IDs that have already been scanned (with or without attachments).
@@ -545,15 +526,6 @@ actor AttachmentDatabase {
         exec("VACUUM")
     }
 
-    /// Delete all rows from the attachments, scanned_messages, and scan_state tables, rebuild FTS, and reclaim disk space.
-    func clearAll() {
-        exec("DELETE FROM attachments")
-        exec("DELETE FROM scanned_messages")
-        exec("DELETE FROM scan_state")
-        exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')")
-        exec("VACUUM")
-    }
-
     // MARK: - Scan State
 
     struct ScanState: Sendable {
@@ -589,15 +561,6 @@ actor AttachmentDatabase {
         bindTextOrNull(stmt, 2, pageToken)
         sqlite3_bind_int(stmt, 3, isComplete ? 1 : 0)
         sqlite3_bind_double(stmt, 4, Date().timeIntervalSince1970)
-        sqlite3_step(stmt)
-    }
-
-    func clearScanState(accountID: String) {
-        let sql = "DELETE FROM scan_state WHERE accountID = ?"
-        var stmt: OpaquePointer?
-        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
-        defer { sqlite3_finalize(stmt) }
-        bindText(stmt, 1, accountID)
         sqlite3_step(stmt)
     }
 

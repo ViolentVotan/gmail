@@ -11,15 +11,16 @@ struct MarkAsReadIntent: AppIntent {
     func perform() async throws -> some IntentResult {
         let messageId = email.id
         // Find which account owns this message by scanning databases
-        let accountID = await findOwnerAccount(for: messageId)
-        if let accountID {
-            try? await GmailMessageService.shared.markAsRead(id: messageId, accountID: accountID)
+        guard let accountID = await findOwnerAccount(for: messageId) else {
+            throw MarkAsReadError.accountNotFound
         }
+        try await GmailMessageService.shared.markAsRead(id: messageId, accountID: accountID)
         return .result()
     }
 
     private func findOwnerAccount(for messageId: String) async -> String? {
-        for account in AccountStore.shared.accounts {
+        let accounts = await MainActor.run { AccountStore.shared.accounts }
+        for account in accounts {
             guard let db = try? MailDatabase.shared(for: account.id) else { continue }
             let exists = try? await db.dbPool.read { database in
                 try MailDatabaseQueries.messageExists(messageId, in: database)
@@ -29,5 +30,16 @@ struct MarkAsReadIntent: AppIntent {
             }
         }
         return nil
+    }
+}
+
+enum MarkAsReadError: Error, LocalizedError {
+    case accountNotFound
+
+    var errorDescription: String? {
+        switch self {
+        case .accountNotFound:
+            return "Could not find the account that owns this email"
+        }
     }
 }

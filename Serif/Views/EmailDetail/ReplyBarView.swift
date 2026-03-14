@@ -545,6 +545,10 @@ private struct ClickOutsideDetector: NSViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
+        coordinator.uninstall()
+    }
+
     @MainActor class Coordinator {
         weak var anchorView: NSView?
         var isExpanded = false
@@ -556,6 +560,13 @@ private struct ClickOutsideDetector: NSViewRepresentable {
                 // NSEvent local monitors fire on the main thread
                 MainActor.assumeIsolated { self?.handleClick(event) }
                 return event
+            }
+        }
+
+        func uninstall() {
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+                self.monitor = nil
             }
         }
 
@@ -572,7 +583,9 @@ private struct ClickOutsideDetector: NSViewRepresentable {
         }
 
         deinit {
-            if let monitor { NSEvent.removeMonitor(monitor) }
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+            }
         }
     }
 }

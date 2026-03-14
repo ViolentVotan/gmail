@@ -8,7 +8,6 @@ final class CommandPaletteViewModel {
     var selectedIndex = 0
 
     private var allCommands: [Command] = []
-    private var recentCommandIDs: [String] = []
 
     var filteredCommands: [Command] {
         let matched = query.isEmpty ? allCommands : allCommands.filter { $0.matches(query) }
@@ -31,7 +30,6 @@ final class CommandPaletteViewModel {
     func executeSelected() {
         guard selectedIndex < filteredCommands.count else { return }
         let command = filteredCommands[selectedIndex]
-        trackRecent(command.id)
         command.action()
         dismiss()
     }
@@ -90,9 +88,4 @@ final class CommandPaletteViewModel {
         ]
     }
 
-    private func trackRecent(_ id: String) {
-        recentCommandIDs.removeAll { $0 == id }
-        recentCommandIDs.insert(id, at: 0)
-        if recentCommandIDs.count > 5 { recentCommandIDs = Array(recentCommandIDs.prefix(5)) }
-    }
 }

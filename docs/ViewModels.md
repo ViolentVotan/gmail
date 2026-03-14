@@ -21,10 +21,10 @@ State management layer between Services and Views. Each ViewModel uses the `@Obs
 | `AppCoordinator.swift` | Navigation state (folder, selection, compose mode, pending draft selection). Owns `MailDatabase` + `BackgroundSyncer` + `FullSyncEngine` lifecycle. Creates/starts engine on appear, stops/recreates on account switch. |
 | `AuthViewModel.swift` | OAuth flow, account switching, sign-in/out state |
 | `AttachmentStore.swift` | Attachment vault state, exclusion rules, progress tracking |
-| `CommandPaletteViewModel.swift` | Fuzzy-matched command search, recent commands, keyboard navigation state |
+| `CommandPaletteViewModel.swift` | Fuzzy-matched command search, keyboard navigation state |
 | `ComposeViewModel.swift` | Draft management, send, auto-save, inline images, Bcc. Reply orchestration (`sendReplyMessage`, `loadExistingDraft`, `scheduleReplyAutoSave`). Shared file-drop and attachment picker logic. |
 | `ComposeModeInitializer.swift` | Initializes compose fields based on mode (reply, forward, new) |
-| `EmailActionCoordinator.swift` | Email mutations (archive, delete, star, labels) with bulk-action concurrency via `TaskGroup` |
+| `EmailActionCoordinator.swift` | Email mutations (archive, delete, star, spam, labels) with offline queue support and bulk-action concurrency via `TaskGroup` |
 | `EmailDetailViewModel.swift` | Thread loading with DB fast path then API refresh, attachment download. Business logic: compose mode construction (reply/replyAll/forward), attachment transforms, label suggestion application. |
 | `EmailSummaryViewModel.swift` | Apple Foundation Models email summary generation with streaming support |
 | `FiltersViewModel.swift` | Gmail filters state: load, create, delete. Integrates with `GmailFilterService`. Account-aware. |

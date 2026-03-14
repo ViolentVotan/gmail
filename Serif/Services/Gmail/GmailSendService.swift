@@ -62,9 +62,9 @@ final class GmailSendService {
                 inlineImages: inlineImages, attachments: attachments
             )
         }
-        return buildRaw(from: from, to: to, cc: cc, bcc: bcc,
-                        subject: subject, body: body, isHTML: isHTML,
-                        referencesHeader: referencesHeader)
+        return try buildRaw(from: from, to: to, cc: cc, bcc: bcc,
+                           subject: subject, body: body, isHTML: isHTML,
+                           referencesHeader: referencesHeader)
     }
 
     // MARK: - RFC 2822 Builder (plain / HTML)
@@ -78,19 +78,19 @@ final class GmailSendService {
         body: String,
         isHTML: Bool,
         referencesHeader: String? = nil
-    ) -> String {
+    ) throws(GmailAPIError) -> String {
         if isHTML {
             // multipart/alternative: text/plain + text/html
             let boundary = "BA_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
             var lines = [
                 "MIME-Version: 1.0",
-                "From: \(from)",
-                "To: \(to.joined(separator: ", "))",
+                "From: \(mimeEncodeAddress(from))",
+                "To: \(mimeEncodeAddresses(to))",
                 "Subject: \(mimeEncodeHeader(subject))",
                 "Content-Type: multipart/alternative; boundary=\"\(boundary)\""
             ]
-            if !cc.isEmpty  { lines.append("Cc: \(cc.joined(separator: ", "))") }
-            if !bcc.isEmpty { lines.append("Bcc: \(bcc.joined(separator: ", "))") }
+            if !cc.isEmpty  { lines.append("Cc: \(mimeEncodeAddresses(cc))") }
+            if !bcc.isEmpty { lines.append("Bcc: \(mimeEncodeAddresses(bcc))") }
             if let ref = referencesHeader {
                 lines.append("In-Reply-To: \(ref)")
                 lines.append("References: \(ref)")
@@ -98,29 +98,32 @@ final class GmailSendService {
 
             var mime = lines.joined(separator: "\r\n") + "\r\n\r\n"
             mime += "--\(boundary)\r\n"
-            mime += "Content-Type: text/plain; charset=UTF-8\r\n\r\n"
+            mime += "Content-Type: text/plain; charset=UTF-8\r\n"
+            mime += "Content-Transfer-Encoding: 8bit\r\n\r\n"
             mime += body.strippingHTML + "\r\n"
             mime += "--\(boundary)\r\n"
-            mime += "Content-Type: text/html; charset=UTF-8\r\n\r\n"
+            mime += "Content-Type: text/html; charset=UTF-8\r\n"
+            mime += "Content-Transfer-Encoding: 8bit\r\n\r\n"
             mime += body + "\r\n"
             mime += "--\(boundary)--"
-            return base64URLEncode(mime)
+            return try base64URLEncode(mime)
         } else {
             var lines = [
                 "MIME-Version: 1.0",
-                "From: \(from)",
-                "To: \(to.joined(separator: ", "))",
+                "From: \(mimeEncodeAddress(from))",
+                "To: \(mimeEncodeAddresses(to))",
                 "Subject: \(mimeEncodeHeader(subject))",
-                "Content-Type: text/plain; charset=UTF-8"
+                "Content-Type: text/plain; charset=UTF-8",
+                "Content-Transfer-Encoding: 8bit"
             ]
-            if !cc.isEmpty  { lines.append("Cc: \(cc.joined(separator: ", "))") }
-            if !bcc.isEmpty { lines.append("Bcc: \(bcc.joined(separator: ", "))") }
+            if !cc.isEmpty  { lines.append("Cc: \(mimeEncodeAddresses(cc))") }
+            if !bcc.isEmpty { lines.append("Bcc: \(mimeEncodeAddresses(bcc))") }
             if let ref = referencesHeader {
                 lines.append("In-Reply-To: \(ref)")
                 lines.append("References: \(ref)")
             }
             let raw = lines.joined(separator: "\r\n") + "\r\n\r\n" + body
-            return base64URLEncode(raw)
+            return try base64URLEncode(raw)
         }
     }
 
@@ -159,13 +162,13 @@ final class GmailSendService {
 
         var lines = [
             "MIME-Version: 1.0",
-            "From: \(from)",
-            "To: \(to.joined(separator: ", "))",
+            "From: \(mimeEncodeAddress(from))",
+            "To: \(mimeEncodeAddresses(to))",
             "Subject: \(mimeEncodeHeader(subject))",
             "Content-Type: \(topType); boundary=\"\(topBoundary)\""
         ]
-        if !cc.isEmpty  { lines.append("Cc: \(cc.joined(separator: ", "))") }
-        if !bcc.isEmpty { lines.append("Bcc: \(bcc.joined(separator: ", "))") }
+        if !cc.isEmpty  { lines.append("Cc: \(mimeEncodeAddresses(cc))") }
+        if !bcc.isEmpty { lines.append("Bcc: \(mimeEncodeAddresses(bcc))") }
         if let ref = referencesHeader {
             lines.append("In-Reply-To: \(ref)")
             lines.append("References: \(ref)")
@@ -180,15 +183,18 @@ final class GmailSendService {
                 part += "--\(boundary)\r\n"
                 part += "Content-Type: multipart/alternative; boundary=\"\(boundaryAlt)\"\r\n\r\n"
                 part += "--\(boundaryAlt)\r\n"
-                part += "Content-Type: text/plain; charset=UTF-8\r\n\r\n"
+                part += "Content-Type: text/plain; charset=UTF-8\r\n"
+                part += "Content-Transfer-Encoding: 8bit\r\n\r\n"
                 part += body.strippingHTML + "\r\n"
                 part += "--\(boundaryAlt)\r\n"
-                part += "Content-Type: text/html; charset=UTF-8\r\n\r\n"
+                part += "Content-Type: text/html; charset=UTF-8\r\n"
+                part += "Content-Transfer-Encoding: 8bit\r\n\r\n"
                 part += body + "\r\n"
                 part += "--\(boundaryAlt)--\r\n"
             } else {
                 part += "--\(boundary)\r\n"
-                part += "Content-Type: text/plain; charset=UTF-8\r\n\r\n"
+                part += "Content-Type: text/plain; charset=UTF-8\r\n"
+                part += "Content-Transfer-Encoding: 8bit\r\n\r\n"
                 part += body + "\r\n"
             }
             return part
@@ -214,7 +220,7 @@ final class GmailSendService {
             mime += "--\(boundaryMixed)--"
         }
 
-        return base64URLEncode(mime)
+        return try base64URLEncode(mime)
     }
 
     // MARK: - MIME Part Encoding Helpers
@@ -264,8 +270,33 @@ final class GmailSendService {
         return "=?UTF-8?B?\(encoded)?="
     }
 
-    nonisolated private static func base64URLEncode(_ string: String) -> String {
-        guard let data = string.data(using: .utf8) else { return "" }
+    /// RFC 2047 encodes the display name portion of an email address.
+    /// `"Andre Meyer" <andre@example.com>` → `"=?UTF-8?B?...?=" <andre@example.com>`
+    /// Leaves bare email addresses and ASCII-only names unchanged.
+    nonisolated private static func mimeEncodeAddress(_ address: String) -> String {
+        let trimmed = address.trimmingCharacters(in: .whitespaces)
+        guard let ltIdx = trimmed.lastIndex(of: "<"),
+              let gtIdx = trimmed.lastIndex(of: ">"),
+              ltIdx < gtIdx else {
+            // Bare email address — no display name to encode
+            return trimmed
+        }
+        let displayName = String(trimmed[..<ltIdx]).trimmingCharacters(in: .whitespaces)
+        let emailPart = String(trimmed[ltIdx...]) // includes <email>
+        guard !displayName.isEmpty else { return trimmed }
+        let encodedName = mimeEncodeHeader(displayName.trimmingCharacters(in: CharacterSet(charactersIn: "\"")))
+        return "\(encodedName) \(emailPart)"
+    }
+
+    /// Applies RFC 2047 display-name encoding to a list of addresses.
+    nonisolated private static func mimeEncodeAddresses(_ addresses: [String]) -> String {
+        addresses.map { mimeEncodeAddress($0) }.joined(separator: ", ")
+    }
+
+    nonisolated private static func base64URLEncode(_ string: String) throws(GmailAPIError) -> String {
+        guard let data = string.data(using: .utf8) else {
+            throw .encodingError(URLError(.cannotParseResponse))
+        }
         return data.base64EncodedString()
             .replacingOccurrences(of: "+", with: "-")
             .replacingOccurrences(of: "/", with: "_")

@@ -9,8 +9,8 @@ final class EmailSummaryViewModel {
     private(set) var isAISummary = false
     private(set) var insight: EmailInsightSnapshot?
 
-    @ObservationIgnored nonisolated(unsafe) private var streamTask: Task<Void, Never>?
-    @ObservationIgnored nonisolated(unsafe) private var insightTask: Task<Void, Never>?
+    @ObservationIgnored private var streamTask: Task<Void, Never>?
+    @ObservationIgnored private var insightTask: Task<Void, Never>?
 
     deinit {
         streamTask?.cancel()

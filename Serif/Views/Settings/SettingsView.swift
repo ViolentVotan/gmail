@@ -1,7 +1,9 @@
 import SwiftUI
 
 struct SettingsView: View {
-    var accountID: String = ""
+    var accountID: String {
+        AccountStore.shared.selectedAccountID ?? AccountStore.shared.accounts.first?.id ?? ""
+    }
     @Bindable var appearanceManager: AppearanceManager
 
     // Use the same @AppStorage keys as AppCoordinator and UndoActionManager

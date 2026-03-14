@@ -18,7 +18,7 @@ final class ComposeViewModel {
     @ObservationIgnored let accountID:   String
     @ObservationIgnored var fromAddress: String
     @ObservationIgnored var gmailDraftID:     String?   // set once we've created a remote draft
-    @ObservationIgnored nonisolated(unsafe) private var saveDraftTask: Task<Void, Never>?
+    @ObservationIgnored private var saveDraftTask: Task<Void, Never>?
     @ObservationIgnored var threadID:         String?   // for replies
     @ObservationIgnored var replyToMessageID: String?   // for In-Reply-To / References headers
     @ObservationIgnored var attachmentURLs:   [URL] = []

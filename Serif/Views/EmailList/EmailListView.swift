@@ -16,11 +16,13 @@ struct EmailListView: View {
     @State private var selectionAnchorID: String?
     @State private var sortedEmails: [Email] = []
     @State private var cachedSections: [EmailDateSection] = []
-    @State private var unreadEmails: [Email] = []
-    @State private var starredEmails: [Email] = []
-    @State private var attachmentEmails: [Email] = []
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
+
+    /// Accessibility rotor lists — computed lazily on access, not on every email list update.
+    private var unreadEmails: [Email] { emails.filter { !$0.isRead } }
+    private var starredEmails: [Email] { emails.filter { $0.isStarred } }
+    private var attachmentEmails: [Email] { emails.filter { $0.hasAttachments } }
 
     private func recomputeSortedEmails() {
         switch sortOrder {
@@ -29,9 +31,6 @@ struct EmailListView: View {
         case .sender:                   sortedEmails = emails.sorted { $0.sender.name.localizedCaseInsensitiveCompare($1.sender.name) == .orderedAscending }
         }
         cachedSections = useDateSections ? Self.buildSections(from: sortedEmails) : []
-        unreadEmails = emails.filter { !$0.isRead }
-        starredEmails = emails.filter { $0.isStarred }
-        attachmentEmails = emails.filter { $0.hasAttachments }
     }
 
     var body: some View {
@@ -312,14 +311,6 @@ struct EmailListView: View {
                 ForEach(sortedEmails) { email in
                     emailRow(for: email)
                 }
-            }
-
-            if !emails.isEmpty && searchText.isEmpty {
-                Color.clear
-                    .frame(height: 1)
-                    .onAppear { actions.onLoadMore() }
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
             }
 
             if isLoading && !emails.isEmpty {

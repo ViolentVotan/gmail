@@ -5,12 +5,12 @@ import Foundation
 /// Used by `FullSyncEngineTests` and other tests that need a non-network API layer.
 @MainActor
 final class MockMessageFetching: MessageFetching {
-    // MARK: - Configurable responses
+    // MARK: - Configurable responses (nonisolated for @concurrent method access in tests)
 
-    var listMessagesResponse = GmailMessageListResponse(messages: nil, nextPageToken: nil, resultSizeEstimate: 0)
-    var getMessageResponse: GmailMessage?
-    var getMessagesResponse: [GmailMessage] = []
-    var listHistoryResponse = GmailHistoryListResponse(history: nil, nextPageToken: nil, historyId: "1")
+    nonisolated(unsafe) var listMessagesResponse = GmailMessageListResponse(messages: nil, nextPageToken: nil, resultSizeEstimate: 0)
+    nonisolated(unsafe) var getMessageResponse: GmailMessage?
+    nonisolated(unsafe) var getMessagesResponse: [GmailMessage] = []
+    nonisolated(unsafe) var listHistoryResponse = GmailHistoryListResponse(history: nil, nextPageToken: nil, historyId: "1")
 
     // MARK: - MessageFetching
 

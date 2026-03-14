@@ -22,6 +22,7 @@ final class BIMIService {
     // in-memory: domain → logo URL or nil (nil means "no BIMI found")
     // @MainActor provides serialization — no lock needed.
     private var cache: [String: String?] = [:]
+    private let maxCacheSize = 500
 
     func logoURL(for domain: String) async -> String? {
         let domain = domain.lowercased()
@@ -30,6 +31,7 @@ final class BIMIService {
         if let cached = cache[domain] { return cached }
 
         let result = await resolveBIMI(for: domain)
+        if cache.count >= maxCacheSize { cache.removeAll() }
         cache[domain] = result
         return result
     }

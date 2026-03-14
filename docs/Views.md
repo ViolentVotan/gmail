@@ -75,7 +75,7 @@ Shared reusable components:
 | `FormattingToolbar` | Rich text toolbar for compose/reply |
 | `WebRichTextEditor` | WKWebView-based HTML editor |
 | `UnifiedToastLayer` | Consolidated toast system (undo, offline, general) with priority ordering |
-| `CommandPaletteView` | ⌘K command palette with fuzzy search, keyboard navigation, recent commands |
+| `CommandPaletteView` | ⌘K command palette with fuzzy search and keyboard navigation |
 | `SnoozePickerView` | Snooze date/time picker with preset options (tonight, tomorrow, next week) |
 | `DebugMenuView` | API logs, cache controls |
 | `ShortcutsHelpView` | Keyboard shortcuts reference |

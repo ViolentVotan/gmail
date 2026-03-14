@@ -90,6 +90,11 @@ extension String {
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    // Pre-compiled regexes for cleanedForAI
+    private static let htmlTagRegexAI     = try? NSRegularExpression(pattern: "<[^>]+>")
+    private static let tripleNewlineRegex = try? NSRegularExpression(pattern: "\\n{3,}")
+    private static let multipleSpaceRegex = try? NSRegularExpression(pattern: " {2,}")
+
     /// Cleans email body text for AI consumption: strips HTML, decodes entities,
     /// removes quoted replies and signature noise, truncates to `maxLength`.
     ///
@@ -99,12 +104,8 @@ extension String {
         var text = self
 
         // Strip HTML tags
-        if text.contains("<") {
-            text = text.replacingOccurrences(
-                of: "<[^>]+>",
-                with: "",
-                options: .regularExpression
-            )
+        if text.contains("<"), let re = Self.htmlTagRegexAI {
+            text = re.stringByReplacingMatches(in: text, range: NSRange(text.startIndex..., in: text), withTemplate: "")
         }
 
         // Decode HTML entities
@@ -130,15 +131,18 @@ extension String {
                 return !noise.contains(where: { lower.hasPrefix($0) || lower == $0 })
             }
 
-        let cleaned = lines.joined(separator: "\n")
+        var cleaned = lines.joined(separator: "\n")
 
-        // Collapse excessive whitespace
-        let collapsed = cleaned
-            .replacingOccurrences(of: "\\n{3,}", with: "\n\n", options: .regularExpression)
-            .replacingOccurrences(of: " {2,}", with: " ", options: .regularExpression)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        // Collapse excessive whitespace using pre-compiled regexes
+        if let re = Self.tripleNewlineRegex {
+            cleaned = re.stringByReplacingMatches(in: cleaned, range: NSRange(cleaned.startIndex..., in: cleaned), withTemplate: "\n\n")
+        }
+        if let re = Self.multipleSpaceRegex {
+            cleaned = re.stringByReplacingMatches(in: cleaned, range: NSRange(cleaned.startIndex..., in: cleaned), withTemplate: " ")
+        }
+        cleaned = cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        return String(collapsed.prefix(maxLength))
+        return String(cleaned.prefix(maxLength))
     }
 }
 

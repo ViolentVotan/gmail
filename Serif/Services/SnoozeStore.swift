@@ -76,10 +76,6 @@ final class SnoozeStore {
         return itemsByAccount.values.flatMap { $0 }.filter { $0.snoozeUntil <= now }
     }
 
-    func itemsForAccount(_ accountID: String) -> [SnoozedItem] {
-        itemsByAccount[accountID] ?? []
-    }
-
     private func save(accountID: String) {
         let url = fileURL(for: accountID)
         let contents = SnoozeFileContents(version: 1, items: itemsByAccount[accountID] ?? [])

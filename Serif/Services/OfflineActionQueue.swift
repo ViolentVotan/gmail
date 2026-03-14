@@ -12,6 +12,7 @@ final class OfflineActionQueue {
     private(set) var isDraining = false
     private var retryDelay: TimeInterval = 2.0
     private var retryTask: Task<Void, Never>?
+    private var drainTask: Task<Void, Never>?
 
     var pendingCount: Int { pendingActions.count }
 
@@ -29,13 +30,15 @@ final class OfflineActionQueue {
     }
 
     func startDraining() {
-        // Cancel any pending retry — a fresh drain supersedes it.
+        // Cancel any pending retry and stale drain — a fresh drain supersedes them.
         retryTask?.cancel()
         retryTask = nil
+        drainTask?.cancel()
+        drainTask = nil
         guard !isDraining, !pendingActions.isEmpty else { return }
         isDraining = true
 
-        Task {
+        drainTask = Task {
             var succeeded = 0
             var hitError = false
             while let action = pendingActions.first {
@@ -67,7 +70,7 @@ final class OfflineActionQueue {
                 retryDelay = min(retryDelay * 2, 60)
                 retryTask = Task {
                     try? await Task.sleep(for: .seconds(delay))
-                    guard !Task.isCancelled else { return }
+                    guard !Task.isCancelled else { isDraining = false; return }
                     isDraining = false
                     startDraining()
                 }

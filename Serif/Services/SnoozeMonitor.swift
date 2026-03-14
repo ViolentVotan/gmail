@@ -10,9 +10,8 @@ final class SnoozeMonitor {
 
     func start() {
         guard timerTask == nil else { return }
-        Task { await checkExpired() }
-
         timerTask = Task {
+            await checkExpired()  // immediate first check
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 60_000_000_000)
                 guard !Task.isCancelled else { break }

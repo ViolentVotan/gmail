@@ -29,7 +29,7 @@ final class EmailDetailViewModel {
     @ObservationIgnored var attachmentIndexer: AttachmentIndexer?
     @ObservationIgnored var onMessagesRead: (([String]) -> Void)?
     @ObservationIgnored var mailDatabase: MailDatabase?
-    @ObservationIgnored nonisolated(unsafe) private var backgroundTasks: [Task<Void, Never>] = []
+    @ObservationIgnored private var backgroundTasks: [Task<Void, Never>] = []
 
     init(accountID: String, api: any MessageFetching = GmailMessageService.shared) {
         self.accountID = accountID
@@ -328,12 +328,6 @@ final class EmailDetailViewModel {
 
     // MARK: - Compose helpers
 
-    func quotedHTML(email: Email) -> String {
-        let original = latestMessage?.htmlBody ?? email.body
-        let safeName = Self.htmlEscape(email.sender.name)
-        return "<br><br><blockquote style='border-left:2px solid #ccc;margin-left:4px;padding-left:8px;color:#555;'><p><b>\(safeName)</b> wrote:</p>\(original)</blockquote>"
-    }
-
     // MARK: Static compose mode factories (no instance context required)
 
     static func quotedHTML(for email: Email, latestHTMLBody: String? = nil) -> String {
@@ -357,9 +351,13 @@ final class EmailDetailViewModel {
                       replyToMessageID: email.gmailMessageID ?? "", threadID: email.gmailThreadID ?? "")
     }
 
-    static func replyAllMode(for email: Email, latestHTMLBody: String? = nil) -> ComposeMode {
+    static func replyAllMode(for email: Email, latestHTMLBody: String? = nil, currentUserEmail: String? = nil) -> ComposeMode {
         let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
-        let toField = ([email.sender.email] + email.recipients.map(\.email)).joined(separator: ", ")
+        var toRecipients = email.recipients.map(\.email)
+        if let userEmail = currentUserEmail?.lowercased() {
+            toRecipients = toRecipients.filter { $0.lowercased() != userEmail }
+        }
+        let toField = ([email.sender.email] + toRecipients).joined(separator: ", ")
         return .replyAll(to: toField, cc: email.cc.map(\.email).joined(separator: ", "),
                          subject: sub, quotedBody: quotedHTML(for: email, latestHTMLBody: latestHTMLBody),
                          replyToMessageID: email.gmailMessageID ?? "", threadID: email.gmailThreadID ?? "")
@@ -377,12 +375,8 @@ final class EmailDetailViewModel {
     }
 
     func replyAllMode(email: Email) -> ComposeMode {
-        let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
-        let extras = email.recipients.map(\.email).filter { $0 != (latestMessage?.to ?? email.recipients.first?.email ?? "") }
-        let toField = ([email.sender.email] + extras).joined(separator: ", ")
-        return .replyAll(to: toField, cc: email.cc.map(\.email).joined(separator: ", "),
-                         subject: sub, quotedBody: quotedHTML(email: email),
-                         replyToMessageID: email.gmailMessageID ?? "", threadID: email.gmailThreadID ?? "")
+        let userEmail = AccountStore.shared.accounts.first(where: { $0.id == accountID })?.email
+        return Self.replyAllMode(for: email, latestHTMLBody: latestMessage?.htmlBody, currentUserEmail: userEmail)
     }
 
     func forwardMode(email: Email) -> ComposeMode {

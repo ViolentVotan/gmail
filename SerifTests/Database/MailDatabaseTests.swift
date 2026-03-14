@@ -58,7 +58,7 @@ struct MailDatabaseTests {
         #expect(tables.contains("contacts"))
         #expect(tables.contains("attachments"))
         #expect(tables.contains("email_tags"))
-        #expect(tables.contains("folder_sync_state"))
+        #expect(!tables.contains("folder_sync_state"))
         #expect(tables.contains("account_sync_state"))
     }
 

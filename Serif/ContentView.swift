@@ -317,9 +317,9 @@ struct ContentView: View {
 
     private func withLifecycle<V: View>(_ view: V) -> some View {
         view
-            .onAppear {
-                coordinator.handleAppear()
+            .task {
                 commandPalette.buildCommands(coordinator: coordinator)
+                await coordinator.handleAppear()
             }
             .onChange(of: coordinator.selectedFolder) { _, newValue in coordinator.handleFolderChange(newValue) }
             .onChange(of: coordinator.selectedInboxCategory) { _, newValue in coordinator.handleCategoryChange(newValue) }

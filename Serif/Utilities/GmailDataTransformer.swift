@@ -7,7 +7,7 @@ enum GmailDataTransformer {
 
     // MARK: - Contact Parsing
 
-    static func parseContact(_ raw: String) -> Contact {
+    @MainActor static func parseContact(_ raw: String) -> Contact {
         let trimmed = raw.trimmingCharacters(in: .whitespaces)
         guard !trimmed.isEmpty else { return Contact(name: "Unknown", email: "") }
         if let ltIdx = trimmed.lastIndex(of: "<"),
@@ -24,12 +24,40 @@ enum GmailDataTransformer {
                        avatarColor: avatarColor(for: trimmed), avatarURL: resolveAvatarURL(for: trimmed))
     }
 
-    static func parseContacts(_ raw: String) -> [Contact] {
+    @MainActor static func parseContacts(_ raw: String) -> [Contact] {
         guard !raw.isEmpty else { return [] }
-        return raw.split(separator: ",")
-            .map { String($0).trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-            .map { parseContact($0) }
+        // Split on commas while respecting quoted strings and angle brackets.
+        // e.g. `"Doe, John" <john@example.com>, Jane <jane@example.com>`
+        var parts: [String] = []
+        var current = ""
+        var inQuotes = false
+        var inAngleBracket = false
+        for ch in raw {
+            switch ch {
+            case "\"":
+                inQuotes.toggle()
+                current.append(ch)
+            case "<":
+                inAngleBracket = true
+                current.append(ch)
+            case ">":
+                inAngleBracket = false
+                current.append(ch)
+            case ",":
+                if inQuotes || inAngleBracket {
+                    current.append(ch)
+                } else {
+                    let trimmed = current.trimmingCharacters(in: .whitespaces)
+                    if !trimmed.isEmpty { parts.append(trimmed) }
+                    current = ""
+                }
+            default:
+                current.append(ch)
+            }
+        }
+        let last = current.trimmingCharacters(in: .whitespaces)
+        if !last.isEmpty { parts.append(last) }
+        return parts.map { parseContact($0) }
     }
 
     // MARK: - Attachment
@@ -76,7 +104,7 @@ enum GmailDataTransformer {
     /// 1. Google People API (contacts with uploaded photos)
     /// 2. Signed-in account profile picture
     /// 3. Gravatar (SHA-256, d=404 so AvatarCache handles misses gracefully)
-    static func resolveAvatarURL(for email: String) -> String {
+    @MainActor static func resolveAvatarURL(for email: String) -> String {
         if let url = ContactPhotoCache.shared.get(email) { return url }
         if let url = AccountStore.shared.accounts.first(where: { $0.email == email })?.profilePictureURL?.absoluteString { return url }
         return gravatarURL(for: email)

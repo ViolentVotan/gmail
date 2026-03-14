@@ -19,13 +19,15 @@ enum HTMLTemplate {
             jsSource = "// editor.js not found"
         }
 
+        let nonce = UUID().uuidString
+
         return """
         <!DOCTYPE html>
         <html>
         <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; frame-src 'none';">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'nonce-\(nonce)'; frame-src 'none';">
         <style>
         :root {
             --text-color: \(textColor);
@@ -101,7 +103,7 @@ enum HTMLTemplate {
         </head>
         <body>
         <div id="editor" contenteditable="true" data-placeholder="\(placeholderText.replacingOccurrences(of: "\"", with: "&quot;"))">\(Self.sanitizeHTML(initialHTML))</div>
-        <script>
+        <script nonce="\(nonce)">
         \(jsSource)
         </script>
         </body>
@@ -119,18 +121,18 @@ enum HTMLTemplate {
         result = result.replacingOccurrences(
             of: "<script[^>]*>[\\s\\S]*?</script>",
             with: "",
-            options: .regularExpression
+            options: [.regularExpression, .caseInsensitive]
         )
         // Remove <iframe> tags
         result = result.replacingOccurrences(
             of: "<iframe[^>]*>[\\s\\S]*?</iframe>",
             with: "",
-            options: .regularExpression
+            options: [.regularExpression, .caseInsensitive]
         )
         result = result.replacingOccurrences(
             of: "<iframe[^>]*/>",
             with: "",
-            options: .regularExpression
+            options: [.regularExpression, .caseInsensitive]
         )
         // Remove <object> tags and their content
         result = result.replacingOccurrences(
@@ -172,12 +174,12 @@ enum HTMLTemplate {
         result = result.replacingOccurrences(
             of: "\\bon\\w+\\s*=\\s*([\"']).*?\\1",
             with: "",
-            options: .regularExpression
+            options: [.regularExpression, .caseInsensitive]
         )
         result = result.replacingOccurrences(
             of: "\\bon\\w+\\s*=\\s*[^\\s>]+",
             with: "",
-            options: .regularExpression
+            options: [.regularExpression, .caseInsensitive]
         )
         return result
     }

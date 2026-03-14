@@ -68,28 +68,30 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
+        // Capture all needed data from the response before crossing isolation boundaries,
+        // since UNNotificationResponse may not be Sendable.
         let userInfo = response.notification.request.content.userInfo
+        let actionIdentifier = response.actionIdentifier
+        let replyText = (response as? UNTextInputNotificationResponse)?.userText
+
         guard let messageId = userInfo["messageId"] as? String,
               let accountID = userInfo["accountID"] as? String else { return }
 
-        switch response.actionIdentifier {
-        case "ARCHIVE":
-            try? await GmailMessageService.shared.archiveMessage(id: messageId, accountID: accountID)
-        case "MARK_READ":
-            try? await GmailMessageService.shared.markAsRead(id: messageId, accountID: accountID)
-        case "REPLY":
-            if let textResponse = response as? UNTextInputNotificationResponse {
-                let text = textResponse.userText
-                await MainActor.run {
+        await MainActor.run {
+            switch actionIdentifier {
+            case "ARCHIVE":
+                Task { try? await GmailMessageService.shared.archiveMessage(id: messageId, accountID: accountID) }
+            case "MARK_READ":
+                Task { try? await GmailMessageService.shared.markAsRead(id: messageId, accountID: accountID) }
+            case "REPLY":
+                if let text = replyText {
                     NotificationCenter.default.post(
                         name: .quickReplyFromNotification,
                         object: nil,
                         userInfo: ["messageId": messageId, "text": text, "accountID": accountID]
                     )
                 }
-            }
-        default:
-            await MainActor.run {
+            default:
                 NotificationCenter.default.post(
                     name: .openEmailFromIntent,
                     object: nil,

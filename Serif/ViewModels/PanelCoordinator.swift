@@ -33,6 +33,8 @@ final class PanelCoordinator {
     var attachmentPreviewName = ""
     var attachmentPreviewFileType: Attachment.FileType = .document
 
+    @ObservationIgnored private var originalMessageTask: Task<Void, Never>?
+
     var isAnyOpen: Bool {
         showHelp || showDebug || showAttachmentPreview || showOriginal || showWebBrowser || showEmailPreview
     }
@@ -64,7 +66,8 @@ final class PanelCoordinator {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
             showOriginal = true
         }
-        Task {
+        originalMessageTask?.cancel()
+        originalMessageTask = Task {
             do {
                 let raw = try await GmailMessageService.shared.getRawMessage(id: msg.id, accountID: accountID)
                 self.originalRawSource = raw.rawSource

@@ -19,15 +19,20 @@ final class TokenStore {
     private let keychainAccount = "encryption-key"
     private let legacyKeyUD    = "com.vikingz.serif.token.key"
 
-    // MARK: - Symmetric key (Keychain)
+    // MARK: - Symmetric key (Keychain, cached after first load)
+
+    private var _cachedKey: SymmetricKey?
 
     private var symmetricKey: SymmetricKey {
+        if let cached = _cachedKey { return cached }
+        let key: SymmetricKey
         if let data = loadKeyFromKeychain() {
-            return SymmetricKey(data: data)
+            key = SymmetricKey(data: data)
+        } else {
+            key = SymmetricKey(size: .bits256)
+            saveKeyToKeychain(key.withUnsafeBytes { Data($0) })
         }
-        let key = SymmetricKey(size: .bits256)
-        let keyData = key.withUnsafeBytes { Data($0) }
-        saveKeyToKeychain(keyData)
+        _cachedKey = key
         return key
     }
 

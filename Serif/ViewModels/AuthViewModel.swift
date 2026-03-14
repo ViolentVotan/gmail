@@ -66,10 +66,6 @@ final class AuthViewModel {
 
     // MARK: - Helpers
 
-    func reloadAccounts() {
-        accounts = AccountStore.shared.accounts
-    }
-
     var primaryAccount: GmailAccount? { accounts.first }
     var hasAccounts: Bool { !accounts.isEmpty }
 }

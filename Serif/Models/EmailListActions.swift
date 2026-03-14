@@ -32,7 +32,6 @@ struct EmailListActions {
 
     // MARK: - Data loading
 
-    var onLoadMore: () -> Void = {}
     var onSearch: (String) -> Void = { _ in }
     var onRefresh: (() async -> Void)?
 }

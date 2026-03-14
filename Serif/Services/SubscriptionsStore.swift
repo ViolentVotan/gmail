@@ -116,11 +116,14 @@ final class SubscriptionsStore {
         // Mark as seen immediately so concurrent calls don't re-process
         candidates.compactMap(\.gmailMessageID).forEach { processedIDs.insert($0) }
 
-        pendingCount += 1
-        isAnalyzing   = true
+        // Cancel any in-flight analysis and reset pending count before re-incrementing,
+        // since the old task's defer block may not have decremented yet.
+        analysisTask?.cancel()
+        pendingCount   = 0
+        pendingCount  += 1
+        isAnalyzing    = true
 
         let expectedAccountID = accountID
-        analysisTask?.cancel()
         analysisTask = Task {
             defer {
                 if accountID == expectedAccountID {
@@ -165,13 +168,6 @@ final class SubscriptionsStore {
             validatedIDs.remove(id)
             saveValidatedIDs()
         }
-    }
-
-    func removeAll() {
-        entries.removeAll()
-        processedIDs.removeAll()
-        validatedIDs.removeAll()
-        if !accountID.isEmpty { saveValidatedIDs() }
     }
 
     /// Wipes persisted data for a specific account (called on sign-out).

@@ -72,11 +72,19 @@ struct GmailHistoryRecord: Codable, Sendable {
 }
 
 struct GmailHistoryMessageAdded: Codable, Sendable {
-    let message: GmailMessageRef
+    let message: GmailHistoryMessage
 }
 
 struct GmailHistoryMessageDeleted: Codable, Sendable {
-    let message: GmailMessageRef
+    let message: GmailHistoryMessage
+}
+
+/// Extended message reference returned by the History API.
+/// Includes `labelIds` so callers can avoid re-fetching metadata.
+struct GmailHistoryMessage: Codable, Sendable {
+    let id:       String
+    let threadId: String
+    let labelIds: [String]?
 }
 
 struct GmailHistoryLabelAdded: Codable, Sendable {
@@ -113,14 +121,16 @@ struct GmailLabelColor: Codable, Sendable {
 }
 
 struct GmailLabel: Codable, Identifiable, Sendable {
-    let id:              String
-    let name:            String
-    let type:            String?
-    let messagesTotal:   Int?
-    let messagesUnread:  Int?
-    let threadsTotal:    Int?
-    let threadsUnread:   Int?
-    let color:           GmailLabelColor?
+    let id:                    String
+    let name:                  String
+    let type:                  String?
+    let messagesTotal:         Int?
+    let messagesUnread:        Int?
+    let threadsTotal:          Int?
+    let threadsUnread:         Int?
+    let color:                 GmailLabelColor?
+    let labelListVisibility:   String?
+    let messageListVisibility: String?
 }
 
 // MARK: - GmailLabel Helpers

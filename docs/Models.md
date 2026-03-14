@@ -21,6 +21,6 @@ Pure data structures and local persistence stores.
 | `EmailTags.swift` | AI classification tags (category, priority, sentiment) for emails |
 | `GmailAccount.swift` | Account model + `AccountStore` (UserDefaults persistence) |
 | `IndexedAttachment.swift` | Indexed attachment model for the attachment vault |
-| `OfflineAction.swift` | Queued mutation model for offline actions (archive, trash) with account + message IDs |
-| `EmailListActions.swift` | Action struct consolidating 23 email list callbacks (archive, delete, star, bulk ops, etc.) |
+| `OfflineAction.swift` | Queued mutation model for offline actions (archive, trash, star, unstar, spam, markRead, markUnread, addLabel, removeLabel) with account + message IDs |
+| `EmailListActions.swift` | Action struct consolidating email list callbacks (archive, delete, star, bulk ops, etc.) |
 | `EmailDetailActions.swift` | Action struct consolidating 24 email detail callbacks (mutations, compose, labels, content) |

@@ -113,39 +113,68 @@ struct DetailPaneView: View {
     // MARK: - Email Detail
 
     private func emailDetailView(email: Email) -> some View {
+        let actions = buildActions(for: email)
+        return EmailDetailView(
+            email: email,
+            accountID: accountID,
+            mailStore: mailStore,
+            actions: actions,
+            attachmentIndexer: attachmentIndexer,
+            allLabels: mailboxViewModel.labels,
+            fromAddress: resolvedFromAddress(for: email),
+            mailDatabase: coordinator.mailDatabase
+        )
+        .id(email.id)
+    }
+
+    /// Builds the actions struct for the given email. Separated from the view builder
+    /// so SwiftUI can short-circuit the detail view via `.id(email.id)` without
+    /// re-evaluating closures when only unrelated state changed.
+    private func buildActions(for email: Email) -> EmailDetailActions {
+        let selectNext: (Email?) -> Void = { coordinator.selectNext($0) }
+        let msgID = email.gmailMessageID
+
         var actions = EmailDetailActions()
-        actions.onArchive = selectedFolder == .archive ? nil : { actionCoordinator.archiveEmail(email, selectNext: { coordinator.selectNext($0) }) }
-        actions.onDelete = selectedFolder == .trash ? nil : { actionCoordinator.deleteEmail(email, selectNext: { coordinator.selectNext($0) }) }
+
+        // Email mutations
+        actions.onArchive = selectedFolder == .archive ? nil : { actionCoordinator.archiveEmail(email, selectNext: selectNext) }
+        actions.onDelete = selectedFolder == .trash ? nil : { actionCoordinator.deleteEmail(email, selectNext: selectNext) }
         actions.onMoveToInbox = selectedFolder == .archive || selectedFolder == .trash
-            ? { actionCoordinator.moveToInboxEmail(email, selectedFolder: selectedFolder, selectNext: { coordinator.selectNext($0) }) } : nil
+            ? { actionCoordinator.moveToInboxEmail(email, selectedFolder: selectedFolder, selectNext: selectNext) } : nil
         actions.onDeletePermanently = selectedFolder == .trash
-            ? { actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selectNext($0) }) } : nil
+            ? { actionCoordinator.deletePermanentlyEmail(email, selectNext: selectNext) } : nil
         actions.onMarkNotSpam = selectedFolder == .spam
-            ? { actionCoordinator.markNotSpamEmail(email, selectNext: { coordinator.selectNext($0) }) } : nil
+            ? { actionCoordinator.markNotSpamEmail(email, selectNext: selectNext) } : nil
         actions.onToggleStar = { isCurrentlyStarred in
-            guard let msgID = email.gmailMessageID else { return }
+            guard let msgID else { return }
             Task { await mailboxViewModel.toggleStar(msgID, isStarred: isCurrentlyStarred) }
         }
         actions.onMarkUnread = { actionCoordinator.markUnreadEmail(email) }
-        actions.onSnooze = { date in actionCoordinator.snoozeEmail(email, until: date, selectNext: { coordinator.selectNext($0) }) }
+        actions.onSnooze = { date in actionCoordinator.snoozeEmail(email, until: date, selectNext: selectNext) }
+
+        // Labels
         actions.onAddLabel = { labelID in
-            guard let msgID = email.gmailMessageID else { return }
+            guard let msgID else { return }
             Task { await mailboxViewModel.addLabel(labelID, to: msgID) }
         }
         actions.onRemoveLabel = { labelID in
-            guard let msgID = email.gmailMessageID else { return }
+            guard let msgID else { return }
             Task { await mailboxViewModel.removeLabel(labelID, from: msgID) }
         }
-        actions.onReply = { mode in coordinator.startCompose(mode: mode) }
-        actions.onReplyAll = { mode in coordinator.startCompose(mode: mode) }
-        actions.onForward = { mode in coordinator.startCompose(mode: mode) }
         actions.onCreateAndAddLabel = { name, completion in
-            guard let msgID = email.gmailMessageID else { completion(nil); return }
+            guard let msgID else { completion(nil); return }
             Task {
                 let labelID = await mailboxViewModel.createAndAddLabel(name: name, to: msgID)
                 completion(labelID)
             }
         }
+
+        // Compose
+        actions.onReply = { mode in coordinator.startCompose(mode: mode) }
+        actions.onReplyAll = { mode in coordinator.startCompose(mode: mode) }
+        actions.onForward = { mode in coordinator.startCompose(mode: mode) }
+
+        // Content
         actions.onPreviewAttachment = { data, name, fileType in
             panelCoordinator.previewAttachment(data: data, name: name, fileType: fileType)
         }
@@ -161,29 +190,21 @@ struct DetailPaneView: View {
         actions.onPrint = { msg, email in
             actionCoordinator.printEmail(message: msg, email: email)
         }
-        actions.checkUnsubscribed = { msgID in
-            actionCoordinator.isUnsubscribed(messageID: msgID, accountID: accountID)
-        }
-        actions.extractBodyUnsubscribeURL = { html in
-            actionCoordinator.extractBodyUnsubscribeURL(from: html)
-        }
         actions.onOpenLink = { url in panelCoordinator.openInAppBrowser(url: url) }
         actions.onMessagesRead = { messageIDs in mailboxViewModel.applyReadLocally(messageIDs) }
         actions.onLoadDraft = { draftID, acctID in
             try await actionCoordinator.loadDraft(id: draftID, accountID: acctID)
         }
 
-        return EmailDetailView(
-            email: email,
-            accountID: accountID,
-            mailStore: mailStore,
-            actions: actions,
-            attachmentIndexer: attachmentIndexer,
-            allLabels: mailboxViewModel.labels,
-            fromAddress: resolvedFromAddress(for: email),
-            mailDatabase: coordinator.mailDatabase
-        )
-        .id(email.id)
+        // Queries
+        actions.checkUnsubscribed = { msgID in
+            actionCoordinator.isUnsubscribed(messageID: msgID, accountID: accountID)
+        }
+        actions.extractBodyUnsubscribeURL = { html in
+            actionCoordinator.extractBodyUnsubscribeURL(from: html)
+        }
+
+        return actions
     }
 
     // MARK: - Empty State

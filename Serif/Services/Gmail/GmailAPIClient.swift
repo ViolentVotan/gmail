@@ -258,6 +258,10 @@ final class GmailAPIClient {
             return (collected, error)
         }
 
+        // Log warning if some chunks failed but we still have partial results
+        if let firstError, !all.isEmpty {
+            Self.logger.warning("Batch fetch returned partial results (\(all.count) items). Some chunks failed: \(firstError.localizedDescription)")
+        }
         // Only throw if we got zero results AND there was an error
         if let firstError, all.isEmpty {
             throw firstError

@@ -49,15 +49,6 @@ final class SummaryService {
 
     private init() {}
 
-    func cachedSummary(for email: Email) -> String? {
-        guard let key = AIServiceHelpers.cacheKey(for: email) else { return nil }
-        guard let value = cache[key] else { return nil }
-        // Move to end of access order (most recently used)
-        accessOrder.removeAll { $0 == key }
-        accessOrder.append(key)
-        return value
-    }
-
     func isAIGenerated(for email: Email) -> Bool {
         guard let key = AIServiceHelpers.cacheKey(for: email) else { return false }
         return aiGenerated.contains(key)

@@ -2,7 +2,7 @@ import Testing
 import Foundation
 @testable import Serif
 
-@Suite struct GmailDataTransformerTests {
+@Suite @MainActor struct GmailDataTransformerTests {
 
     // MARK: - parseContact
 
