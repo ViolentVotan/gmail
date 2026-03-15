@@ -18,6 +18,13 @@ final class EmailSummaryViewModel {
     }
 
     func startStreaming(for email: Email) {
+        streamTask?.cancel()
+        insightTask?.cancel()
+        displayedText = ""
+        isStreaming = true
+        isAISummary = false
+        insight = nil
+
         streamTask = Task {
             let stream = SummaryService.shared.summary(for: email)
             for await text in stream {
