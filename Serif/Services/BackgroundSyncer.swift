@@ -220,14 +220,23 @@ actor BackgroundSyncer {
     }
 
     /// Update thread_message_count for all messages belonging to the given threads.
+    /// Uses a CTE to compute counts once per thread, avoiding a correlated subquery
+    /// that would execute COUNT(*) for every row in the UPDATE's target set.
     private static func updateThreadCounts(for threadIds: Set<String>, in db: Database) throws {
         guard !threadIds.isEmpty else { return }
         let placeholders = threadIds.map { _ in "?" }.joined(separator: ",")
+        let args = Array(threadIds)
         try db.execute(sql: """
+            WITH thread_counts AS (
+                SELECT thread_id, COUNT(*) AS cnt
+                FROM messages
+                WHERE thread_id IN (\(placeholders))
+                GROUP BY thread_id
+            )
             UPDATE messages SET thread_message_count = (
-                SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = messages.thread_id
+                SELECT cnt FROM thread_counts tc WHERE tc.thread_id = messages.thread_id
             ) WHERE thread_id IN (\(placeholders))
-        """, arguments: StatementArguments(Array(threadIds)))
+        """, arguments: StatementArguments(args + args))
     }
 
 }

@@ -102,7 +102,7 @@ struct EmailDetailView: View {
                             onLoadDraft: actions.onLoadDraft,
                             smartReplySuggestions: detailVM.smartReplySuggestions,
                             onSmartReplySelect: { suggestion in
-                                let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
+                                let sub = email.subject.withReplyPrefix
                                 let body = "<p>\(suggestion.htmlEscaped)</p>"
                                 let mode = ComposeMode.reply(
                                     to: email.sender.email,

@@ -4,9 +4,16 @@ import Foundation
 
 @Suite struct QuotaTrackerTests {
     @Test func canSpendWithinBudget() async {
-        let tracker = QuotaTracker(budgetPerMinute: 1000)
+        let tracker = QuotaTracker(budgetPerMinute: 1000, budgetPerSecond: 500)
         let result = await tracker.canSpend(500)
         #expect(result == true)
+    }
+
+    @Test func cannotExceedPerSecondBudget() async {
+        let tracker = QuotaTracker(budgetPerMinute: 15_000, budgetPerSecond: 200)
+        await tracker.spend(180)
+        let result = await tracker.canSpend(30)
+        #expect(result == false)
     }
 
     @Test func cannotExceedBudget() async {

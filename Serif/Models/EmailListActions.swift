@@ -14,6 +14,7 @@ struct EmailListActions {
     var onDeletePermanently: ((Email) -> Void)?
     var onMarkNotSpam: ((Email) -> Void)?
     var onSnooze: ((Email, Date) -> Void)?
+    var onUnsnooze: ((Email) -> Void)?
     var onReply: ((Email) -> Void)?
     var onReplyAll: ((Email) -> Void)?
     var onForward: ((Email) -> Void)?

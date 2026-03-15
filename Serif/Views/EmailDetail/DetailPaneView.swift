@@ -107,7 +107,7 @@ struct DetailPaneView: View {
             onOpenLink: { url in panelCoordinator.openInAppBrowser(url: url) }
         )
         .id(draftId)
-        .onAppear { coordinator.loadContacts() }
+        .task { coordinator.loadContacts() }
     }
 
     // MARK: - Email Detail

@@ -328,6 +328,16 @@ final class EmailActionCoordinator {
         }
     }
 
+    func printEmail(_ email: Email) async {
+        guard let msgID = email.gmailMessageID else { return }
+        do {
+            let message = try await GmailMessageService.shared.getMessage(id: msgID, accountID: mailboxViewModel.accountID)
+            EmailPrintService.shared.printEmail(message: message, email: email)
+        } catch {
+            ToastManager.shared.show(message: "Print failed: \(error.localizedDescription)", type: .error)
+        }
+    }
+
     func emptyTrash(accountID: String, onConfirm: @escaping (Int) -> Void) {
         confirmEmptyFolder(labelID: GmailSystemLabel.trash, accountID: accountID, onConfirm: onConfirm)
     }
@@ -352,32 +362,42 @@ final class EmailActionCoordinator {
         }
     }
 
-    // MARK: - Bulk actions
+    // MARK: - Bulk undoable action helper
 
-    func bulkArchive(_ emails: [Email], onClear: () -> Void) async {
+    /// Shared flow for bulk email actions that follow the optimistic-update + undo pattern:
+    /// loop to optimistically update labels → clear selection → offline queue OR schedule undo.
+    private func performBulkUndoableAction(
+        emails: [Email],
+        addLabels: [String],
+        removeLabels: [String],
+        onClear: () -> Void,
+        offlineType: OfflineAction.ActionType?,
+        offlineToast: String,
+        undoLabel: String
+    ) async {
         let vm = mailboxViewModel
         let msgIDs = emails.compactMap(\.gmailMessageID)
         var originalLabelsMap: [String: [String]] = [:]
         for id in msgIDs {
-            if let labels = await vm.updateLabelsInDatabase(id, addLabelIds: [], removeLabelIds: [GmailSystemLabel.inbox]) {
+            if let labels = await vm.updateLabelsInDatabase(id, addLabelIds: addLabels, removeLabelIds: removeLabels) {
                 originalLabelsMap[id] = labels
             }
         }
         onClear()
-        guard NetworkMonitor.shared.isConnected else {
+        if let offlineType, !NetworkMonitor.shared.isConnected {
             OfflineActionQueue.shared.enqueue(OfflineAction(
-                actionType: .archive, messageIds: msgIDs, accountID: vm.accountID
+                actionType: offlineType, messageIds: msgIDs, accountID: vm.accountID
             ))
-            ToastManager.shared.show(message: "Archived \(msgIDs.count) emails (will sync when online)")
+            ToastManager.shared.show(message: offlineToast)
             return
         }
         let expectedAccountID = vm.accountID
         UndoActionManager.shared.schedule(
-            label: "Archived \(msgIDs.count) emails",
+            label: undoLabel,
             onConfirm: { [weak vm, api] in Task {
                 guard let vm, vm.accountID == expectedAccountID else { return }
                 try? await api.batchModifyLabels(
-                    ids: msgIDs, add: [], remove: [GmailSystemLabel.inbox], accountID: expectedAccountID
+                    ids: msgIDs, add: addLabels, remove: removeLabels, accountID: expectedAccountID
                 )
             } },
             onUndo: { [weak vm] in Task {
@@ -389,38 +409,29 @@ final class EmailActionCoordinator {
         )
     }
 
+    // MARK: - Bulk actions
+
+    func bulkArchive(_ emails: [Email], onClear: () -> Void) async {
+        await performBulkUndoableAction(
+            emails: emails,
+            addLabels: [],
+            removeLabels: [GmailSystemLabel.inbox],
+            onClear: onClear,
+            offlineType: .archive,
+            offlineToast: "Archived \(emails.count) emails (will sync when online)",
+            undoLabel: "Archived \(emails.count) emails"
+        )
+    }
+
     func bulkDelete(_ emails: [Email], onClear: () -> Void) async {
-        let vm = mailboxViewModel
-        let msgIDs = emails.compactMap(\.gmailMessageID)
-        var originalLabelsMap: [String: [String]] = [:]
-        for id in msgIDs {
-            if let labels = await vm.updateLabelsInDatabase(id, addLabelIds: [GmailSystemLabel.trash], removeLabelIds: [GmailSystemLabel.inbox]) {
-                originalLabelsMap[id] = labels
-            }
-        }
-        onClear()
-        guard NetworkMonitor.shared.isConnected else {
-            OfflineActionQueue.shared.enqueue(OfflineAction(
-                actionType: .trash, messageIds: msgIDs, accountID: vm.accountID
-            ))
-            ToastManager.shared.show(message: "Moved \(msgIDs.count) emails to Trash (will sync when online)")
-            return
-        }
-        let expectedAccountID = vm.accountID
-        UndoActionManager.shared.schedule(
-            label: "Trashed \(msgIDs.count) emails",
-            onConfirm: { [weak vm, api] in Task {
-                guard let vm, vm.accountID == expectedAccountID else { return }
-                try? await api.batchModifyLabels(
-                    ids: msgIDs, add: [GmailSystemLabel.trash], remove: [GmailSystemLabel.inbox], accountID: expectedAccountID
-                )
-            } },
-            onUndo: { [weak vm] in Task {
-                guard let vm, vm.accountID == expectedAccountID else { return }
-                for (id, labels) in originalLabelsMap {
-                    await vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
-                }
-            } }
+        await performBulkUndoableAction(
+            emails: emails,
+            addLabels: [GmailSystemLabel.trash],
+            removeLabels: [GmailSystemLabel.inbox],
+            onClear: onClear,
+            offlineType: .trash,
+            offlineToast: "Moved \(emails.count) emails to Trash (will sync when online)",
+            undoLabel: "Trashed \(emails.count) emails"
         )
     }
 
@@ -460,31 +471,15 @@ final class EmailActionCoordinator {
     }
 
     func bulkMoveToInbox(_ emails: [Email], selectedFolder: Folder, onClear: () -> Void) async {
-        let vm = mailboxViewModel
-        let msgIDs = emails.compactMap(\.gmailMessageID)
         let removeLabels = selectedFolder == .trash ? [GmailSystemLabel.trash] : [String]()
-        var originalLabelsMap: [String: [String]] = [:]
-        for id in msgIDs {
-            if let labels = await vm.updateLabelsInDatabase(id, addLabelIds: [GmailSystemLabel.inbox], removeLabelIds: removeLabels) {
-                originalLabelsMap[id] = labels
-            }
-        }
-        onClear()
-        let expectedAccountID = vm.accountID
-        UndoActionManager.shared.schedule(
-            label: "Moved \(msgIDs.count) to Inbox",
-            onConfirm: { [weak vm, api] in Task {
-                guard let vm, vm.accountID == expectedAccountID else { return }
-                try? await api.batchModifyLabels(
-                    ids: msgIDs, add: [GmailSystemLabel.inbox], remove: removeLabels, accountID: expectedAccountID
-                )
-            } },
-            onUndo: { [weak vm] in Task {
-                guard let vm, vm.accountID == expectedAccountID else { return }
-                for (id, labels) in originalLabelsMap {
-                    await vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
-                }
-            } }
+        await performBulkUndoableAction(
+            emails: emails,
+            addLabels: [GmailSystemLabel.inbox],
+            removeLabels: removeLabels,
+            onClear: onClear,
+            offlineType: nil,
+            offlineToast: "",
+            undoLabel: "Moved \(emails.count) to Inbox"
         )
     }
 }

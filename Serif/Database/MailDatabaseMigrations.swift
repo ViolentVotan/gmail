@@ -11,6 +11,7 @@ enum MailDatabaseMigrations {
         registerV3(&migrator)
         registerV4(&migrator)
         registerV5(&migrator)
+        registerV6(&migrator)
         return migrator
     }
 
@@ -192,8 +193,8 @@ enum MailDatabaseMigrations {
         migrator.registerMigration("v5_cascade_and_not_null") { db in
             // -- Fix 1: Recreate message_labels with onDelete: .cascade on label FK --
             // SQLite doesn't support ALTER COLUMN, so we must recreate the table.
-            // GRDB's .deferred migration disables FK enforcement and runs checkForeignKeys()
-            // automatically, so no manual PRAGMA foreign_keys management is needed.
+            // GRDB's default migration mode disables FK enforcement during the migration
+            // and runs checkForeignKeys() automatically afterward.
 
             // Clean up any orphan rows before the table swap
             try db.execute(sql: """
@@ -262,6 +263,21 @@ enum MailDatabaseMigrations {
             // Recreate indexes
             try db.create(index: "attachments_message", on: "attachments", columns: ["message_id"])
             try db.create(index: "attachments_status", on: "attachments", columns: ["indexing_status"])
+        }
+    }
+
+    private static func registerV6(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v6_fts_cascade_trigger") { db in
+            // When messages are deleted via CASCADE, the FTS virtual table is not
+            // automatically cleaned up. This trigger ensures FTS rows are removed
+            // whenever a message is deleted, preventing orphaned FTS entries.
+            try db.execute(sql: """
+                CREATE TRIGGER IF NOT EXISTS messages_fts_delete
+                AFTER DELETE ON messages
+                BEGIN
+                    DELETE FROM messages_fts WHERE gmail_id = OLD.gmail_id;
+                END
+            """)
         }
     }
 }

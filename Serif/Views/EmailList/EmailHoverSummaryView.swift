@@ -110,6 +110,8 @@ struct EmailHoverSummaryView: View {
             }
         }
         .padding(14)
+        // .onAppear/.onDisappear kept: startStreaming is sync and spawns internal
+        // tasks; .task auto-cancellation can't replace explicit cancelStreaming().
         .onAppear { summaryVM.startStreaming(for: email) }
         .onDisappear { summaryVM.cancelStreaming() }
     }

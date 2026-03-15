@@ -165,7 +165,7 @@ func stableHash(_ string: String) -> UInt64 {
     return hash
 }
 
-// MARK: - Base64URL Decoding
+// MARK: - Base64URL
 
 extension Data {
     /// Decode a base64url-encoded string (RFC 4648 §5) to Data.
@@ -175,5 +175,27 @@ extension Data {
             .replacingOccurrences(of: "_", with: "/")
         while base64.count % 4 != 0 { base64 += "=" }
         self.init(base64Encoded: base64)
+    }
+
+    /// Encode Data to a base64url string (RFC 4648 §5) — no padding.
+    func base64URLEncodedString() -> String {
+        base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+}
+
+// MARK: - Email Subject Prefixes
+
+extension String {
+    /// Ensures the string has a "Re: " prefix for replies, adding it if absent.
+    var withReplyPrefix: String {
+        hasPrefix("Re: ") ? self : "Re: \(self)"
+    }
+
+    /// Ensures the string has a "Fwd: " prefix for forwards, adding it if absent.
+    var withForwardPrefix: String {
+        hasPrefix("Fwd: ") ? self : "Fwd: \(self)"
     }
 }

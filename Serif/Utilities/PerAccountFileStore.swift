@@ -88,6 +88,18 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
         try? FileManager.default.removeItem(at: url)
     }
 
+    /// Loads items from disk and filters by account ID using the given key path,
+    /// pruning mismatched items (legacy safety). Shared by SnoozeStore and ScheduledSendStore.
+    func loadFiltered(by accountID: String, keyPath: KeyPath<Item, String>) {
+        load(accountID: accountID)
+        let items = itemsByAccount[accountID] ?? []
+        let filtered = items.filter { $0[keyPath: keyPath] == accountID }
+        if filtered.count != items.count {
+            replaceItems(filtered, accountID: accountID)
+            save(accountID: accountID)
+        }
+    }
+
     // MARK: - In-Memory Mutations
 
     func append(_ item: Item, accountID: String) {

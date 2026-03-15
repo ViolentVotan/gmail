@@ -353,13 +353,13 @@ final class EmailDetailViewModel {
     }
 
     static func replyMode(for email: Email, latestHTMLBody: String? = nil) -> ComposeMode {
-        let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
+        let sub = email.subject.withReplyPrefix
         return .reply(to: email.sender.email, subject: sub, quotedBody: quotedHTML(for: email, latestHTMLBody: latestHTMLBody),
                       replyToMessageID: email.gmailMessageID ?? "", threadID: email.gmailThreadID ?? "")
     }
 
     static func replyAllMode(for email: Email, latestHTMLBody: String? = nil, currentUserEmail: String? = nil) -> ComposeMode {
-        let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
+        let sub = email.subject.withReplyPrefix
         var toRecipients = email.recipients.map(\.email)
         if let userEmail = currentUserEmail?.lowercased() {
             toRecipients = toRecipients.filter { $0.lowercased() != userEmail }
@@ -371,7 +371,7 @@ final class EmailDetailViewModel {
     }
 
     static func forwardMode(for email: Email, latestHTMLBody: String? = nil) -> ComposeMode {
-        let sub = email.subject.hasPrefix("Fwd:") ? email.subject : "Fwd: \(email.subject)"
+        let sub = email.subject.withForwardPrefix
         return .forward(subject: sub, quotedBody: quotedHTML(for: email, latestHTMLBody: latestHTMLBody))
     }
 

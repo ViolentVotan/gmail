@@ -6,18 +6,6 @@ final class GmailProfileService {
     private let client = GmailAPIClient.shared
     private init() {}
 
-    // TODO: Replace with GmailAPIClient.sharedSession once it exposes a shared session property.
-    // Currently duplicates GmailAPIClient's URLSession configuration because that session is private.
-    nonisolated private static let session: URLSession = {
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 120
-        config.httpMaximumConnectionsPerHost = 6
-        config.waitsForConnectivity = true
-        config.requestCachePolicy = .reloadIgnoringLocalCacheData
-        return URLSession(configuration: config)
-    }()
-
     // MARK: - Gmail Profile
 
     @concurrent func getProfile(accountID: String) async throws(GmailAPIError) -> GmailProfile {
@@ -33,54 +21,11 @@ final class GmailProfileService {
     /// Fetches display name and profile picture from Google's userinfo endpoint.
     /// Takes an access token directly because this is called during initial sign-in
     /// before the account ID (email) is known.
-    /// Retries transient failures using the same `RetryPolicy` as `GmailAPIClient`.
     @concurrent func getUserInfo(accessToken: String) async throws(GmailAPIError) -> GoogleUserInfo {
-        guard let url = URL(string: "https://www.googleapis.com/oauth2/v2/userinfo") else {
-            throw .invalidURL
-        }
-
-        for attempt in 0...RetryPolicy.maxRetries {
-            var request = URLRequest(url: url)
-            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-            request.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
-            request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
-
-            let data: Data
-            let response: URLResponse
-            do {
-                (data, response) = try await Self.session.data(for: request)
-            } catch {
-                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
-                    continue
-                }
-                throw .networkError(error)
-            }
-            guard let http = response as? HTTPURLResponse else { throw .invalidURL }
-
-            switch http.statusCode {
-            case 200...299:
-                do {
-                    return try JSONDecoder().decode(GoogleUserInfo.self, from: data)
-                } catch {
-                    throw .decodingError(error)
-                }
-            case 401:
-                throw .unauthorized
-            case 403 where RetryPolicy.isRateLimited403(data) && attempt < RetryPolicy.maxRetries:
-                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                continue
-            default:
-                if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
-                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                    continue
-                }
-                throw .httpError(http.statusCode, data)
-            }
-        }
-        throw .httpError(0, Data())
+        try await GmailAPIClient.requestWithToken(
+            url: "https://www.googleapis.com/oauth2/v2/userinfo",
+            token: accessToken
+        )
     }
 
     // MARK: - SendAs / Aliases

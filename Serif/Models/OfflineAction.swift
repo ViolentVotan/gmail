@@ -27,6 +27,7 @@ struct OfflineAction: Codable, Identifiable, Sendable {
     enum ActionType: String, Codable, Sendable {
         case archive
         case trash
+        case untrash
         case markRead
         case markUnread
         case star
@@ -34,5 +35,6 @@ struct OfflineAction: Codable, Identifiable, Sendable {
         case spam
         case addLabel
         case removeLabel
+        case deletePermanently
     }
 }

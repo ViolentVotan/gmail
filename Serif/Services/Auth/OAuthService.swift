@@ -136,7 +136,7 @@ final class OAuthService: NSObject {
         let encoded = token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token
         request.httpBody = "token=\(encoded)".data(using: .utf8)
         do {
-            let (_, response) = try await URLSession.shared.data(for: request)
+            let (_, response) = try await NetworkConfig.externalSession.data(for: request)
             if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                 // Non-fatal: token may already be invalid or revoked.
             }
@@ -161,7 +161,7 @@ final class OAuthService: NSObject {
         var lastError: Error?
         for attempt in 0..<maxAttempts {
             do {
-                let (data, response) = try await URLSession.shared.data(for: request)
+                let (data, response) = try await NetworkConfig.externalSession.data(for: request)
                 if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
                     // Do not retry 4xx errors — they indicate a permanent client-side failure.
                     guard http.statusCode >= 500 else { throw OAuthError.httpError(http.statusCode, data) }

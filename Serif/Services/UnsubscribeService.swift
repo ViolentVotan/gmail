@@ -51,7 +51,7 @@ final class UnsubscribeService {
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.httpBody = "List-Unsubscribe=One-Click".data(using: .utf8)
-        guard let (_, response) = try? await URLSession.shared.data(for: request),
+        guard let (_, response) = try? await NetworkConfig.externalSession.data(for: request),
               let http = response as? HTTPURLResponse else { return false }
         return (200...299).contains(http.statusCode)
     }

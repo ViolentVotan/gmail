@@ -47,7 +47,7 @@ final class BIMIService {
         req.setValue("application/dns-json", forHTTPHeaderField: "Accept")
         req.timeoutInterval = 5
 
-        guard let (data, _) = try? await URLSession.shared.data(for: req),
+        guard let (data, _) = try? await NetworkConfig.externalSession.data(for: req),
               let doh = try? JSONDecoder().decode(DoHResponse.self, from: data),
               doh.status == 0
         else { return nil }

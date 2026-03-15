@@ -16,8 +16,11 @@ struct SidebarView: View {
     var onDropToSpam: ((String, String) -> Void)?
     var onDropToLabel: ((String, String, String) -> Void)?
     var onSignOut: ((GmailAccount) -> Void)?
+    var onShowDebug: (() -> Void)?
+    var lastRefreshedAt: Date?
 
     @Environment(SyncProgressManager.self) private var syncProgress
+    @AppStorage("showDebugMenu") private var showDebugMenu = false
 
     @State private var labelToRename: GmailLabel?
     @State private var labelToDelete: GmailLabel?
@@ -90,19 +93,36 @@ struct SidebarView: View {
         List {
             mailboxSection
             labelsSection
+            if showDebugMenu {
+                Section {
+                    Button {
+                        onShowDebug?()
+                    } label: {
+                        Label("Debug", systemImage: "ladybug")
+                    }
+                }
+            }
         }
         .listStyle(.sidebar)
         .navigationSplitViewColumnWidth(min: 200, ideal: 240)
         .safeAreaInset(edge: .bottom) {
-            SyncBubbleView(phase: syncProgress.phase)
-                .padding(Spacing.sm)
-                .opacity(syncProgress.isVisible ? 1 : 0)
-                .frame(height: syncProgress.isVisible ? nil : 0, alignment: .bottom)
-                .clipped()
-                .animation(
-                    syncProgress.isVisible ? SerifAnimation.springSnappy : SerifAnimation.springGentle,
-                    value: syncProgress.isVisible
-                )
+            VStack(spacing: 0) {
+                if !syncProgress.isVisible, let lastRefreshedAt {
+                    Text("Last synced: \(lastRefreshedAt, format: .relative(presentation: .named))")
+                        .font(Typography.captionRegular)
+                        .foregroundStyle(.tertiary)
+                        .padding(.bottom, Spacing.xs)
+                }
+                SyncBubbleView(phase: syncProgress.phase)
+                    .padding(Spacing.sm)
+                    .opacity(syncProgress.isVisible ? 1 : 0)
+                    .frame(height: syncProgress.isVisible ? nil : 0, alignment: .bottom)
+                    .clipped()
+                    .animation(
+                        syncProgress.isVisible ? SerifAnimation.springSnappy : SerifAnimation.springGentle,
+                        value: syncProgress.isVisible
+                    )
+            }
         }
         .accessibilityRotor("Folders") {
             ForEach(Folder.allCases.filter { $0 != .labels }) { folder in

@@ -26,41 +26,6 @@ actor AttachmentIndexer {
         self.accountID = accountID
     }
 
-    // MARK: - Passive Registration (from already-fetched emails)
-
-    /// Register attachments from emails that were fetched in full format (e.g., thread detail view).
-    func register(attachments: [(attachment: Attachment, email: Email)]) async {
-        for (att, email) in attachments {
-            guard let gmailAttachmentId = att.gmailAttachmentId,
-                  let gmailMessageId = att.gmailMessageId else { continue }
-
-            let id = "\(gmailMessageId)_\(gmailAttachmentId)"
-            guard await !database.exists(id: id) else { continue }
-
-            let indexed = IndexedAttachment(
-                id: id,
-                messageId: gmailMessageId,
-                attachmentId: gmailAttachmentId,
-                filename: att.name,
-                mimeType: att.mimeType,
-                fileType: att.fileType.rawValue,
-                size: 0,
-                senderEmail: email.sender.email,
-                senderName: email.sender.name,
-                emailSubject: email.subject,
-                emailDate: email.date,
-                direction: email.folder == .sent ? .sent : .received,
-                indexedAt: nil,
-                indexingStatus: .pending,
-                extractedText: nil,
-                emailBody: nil,
-                accountID: accountID
-            )
-            await database.insertAttachment(indexed)
-        }
-        await processQueue()
-    }
-
     // MARK: - Resume (app launch)
 
     /// Resume pending + retry failed items.
@@ -272,49 +237,6 @@ actor AttachmentIndexer {
         } catch {
             // On error, the current pageToken is already saved from the last successful page
             Self.logger.error("Scan failed: \(error.localizedDescription, privacy: .public)")
-        }
-    }
-
-    // MARK: - Register from metadata-format messages (mailbox list)
-
-    /// Register attachments discovered from metadata-format messages.
-    /// Metadata format may lack `body.attachmentId`, so we re-fetch in full format
-    /// for messages that have attachment parts but are missing the attachment ID.
-    func registerFromMetadata(messages: [GmailMessage]) async {
-        // Split: messages with full attachment info vs those needing a full-format fetch
-        var alreadyFull: [GmailMessage] = []
-        var needFullFetch: [String] = []
-
-        for message in messages {
-            guard !processedMessageIDs.contains(message.id) else { continue }
-            guard await !database.hasMessageAttachments(messageId: message.id) else {
-                processedMessageIDs.insert(message.id)
-                continue
-            }
-            if !message.attachmentParts.isEmpty {
-                // Already has attachmentId (full format or cached)
-                alreadyFull.append(message)
-            } else if message.hasPartsWithFilenames {
-                // Has parts with filenames but no attachmentId — metadata format limitation
-                needFullFetch.append(message.id)
-            }
-        }
-
-        // Re-fetch in full format to get attachmentIds + body
-        if !needFullFetch.isEmpty {
-            do {
-                let (full, _) = try await messageService.getMessages(
-                    ids: needFullFetch, accountID: accountID, format: "full"
-                )
-                alreadyFull.append(contentsOf: full)
-            } catch {
-                Self.logger.error("Failed to re-fetch for attachments: \(error.localizedDescription, privacy: .public)")
-            }
-        }
-
-        // Delegate to registerFromFullMessages which handles insert + processQueue
-        if !alreadyFull.isEmpty {
-            await registerFromFullMessages(messages: alreadyFull)
         }
     }
 

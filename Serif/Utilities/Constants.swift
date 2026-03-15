@@ -1,5 +1,20 @@
 import Foundation
 
+// MARK: - Network Configuration
+
+enum NetworkConfig {
+    /// Shared URLSession for external (non-Gmail-API) requests: avatar fetches,
+    /// BIMI lookups, RSVP pings, OAuth token operations, unsubscribe POST, etc.
+    /// Shorter timeouts and connection limits vs URLSession.shared defaults.
+    static let externalSession: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 15
+        config.timeoutIntervalForResource = 30
+        config.httpMaximumConnectionsPerHost = 4
+        return URLSession(configuration: config)
+    }()
+}
+
 // MARK: - UserDefaults Keys
 
 enum UserDefaultsKey {

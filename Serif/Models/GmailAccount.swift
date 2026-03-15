@@ -103,14 +103,6 @@ final class AccountStore {
         AvatarCache.shared.clearAll()
     }
 
-    func update(_ account: GmailAccount) {
-        var all = accounts
-        if let idx = all.firstIndex(where: { $0.id == account.id }) {
-            all[idx] = account
-            accounts = all
-        }
-    }
-
     func setAsDefault(id: String) {
         var all = accounts
         guard let idx = all.firstIndex(where: { $0.id == id }), idx != 0 else { return }

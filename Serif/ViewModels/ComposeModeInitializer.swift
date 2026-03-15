@@ -34,7 +34,7 @@ struct ComposeModeInitializer {
 
         case .reply(let replyTo, let replySubject, let quotedBody, let replyToMessageID, let threadID):
             fields.to = replyTo
-            fields.subject = replySubject.hasPrefix("Re:") ? replySubject : "Re: \(replySubject)"
+            fields.subject = replySubject.withReplyPrefix
             let sig = SignatureResolver.resolveHTML(preferredEmail: signatureForReply, aliases: aliases)
             fields.currentSignatureHTML = sig
             fields.bodyHTML = sig.isEmpty ? "<br><br>\(quotedBody)" : "<br><br>\(sig)<br>\(quotedBody)"
@@ -45,7 +45,7 @@ struct ComposeModeInitializer {
             fields.to = replyTo
             fields.cc = replyCc
             fields.showCc = !replyCc.isEmpty
-            fields.subject = replySubject.hasPrefix("Re:") ? replySubject : "Re: \(replySubject)"
+            fields.subject = replySubject.withReplyPrefix
             let sig = SignatureResolver.resolveHTML(preferredEmail: signatureForReply, aliases: aliases)
             fields.currentSignatureHTML = sig
             fields.bodyHTML = sig.isEmpty ? "<br><br>\(quotedBody)" : "<br><br>\(sig)<br>\(quotedBody)"
@@ -54,7 +54,7 @@ struct ComposeModeInitializer {
 
         case .forward(let fwdSubject, let quotedBody):
             fields.to = ""
-            fields.subject = fwdSubject.hasPrefix("Fwd:") ? fwdSubject : "Fwd: \(fwdSubject)"
+            fields.subject = fwdSubject.withForwardPrefix
             let sig = SignatureResolver.resolveHTML(preferredEmail: signatureForReply, aliases: aliases)
             fields.currentSignatureHTML = sig
             fields.bodyHTML = sig.isEmpty ? "<br><br>\(quotedBody)" : "<br><br>\(sig)<br>\(quotedBody)"

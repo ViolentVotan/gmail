@@ -20,7 +20,10 @@ private struct MessageWithAssociations: Decodable, FetchableRecord {
 final class MailboxViewModel {
     var isLoading      = false
     var error:         String?
-    var labels:        [GmailLabel] = []
+    var labels:        [GmailLabel] = [] {
+        didSet { userLabels = labels.filter { !$0.isSystemLabel } }
+    }
+    private(set) var userLabels: [GmailLabel] = []
     var sendAsAliases:         [GmailSendAs] = []
     var categoryUnreadCounts:  [InboxCategory: Int] = [:]
     /// Set by `restoreLabelsInDatabase` so the UI can re-select the restored email.

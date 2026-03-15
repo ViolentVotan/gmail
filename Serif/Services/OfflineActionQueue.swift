@@ -109,7 +109,17 @@ final class OfflineActionQueue {
         switch action.actionType {
         case .trash:
             // Trash uses a per-message API endpoint — must loop sequentially.
-            try await executeSequentially(action)
+            try await executeSequentially(action) { msgId, accountID in
+                try await GmailMessageService.shared.trashMessage(id: msgId, accountID: accountID)
+            }
+        case .untrash:
+            try await executeSequentially(action) { msgId, accountID in
+                try await GmailMessageService.shared.untrashMessage(id: msgId, accountID: accountID)
+            }
+        case .deletePermanently:
+            try await executeSequentially(action) { msgId, accountID in
+                try await GmailMessageService.shared.deleteMessagePermanently(id: msgId, accountID: accountID)
+            }
         case .archive:
             try await GmailMessageService.shared.batchModifyLabels(
                 ids: action.messageIds,
@@ -178,11 +188,14 @@ final class OfflineActionQueue {
     }
 
     /// Sequential per-message execution for actions that don't support batchModify
-    /// (e.g. trash). Prunes completed message IDs so retries skip finished work.
-    private func executeSequentially(_ action: OfflineAction) async throws {
+    /// (e.g. trash, untrash, deletePermanently). Prunes completed message IDs so retries skip finished work.
+    private func executeSequentially(
+        _ action: OfflineAction,
+        perform: (String, String) async throws -> Void
+    ) async throws {
         var remainingIds = action.messageIds
         for msgId in action.messageIds {
-            try await GmailMessageService.shared.trashMessage(id: msgId, accountID: action.accountID)
+            try await perform(msgId, action.accountID)
             remainingIds.removeAll { $0 == msgId }
             persistRemainingIds(remainingIds, for: action)
         }

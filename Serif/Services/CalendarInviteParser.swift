@@ -67,7 +67,7 @@ enum CalendarInviteParser {
     /// Sends a silent GET to the RSVP URL. Returns true on 2xx.
     static func sendRSVP(url: URL) async -> Bool {
         do {
-            let (_, response) = try await URLSession.shared.data(from: url)
+            let (_, response) = try await NetworkConfig.externalSession.data(from: url)
             if let http = response as? HTTPURLResponse {
                 return (200...299).contains(http.statusCode)
             }
@@ -164,16 +164,12 @@ enum CalendarInviteParser {
         return String(text[r])
     }
 
-    /// Strips HTML tags and decodes common entities.
+    /// Strips HTML tags and decodes entities via `String.decodingHTMLEntities()`.
     private static func stripHTML(_ html: String) -> String {
         let range = NSRange(html.startIndex..., in: html)
         var text = htmlTagRegex.stringByReplacingMatches(in: html, range: range, withTemplate: " ")
-        text = text.replacingOccurrences(of: "&nbsp;", with: " ")
-        text = text.replacingOccurrences(of: "&amp;", with: "&")
-        text = text.replacingOccurrences(of: "&lt;", with: "<")
-        text = text.replacingOccurrences(of: "&gt;", with: ">")
-        text = text.replacingOccurrences(of: "&#39;", with: "'")
-        text = text.replacingOccurrences(of: "&quot;", with: "\"")
+        // Decode all HTML entities (named, decimal, hex) using the shared extension
+        text = text.decodingHTMLEntities()
         // Collapse whitespace
         let wsRange = NSRange(text.startIndex..., in: text)
         text = whitespaceRegex.stringByReplacingMatches(in: text, range: wsRange, withTemplate: " ")

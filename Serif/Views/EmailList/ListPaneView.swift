@@ -90,6 +90,7 @@ struct ListPaneView: View {
                 onDeletePermanently: { email in Task { await actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selectNext($0) }) } },
                 onMarkNotSpam:       { email in Task { await actionCoordinator.markNotSpamEmail(email, selectNext: { coordinator.selectNext($0) }) } },
                 onSnooze:            { email, date in Task { await actionCoordinator.snoozeEmail(email, until: date, selectNext: { coordinator.selectNext($0) }) } },
+                onUnsnooze:          selectedFolder == .snoozed ? { email in actionCoordinator.unsnoozeEmail(messageId: email.gmailMessageID ?? "", accountID: mailboxViewModel.accountID) } : nil,
                 onReply: { email in
                     coordinator.startCompose(mode: EmailDetailViewModel.replyMode(for: email))
                 },

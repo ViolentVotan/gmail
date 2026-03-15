@@ -347,6 +347,7 @@ final class AppCoordinator {
             }
         }
         updateDisplayedEmails()
+        lastRefreshedAt = Date()
         // Trigger sync engine to check for new messages immediately
         await syncEngine?.triggerIncrementalSync()
         // Classify visible emails with Apple Intelligence (deduped via tagCache + DB)
@@ -509,6 +510,7 @@ final class AppCoordinator {
         syncEngine = nil
         lifecycleTask?.cancel()
         lifecycleTask = Task {
+            defer { isAccountSwitching = false }
             await oldEngine?.stop()
             await attachmentStore.refresh()
             guard !Task.isCancelled, self.selectedAccountID == id else { return }
@@ -518,7 +520,6 @@ final class AppCoordinator {
             SummaryService.shared.accountID = id
             await setupAccount(id)
             updateDisplayedEmails()
-            isAccountSwitching = false
         }
     }
 
@@ -565,7 +566,7 @@ final class AppCoordinator {
         guard let message = try? await GmailMessageService.shared.getMessage(
             id: messageId, accountID: accountID, format: "metadata"
         ) else { return }
-        let replySubject = message.subject.hasPrefix("Re:") ? message.subject : "Re: \(message.subject)"
+        let replySubject = message.subject.withReplyPrefix
         do {
             _ = try await GmailSendService.shared.send(
                 from: accountID,

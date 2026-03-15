@@ -36,6 +36,13 @@ actor FullSyncEngine {
     private var labelRefreshTask: Task<Void, Never>?
     private var restartTask: Task<Void, Never>?
 
+    /// Reentrancy guard: prevents overlapping `syncIncremental()` runs.
+    /// The polling loop's `incrementalTask` and user-triggered `triggeredSyncTask`
+    /// can both call `syncIncremental()` — actor reentrancy allows the second call
+    /// to start while the first is suspended at an `await`. This flag is set/cleared
+    /// synchronously (no `await` between check and set), so it's actor-safe.
+    private var isSyncingIncrementally = false
+
     // MARK: - Config
 
     /// Adaptive polling: 15s (active inbox), 30s (composing/settings), 60s (background)
@@ -182,7 +189,7 @@ actor FullSyncEngine {
                 let response = try await api.listMessages(
                     accountID: accountID,
                     labelIDs: [],
-                    query: nil,
+                    query: "-in:spam -in:trash",
                     pageToken: currentPageToken,
                     maxResults: 500
                 )
@@ -269,6 +276,10 @@ actor FullSyncEngine {
     }
 
     private func syncIncremental() async {
+        guard !isSyncingIncrementally else { return }
+        isSyncingIncrementally = true
+        defer { isSyncingIncrementally = false }
+
         guard let syncState = await readSyncState(),
               let startHistoryId = syncState.lastHistoryId else { return }
 
@@ -331,6 +342,11 @@ actor FullSyncEngine {
             }
             let trulyNewIDs = candidateIDs.filter { !existingIDs.contains($0) }
 
+            // Report incremental sync progress for large syncs
+            let toRefetchCount = labelChanges.subtracting(allDeleted).subtracting(Set(candidateIDs)).count
+            let totalRemaining = trulyNewIDs.count + toRefetchCount + allDeleted.count
+            await reportProgress { $0.syncProgress(remaining: totalRemaining) }
+
             // Existing messages from messagesAdded: apply label updates from history data
             let historyLabelUpdates: [(gmailId: String, labelIds: [String])] = candidateIDs
                 .filter { existingIDs.contains($0) }
@@ -392,9 +408,10 @@ actor FullSyncEngine {
             }
 
         } catch {
-            if case .httpError(404, let responseData) = error as? GmailAPIError,
-               Self.isHistoryNotFound(responseData) {
-                // historyId expired — restart full sync.
+            if case .httpError(404, _) = error as? GmailAPIError {
+                // Any 404 from history.list means the startHistoryId is expired/invalid.
+                // The only realistic 404 scenario for this endpoint is stale history
+                // (userId is always "me"), so no need to inspect the response body.
                 // Cancel sibling tasks directly instead of going through stop(),
                 // which would cancel restartTask itself (the task we're about to create).
                 Self.logger.warning("History ID expired, restarting full sync")
@@ -558,17 +575,6 @@ actor FullSyncEngine {
                 accountID: accountID
             )
         }
-    }
-
-    // MARK: - Error Parsing
-
-    /// Checks whether a 404 response body indicates an expired/invalid historyId.
-    /// Gmail's history.list returns 404 with "notFound" or "Requested entity was not found"
-    /// when the startHistoryId is too old. This is the only realistic 404 for history.list,
-    /// but we check the body to avoid treating unrelated 404s as history expiry.
-    nonisolated private static func isHistoryNotFound(_ data: Data) -> Bool {
-        guard let body = String(data: data, encoding: .utf8) else { return true }
-        return body.contains("notFound") || body.contains("Requested entity was not found")
     }
 
     // MARK: - DB Helpers

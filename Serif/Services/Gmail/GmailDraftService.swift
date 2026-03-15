@@ -73,6 +73,7 @@ final class GmailDraftService {
         from: String, to: [String], cc: [String] = [], bcc: [String] = [],
         subject: String, body: String, isHTML: Bool = false,
         inlineImages: [InlineImageAttachment] = [],
+        threadID: String? = nil,
         accountID: String
     ) async throws(GmailAPIError) -> GmailDraft {
         let raw = try GmailSendService.buildRawMessage(
@@ -80,7 +81,9 @@ final class GmailDraftService {
             subject: subject, body: body, isHTML: isHTML,
             inlineImages: inlineImages
         )
-        let payload: [String: Any] = ["message": ["raw": raw]]
+        var message: [String: Any] = ["raw": raw]
+        if let threadID { message["threadId"] = threadID }
+        let payload: [String: Any] = ["message": message]
         let encoded: Data
         do {
             encoded = try JSONSerialization.data(withJSONObject: payload)
@@ -98,6 +101,7 @@ final class GmailDraftService {
         draftID: String, from: String, to: [String], cc: [String] = [], bcc: [String] = [],
         subject: String, body: String, isHTML: Bool = false,
         inlineImages: [InlineImageAttachment] = [],
+        threadID: String? = nil,
         accountID: String
     ) async throws(GmailAPIError) -> GmailDraft {
         let raw = try GmailSendService.buildRawMessage(
@@ -105,7 +109,9 @@ final class GmailDraftService {
             subject: subject, body: body, isHTML: isHTML,
             inlineImages: inlineImages
         )
-        let payload: [String: Any] = ["message": ["raw": raw]]
+        var message: [String: Any] = ["raw": raw]
+        if let threadID { message["threadId"] = threadID }
+        let payload: [String: Any] = ["message": message]
         let encoded: Data
         do {
             encoded = try JSONSerialization.data(withJSONObject: payload)

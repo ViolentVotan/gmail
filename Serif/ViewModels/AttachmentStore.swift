@@ -64,8 +64,6 @@ final class AttachmentStore {
     @ObservationIgnored private var debounceTask: Task<Void, Never>?
     @ObservationIgnored var accountID: String = ""
 
-    @ObservationIgnored var indexer: AttachmentIndexer?
-
     var isIndexing: Bool { stats.pending > 0 }
 
     // MARK: - Cache Recomputation

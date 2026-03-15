@@ -26,6 +26,7 @@ final class SnoozeMonitor {
         }
     }
 
+    /// Stops the monitoring loop. Currently unused — monitor runs for app lifetime.
     func stop() {
         timerTask?.cancel()
         timerTask = nil

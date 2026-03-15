@@ -99,6 +99,11 @@ actor AttachmentDatabase {
             throw AttachmentDatabaseError.schemaFailed(msg)
         }
 
+        // 1a. Indexes for frequently queried columns
+        exec("CREATE INDEX IF NOT EXISTS idx_attachments_account_id ON attachments(accountID)")
+        exec("CREATE INDEX IF NOT EXISTS idx_attachments_status_account ON attachments(indexingStatus, accountID)")
+        exec("CREATE INDEX IF NOT EXISTS idx_attachments_message_id ON attachments(messageId)")
+
         // 1b. Scanned messages tracking table
         sqlite3_exec(db, """
         CREATE TABLE IF NOT EXISTS scanned_messages (
@@ -490,17 +495,31 @@ actor AttachmentDatabase {
     }
 
     /// Persists a batch of scanned message IDs so they are skipped on next launch.
+    /// Wraps all inserts in a single transaction for performance.
     func markMessagesScanned(_ ids: [String], accountID: String) {
+        guard !ids.isEmpty else { return }
         let sql = "INSERT OR IGNORE INTO scanned_messages (messageID, accountID) VALUES (?, ?)"
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
         defer { sqlite3_finalize(stmt) }
+        exec("BEGIN TRANSACTION")
         for id in ids {
             sqlite3_reset(stmt)
             bindText(stmt, 1, id)
             bindText(stmt, 2, accountID)
             sqlite3_step(stmt)
         }
+        exec("COMMIT")
+    }
+
+    /// Inserts multiple attachments in a single transaction for performance.
+    func insertAttachments(_ attachments: [IndexedAttachment]) {
+        guard !attachments.isEmpty else { return }
+        exec("BEGIN TRANSACTION")
+        for attachment in attachments {
+            insertAttachment(attachment)
+        }
+        exec("COMMIT")
     }
 
     /// Delete all rows for a specific account, rebuild FTS, and reclaim disk space.

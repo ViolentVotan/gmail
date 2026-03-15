@@ -212,7 +212,7 @@ final class ComposeViewModel {
         replyCleanupDraftID = gmailDraftID
 
         let (processedHTML, images) = InlineImageProcessor.extractInlineImages(from: replyHTML)
-        let sub = emailSubject.hasPrefix("Re:") ? emailSubject : "Re: \(emailSubject)"
+        let sub = emailSubject.withReplyPrefix
 
         self.to = to
         self.cc = cc
@@ -284,7 +284,7 @@ final class ComposeViewModel {
                let saved = mailStore.replyDrafts[threadID] {
                 self.gmailDraftID = saved.gmailDraftID
             }
-            let sub = emailSubject.hasPrefix("Re:") ? emailSubject : "Re: \(emailSubject)"
+            let sub = emailSubject.withReplyPrefix
             self.to = to
             self.cc = cc
             self.bcc = bcc

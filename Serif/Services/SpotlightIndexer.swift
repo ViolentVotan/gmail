@@ -4,8 +4,11 @@ import CoreSpotlight
 @MainActor
 final class SpotlightIndexer {
     static let shared = SpotlightIndexer()
-    private var indexedCount = 0
+    /// Tracks indexed message IDs in insertion order (oldest first) for LRU eviction.
+    private var indexedIDs: [String] = []
     private let maxIndexed = 1000
+    /// Fraction of oldest entries to evict when the threshold is reached.
+    private let evictionFraction = 0.25
     private var legacyCleaned = false
 
     private init() {
@@ -25,13 +28,15 @@ final class SpotlightIndexer {
             date: email.date
         )
 
-        if indexedCount >= maxIndexed {
-            try? await CSSearchableIndex.default().deleteAllSearchableItems()
-            indexedCount = 0
+        if indexedIDs.count >= maxIndexed {
+            let evictCount = max(1, Int(Double(maxIndexed) * evictionFraction))
+            let toEvict = Array(indexedIDs.prefix(evictCount))
+            try? await CSSearchableIndex.default().deleteSearchableItems(withIdentifiers: toEvict)
+            indexedIDs.removeFirst(evictCount)
         }
 
         try? await CSSearchableIndex.default().indexAppEntities([entity])
-        indexedCount += 1
+        indexedIDs.append(messageID)
     }
 
     // MARK: - Legacy migration

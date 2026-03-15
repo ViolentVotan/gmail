@@ -1,13 +1,16 @@
 import Foundation
 
 /// Paces Gmail API calls to stay within the per-user quota limit.
-/// Uses a sliding window over the last 60 seconds to track spend.
+/// Uses a sliding window over the last 60 seconds to track per-minute spend,
+/// and a 1-second window to enforce per-second burst protection.
 actor QuotaTracker {
     private let budgetPerMinute: Int
+    private let budgetPerSecond: Int
     private var ledger: [(timestamp: Date, units: Int)] = []
 
-    init(budgetPerMinute: Int = 12_000) {
+    init(budgetPerMinute: Int = 15_000, budgetPerSecond: Int = 200) {
         self.budgetPerMinute = budgetPerMinute
+        self.budgetPerSecond = budgetPerSecond
     }
 
     /// Current spend in the last 60 seconds.
@@ -16,14 +19,23 @@ actor QuotaTracker {
         return ledger.reduce(0) { $0 + $1.units }
     }
 
-    /// Remaining budget in the current window.
+    /// Remaining budget in the current minute window.
     var remainingBudget: Int {
         max(0, budgetPerMinute - currentSpend)
     }
 
-    /// Returns true if spending `units` would stay within budget.
+    /// Returns true if spending `units` would stay within both per-minute and per-second budgets.
     func canSpend(_ units: Int) -> Bool {
-        currentSpend + units <= budgetPerMinute
+        currentSpend + units <= budgetPerMinute && canSpendPerSecond(units)
+    }
+
+    /// Returns true if spending `units` would stay within the per-second burst limit.
+    private func canSpendPerSecond(_ units: Int) -> Bool {
+        let cutoff = Date().addingTimeInterval(-1)
+        let recentSpend = ledger
+            .filter { $0.timestamp >= cutoff }
+            .reduce(0) { $0 + $1.units }
+        return recentSpend + units <= budgetPerSecond
     }
 
     /// Records a spend of `units` at the current time.

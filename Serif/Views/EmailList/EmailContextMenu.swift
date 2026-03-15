@@ -15,6 +15,7 @@ struct EmailContextMenu: View {
     let onMarkNotSpam: ((Email) -> Void)?
     let onSnooze: ((Email, Date) -> Void)?
     let onCreateFilter: ((Email) -> Void)?
+    var onUnsnooze: ((Email) -> Void)? = nil
     var onReply: ((Email) -> Void)? = nil
     var onReplyAll: ((Email) -> Void)? = nil
     var onForward: ((Email) -> Void)? = nil
@@ -54,6 +55,12 @@ struct EmailContextMenu: View {
                 }
             } label: {
                 Label("Snooze", systemImage: "clock")
+            }
+        }
+
+        if selectedFolder == .snoozed, let onUnsnooze {
+            Button { onUnsnooze(email) } label: {
+                Label("Unsnooze", systemImage: "clock.badge.xmark")
             }
         }
 

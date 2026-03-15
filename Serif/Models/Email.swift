@@ -102,6 +102,13 @@ extension Email: Equatable {
     }
 }
 
+extension Email: Hashable {
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+        hasher.combine(gmailMessageID)
+    }
+}
+
 struct Contact: Identifiable, Hashable, Sendable {
     var id: String { email.lowercased() }
     let name: String

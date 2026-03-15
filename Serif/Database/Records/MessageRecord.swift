@@ -246,10 +246,7 @@ extension MessageRecord {
         let bodyContent = bodyHtml ?? bodyPlain
         guard let bodyContent else { return nil }
         // Re-encode as base64url so GmailMessage.htmlBody / plainBody can decode it
-        let base64url = Data(bodyContent.utf8).base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
+        let base64url = Data(bodyContent.utf8).base64URLEncodedString()
         return GmailMessageBody(attachmentId: nil, size: bodyContent.utf8.count, data: base64url)
     }
 

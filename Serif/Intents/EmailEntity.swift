@@ -1,5 +1,6 @@
 import AppIntents
 import Foundation
+import GRDB
 
 struct EmailEntity: IndexedEntity {
     static let defaultQuery = EmailEntityQuery()
@@ -47,21 +48,23 @@ struct EmailEntityQuery: EntityStringQuery {
     }
 
     func entities(for identifiers: [String]) async throws -> [EmailEntity] {
+        guard !identifiers.isEmpty else { return [] }
         var entities: [EmailEntity] = []
         let accounts = await MainActor.run { AccountStore.shared.accounts }
         for account in accounts {
             guard let db = try? MailDatabase.shared(for: account.id) else { continue }
-            for id in identifiers {
-                if let record = try? await db.dbPool.read({ db in
-                    try MessageRecord.fetchOne(db, key: id)
-                }) {
-                    entities.append(EmailEntity(
-                        id: record.gmailId,
-                        subject: record.subject ?? "",
-                        senderName: record.senderName ?? record.senderEmail ?? "",
-                        date: Date(timeIntervalSince1970: record.internalDate)
-                    ))
-                }
+            // Batch lookup: fetch all matching records in one query per account
+            let records = try? await db.dbPool.read { database in
+                try MessageRecord.filter(identifiers.contains(Column("gmail_id"))).fetchAll(database)
+            }
+            guard let records else { continue }
+            for record in records {
+                entities.append(EmailEntity(
+                    id: record.gmailId,
+                    subject: record.subject ?? "",
+                    senderName: record.senderName ?? record.senderEmail ?? "",
+                    date: Date(timeIntervalSince1970: record.internalDate)
+                ))
             }
         }
         return entities

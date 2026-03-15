@@ -131,8 +131,8 @@ enum CacheMigration {
         let now = Date().timeIntervalSince1970
         try? await db.dbPool.write { grdb in
             for (messageId, tag) in tags {
-                // Skip tags for messages that no longer exist (orphaned FK)
-                guard try MessageRecord.exists(grdb, key: messageId) else { continue }
+                // Foreign key constraint on email_tags.message_id will reject inserts
+                // for non-existent messages — the catch block handles that naturally.
                 let record = EmailTagRecord(
                     messageId: messageId,
                     needsReply: tag.needsReply,

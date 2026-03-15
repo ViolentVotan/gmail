@@ -59,7 +59,7 @@ struct ContentView: View {
                     selectedAccountID: $coordinator.selectedAccountID,
                     authViewModel: coordinator.authViewModel,
                     categoryUnreadCounts: coordinator.mailboxViewModel.categoryUnreadCounts,
-                    userLabels: coordinator.mailboxViewModel.labels.filter { !$0.isSystemLabel },
+                    userLabels: coordinator.mailboxViewModel.userLabels,
                     onRenameLabel: { label, newName in Task { await coordinator.renameLabel(label, to: newName) } },
                     onDeleteLabel: { label in Task { await coordinator.deleteLabel(label) } },
                     onDropToTrash: { msgId, accountID in
@@ -79,7 +79,11 @@ struct ContentView: View {
                     },
                     onSignOut: { account in
                         coordinator.authViewModel.signOut(account)
-                    }
+                    },
+                    onShowDebug: {
+                        coordinator.panelCoordinator.showDebug = true
+                    },
+                    lastRefreshedAt: coordinator.lastRefreshedAt
                 )
                 .focused($appFocus, equals: .sidebar)
             } content: {
@@ -297,18 +301,8 @@ struct ContentView: View {
 
                         Divider()
 
-                        // TODO: Architecture violation — direct service calls (GmailMessageService, EmailPrintService, ToastManager).
-                        // Move to EmailActionCoordinator.printEmail(_:accountID:) when that file is available for editing.
                         Button {
-                            Task {
-                                guard let msgID = email.gmailMessageID else { return }
-                                do {
-                                    let message = try await GmailMessageService.shared.getMessage(id: msgID, accountID: coordinator.accountID)
-                                    EmailPrintService.shared.printEmail(message: message, email: email)
-                                } catch {
-                                    ToastManager.shared.show(message: "Print failed: \(error.localizedDescription)", type: .error)
-                                }
-                            }
+                            Task { await coordinator.actionCoordinator.printEmail(email) }
                         } label: {
                             Label("Print", systemImage: "printer")
                         }

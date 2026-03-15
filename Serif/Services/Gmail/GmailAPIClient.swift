@@ -20,9 +20,19 @@ final class GmailAPIClient {
     private var refreshTasks: [String: Task<AuthToken, Error>] = [:]
     private var refreshGeneration: [String: Int] = [:]
 
+    /// Cache of last-known valid tokens keyed by account ID. Updated on every
+    /// successful MainActor token retrieval or refresh. Allows `@concurrent`
+    /// methods to skip the MainActor hop when the cached token is still valid.
+    /// Safety: only written from MainActor (serialized), reads from `@concurrent`
+    /// methods may see a slightly stale value — worst case is a redundant
+    /// MainActor hop, never a correctness issue.
+    nonisolated(unsafe) private var cachedTokens: [String: AuthToken] = [:]
+
     /// Configured session for Google API calls: appropriate timeouts,
     /// connection pooling, and connectivity waiting.
-    nonisolated private static let session: URLSession = {
+    /// Exposed as `internal` so services like `GmailProfileService` can reuse
+    /// the same session instead of duplicating the configuration.
+    nonisolated static let sharedSession: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30
         config.timeoutIntervalForResource = 120
@@ -60,7 +70,7 @@ final class GmailAPIClient {
         accountID: String
     ) async throws(GmailAPIError) -> Data {
         guard await NetworkMonitor.shared.isConnected else { throw .offline }
-        let token = try await validToken(for: accountID)
+        let token = try await cachedValidToken(for: accountID)
 
         // First attempt + 401 auto-retry
         do {
@@ -126,7 +136,7 @@ final class GmailAPIClient {
             let data: Data
             let response: URLResponse
             do {
-                (data, response) = try await Self.session.data(for: request)
+                (data, response) = try await Self.sharedSession.data(for: request)
             } catch {
                 if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
                     try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
@@ -409,6 +419,68 @@ final class GmailAPIClient {
         return BatchFetchResult(items: items, failedIDs: failedIDs)
     }
 
+    // MARK: - Pre-auth request (raw token)
+
+    /// Executes an authenticated GET request using a raw access token, with full
+    /// retry logic. Intended for pre-sign-in flows (e.g. fetching user info)
+    /// where no account ID is available yet.
+    @concurrent nonisolated static func requestWithToken<T: Decodable>(
+        url urlString: String,
+        token: String
+    ) async throws(GmailAPIError) -> T {
+        guard let url = URL(string: urlString) else { throw .invalidURL }
+
+        for attempt in 0...RetryPolicy.maxRetries {
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+            request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
+
+            let data: Data
+            let response: URLResponse
+            do {
+                (data, response) = try await sharedSession.data(for: request)
+            } catch {
+                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
+                    continue
+                }
+                throw .networkError(error)
+            }
+            guard let http = response as? HTTPURLResponse else { throw .invalidURL }
+
+            switch http.statusCode {
+            case 200...299:
+                do {
+                    return try JSONDecoder().decode(T.self, from: data)
+                } catch {
+                    throw .decodingError(error)
+                }
+            case 401:
+                throw .unauthorized
+            case 403 where RetryPolicy.isRateLimited403(data) && attempt < RetryPolicy.maxRetries:
+                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
+                continue
+            case 403:
+                if let body = String(data: data, encoding: .utf8) {
+                    if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
+                    if body.contains("domainPolicy") { throw .domainPolicy }
+                }
+                throw .httpError(http.statusCode, data)
+            default:
+                if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
+                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
+                    continue
+                }
+                throw .httpError(http.statusCode, data)
+            }
+        }
+        throw .httpError(0, Data())
+    }
+
     // MARK: - Perform for arbitrary Google API URLs
 
     /// Executes an authenticated GET to any full URL (not limited to Gmail base URL).
@@ -428,7 +500,7 @@ final class GmailAPIClient {
             let data: Data
             let response: URLResponse
             do {
-                (data, response) = try await Self.session.data(for: request)
+                (data, response) = try await Self.sharedSession.data(for: request)
             } catch {
                 if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
                     try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
@@ -504,7 +576,7 @@ final class GmailAPIClient {
             let data: Data
             let response: URLResponse
             do {
-                (data, response) = try await Self.session.data(for: urlRequest)
+                (data, response) = try await Self.sharedSession.data(for: urlRequest)
             } catch {
                 if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
                     try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
@@ -559,9 +631,9 @@ final class GmailAPIClient {
             let trimmed = part.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty, trimmed != "--" else { continue }
 
-            // Extract Content-ID
+            // Extract Content-ID (case-insensitive per RFC 7230)
             var contentID = ""
-            if let idRange = trimmed.range(of: "Content-ID: <") {
+            if let idRange = trimmed.range(of: "Content-ID: <", options: .caseInsensitive) {
                 let afterID = trimmed[idRange.upperBound...]
                 if let endRange = afterID.range(of: ">") {
                     contentID = String(afterID[..<endRange.lowerBound])
@@ -592,6 +664,15 @@ final class GmailAPIClient {
 
     // MARK: - Token refresh
 
+    /// Fast path for `@concurrent` callers: returns the cached token if still valid,
+    /// avoiding a MainActor hop. Falls back to the full MainActor `validToken(for:)` otherwise.
+    @concurrent private func cachedValidToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
+        if let cached = cachedTokens[accountID], !cached.isExpired {
+            return cached
+        }
+        return try await validToken(for: accountID)
+    }
+
     private func validToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
         let token: AuthToken?
         do {
@@ -600,7 +681,10 @@ final class GmailAPIClient {
             throw .networkError(error)
         }
         guard let token else { throw .unauthorized }
-        guard token.isExpired else { return token }
+        guard token.isExpired else {
+            cachedTokens[accountID] = token
+            return token
+        }
         return try await refreshAndRetry(accountID: accountID)
     }
 
@@ -641,6 +725,7 @@ final class GmailAPIClient {
                 refreshTasks[accountID] = nil
                 refreshGeneration.removeValue(forKey: accountID)
             }
+            cachedTokens[accountID] = result
             return result
         } catch {
             if refreshGeneration[accountID] == generation {
@@ -737,7 +822,7 @@ final class GmailAPIClient {
             let data: Data
             let response: URLResponse
             do {
-                (data, response) = try await Self.session.data(for: request)
+                (data, response) = try await Self.sharedSession.data(for: request)
             } catch {
                 if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
                     try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))

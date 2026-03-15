@@ -64,14 +64,7 @@ final class SnoozeStore {
     }
 
     func load(accountID: String) {
-        store.load(accountID: accountID)
-        // Filter out items that don't match the account (legacy safety)
-        let items = store.itemsByAccount[accountID] ?? []
-        let filtered = items.filter { $0.accountID == accountID }
-        if filtered.count != items.count {
-            store.replaceItems(filtered, accountID: accountID)
-            store.save(accountID: accountID)
-        }
+        store.loadFiltered(by: accountID, keyPath: \.accountID)
     }
 
     func add(_ item: SnoozedItem) {

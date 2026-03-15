@@ -30,7 +30,7 @@ private actor URLValidityCache {
         request.timeoutInterval = 6
 
         let valid: Bool
-        if let (_, response) = try? await URLSession.shared.data(for: request),
+        if let (_, response) = try? await NetworkConfig.externalSession.data(for: request),
            let http = response as? HTTPURLResponse {
             valid = (200...399).contains(http.statusCode)
         } else {

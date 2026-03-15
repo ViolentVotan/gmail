@@ -16,15 +16,22 @@ final class GmailSendService {
         body: String,
         isHTML: Bool = false,
         threadID: String? = nil,
+        inReplyTo: String? = nil,
+        references: String? = nil,
         referencesHeader: String? = nil,
         inlineImages: [InlineImageAttachment] = [],
         attachments: [URL]? = nil,
         accountID: String
     ) async throws(GmailAPIError) -> GmailMessage {
+        // Support legacy `referencesHeader` callers: if the new separated params
+        // aren't provided, fall back to referencesHeader for both headers.
+        let effectiveInReplyTo = inReplyTo ?? referencesHeader
+        let effectiveReferences = references ?? referencesHeader
         let raw = try Self.buildRawMessage(
             from: from, to: to, cc: cc, bcc: bcc,
             subject: subject, body: body, isHTML: isHTML,
-            referencesHeader: referencesHeader,
+            inReplyTo: effectiveInReplyTo,
+            references: effectiveReferences,
             inlineImages: inlineImages,
             attachments: attachments ?? []
         )
@@ -51,7 +58,8 @@ final class GmailSendService {
     nonisolated static func buildRawMessage(
         from: String, to: [String], cc: [String], bcc: [String] = [],
         subject: String, body: String, isHTML: Bool,
-        referencesHeader: String? = nil,
+        inReplyTo: String? = nil,
+        references: String? = nil,
         inlineImages: [InlineImageAttachment] = [],
         attachments: [URL] = []
     ) throws(GmailAPIError) -> String {
@@ -59,19 +67,23 @@ final class GmailSendService {
             return try buildRawMultipart(
                 from: from, to: to, cc: cc, bcc: bcc,
                 subject: subject, body: body, isHTML: isHTML,
-                referencesHeader: referencesHeader,
+                inReplyTo: inReplyTo,
+                references: references,
                 inlineImages: inlineImages, attachments: attachments
             )
         }
         return try buildRaw(from: from, to: to, cc: cc, bcc: bcc,
                            subject: subject, body: body, isHTML: isHTML,
-                           referencesHeader: referencesHeader)
+                           inReplyTo: inReplyTo,
+                           references: references)
     }
 
     // MARK: - RFC 2822 Header Builder
 
     /// Builds the ordered list of RFC 2822 header lines common to all message types.
     /// Cc, Bcc, In-Reply-To, and References are appended only when present.
+    /// Per RFC 2822 section 3.6.4, `In-Reply-To` contains only the parent message's Message-ID,
+    /// while `References` contains the full chain (parent's References + parent's Message-ID).
     nonisolated private static func buildHeaders(
         from: String,
         to: String,
@@ -79,10 +91,12 @@ final class GmailSendService {
         bcc: String,
         subject: String,
         contentType: String,
-        referencesHeader: String?
+        inReplyTo: String?,
+        references: String?
     ) -> [String] {
         var lines = [
             "MIME-Version: 1.0",
+            "Message-ID: <\(UUID().uuidString)@serif.app>",
             "Date: \(Self.rfc2822Formatter.string(from: Date()))",
             "From: \(from)",
             "To: \(to)",
@@ -91,10 +105,8 @@ final class GmailSendService {
         ]
         if !cc.isEmpty  { lines.append("Cc: \(cc)") }
         if !bcc.isEmpty { lines.append("Bcc: \(bcc)") }
-        if let ref = referencesHeader {
-            lines.append("In-Reply-To: \(ref)")
-            lines.append("References: \(ref)")
-        }
+        if let inReplyTo { lines.append("In-Reply-To: \(inReplyTo)") }
+        if let references { lines.append("References: \(references)") }
         return lines
     }
 
@@ -108,7 +120,8 @@ final class GmailSendService {
         subject: String,
         body: String,
         isHTML: Bool,
-        referencesHeader: String? = nil
+        inReplyTo: String? = nil,
+        references: String? = nil
     ) throws(GmailAPIError) -> String {
         if isHTML {
             // multipart/alternative: text/plain + text/html
@@ -120,7 +133,8 @@ final class GmailSendService {
                 bcc: mimeEncodeAddresses(bcc),
                 subject: subject,
                 contentType: "multipart/alternative; boundary=\"\(boundary)\"",
-                referencesHeader: referencesHeader
+                inReplyTo: inReplyTo,
+                references: references
             )
 
             let plainB64 = Data(body.strippingHTML.utf8).base64EncodedString(options: .lineLength76Characters)
@@ -146,7 +160,8 @@ final class GmailSendService {
                 bcc: mimeEncodeAddresses(bcc),
                 subject: subject,
                 contentType: "text/plain; charset=UTF-8",
-                referencesHeader: referencesHeader
+                inReplyTo: inReplyTo,
+                references: references
             )
             lines.append("Content-Transfer-Encoding: base64")
             let raw = lines.joined(separator: "\r\n") + "\r\n\r\n" + bodyB64
@@ -164,7 +179,8 @@ final class GmailSendService {
         subject: String,
         body: String,
         isHTML: Bool = true,
-        referencesHeader: String? = nil,
+        inReplyTo: String? = nil,
+        references: String? = nil,
         inlineImages: [InlineImageAttachment] = [],
         attachments: [URL]
     ) throws(GmailAPIError) -> String {
@@ -194,7 +210,8 @@ final class GmailSendService {
             bcc: mimeEncodeAddresses(bcc),
             subject: subject,
             contentType: "\(topType); boundary=\"\(topBoundary)\"",
-            referencesHeader: referencesHeader
+            inReplyTo: inReplyTo,
+            references: references
         )
 
         var mime = lines.joined(separator: "\r\n") + "\r\n\r\n"
@@ -333,9 +350,6 @@ final class GmailSendService {
         guard let data = string.data(using: .utf8) else {
             throw .encodingError(URLError(.cannotParseResponse))
         }
-        return data.base64EncodedString()
-            .replacingOccurrences(of: "+", with: "-")
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: "=", with: "")
+        return data.base64URLEncodedString()
     }
 }
