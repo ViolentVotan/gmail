@@ -373,10 +373,11 @@ actor AttachmentDatabase {
 
         let columnCount = sqlite3_column_count(stmt)
         let scoreIndex = columnCount - 1  // score is always the last column in our SELECT
+        let col = buildColumnMap(stmt)
 
         var results: [(IndexedAttachment, Double)] = []
         while sqlite3_step(stmt) == SQLITE_ROW {
-            let att = readRow(stmt)
+            let att = readRow(stmt, columns: col)
             let score = sqlite3_column_double(stmt, scoreIndex)
             results.append((att, score))
         }
@@ -414,8 +415,9 @@ actor AttachmentDatabase {
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return nil }
         defer { sqlite3_finalize(stmt) }
         bindText(stmt, 1, id)
+        let col = buildColumnMap(stmt)
         guard sqlite3_step(stmt) == SQLITE_ROW else { return nil }
-        return readRow(stmt)
+        return readRow(stmt, columns: col)
     }
 
     // MARK: - Stats
@@ -568,16 +570,16 @@ actor AttachmentDatabase {
 
     private func readRows(_ stmt: OpaquePointer?) -> [IndexedAttachment] {
         var rows: [IndexedAttachment] = []
+        let col = buildColumnMap(stmt)
         while sqlite3_step(stmt) == SQLITE_ROW {
-            rows.append(readRow(stmt))
+            rows.append(readRow(stmt, columns: col))
         }
         return rows
     }
 
-    /// Maps a result row to `IndexedAttachment` by column name, not ordinal index.
-    /// Safe against column reordering from `SELECT *` and future `addColumnIfMissing` additions.
-    private func readRow(_ stmt: OpaquePointer?) -> IndexedAttachment {
-        // Build name → index map from the statement's column metadata.
+    /// Builds a column-name-to-index map from a prepared statement's metadata.
+    /// Call once per query (before the row loop), not once per row.
+    private func buildColumnMap(_ stmt: OpaquePointer?) -> [String: Int32] {
         var col: [String: Int32] = [:]
         let count = sqlite3_column_count(stmt)
         for i in 0..<count {
@@ -585,7 +587,12 @@ actor AttachmentDatabase {
                 col[String(cString: namePtr)] = i
             }
         }
+        return col
+    }
 
+    /// Maps a result row to `IndexedAttachment` by column name, not ordinal index.
+    /// Safe against column reordering from `SELECT *` and future `addColumnIfMissing` additions.
+    private func readRow(_ stmt: OpaquePointer?, columns col: [String: Int32]) -> IndexedAttachment {
         func text(_ name: String) -> String? {
             guard let idx = col[name] else { return nil }
             return columnText(stmt, idx)
