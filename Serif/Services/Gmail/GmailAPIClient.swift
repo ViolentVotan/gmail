@@ -334,6 +334,12 @@ final class GmailAPIClient {
                 let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
                 try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
                 continue
+            case 403:
+                if let body = String(data: data, encoding: .utf8) {
+                    if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
+                    if body.contains("domainPolicy") { throw .domainPolicy }
+                }
+                throw .httpError(http.statusCode, data)
             default:
                 if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
                     let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
@@ -410,6 +416,12 @@ final class GmailAPIClient {
                 let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
                 try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
                 continue
+            case 403:
+                if let body = String(data: data, encoding: .utf8) {
+                    if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
+                    if body.contains("domainPolicy") { throw .domainPolicy }
+                }
+                throw .httpError(http.statusCode, data)
             default:
                 if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
                     let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
@@ -441,6 +453,9 @@ final class GmailAPIClient {
                 if let endRange = afterID.range(of: ">") {
                     contentID = String(afterID[..<endRange.lowerBound])
                 }
+            }
+            if contentID.hasPrefix("response-") {
+                contentID = String(contentID.dropFirst(9))
             }
 
             // Find the HTTP response line and body
@@ -643,6 +658,12 @@ final class GmailAPIClient {
                 let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
                 try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
                 continue
+            case 403:
+                if let body = String(data: data, encoding: .utf8) {
+                    if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
+                    if body.contains("domainPolicy") { throw .domainPolicy }
+                }
+                throw .httpError(http.statusCode, data)
             default:
                 if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
                     let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
@@ -670,6 +691,8 @@ enum GmailAPIError: Error, LocalizedError {
     case partialFailure(failedCount: Int)
     case networkError(Error)
     case attachmentReadFailed([String])
+    case dailyLimitExceeded
+    case domainPolicy
 
     var errorDescription: String? {
         switch self {
@@ -682,6 +705,8 @@ enum GmailAPIError: Error, LocalizedError {
         case .partialFailure(let count):       return "Failed to delete \(count) messages"
         case .networkError(let e):             return "Network error: \(e.localizedDescription)"
         case .attachmentReadFailed(let names): return "Could not read attachments: \(names.joined(separator: ", "))"
+        case .dailyLimitExceeded:              return "Gmail daily API limit exceeded — try again tomorrow"
+        case .domainPolicy:                    return "Blocked by domain policy — contact your administrator"
         }
     }
 
