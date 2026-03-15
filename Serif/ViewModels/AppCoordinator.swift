@@ -311,6 +311,8 @@ final class AppCoordinator {
         }
         // Trigger sync engine to check for new messages immediately
         await syncEngine?.triggerIncrementalSync()
+        // Classify visible emails with Apple Intelligence (deduped via tagCache + DB)
+        await EmailClassifier.shared.classifyBatch(mailboxViewModel.emails, db: mailDatabase)
     }
 
     // MARK: - Lifecycle Handlers

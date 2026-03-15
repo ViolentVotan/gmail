@@ -3,9 +3,11 @@ import Foundation
 import FoundationModels
 #endif
 import GRDB
+private import os
 
 @MainActor
 final class EmailClassifier {
+    nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "EmailClassifier")
     static let shared = EmailClassifier()
     private init() {}
 
@@ -60,7 +62,7 @@ final class EmailClassifier {
                         }
                     }
                 } catch {
-                    print("[EmailClassifier] Failed to classify \(msgId): \(error)")
+                    Self.logger.error("Failed to classify \(msgId): \(error)")
                     continue
                 }
             }
