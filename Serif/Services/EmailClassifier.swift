@@ -18,7 +18,10 @@ final class EmailClassifier {
     func classifyBatch(_ emails: [Email], db: MailDatabase? = nil) async {
         #if canImport(FoundationModels)
         guard SystemLanguageModel.default.availability == .available else { return }
+        let instructions = Instructions("Classify this email with boolean tags.")
+        let session = LanguageModelSession(instructions: instructions)
         for email in emails.prefix(10) {
+            guard !Task.isCancelled else { return }
             guard let msgId = email.gmailMessageID, tagCache[msgId] == nil else { continue }
             do {
                 // Check DB for persisted tags before invoking the model
@@ -34,8 +37,6 @@ final class EmailClassifier {
                         continue
                     }
                 }
-                let instructions = Instructions("Classify this email with boolean tags.")
-                let session = LanguageModelSession(instructions: instructions)
                 let body = String(email.body.cleanedForAI().prefix(5000))
                 let prompt = "Subject: \(email.subject)\nFrom: \(email.sender.name)\n\n\(body)"
                 let result = try await session.respond(to: prompt, generating: GeneratedEmailTags.self)

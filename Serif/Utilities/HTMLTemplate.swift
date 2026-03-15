@@ -170,6 +170,12 @@ enum HTMLTemplate {
             with: "blocked:",
             options: [.regularExpression, .caseInsensitive]
         )
+        // Remove data:text/html URIs which can execute scripts
+        result = result.replacingOccurrences(
+            of: "data\\s*:\\s*text/html",
+            with: "blocked:",
+            options: [.regularExpression, .caseInsensitive]
+        )
         // Remove event handler attributes (on*=)
         // Use [\\s\\S]*? instead of .*? so newlines inside quoted values are matched.
         result = result.replacingOccurrences(

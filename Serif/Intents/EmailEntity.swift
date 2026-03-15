@@ -79,7 +79,7 @@ struct EmailEntityQuery: EntityStringQuery {
         for account in accounts {
             guard let db = try? MailDatabase.shared(for: account.id) else { continue }
             let records = try? await db.dbPool.read { database in
-                try MailDatabaseQueries.messagesForLabel("INBOX", limit: 200, in: database)
+                try MailDatabaseQueries.messagesForLabel(GmailSystemLabel.inbox, limit: 200, in: database)
             }
             guard let records else { continue }
             for record in records {

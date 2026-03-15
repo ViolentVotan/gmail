@@ -11,7 +11,7 @@ macOS Gmail client built with Swift/SwiftUI. `NavigationSplitView` 3-column layo
 | `Models/` | Data models and local stores |
 | `Services/` | Network, auth, business logic, background sync |
 | `Theme/` | Appearance management (system/light/dark) |
-| `Utilities/` | Pure helper functions (no state, no side effects) |
+| `Utilities/` | Pure helper functions (no state, no side effects); also `PerAccountFileStore` — a generic stateful per-account JSON persistence base |
 | `ViewModels/` | State management layer between Services and Views |
 | `Views/` | SwiftUI views (UI only) |
 | `Resources/` | Assets, fonts, static files |

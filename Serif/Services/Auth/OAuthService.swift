@@ -156,11 +156,31 @@ final class OAuthService: NSObject {
             .map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0.value)" }
             .joined(separator: "&")
             .data(using: .utf8)
-        let (data, response) = try await URLSession.shared.data(for: request)
-        if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
-            throw OAuthError.httpError(http.statusCode, data)
+
+        let maxAttempts = 3
+        var lastError: Error?
+        for attempt in 0..<maxAttempts {
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                    // Do not retry 4xx errors — they indicate a permanent client-side failure.
+                    guard http.statusCode >= 500 else { throw OAuthError.httpError(http.statusCode, data) }
+                    lastError = OAuthError.httpError(http.statusCode, data)
+                } else {
+                    return try JSONDecoder().decode(T.self, from: data)
+                }
+            } catch let error as OAuthError {
+                throw error
+            } catch {
+                // Network error — eligible for retry.
+                lastError = error
+            }
+            if attempt < maxAttempts - 1 {
+                let delay = pow(2.0, Double(attempt))
+                try? await Task.sleep(for: .seconds(delay))
+            }
         }
-        return try JSONDecoder().decode(T.self, from: data)
+        throw lastError ?? OAuthError.httpError(0, Data())
     }
 }
 

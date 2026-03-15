@@ -141,31 +141,7 @@ final class MailStore {
 
     /// Converts a Gmail draft + message into a read-only Email for display.
     private static func makeEmailFromGmailDraft(draft: GmailDraft, message: GmailMessage) -> Email {
-        let msgLabelIDs = message.labelIds ?? []
-        return Email(
-            id:             GmailDataTransformer.deterministicUUID(from: draft.id),
-            sender:         GmailDataTransformer.parseContact(message.from),
-            recipients:     GmailDataTransformer.parseContacts(message.to),
-            cc:             GmailDataTransformer.parseContacts(message.cc),
-            subject:        message.subject,
-            body:           message.body,
-            preview:        message.snippet ?? "",
-            date:           message.date ?? Date(),
-            isRead:         true,
-            isStarred:      message.isStarred,
-            hasAttachments: !message.attachmentParts.isEmpty,
-            attachments:    message.attachmentParts.map { GmailDataTransformer.makeAttachment(from: $0, messageId: message.id) },
-            folder:         .drafts,
-            labels:         [],
-            isDraft:             true,
-            isGmailDraft:        true,
-            gmailDraftID:        draft.id,
-            gmailMessageID:      message.id,
-            gmailThreadID:       message.threadId,
-            gmailLabelIDs:       msgLabelIDs,
-            isFromMailingList:   false,
-            unsubscribeURL:      nil
-        )
+        GmailDataTransformer.makeEmail(from: message, isDraft: true, draftID: draft.id)
     }
 
     // MARK: - Drafts
@@ -185,23 +161,21 @@ final class MailStore {
     }
 
     func updateDraft(id: UUID, subject: String, body: String, to: String, cc: String) {
-
         // Try local drafts first, then Gmail drafts
         if let index = emails.firstIndex(where: { $0.id == id }) {
-            emails[index].subject    = subject.isEmpty ? "(No subject)" : subject
-            emails[index].body       = body
-            emails[index].preview    = body.isEmpty ? "New draft" : String(body.strippingHTML.prefix(120))
-            emails[index].date       = Date()
-            emails[index].recipients = to.isEmpty ? [] : GmailDataTransformer.parseContacts(to)
-            emails[index].cc         = cc.isEmpty ? [] : GmailDataTransformer.parseContacts(cc)
+            applyDraftFields(&emails[index], subject: subject, body: body, to: to, cc: cc)
         } else if let index = gmailDrafts.firstIndex(where: { $0.id == id }) {
-            gmailDrafts[index].subject    = subject.isEmpty ? "(No subject)" : subject
-            gmailDrafts[index].body       = body
-            gmailDrafts[index].preview    = body.isEmpty ? "New draft" : String(body.strippingHTML.prefix(120))
-            gmailDrafts[index].date       = Date()
-            gmailDrafts[index].recipients = to.isEmpty ? [] : GmailDataTransformer.parseContacts(to)
-            gmailDrafts[index].cc         = cc.isEmpty ? [] : GmailDataTransformer.parseContacts(cc)
+            applyDraftFields(&gmailDrafts[index], subject: subject, body: body, to: to, cc: cc)
         }
+    }
+
+    private func applyDraftFields(_ email: inout Email, subject: String, body: String, to: String, cc: String) {
+        email.subject    = subject.isEmpty ? "(No subject)" : subject
+        email.body       = body
+        email.preview    = body.isEmpty ? "New draft" : String(body.strippingHTML.prefix(120))
+        email.date       = Date()
+        email.recipients = to.isEmpty ? [] : GmailDataTransformer.parseContacts(to)
+        email.cc         = cc.isEmpty ? [] : GmailDataTransformer.parseContacts(cc)
     }
 
     /// Persists the Gmail draft ID on the local Email so it survives ComposeView destruction.

@@ -818,7 +818,7 @@ enum RetryPolicy {
         }
         let base = pow(2.0, Double(attempt))
         let jitter = Double.random(in: 0...(base * 0.5))
-        return min(base + jitter, 32.0)
+        return min(base + jitter, 64.0)
     }
 }
 

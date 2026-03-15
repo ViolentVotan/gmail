@@ -41,7 +41,7 @@ final class BIMIService {
         return result
     }
 
-    private func resolveBIMI(for domain: String) async -> String? {
+    @concurrent private func resolveBIMI(for domain: String) async -> String? {
         let name = "default._bimi.\(domain)"
         guard let encoded = name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
               let url = URL(string: "https://cloudflare-dns.com/dns-query?name=\(encoded)&type=TXT")

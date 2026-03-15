@@ -1,40 +1,57 @@
 import Foundation
 private import os
 
+/// Legacy on-disk format (version 1). Kept only for migration.
+private struct LegacyOfflineQueueFileContents: Codable, Sendable {
+    var version: Int = 1
+    var actions: [OfflineAction] = []
+}
+
 @Observable
 @MainActor
 final class OfflineActionQueue {
     static let shared = OfflineActionQueue()
     nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "OfflineQueue")
+
+    private let store = PerAccountFileStore<OfflineAction>(
+        fileURL: { accountID in
+            FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("com.vikingz.serif.app/offline-queue/\(accountID).json")
+        },
+        legacyDecoder: { data in
+            guard let contents = try? JSONDecoder().decode(LegacyOfflineQueueFileContents.self, from: data) else {
+                return nil
+            }
+            return contents.actions
+        }
+    )
+
     private init() {}
 
-    private(set) var pendingActions: [OfflineAction] = []
     private(set) var isDraining = false
     private var retryDelay: TimeInterval = 2.0
     private var retryTask: Task<Void, Never>?
     private var drainTask: Task<Void, Never>?
 
+    /// Flat view of all pending actions across all accounts.
+    var pendingActions: [OfflineAction] {
+        store.allItems
+    }
+
     var pendingCount: Int { pendingActions.count }
 
     func enqueue(_ action: OfflineAction) {
-        pendingActions.append(action)
-        save(accountID: action.accountID)
+        store.append(action, accountID: action.accountID)
+        store.save(accountID: action.accountID)
     }
 
     /// Removes all pending actions for the given account and deletes its on-disk JSON file.
     func deleteAccount(_ accountID: String) {
-        pendingActions.removeAll { $0.accountID == accountID }
-        let url = fileURL(for: accountID)
-        try? FileManager.default.removeItem(at: url)
+        store.deleteAccount(accountID)
     }
 
     func load(accountID: String) {
-        let url = fileURL(for: accountID)
-        guard let data = try? Data(contentsOf: url),
-              let contents = try? JSONDecoder().decode(OfflineQueueFileContents.self, from: data) else { return }
-        let existingIds = Set(pendingActions.filter { $0.accountID == accountID }.map { $0.id })
-        let newFromDisk = contents.actions.filter { !existingIds.contains($0.id) }
-        pendingActions.append(contentsOf: newFromDisk)
+        store.loadMerging(accountID: accountID)
     }
 
     func startDraining() {
@@ -53,13 +70,11 @@ final class OfflineActionQueue {
             while let action = pendingActions.first {
                 do {
                     try await executeAction(action)
-                    pendingActions.removeFirst()
-                    save(accountID: action.accountID)
+                    removeAction(action)
                     succeeded += 1
                 } catch {
                     if case .httpError(404, _) = error as? GmailAPIError {
-                        pendingActions.removeFirst()
-                        save(accountID: action.accountID)
+                        removeAction(action)
                     } else {
                         Self.logger.warning("Drain error: \(error.localizedDescription, privacy: .public), retrying in \(self.retryDelay)s")
                         hitError = true
@@ -88,54 +103,106 @@ final class OfflineActionQueue {
         }
     }
 
+    // MARK: - Execution
+
     private func executeAction(_ action: OfflineAction) async throws {
-        // Work through messageIds sequentially. After each success, prune that ID
-        // from the persisted action so a retry won't re-execute already-completed work.
+        switch action.actionType {
+        case .trash:
+            // Trash uses a per-message API endpoint — must loop sequentially.
+            try await executeSequentially(action)
+        case .archive:
+            try await GmailMessageService.shared.batchModifyLabels(
+                ids: action.messageIds,
+                add: [],
+                remove: [GmailSystemLabel.inbox],
+                accountID: action.accountID
+            )
+        case .markRead:
+            try await GmailMessageService.shared.batchModifyLabels(
+                ids: action.messageIds,
+                add: [],
+                remove: [GmailSystemLabel.unread],
+                accountID: action.accountID
+            )
+        case .markUnread:
+            try await GmailMessageService.shared.batchModifyLabels(
+                ids: action.messageIds,
+                add: [GmailSystemLabel.unread],
+                remove: [],
+                accountID: action.accountID
+            )
+        case .star:
+            try await GmailMessageService.shared.batchModifyLabels(
+                ids: action.messageIds,
+                add: [GmailSystemLabel.starred],
+                remove: [],
+                accountID: action.accountID
+            )
+        case .unstar:
+            try await GmailMessageService.shared.batchModifyLabels(
+                ids: action.messageIds,
+                add: [],
+                remove: [GmailSystemLabel.starred],
+                accountID: action.accountID
+            )
+        case .addLabel:
+            guard let labelId = action.metadata["labelId"] else {
+                Self.logger.warning("addLabel action missing labelId — skipping")
+                return
+            }
+            try await GmailMessageService.shared.batchModifyLabels(
+                ids: action.messageIds,
+                add: [labelId],
+                remove: [],
+                accountID: action.accountID
+            )
+        case .removeLabel:
+            guard let labelId = action.metadata["labelId"] else {
+                Self.logger.warning("removeLabel action missing labelId — skipping")
+                return
+            }
+            try await GmailMessageService.shared.batchModifyLabels(
+                ids: action.messageIds,
+                add: [],
+                remove: [labelId],
+                accountID: action.accountID
+            )
+        case .spam:
+            try await GmailMessageService.shared.batchModifyLabels(
+                ids: action.messageIds,
+                add: [GmailSystemLabel.spam],
+                remove: [GmailSystemLabel.inbox],
+                accountID: action.accountID
+            )
+        }
+    }
+
+    /// Sequential per-message execution for actions that don't support batchModify
+    /// (e.g. trash). Prunes completed message IDs so retries skip finished work.
+    private func executeSequentially(_ action: OfflineAction) async throws {
         var remainingIds = action.messageIds
         for msgId in action.messageIds {
-            switch action.actionType {
-            case .archive:
-                try await GmailMessageService.shared.archiveMessage(id: msgId, accountID: action.accountID)
-            case .trash:
-                try await GmailMessageService.shared.trashMessage(id: msgId, accountID: action.accountID)
-            case .star:
-                try await GmailMessageService.shared.setStarred(true, id: msgId, accountID: action.accountID)
-            case .unstar:
-                try await GmailMessageService.shared.setStarred(false, id: msgId, accountID: action.accountID)
-            case .markRead:
-                try await GmailMessageService.shared.markAsRead(id: msgId, accountID: action.accountID)
-            case .markUnread:
-                try await GmailMessageService.shared.markAsUnread(id: msgId, accountID: action.accountID)
-            case .addLabel:
-                guard let labelId = action.metadata["labelId"] else {
-                    Self.logger.warning("addLabel action missing labelId — skipping message \(msgId, privacy: .public)")
-                    remainingIds.removeAll { $0 == msgId }
-                    persistRemainingIds(remainingIds, for: action)
-                    continue
-                }
-                try await GmailMessageService.shared.modifyLabels(id: msgId, add: [labelId], remove: [], accountID: action.accountID)
-            case .removeLabel:
-                guard let labelId = action.metadata["labelId"] else {
-                    Self.logger.warning("removeLabel action missing labelId — skipping message \(msgId, privacy: .public)")
-                    remainingIds.removeAll { $0 == msgId }
-                    persistRemainingIds(remainingIds, for: action)
-                    continue
-                }
-                try await GmailMessageService.shared.modifyLabels(id: msgId, add: [], remove: [labelId], accountID: action.accountID)
-            case .spam:
-                try await GmailMessageService.shared.spamMessage(id: msgId, accountID: action.accountID)
-            }
-            // Message succeeded — prune it so a retry skips it.
+            try await GmailMessageService.shared.trashMessage(id: msgId, accountID: action.accountID)
             remainingIds.removeAll { $0 == msgId }
             persistRemainingIds(remainingIds, for: action)
         }
     }
 
+    // MARK: - Internal Helpers
+
+    /// Removes a completed action from the store and persists.
+    private func removeAction(_ action: OfflineAction) {
+        store.removeAll(accountID: action.accountID) { $0.id == action.id }
+        store.save(accountID: action.accountID)
+    }
+
     /// Replaces the in-memory action with an updated copy holding only `remainingIds`,
     /// ensuring retries do not re-execute already-completed messages.
     private func persistRemainingIds(_ remainingIds: [String], for action: OfflineAction) {
-        guard let idx = pendingActions.indices.first(where: { pendingActions[$0].id == action.id }) else { return }
-        pendingActions[idx] = OfflineAction(
+        let accountID = action.accountID
+        guard var accountItems = store.itemsByAccount[accountID],
+              let idx = accountItems.firstIndex(where: { $0.id == action.id }) else { return }
+        accountItems[idx] = OfflineAction(
             id: action.id,
             actionType: action.actionType,
             messageIds: remainingIds,
@@ -143,23 +210,7 @@ final class OfflineActionQueue {
             timestamp: action.timestamp,
             metadata: action.metadata
         )
-        save(accountID: action.accountID)
+        store.replaceItems(accountItems, accountID: accountID)
+        store.save(accountID: accountID)
     }
-
-    private func save(accountID: String) {
-        let url = fileURL(for: accountID)
-        let contents = OfflineQueueFileContents(version: 1, actions: pendingActions.filter { $0.accountID == accountID })
-        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? JSONEncoder().encode(contents).write(to: url, options: .atomic)
-    }
-
-    private func fileURL(for accountID: String) -> URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("com.vikingz.serif.app/offline-queue/\(accountID).json")
-    }
-}
-
-private struct OfflineQueueFileContents: Codable {
-    var version: Int = 1
-    var actions: [OfflineAction] = []
 }

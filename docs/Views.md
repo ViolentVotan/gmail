@@ -14,7 +14,7 @@ SwiftUI views. UI presentation only — no business logic.
 - **Animations belong in views**, not in ViewModels or Services.
 - **Property wrappers**: `@State` for owning `@Observable` objects (not `@StateObject`). `@Bindable` for write access to bindings on `@Observable` objects (not `@ObservedObject`). `@Environment` with `@Entry` macro for custom environment keys.
 - **onChange syntax**: use `onChange(of:) { oldValue, newValue in }` (two-parameter closure).
-- **`WKNavigationDelegate` / `WKUIDelegate` coordinators** (`WebRichTextEditorCoordinator`, `InAppBrowserView.Coordinator`, `SearchBarView.Coordinator`) are marked `final` — do not subclass them.
+- **`WKNavigationDelegate` / `WKUIDelegate` coordinators** (`WebRichTextEditorCoordinator`, `SearchBarView.Coordinator`) are marked `final` — do not subclass them.
 - **ContentView** routes quick-reply and attachment download through `AppCoordinator` (`handleQuickReply`, `downloadAttachment`) rather than handling them inline.
 
 ## Subfolders

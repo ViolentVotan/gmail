@@ -282,7 +282,7 @@ final class MailboxViewModel {
                     let placeholders = categoryIds.map { _ in "?" }.joined(separator: ",")
                     let rows = try Row.fetchAll(database, sql: """
                         SELECT ml2.label_id, COUNT(*) AS cnt FROM messages m
-                        JOIN message_labels ml1 ON ml1.message_id = m.gmail_id AND ml1.label_id = 'INBOX'
+                        JOIN message_labels ml1 ON ml1.message_id = m.gmail_id AND ml1.label_id = '\(GmailSystemLabel.inbox)'
                         JOIN message_labels ml2 ON ml2.message_id = m.gmail_id
                         WHERE m.is_read = 0 AND ml2.label_id IN (\(placeholders))
                         GROUP BY ml2.label_id
@@ -294,7 +294,7 @@ final class MailboxViewModel {
                             result[cat] = count
                         }
                     }
-                    result[.all] = try MailDatabaseQueries.unreadCount(forLabel: "INBOX", in: database)
+                    result[.all] = try MailDatabaseQueries.unreadCount(forLabel: GmailSystemLabel.inbox, in: database)
                     return result
                 }
                 categoryUnreadCounts = counts
@@ -467,6 +467,11 @@ final class MailboxViewModel {
                 )
                 try database.execute(
                     sql: "DELETE FROM message_labels WHERE message_id = ?",
+                    arguments: [messageID]
+                )
+                // No labels → message is read and not starred
+                try database.execute(
+                    sql: "UPDATE messages SET is_read = 1, is_starred = 0 WHERE gmail_id = ?",
                     arguments: [messageID]
                 )
                 return currentLabels
@@ -695,28 +700,7 @@ final class MailboxViewModel {
                 textColor: label.resolvedTextColor
             )
         }
-        return Email(
-            id:             GmailDataTransformer.deterministicUUID(from: message.id),
-            sender:         GmailDataTransformer.parseContact(message.from),
-            recipients:     GmailDataTransformer.parseContacts(message.to),
-            cc:             GmailDataTransformer.parseContacts(message.cc),
-            subject:        message.subject,
-            body:           message.body,
-            preview:        message.snippet ?? "",
-            date:           message.date ?? Date(),
-            isRead:         !message.isUnread,
-            isStarred:      message.isStarred,
-            hasAttachments: !message.attachmentParts.isEmpty,
-            attachments:    message.attachmentParts.map { GmailDataTransformer.makeAttachment(from: $0, messageId: message.id) },
-            folder:         GmailDataTransformer.folderFor(labelIDs: msgLabelIDs),
-            labels:         emailLabels,
-            isDraft:             message.isDraft,
-            gmailMessageID:      message.id,
-            gmailThreadID:       message.threadId,
-            gmailLabelIDs:       msgLabelIDs,
-            isFromMailingList:   message.isFromMailingList,
-            unsubscribeURL:      message.unsubscribeURL
-        )
+        return GmailDataTransformer.makeEmail(from: message, labels: emailLabels)
     }
 
     // MARK: - Private helpers

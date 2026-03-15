@@ -21,7 +21,7 @@ final class ToastManager {
     static let shared = ToastManager()
     private init() {}
 
-    var currentToast: ToastMessage?
+    private(set) var currentToast: ToastMessage?
     private var dismissTask: Task<Void, Never>?
 
     func show(message: String, type: ToastType = .info, duration: Double = 3.5) {

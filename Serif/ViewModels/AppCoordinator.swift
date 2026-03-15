@@ -24,6 +24,7 @@ final class AppCoordinator {
     private var lifecycleTask: Task<Void, Never>?
     private var markReadTask: Task<Void, Never>?
     private var navigationTask: Task<Void, Never>?
+    private var contactsTask: Task<Void, Never>?
     private var cachedSnoozedEmails: [Email] = []
     private var cachedScheduledEmails: [Email] = []
 
@@ -43,7 +44,8 @@ final class AppCoordinator {
     func loadContacts() {
         guard !accountID.isEmpty else { return }
         let id = accountID
-        Task {
+        contactsTask?.cancel()
+        contactsTask = Task {
             let result = (try? await MailDatabase.shared(for: id).dbPool.read { db in
                 try MailDatabaseQueries.allContacts(in: db).map {
                     StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
@@ -92,24 +94,19 @@ final class AppCoordinator {
         selectedAccountID ?? authViewModel.primaryAccount?.id ?? ""
     }
 
-    private(set) var displayedEmails: [Email] = []
-
-    func recomputeDisplayedEmails() {
+    var displayedEmails: [Email] {
         if selectedFolder == .drafts {
-            displayedEmails = mailStore.emails(for: .drafts)
+            mailStore.emails(for: .drafts)
         } else if selectedFolder == .subscriptions {
-            displayedEmails = SubscriptionsStore.shared.entries
+            SubscriptionsStore.shared.entries
         } else if selectedFolder == .snoozed {
-            displayedEmails = cachedSnoozedEmails
+            cachedSnoozedEmails
         } else if selectedFolder == .scheduled {
-            displayedEmails = cachedScheduledEmails
+            cachedScheduledEmails
+        } else if mailboxViewModel.priorityFilterEnabled {
+            mailboxViewModel.emails.filter { $0.gmailLabelIDs.contains(GmailSystemLabel.important) }
         } else {
-            let base = mailboxViewModel.emails
-            if mailboxViewModel.priorityFilterEnabled {
-                displayedEmails = base.filter { $0.gmailLabelIDs.contains(GmailSystemLabel.important) }
-            } else {
-                displayedEmails = base
-            }
+            mailboxViewModel.emails
         }
     }
 
@@ -143,7 +140,6 @@ final class AppCoordinator {
                 gmailLabelIDs: item.originalLabelIds
             )
         }
-        recomputeDisplayedEmails()
     }
 
     private func refreshScheduledCache() {
@@ -159,7 +155,6 @@ final class AppCoordinator {
                 isDraft: true
             )
         }
-        recomputeDisplayedEmails()
     }
 
     // MARK: - Actions
@@ -331,7 +326,6 @@ final class AppCoordinator {
                 await mailboxViewModel.loadFolder(labelIDs: [], query: query)
             }
         }
-        recomputeDisplayedEmails()
         // Trigger sync engine to check for new messages immediately
         await syncEngine?.triggerIncrementalSync()
         // Classify visible emails with Apple Intelligence (deduped via tagCache + DB)
@@ -411,7 +405,6 @@ final class AppCoordinator {
         selectedEmailIDs = []
         searchResetTrigger += 1
         if folder != .labels { selectedLabel = nil }
-        recomputeDisplayedEmails()
         lifecycleTask?.cancel()
         if folder == .subscriptions {
             SubscriptionsStore.shared.analyze(mailboxViewModel.emails)
@@ -480,13 +473,14 @@ final class AppCoordinator {
         ScheduledSendStore.shared.load(accountID: id)
         OfflineActionQueue.shared.load(accountID: id)
         loadContacts()
-        recomputeDisplayedEmails()
+        // Capture the old engine before cancelling, so stop is guaranteed
+        // even if a third account switch cancels this task later
+        let oldEngine = syncEngine
+        syncEngine = nil
         lifecycleTask?.cancel()
         lifecycleTask = Task {
+            await oldEngine?.stop()
             await attachmentStore.refresh()
-            // Stop old sync engine
-            await syncEngine?.stop()
-            syncEngine = nil
             guard !Task.isCancelled, self.selectedAccountID == id else { return }
             syncProgressManager.reset()
             await mailboxViewModel.switchAccount(id)

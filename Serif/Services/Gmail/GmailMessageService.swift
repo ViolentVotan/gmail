@@ -123,6 +123,7 @@ final class GmailMessageService {
         try await client.request(
             path: "/users/me/messages/\(id)/trash",
             method: "POST",
+            fields: "id,threadId,labelIds",
             accountID: accountID
         )
     }
@@ -140,6 +141,7 @@ final class GmailMessageService {
         try await client.request(
             path: "/users/me/messages/\(id)/untrash",
             method: "POST",
+            fields: "id,threadId,labelIds",
             accountID: accountID
         )
     }
@@ -168,6 +170,7 @@ final class GmailMessageService {
         return try await client.request(
             path: "/users/me/messages/\(id)/modify",
             method: "POST", body: body, contentType: "application/json",
+            fields: "id,threadId,labelIds",
             accountID: accountID
         )
     }

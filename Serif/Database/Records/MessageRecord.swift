@@ -48,18 +48,9 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord 
         self.snippet = gmail.snippet
         self.sizeEstimate = gmail.sizeEstimate
         self.subject = gmail.subject
-        let fromHeader = gmail.from
-        // Parse "Name <email>" format
-        if let open = fromHeader.lastIndex(of: "<"), let close = fromHeader.lastIndex(of: ">") {
-            self.senderEmail = String(fromHeader[fromHeader.index(after: open)..<close])
-                .trimmingCharacters(in: .whitespaces)
-            self.senderName = String(fromHeader[fromHeader.startIndex..<open])
-                .trimmingCharacters(in: .whitespaces)
-                .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-        } else {
-            self.senderEmail = fromHeader.trimmingCharacters(in: .whitespaces)
-            self.senderName = nil
-        }
+        let parsedSender = GmailDataTransformer.parseContactCore(gmail.from)
+        self.senderEmail = parsedSender.email
+        self.senderName = parsedSender.name == parsedSender.email ? nil : parsedSender.name
         self.toRecipients = Self.encodeRecipients(gmail.to)
         self.ccRecipients = Self.encodeRecipients(gmail.cc)
         self.bccRecipients = nil // BCC only available for sent messages via raw format
@@ -70,8 +61,8 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord 
         self.bodyPlain = gmail.plainBody
         self.rawHeaders = Self.encodeHeaders(gmail.payload?.headers)
         self.hasAttachments = gmail.attachmentParts.count > 0
-        self.isRead = !(gmail.labelIds?.contains("UNREAD") ?? false)
-        self.isStarred = gmail.labelIds?.contains("STARRED") ?? false
+        self.isRead = !(gmail.labelIds?.contains(GmailSystemLabel.unread) ?? false)
+        self.isStarred = gmail.labelIds?.contains(GmailSystemLabel.starred) ?? false
         self.isFromMailingList = gmail.isFromMailingList
         self.unsubscribeUrl = gmail.unsubscribeURL?.absoluteString
         self.fullBodyFetched = gmail.htmlBody != nil || gmail.plainBody != nil
@@ -145,7 +136,7 @@ extension MessageRecord {
         let systemLabelIds = labels.compactMap { $0.type == "system" ? $0.gmailId : nil }
         let folder = GmailDataTransformer.folderFor(labelIDs: systemLabelIds)
 
-        let isDraft = systemLabelIds.contains("DRAFT")
+        let isDraft = systemLabelIds.contains(GmailSystemLabel.draft)
         let gmailLabelIDs = labels.map { $0.gmailId }
 
         let attachmentModels = attachments.map { record in
@@ -205,8 +196,8 @@ extension MessageRecord {
 extension MessageRecord {
     func toGmailMessage() -> GmailMessage {
         var labelIds: [String] = []
-        if !isRead { labelIds.append("UNREAD") }
-        if isStarred { labelIds.append("STARRED") }
+        if !isRead { labelIds.append(GmailSystemLabel.unread) }
+        if isStarred { labelIds.append(GmailSystemLabel.starred) }
 
         return GmailMessage(
             id: gmailId,

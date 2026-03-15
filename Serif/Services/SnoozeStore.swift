@@ -31,7 +31,8 @@ struct SnoozedItem: Codable, Identifiable, Sendable {
     }
 }
 
-private struct SnoozeFileContents: Codable {
+/// Legacy on-disk format (version 1). Kept only for migration.
+private struct LegacySnoozeFileContents: Codable, Sendable {
     var version: Int = 1
     var items: [SnoozedItem] = []
 }
@@ -40,58 +41,54 @@ private struct SnoozeFileContents: Codable {
 @MainActor
 final class SnoozeStore {
     static let shared = SnoozeStore()
-    private init() {}
 
-    /// Per-account storage keyed by accountID. Eliminates cross-account bleed
-    /// and makes load(accountID:) atomic (a single dictionary assignment rather
-    /// than removeAll + append which is non-atomic under observation).
-    private var itemsByAccount: [String: [SnoozedItem]] = [:]
+    private let store = PerAccountFileStore<SnoozedItem>(
+        fileURL: { accountID in
+            FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("com.vikingz.serif.app/mail-cache/\(accountID)/snoozed.json")
+        },
+        legacyDecoder: { data in
+            guard let contents = try? JSONDecoder().decode(LegacySnoozeFileContents.self, from: data) else {
+                return nil
+            }
+            return contents.items
+        }
+    )
+
+    private init() {}
 
     /// Flat view of all items across all accounts. Preserves the public API
     /// shape that callers (e.g. AppCoordinator) depend on.
     var items: [SnoozedItem] {
-        itemsByAccount.values.flatMap { $0 }
+        store.allItems
     }
 
     func load(accountID: String) {
-        let url = fileURL(for: accountID)
-        guard let data = try? Data(contentsOf: url),
-              let contents = try? JSONDecoder().decode(SnoozeFileContents.self, from: data) else { return }
-        // Atomic replacement: a single dictionary write rather than removeAll + append
-        itemsByAccount[accountID] = contents.items.filter { $0.accountID == accountID }
+        store.load(accountID: accountID)
+        // Filter out items that don't match the account (legacy safety)
+        store.replaceItems(
+            (store.itemsByAccount[accountID] ?? []).filter { $0.accountID == accountID },
+            accountID: accountID
+        )
     }
 
     func add(_ item: SnoozedItem) {
-        itemsByAccount[item.accountID, default: []].append(item)
-        save(accountID: item.accountID)
+        store.append(item, accountID: item.accountID)
+        store.save(accountID: item.accountID)
     }
 
     func remove(messageId: String, accountID: String) {
-        itemsByAccount[accountID]?.removeAll { $0.messageId == messageId }
-        save(accountID: accountID)
+        store.removeAll(accountID: accountID) { $0.messageId == messageId }
+        store.save(accountID: accountID)
     }
 
     /// Removes all in-memory data and the on-disk JSON file for the given account.
     func deleteAccount(_ accountID: String) {
-        itemsByAccount.removeValue(forKey: accountID)
-        let url = fileURL(for: accountID)
-        try? FileManager.default.removeItem(at: url)
+        store.deleteAccount(accountID)
     }
 
     func expiredItems() -> [SnoozedItem] {
         let now = Date()
-        return itemsByAccount.values.flatMap { $0 }.filter { $0.snoozeUntil <= now }
-    }
-
-    private func save(accountID: String) {
-        let url = fileURL(for: accountID)
-        let contents = SnoozeFileContents(version: 1, items: itemsByAccount[accountID] ?? [])
-        try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        try? JSONEncoder().encode(contents).write(to: url, options: .atomic)
-    }
-
-    private func fileURL(for accountID: String) -> URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("com.vikingz.serif.app/mail-cache/\(accountID)/snoozed.json")
+        return store.allItems.filter { $0.snoozeUntil <= now }
     }
 }

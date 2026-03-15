@@ -56,21 +56,26 @@ final class AvatarCache {
         inFlightURLs.insert(url)
         defer { inFlightURLs.remove(url) }
 
+        let result = await fetchAndCache(url: url, fileURL: fileURL)
+        if let img = result {
+            memoryCache.setObject(img, forKey: key)
+        } else {
+            negativeCacheKeys.setObject(NSNull(), forKey: key)
+        }
+        return result
+    }
+
+    @concurrent private func fetchAndCache(url: URL, fileURL: URL) async -> NSImage? {
         guard let (data, response) = try? await URLSession.shared.data(from: url) else { return nil }
 
         let status = (response as? HTTPURLResponse)?.statusCode ?? 200
         guard status == 200, !data.isEmpty else {
             try? Data().write(to: fileURL, options: .atomic) // cache negative on disk
-            negativeCacheKeys.setObject(NSNull(), forKey: key)
             return nil
         }
 
         try? data.write(to: fileURL, options: .atomic)
-        if let img = NSImage(contentsOfFile: fileURL.path) {
-            memoryCache.setObject(img, forKey: key)
-            return img
-        }
-        return nil
+        return NSImage(contentsOfFile: fileURL.path)
     }
 
     /// Remove all cached avatar images from disk.

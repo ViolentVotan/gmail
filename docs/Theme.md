@@ -36,7 +36,7 @@ The UI follows a three-plane model:
 | `CornerRadius` | `xs` (4), `sm` (6), `md` (12), `lg` (16), `xl` (24) |
 | `ButtonSize` | `sm` (26), `md` (28), `lg` (30) |
 | `SerifAnimation` | `springDefault`, `springSnappy`, `springGentle` |
-| `Typography` | `titleLarge`, `title`, `titleSemibold`, `headline`, `headlineSemibold`, `subhead`, `subheadRegular`, `subheadSemibold`, `body`, `bodyMedium`, `bodySemibold`, `callout`, `calloutMedium`, `calloutSemibold`, `footnote`, `footnoteMedium`, `caption`, `captionRegular`, `captionSemibold`, `captionSmall`, `captionSmallMedium`, `captionSmallRegular`, `microTag` |
+| `Typography` | `titleLarge`, `title`, `headline`, `subhead`, `subheadRegular`, `subheadSemibold`, `body`, `bodyMedium`, `bodySemibold`, `callout`, `calloutMedium`, `calloutSemibold`, `footnote`, `caption`, `captionRegular`, `captionSemibold`, `captionSmall`, `captionSmallMedium`, `captionSmallRegular`, `microTag` |
 
 **View modifiers:**
 
@@ -44,8 +44,8 @@ The UI follows a three-plane model:
 |----------|--------|
 | `.elevation(.transient / .elevated)` | Shadow scale for spatial depth |
 | `.floatingPanelStyle()` | Liquid Glass + transient elevation for floating surfaces |
+| `.dropdownPanelStyle()` | Glass + separator border overlay + dual shadow for dropdown/popover panels |
 | `.glassOrMaterial(in:interactive:)` | Liquid Glass effect with optional interactive press feedback |
-| `.transientGlass()` | Glass + transient elevation for toast cards (macOS 26+ / material fallback) |
 | `.compactCardStyle()` | Compact Base-plane card (`Spacing.md`/`Spacing.sm` padding, `CornerRadius.sm`) for inline banners (tracker, insight) |
 | `.destructiveActionStyle()` | Red text on red 10% opacity background in rounded rect — for destructive folder actions |
 
