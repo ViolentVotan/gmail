@@ -24,7 +24,7 @@ Left column — `List(.sidebar)` with folder navigation, account switcher, label
 - `SyncBubbleView` — Transient liquid glass sync status bubble (driven by `SyncProgressManager`).
 
 ### `EmailList/`
-Middle column — email rows with native `.swipeActions()` (archive/delete), search, `.refreshable` pull-to-refresh, multi-select with bulk actions. Uses `List(selection:)` for row rendering. Date-based sort orders show section headers (Today, Yesterday, This Week, Last Week, month/year). Email rows merge Gmail labels and AI classification tags into a single capped badge row (max 2 visible + overflow count). `EmailRowView` uses a `nudgeText` computed property for "Received N days ago" hints.
+Middle column — email rows with native `.swipeActions()` (archive/delete), search, `.refreshable` pull-to-refresh, multi-select with bulk actions. Uses `List(selection:)` for row rendering. Date-based sort orders show section headers (Today, Yesterday, This Week, Last Week, month/year). Email rows merge Gmail labels and AI classification tags into a single capped badge row (max 2 visible + overflow count). `EmailRowView` caches `nudgeText` as a stored `let` in `init` for "Received N days ago" hints (avoids per-render Calendar computation).
 - `CategoryTabBar` — Horizontal tab bar for inbox category filtering (Primary, Social, Updates, etc.).
 - `EmailHoverSummaryView` — AI-generated summary tooltip on email row hover.
 - `EmailContextMenu` — Right-click context menu with reply, reply all, forward, archive, delete, star, snooze (uses `SnoozePreset.defaults()`), labels.
@@ -33,7 +33,7 @@ Middle column — email rows with native `.swipeActions()` (archive/delete), sea
 
 ### `EmailDetail/`
 Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView), attachments, sender info popover, tracker blocking UI, label picker.
-- `ReplyBarView` — Inline quick reply with To/Cc/Bcc fields, draft persistence, auto-save, discard confirmation, and smart reply chip support. Custom `init` for `@State` initialization. `.task(id: email.id)` resets `ComposeViewModel` and reloads quick replies on email change. Send success (toast + collapse) driven reactively via `.onChange(of: composeVM.isSent)`.
+- `ReplyBarView` — Inline quick reply with To/Cc/Bcc fields, draft persistence, auto-save, discard confirmation, and smart reply chip support. Custom `init` for `@State` initialization. `.task(id: email.id)` cancels `saveTask` and `loadDraftTask`, resets `ComposeViewModel`, and reloads quick replies on email change. Send success (toast + collapse) driven reactively via `.onChange(of: composeVM.isSent)`.
 - `DetailPaneView` — Contextual empty state (icon + message per folder). Uses `EmailDetailActions.contentActions` factory to build shared content-level actions.
 - `InsightCardView` — Apple Intelligence insight card (summary, action items, key dates) via Foundation Models.
 - `SmartReplyChipsView` — AI-generated reply suggestion chips below the thread (wired via `EmailDetailView`).
@@ -84,7 +84,7 @@ Shared reusable components:
 | `AccountsSettingsView` | Account management settings |
 | `SerifCommands` | macOS menu bar commands (File, Edit, View custom menus) |
 | `AttachmentChipRow` | Reusable horizontal attachment chip list (used in ComposeView and ReplyBarView) |
-| `SlidePanelsOverlay` | Overlay container for slide panels (help, debug, original message, attachment preview, email preview, web browser). Receives `mailDatabase` for detail views. Uses `EmailDetailActions.contentActions` factory and `FileUtils.saveWithPanel` for content-level actions. |
+| `SlidePanelsOverlay` | Overlay container for slide panels (help, debug, original message, attachment preview, email preview, web browser). Receives `mailDatabase` and `attachmentIndexer` for detail views. Uses `EmailDetailActions.contentActions` factory and `FileUtils.saveWithPanel` for content-level actions. |
 
 ### `Components/`
 Shared styled components:
