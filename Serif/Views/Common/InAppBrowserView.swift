@@ -156,7 +156,7 @@ private struct BrowserWebView: NSViewRepresentable {
         Coordinator(parent: self)
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate {
         let parent: BrowserWebView
         private var observation: NSKeyValueObservation?
 

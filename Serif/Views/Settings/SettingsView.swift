@@ -21,7 +21,19 @@ struct SettingsView: View {
             }
 
             Tab("Signatures", systemImage: "signature") {
-                SignaturesSettingsView(accountID: accountID)
+                SignaturesSettingsView(
+                    accountID: accountID,
+                    loadSendAs: { accountID in
+                        try await GmailProfileService.shared.listSendAs(accountID: accountID)
+                    },
+                    onUpdateSignature: { sendAsEmail, signature, accountID in
+                        try await GmailProfileService.shared.updateSignature(
+                            sendAsEmail: sendAsEmail,
+                            signature: signature,
+                            accountID: accountID
+                        )
+                    }
+                )
             }
 
             Tab("Filters", systemImage: "line.3.horizontal.decrease.circle") {

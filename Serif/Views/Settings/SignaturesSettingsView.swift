@@ -3,6 +3,7 @@ import SwiftUI
 struct SignaturesSettingsView: View {
     let accountID: String
     var loadSendAs: (String) async throws -> [GmailSendAs]
+    var onUpdateSignature: ((String, String, String) async throws -> GmailSendAs)?
 
     @State private var aliases: [GmailSendAs] = []
     @State private var isLoading = false
@@ -48,13 +49,7 @@ struct SignaturesSettingsView: View {
                         aliases[index] = updated
                     }
                 },
-                onUpdateSignature: { sendAsEmail, signature, accountID in
-                    try await GmailProfileService.shared.updateSignature(
-                        sendAsEmail: sendAsEmail,
-                        signature: signature,
-                        accountID: accountID
-                    )
-                }
+                onUpdateSignature: onUpdateSignature
             )
         }
     }

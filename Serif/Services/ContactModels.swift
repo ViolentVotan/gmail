@@ -1,5 +1,6 @@
 import Foundation
 import GRDB
+import Synchronization
 
 // MARK: - Stored Contact
 
@@ -28,24 +29,22 @@ final class ContactStore {
 // MARK: - Contact Photo Cache
 
 /// In-memory cache of email → Google profile photo URL, populated from People API at login.
-/// NSLock is safe here: all critical sections are synchronous (no suspension points inside lock).
-final class ContactPhotoCache: @unchecked Sendable {
+final class ContactPhotoCache: Sendable {
     static let shared = ContactPhotoCache()
     private init() {}
 
-    private let lock = NSLock()
-    private var cache: [String: String] = [:]
+    private let storage = Mutex<[String: String]>([:])
 
     func set(_ url: String, for email: String) {
-        lock.withLock { cache[email.lowercased()] = url }
+        storage.withLock { $0[email.lowercased()] = url }
     }
 
     func get(_ email: String) -> String? {
-        lock.withLock { cache[email.lowercased()] }
+        storage.withLock { $0[email.lowercased()] }
     }
 
     func remove(_ email: String) {
-        lock.withLock { _ = cache.removeValue(forKey: email.lowercased()) }
+        storage.withLock { _ = $0.removeValue(forKey: email.lowercased()) }
     }
 }
 

@@ -476,7 +476,7 @@ actor FullSyncEngine {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1800)) // 30 minutes
                 guard !Task.isCancelled else { return }
-                await PeopleAPIService.shared.refreshContacts(accountID: accountID)
+                await PeopleAPIService.shared.refreshContacts(accountID: accountID, syncer: syncer)
             }
         }
     }

@@ -80,9 +80,25 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         await MainActor.run {
             switch actionIdentifier {
             case "ARCHIVE":
-                Task { try? await GmailMessageService.shared.archiveMessage(id: messageId, accountID: accountID) }
+                Task {
+                    do {
+                        try await GmailMessageService.shared.archiveMessage(id: messageId, accountID: accountID)
+                    } catch {
+                        await OfflineActionQueue.shared.enqueue(
+                            OfflineAction(actionType: .archive, messageIds: [messageId], accountID: accountID)
+                        )
+                    }
+                }
             case "MARK_READ":
-                Task { try? await GmailMessageService.shared.markAsRead(id: messageId, accountID: accountID) }
+                Task {
+                    do {
+                        try await GmailMessageService.shared.markAsRead(id: messageId, accountID: accountID)
+                    } catch {
+                        await OfflineActionQueue.shared.enqueue(
+                            OfflineAction(actionType: .markRead, messageIds: [messageId], accountID: accountID)
+                        )
+                    }
+                }
             case "REPLY":
                 if let text = replyText {
                     NotificationCenter.default.post(

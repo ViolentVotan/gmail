@@ -1,6 +1,6 @@
 import Foundation
 
-struct InlineImageAttachment {
+struct InlineImageAttachment: Sendable {
     let contentID: String
     let data: Data
     let mimeType: String

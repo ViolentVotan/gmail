@@ -75,7 +75,7 @@ struct NonAutoFocusTextField: NSViewRepresentable {
         Coordinator(self)
     }
 
-    class Coordinator: NSObject, NSTextFieldDelegate {
+    final class Coordinator: NSObject, NSTextFieldDelegate {
         let parent: NonAutoFocusTextField
         init(_ parent: NonAutoFocusTextField) { self.parent = parent }
 

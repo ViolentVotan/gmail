@@ -98,7 +98,7 @@ actor AttachmentIndexer {
             if let onProgress = onProgressUpdate {
                 await onProgress()
             }
-            try? await Task.sleep(nanoseconds: monitor.recommendedDelay(base: 200_000_000))
+            try? await Task.sleep(for: monitor.recommendedDelay(base: .milliseconds(200)))
             pending = await db.pendingAttachments(limit: maxConcurrent, accountID: acctID)
         }
     }
@@ -244,7 +244,7 @@ actor AttachmentIndexer {
                         totalDiscovered += messages.count
                         await registerFromFullMessages(messages: messages)
                         if chunkStart + chunkSize < toScan.count {
-                            try await Task.sleep(nanoseconds: monitor.recommendedDelay(base: 300_000_000))
+                            try await Task.sleep(for: monitor.recommendedDelay(base: .milliseconds(300)))
                         }
                     }
                     Self.logger.info("Scanned page: \(totalDiscovered, privacy: .public) messages with attachments (total scanned: \(totalScanned, privacy: .public))")
@@ -255,7 +255,7 @@ actor AttachmentIndexer {
 
                 // Pace between pages — hard gate + adaptive delay
                 await monitor.throttleIfNeeded()
-                try await Task.sleep(nanoseconds: monitor.recommendedDelay(base: 500_000_000))
+                try await Task.sleep(for: monitor.recommendedDelay(base: .milliseconds(500)))
 
             } while pageToken != nil && totalScanned < scanLimit && !reachedCutoff
 

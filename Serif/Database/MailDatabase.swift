@@ -1,5 +1,6 @@
 import Foundation
 import GRDB
+import Synchronization
 
 /// Per-account SQLite database using GRDB DatabasePool (WAL mode).
 /// Each account has its own database file for isolation.
@@ -52,12 +53,9 @@ final class MailDatabase: Sendable {
     }
 
     /// Deletes the database file and WAL/SHM files.
-    /// Acquires `instanceLock`, closes and removes any cached shared instance, then
-    /// deletes the on-disk SQLite, WAL, and SHM files.
+    /// Removes any cached shared instance, then deletes the on-disk SQLite, WAL, and SHM files.
     static func deleteDatabase(accountID: String, baseDirectory: URL? = nil) {
-        instanceLock.lock()
-        let existing = sharedInstances.removeValue(forKey: accountID)
-        instanceLock.unlock()
+        let existing = instances.withLock { $0.removeValue(forKey: accountID) }
         existing?.close()
 
         let dir = baseDirectory ?? defaultBaseDirectory
@@ -69,19 +67,16 @@ final class MailDatabase: Sendable {
 
     // MARK: - Shared Instance Cache
 
-    private nonisolated(unsafe) static var sharedInstances: [String: MailDatabase] = [:]
-    private static let instanceLock = NSLock()
+    private static let instances = Mutex<[String: MailDatabase]>([:])
 
     /// Returns a cached `MailDatabase` for the given account, creating one if needed.
     /// Avoids opening redundant `DatabasePool` connections across Intents and extensions.
     static func shared(for accountID: String) throws -> MailDatabase {
-        instanceLock.lock()
-        defer { instanceLock.unlock() }
-        if let existing = sharedInstances[accountID] {
-            return existing
+        try instances.withLock { cache in
+            if let existing = cache[accountID] { return existing }
+            let db = try MailDatabase(accountID: accountID)
+            cache[accountID] = db
+            return db
         }
-        let db = try MailDatabase(accountID: accountID)
-        sharedInstances[accountID] = db
-        return db
     }
 }

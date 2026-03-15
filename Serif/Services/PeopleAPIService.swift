@@ -23,7 +23,8 @@ final class PeopleAPIService {
             }
             return
         }
-        await fetchAndStoreContacts(accountID: accountID)
+        guard let mailDB = try? MailDatabase.shared(for: accountID) else { return }
+        await fetchAndStoreContacts(accountID: accountID, syncer: BackgroundSyncer(db: mailDB))
     }
 
     /// Forces a network refresh of contacts, replacing the local cache.
@@ -236,24 +237,22 @@ final class PeopleAPIService {
             print("[Serif] Other Contacts fetch error: \(error)")
         }
 
-        // Deduplicate by email and persist to GRDB
+        // Deduplicate by email and persist to GRDB via the caller-supplied syncer.
         var seen = Set<String>()
         let unique = allContacts.filter { seen.insert($0.email).inserted }
-        if let mailDB {
-            let syncer = BackgroundSyncer(db: mailDB)
-            // Delete contacts that were removed during incremental sync
-            if !deletedEmails.isEmpty {
-                try? await syncer.deleteContacts(emails: Array(deletedEmails))
-            }
-            let tuples = unique.map { (email: $0.email, name: Optional($0.name), photoUrl: $0.photoURL, source: "people_api", resourceName: nil as String?) }
-            try? await syncer.upsertContacts(tuples)
+        // Delete contacts that were removed during incremental sync
+        if !deletedEmails.isEmpty {
+            try? await syncer.deleteContacts(emails: Array(deletedEmails))
         }
+        let tuples = unique.map { (email: $0.email, name: Optional($0.name), photoUrl: $0.photoURL, source: "people_api", resourceName: nil as String?) }
+        try? await syncer.upsertContacts(tuples)
         print("[Serif] Total unique contacts stored: \(unique.count)")
     }
 
     /// Fetches Google Workspace directory contacts (domain profiles + contacts).
     /// Gracefully skips if the directory.readonly scope isn't granted (403).
-    private func fetchDirectoryPeople(accountID: String) async {
+    /// The caller supplies `syncer` so writes are serialized through the same actor used by the sync engine.
+    private func fetchDirectoryPeople(accountID: String, syncer: BackgroundSyncer) async {
         let mailDB = try? MailDatabase.shared(for: accountID)
 
         do {
@@ -318,9 +317,8 @@ final class PeopleAPIService {
                 }
             }
 
-            // Upsert directory contacts
-            if let mailDB, !directoryContacts.isEmpty {
-                let syncer = BackgroundSyncer(db: mailDB)
+            // Upsert directory contacts via the caller-supplied syncer.
+            if !directoryContacts.isEmpty {
                 let tuples = directoryContacts.map {
                     (email: $0.email, name: Optional($0.name), photoUrl: $0.photoURL, source: "directory", resourceName: nil as String?)
                 }
