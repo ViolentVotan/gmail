@@ -20,7 +20,7 @@ SwiftUI views. UI presentation only — no business logic.
 ## Subfolders
 
 ### `Sidebar/`
-Left column — `List(.sidebar)` with folder navigation, account switcher, labels. Context menu for label rename/delete. Gets Liquid Glass treatment automatically from NavigationSplitView. `SidebarView` and `AccountSwitcherView` accept `onSignOut` callback threaded from `ContentView`. `AccountSwitcherView` context menu includes "Set as Default" and "Accent Color" palette.
+Left column — `List(.sidebar)` with folder navigation, account switcher, labels. Context menu for label rename/delete. Gets Liquid Glass treatment automatically from NavigationSplitView. `SidebarView` and `AccountSwitcherView` accept `onSignOut` callback threaded from `ContentView`. `AccountSwitcherView` uses closure-based callbacks (`onSetAsDefault`, `onSetAccentColor`) wired from `SidebarView` — no direct `AccountStore` access.
 - `SyncBubbleView` — Transient liquid glass sync status bubble (driven by `SyncProgressManager`).
 
 ### `EmailList/`
@@ -38,7 +38,7 @@ Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView), at
 - `InsightCardView` — Apple Intelligence insight card (summary, action items, key dates) via Foundation Models.
 - `SmartReplyChipsView` — AI-generated reply suggestion chips below the thread (wired via `EmailDetailView`).
 - `LabelEditorView` — Label picker with AI-suggested labels and manual search. Uses `precomputed` tuple property to avoid redundant linear scans per render.
-- `ThreadMessageCardView` — Individual message card with quote stripping toggle, sender info.
+- `ThreadMessageCardView` — Individual message card with quote stripping toggle, click-to-show sender info popover (`.onTapGesture`, `.pointerStyle(.link)`).
 - `GmailThreadMessageView` — Utility enum for HTML computation and quote stripping.
 - `AttachmentChipView` — Individual attachment display with preview/download buttons.
 - `AttachmentPreviewView` — Full-screen attachment preview (images, PDFs, zoom, download). Caches decoded `NSImage` via `@State private var decodedImage` + `.task(id: data)` to avoid repeated decoding.
@@ -55,8 +55,8 @@ Email composer — `ComposeView` for the full compose form with rich text editor
 Attachment explorer with grid view, thumbnails, file type filtering, and search.
 
 ### `Settings/`
-Tabbed settings view (Accounts, General, Signatures, Filters, Advanced) registered as a macOS `Settings` scene — opens via Cmd+,. `SettingsView` receives `accountID`, `AppearanceManager` via `@Bindable`, and closures (`onReauthorize`, `loadSendAs`, `updateSignature`) from `SerifApp`. Uses `@AppStorage` for other settings (notifications, undo duration, directory contacts sync).
-- `AccountsSettingsView` — Account management: reorder (drag + up/down buttons), set default, accent color picker from palette. Reads from `AccountStore.shared`. Context menu with "Set as Default" and accent color submenu.
+Tabbed settings view (Accounts, General, Signatures, Filters, Advanced) registered as a macOS `Settings` scene — opens via Cmd+,. `SettingsView` uses `@AppStorage("com.vikingz.serif.selectedAccountID")` for reactive account ID (updates when user switches accounts), `AppearanceManager` via `@Bindable`, and closures (`onReauthorize`, `loadSendAs`, `updateSignature`) from `SerifApp`. Uses `@AppStorage` for other settings (notifications, undo duration, directory contacts sync).
+- `AccountsSettingsView` — Account management: reorder (drag + up/down buttons), set default, accent color picker from palette. Refreshes from `AccountStore.shared` on appear. Context menu with "Set as Default" and accent color submenu.
 - `SignaturesSettingsView` — Signature management per send-as alias. Takes explicit `loadSendAs` and `onUpdateSignature` closures.
 - `FiltersSettingsView` — Gmail filter list with create/edit/delete actions.
 - `FilterEditorView` — Filter rule editor (criteria + actions) for creating/editing Gmail filters.
@@ -81,11 +81,11 @@ Shared reusable components:
 | `UnifiedToastLayer` | Consolidated toast system (undo, offline, general) with priority ordering |
 | `CommandPaletteView` | ⌘K command palette with fuzzy search and keyboard navigation |
 | `SnoozePickerView` | Snooze date/time picker with preset options. Defines `SnoozePreset` model struct; uses `SnoozePreset.defaults()` for the preset list. |
-| `DebugMenuView` | API logs, cache controls |
+| `DebugMenuView` | API logs, cache controls. Uses file-private `DebugViewModel` wrapper (no direct `AttachmentDatabase` access). |
 | `ShortcutsHelpView` | Keyboard shortcuts reference |
 | `SerifCommands` | macOS menu bar commands (File, Edit, View custom menus) |
 | `AttachmentChipRow` | Reusable horizontal attachment chip list (used in ComposeView and ReplyBarView) |
-| `SlidePanelsOverlay` | Overlay container for slide panels (help, debug, original message, attachment preview, email preview, web browser). Receives `mailDatabase` and `attachmentIndexer` for detail views. Preview actions (`onToggleStar`, `onMarkUnread`) are closures routed through `AppCoordinator` → `EmailActionCoordinator` for optimistic UI + offline support. Uses `EmailDetailActions.contentActions` factory and `FileUtils.saveWithPanel` for content-level actions. |
+| `SlidePanelsOverlay` | Overlay container for slide panels (help, debug, original message, attachment preview, email preview, web browser). Receives `mailDatabase` and `attachmentIndexer` for detail views. Preview actions (`onToggleStar`, `onMarkUnread`, `onMessagesRead`) are closures routed through `AppCoordinator` → `EmailActionCoordinator`/`MailboxViewModel` for optimistic UI + offline support. Uses `EmailDetailActions.contentActions` factory and `FileUtils.saveWithPanel` for content-level actions. |
 
 ### `Components/`
 Shared styled components:
@@ -101,7 +101,8 @@ Shared styled components:
 | File | Role |
 |------|------|
 | `EmailEntity.swift` | `AppEntity` + `IndexedEntity` representing an email for Shortcuts / Spotlight |
-| `OpenEmailIntent.swift` | Opens an email in Serif by message ID |
+| `OpenEmailIntent.swift` | Opens an email in Serif by message ID (resolves account via `IntentHelpers`) |
 | `ComposeEmailIntent.swift` | Opens a new compose window with optional pre-filled fields |
 | `SearchEmailIntent.swift` | Searches emails by query string |
-| `MarkAsReadIntent.swift` | Marks an email as read (resolves account via cache scanning) |
+| `IntentHelpers.swift` | Shared helper: `findOwnerAccount(for:)` scans all account DBs to find the owner of a message ID |
+| `MarkAsReadIntent.swift` | Marks an email as read (resolves account via `IntentHelpers`) |

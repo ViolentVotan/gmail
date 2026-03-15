@@ -7,6 +7,8 @@ struct AccountSwitcherView: View {
     let onSignIn: () async -> Void
     let isSigningIn: Bool
     var onSignOut: ((GmailAccount) -> Void)?
+    var onSetAsDefault: ((String) -> Void)?
+    var onSetAccentColor: ((String, String) -> Void)?
     var onExpandSidebar: (() -> Void)?
 
     private var selectedAccount: GmailAccount? {
@@ -39,13 +41,13 @@ struct AccountSwitcherView: View {
                     Divider()
                     if index != 0 {
                         Button("Set as Default") {
-                            AccountStore.shared.setAsDefault(id: account.id)
+                            onSetAsDefault?(account.id)
                         }
                     }
                     Menu("Accent Color") {
                         ForEach(AccountStore.accentPalette, id: \.self) { hex in
                             Button {
-                                AccountStore.shared.setAccentColor(id: account.id, hex: hex)
+                                onSetAccentColor?(account.id, hex)
                             } label: {
                                 HStack {
                                     Image(systemName: "circle.fill")

@@ -18,22 +18,18 @@ enum InlineImageProcessor {
     /// extracts the base64 data, replaces with `<img src="cid:...">`.
     static func extractInlineImages(from html: String) -> (html: String, images: [InlineImageAttachment]) {
         var images: [InlineImageAttachment] = []
-        var result = html
-
+        let nsHTML = html as NSString
+        let mutable = NSMutableString(string: html)
         let regex = Self.inlineImageRegex
-        let matches = regex.matches(in: html, range: NSRange(html.startIndex..., in: html))
+        let matches = regex.matches(in: html, range: NSRange(location: 0, length: nsHTML.length))
 
-        // Process in reverse to keep string indices stable
+        // Process in reverse so NSRange offsets remain valid after each replacement
         for match in matches.reversed() {
-            guard match.numberOfRanges >= 4,
-                  let fullRange = Range(match.range, in: html),
-                  let mimeRange = Range(match.range(at: 1), in: html),
-                  let base64Range = Range(match.range(at: 2), in: html),
-                  let cidRange = Range(match.range(at: 3), in: html) else { continue }
+            guard match.numberOfRanges >= 4 else { continue }
 
-            let mimeType = String(html[mimeRange])
-            let base64Str = String(html[base64Range])
-            let cid = String(html[cidRange])
+            let mimeType = nsHTML.substring(with: match.range(at: 1))
+            let base64Str = nsHTML.substring(with: match.range(at: 2))
+            let cid = nsHTML.substring(with: match.range(at: 3))
 
             guard let data = Data(base64Encoded: base64Str, options: .ignoreUnknownCharacters) else { continue }
 
@@ -46,17 +42,9 @@ enum InlineImageProcessor {
             ), at: 0)
 
             let replacement = "<img src=\"cid:\(cid)\">"
-            result = result.replacingCharacters(in: fullRange, with: replacement)
+            mutable.replaceCharacters(in: match.range, with: replacement)
         }
 
-        return (result, images)
-    }
-}
-
-private extension String {
-    func replacingCharacters(in range: Range<String.Index>, with replacement: String) -> String {
-        var copy = self
-        copy.replaceSubrange(range, with: replacement)
-        return copy
+        return (mutable as String, images)
     }
 }

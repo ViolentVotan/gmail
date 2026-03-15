@@ -1,17 +1,31 @@
 import SwiftUI
 
+/// File-private VM that wraps AttachmentDatabase calls so the view
+/// doesn't reference the service singleton directly.
+@Observable @MainActor
+private final class DebugViewModel {
+    private(set) var indexingStats = IndexingStats()
+    private(set) var unsupportedTypes: [(mimeType: String, count: Int)] = []
+
+    func refreshIndexingStats(accountID: String) async {
+        let raw = await AttachmentDatabase.shared.stats(accountID: accountID)
+        indexingStats = IndexingStats(
+            total: raw.total,
+            indexed: raw.indexed,
+            pending: raw.pending,
+            failed: raw.failed
+        )
+        unsupportedTypes = await AttachmentDatabase.shared.unsupportedMimeTypes(accountID: accountID)
+    }
+}
+
 struct DebugMenuView: View {
     let accountID: String
 
-    init(accountID: String) {
-        self.accountID = accountID
-    }
-
     @AppStorage("isSignedIn") private var isSignedIn: Bool = false
     private let logger = APILogger.shared
+    @State private var viewModel = DebugViewModel()
     @State private var expandedEntryID: UUID?
-    @State private var indexingStats = IndexingStats()
-    @State private var unsupportedTypes: [(mimeType: String, count: Int)] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -19,14 +33,14 @@ struct DebugMenuView: View {
             // MARK: - Attachment Indexer
             debugSection(title: "Attachment Indexer") {
                 VStack(alignment: .leading, spacing: 6) {
-                    indexerStatRow("Total", value: indexingStats.total, color: .primary)
-                    indexerStatRow("Indexed", value: indexingStats.indexed, color: .secondary)
-                    indexerStatRow("Pending", value: indexingStats.pending, color: .blue)
-                    indexerStatRow("Failed", value: indexingStats.failed, color: .red)
+                    indexerStatRow("Total", value: viewModel.indexingStats.total, color: .primary)
+                    indexerStatRow("Indexed", value: viewModel.indexingStats.indexed, color: .secondary)
+                    indexerStatRow("Pending", value: viewModel.indexingStats.pending, color: .blue)
+                    indexerStatRow("Failed", value: viewModel.indexingStats.failed, color: .red)
 
-                    if indexingStats.total > 0 {
-                        let progress = indexingStats.total > 0
-                            ? Double(indexingStats.indexed) / Double(indexingStats.total)
+                    if viewModel.indexingStats.total > 0 {
+                        let progress = viewModel.indexingStats.total > 0
+                            ? Double(viewModel.indexingStats.indexed) / Double(viewModel.indexingStats.total)
                             : 0
                         ProgressView(value: progress)
                             .tint(.accentColor)
@@ -34,13 +48,13 @@ struct DebugMenuView: View {
                             .padding(.horizontal, 12)
                     }
 
-                    if !unsupportedTypes.isEmpty {
+                    if !viewModel.unsupportedTypes.isEmpty {
                         Divider().padding(.horizontal, 12).padding(.vertical, 4)
                         Text("Unsupported MIME types")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(.tertiary)
                             .padding(.horizontal, 12)
-                        ForEach(unsupportedTypes, id: \.mimeType) { entry in
+                        ForEach(viewModel.unsupportedTypes, id: \.mimeType) { entry in
                             HStack {
                                 Text(entry.mimeType)
                                     .font(.caption.monospaced())
@@ -57,7 +71,7 @@ struct DebugMenuView: View {
                 .padding(.vertical, 4)
 
                 debugButton(icon: "arrow.clockwise", label: "Refresh Stats") {
-                    Task { await refreshIndexingStats() }
+                    Task { await viewModel.refreshIndexingStats(accountID: accountID) }
                 }
             }
 
@@ -98,7 +112,7 @@ struct DebugMenuView: View {
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)
         .task {
-            await refreshIndexingStats()
+            await viewModel.refreshIndexingStats(accountID: accountID)
         }
     }
 
@@ -115,17 +129,6 @@ struct DebugMenuView: View {
                 .foregroundStyle(color)
         }
         .padding(.horizontal, 12)
-    }
-
-    private func refreshIndexingStats() async {
-        let raw = await AttachmentDatabase.shared.stats(accountID: accountID)
-        indexingStats = IndexingStats(
-            total: raw.total,
-            indexed: raw.indexed,
-            pending: raw.pending,
-            failed: raw.failed
-        )
-        unsupportedTypes = await AttachmentDatabase.shared.unsupportedMimeTypes(accountID: accountID)
     }
 
     // MARK: - Log Entry Row

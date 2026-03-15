@@ -61,7 +61,7 @@ struct Email: Identifiable, Sendable {
         self.cc = cc
         self.subject = subject
         self.body = body
-        self.preview = preview.isEmpty ? String(body.prefix(120)) : Self.decodeHTMLEntities(preview)
+        self.preview = preview.isEmpty ? String(body.prefix(120)) : preview.decodingHTMLEntities()
         self.date = date
         self.isRead = isRead
         self.isStarred = isStarred
@@ -81,10 +81,6 @@ struct Email: Identifiable, Sendable {
         self.tags = tags
     }
 
-    /// Decodes HTML entities (e.g. `&#39;` → `'`, `&amp;` → `&`) from Gmail snippets.
-    private static func decodeHTMLEntities(_ string: String) -> String {
-        return string.decodingHTMLEntities()
-    }
 }
 
 // MARK: - Equatable (identity + UI-relevant mutable fields; excludes expensive body/headers)

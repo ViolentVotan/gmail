@@ -32,6 +32,7 @@ final class GmailLabelService {
     @concurrent func getLabel(id: String, accountID: String) async throws(GmailAPIError) -> GmailLabel {
         return try await client.request(
             path: "/users/me/labels/\(id)",
+            fields: "id,name,type,messagesTotal,messagesUnread,threadsTotal,threadsUnread,color",
             accountID: accountID
         )
     }

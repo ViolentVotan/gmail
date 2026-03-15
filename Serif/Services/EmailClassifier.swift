@@ -11,9 +11,7 @@ final class EmailClassifier {
     static let shared = EmailClassifier()
     private init() {}
 
-    private var tagCache: [String: EmailTags] = [:]
-    /// Tracks key access order for LRU eviction (oldest first).
-    private var accessOrder: [String] = []
+    private let tagCache = LRUCache<String, EmailTags>(maxSize: 500)
 
     func classifyBatch(_ emails: [Email], db: MailDatabase? = nil) async {
         #if canImport(FoundationModels)
@@ -45,16 +43,6 @@ final class EmailClassifier {
                     hasDeadline: result.content.hasDeadline, financial: result.content.financial
                 )
                 tagCache[msgId] = tags
-                accessOrder.removeAll { $0 == msgId }
-                accessOrder.append(msgId)
-                if tagCache.count > 500 {
-                    let removeCount = tagCache.count / 4
-                    let keysToRemove = accessOrder.prefix(removeCount)
-                    for key in keysToRemove {
-                        tagCache.removeValue(forKey: key)
-                    }
-                    accessOrder.removeFirst(keysToRemove.count)
-                }
                 // Write to DB
                 if let db {
                     try? await db.dbPool.write { database in

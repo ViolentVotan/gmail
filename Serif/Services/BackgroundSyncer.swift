@@ -26,74 +26,11 @@ actor BackgroundSyncer {
 
             var affectedThreadIds = Set<String>()
 
-            // Batch existence check: single query instead of one SELECT per message
-            let allIds = gmailMessages.map { $0.id }
-            let idPlaceholders = allIds.map { _ in "?" }.joined(separator: ",")
-            let existingIds = try Set(String.fetchAll(db, sql:
-                "SELECT gmail_id FROM messages WHERE gmail_id IN (\(idPlaceholders))",
-                arguments: StatementArguments(allIds)
-            ))
-
             for gmail in gmailMessages {
-                let record = MessageRecord(from: gmail)
-                let existed = existingIds.contains(record.gmailId)
-
-                try record.upsert(db)
-                affectedThreadIds.insert(record.threadId)
-
-                // Replace message_labels for this message
-                try db.execute(
-                    sql: "DELETE FROM message_labels WHERE message_id = ?",
-                    arguments: [record.gmailId]
-                )
-                for labelId in gmail.labelIds ?? [] {
-                    // Ensure custom label exists (placeholder only — preserves synced metadata)
-                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).insert(db, onConflict: .ignore)
-                    try MessageLabelRecord(messageId: record.gmailId, labelId: labelId).insert(db)
-                }
-
-                // Attachments: replace existing records for this message
-                try db.execute(
-                    sql: "DELETE FROM attachments WHERE message_id = ?",
-                    arguments: [record.gmailId]
-                )
-                for part in gmail.attachmentParts {
-                    guard let attachmentId = part.body?.attachmentId else { continue }
-                    let attachment = AttachmentRecord(
-                        id: "\(record.gmailId)_\(attachmentId)",
-                        messageId: record.gmailId,
-                        gmailAttachmentId: attachmentId,
-                        filename: part.filename,
-                        mimeType: part.mimeType,
-                        fileType: part.filename.map { ($0 as NSString).pathExtension },
-                        size: part.body?.size,
-                        contentId: part.contentID,
-                        direction: nil,
-                        indexingStatus: "pending",
-                        extractedText: nil,
-                        indexedAt: nil,
-                        retryCount: 0
-                    )
-                    try attachment.upsert(db)
-                }
-
-                // FTS: index or update
-                if existed {
-                    try FTSManager.update(message: record, in: db)
-                } else {
-                    try FTSManager.index(message: record, in: db)
-                }
+                try Self.upsertSingleMessage(gmail, in: db, affectedThreadIds: &affectedThreadIds)
             }
 
-            // Update thread message counts for all affected threads in one statement
-            if !affectedThreadIds.isEmpty {
-                let threadPlaceholders = affectedThreadIds.map { _ in "?" }.joined(separator: ",")
-                try db.execute(sql: """
-                    UPDATE messages SET thread_message_count = (
-                        SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = messages.thread_id
-                    ) WHERE thread_id IN (\(threadPlaceholders))
-                """, arguments: StatementArguments(Array(affectedThreadIds)))
-            }
+            try Self.updateThreadCounts(for: affectedThreadIds, in: db)
         }
     }
 
@@ -105,24 +42,16 @@ actor BackgroundSyncer {
         try await db.dbPool.write { db in
             // Collect thread IDs before deletion so we can update counts afterward
             let placeholders = gmailIds.map { _ in "?" }.joined(separator: ",")
-            let affectedThreadIds = try String.fetchAll(db, sql:
+            let affectedThreadIds = try Set(String.fetchAll(db, sql:
                 "SELECT DISTINCT thread_id FROM messages WHERE gmail_id IN (\(placeholders))",
                 arguments: StatementArguments(gmailIds)
-            )
+            ))
             for id in gmailIds {
                 try FTSManager.delete(gmailId: id, in: db)
             }
             // CASCADE handles message_labels, email_tags, attachments
             try MessageRecord.deleteAll(db, keys: gmailIds)
-            // Update thread counts for remaining messages in one statement
-            if !affectedThreadIds.isEmpty {
-                let threadPlaceholders = affectedThreadIds.map { _ in "?" }.joined(separator: ",")
-                try db.execute(sql: """
-                    UPDATE messages SET thread_message_count = (
-                        SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = messages.thread_id
-                    ) WHERE thread_id IN (\(threadPlaceholders))
-                """, arguments: StatementArguments(affectedThreadIds))
-            }
+            try Self.updateThreadCounts(for: affectedThreadIds, in: db)
         }
     }
 
@@ -183,45 +112,7 @@ actor BackgroundSyncer {
 
             // Insert new messages
             for gmail in newMessages {
-                let record = MessageRecord(from: gmail)
-                let existed = try MessageRecord.exists(db, key: record.gmailId)
-                try record.upsert(db)
-                affectedThreadIds.insert(record.threadId)
-                try db.execute(sql: "DELETE FROM message_labels WHERE message_id = ?", arguments: [record.gmailId])
-                for labelId in gmail.labelIds ?? [] {
-                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).insert(db, onConflict: .ignore)
-                    try MessageLabelRecord(messageId: record.gmailId, labelId: labelId).insert(db)
-                }
-                // Attachments: replace existing records for this message
-                try db.execute(
-                    sql: "DELETE FROM attachments WHERE message_id = ?",
-                    arguments: [record.gmailId]
-                )
-                for part in gmail.attachmentParts {
-                    guard let attachmentId = part.body?.attachmentId else { continue }
-                    let attachment = AttachmentRecord(
-                        id: "\(record.gmailId)_\(attachmentId)",
-                        messageId: record.gmailId,
-                        gmailAttachmentId: attachmentId,
-                        filename: part.filename,
-                        mimeType: part.mimeType,
-                        fileType: part.filename.map { ($0 as NSString).pathExtension },
-                        size: part.body?.size,
-                        contentId: part.contentID,
-                        direction: nil,
-                        indexingStatus: "pending",
-                        extractedText: nil,
-                        indexedAt: nil,
-                        retryCount: 0
-                    )
-                    try attachment.upsert(db)
-                }
-
-                if existed {
-                    try FTSManager.update(message: record, in: db)
-                } else {
-                    try FTSManager.index(message: record, in: db)
-                }
+                try Self.upsertSingleMessage(gmail, in: db, affectedThreadIds: &affectedThreadIds)
             }
 
             // Update labels on existing messages
@@ -243,15 +134,7 @@ actor BackgroundSyncer {
                 """, arguments: [isRead, isStarred, update.gmailId])
             }
 
-            // Update thread message counts for all affected threads in one statement
-            if !affectedThreadIds.isEmpty {
-                let threadPlaceholders = affectedThreadIds.map { _ in "?" }.joined(separator: ",")
-                try db.execute(sql: """
-                    UPDATE messages SET thread_message_count = (
-                        SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = messages.thread_id
-                    ) WHERE thread_id IN (\(threadPlaceholders))
-                """, arguments: StatementArguments(Array(affectedThreadIds)))
-            }
+            try Self.updateThreadCounts(for: affectedThreadIds, in: db)
         }
     }
 
@@ -279,6 +162,72 @@ actor BackgroundSyncer {
         _ = try await db.dbPool.write { db in
             try ContactRecord.filter(emails.map { $0.lowercased() }.contains(Column("email"))).deleteAll(db)
         }
+    }
+
+    // MARK: - Private Helpers
+
+    /// Upsert a single message: record, labels, attachments, FTS.
+    /// Uses `FTSManager.update` unconditionally (DELETE + INSERT) to avoid FTS5 duplicate rows
+    /// when the same gmailId appears multiple times in a batch.
+    private static func upsertSingleMessage(
+        _ gmail: GmailMessage,
+        in db: Database,
+        affectedThreadIds: inout Set<String>
+    ) throws {
+        let record = MessageRecord(from: gmail)
+        try record.upsert(db)
+        affectedThreadIds.insert(record.threadId)
+
+        // Replace message_labels for this message
+        try db.execute(
+            sql: "DELETE FROM message_labels WHERE message_id = ?",
+            arguments: [record.gmailId]
+        )
+        for labelId in gmail.labelIds ?? [] {
+            try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil)
+                .insert(db, onConflict: .ignore)
+            try MessageLabelRecord(messageId: record.gmailId, labelId: labelId).insert(db)
+        }
+
+        // Attachments: replace existing records for this message
+        try db.execute(
+            sql: "DELETE FROM attachments WHERE message_id = ?",
+            arguments: [record.gmailId]
+        )
+        for part in gmail.attachmentParts {
+            guard let attachmentId = part.body?.attachmentId else { continue }
+            let attachment = AttachmentRecord(
+                id: "\(record.gmailId)_\(attachmentId)",
+                messageId: record.gmailId,
+                gmailAttachmentId: attachmentId,
+                filename: part.filename,
+                mimeType: part.mimeType,
+                fileType: part.filename.map { ($0 as NSString).pathExtension },
+                size: part.body?.size,
+                contentId: part.contentID,
+                direction: nil,
+                indexingStatus: "pending",
+                extractedText: nil,
+                indexedAt: nil,
+                retryCount: 0
+            )
+            try attachment.upsert(db)
+        }
+
+        // FTS: always use update (DELETE + INSERT) — safe for new rows since DELETE on
+        // non-existent FTS row is a no-op, and avoids duplicates from batch duplicates.
+        try FTSManager.update(message: record, in: db)
+    }
+
+    /// Update thread_message_count for all messages belonging to the given threads.
+    private static func updateThreadCounts(for threadIds: Set<String>, in db: Database) throws {
+        guard !threadIds.isEmpty else { return }
+        let placeholders = threadIds.map { _ in "?" }.joined(separator: ",")
+        try db.execute(sql: """
+            UPDATE messages SET thread_message_count = (
+                SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = messages.thread_id
+            ) WHERE thread_id IN (\(placeholders))
+        """, arguments: StatementArguments(Array(threadIds)))
     }
 
 }

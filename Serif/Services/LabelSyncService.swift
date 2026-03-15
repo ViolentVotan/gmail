@@ -1,27 +1,36 @@
 import Foundation
 
 /// Handles label loading, sendAs aliases, and category unread counts.
+/// Uses ETag-based caching to avoid redundant API responses (304 Not Modified).
 @MainActor
 final class LabelSyncService {
     static let shared = LabelSyncService()
     private init() {}
 
-    /// Loads labels from the API.
-    /// Returns the labels and an optional error message.
+    /// Cached ETag for label list requests — enables 304 Not Modified responses.
+    private var labelsETag: String?
+
+    /// Loads labels from the API with ETag caching.
+    /// Returns cached labels on 304 Not Modified, fresh labels on 200.
     func loadLabels(
         accountID: String,
         currentLabels: [GmailLabel]
     ) async -> (labels: [GmailLabel], error: String?) {
-        var labels = currentLabels
         do {
-            let fresh = try await GmailLabelService.shared.listLabels(accountID: accountID)
-            labels = fresh
-            return (labels, nil)
-        } catch {
-            if labels.isEmpty {
-                return (labels, error.localizedDescription)
+            let result = try await GmailLabelService.shared.listLabels(
+                etag: labelsETag, accountID: accountID
+            )
+            guard let (fresh, responseETag) = result else {
+                // 304 Not Modified — return cached labels
+                return (currentLabels, nil)
             }
-            return (labels, nil)
+            labelsETag = responseETag
+            return (fresh, nil)
+        } catch {
+            if currentLabels.isEmpty {
+                return (currentLabels, error.localizedDescription)
+            }
+            return (currentLabels, nil)
         }
     }
 
@@ -35,11 +44,21 @@ final class LabelSyncService {
         }
     }
 
-    /// Loads unread counts per inbox category via a single listLabels() call.
-    func loadCategoryUnreadCounts(accountID: String) async -> [InboxCategory: Int] {
+    /// Loads unread counts per inbox category via a single listLabels() call with ETag caching.
+    /// Returns empty counts on 304 Not Modified (caller should keep existing counts).
+    private var categoryETag: String?
+
+    func loadCategoryUnreadCounts(accountID: String) async -> [InboxCategory: Int]? {
         guard !accountID.isEmpty else { return [:] }
         do {
-            let labels = try await GmailLabelService.shared.listLabels(accountID: accountID)
+            let result = try await GmailLabelService.shared.listLabels(
+                etag: categoryETag, accountID: accountID
+            )
+            guard let (labels, responseETag) = result else {
+                // 304 Not Modified — caller should keep existing counts
+                return nil
+            }
+            categoryETag = responseETag
             let labelsByID = Dictionary(uniqueKeysWithValues: labels.map { ($0.id, $0) })
             var counts: [InboxCategory: Int] = [:]
             for category in InboxCategory.allCases {

@@ -56,6 +56,7 @@ final class SnoozeMonitor {
                     if count >= failureNotifyThreshold {
                         ToastManager.shared.show(message: "Failed to unsnooze email", type: .error)
                         snoozeFailureCounts.removeValue(forKey: item.messageId)
+                        SnoozeStore.shared.remove(messageId: item.messageId, accountID: item.accountID)
                     }
                 }
             }
@@ -81,6 +82,7 @@ final class SnoozeMonitor {
                     if count >= failureNotifyThreshold {
                         ToastManager.shared.show(message: "Failed to send scheduled email", type: .error)
                         scheduledSendFailureCounts.removeValue(forKey: item.draftId)
+                        ScheduledSendStore.shared.remove(draftId: item.draftId, accountID: item.accountID)
                     }
                 }
             }

@@ -40,6 +40,7 @@ actor QuotaTracker {
 
     /// Suspends until enough budget is available, then spends it.
     func waitForBudget(_ units: Int) async {
+        precondition(units <= budgetPerMinute, "Requested \(units) exceeds budget \(budgetPerMinute)")
         while !canSpend(units) {
             try? await Task.sleep(for: .milliseconds(500))
             if Task.isCancelled { return }

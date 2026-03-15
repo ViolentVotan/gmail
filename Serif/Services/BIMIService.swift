@@ -19,25 +19,21 @@ final class BIMIService {
         "laposte.net", "bbox.fr", "numericable.fr"
     ]
 
-    // in-memory: domain → logo URL or nil (nil means "no BIMI found")
+    // in-memory: domain → logo URL (empty string means "no BIMI found")
     // @MainActor provides serialization — no lock needed.
-    private var cache: [String: String?] = [:]
-    private let maxCacheSize = 500
+    private let cache = LRUCache<String, String>(maxSize: 500)
 
     func logoURL(for domain: String) async -> String? {
         let domain = domain.lowercased()
         guard !Self.personalDomains.contains(domain) else { return nil }
 
-        if let cached = cache[domain] { return cached }
+        if let cached = cache[domain] {
+            return cached.isEmpty ? nil : cached
+        }
 
         let result = await resolveBIMI(for: domain)
-        if cache.count >= maxCacheSize {
-            let removeCount = cache.count / 4
-            for key in cache.keys.prefix(removeCount) {
-                cache.removeValue(forKey: key)
-            }
-        }
-        cache[domain] = result
+        // Store empty string for negative results to avoid repeated lookups
+        cache[domain] = result ?? ""
         return result
     }
 

@@ -154,6 +154,11 @@ struct ContentView: View {
                 ]
             }
             .onContinueUserActivity("com.vikingz.serif.viewEmail") { activity in
+                if let accountID = activity.userInfo?["accountID"] as? String,
+                   !accountID.isEmpty,
+                   coordinator.selectedAccountID != accountID {
+                    coordinator.selectedAccountID = accountID
+                }
                 guard let emailID = activity.userInfo?["emailID"] as? String,
                       let uuid = UUID(uuidString: emailID),
                       let email = coordinator.mailboxViewModel.emails.first(where: { $0.id == uuid })
@@ -184,6 +189,9 @@ struct ContentView: View {
                 },
                 onMarkUnread: { [coordinator] msgID, accountID in
                     coordinator.previewMarkUnread(messageID: msgID, accountID: accountID)
+                },
+                onMessagesRead: { [coordinator] messageIDs in
+                    coordinator.mailboxViewModel.applyReadLocally(messageIDs)
                 }
             )
 
@@ -289,6 +297,8 @@ struct ContentView: View {
 
                         Divider()
 
+                        // TODO: Architecture violation — direct service calls (GmailMessageService, EmailPrintService, ToastManager).
+                        // Move to EmailActionCoordinator.printEmail(_:accountID:) when that file is available for editing.
                         Button {
                             Task {
                                 guard let msgID = email.gmailMessageID else { return }

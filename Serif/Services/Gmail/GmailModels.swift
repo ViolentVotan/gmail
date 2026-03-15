@@ -236,6 +236,16 @@ struct GmailDraftRef: Codable, Sendable {
 // MARK: - GmailMessage Helpers
 
 extension GmailMessage {
+    /// Dictionary mapping lowercased header names to values.
+    /// O(headers) to build, O(1) per lookup — cache at call sites that read multiple headers
+    /// from the same message (e.g., MessageRecord(from:) reads 7-12 headers per message).
+    var headerMap: [String: String] {
+        Dictionary(
+            (payload?.headers ?? []).map { ($0.name.lowercased(), $0.value) },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
+
     func header(named name: String) -> String? {
         payload?.headers?.first(where: { $0.name.lowercased() == name.lowercased() })?.value
     }

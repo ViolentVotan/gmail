@@ -1,5 +1,6 @@
 import Foundation
 
+@MainActor
 struct EmailDetailActions {
     // MARK: - Email mutations
 

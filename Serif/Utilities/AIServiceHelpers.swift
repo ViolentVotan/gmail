@@ -4,7 +4,7 @@ import Foundation
 /// SmartReplyProvider, LabelSuggestionService) to eliminate duplication.
 enum AIServiceHelpers {
     /// Returns a stable cache key for an email, preferring the Gmail message ID.
-    static func cacheKey(for email: Email) -> String? {
+    static func cacheKey(for email: Email) -> String {
         email.gmailMessageID ?? email.id.uuidString
     }
 

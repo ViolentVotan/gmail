@@ -79,8 +79,8 @@ struct SerifCommands: Commands {
             Divider()
 
             Button {
-                guard let coordinator, let msgID = selectedEmail?.gmailMessageID else { return }
-                Task { await coordinator.mailboxViewModel.toggleStar(msgID, isStarred: isStarred) }
+                guard let coordinator, let email = selectedEmail else { return }
+                coordinator.actionCoordinator.toggleStarEmail(email)
             } label: {
                 Label(isStarred ? "Remove Star" : "Add Star", systemImage: isStarred ? "star.slash" : "star")
             }

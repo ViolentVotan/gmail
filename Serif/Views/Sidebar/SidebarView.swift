@@ -67,7 +67,9 @@ struct SidebarView: View {
                 isExpanded: true,
                 onSignIn: { await authViewModel.signIn() },
                 isSigningIn: authViewModel.isSigningIn,
-                onSignOut: onSignOut
+                onSignOut: onSignOut,
+                onSetAsDefault: { id in AccountStore.shared.setAsDefault(id: id) },
+                onSetAccentColor: { id, hex in AccountStore.shared.setAccentColor(id: id, hex: hex) }
             ) { }
             .padding(.vertical, 8)
             .padding(.horizontal, 12)

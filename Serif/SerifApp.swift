@@ -49,7 +49,6 @@ struct SerifApp: App {
 
         Settings {
             SettingsView(
-                accountID: AccountStore.shared.selectedAccountID ?? AccountStore.shared.accounts.first?.id ?? "",
                 appearanceManager: appearanceManager,
                 onReauthorize: { accountID, window in
                     try await OAuthService.shared.reauthorize(

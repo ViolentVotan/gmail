@@ -7,6 +7,17 @@ final class GmailMessageService {
 
     private let client = GmailAPIClient.shared
 
+    /// Field masks for message formats, avoiding repetition across getMessage/getMessages.
+    private enum MessageFields {
+        static func fields(for format: String) -> String? {
+            switch format {
+            case "metadata": "id,threadId,labelIds,snippet,payload/headers,internalDate,sizeEstimate"
+            case "full": "id,threadId,labelIds,snippet,payload,internalDate"
+            default: nil
+            }
+        }
+    }
+
     // MARK: - List
 
     /// Lists message refs for a given label and optional search query.
@@ -34,14 +45,9 @@ final class GmailMessageService {
 
     /// Fetches a single message. Use format "full" for detail view, "metadata" for list.
     @concurrent func getMessage(id: String, accountID: String, format: String = "full") async throws(GmailAPIError) -> GmailMessage {
-        let messageFields: String? = switch format {
-        case "metadata": "id,threadId,labelIds,snippet,payload/headers,internalDate,sizeEstimate"
-        case "full": "id,threadId,labelIds,snippet,payload,internalDate"
-        default: nil
-        }
         return try await client.request(
             path: "/users/me/messages/\(id)?format=\(format)",
-            fields: messageFields,
+            fields: MessageFields.fields(for: format),
             accountID: accountID
         )
     }
@@ -56,19 +62,18 @@ final class GmailMessageService {
     }
 
     /// Fetches a batch of messages using Gmail's batch API (up to 50 per request).
-    @concurrent func getMessages(ids: [String], accountID: String, format: String = "metadata") async throws(GmailAPIError) -> [GmailMessage] {
-        let messageFields: String? = switch format {
-        case "metadata": "id,threadId,labelIds,snippet,payload/headers,internalDate,sizeEstimate"
-        case "full": "id,threadId,labelIds,snippet,payload,internalDate"
-        default: nil
-        }
-        let fieldsParam = messageFields.map { "&fields=\($0.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0)" } ?? ""
-        let messages: [GmailMessage] = try await client.batchFetch(
+    /// Returns successfully fetched messages and IDs that failed (non-2xx or decode error).
+    /// Callers should retry failed IDs on a subsequent sync cycle.
+    @concurrent func getMessages(ids: [String], accountID: String, format: String = "metadata") async throws(GmailAPIError) -> (messages: [GmailMessage], failedIDs: [String]) {
+        let fieldsParam = MessageFields.fields(for: format)
+            .map { "&fields=\($0.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0)" } ?? ""
+        let result: BatchFetchResult<GmailMessage> = try await client.batchFetch(
             ids: ids,
             pathBuilder: { "/gmail/v1/users/me/messages/\($0)?format=\(format)\(fieldsParam)" },
             accountID: accountID
         )
-        return messages.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+        let sorted = result.items.sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
+        return (messages: sorted, failedIDs: result.failedIDs)
     }
 
     // MARK: - Threads

@@ -16,6 +16,9 @@ struct SlidePanelsOverlay: View {
     /// Closure to mark a message as unread by Gmail ID.
     /// Parameters: (gmailMessageID, accountID)
     var onMarkUnread: ((String, String) -> Void)?
+    /// Closure to propagate read state to local DB.
+    /// Parameters: (messageIDs)
+    var onMessagesRead: (([String]) -> Void)?
 
     var body: some View {
         helpPanel
@@ -126,6 +129,10 @@ struct SlidePanelsOverlay: View {
         actions.onMarkUnread = {
             guard let msgID = email.gmailMessageID else { return }
             onMarkUnread?(msgID, accountID)
+        }
+
+        actions.onMessagesRead = { messageIDs in
+            onMessagesRead?(messageIDs)
         }
 
         return actions

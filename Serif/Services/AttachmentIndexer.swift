@@ -230,7 +230,7 @@ actor AttachmentIndexer {
                     for chunkStart in stride(from: 0, to: toScan.count, by: chunkSize) {
                         await monitor.throttleIfNeeded()
                         let chunk = Array(toScan[chunkStart..<min(chunkStart + chunkSize, toScan.count)])
-                        let messages = try await service.getMessages(
+                        let (messages, _) = try await service.getMessages(
                             ids: chunk.map(\.id),
                             accountID: acctID,
                             format: "full"
@@ -303,7 +303,7 @@ actor AttachmentIndexer {
         // Re-fetch in full format to get attachmentIds + body
         if !needFullFetch.isEmpty {
             do {
-                let full = try await messageService.getMessages(
+                let (full, _) = try await messageService.getMessages(
                     ids: needFullFetch, accountID: accountID, format: "full"
                 )
                 alreadyFull.append(contentsOf: full)
@@ -330,9 +330,9 @@ actor AttachmentIndexer {
 
             let labels = message.labelIds ?? []
             let direction: IndexedAttachment.Direction = labels.contains(GmailSystemLabel.sent) ? .sent : .received
-            let fromRaw = message.from
-            let senderEmail = fromRaw.components(separatedBy: "<").last?.replacingOccurrences(of: ">", with: "").trimmingCharacters(in: .whitespaces)
-            let senderName = fromRaw.components(separatedBy: "<").first?.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+            let sender = GmailDataTransformer.parseContactCore(message.from)
+            let senderEmail: String? = sender.email.isEmpty ? nil : sender.email
+            let senderName: String? = sender.name.isEmpty ? nil : sender.name
             let rawBody = message.plainBody ?? message.snippet
             let body = rawBody.map { String($0.prefix(5000)) }
 
