@@ -99,6 +99,11 @@ struct ReplyBarView: View {
             quickReplies = await onGenerateQuickReplies?(email) ?? []
             isLoadingReplies = false
         }
+        .onChange(of: composeVM.isSent) { _, isSent in
+            guard isSent else { return }
+            composeVM.showToast("Reply sent", type: .success)
+            collapse()
+        }
         .alert("Discard reply?", isPresented: $showDiscardAlert) {
             Button("Cancel", role: .cancel) {}
             Button("Discard", role: .destructive) { collapse() }
@@ -415,11 +420,8 @@ struct ReplyBarView: View {
         )
         isSending = false
 
-        if composeVM.isSent {
-            composeVM.showToast("Reply sent", type: .success)
-            collapse()
-        } else {
-            sendError = composeVM.error
+        if let error = composeVM.error {
+            sendError = error
         }
     }
 

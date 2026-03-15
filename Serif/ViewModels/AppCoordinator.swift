@@ -23,6 +23,7 @@ final class AppCoordinator {
     private var pendingDraftSelection: Email?
     private var lifecycleTask: Task<Void, Never>?
     private var markReadTask: Task<Void, Never>?
+    private var navigationTask: Task<Void, Never>?
     private var cachedSnoozedEmails: [Email] = []
     private var cachedScheduledEmails: [Email] = []
 
@@ -86,14 +87,25 @@ final class AppCoordinator {
         selectedAccountID ?? authViewModel.primaryAccount?.id ?? ""
     }
 
-    var displayedEmails: [Email] {
-        if selectedFolder == .drafts { return mailStore.emails(for: .drafts) }
-        if selectedFolder == .subscriptions { return SubscriptionsStore.shared.entries }
-        if selectedFolder == .snoozed { return cachedSnoozedEmails }
-        if selectedFolder == .scheduled { return cachedScheduledEmails }
-        let base = mailboxViewModel.emails
-        guard mailboxViewModel.priorityFilterEnabled else { return base }
-        return base.filter { $0.gmailLabelIDs.contains(GmailSystemLabel.important) }
+    private(set) var displayedEmails: [Email] = []
+
+    func recomputeDisplayedEmails() {
+        if selectedFolder == .drafts {
+            displayedEmails = mailStore.emails(for: .drafts)
+        } else if selectedFolder == .subscriptions {
+            displayedEmails = SubscriptionsStore.shared.entries
+        } else if selectedFolder == .snoozed {
+            displayedEmails = cachedSnoozedEmails
+        } else if selectedFolder == .scheduled {
+            displayedEmails = cachedScheduledEmails
+        } else {
+            let base = mailboxViewModel.emails
+            if mailboxViewModel.priorityFilterEnabled {
+                displayedEmails = base.filter { $0.gmailLabelIDs.contains(GmailSystemLabel.important) }
+            } else {
+                displayedEmails = base
+            }
+        }
     }
 
     var listIsLoading: Bool {
@@ -126,6 +138,7 @@ final class AppCoordinator {
                 gmailLabelIDs: item.originalLabelIds
             )
         }
+        recomputeDisplayedEmails()
     }
 
     private func refreshScheduledCache() {
@@ -141,6 +154,7 @@ final class AppCoordinator {
                 isDraft: true
             )
         }
+        recomputeDisplayedEmails()
     }
 
     // MARK: - Actions
@@ -191,12 +205,15 @@ final class AppCoordinator {
     }
 
     func navigateToMessage(gmailMessageID: String) {
-        Task {
+        navigationTask?.cancel()
+        let expectedAccountID = accountID
+        navigationTask = Task {
             guard let msg = try? await GmailMessageService.shared.getMessage(
-                id: gmailMessageID, accountID: accountID, format: "full"
+                id: gmailMessageID, accountID: expectedAccountID, format: "full"
             ) else { return }
+            guard !Task.isCancelled, accountID == expectedAccountID else { return }
             let email = mailboxViewModel.makeEmail(from: msg)
-            panelCoordinator.showEmail(email, accountID: accountID)
+            panelCoordinator.showEmail(email, accountID: expectedAccountID)
         }
     }
 
@@ -309,6 +326,7 @@ final class AppCoordinator {
                 await mailboxViewModel.loadFolder(labelIDs: [], query: query)
             }
         }
+        recomputeDisplayedEmails()
         // Trigger sync engine to check for new messages immediately
         await syncEngine?.triggerIncrementalSync()
         // Classify visible emails with Apple Intelligence (deduped via tagCache + DB)
@@ -364,7 +382,12 @@ final class AppCoordinator {
         async let labelsLoad: Void = mailboxViewModel.loadLabels()
         async let sendAsLoad: Void = mailboxViewModel.loadSendAs()
         async let categoryLoad: Void = mailboxViewModel.loadCategoryUnreadCounts()
-        async let photosLoad: Void = PeopleAPIService.shared.loadContactPhotos(accountID: id)
+        let syncerForPhotos = self.backgroundSyncer
+        async let photosLoad: Void = {
+            if let syncer = syncerForPhotos {
+                await PeopleAPIService.shared.loadContactPhotos(accountID: id, syncer: syncer)
+            }
+        }()
         _ = await (folderLoad, labelsLoad, sendAsLoad, categoryLoad, photosLoad)
         guard !Task.isCancelled, self.selectedAccountID == id else { return }
         await indexer.resumePending()
@@ -381,6 +404,7 @@ final class AppCoordinator {
         selectedEmailIDs = []
         searchResetTrigger += 1
         if folder != .labels { selectedLabel = nil }
+        recomputeDisplayedEmails()
         lifecycleTask?.cancel()
         if folder == .subscriptions {
             SubscriptionsStore.shared.analyze(mailboxViewModel.emails)
@@ -437,6 +461,7 @@ final class AppCoordinator {
         selectedEmail = nil
         selectedEmailIDs = []
         searchResetTrigger += 1
+        navigationTask?.cancel()
         ThumbnailCache.shared.clearAll()
         mailStore.accountID = id
         SubscriptionsStore.shared.accountID = id
@@ -446,6 +471,7 @@ final class AppCoordinator {
         ScheduledSendStore.shared.load(accountID: id)
         OfflineActionQueue.shared.load(accountID: id)
         loadContacts()
+        recomputeDisplayedEmails()
         lifecycleTask?.cancel()
         lifecycleTask = Task {
             await attachmentStore.refresh()

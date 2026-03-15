@@ -65,6 +65,13 @@ final class ScheduledSendStore {
         save(accountID: accountID)
     }
 
+    /// Removes all in-memory data and the on-disk JSON file for the given account.
+    func deleteAccount(_ accountID: String) {
+        itemsByAccount.removeValue(forKey: accountID)
+        let url = fileURL(for: accountID)
+        try? FileManager.default.removeItem(at: url)
+    }
+
     func dueItems() -> [ScheduledSendItem] {
         let now = Date()
         return itemsByAccount.values.flatMap { $0 }.filter { $0.scheduledTime <= now }

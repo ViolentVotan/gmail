@@ -21,6 +21,13 @@ final class OfflineActionQueue {
         save(accountID: action.accountID)
     }
 
+    /// Removes all pending actions for the given account and deletes its on-disk JSON file.
+    func deleteAccount(_ accountID: String) {
+        pendingActions.removeAll { $0.accountID == accountID }
+        let url = fileURL(for: accountID)
+        try? FileManager.default.removeItem(at: url)
+    }
+
     func load(accountID: String) {
         let url = fileURL(for: accountID)
         guard let data = try? Data(contentsOf: url),
@@ -36,7 +43,8 @@ final class OfflineActionQueue {
         retryTask = nil
         drainTask?.cancel()
         drainTask = nil
-        guard !isDraining, !pendingActions.isEmpty else { return }
+        isDraining = false  // Reset before guard to prevent stuck state when cancelled during backoff
+        guard !pendingActions.isEmpty else { return }
         isDraining = true
 
         drainTask = Task {

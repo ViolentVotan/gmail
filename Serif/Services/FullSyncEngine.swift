@@ -104,9 +104,6 @@ actor FullSyncEngine {
     // MARK: - Main Lifecycle
 
     private func runSyncLifecycle() async {
-        // One-time migration: copy historyId from AccountStore to DB
-        await migrateHistoryIdIfNeeded()
-
         // Read sync state from DB
         let syncState = await readSyncState()
 
@@ -508,12 +505,6 @@ actor FullSyncEngine {
     }
 
     // MARK: - DB Helpers
-
-    private func migrateHistoryIdIfNeeded() async {
-        // historyId was previously stored on GmailAccount (UserDefaults).
-        // It is now stored exclusively in account_sync_state.last_history_id.
-        // The GmailAccount.historyId property has been removed; migration is complete.
-    }
 
     private func readSyncState() async -> AccountSyncStateRecord? {
         try? await db.dbPool.read { db in

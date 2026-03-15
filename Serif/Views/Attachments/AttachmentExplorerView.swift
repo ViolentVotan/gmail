@@ -1,6 +1,8 @@
 import SwiftUI
+private import os
 
 struct AttachmentExplorerView: View {
+    private static let logger = Logger(subsystem: "com.vikingz.serif", category: "AttachmentExplorer")
     @Bindable var store: AttachmentStore
     var panelCoordinator: PanelCoordinator
     let accountID: String
@@ -160,7 +162,7 @@ struct AttachmentExplorerView: View {
                 guard let data = try await onDownloadAttachment?(attachment.messageId, attachment.attachmentId, accountID) else { return }
                 panelCoordinator.previewAttachment(data: data, name: attachment.filename, fileType: fileType)
             } catch {
-                print("[AttachmentExplorer] Preview failed: \(error)")
+                Self.logger.error("Preview failed: \(error, privacy: .public)")
             }
         }
     }

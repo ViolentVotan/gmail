@@ -137,7 +137,7 @@ struct ComposeView: View {
 
             composeActions
         }
-        .onAppear { loadDraft() }
+        .task { await loadDraft() }
         .onChange(of: composeVM.isSent) { _, isSent in
             guard isSent else { return }
             saveTask?.cancel()
@@ -169,7 +169,7 @@ struct ComposeView: View {
 
     // MARK: - Draft
 
-    private func loadDraft() {
+    private func loadDraft() async {
         let existingDraft = draft
         let hasExistingContent = !(existingDraft?.body.isEmpty ?? true)
 
@@ -208,10 +208,9 @@ struct ComposeView: View {
 
         // Delay clearing isInitialLoad so the WebView's didFinish → setHTML → contentChanged
         // cycle doesn't trigger a spurious auto-save that could corrupt inline images.
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(0.5))
-            isInitialLoad = false
-        }
+        // Using try? ensures the sleep cancels automatically when the view disappears via .task.
+        try? await Task.sleep(for: .milliseconds(500))
+        isInitialLoad = false
     }
 
     private func scheduleAutoSave() {

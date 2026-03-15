@@ -80,10 +80,14 @@ final class AccountStore {
         MailDatabase.deleteDatabase(accountID: id)
         UnsubscribeService.shared.clearAccount(id)
         ContactStore.shared.deleteAccount(id)
+        SnoozeStore.shared.deleteAccount(id)
+        ScheduledSendStore.shared.deleteAccount(id)
+        OfflineActionQueue.shared.deleteAccount(id)
         // Clean per-account UserDefaults
         UserDefaults.standard.removeObject(forKey: UserDefaultsKey.signatureForNew(id))
         UserDefaults.standard.removeObject(forKey: UserDefaultsKey.signatureForReply(id))
         UserDefaults.standard.removeObject(forKey: UserDefaultsKey.attachmentExclusionRules(id))
+        UserDefaults.standard.removeObject(forKey: "replyDrafts.\(id)")
         // Purge avatar disk cache
         AvatarCache.shared.clearAll()
     }

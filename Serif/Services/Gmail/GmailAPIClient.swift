@@ -172,6 +172,7 @@ final class GmailAPIClient {
     /// Sends up to 50 individual API requests in a single HTTP call using Gmail's batch endpoint.
     /// Each part is a standalone HTTP request encoded in `multipart/mixed`.
     /// Returns an array of (contentID, responseData) tuples. Individual parts may fail independently.
+    /// Parts that fail with HTTP 429 are automatically retried with exponential backoff (up to 3 attempts).
     func batchRequest(
         requests: [(id: String, method: String, path: String, body: Data?)],
         accountID: String
@@ -180,12 +181,74 @@ final class GmailAPIClient {
         let token = try await validToken(for: accountID)
 
         // First attempt + 401 auto-retry (mirrors rawRequest pattern)
+        let initialResults: [(id: String, statusCode: Int, data: Data)]
         do {
-            return try await performBatch(requests: requests, accessToken: token.accessToken)
+            initialResults = try await performBatch(requests: requests, accessToken: token.accessToken)
         } catch .unauthorized {
             let fresh = try await refreshAndRetry(accountID: accountID)
-            return try await performBatch(requests: requests, accessToken: fresh.accessToken)
+            initialResults = try await performBatch(requests: requests, accessToken: fresh.accessToken)
         }
+
+        // Retry any parts that failed with HTTP 429 (rate limited)
+        return try await retryRateLimitedParts(
+            allResults: initialResults,
+            originalRequests: requests,
+            accessToken: token.accessToken,
+            accountID: accountID
+        )
+    }
+
+    /// Retries batch parts that returned HTTP 429, using exponential backoff.
+    /// Merges successful results from retries with the original successes.
+    /// Limited to `maxPartRetries` attempts to prevent infinite loops.
+    private func retryRateLimitedParts(
+        allResults: [(id: String, statusCode: Int, data: Data)],
+        originalRequests: [(id: String, method: String, path: String, body: Data?)],
+        accessToken: String,
+        accountID: String
+    ) async throws(GmailAPIError) -> [(id: String, statusCode: Int, data: Data)] {
+        let maxPartRetries = 3
+        let requestsByID = Dictionary(uniqueKeysWithValues: originalRequests.map { ($0.id, $0) })
+        var finalResults = allResults.filter { $0.statusCode != 429 }
+        var rateLimitedIDs = Set(allResults.filter { $0.statusCode == 429 }.map(\.id))
+
+        for attempt in 0..<maxPartRetries {
+            guard !rateLimitedIDs.isEmpty else { break }
+
+            Self.logger.warning("Batch: \(rateLimitedIDs.count) parts rate-limited (429), retry \(attempt + 1)/\(maxPartRetries)")
+            try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
+
+            let retryRequests = rateLimitedIDs.compactMap { requestsByID[$0] }
+            guard !retryRequests.isEmpty else { break }
+
+            let retryResults: [(id: String, statusCode: Int, data: Data)]
+            do {
+                retryResults = try await performBatch(requests: retryRequests, accessToken: accessToken)
+            } catch .unauthorized {
+                let fresh = try await refreshAndRetry(accountID: accountID)
+                retryResults = try await performBatch(requests: retryRequests, accessToken: fresh.accessToken)
+            }
+
+            // Partition retry results into succeeded and still-rate-limited
+            rateLimitedIDs = []
+            for result in retryResults {
+                if result.statusCode == 429 {
+                    rateLimitedIDs.insert(result.id)
+                } else {
+                    finalResults.append(result)
+                }
+            }
+        }
+
+        // Any parts still rate-limited after all retries are returned with 429 status
+        if !rateLimitedIDs.isEmpty {
+            Self.logger.error("Batch: \(rateLimitedIDs.count) parts still rate-limited after \(maxPartRetries) retries")
+            for id in rateLimitedIDs {
+                finalResults.append((id: id, statusCode: 429, data: Data()))
+            }
+        }
+
+        return finalResults
     }
 
     /// Generic batch fetch: chunks IDs into batches of 50, decodes each successful response.

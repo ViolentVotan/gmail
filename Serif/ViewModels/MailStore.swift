@@ -7,9 +7,16 @@ final class MailStore {
 
     nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "MailStore")
 
-    var emails: [Email]
-    var gmailDrafts: [Email] = []
+    var emails: [Email] {
+        didSet { _cachedDrafts = nil }
+    }
+    var gmailDrafts: [Email] = [] {
+        didSet { _cachedDrafts = nil }
+    }
     var isLoadingGmailDrafts = false
+
+    /// Cached result of the merged+sorted drafts list. Invalidated whenever `emails` or `gmailDrafts` change.
+    private var _cachedDrafts: [Email]?
 
     /// In-progress quick reply drafts, keyed by Gmail thread ID.
     /// Only stores the link — content is always fetched fresh from Gmail.
@@ -50,9 +57,12 @@ final class MailStore {
 
     func emails(for folder: Folder) -> [Email] {
         if folder == .drafts {
+            if let cached = _cachedDrafts { return cached }
             // Merge local drafts (newest first) + Gmail drafts, sorted by date
             let localDrafts = emails.filter { $0.folder == .drafts }
-            return (localDrafts + gmailDrafts).sorted { $0.date > $1.date }
+            let merged = (localDrafts + gmailDrafts).sorted { $0.date > $1.date }
+            _cachedDrafts = merged
+            return merged
         }
         return emails.filter { $0.folder == folder }
     }

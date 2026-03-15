@@ -1,5 +1,6 @@
 import Foundation
 import GRDB
+private import os
 
 /// Legacy JSON cache envelope — kept here for migration decoding only.
 struct FolderCache: Codable, Sendable {
@@ -11,6 +12,7 @@ struct FolderCache: Codable, Sendable {
 /// Runs on first launch after the database layer is introduced.
 enum CacheMigration {
     private static let migrationKeyPrefix = "com.vikingz.serif.dbMigrationCompleted"
+    private static let logger = Logger(subsystem: "com.vikingz.serif", category: "CacheMigration")
 
     static func needsMigration(accountID: String) -> Bool {
         !UserDefaults.standard.bool(forKey: "\(migrationKeyPrefix).\(accountID)")
@@ -100,7 +102,7 @@ enum CacheMigration {
             do {
                 try await syncer.upsertMessages(messages, ensureLabels: labelIds)
             } catch {
-                print("[CacheMigration] Failed to migrate \(file.lastPathComponent): \(error)")
+                logger.error("Failed to migrate \(file.lastPathComponent, privacy: .public): \(error, privacy: .public)")
             }
         }
     }
@@ -143,7 +145,7 @@ enum CacheMigration {
                 do {
                     try record.upsert(grdb)
                 } catch {
-                    print("[CacheMigration] Failed to migrate tag for \(messageId): \(error)")
+                    logger.error("Failed to migrate tag for \(messageId, privacy: .private): \(error, privacy: .public)")
                 }
             }
         }

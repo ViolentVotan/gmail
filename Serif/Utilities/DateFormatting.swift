@@ -49,12 +49,6 @@ extension Date {
         return f
     }()
 
-    private static let dayTimeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "EEE, h:mm a"
-        return f
-    }()
-
     private static let gmailQueryFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy/MM/dd"
@@ -81,11 +75,6 @@ extension Date {
     /// Time only, respecting locale (e.g. "2:34 PM" or "14:34").
     var formattedTime: String {
         Self.timeFormatter.string(from: self)
-    }
-
-    /// Day abbreviation + time: "Mon, 8:00 AM".
-    var formattedDayTime: String {
-        Self.dayTimeFormatter.string(from: self)
     }
 
     /// Gmail API query format: "2026/03/14".

@@ -19,7 +19,7 @@ Pure data structures and local persistence stores.
 | `ComposeMode.swift` | Compose mode enum (new, reply, replyAll, forward) |
 | `EmailDragItem.swift` | `Transferable` drag item for email rows (custom `UTType` `com.vikingz.serif.email-drag-item`). Conforms to `Codable`, `Transferable`, `Identifiable`, `Sendable`. |
 | `EmailTags.swift` | AI classification tags (category, priority, sentiment) for emails |
-| `GmailAccount.swift` | Account model + `AccountStore` (UserDefaults persistence) |
+| `GmailAccount.swift` | Account model + `AccountStore` (UserDefaults persistence). `AccountStore.remove` cleans up all per-account data: TokenStore, MailDatabase, AttachmentDatabase, ContactStore, SnoozeStore, ScheduledSendStore, OfflineActionQueue, UserDefaults (signatures, exclusion rules, reply drafts), AvatarCache. |
 | `IndexedAttachment.swift` | Indexed attachment model for the attachment vault |
 | `OfflineAction.swift` | Queued mutation model for offline actions (archive, trash, star, unstar, spam, markRead, markUnread, addLabel, removeLabel) with account + message IDs |
 | `EmailListActions.swift` | Action struct consolidating email list callbacks (archive, delete, star, bulk ops, etc.) |

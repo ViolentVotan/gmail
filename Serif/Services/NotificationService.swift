@@ -1,9 +1,11 @@
 import Foundation
 import UserNotifications
+private import os
 
 @MainActor
 final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationService()
+    nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "NotificationService")
     private override init() { super.init() }
 
     func setup() {
@@ -27,7 +29,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         Task {
             let granted = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
             if granted != true {
-                print("[NotificationService] Permission not granted")
+                Self.logger.warning("Notification permission not granted")
             }
         }
     }
@@ -84,7 +86,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
                     do {
                         try await GmailMessageService.shared.archiveMessage(id: messageId, accountID: accountID)
                     } catch {
-                        await OfflineActionQueue.shared.enqueue(
+                        OfflineActionQueue.shared.enqueue(
                             OfflineAction(actionType: .archive, messageIds: [messageId], accountID: accountID)
                         )
                     }
@@ -94,7 +96,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
                     do {
                         try await GmailMessageService.shared.markAsRead(id: messageId, accountID: accountID)
                     } catch {
-                        await OfflineActionQueue.shared.enqueue(
+                        OfflineActionQueue.shared.enqueue(
                             OfflineAction(actionType: .markRead, messageIds: [messageId], accountID: accountID)
                         )
                     }

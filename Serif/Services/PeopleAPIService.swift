@@ -1,21 +1,25 @@
 import Foundation
 import GRDB
+private import os
 
 /// Fetches contacts and photos from the Google People API.
 @MainActor
 final class PeopleAPIService {
+    nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "PeopleAPI")
     static let shared = PeopleAPIService()
     private init() {}
 
     /// Loads contacts: uses local cache if available, otherwise fetches from network.
-    func loadContactPhotos(accountID: String) async {
+    /// The caller must supply the `BackgroundSyncer` for the account so contact
+    /// writes are serialized through the same actor instance used by the sync engine.
+    func loadContactPhotos(accountID: String, syncer: BackgroundSyncer) async {
         let local: [StoredContact] = (try? await MailDatabase.shared(for: accountID).dbPool.read { db in
             try MailDatabaseQueries.allContacts(in: db).map {
                 StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
             }
         }) ?? []
         if !local.isEmpty {
-            print("[Serif] Using \(local.count) cached contacts for \(accountID)")
+            Self.logger.debug("Using \(local.count, privacy: .public) cached contacts for \(accountID, privacy: .private)")
             for contact in local {
                 if let url = contact.photoURL {
                     ContactPhotoCache.shared.set(url, for: contact.email)
@@ -23,8 +27,7 @@ final class PeopleAPIService {
             }
             return
         }
-        guard let mailDB = try? MailDatabase.shared(for: accountID) else { return }
-        await fetchAndStoreContacts(accountID: accountID, syncer: BackgroundSyncer(db: mailDB))
+        await fetchAndStoreContacts(accountID: accountID, syncer: syncer)
     }
 
     /// Forces a network refresh of contacts, replacing the local cache.
@@ -112,11 +115,11 @@ final class PeopleAPIService {
                         incPageToken = response.nextPageToken
                         newSyncToken = response.nextSyncToken ?? newSyncToken
                     } while incPageToken != nil
-                    print("[Serif] Incremental sync completed")
+                    Self.logger.info("Incremental sync completed")
                 } catch {
                     let isGone = if case GmailAPIError.httpError(410, _) = error { true } else { false }
                     if isGone {
-                        print("[Serif] Sync token expired, performing full re-fetch")
+                        Self.logger.warning("Sync token expired, performing full re-fetch")
                         try? await mailDB?.dbPool.write { db in
                             try MailDatabaseQueries.updateSyncState({ $0.contactsSyncToken = nil }, in: db)
                         }
@@ -142,7 +145,7 @@ final class PeopleAPIService {
                     pageToken = response.nextPageToken
                     newSyncToken = response.nextSyncToken ?? newSyncToken
                 } while pageToken != nil
-                print("[Serif] Full fetch: loaded \(allContacts.count) contacts from Connections")
+                Self.logger.info("Full fetch: loaded \(allContacts.count, privacy: .public) contacts from Connections")
             }
 
             if let newSyncToken {
@@ -151,7 +154,7 @@ final class PeopleAPIService {
                 }
             }
         } catch {
-            print("[Serif] Connections fetch error: \(error)")
+            Self.logger.error("Connections fetch error: \(error, privacy: .public)")
         }
 
         // 2. Fetch "Other Contacts" (auto-created from email interactions)
@@ -197,11 +200,11 @@ final class PeopleAPIService {
                         incPageToken = response.nextPageToken
                         newOtherSyncToken = response.nextSyncToken ?? newOtherSyncToken
                     } while incPageToken != nil
-                    print("[Serif] Other Contacts incremental sync completed")
+                    Self.logger.info("Other Contacts incremental sync completed")
                 } catch {
                     let isGone = if case GmailAPIError.httpError(410, _) = error { true } else { false }
                     if isGone {
-                        print("[Serif] Other Contacts sync token expired, performing full re-fetch")
+                        Self.logger.warning("Other Contacts sync token expired, performing full re-fetch")
                         try? await mailDB?.dbPool.write { db in
                             try MailDatabaseQueries.updateSyncState({ $0.otherContactsSyncToken = nil }, in: db)
                         }
@@ -222,7 +225,7 @@ final class PeopleAPIService {
                     let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
                     let beforeCount = allContacts.count
                     allContacts.append(contentsOf: parseContacts(from: response.otherContacts ?? []))
-                    print("[Serif] Loaded \(allContacts.count - beforeCount) from Other Contacts page")
+                    Self.logger.debug("Loaded \(allContacts.count - beforeCount, privacy: .public) from Other Contacts page")
                     pageToken = response.nextPageToken
                     newOtherSyncToken = response.nextSyncToken ?? newOtherSyncToken
                 } while pageToken != nil
@@ -234,7 +237,7 @@ final class PeopleAPIService {
                 }
             }
         } catch {
-            print("[Serif] Other Contacts fetch error: \(error)")
+            Self.logger.error("Other Contacts fetch error: \(error, privacy: .public)")
         }
 
         // Deduplicate by email and persist to GRDB via the caller-supplied syncer.
@@ -246,7 +249,7 @@ final class PeopleAPIService {
         }
         let tuples = unique.map { (email: $0.email, name: Optional($0.name), photoUrl: $0.photoURL, source: "people_api", resourceName: nil as String?) }
         try? await syncer.upsertContacts(tuples)
-        print("[Serif] Total unique contacts stored: \(unique.count)")
+        Self.logger.info("Total unique contacts stored: \(unique.count, privacy: .public)")
     }
 
     /// Fetches Google Workspace directory contacts (domain profiles + contacts).
@@ -328,9 +331,9 @@ final class PeopleAPIService {
         } catch {
             // 403 = scope not granted — skip silently
             if case GmailAPIError.httpError(403, _) = error {
-                print("[Serif] Directory contacts skipped — scope not granted")
+                Self.logger.info("Directory contacts skipped — scope not granted")
             } else {
-                print("[Serif] Directory contacts error: \(error)")
+                Self.logger.error("Directory contacts error: \(error, privacy: .public)")
             }
         }
     }

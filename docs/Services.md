@@ -15,14 +15,14 @@ Business logic, networking, and side effects. This is the **only** layer that ta
 ## Subfolders
 
 ### `Auth/`
-OAuth flow, token storage (Keychain), token refresh. `OAuthService` handles the Google OAuth PKCE flow. `TokenStore` persists tokens securely. `AuthToken` is the token value type (`Codable`, `Sendable`) with expiration tracking (60-second pre-refresh buffer).
+OAuth flow, token storage (Keychain), token refresh, token revocation. `OAuthService` handles the Google OAuth PKCE flow, `revokeToken(token:)` for sign-out revocation via Google's endpoint, and `refreshToken` with `invalid_grant` detection (`OAuthError.tokenRevoked`). `TokenStore` persists tokens securely. `AuthToken` is the token value type (`Codable`, `Sendable`) with expiration tracking (60-second pre-refresh buffer).
 
 ### `Protocols/`
 - `MessageFetching` — Protocol abstracting the Gmail message API surface (`@MainActor`, `Sendable`, typed throws). Methods include `getProfile(accountID:)` for history ID retrieval. `GmailMessageService` conforms. Enables testing via mocks.
 
 ### `Gmail/`
 Gmail REST API wrappers. One service per domain:
-- `GmailAPIClient` — HTTP layer (auth headers, base URL, per-account token refresh coalescing via `refreshAndRetry`/`performRefresh`, retry with exponential backoff + Retry-After on 429/500/503, 401 auto-retry on standard and batch requests, generic `batchFetch<T>()` for batch GET operations with `@concurrent fetchSingleBatch`, `requestURL()` for non-Gmail Google APIs, `Logger`-based diagnostics). `GmailAPIError` includes `dailyLimitExceeded` and `domainPolicy` cases. Batch response parsing strips the `response-` prefix from Content-IDs. `GmailPathBuilder` utility enum provides `queryAllowed` charset (internal), `labelQueryParam`, `sendAsPath`.
+- `GmailAPIClient` — HTTP layer (auth headers, base URL, per-account token refresh coalescing via `refreshAndRetry`/`performRefresh`, retry with exponential backoff + Retry-After on 429/500/503, 401 auto-retry on standard and batch requests, generic `batchFetch<T>()` for batch GET operations with `@concurrent fetchSingleBatch`, `requestURL()` for non-Gmail Google APIs, `Logger`-based diagnostics). Per-part 429 retry in batch responses via `retryRateLimitedParts` (exponential backoff, max 3 attempts). `GmailAPIError` includes `dailyLimitExceeded` and `domainPolicy` cases. Batch response parsing strips the `response-` prefix from Content-IDs. `GmailPathBuilder` utility enum provides `queryAllowed` charset (internal), `labelQueryParam`, `sendAsPath`.
 - `GmailMessageService` — Messages, threads, mutations (trash, archive, star, labels), History API. Label modifications delegate to a single `modifyLabels` method. `batchModifyLabels(ids:add:remove:accountID:)` applies label changes in batches of 1000 (50 quota units per call). Uses `GmailPathBuilder.queryAllowed` for query parameter encoding.
 - `GmailLabelService` — Label CRUD
 - `GmailProfileService` — Gmail profile info, user identity (OAuth userinfo), send-as aliases, signature management
@@ -35,7 +35,7 @@ Gmail REST API wrappers. One service per domain:
 | File | Role |
 |------|------|
 | `APILogger.swift` | API request/response debug logging |
-| `AttachmentDatabase.swift` | Actor wrapping raw SQLite + FTS5 index for attachment search |
+| `AttachmentDatabase.swift` | Actor wrapping raw SQLite + FTS5 index for attachment search. Uses `Logger` (not print). |
 | `AttachmentIndexer.swift` | Async indexing with CPU throttling |
 | `AttachmentSearchService.swift` | Hybrid FTS + semantic embedding search |
 | `AvatarCache.swift` | Avatar image caching (uses shared `stableHash` for cache keys) |
@@ -52,14 +52,14 @@ Gmail REST API wrappers. One service per domain:
 | `LabelSyncService.swift` | Label + category unread count syncing. Singleton (`static let shared`, `private init()`). |
 | `LabelSuggestionService.swift` | AI-powered Gmail label suggestions via Foundation Models |
 | `NetworkMonitor.swift` | `@MainActor` online/offline detection via NWPathMonitor |
-| `NotificationService.swift` | `UNUserNotificationCenter` push notifications with reply/archive/mark-read actions. ARCHIVE and MARK_READ action handlers fall back to `OfflineActionQueue` on API failure. |
-| `OfflineActionQueue.swift` | Queues email mutations (archive, trash, star, unstar, spam, markRead, markUnread) when offline; drains FIFO on reconnect with stored/cancellable drain task. `load()` merges disk actions with in-memory (deduplicates by ID). Per-message label actions use `removeAll(where:)` for value-based pruning. |
-| `PeopleAPIService.swift` | Google People API — contact fetching (connections + otherContacts + directory people for Google Workspace) with sync token support for incremental updates, photo cache population. `refreshContacts(accountID:syncer:)` takes a `BackgroundSyncer` parameter (caller-supplied). Directory sync gated by `syncDirectoryContacts` UserDefault. |
+| `NotificationService.swift` | `UNUserNotificationCenter` push notifications with reply/archive/mark-read actions. ARCHIVE and MARK_READ action handlers fall back to `OfflineActionQueue` on API failure. Uses `Logger` (not print). |
+| `OfflineActionQueue.swift` | Queues email mutations (archive, trash, star, unstar, spam, markRead, markUnread) when offline; drains FIFO on reconnect with stored/cancellable drain task. `load()` merges disk actions with in-memory (deduplicates by ID). Per-message label actions use `removeAll(where:)` for value-based pruning. `deleteAccount(_:)` clears pending actions and removes the on-disk JSON file. |
+| `PeopleAPIService.swift` | Google People API — contact fetching (connections + otherContacts + directory people for Google Workspace) with sync token support for incremental updates, photo cache population. Both `loadContactPhotos(accountID:syncer:)` and `refreshContacts(accountID:syncer:)` take a caller-supplied `BackgroundSyncer` parameter (single-writer pattern). Uses `Logger` (not print). Directory sync gated by `syncDirectoryContacts` UserDefault. |
 | `QuickReplyService.swift` | AI-powered quick reply suggestions with bounded cache |
-| `ScheduledSendStore.swift` | Persists scheduled-send items per account (file-based JSON) with send-time monitoring |
+| `ScheduledSendStore.swift` | Persists scheduled-send items per account (file-based JSON) with send-time monitoring. `deleteAccount(_:)` clears in-memory data and removes the on-disk file. |
 | `SmartReplyProvider.swift` | Foundation Models smart reply chip generation (contextual reply suggestions). Cache capped at 200 entries with 25% partial eviction. |
 | `SnoozeMonitor.swift` | Background timer that un-snoozes emails when their snooze-until date arrives |
-| `SnoozeStore.swift` | Persists snoozed email items per account (file-based JSON) |
+| `SnoozeStore.swift` | Persists snoozed email items per account (file-based JSON). `deleteAccount(_:)` clears in-memory data and removes the on-disk file. |
 | `SignatureResolver.swift` | Signature HTML lookup per alias, HTML signature replacement in compose body |
 | `SpotlightIndexer.swift` | CoreSpotlight email indexing for Spotlight search (indexes viewed emails, prunes at 1000) |
 | `SubscriptionsStore.swift` | Detects newsletter/subscription emails, manages unsubscribe state. Uses `analysisGeneration` counter to guard against defer-based corruption during concurrent analysis. `URLValidityCache` capped at 500 entries with 25% partial eviction. |

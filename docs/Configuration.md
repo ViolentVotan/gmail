@@ -13,4 +13,4 @@ App-level configuration constants.
 
 | File | Role |
 |------|------|
-| `GoogleCredentials.swift` | Google OAuth client ID, redirect URI, scopes |
+| `GoogleCredentials.swift` | Google OAuth client ID, redirect URI, scopes (`mail.google.com` for full access incl. permanent delete, `gmail.settings.basic` for filter management, `userinfo.email`, `userinfo.profile`, `contacts.readonly`) |

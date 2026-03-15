@@ -92,6 +92,10 @@ final class OAuthService: NSObject {
     }
 
     /// Uses the stored refresh token to obtain a new access token.
+    ///
+    /// Throws ``OAuthError/tokenRevoked`` when Google returns `invalid_grant`,
+    /// indicating the refresh token has been permanently revoked and the user
+    /// must re-authenticate.
     @concurrent func refreshToken(_ token: AuthToken) async throws -> AuthToken {
         guard let refreshToken = token.refreshToken else { throw OAuthError.noRefreshToken }
 
@@ -101,14 +105,44 @@ final class OAuthService: NSObject {
             "refresh_token": refreshToken,
             "grant_type":    "refresh_token"
         ]
-        let response: TokenResponse = try await postForm(to: "https://oauth2.googleapis.com/token", params: params)
-        return AuthToken(
-            accessToken:  response.accessToken,
-            refreshToken: token.refreshToken,
-            expiresIn:    response.expiresIn,
-            tokenType:    response.tokenType,
-            scope:        response.scope ?? token.scope
-        )
+        do {
+            let response: TokenResponse = try await postForm(to: "https://oauth2.googleapis.com/token", params: params)
+            return AuthToken(
+                accessToken:  response.accessToken,
+                refreshToken: token.refreshToken,
+                expiresIn:    response.expiresIn,
+                tokenType:    response.tokenType,
+                scope:        response.scope ?? token.scope
+            )
+        } catch let OAuthError.httpError(statusCode, data) where statusCode == 400 {
+            // Parse the error body to distinguish permanent revocation from transient failures.
+            if let body = try? JSONDecoder().decode(OAuthErrorResponse.self, from: data),
+               body.error == "invalid_grant" {
+                throw OAuthError.tokenRevoked
+            }
+            throw OAuthError.httpError(statusCode, data)
+        }
+    }
+
+    /// Revokes an OAuth token with Google's revocation endpoint.
+    ///
+    /// Best-effort: failures are logged but never propagated — revocation
+    /// must not block sign-out.
+    @concurrent func revokeToken(token: String) async {
+        guard let url = URL(string: "https://oauth2.googleapis.com/revoke") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+        let encoded = token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token
+        request.httpBody = "token=\(encoded)".data(using: .utf8)
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                // Non-fatal: token may already be invalid or revoked.
+            }
+        } catch {
+            // Network failure during revocation is non-fatal.
+        }
     }
 
     // MARK: - Private
@@ -156,6 +190,9 @@ enum OAuthError: Error, LocalizedError {
     case noRefreshToken
     case listenerFailed
     case httpError(Int, Data)
+    /// The refresh token has been permanently revoked (Google returned `invalid_grant`).
+    /// Callers should prompt re-authentication.
+    case tokenRevoked
 
     var errorDescription: String? {
         switch self {
@@ -164,6 +201,18 @@ enum OAuthError: Error, LocalizedError {
         case .noRefreshToken:          return "No refresh token received"
         case .listenerFailed:          return "Failed to start local HTTP redirect listener"
         case .httpError(let code, _):  return "OAuth request failed with HTTP \(code)"
+        case .tokenRevoked:            return "Session expired — please sign in again"
         }
+    }
+}
+
+/// Google OAuth error response body for distinguishing error types.
+private struct OAuthErrorResponse: Decodable {
+    let error: String
+    let errorDescription: String?
+
+    enum CodingKeys: String, CodingKey {
+        case error
+        case errorDescription = "error_description"
     }
 }

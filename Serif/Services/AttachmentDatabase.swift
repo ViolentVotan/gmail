@@ -1,4 +1,5 @@
 import Foundation
+private import os
 private import SQLite3
 
 /// SQLITE_TRANSIENT tells SQLite to copy bound data immediately.
@@ -20,6 +21,7 @@ enum AttachmentDatabaseError: Error, Sendable {
 actor AttachmentDatabase {
 
     static let shared = AttachmentDatabase()
+    nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "AttachmentDatabase")
 
     // nonisolated(unsafe) allows access from nonisolated init/deinit.
     // All runtime access is serialized: init runs before the actor is shared,
@@ -33,7 +35,7 @@ actor AttachmentDatabase {
             try openDatabase()
             try createSchema()
         } catch {
-            print("[AttachmentDB] Init failed: \(error)")
+            Self.logger.error("Init failed: \(error, privacy: .public)")
         }
     }
 
@@ -174,7 +176,7 @@ actor AttachmentDatabase {
         if version < 1 {
             exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')")
             exec("PRAGMA user_version = 1")
-            print("[AttachmentDB] Migrated FTS to v1 (added emailBody)")
+            Self.logger.info("Migrated FTS to v1 (added emailBody)")
         }
 
         // v1 → v2: rebuild FTS + vacuum after accountID cleanup
@@ -182,7 +184,7 @@ actor AttachmentDatabase {
             exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')")
             exec("VACUUM")
             exec("PRAGMA user_version = 2")
-            print("[AttachmentDB] Migrated to v2 (accountID cleanup + vacuum)")
+            Self.logger.info("Migrated to v2 (accountID cleanup + vacuum)")
         }
     }
 
