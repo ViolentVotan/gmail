@@ -5,12 +5,20 @@ struct LabelChipView: View {
     let label: EmailLabel
     var isRemovable: Bool = false
     var onRemove: (() -> Void)? = nil
+    @Environment(\.colorSchemeContrast) private var schemeContrast
+
+    private var adjustedTextColor: Color {
+        Color(hex: label.textColor).adjustedForContrast(
+            against: Color(hex: label.color),
+            targetRatio: Color.contrastTarget(for: schemeContrast)
+        )
+    }
 
     var body: some View {
         HStack(spacing: 3) {
             Text(label.name)
                 .font(Typography.captionSmallMedium)
-                .foregroundStyle(Color(hex: label.textColor))
+                .foregroundStyle(adjustedTextColor)
                 .lineLimit(1)
 
             if isRemovable {
@@ -19,7 +27,7 @@ struct LabelChipView: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.caption2.weight(.bold))
-                        .foregroundStyle(Color(hex: label.textColor).opacity(0.7))
+                        .foregroundStyle(adjustedTextColor.opacity(0.7))
                 }
                 .buttonStyle(.plain)
             }
