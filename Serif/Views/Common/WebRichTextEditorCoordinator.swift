@@ -15,7 +15,7 @@ final class WebRichTextEditorCoordinator: NSObject, WKScriptMessageHandler, WKNa
         guard let dict = message.body as? [String: Any],
               let type = dict["type"] as? String else { return }
 
-        Task {
+        MainActor.assumeIsolated {
             switch type {
             case "contentChanged":
                 let isEmpty = dict["isEmpty"] as? Bool ?? false
@@ -59,7 +59,7 @@ final class WebRichTextEditorCoordinator: NSObject, WKScriptMessageHandler, WKNa
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        Task {
+        MainActor.assumeIsolated {
             parent.state.webView = webView
             // Push existing content to the editor (e.g. when re-opening a draft)
             if !parent.htmlContent.isEmpty {
@@ -84,9 +84,7 @@ final class WebRichTextEditorCoordinator: NSObject, WKScriptMessageHandler, WKNa
         let tempURL = tempDir.appendingPathComponent(filename)
         do {
             try data.write(to: tempURL)
-            Task {
-                parent.state.insertImage(from: tempURL)
-            }
+            parent.state.insertImage(from: tempURL)
         } catch {
             Self.logger.warning("Failed to write dropped image to temp file: \(error.localizedDescription, privacy: .public)")
         }

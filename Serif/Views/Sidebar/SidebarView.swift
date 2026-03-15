@@ -16,6 +16,8 @@ struct SidebarView: View {
     var onDropToSpam: ((String, String) -> Void)?
     var onDropToLabel: ((String, String, String) -> Void)?
     var onSignOut: ((GmailAccount) -> Void)?
+    var onSetAsDefault: ((String) -> Void)?
+    var onSetAccentColor: ((String, String) -> Void)?
     var onShowDebug: (() -> Void)?
     var lastRefreshedAt: Date?
 
@@ -71,8 +73,8 @@ struct SidebarView: View {
                 onSignIn: { await authViewModel.signIn() },
                 isSigningIn: authViewModel.isSigningIn,
                 onSignOut: onSignOut,
-                onSetAsDefault: { id in AccountStore.shared.setAsDefault(id: id) },
-                onSetAccentColor: { id, hex in AccountStore.shared.setAccentColor(id: id, hex: hex) }
+                onSetAsDefault: onSetAsDefault,
+                onSetAccentColor: onSetAccentColor
             ) { }
             .padding(.vertical, 8)
             .padding(.horizontal, 12)

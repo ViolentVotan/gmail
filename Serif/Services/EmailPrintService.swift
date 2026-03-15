@@ -13,6 +13,7 @@ final class EmailPrintService {
         let html = buildPrintHTML(message: message, email: email)
 
         let config = WKWebViewConfiguration()
+        config.defaultWebpagePreferences.allowsContentJavaScript = false
         let webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 720, height: 960), configuration: config)
 
         // WKWebView must live inside a window to support printing
@@ -115,6 +116,7 @@ final class EmailPrintService {
         <html>
         <head>
         <meta charset="utf-8">
+        <meta http-equiv="Content-Security-Policy" content="script-src 'none'">
         <style>
             @page { margin: 0; }
             * { box-sizing: border-box; }

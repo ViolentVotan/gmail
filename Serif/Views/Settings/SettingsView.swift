@@ -25,7 +25,14 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             Tab("Accounts", systemImage: "person.2") {
-                AccountsSettingsView()
+                AccountsSettingsView(
+                    fetchAccounts: { AccountStore.shared.accounts },
+                    onSetAsDefault: { id in AccountStore.shared.setAsDefault(id: id) },
+                    onSetAccentColor: { id, hex in AccountStore.shared.setAccentColor(id: id, hex: hex) },
+                    onMoveUp: { id in AccountStore.shared.moveUp(id: id) },
+                    onMoveDown: { id in AccountStore.shared.moveDown(id: id) },
+                    onReorder: { source, destination in AccountStore.shared.reorder(from: source, to: destination) }
+                )
             }
 
             Tab("General", systemImage: "gearshape") {

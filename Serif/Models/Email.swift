@@ -61,7 +61,7 @@ struct Email: Identifiable, Sendable {
         self.cc = cc
         self.subject = subject
         self.body = body
-        self.preview = preview.isEmpty ? String(body.prefix(120)) : preview.decodingHTMLEntities()
+        self.preview = preview.isEmpty ? String(body.strippingHTML.prefix(120)) : preview.decodingHTMLEntities()
         self.date = date
         self.isRead = isRead
         self.isStarred = isStarred

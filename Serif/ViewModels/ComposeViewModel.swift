@@ -46,13 +46,62 @@ final class ComposeViewModel {
         isAwaitingUndoSend = true
         isSending = true
 
+        // Capture all send parameters by value so the closure survives if the
+        // ComposeView (and thus this VM) is dismissed before the undo fires.
+        let capturedFrom = fromAddress
+        let capturedTo = splitAddresses(to)
+        let capturedCC = splitAddresses(cc)
+        let capturedBCC = splitAddresses(bcc)
+        let capturedSubject = subject
+        let capturedBody = body
+        let capturedIsHTML = isHTML
+        let capturedThreadID = threadID
+        let capturedReplyToMessageID = replyToMessageID
+        let capturedInlineImages = inlineImages
+        let capturedAttachments = attachmentURLs.isEmpty ? nil : attachmentURLs
+        let capturedAccountID = accountID
+        let capturedDraftID = gmailDraftID
+        let capturedReplyCleanupMailStore = replyCleanupMailStore
+        let capturedReplyCleanupDraftID = replyCleanupDraftID
+
         UndoActionManager.shared.schedule(
             label: "Sending...",
-            onConfirm: {
-                Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    self.isAwaitingUndoSend = false
-                    await self.executeSend()
+            onConfirm: { [weak self] in
+                Task { @MainActor in
+                    self?.isAwaitingUndoSend = false
+                    do {
+                        _ = try await GmailSendService.shared.send(
+                            from:               capturedFrom,
+                            to:                 capturedTo,
+                            cc:                 capturedCC,
+                            bcc:                capturedBCC,
+                            subject:            capturedSubject,
+                            body:               capturedBody,
+                            isHTML:             capturedIsHTML,
+                            threadID:           capturedThreadID,
+                            referencesHeader:   capturedReplyToMessageID,
+                            inlineImages:       capturedInlineImages,
+                            attachments:        capturedAttachments,
+                            accountID:          capturedAccountID
+                        )
+                        if let draftID = capturedDraftID {
+                            try? await GmailDraftService.shared.deleteDraft(draftID: draftID, accountID: capturedAccountID)
+                        }
+                        self?.isSent = true
+                        // Clean up reply draft references if this was a reply send
+                        if let store = capturedReplyCleanupMailStore {
+                            if let tid = capturedThreadID {
+                                store.replyDrafts.removeValue(forKey: tid)
+                                store.saveReplyDrafts()
+                            }
+                            if let gid = capturedReplyCleanupDraftID {
+                                store.gmailDrafts.removeAll { $0.gmailDraftID == gid }
+                            }
+                        }
+                    } catch {
+                        self?.error = error.localizedDescription
+                    }
+                    self?.isSending = false
                 }
             },
             onUndo: {

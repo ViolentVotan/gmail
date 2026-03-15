@@ -7,16 +7,17 @@ actor QuotaTracker {
     private let budgetPerMinute: Int
     private let budgetPerSecond: Int
     private var ledger: [(timestamp: Date, units: Int)] = []
+    private var _cachedSpend: Int = 0
 
     init(budgetPerMinute: Int = 15_000, budgetPerSecond: Int = 200) {
         self.budgetPerMinute = budgetPerMinute
         self.budgetPerSecond = budgetPerSecond
     }
 
-    /// Current spend in the last 60 seconds.
+    /// Current spend in the last 60 seconds (cached, updated lazily on prune/record).
     private var currentSpend: Int {
-        prune()
-        return ledger.reduce(0) { $0 + $1.units }
+        pruneIfNeeded()
+        return _cachedSpend
     }
 
     /// Remaining budget in the current minute window.
@@ -43,11 +44,13 @@ actor QuotaTracker {
     func spend(_ units: Int) {
         guard !Task.isCancelled else { return }
         ledger.append((timestamp: Date(), units: units))
+        _cachedSpend += units
     }
 
     /// Test helper: record spend at a specific date.
     func spendAt(units: Int, date: Date) {
         ledger.append((timestamp: date, units: units))
+        _cachedSpend += units
     }
 
     /// Suspends until enough budget is available, then spends it.
@@ -60,12 +63,16 @@ actor QuotaTracker {
         spend(units)
     }
 
-    /// Removes entries older than 60 seconds.
-    @discardableResult
-    private func prune() -> Int {
+    /// Removes entries older than 60 seconds, subtracting their units from the cached spend.
+    private func pruneIfNeeded() {
         let cutoff = Date().addingTimeInterval(-60)
-        let before = ledger.count
-        ledger.removeAll { $0.timestamp < cutoff }
-        return before - ledger.count
+        guard let oldest = ledger.first, oldest.timestamp < cutoff else { return }
+        var removed = 0
+        ledger.removeAll { entry in
+            guard entry.timestamp < cutoff else { return false }
+            removed += entry.units
+            return true
+        }
+        _cachedSpend -= removed
     }
 }

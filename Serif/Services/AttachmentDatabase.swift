@@ -708,8 +708,11 @@ actor AttachmentDatabase {
     private nonisolated func addColumnIfMissing(_ table: String, column: String, definition: String) {
         // Guard against SQL injection — identifiers must contain only alphanumeric chars or underscores.
         let identifierPattern = #/^[a-zA-Z0-9_]+$/#
-        assert(table.wholeMatch(of: identifierPattern) != nil, "addColumnIfMissing: unsafe table name '\(table)'")
-        assert(column.wholeMatch(of: identifierPattern) != nil, "addColumnIfMissing: unsafe column name '\(column)'")
+        guard table.wholeMatch(of: identifierPattern) != nil,
+              column.wholeMatch(of: identifierPattern) != nil else {
+            Self.logger.error("addColumnIfMissing: unsafe identifier — table='\(table)', column='\(column)'")
+            return
+        }
 
         var stmt: OpaquePointer?
         let pragmaSQL = "PRAGMA table_info(\(table))"

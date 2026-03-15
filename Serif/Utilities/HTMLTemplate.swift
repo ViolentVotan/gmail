@@ -131,6 +131,12 @@ enum HTMLTemplate {
             with: "",
             options: [.regularExpression, .caseInsensitive]
         )
+        // Remove <style> tags and their content
+        result = result.replacingOccurrences(
+            of: "<style[^>]*>[\\s\\S]*?</style>",
+            with: "",
+            options: [.regularExpression, .caseInsensitive]
+        )
         // Remove <iframe> tags
         result = result.replacingOccurrences(
             of: "<iframe[^>]*>[\\s\\S]*?</iframe>",

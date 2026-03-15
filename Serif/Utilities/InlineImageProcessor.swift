@@ -41,7 +41,7 @@ enum InlineImageProcessor {
                 filename: "\(cid).\(ext)"
             ), at: 0)
 
-            let replacement = "<img src=\"cid:\(cid)\">"
+            let replacement = "<img src=\"cid:\(cid.htmlEscaped)\">"
             mutable.replaceCharacters(in: match.range, with: replacement)
         }
 

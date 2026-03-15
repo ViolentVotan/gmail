@@ -27,7 +27,8 @@ final class AppCoordinator {
     private var contactsTask: Task<Void, Never>?
     private var cachedSnoozedEmails: [Email] = []
     private var cachedScheduledEmails: [Email] = []
-    @ObservationIgnored private var isAccountSwitching = false
+    @ObservationIgnored private var accountSwitchGeneration = 0
+    private var accountSwitchTask: Task<Void, Never>?
 
     // MARK: - Selection State
 
@@ -419,7 +420,7 @@ final class AppCoordinator {
     }
 
     func handleFolderChange(_ folder: Folder) {
-        guard !isAccountSwitching else { return }
+        guard accountSwitchTask == nil else { return }
         if let pending = pendingDraftSelection {
             pendingDraftSelection = nil
             selectedEmail = pending
@@ -477,7 +478,8 @@ final class AppCoordinator {
         guard let id = newID else { return }
         // Skip if handleAppear already set up this account
         guard mailboxViewModel.accountID != id else { return }
-        isAccountSwitching = true
+        accountSwitchGeneration += 1
+        let generation = accountSwitchGeneration
         // Confirm any pending undo actions for the old account before switching
         UndoActionManager.shared.confirmAll()
         // Save old account's signatures before switching
@@ -509,18 +511,21 @@ final class AppCoordinator {
         let oldEngine = syncEngine
         syncEngine = nil
         lifecycleTask?.cancel()
-        lifecycleTask = Task {
-            defer { isAccountSwitching = false }
+        accountSwitchTask?.cancel()
+        let task = Task {
+            defer { accountSwitchTask = nil }
             await oldEngine?.stop()
             await attachmentStore.refresh()
-            guard !Task.isCancelled, self.selectedAccountID == id else { return }
+            guard !Task.isCancelled, self.accountSwitchGeneration == generation else { return }
             syncProgressManager.reset()
             await mailboxViewModel.switchAccount(id)
-            guard !Task.isCancelled, self.selectedAccountID == id else { return }
+            guard !Task.isCancelled, self.accountSwitchGeneration == generation else { return }
             SummaryService.shared.accountID = id
             await setupAccount(id)
             updateDisplayedEmails()
         }
+        accountSwitchTask = task
+        lifecycleTask = task
     }
 
     func handleAccountsChange(old: [GmailAccount], new accounts: [GmailAccount]) {

@@ -1,4 +1,5 @@
 import Foundation
+private import os
 
 /// Generic per-account JSON file persistence.
 ///
@@ -8,6 +9,10 @@ import Foundation
 @Observable
 @MainActor
 final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
+
+    nonisolated private static var logger: Logger {
+        Logger(subsystem: "com.vikingz.serif", category: "PerAccountFileStore")
+    }
 
     /// Per-account storage keyed by accountID.
     private(set) var itemsByAccount: [String: [Item]] = [:]
@@ -48,6 +53,8 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
             itemsByAccount[accountID] = decoded
         } else if let decoded = legacyDecoder?(data) {
             itemsByAccount[accountID] = decoded
+        } else {
+            Self.logger.warning("Failed to decode \(url.lastPathComponent, privacy: .public) for \(accountID, privacy: .public)")
         }
     }
 
@@ -62,6 +69,7 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
         } else if let legacy = legacyDecoder?(data) {
             decoded = legacy
         } else {
+            Self.logger.warning("Failed to decode \(url.lastPathComponent, privacy: .public) for \(accountID, privacy: .public)")
             return
         }
         let existingIDs = Set(
@@ -74,11 +82,15 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
     func save(accountID: String) {
         let url = fileURL(accountID)
         let items = itemsByAccount[accountID] ?? []
-        try? FileManager.default.createDirectory(
-            at: url.deletingLastPathComponent(),
-            withIntermediateDirectories: true
-        )
-        try? JSONEncoder().encode(items).write(to: url, options: .atomic)
+        do {
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try JSONEncoder().encode(items).write(to: url, options: .atomic)
+        } catch {
+            Self.logger.error("Save failed for \(accountID, privacy: .public): \(error, privacy: .public)")
+        }
     }
 
     /// Removes all in-memory data and the on-disk JSON file for the given account.

@@ -58,9 +58,9 @@ Attachment explorer with grid view, thumbnails, file type filtering, and search.
 
 ### `Settings/`
 Tabbed settings view (Accounts, General, Signatures, Filters, Advanced) registered as a macOS `Settings` scene — opens via Cmd+,. `SettingsView` uses `@AppStorage("com.vikingz.serif.selectedAccountID")` for reactive account ID (updates when user switches accounts), `AppearanceManager` via `@Bindable`, and closures (`onReauthorize`, `loadSendAs`, `updateSignature`) from `SerifApp`. Uses `@AppStorage` for other settings (notifications, undo duration, directory contacts sync).
-- `AccountsSettingsView` — Account management: reorder (drag + up/down buttons), set default, accent color picker from palette. Refreshes from `AccountStore.shared` on appear. `onReceive` for `UserDefaults.didChangeNotification` with `AccountStore` cache invalidation. Context menu with "Set as Default" and accent color submenu.
+- `AccountsSettingsView` — Account management: reorder (drag + up/down buttons), set default, accent color picker from palette. Receives all mutation callbacks (`fetchAccounts`, `onSetAsDefault`, `onSetAccentColor`, `onMoveUp`, `onMoveDown`, `onReorder`) from `SettingsView` — no direct `AccountStore` access. Context menu with "Set as Default" and accent color submenu.
 - `SignaturesSettingsView` — Signature management per send-as alias. Takes explicit `loadSendAs` and `onUpdateSignature` closures.
-- `FiltersSettingsView` — Gmail filter list with create/edit/delete actions.
+- `FiltersSettingsView` — Gmail filter list with create/edit/delete actions. Uses `.task(id: accountID)` to recreate `FiltersViewModel` on account switch.
 - `FilterEditorView` — Filter rule editor (criteria + actions) for creating/editing Gmail filters.
 
 ### `Onboarding/`

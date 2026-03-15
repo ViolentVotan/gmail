@@ -47,7 +47,10 @@ struct FiltersSettingsView: View {
                 filterToDelete = nil
             }
         }
-        .task { await viewModel.loadFilters() }
+        .task(id: accountID) {
+            viewModel = FiltersViewModel(accountID: accountID)
+            await viewModel.loadFilters()
+        }
     }
 
     private func filterRow(_ filter: GmailFilter) -> some View {

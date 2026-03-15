@@ -11,15 +11,13 @@ extension Date {
 
     private static let shortDateFormatter: DateFormatter = {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "MMM d"
+        f.setLocalizedDateFormatFromTemplate("MMM d")
         return f
     }()
 
     private static let shortDateYearFormatter: DateFormatter = {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "MMM d, yyyy"
+        f.setLocalizedDateFormatFromTemplate("MMM d, yyyy")
         return f
     }()
 

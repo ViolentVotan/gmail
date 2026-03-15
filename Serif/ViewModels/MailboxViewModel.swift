@@ -490,6 +490,57 @@ final class MailboxViewModel {
         }
     }
 
+    /// Batch-updates labels for multiple messages in a single write transaction.
+    /// Returns a map of messageID -> original label IDs for undo.
+    @discardableResult
+    func updateLabelsInDatabaseBatch(_ messageIDs: [String], addLabelIds: [String], removeLabelIds: [String]) async -> [String: [String]] {
+        guard let db = mailDatabase else { return [:] }
+        do {
+            return try await db.dbPool.write { database in
+                var originalLabelsMap: [String: [String]] = [:]
+                for msgID in messageIDs {
+                    // 1. Read current labels
+                    let currentLabels = try String.fetchAll(database, sql:
+                        "SELECT label_id FROM message_labels WHERE message_id = ?",
+                        arguments: [msgID]
+                    )
+                    originalLabelsMap[msgID] = currentLabels
+
+                    // 2. Apply changes
+                    var labelSet = Set(currentLabels)
+                    labelSet.subtract(removeLabelIds)
+                    labelSet.formUnion(addLabelIds)
+
+                    // 3. Delete old label rows
+                    try database.execute(
+                        sql: "DELETE FROM message_labels WHERE message_id = ?",
+                        arguments: [msgID]
+                    )
+
+                    // 4. Insert new label rows
+                    for labelId in labelSet {
+                        try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil)
+                            .insert(database, onConflict: .ignore)
+                        try MessageLabelRecord(messageId: msgID, labelId: labelId)
+                            .insert(database, onConflict: .ignore)
+                    }
+
+                    // 5. Sync denormalized columns
+                    let isRead = !labelSet.contains(GmailSystemLabel.unread)
+                    let isStarred = labelSet.contains(GmailSystemLabel.starred)
+                    try database.execute(
+                        sql: "UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?",
+                        arguments: [isRead, isStarred, msgID]
+                    )
+                }
+                return originalLabelsMap
+            }
+        } catch {
+            Self.logger.error("Batch DB label mutation failed: \(error.localizedDescription, privacy: .public)")
+            return [:]
+        }
+    }
+
     /// Removes all labels from a message in the database. Returns the original labels for undo.
     func removeAllLabelsInDatabase(_ messageID: String) async -> [String]? {
         await writeLabels(messageID) { labels in

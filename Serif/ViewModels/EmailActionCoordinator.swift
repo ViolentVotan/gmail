@@ -377,12 +377,7 @@ final class EmailActionCoordinator {
     ) async {
         let vm = mailboxViewModel
         let msgIDs = emails.compactMap(\.gmailMessageID)
-        var originalLabelsMap: [String: [String]] = [:]
-        for id in msgIDs {
-            if let labels = await vm.updateLabelsInDatabase(id, addLabelIds: addLabels, removeLabelIds: removeLabels) {
-                originalLabelsMap[id] = labels
-            }
-        }
+        let originalLabelsMap = await vm.updateLabelsInDatabaseBatch(msgIDs, addLabelIds: addLabels, removeLabelIds: removeLabels)
         onClear()
         if let offlineType, !NetworkMonitor.shared.isConnected {
             OfflineActionQueue.shared.enqueue(OfflineAction(
@@ -438,11 +433,9 @@ final class EmailActionCoordinator {
     func bulkMarkUnread(_ emails: [Email], onClear: () -> Void) async {
         let vm = mailboxViewModel
         let msgIDs = emails.compactMap(\.gmailMessageID)
+        // Save originals for revert via single-transaction batch update
+        let originalLabelsMap = await vm.updateLabelsInDatabaseBatch(msgIDs, addLabelIds: [GmailSystemLabel.unread], removeLabelIds: [])
         onClear()
-        // Optimistic DB update: add UNREAD label for each message
-        for id in msgIDs {
-            await vm.updateLabelsInDatabase(id, addLabelIds: [GmailSystemLabel.unread], removeLabelIds: [])
-        }
         let accountID = vm.accountID
         let api = self.api
         do {
@@ -450,15 +443,20 @@ final class EmailActionCoordinator {
                 ids: msgIDs, add: [GmailSystemLabel.unread], remove: [], accountID: accountID
             )
         } catch {
+            // Revert optimistic update
+            for (id, labels) in originalLabelsMap {
+                await vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
+            }
             ToastManager.shared.show(message: "Failed to update read status", type: .error)
         }
     }
 
     func bulkMarkRead(_ emails: [Email], onClear: () -> Void) async {
-        let msgIDs = emails.compactMap(\.gmailMessageID)
-        onClear()
         let vm = mailboxViewModel
-        await vm.applyReadLocally(msgIDs)
+        let msgIDs = emails.compactMap(\.gmailMessageID)
+        // Save originals for revert via single-transaction batch update
+        let originalLabelsMap = await vm.updateLabelsInDatabaseBatch(msgIDs, addLabelIds: [], removeLabelIds: [GmailSystemLabel.unread])
+        onClear()
         let accountID = vm.accountID
         let api = self.api
         do {
@@ -466,11 +464,19 @@ final class EmailActionCoordinator {
                 ids: msgIDs, add: [], remove: [GmailSystemLabel.unread], accountID: accountID
             )
         } catch {
+            // Revert optimistic update
+            for (id, labels) in originalLabelsMap {
+                await vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
+            }
             ToastManager.shared.show(message: "Failed to update read status", type: .error)
         }
     }
 
     func bulkMoveToInbox(_ emails: [Email], selectedFolder: Folder, onClear: () -> Void) async {
+        guard NetworkMonitor.shared.isConnected else {
+            ToastManager.shared.show(message: "Move to Inbox requires internet connection", type: .error)
+            return
+        }
         let removeLabels = selectedFolder == .trash ? [GmailSystemLabel.trash] : [String]()
         await performBulkUndoableAction(
             emails: emails,

@@ -39,7 +39,7 @@ struct SignaturesSettingsView: View {
                 .listStyle(.inset)
             }
         }
-        .task { await fetchAliases() }
+        .task(id: accountID) { await fetchAliases() }
         .sheet(item: $selectedAlias) { alias in
             SignatureEditorView(
                 alias: alias,

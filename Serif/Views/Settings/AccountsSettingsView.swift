@@ -1,8 +1,14 @@
 import SwiftUI
-import Combine
 
 struct AccountsSettingsView: View {
-    @State private var accounts: [GmailAccount] = AccountStore.shared.accounts
+    var fetchAccounts: () -> [GmailAccount] = { AccountStore.shared.accounts }
+    var onSetAsDefault: ((String) -> Void)?
+    var onSetAccentColor: ((String, String) -> Void)?
+    var onMoveUp: ((String) -> Void)?
+    var onMoveDown: ((String) -> Void)?
+    var onReorder: ((IndexSet, Int) -> Void)?
+
+    @State private var accounts: [GmailAccount] = []
     @State private var colorPickerAccountID: String?
 
     var body: some View {
@@ -15,10 +21,6 @@ struct AccountsSettingsView: View {
         .listStyle(.inset(alternatesRowBackgrounds: true))
         .scrollContentBackground(.hidden)
         .onAppear { refresh() }
-        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
-            AccountStore.shared.invalidateCache()
-            refresh()
-        }
         .overlay {
             if accounts.isEmpty {
                 ContentUnavailableView(
@@ -106,7 +108,7 @@ struct AccountsSettingsView: View {
         Menu {
             ForEach(AccountStore.accentPalette, id: \.self) { hex in
                 Button {
-                    AccountStore.shared.setAccentColor(id: account.id, hex: hex)
+                    onSetAccentColor?(account.id, hex)
                     refresh()
                 } label: {
                     HStack {
@@ -138,7 +140,7 @@ struct AccountsSettingsView: View {
             Button {
                 guard index > 0 else { return }
                 let id = accounts[index].id
-                AccountStore.shared.moveUp(id: id)
+                onMoveUp?(id)
                 refresh()
             } label: {
                 Image(systemName: "chevron.up")
@@ -152,7 +154,7 @@ struct AccountsSettingsView: View {
             Button {
                 guard index < accounts.count - 1 else { return }
                 let id = accounts[index].id
-                AccountStore.shared.moveDown(id: id)
+                onMoveDown?(id)
                 refresh()
             } label: {
                 Image(systemName: "chevron.down")
@@ -171,7 +173,7 @@ struct AccountsSettingsView: View {
     private func contextMenu(for account: GmailAccount, index: Int) -> some View {
         if index != 0 {
             Button("Set as Default") {
-                AccountStore.shared.setAsDefault(id: account.id)
+                onSetAsDefault?(account.id)
                 refresh()
             }
             Divider()
@@ -180,7 +182,7 @@ struct AccountsSettingsView: View {
         Menu("Accent Color") {
             ForEach(AccountStore.accentPalette, id: \.self) { hex in
                 Button {
-                    AccountStore.shared.setAccentColor(id: account.id, hex: hex)
+                    onSetAccentColor?(account.id, hex)
                     refresh()
                 } label: {
                     HStack {
@@ -198,11 +200,11 @@ struct AccountsSettingsView: View {
     // MARK: - Actions
 
     private func move(from source: IndexSet, to destination: Int) {
-        AccountStore.shared.reorder(from: source, to: destination)
+        onReorder?(source, destination)
         refresh()
     }
 
     private func refresh() {
-        accounts = AccountStore.shared.accounts
+        accounts = fetchAccounts()
     }
 }

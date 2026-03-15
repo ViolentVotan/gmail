@@ -101,7 +101,9 @@ final class LRUCache<Key: Hashable, Value> {
     /// Evicts the least-recently-used entries (from head side) when over capacity.
     private func evictIfNeeded() {
         guard storage.count > maxSize else { return }
-        let evictCount = max(1, Int(Double(maxSize) * evictionFraction))
+        let overflow = storage.count - maxSize
+        let batchSize = max(1, Int(Double(maxSize) * evictionFraction))
+        let evictCount = min(storage.count, max(overflow, batchSize))
         for _ in 0..<evictCount {
             guard let lru = head.next, lru !== tail, let key = lru.key else { break }
             removeNode(lru)
