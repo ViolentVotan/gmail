@@ -1,5 +1,6 @@
 import SwiftUI
 
+@MainActor
 struct EmailListActions {
     // MARK: - Per-email actions
 

@@ -16,14 +16,14 @@ final class SmartReplyProvider {
     static let shared = SmartReplyProvider()
     private init() {}
 
-    private var cache: [String: [String]] = [:]
+    private let cache = LRUCache<String, [String]>(maxSize: 200)
 
     func cachedReplies(for threadId: String) -> [String]? {
         cache[threadId]
     }
 
     func invalidate(threadId: String) {
-        cache.removeValue(forKey: threadId)
+        cache[threadId] = nil
     }
 
     func generateReplies(subject: String, senderName: String, body: String, threadId: String) async -> [String] {
@@ -46,12 +46,6 @@ final class SmartReplyProvider {
             let response = try await session.respond(to: prompt, generating: SmartReplies.self)
             let replies = Array(response.content.replies.prefix(3))
             cache[threadId] = replies
-            if cache.count > 200 {
-                let removeCount = cache.count / 4
-                for key in cache.keys.prefix(removeCount) {
-                    cache.removeValue(forKey: key)
-                }
-            }
             return replies
         } catch is CancellationError { return [] }
         catch let error as LanguageModelSession.GenerationError {

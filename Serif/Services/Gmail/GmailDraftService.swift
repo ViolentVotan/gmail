@@ -8,6 +8,17 @@ final class GmailDraftService {
 
     private let client = GmailAPIClient.shared
 
+    /// Field masks for draft formats, avoiding repetition across getDraft/getDrafts.
+    private enum DraftFields {
+        static func fields(for format: String) -> String? {
+            switch format {
+            case "metadata": "id,message(id,threadId,labelIds,snippet,payload/headers,internalDate)"
+            case "full": "id,message(id,threadId,labelIds,snippet,payload,internalDate)"
+            default: nil
+            }
+        }
+    }
+
     // MARK: - List Drafts
 
     /// Lists draft refs for the authenticated user.
@@ -29,14 +40,9 @@ final class GmailDraftService {
 
     /// Fetches a single draft with its full message payload.
     @concurrent func getDraft(id: String, accountID: String, format: String = "metadata") async throws(GmailAPIError) -> GmailDraft {
-        let draftFields: String? = switch format {
-        case "metadata": "id,message(id,threadId,labelIds,snippet,payload/headers,internalDate)"
-        case "full": "id,message(id,threadId,labelIds,snippet,payload,internalDate)"
-        default: nil
-        }
         return try await client.request(
             path: "/users/me/drafts/\(id)?format=\(format)",
-            fields: draftFields,
+            fields: DraftFields.fields(for: format),
             accountID: accountID
         )
     }
@@ -124,20 +130,19 @@ final class GmailDraftService {
     // MARK: - Batch fetch
 
     /// Fetches a batch of drafts using Gmail's batch API (up to 50 per request).
-    @concurrent func getDrafts(ids: [String], accountID: String, format: String = "metadata") async throws(GmailAPIError) -> [GmailDraft] {
-        let draftFields: String? = switch format {
-        case "metadata": "id,message(id,threadId,labelIds,snippet,payload/headers,internalDate)"
-        case "full": "id,message(id,threadId,labelIds,snippet,payload,internalDate)"
-        default: nil
-        }
-        let fieldsParam = draftFields.map { "&fields=\($0.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0)" } ?? ""
-        let drafts: [GmailDraft] = try await client.batchFetch(
+    /// Returns successfully fetched drafts and IDs that failed (non-2xx or decode error).
+    /// Callers should retry failed IDs on a subsequent sync cycle.
+    @concurrent func getDrafts(ids: [String], accountID: String, format: String = "metadata") async throws(GmailAPIError) -> (drafts: [GmailDraft], failedIDs: [String]) {
+        let fieldsParam = DraftFields.fields(for: format)
+            .map { "&fields=\($0.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0)" } ?? ""
+        let result: BatchFetchResult<GmailDraft> = try await client.batchFetch(
             ids: ids,
             pathBuilder: { "/gmail/v1/users/me/drafts/\($0)?format=\(format)\(fieldsParam)" },
             accountID: accountID
         )
-        return drafts.sorted {
+        let sorted = result.items.sorted {
             ($0.message?.date ?? .distantPast) > ($1.message?.date ?? .distantPast)
         }
+        return (drafts: sorted, failedIDs: result.failedIDs)
     }
 }

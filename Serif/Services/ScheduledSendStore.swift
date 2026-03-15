@@ -60,10 +60,12 @@ final class ScheduledSendStore {
     func load(accountID: String) {
         store.load(accountID: accountID)
         // Filter out items that don't match the account (legacy safety)
-        store.replaceItems(
-            (store.itemsByAccount[accountID] ?? []).filter { $0.accountID == accountID },
-            accountID: accountID
-        )
+        let items = store.itemsByAccount[accountID] ?? []
+        let filtered = items.filter { $0.accountID == accountID }
+        if filtered.count != items.count {
+            store.replaceItems(filtered, accountID: accountID)
+            store.save(accountID: accountID)
+        }
     }
 
     func add(_ item: ScheduledSendItem) {

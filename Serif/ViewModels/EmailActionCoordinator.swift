@@ -424,14 +424,23 @@ final class EmailActionCoordinator {
     }
 
     func bulkMarkUnread(_ emails: [Email], onClear: () -> Void) {
+        let vm = mailboxViewModel
         let msgIDs = emails.compactMap(\.gmailMessageID)
         onClear()
-        let accountID = mailboxViewModel.accountID
+        // Optimistic DB update: add UNREAD label for each message
+        for id in msgIDs {
+            vm.updateLabelsInDatabase(id, addLabelIds: [GmailSystemLabel.unread], removeLabelIds: [])
+        }
+        let accountID = vm.accountID
         let api = self.api
         Task {
-            try? await api.batchModifyLabels(
-                ids: msgIDs, add: [GmailSystemLabel.unread], remove: [], accountID: accountID
-            )
+            do {
+                try await api.batchModifyLabels(
+                    ids: msgIDs, add: [GmailSystemLabel.unread], remove: [], accountID: accountID
+                )
+            } catch {
+                ToastManager.shared.show(message: "Failed to update read status", type: .error)
+            }
         }
     }
 
@@ -443,9 +452,13 @@ final class EmailActionCoordinator {
         let accountID = vm.accountID
         let api = self.api
         Task {
-            try? await api.batchModifyLabels(
-                ids: msgIDs, add: [], remove: [GmailSystemLabel.unread], accountID: accountID
-            )
+            do {
+                try await api.batchModifyLabels(
+                    ids: msgIDs, add: [], remove: [GmailSystemLabel.unread], accountID: accountID
+                )
+            } catch {
+                ToastManager.shared.show(message: "Failed to update read status", type: .error)
+            }
         }
     }
 

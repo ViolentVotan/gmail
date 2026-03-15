@@ -81,7 +81,7 @@ final class MailStore {
                 return
             }
             let draftIDs = draftRefs.map(\.id)
-            let fetched = try await GmailDraftService.shared.getDrafts(
+            let (fetched, _) = try await GmailDraftService.shared.getDrafts(
                 ids: draftIDs, accountID: accountID, format: "full"
             )
             var emails: [Email] = []

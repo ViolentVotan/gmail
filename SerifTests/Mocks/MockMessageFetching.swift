@@ -25,8 +25,8 @@ final class MockMessageFetching: MessageFetching {
         return msg
     }
 
-    @concurrent func getMessages(ids: [String], accountID: String, format: String) async throws(GmailAPIError) -> [GmailMessage] {
-        getMessagesResponse
+    @concurrent func getMessages(ids: [String], accountID: String, format: String) async throws(GmailAPIError) -> (messages: [GmailMessage], failedIDs: [String]) {
+        (messages: getMessagesResponse, failedIDs: [])
     }
 
     @concurrent func listHistory(accountID: String, startHistoryId: String, labelId: String?, pageToken: String?, maxResults: Int) async throws(GmailAPIError) -> GmailHistoryListResponse {

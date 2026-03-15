@@ -12,17 +12,18 @@ struct LabelSuggestion: Equatable, Sendable {
 final class LabelSuggestionService {
     static let shared = LabelSuggestionService()
 
-    private var cache: [String: [LabelSuggestion]] = [:]
+    private let cache = LRUCache<String, [LabelSuggestion]>(maxSize: 200)
 
     private init() {}
 
     func cachedSuggestions(for email: Email) -> [LabelSuggestion]? {
-        guard let key = AIServiceHelpers.cacheKey(for: email) else { return nil }
+        let key = AIServiceHelpers.cacheKey(for: email)
         return cache[key]
     }
 
     func generateSuggestions(for email: Email, existingLabels: [GmailLabel]) async -> [LabelSuggestion] {
-        if let key = AIServiceHelpers.cacheKey(for: email), let cached = cache[key] {
+        let key = AIServiceHelpers.cacheKey(for: email)
+        if let cached = cache[key] {
             return cached
         }
 
@@ -68,9 +69,8 @@ final class LabelSuggestionService {
             let response = try await session.respond(to: prompt)
             let suggestions = parseSuggestions(from: response.content, existingLabels: userLabels)
 
-            if let key = AIServiceHelpers.cacheKey(for: email) {
-                cache[key] = suggestions
-            }
+            let key = AIServiceHelpers.cacheKey(for: email)
+            cache[key] = suggestions
             return suggestions
         } catch {
             return []

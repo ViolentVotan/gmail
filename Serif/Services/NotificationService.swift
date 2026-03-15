@@ -6,7 +6,6 @@ private import os
 final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationService()
     nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "NotificationService")
-    private var actionTask: Task<Void, Never>?
     private override init() { super.init() }
 
     func setup() {
@@ -89,24 +88,20 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
 
             switch actionIdentifier {
             case "ARCHIVE":
-                actionTask?.cancel()
-                actionTask = Task {
+                Task {
                     do {
                         try await GmailMessageService.shared.archiveMessage(id: messageId, accountID: accountID)
                     } catch {
-                        guard !Task.isCancelled else { return }
                         OfflineActionQueue.shared.enqueue(
                             OfflineAction(actionType: .archive, messageIds: [messageId], accountID: accountID)
                         )
                     }
                 }
             case "MARK_READ":
-                actionTask?.cancel()
-                actionTask = Task {
+                Task {
                     do {
                         try await GmailMessageService.shared.markAsRead(id: messageId, accountID: accountID)
                     } catch {
-                        guard !Task.isCancelled else { return }
                         OfflineActionQueue.shared.enqueue(
                             OfflineAction(actionType: .markRead, messageIds: [messageId], accountID: accountID)
                         )

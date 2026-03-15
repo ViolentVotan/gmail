@@ -41,29 +41,35 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord 
     // MARK: - Conversion from Gmail API model
 
     init(from gmail: GmailMessage) {
+        // Build header map once — O(headers) — instead of O(headers) per header lookup.
+        // This init reads 7+ headers; the map avoids repeated linear scans with lowercased().
+        let headers = gmail.headerMap
+
         self.gmailId = gmail.id
         self.threadId = gmail.threadId
         self.historyId = gmail.historyId
         self.internalDate = gmail.date?.timeIntervalSince1970 ?? 0
         self.snippet = gmail.snippet
         self.sizeEstimate = gmail.sizeEstimate
-        self.subject = gmail.subject
-        let parsedSender = GmailDataTransformer.parseContactCore(gmail.from)
+        self.subject = headers["subject"] ?? "(no subject)"
+        let fromValue = headers["from"] ?? ""
+        let parsedSender = GmailDataTransformer.parseContactCore(fromValue)
         self.senderEmail = parsedSender.email
         self.senderName = parsedSender.name == parsedSender.email ? nil : parsedSender.name
-        self.toRecipients = Self.encodeRecipients(gmail.to)
-        self.ccRecipients = Self.encodeRecipients(gmail.cc)
+        self.toRecipients = Self.encodeRecipients(headers["to"] ?? "")
+        self.ccRecipients = Self.encodeRecipients(headers["cc"] ?? "")
         self.bccRecipients = nil // BCC only available for sent messages via raw format
-        self.replyTo = gmail.replyTo
-        self.messageIdHeader = gmail.messageID
-        self.inReplyTo = gmail.inReplyTo
+        let replyToValue = headers["reply-to"] ?? fromValue
+        self.replyTo = replyToValue
+        self.messageIdHeader = headers["message-id"] ?? ""
+        self.inReplyTo = headers["in-reply-to"] ?? ""
         self.bodyHtml = gmail.htmlBody
         self.bodyPlain = gmail.plainBody
         self.rawHeaders = Self.encodeHeaders(gmail.payload?.headers)
         self.hasAttachments = gmail.attachmentParts.count > 0
         self.isRead = !(gmail.labelIds?.contains(GmailSystemLabel.unread) ?? false)
         self.isStarred = gmail.labelIds?.contains(GmailSystemLabel.starred) ?? false
-        self.isFromMailingList = gmail.isFromMailingList
+        self.isFromMailingList = headers["list-unsubscribe"] != nil || headers["list-id"] != nil
         self.unsubscribeUrl = gmail.unsubscribeURL?.absoluteString
         self.fullBodyFetched = gmail.htmlBody != nil || gmail.plainBody != nil
         self.threadMessageCount = 1

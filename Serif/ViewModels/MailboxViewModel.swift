@@ -25,7 +25,13 @@ final class MailboxViewModel {
     var categoryUnreadCounts:  [InboxCategory: Int] = [:]
     /// Set by `restoreLabelsInDatabase` so the UI can re-select the restored email.
     var lastRestoredMessageID: String?
-    private(set) var emails: [Email] = []
+    private(set) var emails: [Email] = [] {
+        didSet { onEmailsChanged?() }
+    }
+
+    /// Called by the coordinator to stay notified when `emails` changes
+    /// (e.g. from ValueObservation or search results).
+    @ObservationIgnored var onEmailsChanged: (() -> Void)?
 
     var priorityFilterEnabled: Bool = false
 
@@ -282,11 +288,11 @@ final class MailboxViewModel {
                     let placeholders = categoryIds.map { _ in "?" }.joined(separator: ",")
                     let rows = try Row.fetchAll(database, sql: """
                         SELECT ml2.label_id, COUNT(*) AS cnt FROM messages m
-                        JOIN message_labels ml1 ON ml1.message_id = m.gmail_id AND ml1.label_id = '\(GmailSystemLabel.inbox)'
+                        JOIN message_labels ml1 ON ml1.message_id = m.gmail_id AND ml1.label_id = ?
                         JOIN message_labels ml2 ON ml2.message_id = m.gmail_id
                         WHERE m.is_read = 0 AND ml2.label_id IN (\(placeholders))
                         GROUP BY ml2.label_id
-                    """, arguments: StatementArguments(categoryIds))
+                    """, arguments: StatementArguments([GmailSystemLabel.inbox] + categoryIds))
                     for row in rows {
                         let labelId: String = row["label_id"]
                         let count: Int = row["cnt"]
@@ -303,7 +309,9 @@ final class MailboxViewModel {
                 // Fall through to API
             }
         }
-        categoryUnreadCounts = await labelService.loadCategoryUnreadCounts(accountID: accountID)
+        if let counts = await labelService.loadCategoryUnreadCounts(accountID: accountID) {
+            categoryUnreadCounts = counts
+        }
     }
 
     // MARK: - Account switching
@@ -408,127 +416,97 @@ final class MailboxViewModel {
         }
     }
 
-    /// Optimistically updates labels in the database so ValueObservation reflects the change.
-    /// Returns the original label IDs for undo.
+    // MARK: - Label mutation helper
+
+    /// Core label-mutation helper. Reads current labels, applies a transform, writes results,
+    /// and syncs denormalized `is_read`/`is_starred` columns — all in a single write transaction.
+    /// Returns the **original** label IDs (before the transform) for undo, or `nil` on failure.
+    ///
+    /// - Parameters:
+    ///   - messageID: The Gmail message ID.
+    ///   - ensureLabelRecords: When `true`, upserts `LabelRecord` rows for every label in the
+    ///     final set (needed when labels may not yet exist in the `labels` table).
+    ///   - transform: Mutates the current label set in place.
     @discardableResult
-    func updateLabelsInDatabase(_ messageID: String, addLabelIds: [String], removeLabelIds: [String]) -> [String]? {
+    private func writeLabels(
+        _ messageID: String,
+        ensureLabelRecords: Bool = false,
+        transform: (inout Set<String>) -> Void
+    ) -> [String]? {
         guard let db = mailDatabase else { return nil }
         do {
             return try db.dbPool.write { database in
-                // Read current labels for undo
+                // 1. Read current labels
                 let currentLabels = try String.fetchAll(database, sql:
                     "SELECT label_id FROM message_labels WHERE message_id = ?",
                     arguments: [messageID]
                 )
+                var labels = Set(currentLabels)
 
-                // Remove specified labels
-                if !removeLabelIds.isEmpty {
-                    let placeholders = removeLabelIds.map { _ in "?" }.joined(separator: ",")
-                    try database.execute(
-                        sql: "DELETE FROM message_labels WHERE message_id = ? AND label_id IN (\(placeholders))",
-                        arguments: StatementArguments([messageID] + removeLabelIds)
-                    )
-                }
+                // 2. Apply transform
+                transform(&labels)
 
-                // Add specified labels (ignore if already present from concurrent sync)
-                for labelId in addLabelIds {
-                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).insert(database, onConflict: .ignore)
-                    try MessageLabelRecord(messageId: messageID, labelId: labelId).insert(database, onConflict: .ignore)
-                }
-
-                // Sync denormalized columns from final label state
-                let finalLabels = try String.fetchAll(database, sql:
-                    "SELECT label_id FROM message_labels WHERE message_id = ?",
+                // 3. Delete all label rows for this message
+                try database.execute(
+                    sql: "DELETE FROM message_labels WHERE message_id = ?",
                     arguments: [messageID]
                 )
+
+                // 4. Insert new label rows
+                for labelId in labels {
+                    if ensureLabelRecords {
+                        try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil)
+                            .insert(database, onConflict: .ignore)
+                    }
+                    try MessageLabelRecord(messageId: messageID, labelId: labelId)
+                        .insert(database, onConflict: .ignore)
+                }
+
+                // 5. Sync denormalized columns
+                let isRead = !labels.contains(GmailSystemLabel.unread)
+                let isStarred = labels.contains(GmailSystemLabel.starred)
                 try database.execute(
                     sql: "UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?",
-                    arguments: [!finalLabels.contains(GmailSystemLabel.unread),
-                                finalLabels.contains(GmailSystemLabel.starred),
-                                messageID]
+                    arguments: [isRead, isStarred, messageID]
                 )
 
                 return currentLabels
             }
         } catch {
-            Self.logger.error("Optimistic DB label update failed: \(error.localizedDescription, privacy: .public)")
+            Self.logger.error("DB label mutation failed for \(messageID, privacy: .public): \(error.localizedDescription, privacy: .public)")
             return nil
+        }
+    }
+
+    /// Optimistically updates labels in the database so ValueObservation reflects the change.
+    /// Returns the original label IDs for undo.
+    @discardableResult
+    func updateLabelsInDatabase(_ messageID: String, addLabelIds: [String], removeLabelIds: [String]) -> [String]? {
+        writeLabels(messageID, ensureLabelRecords: true) { labels in
+            labels.subtract(removeLabelIds)
+            labels.formUnion(addLabelIds)
         }
     }
 
     /// Removes all labels from a message in the database. Returns the original labels for undo.
     func removeAllLabelsInDatabase(_ messageID: String) -> [String]? {
-        guard let db = mailDatabase else { return nil }
-        do {
-            return try db.dbPool.write { database in
-                let currentLabels = try String.fetchAll(database, sql:
-                    "SELECT label_id FROM message_labels WHERE message_id = ?",
-                    arguments: [messageID]
-                )
-                try database.execute(
-                    sql: "DELETE FROM message_labels WHERE message_id = ?",
-                    arguments: [messageID]
-                )
-                // No labels → message is read and not starred
-                try database.execute(
-                    sql: "UPDATE messages SET is_read = 1, is_starred = 0 WHERE gmail_id = ?",
-                    arguments: [messageID]
-                )
-                return currentLabels
-            }
-        } catch {
-            Self.logger.error("Optimistic DB label removal failed: \(error.localizedDescription, privacy: .public)")
-            return nil
+        writeLabels(messageID) { labels in
+            labels.removeAll()
         }
     }
 
     /// Restores the original labels in the database (undo path).
     func restoreLabelsInDatabase(_ messageID: String, originalLabelIds: [String]) {
-        guard let db = mailDatabase else { return }
-        do {
-            try db.dbPool.write { database in
-                try database.execute(
-                    sql: "DELETE FROM message_labels WHERE message_id = ?",
-                    arguments: [messageID]
-                )
-                for labelId in originalLabelIds {
-                    try MessageLabelRecord(messageId: messageID, labelId: labelId).insert(database, onConflict: .ignore)
-                }
-                let isRead = !originalLabelIds.contains(GmailSystemLabel.unread)
-                let isStarred = originalLabelIds.contains(GmailSystemLabel.starred)
-                try database.execute(
-                    sql: "UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?",
-                    arguments: [isRead, isStarred, messageID]
-                )
-            }
-        } catch {
-            Self.logger.error("Label restore failed: \(error.localizedDescription, privacy: .public)")
+        writeLabels(messageID) { labels in
+            labels = Set(originalLabelIds)
         }
     }
 
     /// Reconciles DB labels with the server's authoritative label set after an API mutation.
     /// Corrects any drift between our optimistic update and what the server actually applied.
     private func reconcileLabelsInDatabase(_ messageID: String, serverLabelIds: [String]) {
-        guard let db = mailDatabase else { return }
-        do {
-            try db.dbPool.write { database in
-                try database.execute(
-                    sql: "DELETE FROM message_labels WHERE message_id = ?",
-                    arguments: [messageID]
-                )
-                for labelId in serverLabelIds {
-                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).insert(database, onConflict: .ignore)
-                    try MessageLabelRecord(messageId: messageID, labelId: labelId).insert(database, onConflict: .ignore)
-                }
-                let isRead = !serverLabelIds.contains(GmailSystemLabel.unread)
-                let isStarred = serverLabelIds.contains(GmailSystemLabel.starred)
-                try database.execute(
-                    sql: "UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?",
-                    arguments: [isRead, isStarred, messageID]
-                )
-            }
-        } catch {
-            Self.logger.error("Label reconciliation failed: \(error.localizedDescription, privacy: .public)")
+        writeLabels(messageID, ensureLabelRecords: true) { labels in
+            labels = Set(serverLabelIds)
         }
     }
 
@@ -709,39 +687,12 @@ final class MailboxViewModel {
     /// Returns original label IDs for undo. Avoids double ValueObservation notifications.
     @discardableResult
     private func markAsReadInDatabase(_ messageID: String, isRead: Bool) -> [String]? {
-        guard let db = mailDatabase else { return nil }
-        do {
-            return try db.dbPool.write { database in
-                // Read current labels for undo
-                let currentLabels = try String.fetchAll(database, sql:
-                    "SELECT label_id FROM message_labels WHERE message_id = ?",
-                    arguments: [messageID]
-                )
-
-                // Update label associations: add/remove UNREAD label
-                if isRead {
-                    try database.execute(
-                        sql: "DELETE FROM message_labels WHERE message_id = ? AND label_id = ?",
-                        arguments: [messageID, GmailSystemLabel.unread]
-                    )
-                } else {
-                    try LabelRecord(gmailId: GmailSystemLabel.unread, name: GmailSystemLabel.unread, type: nil, bgColor: nil, textColor: nil)
-                        .insert(database, onConflict: .ignore)
-                    try MessageLabelRecord(messageId: messageID, labelId: GmailSystemLabel.unread)
-                        .insert(database, onConflict: .ignore)
-                }
-
-                // Update denormalized read flag
-                try database.execute(
-                    sql: "UPDATE messages SET is_read = ? WHERE gmail_id = ?",
-                    arguments: [isRead, messageID]
-                )
-
-                return currentLabels
+        writeLabels(messageID, ensureLabelRecords: !isRead) { labels in
+            if isRead {
+                labels.remove(GmailSystemLabel.unread)
+            } else {
+                labels.insert(GmailSystemLabel.unread)
             }
-        } catch {
-            Self.logger.error("Combined mark-as-read DB update failed: \(error.localizedDescription, privacy: .public)")
-            return nil
         }
     }
 

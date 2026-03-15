@@ -7,7 +7,7 @@ import FoundationModels
 final class QuickReplyService {
     static let shared = QuickReplyService()
 
-    private var cache: [String: [String]] = [:]
+    private let cache = LRUCache<String, [String]>(maxSize: 200)
 
     private init() {}
 
@@ -17,7 +17,8 @@ final class QuickReplyService {
     // path which uses threadId-keyed structured output, a different mechanism.)
 
     func generateReplies(for email: Email) async -> [String] {
-        if let key = AIServiceHelpers.cacheKey(for: email), let cached = cache[key] {
+        let key = AIServiceHelpers.cacheKey(for: email)
+        if let cached = cache[key] {
             return cached
         }
 
@@ -65,10 +66,8 @@ final class QuickReplyService {
             let response = try await session.respond(to: prompt)
             let replies = parseReplies(from: response.content)
 
-            if let key = AIServiceHelpers.cacheKey(for: email) {
-                cache[key] = replies
-                if cache.count > 200 { cache.removeAll() }
-            }
+            let key = AIServiceHelpers.cacheKey(for: email)
+            cache[key] = replies
             return replies
         } catch is CancellationError {
             return []

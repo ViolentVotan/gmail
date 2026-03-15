@@ -6,7 +6,8 @@ final class GmailProfileService {
     private let client = GmailAPIClient.shared
     private init() {}
 
-    /// Configured session matching GmailAPIClient's timeout/pooling settings.
+    // TODO: Replace with GmailAPIClient.sharedSession once it exposes a shared session property.
+    // Currently duplicates GmailAPIClient's URLSession configuration because that session is private.
     nonisolated private static let session: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 30

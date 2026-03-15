@@ -1,12 +1,8 @@
 import SwiftUI
 
 struct AccountsSettingsView: View {
-    @State private var accounts: [GmailAccount]
+    @State private var accounts: [GmailAccount] = AccountStore.shared.accounts
     @State private var colorPickerAccountID: String?
-
-    init() {
-        _accounts = State(initialValue: AccountStore.shared.accounts)
-    }
 
     var body: some View {
         List {
@@ -17,6 +13,7 @@ struct AccountsSettingsView: View {
         }
         .listStyle(.inset(alternatesRowBackgrounds: true))
         .scrollContentBackground(.hidden)
+        .onAppear { refresh() }
         .overlay {
             if accounts.isEmpty {
                 ContentUnavailableView(

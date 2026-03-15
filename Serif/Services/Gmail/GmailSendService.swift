@@ -39,6 +39,7 @@ final class GmailSendService {
         return try await GmailAPIClient.shared.request(
             path: "/users/me/messages/send",
             method: "POST", body: encoded, contentType: "application/json",
+            fields: "id,threadId,labelIds",
             accountID: accountID
         )
     }

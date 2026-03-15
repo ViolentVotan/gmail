@@ -50,12 +50,11 @@ actor FullSyncEngine {
 
     // MARK: - Init
 
-    @MainActor
     init(
         accountID: String,
         db: MailDatabase,
         syncer: BackgroundSyncer,
-        api: MessageFetching = GmailMessageService.shared,
+        api: MessageFetching,
         quota: QuotaTracker = QuotaTracker()
     ) {
         self.accountID = accountID
@@ -200,9 +199,12 @@ actor FullSyncEngine {
                 await quota.waitForBudget(ids.count * 5)
                 guard !Task.isCancelled else { return false }
 
-                let messages = try await api.getMessages(
+                let (messages, failedIDs) = try await api.getMessages(
                     ids: ids, accountID: accountID, format: "metadata"
                 )
+                if !failedIDs.isEmpty {
+                    Self.logger.warning("Initial sync: \(failedIDs.count) message(s) failed to fetch, will retry on next sync")
+                }
 
                 // Write to DB
                 let labelIds = Array(Set(messages.flatMap { $0.labelIds ?? [] }))
@@ -342,9 +344,13 @@ actor FullSyncEngine {
                 // Fetch with "full" format directly to get headers + body in one call.
                 // This avoids a redundant re-fetch that doubles API quota for new messages.
                 await quota.waitForBudget(trulyNewIDs.count * 5)
-                newMessages = try await api.getMessages(
+                let (fetched, failedNew) = try await api.getMessages(
                     ids: trulyNewIDs, accountID: accountID, format: "full"
                 )
+                newMessages = fetched
+                if !failedNew.isEmpty {
+                    Self.logger.warning("Delta sync: \(failedNew.count) new message(s) failed to fetch, will retry on next sync")
+                }
             }
 
             // Fetch updated label info for changed messages.
@@ -353,10 +359,13 @@ actor FullSyncEngine {
             var labelUpdates: [(gmailId: String, labelIds: [String])] = historyLabelUpdates
             if !toRefetch.isEmpty {
                 await quota.waitForBudget(toRefetch.count * 5)
-                let refreshed = try await api.getMessages(
+                let (refreshed, failedRefresh) = try await api.getMessages(
                     ids: Array(toRefetch), accountID: accountID, format: "minimal"
                 )
                 labelUpdates += refreshed.map { (gmailId: $0.id, labelIds: $0.labelIds ?? []) }
+                if !failedRefresh.isEmpty {
+                    Self.logger.warning("Delta sync: \(failedRefresh.count) label-refresh message(s) failed to fetch")
+                }
             }
 
             // Apply delta to DB
@@ -383,7 +392,8 @@ actor FullSyncEngine {
             }
 
         } catch {
-            if case .httpError(404, _) = error as? GmailAPIError {
+            if case .httpError(404, let responseData) = error as? GmailAPIError,
+               Self.isHistoryNotFound(responseData) {
                 // historyId expired — restart full sync.
                 // Cancel sibling tasks directly instead of going through stop(),
                 // which would cancel restartTask itself (the task we're about to create).
@@ -449,9 +459,12 @@ actor FullSyncEngine {
             await quota.waitForBudget(ids.count * 5)
             guard !Task.isCancelled else { return 0 }
 
-            let fullMessages = try await api.getMessages(
+            let (fullMessages, failedBodyIDs) = try await api.getMessages(
                 ids: ids, accountID: accountID, format: "full"
             )
+            if !failedBodyIDs.isEmpty {
+                Self.logger.warning("Body prefetch: \(failedBodyIDs.count) message(s) failed to fetch, will retry on next tick")
+            }
             let updates = fullMessages.map { msg in
                 (gmailId: msg.id, html: msg.htmlBody, plain: msg.plainBody)
             }
@@ -535,22 +548,27 @@ actor FullSyncEngine {
             .filter { $0.labelIds?.contains(GmailSystemLabel.inbox) == true }
             .prefix(5)
         for msg in inboxMessages {
-            let fromRaw = msg.from
-            let senderName = fromRaw
-                .components(separatedBy: "<")
-                .first?
-                .trimmingCharacters(in: .whitespaces)
-                .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-                ?? fromRaw
+            let sender = GmailDataTransformer.parseContactCore(msg.from)
             NotificationService.shared.notifyNewEmail(
                 messageId: msg.id,
                 threadId: msg.threadId,
-                senderName: senderName.isEmpty ? fromRaw : senderName,
+                senderName: sender.name,
                 subject: msg.subject,
                 snippet: msg.snippet ?? "",
                 accountID: accountID
             )
         }
+    }
+
+    // MARK: - Error Parsing
+
+    /// Checks whether a 404 response body indicates an expired/invalid historyId.
+    /// Gmail's history.list returns 404 with "notFound" or "Requested entity was not found"
+    /// when the startHistoryId is too old. This is the only realistic 404 for history.list,
+    /// but we check the body to avoid treating unrelated 404s as history expiry.
+    nonisolated private static func isHistoryNotFound(_ data: Data) -> Bool {
+        guard let body = String(data: data, encoding: .utf8) else { return true }
+        return body.contains("notFound") || body.contains("Requested entity was not found")
     }
 
     // MARK: - DB Helpers

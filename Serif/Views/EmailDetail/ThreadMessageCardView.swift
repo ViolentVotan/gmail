@@ -183,7 +183,8 @@ struct ThreadMessageCardView: View {
                         .font(Typography.captionRegular)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
-                        .onHover { showSenderInfo = $0 }
+                        .onTapGesture { showSenderInfo.toggle() }
+                        .pointerStyle(.link)
                         .popover(isPresented: $showSenderInfo, arrowEdge: .bottom) {
                             SenderInfoPopover(message: message)
                         }

@@ -27,7 +27,7 @@ Per-account GRDB SQLite persistence layer. Replaces the previous JSON file cache
 
 | File | Role |
 |------|------|
-| `MessageRecord.swift` | Main record — `init(from: GmailMessage)`, `toGmailMessage()`, `toEmail(labels:tags:)` (delegates folder resolution to `GmailDataTransformer.folderFor(labelIDs:)`), `fixture()` for tests. Uses `GmailSystemLabel` constants for `isRead`/`isStarred` checks. Contact parsing via `GmailDataTransformer.parseContactCore`. |
+| `MessageRecord.swift` | Main record — `init(from: GmailMessage)` uses `GmailMessage.headerMap` for O(1) header lookups (9 headers per message), `toGmailMessage()`, `toEmail(labels:tags:)` (delegates folder resolution to `GmailDataTransformer.folderFor(labelIDs:)`), `fixture()` for tests. Uses `GmailSystemLabel` constants for `isRead`/`isStarred` checks. Contact parsing via `GmailDataTransformer.parseContactCore`. |
 | `LabelRecord.swift` | Label record — `init(from: GmailLabel)`, associations to `MessageLabelRecord` |
 | `MessageLabelRecord.swift` | Join table record for message ↔ label many-to-many |
 | `ContactRecord.swift` | Contact record with photo URL |
@@ -37,13 +37,13 @@ Per-account GRDB SQLite persistence layer. Replaces the previous JSON file cache
 
 ### `Services/BackgroundSyncer.swift`
 
-Actor that centralizes all bulk DB writes. All methods are `async throws` using GRDB's async write API (does not block the actor executor):
-- `upsertMessages(_:ensureLabels:)` — upserts messages + labels + join table + FTS; uses a batch `SELECT gmail_id IN (...)` into a `Set<String>` to check existence; empty-array guard prevents `IN ()` syntax error; attachments use `upsert` for concurrent writer safety; `thread_message_count` updated via set-based `UPDATE` (single SQL, not per-thread loop)
-- `deleteMessages(gmailIds:)` — removes messages + FTS entries; updates `thread_message_count` via set-based `UPDATE`
+Actor that centralizes all bulk DB writes. All methods are `async throws` using GRDB's async write API (does not block the actor executor). Shared helpers: `upsertSingleMessage` (DRY extraction used by both upsert and delta paths), `updateThreadCounts` (used by all 3 write paths). FTS always uses unconditional `FTSManager.update` (DELETE + INSERT — safe for new and existing rows):
+- `upsertMessages(_:ensureLabels:)` — delegates per-message work to `upsertSingleMessage`; `thread_message_count` via `updateThreadCounts`
+- `deleteMessages(gmailIds:)` — removes messages + FTS entries; `thread_message_count` via `updateThreadCounts`
 - `updateBodies(_:)` — writes pre-fetched full bodies + updates FTS
 - `upsertLabels(_:)` — bulk label sync (empty-array guard)
 - `upsertContacts(_:)` / `deleteContacts(emails:)` — contact CRUD (empty-array guards)
-- `applyDelta(newMessages:deletedIds:labelUpdates:)` — history delta sync; attachments use `upsert`; set-based `thread_message_count` update
+- `applyDelta(newMessages:deletedIds:labelUpdates:)` — delegates per-message work to `upsertSingleMessage`; `thread_message_count` via `updateThreadCounts`
 
 ## Data Flow
 

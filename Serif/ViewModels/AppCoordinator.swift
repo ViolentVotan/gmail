@@ -27,6 +27,7 @@ final class AppCoordinator {
     private var contactsTask: Task<Void, Never>?
     private var cachedSnoozedEmails: [Email] = []
     private var cachedScheduledEmails: [Email] = []
+    @ObservationIgnored private var isAccountSwitching = false
 
     // MARK: - Selection State
 
@@ -86,6 +87,9 @@ final class AppCoordinator {
         self.authViewModel = AuthViewModel()
         self.actionCoordinator = EmailActionCoordinator(mailboxViewModel: vm, mailStore: store)
         self.attachmentStore = AttachmentStore(database: .shared)
+        vm.onEmailsChanged = { [weak self] in
+            self?.updateDisplayedEmails()
+        }
     }
 
     // MARK: - Computed Properties
@@ -94,19 +98,21 @@ final class AppCoordinator {
         selectedAccountID ?? authViewModel.primaryAccount?.id ?? ""
     }
 
-    var displayedEmails: [Email] {
+    private(set) var displayedEmails: [Email] = []
+
+    private func updateDisplayedEmails() {
         if selectedFolder == .drafts {
-            mailStore.emails(for: .drafts)
+            displayedEmails = mailStore.emails(for: .drafts)
         } else if selectedFolder == .subscriptions {
-            SubscriptionsStore.shared.entries
+            displayedEmails = SubscriptionsStore.shared.entries
         } else if selectedFolder == .snoozed {
-            cachedSnoozedEmails
+            displayedEmails = cachedSnoozedEmails
         } else if selectedFolder == .scheduled {
-            cachedScheduledEmails
+            displayedEmails = cachedScheduledEmails
         } else if mailboxViewModel.priorityFilterEnabled {
-            mailboxViewModel.emails.filter { $0.gmailLabelIDs.contains(GmailSystemLabel.important) }
+            displayedEmails = mailboxViewModel.emails.filter { $0.gmailLabelIDs.contains(GmailSystemLabel.important) }
         } else {
-            mailboxViewModel.emails
+            displayedEmails = mailboxViewModel.emails
         }
     }
 
@@ -140,6 +146,7 @@ final class AppCoordinator {
                 gmailLabelIDs: item.originalLabelIds
             )
         }
+        updateDisplayedEmails()
     }
 
     private func refreshScheduledCache() {
@@ -155,6 +162,7 @@ final class AppCoordinator {
                 isDraft: true
             )
         }
+        updateDisplayedEmails()
     }
 
     // MARK: - Actions
@@ -326,6 +334,7 @@ final class AppCoordinator {
                 await mailboxViewModel.loadFolder(labelIDs: [], query: query)
             }
         }
+        updateDisplayedEmails()
         // Trigger sync engine to check for new messages immediately
         await syncEngine?.triggerIncrementalSync()
         // Classify visible emails with Apple Intelligence (deduped via tagCache + DB)
@@ -345,6 +354,7 @@ final class AppCoordinator {
             attachmentStore.accountID = account.id
             loadSignatures(for: account.id)
             await setupAccount(account.id)
+            updateDisplayedEmails()
             lastRefreshedAt = Date()
         } else {
             selectedEmail = mailStore.emails(for: .inbox).first
@@ -367,7 +377,7 @@ final class AppCoordinator {
         mailboxViewModel.setSyncProgressManager(self.syncProgressManager)
         // Start sync engine
         if let db = self.mailDatabase, let syncer = self.backgroundSyncer {
-            let engine = FullSyncEngine(accountID: id, db: db, syncer: syncer)
+            let engine = FullSyncEngine(accountID: id, db: db, syncer: syncer, api: GmailMessageService.shared)
             await engine.setProgressManager(self.syncProgressManager)
             // Guard AFTER engine creation but BEFORE assignment to avoid orphaning
             // a running engine if the account switched during setup.
@@ -396,6 +406,7 @@ final class AppCoordinator {
     }
 
     func handleFolderChange(_ folder: Folder) {
+        guard !isAccountSwitching else { return }
         if let pending = pendingDraftSelection {
             pendingDraftSelection = nil
             selectedEmail = pending
@@ -420,10 +431,14 @@ final class AppCoordinator {
                 }
             }
         } else if folder == .drafts {
-            lifecycleTask = Task { await mailStore.syncGmailDrafts(accountID: accountID) }
+            lifecycleTask = Task {
+                await mailStore.syncGmailDrafts(accountID: accountID)
+                updateDisplayedEmails()
+            }
         } else {
             lifecycleTask = Task { await loadCurrentFolder() }
         }
+        updateDisplayedEmails()
     }
 
     func handleLabelChange() {
@@ -433,6 +448,7 @@ final class AppCoordinator {
         searchResetTrigger += 1
         lifecycleTask?.cancel()
         lifecycleTask = Task { await loadCurrentFolder() }
+        updateDisplayedEmails()
     }
 
     func handleCategoryChange(_ category: InboxCategory?) {
@@ -441,12 +457,14 @@ final class AppCoordinator {
         searchResetTrigger += 1
         lifecycleTask?.cancel()
         lifecycleTask = Task { await loadCurrentFolder() }
+        updateDisplayedEmails()
     }
 
     func handleAccountChange(_ newID: String?) {
         guard let id = newID else { return }
         // Skip if handleAppear already set up this account
         guard mailboxViewModel.accountID != id else { return }
+        isAccountSwitching = true
         // Confirm any pending undo actions for the old account before switching
         UndoActionManager.shared.confirmAll()
         // Save old account's signatures before switching
@@ -487,6 +505,8 @@ final class AppCoordinator {
             guard !Task.isCancelled, self.selectedAccountID == id else { return }
             SummaryService.shared.accountID = id
             await setupAccount(id)
+            updateDisplayedEmails()
+            isAccountSwitching = false
         }
     }
 
@@ -496,9 +516,10 @@ final class AppCoordinator {
         }
         // Stop engine if current account was removed (sign-out)
         if let id = selectedAccountID, !accounts.contains(where: { $0.id == id }) {
-            lifecycleTask?.cancel()
-            lifecycleTask = Task { await syncEngine?.stop() }
+            let engineToStop = syncEngine
             syncEngine = nil
+            lifecycleTask?.cancel()
+            lifecycleTask = Task { await engineToStop?.stop() }
             mailDatabase = nil
             backgroundSyncer = nil
             SummaryService.shared.accountID = ""
@@ -554,7 +575,7 @@ final class AppCoordinator {
 
     func handleSelectedEmailChange(_ email: Email?) {
         guard let email else { return }
-        SpotlightIndexer.shared.indexEmail(email)
+        Task { await SpotlightIndexer.shared.indexEmail(email) }
         guard let msgID = email.gmailMessageID, !email.isRead else { return }
         markReadTask?.cancel()
         markReadTask = Task {

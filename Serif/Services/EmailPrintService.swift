@@ -28,9 +28,14 @@ final class EmailPrintService {
         self.printWindow = window
         self.printWebView = webView
 
-        let delegate = PrintNavigationDelegate { [weak self] wv in
-            self?.showPrintDialog(webView: wv)
-        }
+        let delegate = PrintNavigationDelegate(
+            onFinish: { [weak self] wv in
+                self?.showPrintDialog(webView: wv)
+            },
+            onFailure: { [weak self] in
+                self?.cleanup()
+            }
+        )
         objc_setAssociatedObject(webView, "printDelegate", delegate, .OBJC_ASSOCIATION_RETAIN)
         webView.navigationDelegate = delegate
 
@@ -74,23 +79,23 @@ final class EmailPrintService {
     // MARK: - HTML Generation
 
     private func buildPrintHTML(message: GmailMessage, email: Email) -> String {
-        let subject = escapeHTML(message.subject)
-        let senderName = escapeHTML(email.sender.name)
-        let senderEmail = escapeHTML(email.sender.email)
-        let toValue = escapeHTML(message.to)
-        let ccValue = escapeHTML(message.cc)
-        let replyTo = escapeHTML(message.replyTo)
+        let subject = message.subject.htmlEscaped
+        let senderName = email.sender.name.htmlEscaped
+        let senderEmail = email.sender.email.htmlEscaped
+        let toValue = message.to.htmlEscaped
+        let ccValue = message.cc.htmlEscaped
+        let replyTo = message.replyTo.htmlEscaped
 
         let dateFormatted = message.date?.formattedLongShort ?? ""
 
-        let bodyHTML = message.htmlBody ?? "<p>\(escapeHTML(message.plainBody ?? email.body))</p>"
+        let bodyHTML = message.htmlBody ?? "<p>\((message.plainBody ?? email.body).htmlEscaped)</p>"
 
         var headerRows = """
         <tr><td class="label">From:</td><td><strong>\(senderName)</strong> &lt;\(senderEmail)&gt;</td></tr>
         """
         if replyTo != senderEmail && !message.replyTo.isEmpty {
             headerRows += """
-            <tr><td class="label">Reply to:</td><td>\(escapeHTML(message.replyTo))</td></tr>
+            <tr><td class="label">Reply to:</td><td>\(message.replyTo.htmlEscaped)</td></tr>
             """
         }
         headerRows += """
@@ -226,29 +231,32 @@ final class EmailPrintService {
         """
     }
 
-    private func escapeHTML(_ string: String) -> String {
-        string
-            .replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
-            .replacingOccurrences(of: "\"", with: "&quot;")
-    }
 }
 
 // MARK: - Navigation delegate for print
 
 private class PrintNavigationDelegate: NSObject, WKNavigationDelegate {
-    let onFinish: (WKWebView) -> Void
+    var onFinish: ((WKWebView) -> Void)?
+    var onFailure: (() -> Void)?
 
-    init(onFinish: @escaping (WKWebView) -> Void) {
+    init(onFinish: @escaping (WKWebView) -> Void, onFailure: @escaping () -> Void) {
         self.onFinish = onFinish
+        self.onFailure = onFailure
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(0.5))
             guard let self else { return }
-            self.onFinish(webView)
+            self.onFinish?(webView)
         }
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        onFailure?()
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        onFailure?()
     }
 }

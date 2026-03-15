@@ -1,6 +1,13 @@
 import Foundation
 import os.log
 
+/// Result of a batch fetch containing successfully decoded items and IDs that failed.
+/// Failed IDs can be retried on a subsequent sync cycle by the caller.
+struct BatchFetchResult<T: Sendable>: Sendable {
+    let items: [T]
+    let failedIDs: [String]
+}
+
 /// Base HTTP client for all Gmail API requests.
 /// Automatically refreshes expired tokens before each call.
 @MainActor
@@ -106,41 +113,63 @@ final class GmailAPIClient {
         }
         guard let url = URL(string: baseURL + fullPath) else { throw .invalidURL }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
-        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
-        if let etag {
-            request.setValue(etag, forHTTPHeaderField: "If-None-Match")
-        }
-
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await Self.session.data(for: request)
-        } catch {
-            throw .networkError(error)
-        }
-        guard let http = response as? HTTPURLResponse else { throw .invalidURL }
-
-        switch http.statusCode {
-        case 304:
-            return nil
-        case 200...299:
-            let responseETag = http.value(forHTTPHeaderField: "ETag")
-                ?? http.value(forHTTPHeaderField: "Etag")
-            do {
-                let decoded = try JSONDecoder().decode(T.self, from: data)
-                return (decoded, responseETag)
-            } catch {
-                throw .decodingError(error)
+        for attempt in 0...RetryPolicy.maxRetries {
+            var request = URLRequest(url: url)
+            request.httpMethod = "GET"
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+            request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
+            if let etag {
+                request.setValue(etag, forHTTPHeaderField: "If-None-Match")
             }
-        case 401:
-            throw .unauthorized
-        default:
-            throw .httpError(http.statusCode, data)
+
+            let data: Data
+            let response: URLResponse
+            do {
+                (data, response) = try await Self.session.data(for: request)
+            } catch {
+                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
+                    continue
+                }
+                throw .networkError(error)
+            }
+            guard let http = response as? HTTPURLResponse else { throw .invalidURL }
+
+            switch http.statusCode {
+            case 304:
+                return nil
+            case 200...299:
+                let responseETag = http.value(forHTTPHeaderField: "ETag")
+                    ?? http.value(forHTTPHeaderField: "Etag")
+                do {
+                    let decoded = try JSONDecoder().decode(T.self, from: data)
+                    return (decoded, responseETag)
+                } catch {
+                    throw .decodingError(error)
+                }
+            case 401:
+                throw .unauthorized
+            case 403 where RetryPolicy.isRateLimited403(data) && attempt < RetryPolicy.maxRetries:
+                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
+                continue
+            case 403:
+                if let body = String(data: data, encoding: .utf8) {
+                    if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
+                    if body.contains("domainPolicy") { throw .domainPolicy }
+                }
+                throw .httpError(http.statusCode, data)
+            default:
+                if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
+                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
+                    continue
+                }
+                throw .httpError(http.statusCode, data)
+            }
         }
+        throw .httpError(0, Data())
     }
 
     // MARK: - Authenticated request to any Google API URL
@@ -213,6 +242,7 @@ final class GmailAPIClient {
         let requestsByID = Dictionary(uniqueKeysWithValues: originalRequests.map { ($0.id, $0) })
         var finalResults = allResults.filter { $0.statusCode != 429 }
         var rateLimitedIDs = Set(allResults.filter { $0.statusCode == 429 }.map(\.id))
+        var activeToken = accessToken
 
         for attempt in 0..<maxPartRetries {
             guard !rateLimitedIDs.isEmpty else { break }
@@ -225,10 +255,11 @@ final class GmailAPIClient {
 
             let retryResults: [(id: String, statusCode: Int, data: Data)]
             do {
-                retryResults = try await performBatch(requests: retryRequests, accessToken: accessToken)
+                retryResults = try await performBatch(requests: retryRequests, accessToken: activeToken)
             } catch .unauthorized {
                 let fresh = try await refreshAndRetry(accountID: accountID)
-                retryResults = try await performBatch(requests: retryRequests, accessToken: fresh.accessToken)
+                activeToken = fresh.accessToken
+                retryResults = try await performBatch(requests: retryRequests, accessToken: activeToken)
             }
 
             // Partition retry results into succeeded and still-rate-limited
@@ -256,12 +287,14 @@ final class GmailAPIClient {
     /// Generic batch fetch: chunks IDs into batches of 50, decodes each successful response.
     /// `pathBuilder` must return full API paths starting with `/gmail/v1/...` (not relative to baseURL).
     /// Runs up to 3 chunks concurrently to reduce latency for large ID sets.
+    /// Returns successfully decoded items and IDs that failed — callers should retry failed IDs
+    /// on a subsequent sync cycle rather than inline.
     func batchFetch<T: Decodable & Sendable>(
         ids: [String],
         pathBuilder: @escaping @Sendable (String) -> String,
         accountID: String
-    ) async throws(GmailAPIError) -> [T] {
-        guard !ids.isEmpty else { return [] }
+    ) async throws(GmailAPIError) -> BatchFetchResult<T> {
+        guard !ids.isEmpty else { return BatchFetchResult(items: [], failedIDs: []) }
         let batchSize = 50
         let maxConcurrentBatches = 3
 
@@ -278,9 +311,10 @@ final class GmailAPIClient {
         // Multiple chunks — run up to maxConcurrentBatches in parallel.
         // Use non-throwing TaskGroup with Result to satisfy typed throws.
         // Track which chunk indices failed for logging.
-        let (all, firstError, failedChunkCount): ([T], GmailAPIError?, Int) = await withTaskGroup(of: (Int, Result<[T], GmailAPIError>).self) { group in
+        let (allItems, allFailedIDs, firstError, failedChunkCount): ([T], [String], GmailAPIError?, Int) = await withTaskGroup(of: (Int, Result<BatchFetchResult<T>, GmailAPIError>).self) { group in
             var chunkIterator = chunks.enumerated().makeIterator()
             var collected: [T] = []
+            var failedIDs: [String] = []
             var error: GmailAPIError?
             var failedChunks = 0
 
@@ -289,8 +323,8 @@ final class GmailAPIClient {
                 if let (index, chunk) = chunkIterator.next() {
                     group.addTask {
                         do {
-                            let items: [T] = try await self.fetchSingleBatch(chunk: chunk, pathBuilder: pathBuilder, accountID: accountID)
-                            return (index, .success(items))
+                            let result: BatchFetchResult<T> = try await self.fetchSingleBatch(chunk: chunk, pathBuilder: pathBuilder, accountID: accountID)
+                            return (index, .success(result))
                         } catch let err as GmailAPIError {
                             return (index, .failure(err))
                         } catch {
@@ -303,18 +337,21 @@ final class GmailAPIClient {
             // As each completes, add the next
             for await (chunkIndex, result) in group {
                 switch result {
-                case .success(let items):
-                    collected.append(contentsOf: items)
+                case .success(let batchResult):
+                    collected.append(contentsOf: batchResult.items)
+                    failedIDs.append(contentsOf: batchResult.failedIDs)
                 case .failure(let err):
                     failedChunks += 1
+                    // All IDs in the failed chunk are considered failed
+                    failedIDs.append(contentsOf: chunks[chunkIndex])
                     Self.logger.error("Batch fetch chunk \(chunkIndex) failed (\(chunks[chunkIndex].count) IDs): \(err.localizedDescription)")
                     if error == nil { error = err }
                 }
                 if let (nextIndex, nextChunk) = chunkIterator.next() {
                     group.addTask {
                         do {
-                            let items: [T] = try await self.fetchSingleBatch(chunk: nextChunk, pathBuilder: pathBuilder, accountID: accountID)
-                            return (nextIndex, .success(items))
+                            let result: BatchFetchResult<T> = try await self.fetchSingleBatch(chunk: nextChunk, pathBuilder: pathBuilder, accountID: accountID)
+                            return (nextIndex, .success(result))
                         } catch let err as GmailAPIError {
                             return (nextIndex, .failure(err))
                         } catch {
@@ -324,35 +361,41 @@ final class GmailAPIClient {
                 }
             }
 
-            return (collected, error, failedChunks)
+            return (collected, failedIDs, error, failedChunks)
         }
 
         // Log warning if some chunks failed but we still have partial results
-        if let firstError, !all.isEmpty {
-            Self.logger.warning("Batch fetch returned partial results (\(all.count) items). \(failedChunkCount) chunk(s) failed: \(firstError.localizedDescription)")
+        if let firstError, !allItems.isEmpty {
+            Self.logger.warning("Batch fetch returned partial results (\(allItems.count) items). \(failedChunkCount) chunk(s) failed: \(firstError.localizedDescription)")
         }
         // Only throw if we got zero results AND there was an error
-        if let firstError, all.isEmpty {
+        if let firstError, allItems.isEmpty {
             throw firstError
         }
-        return all
+        if !allFailedIDs.isEmpty {
+            Self.logger.warning("Batch fetch: \(allFailedIDs.count) IDs failed (will be retried on next sync)")
+        }
+        return BatchFetchResult(items: allItems, failedIDs: allFailedIDs)
     }
 
     /// Fetches a single batch of IDs and decodes results.
+    /// Returns successfully decoded items and IDs that failed (non-2xx or decode error).
     @concurrent private func fetchSingleBatch<T: Decodable & Sendable>(
         chunk: [String],
         pathBuilder: @Sendable (String) -> String,
         accountID: String
-    ) async throws(GmailAPIError) -> [T] {
+    ) async throws(GmailAPIError) -> BatchFetchResult<T> {
         let requests = chunk.map { id in
             (id: id, method: "GET", path: pathBuilder(id), body: nil as Data?)
         }
         let results = try await batchRequest(requests: requests, accountID: accountID)
         let decoder = JSONDecoder()
         var items: [T] = []
+        var failedIDs: [String] = []
         for result in results {
             guard (200...299).contains(result.statusCode) else {
                 Self.logger.warning("Batch part \(result.id) failed: HTTP \(result.statusCode)")
+                failedIDs.append(result.id)
                 continue
             }
             do {
@@ -360,9 +403,10 @@ final class GmailAPIClient {
                 items.append(item)
             } catch {
                 Self.logger.error("Batch decode failed for \(result.id): \(error.localizedDescription)")
+                failedIDs.append(result.id)
             }
         }
-        return items
+        return BatchFetchResult(items: items, failedIDs: failedIDs)
     }
 
     // MARK: - Perform for arbitrary Google API URLs

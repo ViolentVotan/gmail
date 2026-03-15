@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SettingsView: View {
-    var accountID: String
+    @AppStorage("com.vikingz.serif.selectedAccountID") private var selectedAccountID: String = ""
     @Bindable var appearanceManager: AppearanceManager
     var onReauthorize: ((String, NSWindow?) async throws -> Void)?
     var loadSendAs: ((String) async throws -> [GmailSendAs])?
@@ -13,6 +13,14 @@ struct SettingsView: View {
     @AppStorage("showDebugMenu") private var showDebugMenu = false
     @AppStorage("aiLabelSuggestions") private var aiLabelSuggestions = true
     @AppStorage("syncDirectoryContacts") private var syncDirectoryContacts = false
+
+    /// Reactive account ID — reads from UserDefaults via @AppStorage,
+    /// falling back to the first connected account.
+    private var accountID: String {
+        let id = selectedAccountID
+        if !id.isEmpty { return id }
+        return AccountStore.shared.accounts.first?.id ?? ""
+    }
 
     var body: some View {
         TabView {

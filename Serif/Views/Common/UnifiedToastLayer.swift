@@ -1,5 +1,10 @@
 import SwiftUI
 
+/// Overlay that shows undo, offline, and general toast notifications.
+///
+/// These `@Observable` singletons are UI infrastructure (overlay state managers),
+/// not business-logic services. Direct access is an acceptable exception to the
+/// "no service singletons in views" rule per architecture guidelines.
 struct UnifiedToastLayer: View {
     private var network = NetworkMonitor.shared
     private var undoMgr = UndoActionManager.shared

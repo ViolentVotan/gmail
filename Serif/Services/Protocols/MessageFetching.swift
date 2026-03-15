@@ -10,7 +10,7 @@ import Foundation
 protocol MessageFetching: Sendable {
     @concurrent func listMessages(accountID: String, labelIDs: [String], query: String?, pageToken: String?, maxResults: Int) async throws(GmailAPIError) -> GmailMessageListResponse
     @concurrent func getMessage(id: String, accountID: String, format: String) async throws(GmailAPIError) -> GmailMessage
-    @concurrent func getMessages(ids: [String], accountID: String, format: String) async throws(GmailAPIError) -> [GmailMessage]
+    @concurrent func getMessages(ids: [String], accountID: String, format: String) async throws(GmailAPIError) -> (messages: [GmailMessage], failedIDs: [String])
     @concurrent func listHistory(accountID: String, startHistoryId: String, labelId: String?, pageToken: String?, maxResults: Int) async throws(GmailAPIError) -> GmailHistoryListResponse
     @concurrent func markAsRead(id: String, accountID: String) async throws(GmailAPIError)
     @concurrent func setStarred(_ starred: Bool, id: String, accountID: String) async throws(GmailAPIError)

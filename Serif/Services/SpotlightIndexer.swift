@@ -12,7 +12,7 @@ final class SpotlightIndexer {
         cleanLegacyItemsIfNeeded()
     }
 
-    func indexEmail(_ email: Email) {
+    func indexEmail(_ email: Email) async {
         guard let messageID = email.gmailMessageID else { return }
 
         // Clean up legacy CSSearchableItem entries on first run after migration
@@ -25,21 +25,13 @@ final class SpotlightIndexer {
             date: email.date
         )
 
-        Task {
-            try? await CSSearchableIndex.default().indexAppEntities([entity])
-        }
+        try? await CSSearchableIndex.default().indexAppEntities([entity])
 
         indexedCount += 1
         if indexedCount > maxIndexed {
-            pruneAllEntries()
-        }
-    }
-
-    private func pruneAllEntries() {
-        Task {
             try? await CSSearchableIndex.default().deleteAllSearchableItems()
+            indexedCount = 0
         }
-        indexedCount = 0
     }
 
     // MARK: - Legacy migration

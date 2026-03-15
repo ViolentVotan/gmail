@@ -37,7 +37,12 @@ final class FiltersViewModel {
     }
 
     func deleteFilter(id: String) async {
-        try? await GmailFilterService.shared.deleteFilter(id: id, accountID: accountID)
+        do {
+            try await GmailFilterService.shared.deleteFilter(id: id, accountID: accountID)
+        } catch {
+            self.error = "Failed to delete filter"
+            ToastManager.shared.show(message: "Failed to delete filter", type: .error)
+        }
         await loadFilters()
     }
 }
