@@ -34,6 +34,7 @@ actor FullSyncEngine {
     private var triggeredSyncTask: Task<Void, Never>?
     private var contactTask: Task<Void, Never>?
     private var labelRefreshTask: Task<Void, Never>?
+    private var restartTask: Task<Void, Never>?
 
     // MARK: - Config
 
@@ -82,12 +83,14 @@ actor FullSyncEngine {
         triggeredSyncTask?.cancel()
         contactTask?.cancel()
         labelRefreshTask?.cancel()
+        restartTask?.cancel()
         syncTask = nil
         bodyPrefetchTask = nil
         incrementalTask = nil
         triggeredSyncTask = nil
         contactTask = nil
         labelRefreshTask = nil
+        restartTask = nil
         state = .idle
     }
 
@@ -318,13 +321,14 @@ actor FullSyncEngine {
                 )
             }
 
-            // Fetch updated label info for changed messages
+            // Fetch updated label info for changed messages.
+            // "minimal" format is sufficient — we only need id and labelIds.
             let toRefetch = labelChanges.subtracting(allDeleted).subtracting(Set(newIDs))
             var labelUpdates: [(gmailId: String, labelIds: [String])] = []
             if !toRefetch.isEmpty {
                 await quota.waitForBudget(toRefetch.count * 5)
                 let refreshed = try await api.getMessages(
-                    ids: Array(toRefetch), accountID: accountID, format: "metadata"
+                    ids: Array(toRefetch), accountID: accountID, format: "minimal"
                 )
                 labelUpdates = refreshed.map { (gmailId: $0.id, labelIds: $0.labelIds ?? []) }
             }
@@ -368,7 +372,8 @@ actor FullSyncEngine {
                     state.lastHistoryId = nil
                     state.syncedMessageCount = 0
                 }
-                Task { [weak self] in
+                restartTask?.cancel()
+                restartTask = Task { [weak self] in
                     await self?.stop()
                     await self?.start()
                 }
