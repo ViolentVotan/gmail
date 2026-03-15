@@ -84,6 +84,7 @@ final class GmailSendService {
             let boundary = "BA_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
             var lines = [
                 "MIME-Version: 1.0",
+                "Date: \(Self.rfc2822Formatter.string(from: Date()))",
                 "From: \(mimeEncodeAddress(from))",
                 "To: \(mimeEncodeAddresses(to))",
                 "Subject: \(mimeEncodeHeader(subject))",
@@ -110,6 +111,7 @@ final class GmailSendService {
         } else {
             var lines = [
                 "MIME-Version: 1.0",
+                "Date: \(Self.rfc2822Formatter.string(from: Date()))",
                 "From: \(mimeEncodeAddress(from))",
                 "To: \(mimeEncodeAddresses(to))",
                 "Subject: \(mimeEncodeHeader(subject))",
@@ -162,6 +164,7 @@ final class GmailSendService {
 
         var lines = [
             "MIME-Version: 1.0",
+            "Date: \(Self.rfc2822Formatter.string(from: Date()))",
             "From: \(mimeEncodeAddress(from))",
             "To: \(mimeEncodeAddresses(to))",
             "Subject: \(mimeEncodeHeader(subject))",
@@ -259,6 +262,16 @@ final class GmailSendService {
         if !failedFilenames.isEmpty { throw .attachmentReadFailed(failedFilenames) }
         return mime
     }
+
+    // MARK: - Formatters
+
+    private static let rfc2822Formatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+        f.timeZone = TimeZone.current
+        return f
+    }()
 
     // MARK: - Helpers
 
