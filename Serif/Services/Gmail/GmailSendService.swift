@@ -265,7 +265,7 @@ final class GmailSendService {
 
     // MARK: - Formatters
 
-    private static let rfc2822Formatter: DateFormatter = {
+    private nonisolated static let rfc2822Formatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
