@@ -88,10 +88,11 @@ enum GmailDataTransformer {
     // MARK: - Folder
 
     static func folderFor(labelIDs: [String]) -> Folder {
-        if labelIDs.contains(GmailSystemLabel.sent)  { return .sent }
-        if labelIDs.contains(GmailSystemLabel.draft) { return .drafts }
-        if labelIDs.contains(GmailSystemLabel.spam)  { return .spam }
-        if labelIDs.contains(GmailSystemLabel.trash) { return .trash }
+        if labelIDs.contains(GmailSystemLabel.sent)    { return .sent }
+        if labelIDs.contains(GmailSystemLabel.draft)   { return .drafts }
+        if labelIDs.contains(GmailSystemLabel.spam)    { return .spam }
+        if labelIDs.contains(GmailSystemLabel.trash)   { return .trash }
+        if labelIDs.contains(GmailSystemLabel.starred) { return .starred }
         return .inbox
     }
 

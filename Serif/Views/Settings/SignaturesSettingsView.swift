@@ -2,9 +2,7 @@ import SwiftUI
 
 struct SignaturesSettingsView: View {
     let accountID: String
-    var loadSendAs: (String) async throws -> [GmailSendAs] = { accountID in
-        try await GmailProfileService.shared.listSendAs(accountID: accountID)
-    }
+    var loadSendAs: (String) async throws -> [GmailSendAs]
 
     @State private var aliases: [GmailSendAs] = []
     @State private var isLoading = false

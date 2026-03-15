@@ -68,6 +68,14 @@ extension String {
     private static let remainingTagsRegex = try? NSRegularExpression(pattern: "<[^>]+>",   options: [])
     private static let multipleNewlineRegex = try? NSRegularExpression(pattern: "\\n{3,}", options: [])
 
+    /// HTML-escapes `&`, `<`, `>`, and `"` to prevent XSS when interpolating into HTML.
+    var htmlEscaped: String {
+        replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+    }
+
     var strippingHTML: String {
         var result = self
         let fullRange = { NSRange(result.startIndex..., in: result) }

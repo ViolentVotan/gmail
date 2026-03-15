@@ -64,11 +64,7 @@ struct ReplyBarView: View {
                     if replyTo.isEmpty {
                         replyTo = email.sender.email
                     }
-                    let escaped = suggestion
-                        .replacingOccurrences(of: "&", with: "&amp;")
-                        .replacingOccurrences(of: "<", with: "&lt;")
-                        .replacingOccurrences(of: ">", with: "&gt;")
-                    let html = "<p>\(escaped)</p>"
+                    let html = "<p>\(suggestion.htmlEscaped)</p>"
                     replyHTML = html
                     editorState.setHTML(html)
                     loadExistingDraft()
@@ -339,12 +335,9 @@ struct ReplyBarView: View {
 
             ForEach(Array(quickReplies.enumerated()), id: \.element) { index, suggestion in
                 Button {
-                    let escaped = suggestion
-                        .replacingOccurrences(of: "&", with: "&amp;")
-                        .replacingOccurrences(of: "<", with: "&lt;")
-                        .replacingOccurrences(of: ">", with: "&gt;")
-                    editorState.setHTML("<p>\(escaped)</p>")
-                    replyHTML = "<p>\(escaped)</p>"
+                    let escapedHTML = "<p>\(suggestion.htmlEscaped)</p>"
+                    editorState.setHTML(escapedHTML)
+                    replyHTML = escapedHTML
                 } label: {
                     Text(suggestion)
                         .font(Typography.subheadRegular)

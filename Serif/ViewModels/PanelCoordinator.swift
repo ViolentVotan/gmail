@@ -97,12 +97,8 @@ final class PanelCoordinator {
         Task {
             do {
                 let raw = try await GmailMessageService.shared.getRawMessage(id: msg.id, accountID: accountID)
-                if let source = raw.rawSource {
-                    let panel = NSSavePanel()
-                    panel.nameFieldStringValue = "\(msg.subject).eml"
-                    panel.canCreateDirectories = true
-                    guard panel.runModal() == .OK, let url = panel.url else { return }
-                    try? source.data(using: .utf8)?.write(to: url)
+                if let source = raw.rawSource, let data = source.data(using: .utf8) {
+                    FileUtils.saveWithPanel(data: data, suggestedName: "\(msg.subject).eml")
                 }
             } catch {
                 ToastManager.shared.show(message: "Download failed: \(error.localizedDescription)", type: .error)

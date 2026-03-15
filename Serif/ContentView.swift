@@ -91,11 +91,7 @@ struct ContentView: View {
                         onViewMessage: { messageId in
                             coordinator.navigateToMessage(gmailMessageID: messageId)
                         },
-                        onDownloadAttachment: { messageID, attachmentID, accountID in
-                            try await GmailMessageService.shared.getAttachment(
-                                messageID: messageID, attachmentID: attachmentID, accountID: accountID
-                            )
-                        }
+                        onDownloadAttachment: coordinator.downloadAttachment
                     )
                     .navigationTitle("Attachments")
                 } else {
@@ -361,20 +357,7 @@ struct ContentView: View {
                           let accountID = notification.userInfo?["accountID"] as? String,
                           !text.isEmpty
                     else { continue }
-                    guard let message = try? await GmailMessageService.shared.getMessage(
-                        id: messageId, accountID: accountID, format: "metadata"
-                    ) else { continue }
-                    let replySubject = message.subject.hasPrefix("Re:") ? message.subject : "Re: \(message.subject)"
-                    _ = try? await GmailSendService.shared.send(
-                        from: accountID,
-                        to: [message.replyTo],
-                        subject: replySubject,
-                        body: text,
-                        threadID: message.threadId,
-                        referencesHeader: message.messageID,
-                        accountID: accountID
-                    )
-                    ToastManager.shared.show(message: "Reply sent")
+                    await coordinator.handleQuickReply(messageId: messageId, text: text, accountID: accountID)
                 }
             }
             .task {

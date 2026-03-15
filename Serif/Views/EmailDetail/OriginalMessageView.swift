@@ -262,10 +262,7 @@ struct OriginalMessageView: View {
     // MARK: - Download
 
     private func downloadOriginal(_ source: String) {
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = "original_message.eml"
-        panel.canCreateDirectories = true
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? source.data(using: .utf8)?.write(to: url)
+        guard let data = source.data(using: .utf8) else { return }
+        FileUtils.saveWithPanel(data: data, suggestedName: "original_message.eml")
     }
 }

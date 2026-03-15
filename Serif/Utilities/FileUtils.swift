@@ -1,4 +1,24 @@
 import Foundation
+import AppKit
+
+// MARK: - FileUtils
+
+enum FileUtils {
+    /// Canonical set of image extensions recognized across the app.
+    static let imageExtensions: Set<String> = ["jpg", "jpeg", "png", "gif", "webp", "heic", "tiff", "bmp"]
+
+    /// Presents an NSSavePanel and writes `data` to the chosen location.
+    @MainActor
+    static func saveWithPanel(data: Data, suggestedName: String) {
+        let panel = NSSavePanel()
+        panel.nameFieldStringValue = suggestedName
+        panel.canCreateDirectories = true
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        try? data.write(to: url)
+    }
+}
+
+// MARK: - URL Extensions
 
 extension URL {
     /// SF Symbols icon name for this file's extension.
@@ -29,8 +49,7 @@ extension URL {
 
     /// Whether this URL points to an image file.
     var isImage: Bool {
-        let imageExts: Set<String> = ["jpg", "jpeg", "png", "gif", "webp", "heic", "tiff", "bmp"]
-        return imageExts.contains(pathExtension.lowercased())
+        FileUtils.imageExtensions.contains(pathExtension.lowercased())
     }
 
     /// Whether this file type is safe to send as email attachment.

@@ -27,10 +27,12 @@ final class PeopleAPIService {
     }
 
     /// Forces a network refresh of contacts, replacing the local cache.
-    func refreshContacts(accountID: String) async {
-        await fetchAndStoreContacts(accountID: accountID)
+    /// The caller must supply the `BackgroundSyncer` for the account so contact
+    /// writes are serialized through the same actor instance used by the sync engine.
+    func refreshContacts(accountID: String, syncer: BackgroundSyncer) async {
+        await fetchAndStoreContacts(accountID: accountID, syncer: syncer)
         if UserDefaults.standard.bool(forKey: "syncDirectoryContacts") {
-            await fetchDirectoryPeople(accountID: accountID)
+            await fetchDirectoryPeople(accountID: accountID, syncer: syncer)
         }
     }
 
@@ -54,7 +56,8 @@ final class PeopleAPIService {
 
     /// Fetches contacts from People API and persists them.
     /// Uses sync tokens for incremental updates when available.
-    private func fetchAndStoreContacts(accountID: String) async {
+    /// The caller supplies `syncer` so writes are serialized through the same actor used by the sync engine.
+    private func fetchAndStoreContacts(accountID: String, syncer: BackgroundSyncer) async {
         var allContacts: [StoredContact] = []
         var deletedEmails = Set<String>()
 

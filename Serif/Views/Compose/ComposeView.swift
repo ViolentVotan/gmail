@@ -219,7 +219,7 @@ struct ComposeView: View {
         mailStore.updateDraft(id: draftId, subject: subject, body: bodyHTML, to: to, cc: cc)
         saveTask?.cancel()
         saveTask = Task {
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled else { return }
             composeVM.to      = to
             composeVM.cc      = cc

@@ -64,8 +64,8 @@ final class CPUMonitor: Sendable {
         return max
     }
 
-    /// Delay in nanoseconds, multiplied based on process CPU.
-    func recommendedDelay(base: UInt64) -> UInt64 {
+    /// Delay as a `Duration`, multiplied based on process CPU.
+    func recommendedDelay(base: Duration) -> Duration {
         let usage = processCPUUsage()
         if usage > cpuThreshold * 2 { return base * 4 }     // 100%+ (full core)
         if usage > cpuThreshold * 1.5 { return base * 3 }   // 75%+
@@ -76,7 +76,7 @@ final class CPUMonitor: Sendable {
     /// Hard gate: suspends until process CPU drops below threshold.
     func throttleIfNeeded() async {
         while processCPUUsage() > cpuThreshold {
-            try? await Task.sleep(nanoseconds: cacheInterval)
+            try? await Task.sleep(for: .milliseconds(500))
         }
     }
 

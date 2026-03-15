@@ -134,7 +134,10 @@ struct DetailPaneView: View {
         let selectNext: (Email?) -> Void = { coordinator.selectNext($0) }
         let msgID = email.gmailMessageID
 
-        var actions = EmailDetailActions()
+        var actions = EmailDetailActions.contentActions(
+            panelCoordinator: panelCoordinator,
+            accountID: accountID
+        )
 
         // Email mutations
         actions.onArchive = selectedFolder == .archive ? nil : { actionCoordinator.archiveEmail(email, selectNext: selectNext) }
@@ -174,35 +177,8 @@ struct DetailPaneView: View {
         actions.onReplyAll = { mode in coordinator.startCompose(mode: mode) }
         actions.onForward = { mode in coordinator.startCompose(mode: mode) }
 
-        // Content
-        actions.onPreviewAttachment = { data, name, fileType in
-            panelCoordinator.previewAttachment(data: data, name: name, fileType: fileType)
-        }
-        actions.onShowOriginal = { msg, acctID in
-            panelCoordinator.showOriginalMessage(message: msg, accountID: acctID)
-        }
-        actions.onDownloadMessage = { msg, acctID in
-            panelCoordinator.downloadMessage(message: msg, accountID: acctID)
-        }
-        actions.onUnsubscribe = { url, oneClick, msgID in
-            await actionCoordinator.unsubscribe(url: url, oneClick: oneClick, messageID: msgID, accountID: accountID)
-        }
-        actions.onPrint = { msg, email in
-            actionCoordinator.printEmail(message: msg, email: email)
-        }
-        actions.onOpenLink = { url in panelCoordinator.openInAppBrowser(url: url) }
+        // Email-specific content overrides
         actions.onMessagesRead = { messageIDs in mailboxViewModel.applyReadLocally(messageIDs) }
-        actions.onLoadDraft = { draftID, acctID in
-            try await actionCoordinator.loadDraft(id: draftID, accountID: acctID)
-        }
-
-        // Queries
-        actions.checkUnsubscribed = { msgID in
-            actionCoordinator.isUnsubscribed(messageID: msgID, accountID: accountID)
-        }
-        actions.extractBodyUnsubscribeURL = { html in
-            actionCoordinator.extractBodyUnsubscribeURL(from: html)
-        }
 
         return actions
     }

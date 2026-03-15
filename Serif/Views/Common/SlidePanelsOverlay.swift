@@ -104,24 +104,10 @@ struct SlidePanelsOverlay: View {
     private func buildPreviewActions(for email: Email) -> EmailDetailActions {
         let accountID = panels.previewAccountID
 
-        var actions = EmailDetailActions()
-
-        // Content
-        actions.onPreviewAttachment = { data, name, fileType in
-            panels.previewAttachment(data: data, name: name, fileType: fileType)
-        }
-        actions.onShowOriginal = { msg, acctID in
-            panels.showOriginalMessage(message: msg, accountID: acctID)
-        }
-        actions.onDownloadMessage = { msg, acctID in
-            panels.downloadMessage(message: msg, accountID: acctID)
-        }
-        actions.onOpenLink = { url in
-            panels.openInAppBrowser(url: url)
-        }
-        actions.onPrint = { msg, email in
-            EmailPrintService.shared.printEmail(message: msg, email: email)
-        }
+        var actions = EmailDetailActions.contentActions(
+            panelCoordinator: panels,
+            accountID: accountID
+        )
 
         // Email mutations (direct service calls — no undo support in preview)
         actions.onToggleStar = { isCurrentlyStarred in
@@ -131,22 +117,6 @@ struct SlidePanelsOverlay: View {
         actions.onMarkUnread = {
             guard let msgID = email.gmailMessageID else { return }
             Task { try? await GmailMessageService.shared.markAsUnread(id: msgID, accountID: accountID) }
-        }
-
-        // Unsubscribe
-        actions.onUnsubscribe = { url, oneClick, msgID in
-            await UnsubscribeService.shared.unsubscribe(url: url, oneClick: oneClick, messageID: msgID, accountID: accountID)
-        }
-        actions.checkUnsubscribed = { msgID in
-            UnsubscribeService.shared.isUnsubscribed(messageID: msgID, accountID: accountID)
-        }
-        actions.extractBodyUnsubscribeURL = { html in
-            UnsubscribeService.extractBodyUnsubscribeURL(from: html)
-        }
-
-        // Draft loading
-        actions.onLoadDraft = { draftID, acctID in
-            try await GmailDraftService.shared.getDraft(id: draftID, accountID: acctID, format: "full")
         }
 
         return actions
@@ -170,10 +140,6 @@ struct SlidePanelsOverlay: View {
     }
 
     private func saveAttachment(data: Data, name: String) {
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = name
-        panel.canCreateDirectories = true
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? data.write(to: url)
+        FileUtils.saveWithPanel(data: data, suggestedName: name)
     }
 }

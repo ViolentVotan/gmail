@@ -13,7 +13,7 @@ final class SnoozeMonitor {
         timerTask = Task {
             await checkExpired()  // immediate first check
             while !Task.isCancelled {
-                try? await Task.sleep(nanoseconds: 60_000_000_000)
+                try? await Task.sleep(for: .seconds(60))
                 guard !Task.isCancelled else { break }
                 await checkExpired()
             }

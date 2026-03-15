@@ -3,8 +3,8 @@ import Foundation
 /// Handles label loading, sendAs aliases, and category unread counts.
 @MainActor
 final class LabelSyncService {
-
-    init() {}
+    static let shared = LabelSyncService()
+    private init() {}
 
     /// Loads labels from the API.
     /// Returns the labels and an optional error message.

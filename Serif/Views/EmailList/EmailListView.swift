@@ -59,7 +59,7 @@ struct EmailListView: View {
                 actions.onSearch("")
             } else {
                 searchDebounceTask = Task {
-                    try? await Task.sleep(nanoseconds: 400_000_000)
+                    try? await Task.sleep(for: .milliseconds(400))
                     guard !Task.isCancelled else { return }
                     actions.onSearch(query)
                 }

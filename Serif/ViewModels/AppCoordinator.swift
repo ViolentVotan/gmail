@@ -476,6 +476,32 @@ final class AppCoordinator {
         }
     }
 
+    // MARK: - Service Routing
+
+    func handleQuickReply(messageId: String, text: String, accountID: String) async {
+        guard let message = try? await GmailMessageService.shared.getMessage(
+            id: messageId, accountID: accountID, format: "metadata"
+        ) else { return }
+        let replySubject = message.subject.hasPrefix("Re:") ? message.subject : "Re: \(message.subject)"
+        _ = try? await GmailSendService.shared.send(
+            from: accountID,
+            to: [message.replyTo],
+            subject: replySubject,
+            body: text,
+            threadID: message.threadId,
+            referencesHeader: message.messageID,
+            accountID: accountID
+        )
+        ToastManager.shared.show(message: "Reply sent")
+    }
+
+    @concurrent
+    func downloadAttachment(messageID: String, attachmentID: String, accountID: String) async throws -> Data {
+        try await GmailMessageService.shared.getAttachment(
+            messageID: messageID, attachmentID: attachmentID, accountID: accountID
+        )
+    }
+
     func handleSelectedEmailChange(_ email: Email?) {
         guard let email else { return }
         SpotlightIndexer.shared.indexEmail(email)

@@ -265,7 +265,7 @@ final class ComposeViewModel {
         }
         previousTask?.cancel()
         let task = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled else { return }
             guard let self else { return }
             if self.gmailDraftID == nil,

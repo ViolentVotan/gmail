@@ -5,6 +5,7 @@ struct SettingsView: View {
         AccountStore.shared.selectedAccountID ?? AccountStore.shared.accounts.first?.id ?? ""
     }
     @Bindable var appearanceManager: AppearanceManager
+    var onReauthorize: ((String, NSWindow?) async throws -> Void)?
 
     // Use the same @AppStorage keys as AppCoordinator and UndoActionManager
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
@@ -63,10 +64,7 @@ struct SettingsView: View {
                         if enabled {
                             Task {
                                 do {
-                                    try await OAuthService.shared.reauthorize(
-                                        accountID: AccountStore.shared.selectedAccountID ?? "",
-                                        presentingWindow: NSApp.keyWindow
-                                    )
+                                    try await onReauthorize?(accountID, NSApp.keyWindow)
                                 } catch {
                                     syncDirectoryContacts = false
                                 }

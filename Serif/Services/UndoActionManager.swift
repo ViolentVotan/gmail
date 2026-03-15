@@ -83,7 +83,7 @@ final class UndoActionManager {
             guard let self else { return }
             let totalSteps = Int(duration * 20) // 50ms intervals
             for step in (0..<totalSteps).reversed() {
-                try? await Task.sleep(nanoseconds: 50_000_000)
+                try? await Task.sleep(for: .milliseconds(50))
                 guard !Task.isCancelled else { return }
                 self.progress = Double(step) / Double(totalSteps)
                 self.timeRemaining = Double(step) / 20.0

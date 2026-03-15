@@ -333,17 +333,8 @@ final class EmailDetailViewModel {
 
     static func quotedHTML(for email: Email, latestHTMLBody: String? = nil) -> String {
         let original = latestHTMLBody ?? email.body
-        let safeName = htmlEscape(email.sender.name)
+        let safeName = email.sender.name.htmlEscaped
         return "<br><br><blockquote style='border-left:2px solid #ccc;margin-left:4px;padding-left:8px;color:#555;'><p><b>\(safeName)</b> wrote:</p>\(original)</blockquote>"
-    }
-
-    /// HTML-escapes a string to prevent XSS when interpolating into HTML.
-    private static func htmlEscape(_ string: String) -> String {
-        string
-            .replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
-            .replacingOccurrences(of: "\"", with: "&quot;")
     }
 
     static func replyMode(for email: Email, latestHTMLBody: String? = nil) -> ComposeMode {

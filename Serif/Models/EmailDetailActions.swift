@@ -40,3 +40,41 @@ struct EmailDetailActions {
     var checkUnsubscribed: ((String) -> Bool)?
     var extractBodyUnsubscribeURL: ((String) -> URL?)?
 }
+
+// MARK: - Factory
+
+extension EmailDetailActions {
+    /// Builds content-level actions shared between main detail and preview panels.
+    static func contentActions(
+        panelCoordinator: PanelCoordinator,
+        accountID: String
+    ) -> EmailDetailActions {
+        var actions = EmailDetailActions()
+        actions.onPreviewAttachment = { data, name, fileType in
+            panelCoordinator.previewAttachment(data: data, name: name, fileType: fileType)
+        }
+        actions.onShowOriginal = { msg, acctID in
+            panelCoordinator.showOriginalMessage(message: msg, accountID: acctID)
+        }
+        actions.onDownloadMessage = { msg, acctID in
+            panelCoordinator.downloadMessage(message: msg, accountID: acctID)
+        }
+        actions.onOpenLink = { url in panelCoordinator.openInAppBrowser(url: url) }
+        actions.onPrint = { msg, email in
+            EmailPrintService.shared.printEmail(message: msg, email: email)
+        }
+        actions.onUnsubscribe = { url, oneClick, msgID in
+            await UnsubscribeService.shared.unsubscribe(url: url, oneClick: oneClick, messageID: msgID, accountID: accountID)
+        }
+        actions.checkUnsubscribed = { msgID in
+            UnsubscribeService.shared.isUnsubscribed(messageID: msgID, accountID: accountID)
+        }
+        actions.extractBodyUnsubscribeURL = { html in
+            UnsubscribeService.extractBodyUnsubscribeURL(from: html)
+        }
+        actions.onLoadDraft = { draftID, acctID in
+            try await GmailDraftService.shared.getDraft(id: draftID, accountID: acctID, format: "full")
+        }
+        return actions
+    }
+}

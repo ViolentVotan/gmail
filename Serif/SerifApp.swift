@@ -43,7 +43,14 @@ struct SerifApp: App {
         }
 
         Settings {
-            SettingsView(appearanceManager: appearanceManager)
+            SettingsView(
+                appearanceManager: appearanceManager,
+                onReauthorize: { accountID, window in
+                    try await OAuthService.shared.reauthorize(
+                        accountID: accountID, presentingWindow: window
+                    )
+                }
+            )
         }
     }
 }

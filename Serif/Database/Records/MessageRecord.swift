@@ -142,21 +142,8 @@ extension MessageRecord {
         let ccList = Self.decodeRecipientStrings(ccRecipients)
 
         // Derive folder from system label IDs in the labels array
-        let systemLabelIds = Set(labels.compactMap { $0.type == "system" ? $0.gmailId : nil })
-        let folder: Folder
-        if systemLabelIds.contains("SENT") {
-            folder = .sent
-        } else if systemLabelIds.contains("DRAFT") {
-            folder = .drafts
-        } else if systemLabelIds.contains("SPAM") {
-            folder = .spam
-        } else if systemLabelIds.contains("TRASH") {
-            folder = .trash
-        } else if systemLabelIds.contains("STARRED") {
-            folder = .starred
-        } else {
-            folder = .inbox
-        }
+        let systemLabelIds = labels.compactMap { $0.type == "system" ? $0.gmailId : nil }
+        let folder = GmailDataTransformer.folderFor(labelIDs: systemLabelIds)
 
         let isDraft = systemLabelIds.contains("DRAFT")
         let gmailLabelIDs = labels.map { $0.gmailId }

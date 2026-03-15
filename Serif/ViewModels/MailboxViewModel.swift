@@ -67,7 +67,7 @@ final class MailboxViewModel {
     ) {
         self.accountID = accountID
         self.api = api
-        self.labelService = LabelSyncService()
+        self.labelService = LabelSyncService.shared
     }
 
     deinit {

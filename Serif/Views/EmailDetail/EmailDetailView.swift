@@ -103,11 +103,7 @@ struct EmailDetailView: View {
                             smartReplySuggestions: detailVM.smartReplySuggestions,
                             onSmartReplySelect: { suggestion in
                                 let sub = email.subject.hasPrefix("Re:") ? email.subject : "Re: \(email.subject)"
-                                let escaped = suggestion
-                                    .replacingOccurrences(of: "&", with: "&amp;")
-                                    .replacingOccurrences(of: "<", with: "&lt;")
-                                    .replacingOccurrences(of: ">", with: "&gt;")
-                                let body = "<p>\(escaped)</p>"
+                                let body = "<p>\(suggestion.htmlEscaped)</p>"
                                 let mode = ComposeMode.reply(
                                     to: email.sender.email,
                                     subject: sub,
@@ -380,10 +376,6 @@ struct EmailDetailView: View {
 
     /// Thin view-layer wrapper -- NSSavePanel must run on the main thread.
     private func saveAttachmentData(_ data: Data, named name: String) {
-        let panel = NSSavePanel()
-        panel.nameFieldStringValue = name
-        panel.canCreateDirectories = true
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? data.write(to: url)
+        FileUtils.saveWithPanel(data: data, suggestedName: name)
     }
 }
