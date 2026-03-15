@@ -16,30 +16,37 @@ final class EmailActionCoordinator {
     var isConnected: Bool { NetworkMonitor.shared.isConnected }
     var pendingOfflineActionCount: Int { OfflineActionQueue.shared.pendingCount }
 
-    // MARK: - Single email actions
+    // MARK: - Undoable action helper
 
-    func archiveEmail(_ email: Email, selectNext: (Email?) -> Void) {
+    /// Shared flow for single-email actions that follow the optimistic-update + undo pattern:
+    /// guard msgID → optimistic DB update → selectNext → offline queue OR schedule undo.
+    private func performUndoableAction(
+        email: Email,
+        label: String,
+        addLabels: [String],
+        removeLabels: [String],
+        selectNext: (Email?) -> Void,
+        offlineType: OfflineAction.ActionType,
+        offlineToast: String,
+        apiAction: @escaping (String) async -> Void
+    ) {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
-        let originalLabels = vm.updateLabelsInDatabase(
-            msgID,
-            addLabelIds: [],
-            removeLabelIds: [GmailSystemLabel.inbox]
-        )
+        let originalLabels = vm.updateLabelsInDatabase(msgID, addLabelIds: addLabels, removeLabelIds: removeLabels)
         selectNext(nil)
         guard NetworkMonitor.shared.isConnected else {
             OfflineActionQueue.shared.enqueue(OfflineAction(
-                actionType: .archive, messageIds: [msgID], accountID: vm.accountID
+                actionType: offlineType, messageIds: [msgID], accountID: vm.accountID
             ))
-            ToastManager.shared.show(message: "Archived (will sync when online)")
+            ToastManager.shared.show(message: offlineToast)
             return
         }
         let expectedAccountID = vm.accountID
         UndoActionManager.shared.schedule(
-            label: "Archived",
+            label: label,
             onConfirm: { Task {
                 guard vm.accountID == expectedAccountID else { return }
-                await vm.archive(msgID)
+                await apiAction(msgID)
             } },
             onUndo: {
                 guard vm.accountID == expectedAccountID else { return }
@@ -48,6 +55,21 @@ final class EmailActionCoordinator {
                     vm.lastRestoredMessageID = msgID
                 }
             }
+        )
+    }
+
+    // MARK: - Single email actions
+
+    func archiveEmail(_ email: Email, selectNext: (Email?) -> Void) {
+        performUndoableAction(
+            email: email,
+            label: "Archived",
+            addLabels: [],
+            removeLabels: [GmailSystemLabel.inbox],
+            selectNext: selectNext,
+            offlineType: .archive,
+            offlineToast: "Archived (will sync when online)",
+            apiAction: { [mailboxViewModel] msgID in await mailboxViewModel.archive(msgID) }
         )
     }
 
@@ -62,35 +84,15 @@ final class EmailActionCoordinator {
             selectNext(nil)
             return
         }
-        guard let msgID = email.gmailMessageID else { return }
-        let vm = mailboxViewModel
-        let originalLabels = vm.updateLabelsInDatabase(
-            msgID,
-            addLabelIds: [GmailSystemLabel.trash],
-            removeLabelIds: [GmailSystemLabel.inbox]
-        )
-        selectNext(nil)
-        guard NetworkMonitor.shared.isConnected else {
-            OfflineActionQueue.shared.enqueue(OfflineAction(
-                actionType: .trash, messageIds: [msgID], accountID: vm.accountID
-            ))
-            ToastManager.shared.show(message: "Moved to Trash (will sync when online)")
-            return
-        }
-        let expectedAccountID = vm.accountID
-        UndoActionManager.shared.schedule(
+        performUndoableAction(
+            email: email,
             label: "Moved to Trash",
-            onConfirm: { Task {
-                guard vm.accountID == expectedAccountID else { return }
-                await vm.trash(msgID)
-            } },
-            onUndo: {
-                guard vm.accountID == expectedAccountID else { return }
-                if let labels = originalLabels {
-                    vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
-                    vm.lastRestoredMessageID = msgID
-                }
-            }
+            addLabels: [GmailSystemLabel.trash],
+            removeLabels: [GmailSystemLabel.inbox],
+            selectNext: selectNext,
+            offlineType: .trash,
+            offlineToast: "Moved to Trash (will sync when online)",
+            apiAction: { [mailboxViewModel] msgID in await mailboxViewModel.trash(msgID) }
         )
     }
 
@@ -130,35 +132,15 @@ final class EmailActionCoordinator {
     }
 
     func markSpamEmail(_ email: Email, selectNext: @escaping (Email?) -> Void) {
-        guard let msgID = email.gmailMessageID else { return }
-        let vm = mailboxViewModel
-        let originalLabels = vm.updateLabelsInDatabase(
-            msgID,
-            addLabelIds: [GmailSystemLabel.spam],
-            removeLabelIds: [GmailSystemLabel.inbox]
-        )
-        selectNext(nil)
-        guard NetworkMonitor.shared.isConnected else {
-            OfflineActionQueue.shared.enqueue(OfflineAction(
-                actionType: .spam, messageIds: [msgID], accountID: vm.accountID
-            ))
-            ToastManager.shared.show(message: "Marked as Spam (will sync when online)")
-            return
-        }
-        let expectedAccountID = vm.accountID
-        UndoActionManager.shared.schedule(
+        performUndoableAction(
+            email: email,
             label: "Marked as Spam",
-            onConfirm: { Task {
-                guard vm.accountID == expectedAccountID else { return }
-                await vm.spam(msgID)
-            } },
-            onUndo: {
-                guard vm.accountID == expectedAccountID else { return }
-                if let labels = originalLabels {
-                    vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
-                    vm.lastRestoredMessageID = msgID
-                }
-            }
+            addLabels: [GmailSystemLabel.spam],
+            removeLabels: [GmailSystemLabel.inbox],
+            selectNext: selectNext,
+            offlineType: .spam,
+            offlineToast: "Marked as Spam (will sync when online)",
+            apiAction: { [mailboxViewModel] msgID in await mailboxViewModel.spam(msgID) }
         )
     }
 
@@ -397,7 +379,9 @@ final class EmailActionCoordinator {
             label: "Archived \(msgIDs.count) emails",
             onConfirm: { Task {
                 guard vm.accountID == expectedAccountID else { return }
-                await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.archive(id) } } }
+                try? await GmailMessageService.shared.batchModifyLabels(
+                    ids: msgIDs, add: [], remove: [GmailSystemLabel.inbox], accountID: expectedAccountID
+                )
             } },
             onUndo: {
                 guard vm.accountID == expectedAccountID else { return }
@@ -430,7 +414,9 @@ final class EmailActionCoordinator {
             label: "Trashed \(msgIDs.count) emails",
             onConfirm: { Task {
                 guard vm.accountID == expectedAccountID else { return }
-                await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.trash(id) } } }
+                try? await GmailMessageService.shared.batchModifyLabels(
+                    ids: msgIDs, add: [GmailSystemLabel.trash], remove: [GmailSystemLabel.inbox], accountID: expectedAccountID
+                )
             } },
             onUndo: {
                 guard vm.accountID == expectedAccountID else { return }
@@ -444,15 +430,25 @@ final class EmailActionCoordinator {
     func bulkMarkUnread(_ emails: [Email], onClear: () -> Void) {
         let msgIDs = emails.compactMap(\.gmailMessageID)
         onClear()
-        let vm = mailboxViewModel
-        Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.markAsUnread(id) } } } }
+        let accountID = mailboxViewModel.accountID
+        Task {
+            try? await GmailMessageService.shared.batchModifyLabels(
+                ids: msgIDs, add: [GmailSystemLabel.unread], remove: [], accountID: accountID
+            )
+        }
     }
 
     func bulkMarkRead(_ emails: [Email], onClear: () -> Void) {
         let msgIDs = emails.compactMap(\.gmailMessageID)
         onClear()
         let vm = mailboxViewModel
-        Task { await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.markAsRead(id) } } } }
+        vm.applyReadLocally(msgIDs)
+        let accountID = vm.accountID
+        Task {
+            try? await GmailMessageService.shared.batchModifyLabels(
+                ids: msgIDs, add: [], remove: [GmailSystemLabel.unread], accountID: accountID
+            )
+        }
     }
 
     func bulkMoveToInbox(_ emails: [Email], selectedFolder: Folder, onClear: () -> Void) {
@@ -467,34 +463,20 @@ final class EmailActionCoordinator {
         }
         onClear()
         let expectedAccountID = vm.accountID
-        if selectedFolder == .trash {
-            UndoActionManager.shared.schedule(
-                label: "Moved \(msgIDs.count) to Inbox",
-                onConfirm: { Task {
-                    guard vm.accountID == expectedAccountID else { return }
-                    await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.untrash(id) } } }
-                } },
-                onUndo: {
-                    guard vm.accountID == expectedAccountID else { return }
-                    for (id, labels) in originalLabelsMap {
-                        vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
-                    }
+        UndoActionManager.shared.schedule(
+            label: "Moved \(msgIDs.count) to Inbox",
+            onConfirm: { Task {
+                guard vm.accountID == expectedAccountID else { return }
+                try? await GmailMessageService.shared.batchModifyLabels(
+                    ids: msgIDs, add: [GmailSystemLabel.inbox], remove: removeLabels, accountID: expectedAccountID
+                )
+            } },
+            onUndo: {
+                guard vm.accountID == expectedAccountID else { return }
+                for (id, labels) in originalLabelsMap {
+                    vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
                 }
-            )
-        } else {
-            UndoActionManager.shared.schedule(
-                label: "Moved \(msgIDs.count) to Inbox",
-                onConfirm: { Task {
-                    guard vm.accountID == expectedAccountID else { return }
-                    await withTaskGroup(of: Void.self) { group in for id in msgIDs { group.addTask { await vm.moveToInbox(id) } } }
-                } },
-                onUndo: {
-                    guard vm.accountID == expectedAccountID else { return }
-                    for (id, labels) in originalLabelsMap {
-                        vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
-                    }
-                }
-            )
-        }
+            }
+        )
     }
 }

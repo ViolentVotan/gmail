@@ -166,6 +166,41 @@ final class GmailMessageService {
         )
     }
 
+    /// Applies label changes to up to 1,000 messages per batch.
+    /// Gmail API: POST /users/me/messages/batchModify (50 quota units per call)
+    @concurrent func batchModifyLabels(
+        ids: [String],
+        add addLabelIds: [String],
+        remove removeLabelIds: [String],
+        accountID: String
+    ) async throws(GmailAPIError) {
+        guard !ids.isEmpty else { return }
+        for chunk in stride(from: 0, to: ids.count, by: 1000) {
+            let batch = Array(ids[chunk..<min(chunk + 1000, ids.count)])
+            struct BatchModifyRequest: Encodable {
+                let ids: [String]
+                let addLabelIds: [String]?
+                let removeLabelIds: [String]?
+            }
+            let request = BatchModifyRequest(
+                ids: batch,
+                addLabelIds: addLabelIds.isEmpty ? nil : addLabelIds,
+                removeLabelIds: removeLabelIds.isEmpty ? nil : removeLabelIds
+            )
+            let body: Data
+            do {
+                body = try JSONEncoder().encode(request)
+            } catch {
+                throw .encodingError(error)
+            }
+            _ = try await client.rawRequest(
+                path: "/users/me/messages/batchModify",
+                method: "POST", body: body, contentType: "application/json",
+                accountID: accountID
+            )
+        }
+    }
+
     /// Permanently deletes all messages in Trash.
     /// Continues through all batches even if some fail, then reports partial failure.
     @concurrent func emptyTrash(accountID: String) async throws(GmailAPIError) {
