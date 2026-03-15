@@ -45,7 +45,7 @@ struct EmailDetailActions {
 
 extension EmailDetailActions {
     /// Builds content-level actions shared between main detail and preview panels.
-    static func contentActions(
+    @MainActor static func contentActions(
         panelCoordinator: PanelCoordinator,
         accountID: String
     ) -> EmailDetailActions {
