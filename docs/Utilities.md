@@ -15,10 +15,10 @@ Pure helper functions, extensions, and constants. Zero state, zero side effects.
 |------|------|
 | `Color+Hex.swift` | SwiftUI `Color` extension: `hexString` property (Color → #RRGGBB), `init(hex:)` initializer (hex string → Color) |
 | `Constants.swift` | Shared constants: `UserDefaultsKey` enum, `GmailSystemLabel` enum |
-| `DateFormatting.swift` | Date display helpers (relative time, formatted dates) |
+| `DateFormatting.swift` | Date display helpers (relative time, formatted dates). `timeFormatter` uses `.timeStyle = .short` (locale-aware — respects 12/24h setting). |
 | `FileUtils.swift` | File system helpers (temp dirs, file size formatting) |
-| `GmailDataTransformer.swift` | Transforms raw Gmail data (MIME parsing, header extraction, deterministic UUID) |
-| `HTMLTemplate.swift` | HTML email rendering templates with input sanitization (case-insensitive stripping of `<script>`, `<iframe>`, event handlers, `javascript:` URLs) and nonce-based Content-Security-Policy |
+| `GmailDataTransformer.swift` | Transforms raw Gmail data (MIME parsing, header extraction, deterministic UUID). `parseContactCore` is a nonisolated static method (pure parsing without avatar resolution, safe from any isolation context). `parseContact` is `@MainActor` and delegates to `parseContactCore`. |
+| `HTMLTemplate.swift` | HTML email rendering templates with input sanitization (case-insensitive stripping of `<script>`, `<iframe>`, `<object>`, event handlers, `javascript:` URLs via multi-line regex with `[\\s\\S]*?`) and nonce-based Content-Security-Policy (`style-src 'unsafe-inline'`) |
 | `InlineImageProcessor.swift` | Extracts inline data: images from HTML, converts to CID attachments |
 | `AIServiceHelpers.swift` | Shared helpers for AI services: `cacheKey(for:)`, `localeInstructions(for:)`, `cleanedPreview(from:)` |
 | `StringExtensions.swift` | String/Data helpers: HTML stripping, `cleanedForAI`, `stableHash`, `Data(base64URLEncoded:)` |

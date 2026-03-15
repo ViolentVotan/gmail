@@ -19,9 +19,9 @@ Per-account GRDB SQLite persistence layer. Replaces the previous JSON file cache
 |------|------|
 | `MailDatabase.swift` | `DatabasePool` owner — WAL pragmas, foreign keys, cache size, integrity check, per-account path, `deleteDatabase(accountID:)`, `shared(for:)` instance cache |
 | `MailDatabaseMigrations.swift` | v1 schema: 7 tables (`messages`, `labels`, `message_labels`, `contacts`, `attachments`, `email_tags`, `account_sync_state`), FTS5 virtual table `messages_fts`, 8 indexes. v2 migration: extends `account_sync_state` with sync engine columns (`last_history_id`, `initial_sync_complete`, `initial_sync_page_token`, `synced_message_count`, `total_messages_estimate`, `last_sync_at`, `last_body_prefetch_at`, `directory_sync_token`). v3 migration: adds `AFTER DELETE ON messages` trigger to keep `messages_fts` in sync on CASCADE deletes. |
-| `MailDatabaseQueries.swift` | Static read queries: `messagesForLabel`, `messagesForThread`, `unreadCount`, `labels`, `messagesNeedingBodies`, `messagesWithoutBodiesCount`, `totalMessageCount`, `messageExists`, `allContacts`, `contactCount`, `syncState`, `updateSyncState` |
+| `MailDatabaseQueries.swift` | Static read queries: `messagesForLabel`, `messagesForThread`, `unreadCount`, `labels`, `messagesNeedingBodies`, `messagesWithoutBodiesCount`, `totalMessageCount`, `messageExists` (uses `MessageRecord.exists()` instead of `fetchOne`), `allContacts`, `contactCount`, `syncState`, `updateSyncState` |
 | `FTSManager.swift` | FTS5 maintenance: `index`, `update`, `delete`, `evictBody`, `indexBatch`, `search` |
-| `CacheMigration.swift` | One-time JSON cache → GRDB migration (labels, messages, AI tags). Runs on first launch per account. |
+| `CacheMigration.swift` | One-time JSON cache → GRDB migration (labels, messages, AI tags). Runs on first launch per account. Tag migration performs per-record FK check (`MessageRecord.exists`) to skip orphaned tags. |
 
 ### `Database/Records/`
 

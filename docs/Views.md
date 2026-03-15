@@ -18,11 +18,11 @@ SwiftUI views. UI presentation only — no business logic.
 ## Subfolders
 
 ### `Sidebar/`
-Left column — `List(.sidebar)` with folder navigation, account switcher, labels. Context menu for label rename/delete. Gets Liquid Glass treatment automatically from NavigationSplitView.
+Left column — `List(.sidebar)` with folder navigation, account switcher, labels. Context menu for label rename/delete. Gets Liquid Glass treatment automatically from NavigationSplitView. `SidebarView` and `AccountSwitcherView` accept `onSignOut` callback threaded from `ContentView`.
 - `SyncBubbleView` — Transient liquid glass sync status bubble (driven by `SyncProgressManager`).
 
 ### `EmailList/`
-Middle column — email rows with native `.swipeActions()` (archive/delete), search, `.refreshable` pull-to-refresh, multi-select with bulk actions. Uses `List(selection:)` for row rendering. Date-based sort orders show section headers (Today, Yesterday, This Week, Last Week, month/year). Email rows merge Gmail labels and AI classification tags into a single capped badge row (max 2 visible + overflow count).
+Middle column — email rows with native `.swipeActions()` (archive/delete), search, `.refreshable` pull-to-refresh, multi-select with bulk actions. Uses `List(selection:)` for row rendering. Date-based sort orders show section headers (Today, Yesterday, This Week, Last Week, month/year). Email rows merge Gmail labels and AI classification tags into a single capped badge row (max 2 visible + overflow count). `EmailRowView` uses a `nudgeText` computed property for "Received N days ago" hints.
 - `CategoryTabBar` — Horizontal tab bar for inbox category filtering (Primary, Social, Updates, etc.).
 - `EmailHoverSummaryView` — AI-generated summary tooltip on email row hover.
 - `EmailContextMenu` — Right-click context menu with reply, reply all, forward, archive, delete, star, snooze, labels.
@@ -31,11 +31,11 @@ Middle column — email rows with native `.swipeActions()` (archive/delete), sea
 
 ### `EmailDetail/`
 Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView), attachments, sender info popover, tracker blocking UI, label picker.
-- `ReplyBarView` — Inline quick reply with To/Cc/Bcc fields, draft persistence, auto-save, and discard confirmation.
+- `ReplyBarView` — Inline quick reply with To/Cc/Bcc fields, draft persistence, auto-save, discard confirmation, and smart reply chip support. Custom `init` for `@State` initialization.
 - `DetailPaneView` — Contextual empty state (icon + message per folder).
 - `InsightCardView` — Apple Intelligence insight card (summary, action items, key dates) via Foundation Models.
-- `SmartReplyChipsView` — AI-generated reply suggestion chips below the thread.
-- `LabelEditorView` — Label picker with AI-suggested labels and manual search.
+- `SmartReplyChipsView` — AI-generated reply suggestion chips below the thread (wired via `EmailDetailView`).
+- `LabelEditorView` — Label picker with AI-suggested labels and manual search. Uses `precomputed` tuple property to avoid redundant linear scans per render.
 - `ThreadMessageCardView` — Individual message card with quote stripping toggle, sender info.
 - `GmailThreadMessageView` — Utility enum for HTML computation and quote stripping.
 - `AttachmentChipView` — Individual attachment display with preview/download buttons.
@@ -45,7 +45,7 @@ Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView), at
 - `OriginalMessageView` — Email source viewer (headers, message ID, delivery delay, copy-to-clipboard).
 
 ### `Compose/`
-Email composer — `ComposeView` for the full compose form with rich text editor, send-as alias picker, signature management, attachment list, and discard confirmation.
+Email composer — `ComposeView` for the full compose form with rich text editor, send-as alias picker, signature management, attachment list, and discard confirmation. Custom `init` for proper `@State` initialization.
 - `AutocompleteTextField` — Contact suggestions in To/Cc/Bcc fields.
 - `ScheduleSendButton` — Send button with schedule-send popover (date picker for deferred delivery).
 
@@ -82,7 +82,7 @@ Shared reusable components:
 | `AccountsSettingsView` | Account management settings |
 | `SerifCommands` | macOS menu bar commands (File, Edit, View custom menus) |
 | `AttachmentChipRow` | Reusable horizontal attachment chip list (used in ComposeView and ReplyBarView) |
-| `SlidePanelsOverlay` | Overlay container for slide panels (help, debug, original message, attachment preview, email preview, web browser) |
+| `SlidePanelsOverlay` | Overlay container for slide panels (help, debug, original message, attachment preview, email preview, web browser). Receives `mailDatabase` for detail views. Full action callbacks wired. |
 
 ### `Components/`
 Shared styled components:
