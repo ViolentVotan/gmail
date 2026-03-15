@@ -332,7 +332,7 @@ import Foundation
         async let save1: Void = vm.saveDraft()
 
         // Tiny yield to let save1 start
-        try? await Task.sleep(nanoseconds: 1_000_000)
+        try? await Task.sleep(for: .milliseconds(1))
 
         // Second save cancels the first and runs its own
         vm.body = "Version 2"
