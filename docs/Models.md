@@ -23,4 +23,5 @@ Pure data structures and local persistence stores.
 | `IndexedAttachment.swift` | Indexed attachment model for the attachment vault |
 | `OfflineAction.swift` | Queued mutation model for offline actions (archive, trash, star, unstar, spam, markRead, markUnread, addLabel, removeLabel) with account + message IDs |
 | `EmailListActions.swift` | Action struct consolidating email list callbacks (archive, delete, star, bulk ops, etc.) |
-| `EmailDetailActions.swift` | Action struct consolidating 24 email detail callbacks (mutations, compose, labels, content) |
+| `EmailDetailActions.swift` | Action struct consolidating 24 email detail callbacks (mutations, compose, labels, content). `@MainActor static func contentActions(panelCoordinator:accountID:)` factory builds the shared content-level subset of actions used by both `DetailPaneView` and `SlidePanelsOverlay`. |
+| `SnoozePreset` *(in `Views/Common/SnoozePickerView.swift`)* | `Identifiable` struct with `id`, `title`, `icon`, `date` fields. `static func defaults()` returns the standard preset list (tonight, tomorrow, next week, etc.). Defined alongside its view for locality but functions as a shared data model. |
