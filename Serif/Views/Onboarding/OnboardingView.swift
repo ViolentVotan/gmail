@@ -304,6 +304,11 @@ struct OnboardingView: View {
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
             window.backgroundColor = NSColor(red: 0.031, green: 0.035, blue: 0.047, alpha: 1)
+        } else {
+            window.isMovableByWindowBackground = false
+            window.titlebarAppearsTransparent = false
+            window.titleVisibility = .visible
+            window.backgroundColor = .windowBackgroundColor
         }
     }
 }
