@@ -130,7 +130,7 @@ final class MailboxViewModel {
         }
         let grouped = Dictionary(grouping: emails) { $0.gmailThreadID ?? $0.gmailMessageID ?? $0.id.uuidString }
         return grouped.values.compactMap { threadEmails -> Email? in
-            var latest = threadEmails.sorted { $0.date > $1.date }.first
+            var latest = threadEmails.max(by: { $0.date < $1.date })
             latest?.threadMessageCount = threadEmails.map(\.threadMessageCount).max() ?? threadEmails.count
             return latest
         }.sorted { $0.date > $1.date }
@@ -260,22 +260,28 @@ final class MailboxViewModel {
     }
 
     func loadCategoryUnreadCounts() async {
-        // DB fast path: compute counts locally
         if let db = mailDatabase {
             do {
                 let counts = try await db.dbPool.read { database in
                     var result: [InboxCategory: Int] = [:]
-                    for category in InboxCategory.allCases where category != .all {
-                        // Category unread = messages with both INBOX and category label that are unread
-                        let count = try Int.fetchOne(database, sql: """
-                            SELECT COUNT(*) FROM messages m
-                            JOIN message_labels ml1 ON ml1.message_id = m.gmail_id AND ml1.label_id = 'INBOX'
-                            JOIN message_labels ml2 ON ml2.message_id = m.gmail_id AND ml2.label_id = ?
-                            WHERE m.is_read = 0
-                        """, arguments: [category.rawValue]) ?? 0
-                        result[category] = count
+                    let categoryIds = InboxCategory.allCases
+                        .filter { $0 != .all }
+                        .map { $0.rawValue }
+                    let placeholders = categoryIds.map { _ in "?" }.joined(separator: ",")
+                    let rows = try Row.fetchAll(database, sql: """
+                        SELECT ml2.label_id, COUNT(*) AS cnt FROM messages m
+                        JOIN message_labels ml1 ON ml1.message_id = m.gmail_id AND ml1.label_id = 'INBOX'
+                        JOIN message_labels ml2 ON ml2.message_id = m.gmail_id
+                        WHERE m.is_read = 0 AND ml2.label_id IN (\(placeholders))
+                        GROUP BY ml2.label_id
+                    """, arguments: StatementArguments(categoryIds))
+                    for row in rows {
+                        let labelId: String = row["label_id"]
+                        let count: Int = row["cnt"]
+                        if let cat = InboxCategory.allCases.first(where: { $0.rawValue == labelId }) {
+                            result[cat] = count
+                        }
                     }
-                    // "All" category = total INBOX unread
                     result[.all] = try MailDatabaseQueries.unreadCount(forLabel: "INBOX", in: database)
                     return result
                 }
@@ -398,6 +404,18 @@ final class MailboxViewModel {
                     try MessageLabelRecord(messageId: messageID, labelId: labelId).insert(database, onConflict: .ignore)
                 }
 
+                // Sync denormalized columns from final label state
+                let finalLabels = try String.fetchAll(database, sql:
+                    "SELECT label_id FROM message_labels WHERE message_id = ?",
+                    arguments: [messageID]
+                )
+                try database.execute(
+                    sql: "UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?",
+                    arguments: [!finalLabels.contains(GmailSystemLabel.unread),
+                                finalLabels.contains(GmailSystemLabel.starred),
+                                messageID]
+                )
+
                 return currentLabels
             }
         } catch {
@@ -439,6 +457,12 @@ final class MailboxViewModel {
                 for labelId in originalLabelIds {
                     try MessageLabelRecord(messageId: messageID, labelId: labelId).insert(database, onConflict: .ignore)
                 }
+                let isRead = !originalLabelIds.contains(GmailSystemLabel.unread)
+                let isStarred = originalLabelIds.contains(GmailSystemLabel.starred)
+                try database.execute(
+                    sql: "UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?",
+                    arguments: [isRead, isStarred, messageID]
+                )
             }
         } catch {
             Self.logger.error("Label restore failed: \(error.localizedDescription, privacy: .public)")
@@ -459,6 +483,12 @@ final class MailboxViewModel {
                     try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).insert(database, onConflict: .ignore)
                     try MessageLabelRecord(messageId: messageID, labelId: labelId).insert(database, onConflict: .ignore)
                 }
+                let isRead = !serverLabelIds.contains(GmailSystemLabel.unread)
+                let isStarred = serverLabelIds.contains(GmailSystemLabel.starred)
+                try database.execute(
+                    sql: "UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?",
+                    arguments: [isRead, isStarred, messageID]
+                )
             }
         } catch {
             Self.logger.error("Label reconciliation failed: \(error.localizedDescription, privacy: .public)")
