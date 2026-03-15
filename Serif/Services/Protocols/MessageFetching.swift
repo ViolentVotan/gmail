@@ -26,6 +26,7 @@ protocol MessageFetching: Sendable {
     @concurrent func modifyLabels(id: String, add: [String], remove: [String], accountID: String) async throws(GmailAPIError) -> GmailMessage
     @concurrent func getThread(id: String, accountID: String) async throws(GmailAPIError) -> GmailThread
     @concurrent func getAttachment(messageID: String, attachmentID: String, accountID: String) async throws(GmailAPIError) -> Data
+    @concurrent func batchModifyLabels(ids: [String], add addLabelIds: [String], remove removeLabelIds: [String], accountID: String) async throws(GmailAPIError)
     @concurrent func emptyTrash(accountID: String) async throws(GmailAPIError)
     @concurrent func emptySpam(accountID: String) async throws(GmailAPIError)
     @concurrent func getProfile(accountID: String) async throws(GmailAPIError) -> GmailProfile

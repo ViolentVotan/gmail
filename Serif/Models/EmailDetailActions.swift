@@ -29,7 +29,6 @@ struct EmailDetailActions {
     var onPreviewAttachment: ((Data?, String, Attachment.FileType) -> Void)?
     var onShowOriginal: ((GmailMessage, String) -> Void)?   // (message, accountID)
     var onDownloadMessage: ((GmailMessage, String) -> Void)? // (message, accountID)
-    var onPrint: ((GmailMessage, Email) -> Void)?
     var onUnsubscribe: ((URL, Bool, String?) async -> Bool)?
     var onOpenLink: ((URL) -> Void)?
     var onMessagesRead: (([String]) -> Void)?
@@ -60,9 +59,6 @@ extension EmailDetailActions {
             panelCoordinator.downloadMessage(message: msg, accountID: acctID)
         }
         actions.onOpenLink = { url in panelCoordinator.openInAppBrowser(url: url) }
-        actions.onPrint = { msg, email in
-            EmailPrintService.shared.printEmail(message: msg, email: email)
-        }
         actions.onUnsubscribe = { url, oneClick, msgID in
             await UnsubscribeService.shared.unsubscribe(url: url, oneClick: oneClick, messageID: msgID, accountID: accountID)
         }

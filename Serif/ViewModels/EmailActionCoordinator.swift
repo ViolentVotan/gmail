@@ -5,10 +5,12 @@ import SwiftUI
 final class EmailActionCoordinator {
     let mailboxViewModel: MailboxViewModel
     let mailStore: MailStore
+    private let api: any MessageFetching
 
-    init(mailboxViewModel: MailboxViewModel, mailStore: MailStore) {
+    init(mailboxViewModel: MailboxViewModel, mailStore: MailStore, api: any MessageFetching = GmailMessageService.shared) {
         self.mailboxViewModel = mailboxViewModel
         self.mailStore = mailStore
+        self.api = api
     }
 
     // MARK: - Network / Offline state
@@ -164,12 +166,6 @@ final class EmailActionCoordinator {
 
     func loadDraft(id: String, accountID: String, format: String = "full") async throws -> GmailDraft? {
         try await GmailDraftService.shared.getDraft(id: id, accountID: accountID, format: format)
-    }
-
-    // MARK: - Print
-
-    func printEmail(message: GmailMessage, email: Email) {
-        EmailPrintService.shared.printEmail(message: message, email: email)
     }
 
     func moveToInboxEmail(_ email: Email, selectedFolder: Folder, selectNext: (Email?) -> Void) {
@@ -377,9 +373,9 @@ final class EmailActionCoordinator {
         let expectedAccountID = vm.accountID
         UndoActionManager.shared.schedule(
             label: "Archived \(msgIDs.count) emails",
-            onConfirm: { [weak vm] in Task {
+            onConfirm: { [weak vm, api] in Task {
                 guard let vm, vm.accountID == expectedAccountID else { return }
-                try? await GmailMessageService.shared.batchModifyLabels(
+                try? await api.batchModifyLabels(
                     ids: msgIDs, add: [], remove: [GmailSystemLabel.inbox], accountID: expectedAccountID
                 )
             } },
@@ -412,9 +408,9 @@ final class EmailActionCoordinator {
         let expectedAccountID = vm.accountID
         UndoActionManager.shared.schedule(
             label: "Trashed \(msgIDs.count) emails",
-            onConfirm: { [weak vm] in Task {
+            onConfirm: { [weak vm, api] in Task {
                 guard let vm, vm.accountID == expectedAccountID else { return }
-                try? await GmailMessageService.shared.batchModifyLabels(
+                try? await api.batchModifyLabels(
                     ids: msgIDs, add: [GmailSystemLabel.trash], remove: [GmailSystemLabel.inbox], accountID: expectedAccountID
                 )
             } },
@@ -431,8 +427,9 @@ final class EmailActionCoordinator {
         let msgIDs = emails.compactMap(\.gmailMessageID)
         onClear()
         let accountID = mailboxViewModel.accountID
+        let api = self.api
         Task {
-            try? await GmailMessageService.shared.batchModifyLabels(
+            try? await api.batchModifyLabels(
                 ids: msgIDs, add: [GmailSystemLabel.unread], remove: [], accountID: accountID
             )
         }
@@ -444,8 +441,9 @@ final class EmailActionCoordinator {
         let vm = mailboxViewModel
         vm.applyReadLocally(msgIDs)
         let accountID = vm.accountID
+        let api = self.api
         Task {
-            try? await GmailMessageService.shared.batchModifyLabels(
+            try? await api.batchModifyLabels(
                 ids: msgIDs, add: [], remove: [GmailSystemLabel.unread], accountID: accountID
             )
         }
@@ -465,9 +463,9 @@ final class EmailActionCoordinator {
         let expectedAccountID = vm.accountID
         UndoActionManager.shared.schedule(
             label: "Moved \(msgIDs.count) to Inbox",
-            onConfirm: { [weak vm] in Task {
+            onConfirm: { [weak vm, api] in Task {
                 guard let vm, vm.accountID == expectedAccountID else { return }
-                try? await GmailMessageService.shared.batchModifyLabels(
+                try? await api.batchModifyLabels(
                     ids: msgIDs, add: [GmailSystemLabel.inbox], remove: removeLabels, accountID: expectedAccountID
                 )
             } },

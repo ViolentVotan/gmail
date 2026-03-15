@@ -1,6 +1,6 @@
 import Foundation
 
-struct Email: Identifiable, Equatable, Sendable {
+struct Email: Identifiable, Sendable {
     let id: UUID
     var sender: Contact
     var recipients: [Contact]
@@ -87,15 +87,33 @@ struct Email: Identifiable, Equatable, Sendable {
     }
 }
 
+// MARK: - Equatable (identity + UI-relevant mutable fields; excludes expensive body/headers)
+
+extension Email: Equatable {
+    static func == (lhs: Email, rhs: Email) -> Bool {
+        lhs.id == rhs.id &&
+        lhs.gmailMessageID == rhs.gmailMessageID &&
+        lhs.isRead == rhs.isRead &&
+        lhs.isStarred == rhs.isStarred &&
+        lhs.labels == rhs.labels &&
+        lhs.gmailLabelIDs == rhs.gmailLabelIDs &&
+        lhs.preview == rhs.preview &&
+        lhs.threadMessageCount == rhs.threadMessageCount &&
+        lhs.tags == rhs.tags &&
+        lhs.isDraft == rhs.isDraft &&
+        lhs.isGmailDraft == rhs.isGmailDraft &&
+        lhs.gmailDraftID == rhs.gmailDraftID
+    }
+}
+
 struct Contact: Identifiable, Hashable, Sendable {
-    let id: UUID
+    var id: String { email.lowercased() }
     let name: String
     let email: String
     let avatarColor: String
     let avatarURL: String?
 
-    init(id: UUID = UUID(), name: String, email: String, avatarColor: String = "#6C5CE7", avatarURL: String? = nil) {
-        self.id = id
+    init(name: String, email: String, avatarColor: String = "#6C5CE7", avatarURL: String? = nil) {
         self.name = name
         self.email = email
         self.avatarColor = avatarColor

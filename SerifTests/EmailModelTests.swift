@@ -119,12 +119,21 @@ import Foundation
         #expect(email1 == email2)
     }
 
-    @Test func emailEquatable_DifferentSubject() {
+    @Test func emailEquatable_SameIdentityDifferentSubject() {
         let id = UUID()
         let sender = Contact(name: "A", email: "a@a.com")
         let email1 = Email(id: id, sender: sender, subject: "S1", body: "B")
         let email2 = Email(id: id, sender: sender, subject: "S2", body: "B")
-        // Synthesized Equatable checks all fields
+        // Custom Equatable compares only identity + UI-relevant mutable fields;
+        // subject is immutable after load and excluded for performance
+        #expect(email1 == email2)
+    }
+
+    @Test func emailEquatable_DifferentPreview() {
+        let id = UUID()
+        let sender = Contact(name: "A", email: "a@a.com")
+        let email1 = Email(id: id, sender: sender, subject: "S", body: "B", preview: "Preview 1")
+        let email2 = Email(id: id, sender: sender, subject: "S", body: "B", preview: "Preview 2")
         #expect(email1 != email2)
     }
 

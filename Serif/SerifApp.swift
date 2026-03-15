@@ -49,10 +49,19 @@ struct SerifApp: App {
 
         Settings {
             SettingsView(
+                accountID: AccountStore.shared.selectedAccountID ?? AccountStore.shared.accounts.first?.id ?? "",
                 appearanceManager: appearanceManager,
                 onReauthorize: { accountID, window in
                     try await OAuthService.shared.reauthorize(
                         accountID: accountID, presentingWindow: window
+                    )
+                },
+                loadSendAs: { accountID in
+                    try await GmailProfileService.shared.listSendAs(accountID: accountID)
+                },
+                updateSignature: { sendAsEmail, signature, accountID in
+                    try await GmailProfileService.shared.updateSignature(
+                        sendAsEmail: sendAsEmail, signature: signature, accountID: accountID
                     )
                 }
             )

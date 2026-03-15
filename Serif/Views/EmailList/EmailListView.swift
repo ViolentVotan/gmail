@@ -403,15 +403,6 @@ struct EmailListView: View {
         )
     }
 
-    func selectAll() {
-        EmailSelectionManager.selectAll(
-            sortedEmails: sortedEmails,
-            selectedEmailIDs: &selectedEmailIDs,
-            selectedEmail: &selectedEmail,
-            selectionAnchorID: &selectionAnchorID
-        )
-    }
-
     private func navigateToPrevious() {
         EmailSelectionManager.navigateToPrevious(
             sortedEmails: sortedEmails,

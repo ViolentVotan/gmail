@@ -31,18 +31,6 @@ enum FTSManager {
         )
     }
 
-    /// Evict body content but keep subject/snippet/sender searchable.
-    static func evictBody(gmailId: String, subject: String?, snippet: String?, senderName: String?, senderEmail: String?, in db: Database) throws {
-        try db.execute(sql: "DELETE FROM messages_fts WHERE gmail_id = ?", arguments: [gmailId])
-        try db.execute(
-            sql: """
-                INSERT INTO messages_fts(gmail_id, subject, body_plain, snippet, sender_name, sender_email)
-                VALUES (?, ?, NULL, ?, ?, ?)
-            """,
-            arguments: [gmailId, subject, snippet, senderName, senderEmail]
-        )
-    }
-
     /// Search messages by query string. Returns matching MessageRecords ordered by relevance.
     static func search(query: String, in db: Database, limit: Int = 100) throws -> [MessageRecord] {
         guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }

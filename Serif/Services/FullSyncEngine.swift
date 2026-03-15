@@ -271,7 +271,7 @@ actor FullSyncEngine {
               let startHistoryId = syncState.lastHistoryId else { return }
 
         do {
-            var allAdded: [String] = []
+            var allAdded: Set<String> = []
             var addedMessageLabels: [String: [String]] = [:]
             var allDeleted: Set<String> = []
             var labelChanges: Set<String> = []
@@ -295,7 +295,7 @@ actor FullSyncEngine {
 
                 for record in response.history ?? [] {
                     for added in record.messagesAdded ?? [] {
-                        allAdded.append(added.message.id)
+                        allAdded.insert(added.message.id)
                         // Capture labelIds from history so we can skip re-fetch for existing messages
                         if let labels = added.message.labelIds {
                             addedMessageLabels[added.message.id] = labels
@@ -324,7 +324,7 @@ actor FullSyncEngine {
             // Separate truly new messages (not in local DB) from existing ones.
             // For existing messages that appear in messagesAdded (e.g. label changes),
             // use the labelIds from the history record directly instead of re-fetching.
-            let candidateIDs = allAdded.filter { !allDeleted.contains($0) }
+            let candidateIDs = Array(allAdded.subtracting(allDeleted))
             var existingIDs = Set<String>()
             if !candidateIDs.isEmpty {
                 existingIDs = try await db.dbPool.read { db in

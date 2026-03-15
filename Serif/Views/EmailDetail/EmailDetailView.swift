@@ -338,20 +338,6 @@ struct EmailDetailView: View {
         }
     }
 
-    // MARK: - Compose helpers (delegated to ViewModel)
-
-    private func replyMode() -> ComposeMode {
-        detailVM.replyMode(email: email)
-    }
-
-    private func replyAllMode() -> ComposeMode {
-        detailVM.replyAllMode(email: email)
-    }
-
-    private func forwardMode() -> ComposeMode {
-        detailVM.forwardMode(email: email)
-    }
-
     // MARK: - Load
 
     private func loadThread() async {

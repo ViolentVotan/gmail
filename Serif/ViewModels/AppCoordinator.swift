@@ -49,6 +49,7 @@ final class AppCoordinator {
                     StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
                 }
             }) ?? []
+            guard self.accountID == id else { return }
             contacts = result
         }
     }
@@ -453,6 +454,8 @@ final class AppCoordinator {
         guard let id = newID else { return }
         // Skip if handleAppear already set up this account
         guard mailboxViewModel.accountID != id else { return }
+        // Confirm any pending undo actions for the old account before switching
+        UndoActionManager.shared.confirmAll()
         // Save old account's signatures before switching
         let oldID = mailboxViewModel.accountID
         if !oldID.isEmpty { saveSignatures(for: oldID) }
@@ -516,16 +519,20 @@ final class AppCoordinator {
             id: messageId, accountID: accountID, format: "metadata"
         ) else { return }
         let replySubject = message.subject.hasPrefix("Re:") ? message.subject : "Re: \(message.subject)"
-        _ = try? await GmailSendService.shared.send(
-            from: accountID,
-            to: [message.replyTo],
-            subject: replySubject,
-            body: text,
-            threadID: message.threadId,
-            referencesHeader: message.messageID,
-            accountID: accountID
-        )
-        ToastManager.shared.show(message: "Reply sent")
+        do {
+            _ = try await GmailSendService.shared.send(
+                from: accountID,
+                to: [message.replyTo],
+                subject: replySubject,
+                body: text,
+                threadID: message.threadId,
+                referencesHeader: message.messageID,
+                accountID: accountID
+            )
+            ToastManager.shared.show(message: "Reply sent")
+        } catch {
+            ToastManager.shared.show(message: "Failed to send reply", type: .error)
+        }
     }
 
     @concurrent
@@ -533,6 +540,22 @@ final class AppCoordinator {
         try await GmailMessageService.shared.getAttachment(
             messageID: messageID, attachmentID: attachmentID, accountID: accountID
         )
+    }
+
+    // MARK: - Preview Panel Actions
+
+    /// Toggles star on a message (used by SlidePanelsOverlay preview panel).
+    /// Routes through actionCoordinator for optimistic DB update + offline support.
+    func previewToggleStar(messageID: String, isCurrentlyStarred: Bool, accountID: String) {
+        guard let email = mailboxViewModel.emails.first(where: { $0.gmailMessageID == messageID }) else { return }
+        actionCoordinator.toggleStarEmail(email)
+    }
+
+    /// Marks a message as unread (used by SlidePanelsOverlay preview panel).
+    /// Routes through actionCoordinator for optimistic DB update + offline support.
+    func previewMarkUnread(messageID: String, accountID: String) {
+        guard let email = mailboxViewModel.emails.first(where: { $0.gmailMessageID == messageID }) else { return }
+        actionCoordinator.markUnreadEmail(email)
     }
 
     func handleSelectedEmailChange(_ email: Email?) {

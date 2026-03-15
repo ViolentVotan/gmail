@@ -58,7 +58,7 @@ struct FTSManagerTests {
     @Test("delete removes from FTS index")
     func deleteRemoves() throws {
         let db = try makeTestDatabase()
-        var msg = MessageRecord.fixture(gmailId: "m1", subject: "Searchable")
+        let msg = MessageRecord.fixture(gmailId: "m1", subject: "Searchable")
 
         try db.dbPool.write { db in
             try msg.insert(db)
@@ -72,32 +72,6 @@ struct FTSManagerTests {
             try FTSManager.search(query: "Searchable", in: db)
         }
         #expect(results.isEmpty)
-    }
-
-    @Test("evict nulls body but keeps subject searchable")
-    func evictKeepsSubject() throws {
-        let db = try makeTestDatabase()
-        var msg = MessageRecord.fixture(gmailId: "m1", subject: "Important Meeting")
-        msg.bodyPlain = "Let's discuss the quarterly results"
-
-        try db.dbPool.write { db in
-            try msg.insert(db)
-            try FTSManager.index(message: msg, in: db)
-        }
-
-        try db.dbPool.write { db in
-            try FTSManager.evictBody(gmailId: "m1", subject: "Important Meeting", snippet: msg.snippet, senderName: msg.senderName, senderEmail: msg.senderEmail, in: db)
-        }
-
-        let bodyResults = try db.dbPool.read { db in
-            try FTSManager.search(query: "quarterly", in: db)
-        }
-        #expect(bodyResults.isEmpty)
-
-        let subjectResults = try db.dbPool.read { db in
-            try FTSManager.search(query: "Meeting", in: db)
-        }
-        #expect(subjectResults.count == 1)
     }
 
     private func makeTestDatabase() throws -> MailDatabase {

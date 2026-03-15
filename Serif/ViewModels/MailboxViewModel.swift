@@ -107,6 +107,7 @@ final class MailboxViewModel {
                 }
             } catch {
                 self?.error = "Database observation failed: \(error.localizedDescription)"
+                ToastManager.shared.show(message: "Database observation failed", type: .error)
             }
         }
     }
@@ -223,13 +224,19 @@ final class MailboxViewModel {
     func loadLabels() async {
         let result = await labelService.loadLabels(accountID: accountID, currentLabels: labels)
         labels = result.labels
-        if let err = result.error { error = err }
+        if let err = result.error {
+            error = err
+            ToastManager.shared.show(message: "Failed to load labels", type: .error)
+        }
     }
 
     func loadSendAs() async {
         let result = await labelService.loadSendAs(accountID: accountID)
         sendAsAliases = result.aliases
-        if let err = result.error { error = err }
+        if let err = result.error {
+            error = err
+            ToastManager.shared.show(message: "Failed to load send-as aliases", type: .error)
+        }
     }
 
     func renameLabel(_ label: GmailLabel, to newName: String) async {
@@ -248,6 +255,7 @@ final class MailboxViewModel {
         } catch {
             if let idx = labels.firstIndex(where: { $0.id == label.id }) { labels[idx] = label }
             self.error = error.localizedDescription
+            ToastManager.shared.show(message: "Failed to rename label", type: .error)
         }
     }
 
@@ -259,6 +267,7 @@ final class MailboxViewModel {
         } catch {
             labels = backup
             self.error = error.localizedDescription
+            ToastManager.shared.show(message: "Failed to delete label", type: .error)
         }
     }
 
@@ -302,6 +311,8 @@ final class MailboxViewModel {
     func switchAccount(_ id: String) async {
         observationTask?.cancel()
         observationTask = nil
+        enrichmentTask?.cancel()
+        enrichmentTask = nil
         accountID = id
         error     = nil
         emails    = []
@@ -318,26 +329,43 @@ final class MailboxViewModel {
         } catch {
             if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
             self.error = error.localizedDescription
+            ToastManager.shared.show(message: "Failed to mark as read", type: .error)
         }
     }
 
     /// Updates DB read state for messages already marked as read by another component (e.g. EmailDetailVM).
+    /// Batches all updates in a single write transaction to avoid N separate ValueObservation notifications.
     func applyReadLocally(_ messageIDs: [String]) {
-        for id in messageIDs {
-            updateLabelsInDatabase(id, addLabelIds: [], removeLabelIds: [GmailSystemLabel.unread])
-            updateReadFlagInDatabase(id, isRead: true)
+        guard let db = mailDatabase, !messageIDs.isEmpty else { return }
+        do {
+            try db.dbPool.write { database in
+                for id in messageIDs {
+                    // Remove UNREAD label
+                    try database.execute(
+                        sql: "DELETE FROM message_labels WHERE message_id = ? AND label_id = ?",
+                        arguments: [id, GmailSystemLabel.unread]
+                    )
+                    // Sync denormalized is_read flag
+                    try database.execute(
+                        sql: "UPDATE messages SET is_read = 1 WHERE gmail_id = ?",
+                        arguments: [id]
+                    )
+                }
+            }
+        } catch {
+            Self.logger.error("Batch applyReadLocally failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
     /// Marks a message as unread. Optimistic DB write → API call → revert on failure.
     func markAsUnread(_ messageID: String) async {
         let original = updateLabelsInDatabase(messageID, addLabelIds: [GmailSystemLabel.unread], removeLabelIds: [])
-        updateReadFlagInDatabase(messageID, isRead: false)
         do {
             try await api.markAsUnread(id: messageID, accountID: accountID)
         } catch {
             if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
             self.error = error.localizedDescription
+            ToastManager.shared.show(message: "Failed to mark as unread", type: .error)
         }
     }
 
@@ -351,6 +379,7 @@ final class MailboxViewModel {
         } catch {
             if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
             self.error = error.localizedDescription
+            ToastManager.shared.show(message: "Failed to toggle star", type: .error)
         }
     }
 
@@ -363,6 +392,7 @@ final class MailboxViewModel {
         } catch {
             if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
             self.error = error.localizedDescription
+            ToastManager.shared.show(message: "Failed to trash message", type: .error)
         }
     }
 
@@ -374,6 +404,7 @@ final class MailboxViewModel {
         } catch {
             if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
             self.error = error.localizedDescription
+            ToastManager.shared.show(message: "Failed to archive", type: .error)
         }
     }
 
@@ -510,8 +541,10 @@ final class MailboxViewModel {
             // Sync engine will detect changes on next delta sync; ValueObservation updates UI.
         } catch GmailAPIError.partialFailure {
             self.error = "Some messages could not be deleted"
+            ToastManager.shared.show(message: "Some messages could not be deleted", type: .error)
         } catch {
             self.error = error.localizedDescription
+            ToastManager.shared.show(message: "Failed to empty folder", type: .error)
         }
     }
 
@@ -525,6 +558,7 @@ final class MailboxViewModel {
         } catch {
             if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
             self.error = error.localizedDescription
+            ToastManager.shared.show(message: "Failed to move to inbox", type: .error)
         }
     }
 
@@ -537,6 +571,7 @@ final class MailboxViewModel {
         } catch {
             if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
             self.error = error.localizedDescription
+            ToastManager.shared.show(message: "Failed to untrash", type: .error)
         }
     }
 
@@ -559,6 +594,7 @@ final class MailboxViewModel {
         } catch {
             if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
             self.error = error.localizedDescription
+            ToastManager.shared.show(message: "Failed to delete permanently", type: .error)
         }
     }
 
@@ -572,6 +608,7 @@ final class MailboxViewModel {
         } catch {
             if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
             self.error = error.localizedDescription
+            ToastManager.shared.show(message: "Failed to remove spam", type: .error)
         }
     }
 
@@ -583,12 +620,21 @@ final class MailboxViewModel {
         } catch {
             if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
             self.error = error.localizedDescription
+            ToastManager.shared.show(message: "Failed to mark as spam", type: .error)
         }
     }
 
-    /// Adds a label to a message. Optimistic DB write → API call → revert on failure.
+    /// Adds a label to a message. Optimistic DB write → offline queue or API call → revert on failure.
     func addLabel(_ labelID: String, to messageID: String) async {
         let original = updateLabelsInDatabase(messageID, addLabelIds: [labelID], removeLabelIds: [])
+        guard NetworkMonitor.shared.isConnected else {
+            OfflineActionQueue.shared.enqueue(OfflineAction(
+                actionType: .addLabel, messageIds: [messageID], accountID: accountID,
+                metadata: ["labelId": labelID]
+            ))
+            ToastManager.shared.show(message: "Label added (will sync when online)")
+            return
+        }
         do {
             try await api.modifyLabels(
                 id: messageID, add: [labelID], remove: [], accountID: accountID
@@ -596,6 +642,7 @@ final class MailboxViewModel {
         } catch {
             if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
             self.error = error.localizedDescription
+            ToastManager.shared.show(message: "Failed to add label", type: .error)
         }
     }
 
@@ -608,13 +655,22 @@ final class MailboxViewModel {
             return newLabel.id
         } catch {
             self.error = error.localizedDescription
+            ToastManager.shared.show(message: "Failed to create label", type: .error)
             return nil
         }
     }
 
-    /// Removes a label from a message. Optimistic DB write → API call → revert on failure.
+    /// Removes a label from a message. Optimistic DB write → offline queue or API call → revert on failure.
     func removeLabel(_ labelID: String, from messageID: String) async {
         let original = updateLabelsInDatabase(messageID, addLabelIds: [], removeLabelIds: [labelID])
+        guard NetworkMonitor.shared.isConnected else {
+            OfflineActionQueue.shared.enqueue(OfflineAction(
+                actionType: .removeLabel, messageIds: [messageID], accountID: accountID,
+                metadata: ["labelId": labelID]
+            ))
+            ToastManager.shared.show(message: "Label removed (will sync when online)")
+            return
+        }
         do {
             try await api.modifyLabels(
                 id: messageID, add: [], remove: [labelID], accountID: accountID
@@ -622,6 +678,7 @@ final class MailboxViewModel {
         } catch {
             if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
             self.error = error.localizedDescription
+            ToastManager.shared.show(message: "Failed to remove label", type: .error)
         }
     }
 
@@ -701,31 +758,6 @@ final class MailboxViewModel {
         } catch {
             Self.logger.error("Combined mark-as-read DB update failed: \(error.localizedDescription, privacy: .public)")
             return nil
-        }
-    }
-
-    /// Optimistically updates the is_read flag in the database.
-    private func updateReadFlagInDatabase(_ messageID: String, isRead: Bool) {
-        guard let db = mailDatabase else { return }
-        do {
-            try db.dbPool.write { database in
-                try database.execute(
-                    sql: "UPDATE messages SET is_read = ? WHERE gmail_id = ?",
-                    arguments: [isRead, messageID]
-                )
-                // Also update label associations: add/remove UNREAD label
-                if isRead {
-                    try database.execute(
-                        sql: "DELETE FROM message_labels WHERE message_id = ? AND label_id = ?",
-                        arguments: [messageID, GmailSystemLabel.unread]
-                    )
-                } else {
-                    try MessageLabelRecord(messageId: messageID, labelId: GmailSystemLabel.unread)
-                        .insert(database, onConflict: .ignore)
-                }
-            }
-        } catch {
-            Self.logger.error("Read flag DB update failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 

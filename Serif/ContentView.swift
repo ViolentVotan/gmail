@@ -178,7 +178,13 @@ struct ContentView: View {
                 attachmentStore: coordinator.attachmentStore,
                 mailStore: coordinator.mailStore,
                 mailDatabase: coordinator.mailDatabase,
-                attachmentIndexer: coordinator.attachmentIndexer
+                attachmentIndexer: coordinator.attachmentIndexer,
+                onToggleStar: { [coordinator] msgID, isCurrentlyStarred, accountID in
+                    coordinator.previewToggleStar(messageID: msgID, isCurrentlyStarred: isCurrentlyStarred, accountID: accountID)
+                },
+                onMarkUnread: { [coordinator] msgID, accountID in
+                    coordinator.previewMarkUnread(messageID: msgID, accountID: accountID)
+                }
             )
 
             if commandPalette.isVisible {

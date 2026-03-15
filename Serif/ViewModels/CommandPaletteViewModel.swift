@@ -15,6 +15,7 @@ final class CommandPaletteViewModel {
     private func updateFilteredCommands() {
         let matched = query.isEmpty ? allCommands : allCommands.filter { $0.matches(query) }
         filteredCommands = Array(matched.prefix(10))
+        selectedIndex = 0
     }
 
     func toggle() {

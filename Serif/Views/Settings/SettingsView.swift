@@ -1,11 +1,11 @@
 import SwiftUI
 
 struct SettingsView: View {
-    var accountID: String {
-        AccountStore.shared.selectedAccountID ?? AccountStore.shared.accounts.first?.id ?? ""
-    }
+    var accountID: String
     @Bindable var appearanceManager: AppearanceManager
     var onReauthorize: ((String, NSWindow?) async throws -> Void)?
+    var loadSendAs: ((String) async throws -> [GmailSendAs])?
+    var updateSignature: ((String, String, String) async throws -> GmailSendAs)?
 
     // Use the same @AppStorage keys as AppCoordinator and UndoActionManager
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
@@ -16,6 +16,10 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
+            Tab("Accounts", systemImage: "person.2") {
+                AccountsSettingsView()
+            }
+
             Tab("General", systemImage: "gearshape") {
                 generalTab
             }
@@ -24,15 +28,10 @@ struct SettingsView: View {
                 SignaturesSettingsView(
                     accountID: accountID,
                     loadSendAs: { accountID in
-                        try await GmailProfileService.shared.listSendAs(accountID: accountID)
+                        guard let loadSendAs else { return [] }
+                        return try await loadSendAs(accountID)
                     },
-                    onUpdateSignature: { sendAsEmail, signature, accountID in
-                        try await GmailProfileService.shared.updateSignature(
-                            sendAsEmail: sendAsEmail,
-                            signature: signature,
-                            accountID: accountID
-                        )
-                    }
+                    onUpdateSignature: updateSignature
                 )
             }
 
@@ -44,7 +43,7 @@ struct SettingsView: View {
                 advancedTab
             }
         }
-        .frame(width: 450, height: 320)
+        .frame(minWidth: 480, idealWidth: 480, minHeight: 350, idealHeight: 420)
     }
 
     private var generalTab: some View {

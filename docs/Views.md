@@ -20,7 +20,7 @@ SwiftUI views. UI presentation only — no business logic.
 ## Subfolders
 
 ### `Sidebar/`
-Left column — `List(.sidebar)` with folder navigation, account switcher, labels. Context menu for label rename/delete. Gets Liquid Glass treatment automatically from NavigationSplitView. `SidebarView` and `AccountSwitcherView` accept `onSignOut` callback threaded from `ContentView`.
+Left column — `List(.sidebar)` with folder navigation, account switcher, labels. Context menu for label rename/delete. Gets Liquid Glass treatment automatically from NavigationSplitView. `SidebarView` and `AccountSwitcherView` accept `onSignOut` callback threaded from `ContentView`. `AccountSwitcherView` context menu includes "Set as Default" and "Accent Color" palette.
 - `SyncBubbleView` — Transient liquid glass sync status bubble (driven by `SyncProgressManager`).
 
 ### `EmailList/`
@@ -55,7 +55,9 @@ Email composer — `ComposeView` for the full compose form with rich text editor
 Attachment explorer with grid view, thumbnails, file type filtering, and search.
 
 ### `Settings/`
-Tabbed settings view (General, Advanced) registered as a macOS `Settings` scene — opens via Cmd+,. Receives `AppearanceManager` via `@Bindable` from `SerifApp` for appearance preference; uses `@AppStorage` for other settings (notifications, undo duration, directory contacts sync). `SettingsView` takes an `onReauthorize` closure injected from `SerifApp`. `SignaturesSettingsView` takes explicit `loadSendAs` and `onUpdateSignature` closures (no default service closures).
+Tabbed settings view (Accounts, General, Signatures, Filters, Advanced) registered as a macOS `Settings` scene — opens via Cmd+,. `SettingsView` receives `accountID`, `AppearanceManager` via `@Bindable`, and closures (`onReauthorize`, `loadSendAs`, `updateSignature`) from `SerifApp`. Uses `@AppStorage` for other settings (notifications, undo duration, directory contacts sync).
+- `AccountsSettingsView` — Account management: reorder (drag + up/down buttons), set default, accent color picker from palette. Reads from `AccountStore.shared`. Context menu with "Set as Default" and accent color submenu.
+- `SignaturesSettingsView` — Signature management per send-as alias. Takes explicit `loadSendAs` and `onUpdateSignature` closures.
 - `FiltersSettingsView` — Gmail filter list with create/edit/delete actions.
 - `FilterEditorView` — Filter rule editor (criteria + actions) for creating/editing Gmail filters.
 
@@ -81,10 +83,9 @@ Shared reusable components:
 | `SnoozePickerView` | Snooze date/time picker with preset options. Defines `SnoozePreset` model struct; uses `SnoozePreset.defaults()` for the preset list. |
 | `DebugMenuView` | API logs, cache controls |
 | `ShortcutsHelpView` | Keyboard shortcuts reference |
-| `AccountsSettingsView` | Account management settings |
 | `SerifCommands` | macOS menu bar commands (File, Edit, View custom menus) |
 | `AttachmentChipRow` | Reusable horizontal attachment chip list (used in ComposeView and ReplyBarView) |
-| `SlidePanelsOverlay` | Overlay container for slide panels (help, debug, original message, attachment preview, email preview, web browser). Receives `mailDatabase` and `attachmentIndexer` for detail views. Uses `EmailDetailActions.contentActions` factory and `FileUtils.saveWithPanel` for content-level actions. |
+| `SlidePanelsOverlay` | Overlay container for slide panels (help, debug, original message, attachment preview, email preview, web browser). Receives `mailDatabase` and `attachmentIndexer` for detail views. Preview actions (`onToggleStar`, `onMarkUnread`) are closures routed through `AppCoordinator` → `EmailActionCoordinator` for optimistic UI + offline support. Uses `EmailDetailActions.contentActions` factory and `FileUtils.saveWithPanel` for content-level actions. |
 
 ### `Components/`
 Shared styled components:

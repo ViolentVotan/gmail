@@ -15,14 +15,6 @@ final class EmailClassifier {
     /// Tracks key access order for LRU eviction (oldest first).
     private var accessOrder: [String] = []
 
-    func cachedTags(for messageId: String) -> EmailTags? {
-        guard let tags = tagCache[messageId] else { return nil }
-        // Move to end of access order on read
-        accessOrder.removeAll { $0 == messageId }
-        accessOrder.append(messageId)
-        return tags
-    }
-
     func classifyBatch(_ emails: [Email], db: MailDatabase? = nil) async {
         #if canImport(FoundationModels)
         guard SystemLanguageModel.default.availability == .available else { return }

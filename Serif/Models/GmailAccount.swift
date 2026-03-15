@@ -109,6 +109,7 @@ final class AccountStore {
         accounts = all
     }
 
+
     func moveUp(id: String) {
         var all = accounts
         guard let idx = all.firstIndex(where: { $0.id == id }), idx > 0 else { return }
@@ -116,10 +117,18 @@ final class AccountStore {
         accounts = all
     }
 
+
     func moveDown(id: String) {
         var all = accounts
         guard let idx = all.firstIndex(where: { $0.id == id }), idx < all.count - 1 else { return }
         all.swapAt(idx, idx + 1)
+        accounts = all
+    }
+
+
+    func reorder(from source: IndexSet, to destination: Int) {
+        var all = accounts
+        all.move(fromOffsets: source, toOffset: destination)
         accounts = all
     }
 

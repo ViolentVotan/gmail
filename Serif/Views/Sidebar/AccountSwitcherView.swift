@@ -37,6 +37,27 @@ struct AccountSwitcherView: View {
                 .contextMenu {
                     Text(account.email)
                     Divider()
+                    if index != 0 {
+                        Button("Set as Default") {
+                            AccountStore.shared.setAsDefault(id: account.id)
+                        }
+                    }
+                    Menu("Accent Color") {
+                        ForEach(AccountStore.accentPalette, id: \.self) { hex in
+                            Button {
+                                AccountStore.shared.setAccentColor(id: account.id, hex: hex)
+                            } label: {
+                                HStack {
+                                    Image(systemName: "circle.fill")
+                                        .foregroundStyle(Color(hex: hex))
+                                    if account.accentColor == hex {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Divider()
                     Button("Sign Out", role: .destructive) {
                         onSignOut?(account)
                     }

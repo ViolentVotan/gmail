@@ -345,7 +345,7 @@ actor AttachmentIndexer {
                     continue
                 }
                 let name = part.filename ?? "attachment"
-                let ext = String(name.split(separator: ".").last ?? "")
+                let ext = (name as NSString).pathExtension
                 let indexed = IndexedAttachment(
                     id: id, messageId: message.id, attachmentId: attachmentId,
                     filename: name, mimeType: part.mimeType,

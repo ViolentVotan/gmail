@@ -54,6 +54,7 @@ final class MockMessageFetching: MessageFetching {
     @concurrent func getAttachment(messageID: String, attachmentID: String, accountID: String) async throws(GmailAPIError) -> Data {
         Data()
     }
+    @concurrent func batchModifyLabels(ids: [String], add addLabelIds: [String], remove removeLabelIds: [String], accountID: String) async throws(GmailAPIError) {}
     @concurrent func emptyTrash(accountID: String) async throws(GmailAPIError) {}
     @concurrent func emptySpam(accountID: String) async throws(GmailAPIError) {}
     @concurrent func getProfile(accountID: String) async throws(GmailAPIError) -> GmailProfile {

@@ -3,9 +3,13 @@ import GRDB
 enum MailDatabaseMigrations {
     static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
+        #if DEBUG
+        migrator.eraseDatabaseOnSchemaChange = true
+        #endif
         registerV1(&migrator)
         registerV2(&migrator)
         registerV3(&migrator)
+        registerV4(&migrator)
         return migrator
     }
 
@@ -162,6 +166,24 @@ enum MailDatabaseMigrations {
             try db.alter(table: "account_sync_state") { t in
                 t.add(column: "labels_etag", .text)
             }
+        }
+    }
+
+    private static func registerV4(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v4_unread_index") { db in
+            // Partial index for unread message queries (count + sorted listing).
+            // Indexed on internal_date so the query planner can use it for
+            // both unread counts and date-sorted unread message lists.
+            try db.create(
+                index: "messages_unread",
+                on: "messages",
+                columns: ["internal_date"],
+                condition: Column("is_read") == false
+            )
+
+            // Drop redundant index — composite PK [message_id, label_id]
+            // already supports queries filtering by message_id (leftmost column)
+            try db.drop(index: "message_labels_message")
         }
     }
 }

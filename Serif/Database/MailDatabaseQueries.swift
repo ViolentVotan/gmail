@@ -59,25 +59,8 @@ enum MailDatabaseQueries {
     // MARK: - Contacts
 
     /// All contacts, ordered by name.
-    /// NOTE: Loads the full table — prefer `searchContacts(query:limit:)` for filtered access.
     static func allContacts(in db: Database) throws -> [ContactRecord] {
         try ContactRecord.order(Column("name").asc).fetchAll(db)
-    }
-
-    /// Search contacts by name or email with a bounded result set.
-    static func searchContacts(query: String, limit: Int = 50, in db: Database) throws -> [ContactRecord] {
-        let pattern = "%\(query)%"
-        return try ContactRecord.fetchAll(db, sql: """
-            SELECT * FROM contacts
-            WHERE name LIKE ? OR email LIKE ?
-            ORDER BY name ASC
-            LIMIT ?
-        """, arguments: [pattern, pattern, limit])
-    }
-
-    /// Total number of contacts.
-    static func contactCount(in db: Database) throws -> Int {
-        try ContactRecord.fetchCount(db)
     }
 
     // MARK: - Account Sync State
@@ -97,11 +80,6 @@ enum MailDatabaseQueries {
     /// Count of messages without bodies (for body pre-fetch progress).
     static func messagesWithoutBodiesCount(in db: Database) throws -> Int {
         try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM messages WHERE full_body_fetched = 0") ?? 0
-    }
-
-    /// Total message count in the database.
-    static func totalMessageCount(in db: Database) throws -> Int {
-        try MessageRecord.fetchCount(db)
     }
 
 }

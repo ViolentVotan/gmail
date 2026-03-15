@@ -143,6 +143,7 @@ final class OfflineActionQueue {
             timestamp: action.timestamp,
             metadata: action.metadata
         )
+        save(accountID: action.accountID)
     }
 
     private func save(accountID: String) {

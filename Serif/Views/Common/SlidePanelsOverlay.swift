@@ -10,6 +10,13 @@ struct SlidePanelsOverlay: View {
     var mailDatabase: MailDatabase?
     var attachmentIndexer: AttachmentIndexer?
 
+    /// Closure to toggle star on a message by Gmail ID.
+    /// Parameters: (gmailMessageID, isCurrentlyStarred, accountID)
+    var onToggleStar: ((String, Bool, String) -> Void)?
+    /// Closure to mark a message as unread by Gmail ID.
+    /// Parameters: (gmailMessageID, accountID)
+    var onMarkUnread: ((String, String) -> Void)?
+
     var body: some View {
         helpPanel
         debugPanel
@@ -111,14 +118,14 @@ struct SlidePanelsOverlay: View {
             accountID: accountID
         )
 
-        // Email mutations (direct service calls — no undo support in preview)
+        // Email mutations — routed through closures from parent (no direct service calls)
         actions.onToggleStar = { isCurrentlyStarred in
             guard let msgID = email.gmailMessageID else { return }
-            Task { try? await GmailMessageService.shared.setStarred(!isCurrentlyStarred, id: msgID, accountID: accountID) }
+            onToggleStar?(msgID, isCurrentlyStarred, accountID)
         }
         actions.onMarkUnread = {
             guard let msgID = email.gmailMessageID else { return }
-            Task { try? await GmailMessageService.shared.markAsUnread(id: msgID, accountID: accountID) }
+            onMarkUnread?(msgID, accountID)
         }
 
         return actions

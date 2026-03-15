@@ -23,6 +23,10 @@ final class ComposeViewModel {
     @ObservationIgnored var replyToMessageID: String?   // for In-Reply-To / References headers
     @ObservationIgnored var attachmentURLs:   [URL] = []
 
+    // Reply draft cleanup context — set by sendReplyMessage, consumed by executeSend
+    @ObservationIgnored private var replyCleanupMailStore: MailStore?
+    @ObservationIgnored private var replyCleanupDraftID: String?
+
     init(accountID: String, fromAddress: String, threadID: String? = nil) {
         self.accountID   = accountID
         self.fromAddress = fromAddress
@@ -80,6 +84,18 @@ final class ComposeViewModel {
                 try? await GmailDraftService.shared.deleteDraft(draftID: draftID, accountID: accountID)
             }
             isSent = true
+            // Clean up reply draft references if this was a reply send
+            if let store = replyCleanupMailStore {
+                if let tid = threadID {
+                    store.replyDrafts.removeValue(forKey: tid)
+                    store.saveReplyDrafts()
+                }
+                if let gid = replyCleanupDraftID {
+                    store.gmailDrafts.removeAll { $0.gmailDraftID == gid }
+                }
+                replyCleanupMailStore = nil
+                replyCleanupDraftID = nil
+            }
         } catch {
             self.error = error.localizedDescription
         }
@@ -188,7 +204,10 @@ final class ComposeViewModel {
            let saved = mailStore.replyDrafts[threadID] {
             gmailDraftID = saved.gmailDraftID
         }
-        let draftIDToDelete = gmailDraftID
+
+        // Store cleanup context for executeSend to use on success
+        replyCleanupMailStore = mailStore
+        replyCleanupDraftID = gmailDraftID
 
         let (processedHTML, images) = InlineImageProcessor.extractInlineImages(from: replyHTML)
         let sub = emailSubject.hasPrefix("Re:") ? emailSubject : "Re: \(emailSubject)"
@@ -204,16 +223,6 @@ final class ComposeViewModel {
         self.attachmentURLs = attachmentURLs
 
         await send()
-
-        if isSent {
-            if let threadID {
-                mailStore.replyDrafts.removeValue(forKey: threadID)
-                mailStore.saveReplyDrafts()
-            }
-            if let gid = draftIDToDelete {
-                mailStore.gmailDrafts.removeAll { $0.gmailDraftID == gid }
-            }
-        }
     }
 
     /// Loads an existing reply draft from Gmail.
