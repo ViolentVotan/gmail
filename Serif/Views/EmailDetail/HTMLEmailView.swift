@@ -71,6 +71,7 @@ struct HTMLEmailView: NSViewRepresentable {
                 Int($0.greenComponent * 255),
                 Int($0.blueComponent * 255))
         } ?? "#FFFFFF"
+        let bgLum = colorScheme == .dark ? "0.015" : "0.96"
         let cacheKey = "\(html)|\(colorScheme)"
         guard context.coordinator.lastCacheKey != cacheKey else { return }
         context.coordinator.lastCacheKey = cacheKey
@@ -86,7 +87,7 @@ struct HTMLEmailView: NSViewRepresentable {
         let controller = webView.configuration.userContentController
         controller.removeAllUserScripts()
         let userScript = WKUserScript(
-            source: Self.userScriptSource(textHex: textHex),
+            source: Self.userScriptSource(textHex: textHex, bgLum: bgLum),
             injectionTime: .atDocumentEnd,
             forMainFrameOnly: true
         )
@@ -126,6 +127,11 @@ struct HTMLEmailView: NSViewRepresentable {
             blockquote { border-left-color: #5f6368; color: #9aa0a6; }
             pre, code { background: rgba(255,255,255,0.1); color: #e8eaed; }
         }
+        @media (prefers-color-scheme: light) {
+            a { color: #1a73e8; }
+            blockquote { border-left: 3px solid #dadce0; color: #5f6368; }
+            pre, code { background: rgba(0,0,0,0.06); color: inherit; }
+        }
         </style>
         </head>
         <body><div id="emailContent" style="padding-bottom:16px">\(html)</div></body>
@@ -140,30 +146,28 @@ struct HTMLEmailView: NSViewRepresentable {
 
     // MARK: - User Script
 
-    /// JavaScript injected at document-end to fix dark mode colors and observe image loads.
+    /// JavaScript injected at document-end to fix contrast in both light and dark mode, and observe image loads.
     ///
     /// Posts `heightChanged` messages to the native side instead of requiring periodic
     /// `evaluateJavaScript` polling. A `ResizeObserver` on `#emailContent` fires whenever
     /// the content box changes (e.g., after an image loads and expands the layout).
-    private static func userScriptSource(textHex: String) -> String {
+    private static func userScriptSource(textHex: String, bgLum: String) -> String {
         """
         var THEME_TEXT = '\(textHex)';
+        var PAGE_BG_LUM = \(bgLum);
 
-        function fixDarkModeColors() {
-            if (!window.matchMedia('(prefers-color-scheme: dark)').matches) return;
-
-            var BG_LUM = 0.015;
-            var MIN_CR = 4.0;
+        function fixContrastColors() {
+            var MIN_CR = 4.5;
 
             function linearize(c) {
                 c /= 255;
-                return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+                return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
             }
             function relativeLum(r, g, b) {
                 return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b);
             }
-            function contrastWith(lum) {
-                var hi = Math.max(lum, BG_LUM), lo = Math.min(lum, BG_LUM);
+            function contrastBetween(lum1, lum2) {
+                var hi = Math.max(lum1, lum2), lo = Math.min(lum1, lum2);
                 return (hi + 0.05) / (lo + 0.05);
             }
             function parseRgb(s) {
@@ -180,7 +184,7 @@ struct HTMLEmailView: NSViewRepresentable {
                 if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
                 return p;
             }
-            function lightenToContrast(r, g, b) {
+            function rgbToHsl(r, g, b) {
                 r /= 255; g /= 255; b /= 255;
                 var mx = Math.max(r, g, b), mn = Math.min(r, g, b);
                 var h = 0, s = 0, l = (mx + mn) / 2;
@@ -192,21 +196,45 @@ struct HTMLEmailView: NSViewRepresentable {
                     else               h = (r - g) / d + 4;
                     h /= 6;
                 }
-                for (var tl = Math.max(l + 0.1, 0.55); tl <= 1.0; tl += 0.04) {
-                    var q2 = tl < 0.5 ? tl * (1 + s) : tl + s - tl * s;
-                    var p2 = 2 * tl - q2;
-                    var nr = Math.round(hue2rgb(p2, q2, h + 1/3) * 255);
-                    var ng = Math.round(hue2rgb(p2, q2, h)       * 255);
-                    var nb = Math.round(hue2rgb(p2, q2, h - 1/3) * 255);
-                    if (contrastWith(relativeLum(nr, ng, nb)) >= MIN_CR)
-                        return 'rgb(' + nr + ',' + ng + ',' + nb + ')';
+                return [h, s, l];
+            }
+            function hslToRgb(h, s, l) {
+                if (s === 0) {
+                    var v = Math.round(l * 255);
+                    return [v, v, v];
+                }
+                var q2 = l < 0.5 ? l * (1 + s) : l + s - l * s;
+                var p2 = 2 * l - q2;
+                return [
+                    Math.round(hue2rgb(p2, q2, h + 1/3) * 255),
+                    Math.round(hue2rgb(p2, q2, h)       * 255),
+                    Math.round(hue2rgb(p2, q2, h - 1/3) * 255)
+                ];
+            }
+
+            function lightenToContrast(r, g, b, bgLum) {
+                var hsl = rgbToHsl(r, g, b);
+                for (var tl = Math.max(hsl[2] + 0.1, 0.55); tl <= 1.0; tl += 0.04) {
+                    var rgb = hslToRgb(hsl[0], hsl[1], tl);
+                    if (contrastBetween(relativeLum(rgb[0], rgb[1], rgb[2]), bgLum) >= MIN_CR)
+                        return 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')';
+                }
+                return THEME_TEXT;
+            }
+
+            function darkenToContrast(r, g, b, bgLum) {
+                var hsl = rgbToHsl(r, g, b);
+                for (var tl = Math.min(hsl[2] - 0.1, 0.45); tl >= 0.0; tl -= 0.04) {
+                    var rgb = hslToRgb(hsl[0], hsl[1], tl);
+                    if (contrastBetween(relativeLum(rgb[0], rgb[1], rgb[2]), bgLum) >= MIN_CR)
+                        return 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')';
                 }
                 return THEME_TEXT;
             }
 
             function isAchromatic(r, g, b) {
                 var mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-                return (mx - mn) < 30 && mx < 80;
+                return (mx - mn) < 30;
             }
 
             function effectiveBgLum(el) {
@@ -221,7 +249,7 @@ struct HTMLEmailView: NSViewRepresentable {
                     }
                     node = node.parentElement;
                 }
-                return BG_LUM;
+                return PAGE_BG_LUM;
             }
 
             function processEl(el) {
@@ -229,14 +257,20 @@ struct HTMLEmailView: NSViewRepresentable {
                 var rgb = parseRgb(c);
                 if (!rgb) return;
                 var bgLum = effectiveBgLum(el);
-                if (bgLum > 0.4) return;
                 var textLum = relativeLum(rgb[0], rgb[1], rgb[2]);
-                var hi = Math.max(textLum, bgLum), lo = Math.min(textLum, bgLum);
-                var cr = (hi + 0.05) / (lo + 0.05);
+                var cr = contrastBetween(textLum, bgLum);
                 if (cr >= MIN_CR) return;
-                var replacement = isAchromatic(rgb[0], rgb[1], rgb[2])
-                    ? THEME_TEXT
-                    : lightenToContrast(rgb[0], rgb[1], rgb[2]);
+
+                var replacement;
+                if (isAchromatic(rgb[0], rgb[1], rgb[2])) {
+                    replacement = THEME_TEXT;
+                } else if (bgLum > 0.5) {
+                    // Light background — darken the text
+                    replacement = darkenToContrast(rgb[0], rgb[1], rgb[2], bgLum);
+                } else {
+                    // Dark background — lighten the text
+                    replacement = lightenToContrast(rgb[0], rgb[1], rgb[2], bgLum);
+                }
                 el.style.setProperty('color', replacement, 'important');
             }
 
@@ -245,11 +279,10 @@ struct HTMLEmailView: NSViewRepresentable {
             ).forEach(processEl);
         }
 
-        fixDarkModeColors();
+        fixContrastColors();
 
         // Observe content size changes via ResizeObserver — fires when images load,
-        // fonts render, or any layout shift occurs. Replaces the old approach of
-        // periodic evaluateJavaScript polling + image-load event listeners.
+        // fonts render, or any layout shift occurs.
         var content = document.getElementById('emailContent');
         if (content) {
             var lastH = 0;
@@ -260,7 +293,6 @@ struct HTMLEmailView: NSViewRepresentable {
                     window.webkit.messageHandlers.heightChanged.postMessage(h);
                 }
             }).observe(content);
-            // Send initial height
             var initH = content.offsetHeight;
             if (initH > 0) {
                 window.webkit.messageHandlers.heightChanged.postMessage(initH);
