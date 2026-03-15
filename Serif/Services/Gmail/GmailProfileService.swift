@@ -33,30 +33,50 @@ final class GmailProfileService {
     /// Fetches display name and profile picture from Google's userinfo endpoint.
     /// Takes an access token directly because this is called during initial sign-in
     /// before the account ID (email) is known.
+    /// Retries transient failures using the same `RetryPolicy` as `GmailAPIClient`.
     @concurrent func getUserInfo(accessToken: String) async throws(GmailAPIError) -> GoogleUserInfo {
         guard let url = URL(string: "https://www.googleapis.com/oauth2/v2/userinfo") else {
             throw .invalidURL
         }
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
 
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await Self.session.data(for: request)
-        } catch {
-            throw .networkError(error)
+        for attempt in 0...RetryPolicy.maxRetries {
+            var request = URLRequest(url: url)
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+            request.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+            request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
+
+            let data: Data
+            let response: URLResponse
+            do {
+                (data, response) = try await Self.session.data(for: request)
+            } catch {
+                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
+                    continue
+                }
+                throw .networkError(error)
+            }
+            guard let http = response as? HTTPURLResponse else { throw .invalidURL }
+
+            switch http.statusCode {
+            case 200...299:
+                do {
+                    return try JSONDecoder().decode(GoogleUserInfo.self, from: data)
+                } catch {
+                    throw .decodingError(error)
+                }
+            case 401:
+                throw .unauthorized
+            default:
+                if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
+                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
+                    continue
+                }
+                throw .httpError(http.statusCode, data)
+            }
         }
-        guard let http = response as? HTTPURLResponse else { throw .invalidURL }
-        guard (200...299).contains(http.statusCode) else {
-            throw .httpError(http.statusCode, data)
-        }
-        do {
-            return try JSONDecoder().decode(GoogleUserInfo.self, from: data)
-        } catch {
-            throw .decodingError(error)
-        }
+        throw .httpError(0, Data())
     }
 
     // MARK: - SendAs / Aliases

@@ -80,12 +80,12 @@ struct DetailPaneView: View {
         BulkActionBarView(
             count: selectedEmailIDs.count,
             selectedFolder: selectedFolder,
-            onArchive:     { actionCoordinator.bulkArchive(selectedEmails, onClear: { coordinator.clearSelection() }) },
-            onDelete:      { actionCoordinator.bulkDelete(selectedEmails, onClear: { coordinator.clearSelection() }) },
-            onMarkUnread:  { actionCoordinator.bulkMarkUnread(selectedEmails, onClear: { coordinator.deselectAll() }) },
-            onMarkRead:    { actionCoordinator.bulkMarkRead(selectedEmails, onClear: { coordinator.deselectAll() }) },
-            onToggleStar:  { for e in selectedEmails { actionCoordinator.toggleStarEmail(e) } },
-            onMoveToInbox: { actionCoordinator.bulkMoveToInbox(selectedEmails, selectedFolder: selectedFolder, onClear: { coordinator.clearSelection() }) },
+            onArchive:     { Task { await actionCoordinator.bulkArchive(selectedEmails, onClear: { coordinator.clearSelection() }) } },
+            onDelete:      { Task { await actionCoordinator.bulkDelete(selectedEmails, onClear: { coordinator.clearSelection() }) } },
+            onMarkUnread:  { Task { await actionCoordinator.bulkMarkUnread(selectedEmails, onClear: { coordinator.deselectAll() }) } },
+            onMarkRead:    { Task { await actionCoordinator.bulkMarkRead(selectedEmails, onClear: { coordinator.deselectAll() }) } },
+            onToggleStar:  { Task { for e in selectedEmails { await actionCoordinator.toggleStarEmail(e) } } },
+            onMoveToInbox: { Task { await actionCoordinator.bulkMoveToInbox(selectedEmails, selectedFolder: selectedFolder, onClear: { coordinator.clearSelection() }) } },
             onDeselectAll: { coordinator.deselectAll() }
         )
     }
@@ -140,20 +140,20 @@ struct DetailPaneView: View {
         )
 
         // Email mutations
-        actions.onArchive = selectedFolder == .archive ? nil : { actionCoordinator.archiveEmail(email, selectNext: selectNext) }
-        actions.onDelete = selectedFolder == .trash ? nil : { actionCoordinator.deleteEmail(email, selectNext: selectNext) }
+        actions.onArchive = selectedFolder == .archive ? nil : { Task { await actionCoordinator.archiveEmail(email, selectNext: selectNext) } }
+        actions.onDelete = selectedFolder == .trash ? nil : { Task { await actionCoordinator.deleteEmail(email, selectNext: selectNext) } }
         actions.onMoveToInbox = selectedFolder == .archive || selectedFolder == .trash
-            ? { actionCoordinator.moveToInboxEmail(email, selectedFolder: selectedFolder, selectNext: selectNext) } : nil
+            ? { Task { await actionCoordinator.moveToInboxEmail(email, selectedFolder: selectedFolder, selectNext: selectNext) } } : nil
         actions.onDeletePermanently = selectedFolder == .trash
-            ? { actionCoordinator.deletePermanentlyEmail(email, selectNext: selectNext) } : nil
+            ? { Task { await actionCoordinator.deletePermanentlyEmail(email, selectNext: selectNext) } } : nil
         actions.onMarkNotSpam = selectedFolder == .spam
-            ? { actionCoordinator.markNotSpamEmail(email, selectNext: selectNext) } : nil
+            ? { Task { await actionCoordinator.markNotSpamEmail(email, selectNext: selectNext) } } : nil
         actions.onToggleStar = { isCurrentlyStarred in
             guard let msgID else { return }
             Task { await mailboxViewModel.toggleStar(msgID, isStarred: isCurrentlyStarred) }
         }
-        actions.onMarkUnread = { actionCoordinator.markUnreadEmail(email) }
-        actions.onSnooze = { date in actionCoordinator.snoozeEmail(email, until: date, selectNext: selectNext) }
+        actions.onMarkUnread = { Task { await actionCoordinator.markUnreadEmail(email) } }
+        actions.onSnooze = { date in Task { await actionCoordinator.snoozeEmail(email, until: date, selectNext: selectNext) } }
 
         // Labels
         actions.onAddLabel = { labelID in
@@ -178,7 +178,7 @@ struct DetailPaneView: View {
         actions.onForward = { mode in coordinator.startCompose(mode: mode) }
 
         // Email-specific content overrides
-        actions.onMessagesRead = { messageIDs in mailboxViewModel.applyReadLocally(messageIDs) }
+        actions.onMessagesRead = { messageIDs in Task { await mailboxViewModel.applyReadLocally(messageIDs) } }
 
         return actions
     }

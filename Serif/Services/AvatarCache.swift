@@ -16,9 +16,6 @@ final class AvatarCache {
     private let memoryCache = NSCache<NSString, NSImage>()
     /// Tracks negative lookups in memory (URLs that returned 404 / no image).
     private let negativeCacheKeys = NSCache<NSString, NSNull>()
-    /// Tracks URLs currently being fetched to prevent duplicate downloads (TOCTOU race).
-    private var inFlightURLs: Set<URL> = []
-
     private let cacheDir: URL = FileManager.default
         .urls(for: .cachesDirectory, in: .userDomainMask)[0]
         .appendingPathComponent("com.vikingz.serif.avatars")
@@ -50,11 +47,6 @@ final class AvatarCache {
 
         // 3. Fetch from network
         guard let url = URL(string: urlString) else { return nil }
-
-        // Prevent duplicate downloads for the same URL
-        guard !inFlightURLs.contains(url) else { return nil }
-        inFlightURLs.insert(url)
-        defer { inFlightURLs.remove(url) }
 
         let result = await fetchAndCache(url: url, fileURL: fileURL)
         if let img = result {

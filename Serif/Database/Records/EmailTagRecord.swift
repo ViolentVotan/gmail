@@ -1,6 +1,6 @@
 import GRDB
 
-struct EmailTagRecord: Codable, Identifiable, FetchableRecord, PersistableRecord {
+struct EmailTagRecord: Codable, Identifiable, FetchableRecord, PersistableRecord, Sendable {
     static let databaseTableName = "email_tags"
     static let databaseColumnDecodingStrategy: DatabaseColumnDecodingStrategy = .convertFromSnakeCase
     static let databaseColumnEncodingStrategy: DatabaseColumnEncodingStrategy = .convertToSnakeCase

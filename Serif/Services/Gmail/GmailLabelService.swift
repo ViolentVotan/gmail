@@ -48,6 +48,7 @@ final class GmailLabelService {
         return try await client.request(
             path: "/users/me/labels/\(id)",
             method: "PATCH", body: body, contentType: "application/json",
+            fields: "id,name,type,labelListVisibility,messageListVisibility,color",
             accountID: accountID
         )
     }
@@ -77,6 +78,7 @@ final class GmailLabelService {
         return try await client.request(
             path: "/users/me/labels",
             method: "POST", body: body, contentType: "application/json",
+            fields: "id,name,type,labelListVisibility,messageListVisibility,color",
             accountID: accountID
         )
     }

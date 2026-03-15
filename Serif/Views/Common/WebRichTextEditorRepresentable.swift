@@ -1,6 +1,18 @@
 import SwiftUI
 import WebKit
 
+// MARK: - Weak Script Message Handler
+
+/// Wraps a `WKScriptMessageHandler` with a weak reference to break the retain
+/// cycle caused by `WKUserContentController` strongly retaining its handlers.
+private class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
+    weak var delegate: WKScriptMessageHandler?
+    init(_ delegate: WKScriptMessageHandler) { self.delegate = delegate }
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        delegate?.userContentController(controller, didReceive: message)
+    }
+}
+
 struct WebRichTextEditorRepresentable: NSViewRepresentable {
     @ObservedObject var state: WebRichTextEditorState
     @Binding var htmlContent: String
@@ -25,7 +37,7 @@ struct WebRichTextEditorRepresentable: NSViewRepresentable {
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
-        config.userContentController.add(context.coordinator, name: "editor")
+        config.userContentController.add(WeakScriptMessageHandler(context.coordinator), name: "editor")
         #if DEBUG
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
         #endif

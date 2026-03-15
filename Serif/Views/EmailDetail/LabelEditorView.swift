@@ -37,38 +37,32 @@ struct LabelEditorView: View {
     }
 
     @State private var isAddingLabel = false
+    @State private var cachedCurrentUser: [GmailLabel] = []
+    @State private var cachedItems: [DropdownItem] = []
+    @State private var cachedShowCreate = false
+    @State private var cachedShouldShowDropdown = false
+    @State private var cachedQuery = ""
 
-    /// Pre-computed label data to avoid redundant linear scans per render.
-    private var precomputed: (
-        currentUser: [GmailLabel],
-        filtered: [GmailLabel],
-        showCreate: Bool,
-        items: [DropdownItem],
-        shouldShowDropdown: Bool,
-        query: String
-    ) {
+    private func recomputeLabelData() {
         let currentIDSet = Set(currentLabelIDs)
         let userLabels = allLabels.filter { !$0.isSystemLabel }
-        let currentUser = userLabels.filter { currentIDSet.contains($0.id) }
-        let query = labelSearchText.trimmingCharacters(in: .whitespaces)
-        let queryLower = query.lowercased()
+        cachedCurrentUser = userLabels.filter { currentIDSet.contains($0.id) }
+        cachedQuery = labelSearchText.trimmingCharacters(in: .whitespaces)
+        let queryLower = cachedQuery.lowercased()
         let filtered: [GmailLabel] = queryLower.isEmpty
             ? []
             : userLabels.filter { $0.displayName.lowercased().contains(queryLower) }
-        let showCreate = !query.isEmpty
-            && !userLabels.contains { $0.displayName.caseInsensitiveCompare(query) == .orderedSame }
-        var items: [DropdownItem] = filtered.map { .existing($0) }
-        if showCreate { items.append(.create(query)) }
-        let shouldShowDropdown = isLabelFieldFocused && !query.isEmpty
-            && (!filtered.isEmpty || showCreate)
-        return (currentUser, filtered, showCreate, items, shouldShowDropdown, query)
+        cachedShowCreate = !cachedQuery.isEmpty
+            && !userLabels.contains { $0.displayName.caseInsensitiveCompare(cachedQuery) == .orderedSame }
+        cachedItems = filtered.map { .existing($0) }
+        if cachedShowCreate { cachedItems.append(.create(cachedQuery)) }
+        cachedShouldShowDropdown = isLabelFieldFocused && !cachedQuery.isEmpty
+            && (!filtered.isEmpty || cachedShowCreate)
     }
 
     var body: some View {
-        let data = precomputed
-
         HStack(spacing: 6) {
-            ForEach(data.currentUser) { label in
+            ForEach(cachedCurrentUser) { label in
                 LabelChipView(label: emailLabel(from: label), isRemovable: true) {
                     let newIDs = currentLabelIDs.filter { $0 != label.id }
                     detailVM.updateLabelIDs(newIDs)
@@ -92,9 +86,9 @@ struct LabelEditorView: View {
                     .font(Typography.subheadRegular)
                     .foregroundStyle(.primary)
                     .onChange(of: labelSearchText) { _, _ in highlightedIndex = 0 }
-                    .onSubmit { confirmHighlighted(items: data.items, showCreate: data.showCreate) }
+                    .onSubmit { confirmHighlighted(items: cachedItems, showCreate: cachedShowCreate) }
                     .onKeyPress(.downArrow) {
-                        highlightedIndex = min(highlightedIndex + 1, data.items.count - 1)
+                        highlightedIndex = min(highlightedIndex + 1, cachedItems.count - 1)
                         return .handled
                     }
                     .onKeyPress(.upArrow) {
@@ -109,8 +103,8 @@ struct LabelEditorView: View {
                 }
                 .frame(minWidth: 80, maxWidth: 160)
                 .overlay(alignment: .topLeading) {
-                    if data.shouldShowDropdown {
-                        autocompleteDropdown(items: data.items)
+                    if cachedShouldShowDropdown {
+                        autocompleteDropdown(items: cachedItems)
                             .offset(y: 24)
                     }
                 }
@@ -130,6 +124,11 @@ struct LabelEditorView: View {
 
             Spacer()
         }
+        .onAppear { recomputeLabelData() }
+        .onChange(of: currentLabelIDs) { _, _ in recomputeLabelData() }
+        .onChange(of: allLabels.count) { _, _ in recomputeLabelData() }
+        .onChange(of: labelSearchText) { _, _ in recomputeLabelData() }
+        .onChange(of: isLabelFieldFocused) { _, _ in recomputeLabelData() }
     }
 
     // MARK: - Dropdown

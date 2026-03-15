@@ -80,16 +80,16 @@ struct ListPaneView: View {
             isLoading: isLoading,
             accountID: mailboxViewModel.accountID,
             actions: EmailListActions(
-                onArchive:           { actionCoordinator.archiveEmail($0, selectNext: { coordinator.selectNext($0) }) },
-                onDelete:            { actionCoordinator.deleteEmail($0, selectNext: { coordinator.selectNext($0) }) },
-                onToggleStar:        { actionCoordinator.toggleStarEmail($0) },
-                onMarkUnread:        { actionCoordinator.markUnreadEmail($0) },
-                onMarkSpam:          { actionCoordinator.markSpamEmail($0, selectNext: { coordinator.selectNext($0) }) },
+                onArchive:           { email in Task { await actionCoordinator.archiveEmail(email, selectNext: { coordinator.selectNext($0) }) } },
+                onDelete:            { email in Task { await actionCoordinator.deleteEmail(email, selectNext: { coordinator.selectNext($0) }) } },
+                onToggleStar:        { email in Task { await actionCoordinator.toggleStarEmail(email) } },
+                onMarkUnread:        { email in Task { await actionCoordinator.markUnreadEmail(email) } },
+                onMarkSpam:          { email in Task { await actionCoordinator.markSpamEmail(email, selectNext: { coordinator.selectNext($0) }) } },
                 onUnsubscribe:       { actionCoordinator.unsubscribeEmail($0) },
-                onMoveToInbox:       { actionCoordinator.moveToInboxEmail($0, selectedFolder: selectedFolder, selectNext: { coordinator.selectNext($0) }) },
-                onDeletePermanently: { actionCoordinator.deletePermanentlyEmail($0, selectNext: { coordinator.selectNext($0) }) },
-                onMarkNotSpam:       { actionCoordinator.markNotSpamEmail($0, selectNext: { coordinator.selectNext($0) }) },
-                onSnooze:            { actionCoordinator.snoozeEmail($0, until: $1, selectNext: { coordinator.selectNext($0) }) },
+                onMoveToInbox:       { email in Task { await actionCoordinator.moveToInboxEmail(email, selectedFolder: selectedFolder, selectNext: { coordinator.selectNext($0) }) } },
+                onDeletePermanently: { email in Task { await actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selectNext($0) }) } },
+                onMarkNotSpam:       { email in Task { await actionCoordinator.markNotSpamEmail(email, selectNext: { coordinator.selectNext($0) }) } },
+                onSnooze:            { email, date in Task { await actionCoordinator.snoozeEmail(email, until: date, selectNext: { coordinator.selectNext($0) }) } },
                 onReply: { email in
                     coordinator.startCompose(mode: EmailDetailViewModel.replyMode(for: email))
                 },
@@ -99,11 +99,11 @@ struct ListPaneView: View {
                 onForward: { email in
                     coordinator.startCompose(mode: EmailDetailViewModel.forwardMode(for: email))
                 },
-                onBulkArchive:    { actionCoordinator.bulkArchive(selectedEmails, onClear: clearSelection) },
-                onBulkDelete:     { actionCoordinator.bulkDelete(selectedEmails, onClear: clearSelection) },
-                onBulkMarkUnread: { actionCoordinator.bulkMarkUnread(selectedEmails) { selectedEmailIDs = [] } },
-                onBulkMarkRead:   { actionCoordinator.bulkMarkRead(selectedEmails) { selectedEmailIDs = [] } },
-                onBulkToggleStar: { for e in selectedEmails { actionCoordinator.toggleStarEmail(e) } },
+                onBulkArchive:    { Task { await actionCoordinator.bulkArchive(selectedEmails, onClear: clearSelection) } },
+                onBulkDelete:     { Task { await actionCoordinator.bulkDelete(selectedEmails, onClear: clearSelection) } },
+                onBulkMarkUnread: { Task { await actionCoordinator.bulkMarkUnread(selectedEmails) { selectedEmailIDs = [] } } },
+                onBulkMarkRead:   { Task { await actionCoordinator.bulkMarkRead(selectedEmails) { selectedEmailIDs = [] } } },
+                onBulkToggleStar: { Task { for e in selectedEmails { await actionCoordinator.toggleStarEmail(e) } } },
                 onEmptyTrash: {
                     actionCoordinator.emptyTrash(accountID: mailboxViewModel.accountID) { count in
                         coordinator.emptyTrashRequested(count: count)

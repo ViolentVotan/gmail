@@ -176,6 +176,7 @@ actor AttachmentDatabase {
         if version < 1 {
             exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')")
             exec("PRAGMA user_version = 1")
+            version = 1
             Self.logger.info("Migrated FTS to v1 (added emailBody)")
         }
 

@@ -1,6 +1,6 @@
 import GRDB
 
-struct LabelRecord: Codable, Identifiable, FetchableRecord, PersistableRecord {
+struct LabelRecord: Codable, Identifiable, FetchableRecord, PersistableRecord, Sendable {
     static let databaseTableName = "labels"
     static let databaseColumnDecodingStrategy: DatabaseColumnDecodingStrategy = .convertFromSnakeCase
     static let databaseColumnEncodingStrategy: DatabaseColumnEncodingStrategy = .convertToSnakeCase

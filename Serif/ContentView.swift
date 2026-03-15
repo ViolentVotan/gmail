@@ -64,15 +64,15 @@ struct ContentView: View {
                     onDeleteLabel: { label in Task { await coordinator.deleteLabel(label) } },
                     onDropToTrash: { msgId, accountID in
                         guard let email = coordinator.mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgId }) else { return }
-                        coordinator.actionCoordinator.deleteEmail(email, selectNext: { _ in })
+                        Task { await coordinator.actionCoordinator.deleteEmail(email, selectNext: { _ in }) }
                     },
                     onDropToArchive: { msgId, accountID in
                         guard let email = coordinator.mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgId }) else { return }
-                        coordinator.actionCoordinator.archiveEmail(email, selectNext: { _ in })
+                        Task { await coordinator.actionCoordinator.archiveEmail(email, selectNext: { _ in }) }
                     },
                     onDropToSpam: { msgId, accountID in
                         guard let email = coordinator.mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgId }) else { return }
-                        coordinator.actionCoordinator.markSpamEmail(email, selectNext: { _ in })
+                        Task { await coordinator.actionCoordinator.markSpamEmail(email, selectNext: { _ in }) }
                     },
                     onDropToLabel: { msgId, labelId, accountID in
                         Task { await coordinator.mailboxViewModel.addLabel(labelId, to: msgId) }
@@ -191,7 +191,7 @@ struct ContentView: View {
                     coordinator.previewMarkUnread(messageID: msgID, accountID: accountID)
                 },
                 onMessagesRead: { [coordinator] messageIDs in
-                    coordinator.mailboxViewModel.applyReadLocally(messageIDs)
+                    Task { await coordinator.mailboxViewModel.applyReadLocally(messageIDs) }
                 }
             )
 
@@ -234,7 +234,7 @@ struct ContentView: View {
 
                     if coordinator.selectedFolder != .archive {
                         Button {
-                            coordinator.actionCoordinator.archiveEmail(email, selectNext: { coordinator.selectNext($0) })
+                            Task { await coordinator.actionCoordinator.archiveEmail(email, selectNext: { coordinator.selectNext($0) }) }
                         } label: {
                             Label("Archive", systemImage: "archivebox")
                         }
@@ -243,7 +243,7 @@ struct ContentView: View {
 
                     if coordinator.selectedFolder != .trash {
                         Button {
-                            coordinator.actionCoordinator.deleteEmail(email, selectNext: { coordinator.selectNext($0) })
+                            Task { await coordinator.actionCoordinator.deleteEmail(email, selectNext: { coordinator.selectNext($0) }) }
                         } label: {
                             Label("Delete", systemImage: "trash")
                         }
@@ -259,7 +259,7 @@ struct ContentView: View {
                     .popover(isPresented: $showSnoozePicker) {
                         SnoozePickerView { date in
                             showSnoozePicker = false
-                            coordinator.actionCoordinator.snoozeEmail(email, until: date, selectNext: { coordinator.selectNext($0) })
+                            Task { await coordinator.actionCoordinator.snoozeEmail(email, until: date, selectNext: { coordinator.selectNext($0) }) }
                         }
                     }
                 }
@@ -286,12 +286,12 @@ struct ContentView: View {
                         }
 
                         Button {
-                            coordinator.actionCoordinator.markUnreadEmail(email)
+                            Task { await coordinator.actionCoordinator.markUnreadEmail(email) }
                         } label: { Label("Mark as Unread", systemImage: "envelope.badge") }
 
                         if coordinator.selectedFolder == .archive || coordinator.selectedFolder == .trash {
                             Button {
-                                coordinator.actionCoordinator.moveToInboxEmail(email, selectedFolder: coordinator.selectedFolder, selectNext: { coordinator.selectNext($0) })
+                                Task { await coordinator.actionCoordinator.moveToInboxEmail(email, selectedFolder: coordinator.selectedFolder, selectNext: { coordinator.selectNext($0) }) }
                             } label: { Label("Move to Inbox", systemImage: "tray.and.arrow.down") }
                         }
 
@@ -318,17 +318,17 @@ struct ContentView: View {
 
                         if coordinator.selectedFolder == .spam {
                             Button {
-                                coordinator.actionCoordinator.markNotSpamEmail(email, selectNext: { coordinator.selectNext($0) })
+                                Task { await coordinator.actionCoordinator.markNotSpamEmail(email, selectNext: { coordinator.selectNext($0) }) }
                             } label: { Label("Not Spam", systemImage: "tray.and.arrow.down") }
                         } else {
                             Button(role: .destructive) {
-                                coordinator.actionCoordinator.markSpamEmail(email, selectNext: { coordinator.selectNext($0) })
+                                Task { await coordinator.actionCoordinator.markSpamEmail(email, selectNext: { coordinator.selectNext($0) }) }
                             } label: { Label("Report as Spam", systemImage: "exclamationmark.shield") }
                         }
 
                         if coordinator.selectedFolder == .trash {
                             Button(role: .destructive) {
-                                coordinator.actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selectNext($0) })
+                                Task { await coordinator.actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selectNext($0) }) }
                             } label: { Label("Delete Permanently", systemImage: "trash.slash") }
                         }
                     } label: {
@@ -344,78 +344,113 @@ struct ContentView: View {
 
     private func withLifecycle<V: View>(_ view: V) -> some View {
         view
-            .task {
-                commandPalette.buildCommands(coordinator: coordinator)
-                await coordinator.handleAppear()
-            }
-            .onChange(of: coordinator.selectedFolder) { _, newValue in coordinator.handleFolderChange(newValue) }
-            .onChange(of: coordinator.selectedInboxCategory) { _, newValue in coordinator.handleCategoryChange(newValue) }
-            .onChange(of: coordinator.selectedLabel?.id) { _, _ in coordinator.handleLabelChange() }
-            .onChange(of: coordinator.selectedAccountID) { _, newValue in coordinator.handleAccountChange(newValue) }
-            .onChange(of: coordinator.authViewModel.accounts) { _, newValue in coordinator.handleAccountsChange(newValue) }
-            .onChange(of: NetworkMonitor.shared.isConnected) { _, connected in
-                if connected { OfflineActionQueue.shared.startDraining() }
-            }
-            .onChange(of: coordinator.selectedEmail) { _, newValue in
-                showSnoozePicker = false
-                coordinator.handleSelectedEmailChange(newValue)
-            }
-            .onChange(of: coordinator.signatureForNew) { _, _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
-            .onChange(of: coordinator.signatureForReply) { _, _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
-            .task {
-                for await notification in NotificationCenter.default.notifications(named: .composeEmailFromIntent) {
-                    let recipient = notification.userInfo?["recipient"] as? String
-                    coordinator.composeNewEmail(recipient: recipient)
+            .modifier(LifecycleStateModifier(
+                coordinator: coordinator,
+                commandPalette: commandPalette,
+                showSnoozePicker: $showSnoozePicker
+            ))
+            .modifier(LifecycleNotificationModifier(coordinator: coordinator))
+    }
+
+    /// State-change observers split out to help the type-checker.
+    private struct LifecycleStateModifier: ViewModifier {
+        let coordinator: AppCoordinator
+        let commandPalette: CommandPaletteViewModel
+        @Binding var showSnoozePicker: Bool
+
+        func body(content: Content) -> some View {
+            content
+                .task {
+                    commandPalette.buildCommands(coordinator: coordinator)
+                    await coordinator.handleAppear()
                 }
-            }
-            .task {
-                for await notification in NotificationCenter.default.notifications(named: .searchEmailFromIntent) {
-                    coordinator.selectedFolder = .inbox
-                    coordinator.searchFocusTrigger = true
-                    if let query = notification.userInfo?["query"] as? String, !query.isEmpty {
-                        await coordinator.mailboxViewModel.search(query: query)
+                .onChange(of: coordinator.selectedFolder) { _, newValue in coordinator.handleFolderChange(newValue) }
+                .onChange(of: coordinator.selectedInboxCategory) { _, newValue in coordinator.handleCategoryChange(newValue) }
+                .onChange(of: coordinator.selectedLabel?.id) { _, _ in coordinator.handleLabelChange() }
+                .onChange(of: coordinator.selectedAccountID) { _, newValue in coordinator.handleAccountChange(newValue) }
+                .onChange(of: coordinator.authViewModel.accounts) { oldValue, newValue in coordinator.handleAccountsChange(old: oldValue, new: newValue) }
+                .onChange(of: NetworkMonitor.shared.isConnected) { _, connected in
+                    if connected {
+                        OfflineActionQueue.shared.startDraining()
+                        Task { await coordinator.syncEngine?.triggerIncrementalSync() }
                     }
                 }
-            }
-            .task {
-                for await notification in NotificationCenter.default.notifications(named: .quickReplyFromNotification) {
-                    guard let messageId = notification.userInfo?["messageId"] as? String,
-                          let text = notification.userInfo?["text"] as? String,
-                          let accountID = notification.userInfo?["accountID"] as? String,
-                          !text.isEmpty
-                    else { continue }
-                    await coordinator.handleQuickReply(messageId: messageId, text: text, accountID: accountID)
+                .onChange(of: coordinator.selectedEmail) { _, newValue in
+                    showSnoozePicker = false
+                    coordinator.handleSelectedEmailChange(newValue)
                 }
-            }
-            .task {
-                for await notification in NotificationCenter.default.notifications(named: .openEmailFromIntent) {
-                    guard let messageId = notification.userInfo?["messageId"] as? String else { continue }
-                    if let accountID = notification.userInfo?["accountID"] as? String,
-                       !accountID.isEmpty,
-                       coordinator.selectedAccountID != accountID {
-                        coordinator.selectedAccountID = accountID
+                .onChange(of: coordinator.signatureForNew) { _, _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
+                .onChange(of: coordinator.signatureForReply) { _, _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
+                .onChange(of: SnoozeStore.shared.items.count) { _, _ in
+                    coordinator.refreshSnoozedCacheIfNeeded()
+                }
+                .onChange(of: ScheduledSendStore.shared.items.count) { _, _ in
+                    coordinator.refreshScheduledCacheIfNeeded()
+                }
+                .onChange(of: coordinator.mailboxViewModel.lastRestoredMessageID) { _, msgID in
+                    guard let msgID else { return }
+                    coordinator.mailboxViewModel.lastRestoredMessageID = nil
+                    if let restoredEmail = coordinator.mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgID }) {
+                        coordinator.selectedEmail = restoredEmail
+                        coordinator.selectedEmailIDs = [restoredEmail.id.uuidString]
                     }
-                    coordinator.navigateToMessage(gmailMessageID: messageId)
                 }
-            }
-            .task {
-                for await _ in NotificationCenter.default.notifications(named: NSApplication.didBecomeActiveNotification) {
-                    await coordinator.syncEngine?.updatePollingInterval(appIsActive: true, windowIsKey: true)
+        }
+    }
+
+    /// Notification listeners split out to help the type-checker.
+    private struct LifecycleNotificationModifier: ViewModifier {
+        let coordinator: AppCoordinator
+
+        func body(content: Content) -> some View {
+            content
+                .task {
+                    for await notification in NotificationCenter.default.notifications(named: .composeEmailFromIntent) {
+                        let recipient = notification.userInfo?["recipient"] as? String
+                        coordinator.composeNewEmail(recipient: recipient)
+                    }
                 }
-            }
-            .task {
-                for await _ in NotificationCenter.default.notifications(named: NSApplication.didResignActiveNotification) {
-                    await coordinator.syncEngine?.updatePollingInterval(appIsActive: false, windowIsKey: false)
+                .task {
+                    for await notification in NotificationCenter.default.notifications(named: .searchEmailFromIntent) {
+                        coordinator.selectedFolder = .inbox
+                        coordinator.searchFocusTrigger = true
+                        if let query = notification.userInfo?["query"] as? String, !query.isEmpty {
+                            await coordinator.mailboxViewModel.search(query: query)
+                        }
+                    }
                 }
-            }
-            .onChange(of: coordinator.mailboxViewModel.lastRestoredMessageID) { _, msgID in
-                guard let msgID else { return }
-                coordinator.mailboxViewModel.lastRestoredMessageID = nil
-                if let restoredEmail = coordinator.mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgID }) {
-                    coordinator.selectedEmail = restoredEmail
-                    coordinator.selectedEmailIDs = [restoredEmail.id.uuidString]
+                .task {
+                    for await notification in NotificationCenter.default.notifications(named: .quickReplyFromNotification) {
+                        guard let messageId = notification.userInfo?["messageId"] as? String,
+                              let text = notification.userInfo?["text"] as? String,
+                              let accountID = notification.userInfo?["accountID"] as? String,
+                              !text.isEmpty
+                        else { continue }
+                        await coordinator.handleQuickReply(messageId: messageId, text: text, accountID: accountID)
+                    }
                 }
-            }
+                .task {
+                    for await notification in NotificationCenter.default.notifications(named: .openEmailFromIntent) {
+                        guard let messageId = notification.userInfo?["messageId"] as? String else { continue }
+                        if let accountID = notification.userInfo?["accountID"] as? String,
+                           !accountID.isEmpty,
+                           coordinator.selectedAccountID != accountID {
+                            coordinator.selectedAccountID = accountID
+                        }
+                        coordinator.navigateToMessage(gmailMessageID: messageId)
+                    }
+                }
+                .task {
+                    for await _ in NotificationCenter.default.notifications(named: NSApplication.didBecomeActiveNotification) {
+                        await coordinator.syncEngine?.updatePollingInterval(appIsActive: true, windowIsKey: true)
+                    }
+                }
+                .task {
+                    for await _ in NotificationCenter.default.notifications(named: NSApplication.didResignActiveNotification) {
+                        await coordinator.syncEngine?.updatePollingInterval(appIsActive: false, windowIsKey: false)
+                    }
+                }
+        }
     }
 
 }

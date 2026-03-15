@@ -28,6 +28,18 @@ private final class PassthroughWebView: WKWebView {
     }
 }
 
+// MARK: - Weak Script Message Handler
+
+/// Wraps a `WKScriptMessageHandler` with a weak reference to break the retain
+/// cycle caused by `WKUserContentController` strongly retaining its handlers.
+private class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
+    weak var delegate: WKScriptMessageHandler?
+    init(_ delegate: WKScriptMessageHandler) { self.delegate = delegate }
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        delegate?.userContentController(controller, didReceive: message)
+    }
+}
+
 // MARK: - HTMLEmailView
 
 struct HTMLEmailView: NSViewRepresentable {
@@ -40,7 +52,7 @@ struct HTMLEmailView: NSViewRepresentable {
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
-        config.userContentController.add(context.coordinator, name: "heightChanged")
+        config.userContentController.add(WeakScriptMessageHandler(context.coordinator), name: "heightChanged")
         config.defaultWebpagePreferences.allowsContentJavaScript = false
         #if DEBUG
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
@@ -65,7 +77,9 @@ struct HTMLEmailView: NSViewRepresentable {
         context.coordinator.isLoadingContent = true
         // Defer height reset so SwiftUI processes it after the current render pass.
         // This shrinks the frame before didFinish measures the new content.
-        Task { @MainActor in
+        // Using DispatchQueue.main.async avoids the race with rapid email switching
+        // that an unstructured Task would cause.
+        DispatchQueue.main.async {
             self.contentHeight = 1
         }
 

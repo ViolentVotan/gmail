@@ -136,7 +136,8 @@ enum GmailDataTransformer {
         if labelIDs.contains(GmailSystemLabel.sent)    { return .sent }
         if labelIDs.contains(GmailSystemLabel.inbox)   { return .inbox }
         if labelIDs.contains(GmailSystemLabel.starred) { return .starred }
-        return .inbox
+        // Archived Gmail messages have no INBOX label — default to .archive, not .inbox
+        return .archive
     }
 
     // MARK: - UUID

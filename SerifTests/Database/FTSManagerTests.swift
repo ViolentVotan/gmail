@@ -7,7 +7,8 @@ import GRDB
 struct FTSManagerTests {
     @Test("indexes message and finds via search")
     func indexAndSearch() throws {
-        let db = try makeTestDatabase()
+        let (db, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         var msg = MessageRecord.fixture(gmailId: "m1", subject: "Invoice from Acme Corp")
         msg.bodyPlain = "Please find attached your invoice for March 2026."
         msg.senderName = "Billing Department"
@@ -27,7 +28,8 @@ struct FTSManagerTests {
 
     @Test("update replaces old FTS content")
     func updateReplacesContent() throws {
-        let db = try makeTestDatabase()
+        let (db, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         var msg = MessageRecord.fixture(gmailId: "m1", subject: "Old Subject")
         msg.bodyPlain = "old content"
 
@@ -57,7 +59,8 @@ struct FTSManagerTests {
 
     @Test("delete removes from FTS index")
     func deleteRemoves() throws {
-        let db = try makeTestDatabase()
+        let (db, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         let msg = MessageRecord.fixture(gmailId: "m1", subject: "Searchable")
 
         try db.dbPool.write { db in
@@ -74,10 +77,12 @@ struct FTSManagerTests {
         #expect(results.isEmpty)
     }
 
-    private func makeTestDatabase() throws -> MailDatabase {
+    // Helper — returns both database and temp directory for cleanup
+    private func makeTestDatabase() throws -> (MailDatabase, URL) {
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        return try MailDatabase(accountID: "test", baseDirectory: tempDir)
+        let db = try MailDatabase(accountID: "test", baseDirectory: tempDir)
+        return (db, tempDir)
     }
 }

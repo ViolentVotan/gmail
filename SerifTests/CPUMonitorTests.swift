@@ -13,13 +13,15 @@ import Foundation
         #expect(usage >= 0, "CPU usage should be >= 0")
     }
 
-    @Test func processCPUUsage_afterDelayReturnsValidRange() {
+    @Test func processCPUUsage_afterDelayReturnsValidRange() async throws {
         let monitor = CPUMonitor.shared
         _ = monitor.processCPUUsage() // prime cache
         // Wait beyond the 500ms cache interval to get a fresh sample
-        Thread.sleep(forTimeInterval: 0.6)
+        try await Task.sleep(for: .milliseconds(600))
         let usage = monitor.processCPUUsage()
-        #expect(usage >= 0, "CPU usage should be >= 0")
+        #expect(usage >= 0, "CPU usage should be non-negative")
+        // On a running process, usage should be finite (not NaN/Inf)
+        #expect(usage.isFinite, "CPU usage should be a finite number")
     }
 
     // MARK: - recommendedConcurrency

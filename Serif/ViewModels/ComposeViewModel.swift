@@ -145,6 +145,7 @@ final class ComposeViewModel {
                         from:         fromAddress,
                         to:           splitAddresses(to),
                         cc:           splitAddresses(cc),
+                        bcc:          splitAddresses(bcc),
                         subject:      subject,
                         body:         processedBody,
                         isHTML:       isHTML,
@@ -158,6 +159,7 @@ final class ComposeViewModel {
                         from:         fromAddress,
                         to:           splitAddresses(to),
                         cc:           splitAddresses(cc),
+                        bcc:          splitAddresses(bcc),
                         subject:      subject,
                         body:         processedBody,
                         isHTML:       isHTML,
@@ -267,7 +269,7 @@ final class ComposeViewModel {
                 mailStore.replyDrafts.removeValue(forKey: threadID)
                 mailStore.saveReplyDrafts()
                 if gmailDraftID != nil {
-                    Task { await discardDraft() }
+                    Task { [weak self] in await self?.discardDraft() }
                 }
             }
             return nil

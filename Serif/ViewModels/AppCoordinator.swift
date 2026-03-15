@@ -46,13 +46,13 @@ final class AppCoordinator {
         guard !accountID.isEmpty else { return }
         let id = accountID
         contactsTask?.cancel()
-        contactsTask = Task {
+        contactsTask = Task { [weak self] in
             let result = (try? await MailDatabase.shared(for: id).dbPool.read { db in
                 try MailDatabaseQueries.allContacts(in: db).map {
                     StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
                 }
             }) ?? []
-            guard self.accountID == id else { return }
+            guard let self, self.accountID == id else { return }
             contacts = result
         }
     }
@@ -147,6 +147,18 @@ final class AppCoordinator {
             )
         }
         updateDisplayedEmails()
+    }
+
+    /// Called by ContentView's `.onChange` when `SnoozeStore.shared.items` changes.
+    /// Only refreshes the cache if the snoozed folder is currently visible.
+    func refreshSnoozedCacheIfNeeded() {
+        refreshSnoozedCache()
+    }
+
+    /// Called by ContentView's `.onChange` when `ScheduledSendStore.shared.items` changes.
+    /// Only refreshes the cache if the scheduled folder is currently visible.
+    func refreshScheduledCacheIfNeeded() {
+        refreshScheduledCache()
     }
 
     private func refreshScheduledCache() {
@@ -510,19 +522,39 @@ final class AppCoordinator {
         }
     }
 
-    func handleAccountsChange(_ accounts: [GmailAccount]) {
+    func handleAccountsChange(old: [GmailAccount], new accounts: [GmailAccount]) {
         if selectedAccountID == nil, let first = accounts.first {
             selectedAccountID = first.id
         }
+        // Detect removed and added accounts
+        let previousIDs = Set(old.map(\.id))
+        let currentIDs = Set(accounts.map(\.id))
+        let removedIDs = previousIDs.subtracting(currentIDs)
+        let addedIDs = currentIDs.subtracting(previousIDs)
+
+        // Load per-account stores for newly added accounts (mid-session sign-in)
+        for addedID in addedIDs {
+            SnoozeStore.shared.load(accountID: addedID)
+            ScheduledSendStore.shared.load(accountID: addedID)
+            OfflineActionQueue.shared.load(accountID: addedID)
+        }
+
         // Stop engine if current account was removed (sign-out)
-        if let id = selectedAccountID, !accounts.contains(where: { $0.id == id }) {
+        if let id = selectedAccountID, removedIDs.contains(id) {
             let engineToStop = syncEngine
             syncEngine = nil
             lifecycleTask?.cancel()
-            lifecycleTask = Task { await engineToStop?.stop() }
-            mailDatabase = nil
-            backgroundSyncer = nil
+            lifecycleTask = Task {
+                // Await engine stop BEFORE clearing DB references
+                await engineToStop?.stop()
+                self.mailDatabase = nil
+                self.backgroundSyncer = nil
+            }
             SummaryService.shared.accountID = ""
+            // Clean up additional per-account state for all removed accounts
+            for removedID in removedIDs {
+                SubscriptionsStore.shared.deleteAccount(removedID)
+            }
             selectedAccountID = accounts.first?.id
         }
     }
@@ -563,14 +595,14 @@ final class AppCoordinator {
     /// Routes through actionCoordinator for optimistic DB update + offline support.
     func previewToggleStar(messageID: String, isCurrentlyStarred: Bool, accountID: String) {
         guard let email = mailboxViewModel.emails.first(where: { $0.gmailMessageID == messageID }) else { return }
-        actionCoordinator.toggleStarEmail(email)
+        Task { await actionCoordinator.toggleStarEmail(email) }
     }
 
     /// Marks a message as unread (used by SlidePanelsOverlay preview panel).
     /// Routes through actionCoordinator for optimistic DB update + offline support.
     func previewMarkUnread(messageID: String, accountID: String) {
         guard let email = mailboxViewModel.emails.first(where: { $0.gmailMessageID == messageID }) else { return }
-        actionCoordinator.markUnreadEmail(email)
+        Task { await actionCoordinator.markUnreadEmail(email) }
     }
 
     func handleSelectedEmailChange(_ email: Email?) {

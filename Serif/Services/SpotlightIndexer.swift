@@ -25,13 +25,13 @@ final class SpotlightIndexer {
             date: email.date
         )
 
-        try? await CSSearchableIndex.default().indexAppEntities([entity])
-
-        indexedCount += 1
-        if indexedCount > maxIndexed {
+        if indexedCount >= maxIndexed {
             try? await CSSearchableIndex.default().deleteAllSearchableItems()
             indexedCount = 0
         }
+
+        try? await CSSearchableIndex.default().indexAppEntities([entity])
+        indexedCount += 1
     }
 
     // MARK: - Legacy migration

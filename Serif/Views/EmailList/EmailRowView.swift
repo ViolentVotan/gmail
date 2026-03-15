@@ -18,8 +18,6 @@ struct EmailRowView: View {
     private let labelBadges: [BadgeItem]
     /// Cached at init to avoid per-render allocations and direct service access.
     private let tagBadges: [BadgeItem]
-    /// Cached at init to avoid per-render recomputation.
-    private let nudgeText: String?
 
     init(email: Email, isSelected: Bool, accountID: String, action: @escaping () -> Void) {
         self.email = email
@@ -34,9 +32,12 @@ struct EmailRowView: View {
         } else {
             self.tagBadges = []
         }
+    }
 
+    /// Computed lazily in body to avoid Calendar arithmetic on every init.
+    private var nudgeText: String? {
         let daysAgo = Calendar.current.dateComponents([.day], from: email.date, to: Date()).day ?? 0
-        self.nudgeText = daysAgo >= 3 ? "Received \(daysAgo) days ago" : nil
+        return daysAgo >= 3 ? "Received \(daysAgo) days ago" : nil
     }
 
     private func tagColor(_ name: String) -> Color {

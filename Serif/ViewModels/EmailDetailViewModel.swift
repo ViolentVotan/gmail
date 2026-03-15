@@ -316,14 +316,15 @@ final class EmailDetailViewModel {
             smartReplySuggestions = cached
             return
         }
-        let t = Task {
+        let t = Task { [weak self] in
+            guard let self else { return }
             let replies = await SmartReplyProvider.shared.generateReplies(
                 subject: email.subject,
                 senderName: email.sender.name,
                 body: email.body,
                 threadId: threadId
             )
-            smartReplySuggestions = replies
+            self.smartReplySuggestions = replies
         }
         backgroundTasks.withLock { $0.append(t) }
     }

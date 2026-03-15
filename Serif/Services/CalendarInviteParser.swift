@@ -19,6 +19,28 @@ struct CalendarInvite: Equatable, Sendable {
 
 enum CalendarInviteParser {
 
+    // MARK: - Cached Regex
+
+    private static let rsvpRegex = try! NSRegularExpression(
+        pattern: #"https?://(?:www\.)?calendar\.google\.com/calendar/event\?action=RESPOND[^"'\s<>]*"#,
+        options: .caseInsensitive
+    )
+
+    private static let organizerRegex = try! NSRegularExpression(
+        pattern: #"(?:Organizer|Organisateur|Organizado por)\s*:?\s*</(?:b|td|div|span)>\s*(?:</td>\s*<td[^>]*>)?\s*(.*?)(?=<|$)"#,
+        options: [.caseInsensitive, .dotMatchesLineSeparators]
+    )
+
+    private static let htmlTagRegex = try! NSRegularExpression(
+        pattern: #"<[^>]+>"#,
+        options: []
+    )
+
+    private static let whitespaceRegex = try! NSRegularExpression(
+        pattern: #"\s+"#,
+        options: []
+    )
+
     /// Detects a Google Calendar invitation from the HTML body.
     /// Returns nil if no RSVP URLs are found (not a calendar invite).
     static func parse(html: String, subject: String, sender: String) -> CalendarInvite? {
@@ -59,13 +81,8 @@ enum CalendarInviteParser {
 
     /// Extracts RSVP URLs from HTML body (Google Calendar rst=1/2/3 pattern).
     private static func extractRSVPURLs(from html: String) -> (accept: URL?, decline: URL?, maybe: URL?) {
-        let pattern = #"https?://(?:www\.)?calendar\.google\.com/calendar/event\?action=RESPOND[^"'\s<>]*"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) else {
-            return (nil, nil, nil)
-        }
-
         let range = NSRange(html.startIndex..., in: html)
-        let matches = regex.matches(in: html, range: range)
+        let matches = rsvpRegex.matches(in: html, range: range)
 
         var accept: URL?
         var decline: URL?
@@ -98,6 +115,7 @@ enum CalendarInviteParser {
 
     /// Extracts a field value from Google Calendar HTML by label.
     /// Google uses patterns like `<b>When</b>` or table cells with the label followed by the value.
+    /// Note: patterns are parameterized by label and compiled per call.
     private static func extractField(label: String, from html: String) -> String? {
         // Pattern 1: <b>Label</b> ... text content (up to next <b> or </td> or </div>)
         let pattern1 = #"<b>\s*(?:\#(label))\s*</b>\s*(?:</td>\s*<td[^>]*>)?\s*(.*?)(?=<b>|</td>|</div>|</tr>|<br\s*/?>)"#
@@ -118,13 +136,13 @@ enum CalendarInviteParser {
 
     /// Tries to find the organizer name from HTML (Google Calendar patterns).
     private static func extractOrganizer(from html: String) -> String? {
-        // Look for "Organizer" / "Organisateur" field
-        let pattern = #"(?:Organizer|Organisateur|Organizado por)\s*:?\s*</(?:b|td|div|span)>\s*(?:</td>\s*<td[^>]*>)?\s*(.*?)(?=<|$)"#
-        if let value = firstMatch(pattern: pattern, in: html, group: 1) {
-            let clean = stripHTML(value)
-            if !clean.isEmpty { return clean }
-        }
-        return nil
+        let range = NSRange(html.startIndex..., in: html)
+        guard let match = organizerRegex.firstMatch(in: html, range: range),
+              match.numberOfRanges > 1,
+              let r = Range(match.range(at: 1), in: html)
+        else { return nil }
+        let clean = stripHTML(String(html[r]))
+        return clean.isEmpty ? nil : clean
     }
 
     /// Extracts display name from "Name <email>" format.
@@ -135,6 +153,7 @@ enum CalendarInviteParser {
         return sender
     }
 
+    /// General-purpose regex match helper for parameterized patterns.
     private static func firstMatch(pattern: String, in text: String, group: Int) -> String? {
         guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]) else { return nil }
         let range = NSRange(text.startIndex..., in: text)
@@ -147,7 +166,8 @@ enum CalendarInviteParser {
 
     /// Strips HTML tags and decodes common entities.
     private static func stripHTML(_ html: String) -> String {
-        var text = html.replacingOccurrences(of: #"<[^>]+>"#, with: " ", options: .regularExpression)
+        let range = NSRange(html.startIndex..., in: html)
+        var text = htmlTagRegex.stringByReplacingMatches(in: html, range: range, withTemplate: " ")
         text = text.replacingOccurrences(of: "&nbsp;", with: " ")
         text = text.replacingOccurrences(of: "&amp;", with: "&")
         text = text.replacingOccurrences(of: "&lt;", with: "<")
@@ -155,7 +175,8 @@ enum CalendarInviteParser {
         text = text.replacingOccurrences(of: "&#39;", with: "'")
         text = text.replacingOccurrences(of: "&quot;", with: "\"")
         // Collapse whitespace
-        text = text.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+        let wsRange = NSRange(text.startIndex..., in: text)
+        text = whitespaceRegex.stringByReplacingMatches(in: text, range: wsRange, withTemplate: " ")
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

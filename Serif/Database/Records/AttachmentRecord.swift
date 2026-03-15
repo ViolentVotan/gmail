@@ -1,6 +1,6 @@
 import GRDB
 
-struct AttachmentRecord: Codable, Identifiable, FetchableRecord, PersistableRecord {
+struct AttachmentRecord: Codable, Identifiable, FetchableRecord, PersistableRecord, Sendable {
     static let databaseTableName = "attachments"
     static let databaseColumnDecodingStrategy: DatabaseColumnDecodingStrategy = .convertFromSnakeCase
     static let databaseColumnEncodingStrategy: DatabaseColumnEncodingStrategy = .convertToSnakeCase
@@ -14,8 +14,8 @@ struct AttachmentRecord: Codable, Identifiable, FetchableRecord, PersistableReco
     var size: Int?
     var contentId: String?
     var direction: String?
-    var indexingStatus: String?
+    var indexingStatus: String = "pending"
     var extractedText: String?
     var indexedAt: Double?
-    var retryCount: Int?
+    var retryCount: Int = 0
 }

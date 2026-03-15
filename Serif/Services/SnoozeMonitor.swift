@@ -1,10 +1,13 @@
 import Foundation
+private import os
 
 @Observable
 @MainActor
 final class SnoozeMonitor {
     static let shared = SnoozeMonitor()
     private init() {}
+
+    nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "SnoozeMonitor")
 
     private var timerTask: Task<Void, Never>?
     private var snoozeFailureCounts: [String: Int] = [:]
@@ -47,10 +50,11 @@ final class SnoozeMonitor {
                 SnoozeStore.shared.remove(messageId: item.messageId, accountID: item.accountID)
             } catch {
                 if case .httpError(404, _) = error {
+                    Self.logger.info("Snoozed message \(item.messageId, privacy: .private) deleted (404) — removing snooze entry")
                     snoozeFailureCounts.removeValue(forKey: item.messageId)
                     SnoozeStore.shared.remove(messageId: item.messageId, accountID: item.accountID)
                 } else {
-                    print("[SnoozeMonitor] Error unsnoozing \(item.messageId): \(error)")
+                    Self.logger.error("Error unsnoozing \(item.messageId, privacy: .private): \(error.localizedDescription, privacy: .public)")
                     let count = (snoozeFailureCounts[item.messageId] ?? 0) + 1
                     snoozeFailureCounts[item.messageId] = count
                     if count >= failureNotifyThreshold {
@@ -73,10 +77,11 @@ final class SnoozeMonitor {
                 ToastManager.shared.show(message: "Scheduled email sent: \(item.subject)")
             } catch {
                 if case .httpError(404, _) = error {
+                    Self.logger.info("Scheduled draft \(item.draftId, privacy: .private) deleted (404) — removing schedule entry")
                     scheduledSendFailureCounts.removeValue(forKey: item.draftId)
                     ScheduledSendStore.shared.remove(draftId: item.draftId, accountID: item.accountID)
                 } else {
-                    print("[SnoozeMonitor] Error sending scheduled draft \(item.draftId): \(error)")
+                    Self.logger.error("Error sending scheduled draft \(item.draftId, privacy: .private): \(error.localizedDescription, privacy: .public)")
                     let count = (scheduledSendFailureCounts[item.draftId] ?? 0) + 1
                     scheduledSendFailureCounts[item.draftId] = count
                     if count >= failureNotifyThreshold {

@@ -7,8 +7,11 @@ final class LabelSyncService {
     static let shared = LabelSyncService()
     private init() {}
 
-    /// Cached ETag for label list requests — enables 304 Not Modified responses.
-    private var labelsETag: String?
+    /// Cached ETags for label list requests — keyed by accountID for multi-account support.
+    private var labelsETag: [String: String] = [:]
+
+    /// Cached ETags for category unread count requests — keyed by accountID.
+    private var categoryETag: [String: String] = [:]
 
     /// Loads labels from the API with ETag caching.
     /// Returns cached labels on 304 Not Modified, fresh labels on 200.
@@ -18,13 +21,13 @@ final class LabelSyncService {
     ) async -> (labels: [GmailLabel], error: String?) {
         do {
             let result = try await GmailLabelService.shared.listLabels(
-                etag: labelsETag, accountID: accountID
+                etag: labelsETag[accountID], accountID: accountID
             )
             guard let (fresh, responseETag) = result else {
                 // 304 Not Modified — return cached labels
                 return (currentLabels, nil)
             }
-            labelsETag = responseETag
+            labelsETag[accountID] = responseETag
             return (fresh, nil)
         } catch {
             if currentLabels.isEmpty {
@@ -46,19 +49,17 @@ final class LabelSyncService {
 
     /// Loads unread counts per inbox category via a single listLabels() call with ETag caching.
     /// Returns empty counts on 304 Not Modified (caller should keep existing counts).
-    private var categoryETag: String?
-
     func loadCategoryUnreadCounts(accountID: String) async -> [InboxCategory: Int]? {
         guard !accountID.isEmpty else { return [:] }
         do {
             let result = try await GmailLabelService.shared.listLabels(
-                etag: categoryETag, accountID: accountID
+                etag: categoryETag[accountID], accountID: accountID
             )
             guard let (labels, responseETag) = result else {
                 // 304 Not Modified — caller should keep existing counts
                 return nil
             }
-            categoryETag = responseETag
+            categoryETag[accountID] = responseETag
             let labelsByID = Dictionary(uniqueKeysWithValues: labels.map { ($0.id, $0) })
             var counts: [InboxCategory: Int] = [:]
             for category in InboxCategory.allCases {
@@ -71,5 +72,11 @@ final class LabelSyncService {
         } catch {
             return [:]
         }
+    }
+
+    /// Clears cached ETags for the given account (e.g. on account removal or sign-out).
+    func clearETags(for accountID: String) {
+        labelsETag.removeValue(forKey: accountID)
+        categoryETag.removeValue(forKey: accountID)
     }
 }

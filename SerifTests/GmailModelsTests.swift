@@ -115,7 +115,7 @@ import Foundation
     // MARK: - GmailMessage.header()
 
     @Test func headerNamedIsCaseInsensitive() throws {
-        let msg = makeMessage(headers: [
+        let msg = try makeMessage(headers: [
             ("From", "alice@example.com"),
             ("Subject", "Test Subject"),
             ("X-Custom-Header", "custom-value")
@@ -132,7 +132,7 @@ import Foundation
     // MARK: - Computed Properties: from, subject, to, cc
 
     @Test func fromSubjectToCC() throws {
-        let msg = makeMessage(headers: [
+        let msg = try makeMessage(headers: [
             ("From", "Alice <alice@example.com>"),
             ("Subject", "Important Meeting"),
             ("To", "bob@example.com"),
@@ -146,7 +146,7 @@ import Foundation
     }
 
     @Test func subjectFallbackWhenMissing() throws {
-        let msg = makeMessage(headers: [])
+        let msg = try makeMessage(headers: [])
         #expect(msg.subject == "(no subject)")
         #expect(msg.from == "")
         #expect(msg.to == "")
@@ -154,12 +154,12 @@ import Foundation
     }
 
     @Test func replyToFallsBackToFrom() throws {
-        let msg = makeMessage(headers: [
+        let msg = try makeMessage(headers: [
             ("From", "sender@example.com")
         ])
         #expect(msg.replyTo == "sender@example.com")
 
-        let msgWithReplyTo = makeMessage(headers: [
+        let msgWithReplyTo = try makeMessage(headers: [
             ("From", "sender@example.com"),
             ("Reply-To", "reply@example.com")
         ])
@@ -196,50 +196,50 @@ import Foundation
     // MARK: - Label Flags: isUnread, isStarred, isDraft
 
     @Test func isUnread() throws {
-        let unread = makeMessage(labelIds: ["INBOX", "UNREAD"])
+        let unread = try makeMessage(labelIds: ["INBOX", "UNREAD"])
         #expect(unread.isUnread)
 
-        let read = makeMessage(labelIds: ["INBOX"])
+        let read = try makeMessage(labelIds: ["INBOX"])
         #expect(!read.isUnread)
 
-        let noLabels = makeMessage(labelIds: nil)
+        let noLabels = try makeMessage(labelIds: nil)
         #expect(!noLabels.isUnread)
     }
 
     @Test func isStarred() throws {
-        let starred = makeMessage(labelIds: ["STARRED"])
+        let starred = try makeMessage(labelIds: ["STARRED"])
         #expect(starred.isStarred)
 
-        let notStarred = makeMessage(labelIds: ["INBOX"])
+        let notStarred = try makeMessage(labelIds: ["INBOX"])
         #expect(!notStarred.isStarred)
     }
 
     @Test func isDraft() throws {
-        let draft = makeMessage(labelIds: ["DRAFT"])
+        let draft = try makeMessage(labelIds: ["DRAFT"])
         #expect(draft.isDraft)
 
-        let notDraft = makeMessage(labelIds: ["INBOX"])
+        let notDraft = try makeMessage(labelIds: ["INBOX"])
         #expect(!notDraft.isDraft)
     }
 
     // MARK: - Mailing List Detection
 
     @Test func isFromMailingListWithListUnsubscribe() throws {
-        let msg = makeMessage(headers: [
+        let msg = try makeMessage(headers: [
             ("List-Unsubscribe", "<https://example.com/unsub>")
         ])
         #expect(msg.isFromMailingList)
     }
 
     @Test func isFromMailingListWithListId() throws {
-        let msg = makeMessage(headers: [
+        let msg = try makeMessage(headers: [
             ("List-Id", "<news.example.com>")
         ])
         #expect(msg.isFromMailingList)
     }
 
     @Test func isNotFromMailingList() throws {
-        let msg = makeMessage(headers: [
+        let msg = try makeMessage(headers: [
             ("From", "person@example.com")
         ])
         #expect(!msg.isFromMailingList)
@@ -248,54 +248,54 @@ import Foundation
     // MARK: - Unsubscribe URL Parsing
 
     @Test func unsubscribeURLPrefersHTTPS() throws {
-        let msg = makeMessage(headers: [
+        let msg = try makeMessage(headers: [
             ("List-Unsubscribe", "<mailto:unsub@example.com>, <https://example.com/unsub?id=123>")
         ])
         #expect(msg.unsubscribeURL?.absoluteString == "https://example.com/unsub?id=123")
     }
 
     @Test func unsubscribeURLFallsBackToMailto() throws {
-        let msg = makeMessage(headers: [
+        let msg = try makeMessage(headers: [
             ("List-Unsubscribe", "<mailto:unsub@example.com>")
         ])
         #expect(msg.unsubscribeURL?.scheme == "mailto")
     }
 
     @Test func unsubscribeURLNilWhenNoHeader() throws {
-        let msg = makeMessage(headers: [])
+        let msg = try makeMessage(headers: [])
         #expect(msg.unsubscribeURL == nil)
     }
 
     // MARK: - One-Click Unsubscribe
 
     @Test func supportsOneClickUnsubscribe() throws {
-        let msg = makeMessage(headers: [
+        let msg = try makeMessage(headers: [
             ("List-Unsubscribe-Post", "List-Unsubscribe=One-Click")
         ])
         #expect(msg.supportsOneClickUnsubscribe)
     }
 
     @Test func doesNotSupportOneClickUnsubscribeWithoutHeader() throws {
-        let msg = makeMessage(headers: [])
+        let msg = try makeMessage(headers: [])
         #expect(!msg.supportsOneClickUnsubscribe)
     }
 
     // MARK: - Body Extraction
 
     @Test func htmlBodyExtraction() throws {
-        let msg = makeMessage(headers: [], htmlBodyData: "PGI-SGVsbG8gV29ybGQ8L2I-")
+        let msg = try makeMessage(headers: [], htmlBodyData: "PGI-SGVsbG8gV29ybGQ8L2I-")
         #expect(msg.htmlBody != nil)
         #expect(msg.htmlBody?.contains("Hello World") == true)
     }
 
     @Test func plainBodyExtraction() throws {
-        let msg = makeMessage(headers: [], plainBodyData: "SGVsbG8gV29ybGQ")
+        let msg = try makeMessage(headers: [], plainBodyData: "SGVsbG8gV29ybGQ")
         #expect(msg.plainBody != nil)
         #expect(msg.plainBody == "Hello World")
     }
 
     @Test func bodyPrefersHtmlOverPlain() throws {
-        let msg = makeMessage(
+        let msg = try makeMessage(
             headers: [],
             htmlBodyData: "PGI-SFRNTA8L2I-",  // <b>HTML</b>
             plainBodyData: "UGxhaW4"            // Plain
@@ -307,14 +307,14 @@ import Foundation
     // MARK: - FromDomain
 
     @Test func fromDomainWithAngleBrackets() throws {
-        let msg = makeMessage(headers: [
+        let msg = try makeMessage(headers: [
             ("From", "Alice Smith <alice@example.com>")
         ])
         #expect(msg.fromDomain == "example.com")
     }
 
     @Test func fromDomainPlainEmail() throws {
-        let msg = makeMessage(headers: [
+        let msg = try makeMessage(headers: [
             ("From", "bob@company.co.uk")
         ])
         #expect(msg.fromDomain == "company.co.uk")
@@ -323,28 +323,28 @@ import Foundation
     // MARK: - Security: mailedBy, signedBy, encryptionInfo
 
     @Test func mailedByFromReturnPath() throws {
-        let msg = makeMessage(headers: [
+        let msg = try makeMessage(headers: [
             ("Return-Path", "<bounce@sender.example.com>")
         ])
         #expect(msg.mailedBy == "sender.example.com")
     }
 
     @Test func signedByFromDKIM() throws {
-        let msg = makeMessage(headers: [
+        let msg = try makeMessage(headers: [
             ("DKIM-Signature", "v=1; a=rsa-sha256; d=example.com; s=selector; b=abc123")
         ])
         #expect(msg.signedBy == "example.com")
     }
 
     @Test func encryptionInfoDetectsTLS() throws {
-        let msg = makeMessage(headers: [
+        let msg = try makeMessage(headers: [
             ("Received", "from mail.example.com by mx.google.com with ESMTPS id abc")
         ])
         #expect(msg.encryptionInfo == "Standard encryption (TLS)")
     }
 
     @Test func encryptionInfoNilWithoutTLS() throws {
-        let msg = makeMessage(headers: [
+        let msg = try makeMessage(headers: [
             ("Received", "from mail.example.com by mx.google.com with SMTP id abc")
         ])
         #expect(msg.encryptionInfo == nil)
@@ -353,7 +353,7 @@ import Foundation
     // MARK: - Suspicious Sender
 
     @Test func isSuspiciousSenderMismatchedDomains() throws {
-        let msg = makeMessage(headers: [
+        let msg = try makeMessage(headers: [
             ("From", "legit@trusted.com"),
             ("Return-Path", "<bounce@phishing.com>")
         ])
@@ -361,7 +361,7 @@ import Foundation
     }
 
     @Test func isNotSuspiciousSenderMatchingDomains() throws {
-        let msg = makeMessage(headers: [
+        let msg = try makeMessage(headers: [
             ("From", "alice@example.com"),
             ("Return-Path", "<bounce@example.com>")
         ])
@@ -577,7 +577,7 @@ import Foundation
         labelIds: [String]? = nil,
         htmlBodyData: String? = nil,
         plainBodyData: String? = nil
-    ) -> GmailMessage {
+    ) throws -> GmailMessage {
         let headersJSON = headers.map { """
             {"name": "\($0.0)", "value": "\($0.1)"}
         """ }.joined(separator: ",")
@@ -619,11 +619,11 @@ import Foundation
         }
         """.data(using: .utf8)!
 
-        return try! JSONDecoder().decode(GmailMessage.self, from: json)
+        return try JSONDecoder().decode(GmailMessage.self, from: json)
     }
 
     /// Creates a GmailMessage with only labelIds set, using JSON decoding.
-    private func makeMessage(labelIds: [String]?) -> GmailMessage {
+    private func makeMessage(labelIds: [String]?) throws -> GmailMessage {
         let labelIdsJSON: String
         if let ids = labelIds {
             labelIdsJSON = ", \"labelIds\": [\(ids.map { "\"\($0)\"" }.joined(separator: ","))]"
@@ -639,6 +639,6 @@ import Foundation
         }
         """.data(using: .utf8)!
 
-        return try! JSONDecoder().decode(GmailMessage.self, from: json)
+        return try JSONDecoder().decode(GmailMessage.self, from: json)
     }
 }

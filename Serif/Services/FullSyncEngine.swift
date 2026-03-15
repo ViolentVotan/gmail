@@ -292,7 +292,7 @@ actor FullSyncEngine {
                     maxResults: 500
                 )
 
-                latestHistoryId = response.historyId
+                latestHistoryId = response.historyId ?? latestHistoryId
                 pageToken = response.nextPageToken
 
                 for record in response.history ?? [] {

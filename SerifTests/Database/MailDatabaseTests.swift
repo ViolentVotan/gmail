@@ -20,7 +20,8 @@ struct MailDatabaseTests {
 
     @Test("sets WAL journal mode")
     func setsWALMode() throws {
-        let db = try makeTestDatabase()
+        let (db, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         let mode = try db.dbPool.read { db in
             try String.fetchOne(db, sql: "PRAGMA journal_mode")
         }
@@ -29,7 +30,8 @@ struct MailDatabaseTests {
 
     @Test("enables foreign keys")
     func enablesForeignKeys() throws {
-        let db = try makeTestDatabase()
+        let (db, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         let fk = try db.dbPool.read { db in
             try Int.fetchOne(db, sql: "PRAGMA foreign_keys")
         }
@@ -38,13 +40,15 @@ struct MailDatabaseTests {
 
     @Test("integrity check passes on fresh database")
     func integrityCheckPasses() throws {
-        let db = try makeTestDatabase()
+        let (db, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         #expect(try db.integrityCheck())
     }
 
     @Test("v1 migration creates all tables")
     func v1CreatesAllTables() throws {
-        let db = try makeTestDatabase()
+        let (db, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         let tables = try db.dbPool.read { db in
             try String.fetchAll(db, sql: """
                 SELECT name FROM sqlite_master
@@ -64,7 +68,8 @@ struct MailDatabaseTests {
 
     @Test("v1 migration creates FTS5 virtual table")
     func v1CreatesFTS() throws {
-        let db = try makeTestDatabase()
+        let (db, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         let tables = try db.dbPool.read { db in
             try String.fetchAll(db, sql: """
                 SELECT name FROM sqlite_master WHERE type='table' AND name = 'messages_fts'
@@ -75,7 +80,8 @@ struct MailDatabaseTests {
 
     @Test("v1 migration creates indexes")
     func v1CreatesIndexes() throws {
-        let db = try makeTestDatabase()
+        let (db, tempDir) = try makeTestDatabase()
+        defer { try? FileManager.default.removeItem(at: tempDir) }
         let indexes = try db.dbPool.read { db in
             try String.fetchAll(db, sql: """
                 SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'messages_%'
@@ -88,11 +94,12 @@ struct MailDatabaseTests {
         #expect(indexes.contains("messages_prefetch"))
     }
 
-    // Helper
-    private func makeTestDatabase() throws -> MailDatabase {
+    // Helper — returns both database and temp directory for cleanup
+    private func makeTestDatabase() throws -> (MailDatabase, URL) {
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
-        return try MailDatabase(accountID: "test", baseDirectory: tempDir)
+        let db = try MailDatabase(accountID: "test", baseDirectory: tempDir)
+        return (db, tempDir)
     }
 }

@@ -39,7 +39,6 @@ struct UnifiedToastLayer: View {
         .animation(SerifAnimation.springDefault, value: network.isConnected)
         .animation(SerifAnimation.springDefault, value: toastMgr.currentToast?.id)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .allowsHitTesting(undoMgr.currentAction != nil)
     }
 }
 

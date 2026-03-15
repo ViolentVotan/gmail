@@ -93,8 +93,8 @@ final class OfflineActionQueue {
                 retryDelay = min(retryDelay * 2, 60)
                 retryTask = Task {
                     try? await Task.sleep(for: .seconds(delay))
-                    isDraining = false
                     guard !Task.isCancelled else { return }
+                    isDraining = false
                     startDraining()
                 }
             } else {

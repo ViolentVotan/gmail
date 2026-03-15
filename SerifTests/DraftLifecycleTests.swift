@@ -137,12 +137,11 @@ import Foundation
         )
         store.gmailDrafts = [gmailDraft]
 
-        // Simulate the dedup logic from syncGmailDrafts
+        // Dedup using the same predicate as production MailStore.syncGmailDrafts
         let syncedGmailIDs = Set(store.gmailDrafts.compactMap(\.gmailDraftID))
         store.emails.removeAll { email in
             email.folder == .drafts && email.isDraft
-                && email.gmailDraftID != nil
-                && syncedGmailIDs.contains(email.gmailDraftID!)
+                && email.gmailDraftID.map { syncedGmailIDs.contains($0) } == true
         }
 
         // Should have only the Gmail version
@@ -183,12 +182,11 @@ import Foundation
         )
         store.gmailDrafts = [gmailDraft]
 
-        // Dedup
+        // Dedup using the same predicate as production MailStore.syncGmailDrafts
         let syncedGmailIDs = Set(store.gmailDrafts.compactMap(\.gmailDraftID))
         store.emails.removeAll { email in
             email.folder == .drafts && email.isDraft
-                && email.gmailDraftID != nil
-                && syncedGmailIDs.contains(email.gmailDraftID!)
+                && email.gmailDraftID.map { syncedGmailIDs.contains($0) } == true
         }
 
         // Both should remain: local (unsynced) + Gmail
@@ -196,12 +194,44 @@ import Foundation
         #expect(drafts.count == 2, "Unsynced local draft + Gmail draft both kept")
     }
 
-    // MARK: - Draft body content check
+    // MARK: - Draft body preserved on reopen via loadExistingDraft
 
-    @Test func reopenedDraftPreservesBodyWhenHasContent() {
-        let draftBody = "<div>My important email content</div>"
-        #expect(!draftBody.isEmpty,
-                "Draft body with content should not be treated as empty")
+    @Test func reopenedDraftPreservesBodyWhenHasContent() async throws {
+        let store = MailStore()
+        let threadID = "thread_reopen_test"
+        store.replyDrafts[threadID] = MailStore.ReplyDraftInfo(
+            gmailDraftID: "draft_reopen_123",
+            preview: "My important email"
+        )
+
+        let vm = ComposeViewModel(accountID: "acc", fromAddress: "me@test.com", threadID: threadID)
+
+        // Mock loader returns a draft whose message has HTML body content.
+        // Base64url of "<div>My important email content</div>":
+        let bodyBase64URL = "PGRpdj5NeSBpbXBvcnRhbnQgZW1haWwgY29udGVudDwvZGl2Pg"
+        let loader: (String, String) async throws -> GmailDraft? = { draftID, _ in
+            let json = """
+            {
+                "id": "\(draftID)",
+                "threadId": "t1",
+                "payload": {
+                    "mimeType": "text/html",
+                    "body": {"size": 100, "data": "\(bodyBase64URL)"},
+                    "headers": []
+                }
+            }
+            """.data(using: .utf8)!
+            let message = try JSONDecoder().decode(GmailMessage.self, from: json)
+            return GmailDraft(id: draftID, message: message)
+        }
+
+        let result = await vm.loadExistingDraft(mailStore: store, loader: loader)
+
+        #expect(result != nil, "Should return body when draft has content")
+        #expect(result?.contains("My important email content") == true,
+                "Returned body should contain the original draft content")
+        #expect(vm.gmailDraftID == "draft_reopen_123",
+                "Draft ID should be set from the saved reply draft")
     }
 
     // MARK: - Preview strips HTML tags

@@ -30,10 +30,10 @@ enum HTMLTemplate {
         <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'nonce-\(nonce)'; style-src 'unsafe-inline'; frame-src 'none';">
         <style>
         :root {
-            --text-color: \(textColor);
-            --bg-color: \(backgroundColor);
-            --accent-color: \(accentColor);
-            --placeholder-color: \(placeholderColor);
+            --text-color: \(sanitizeCSSValue(textColor));
+            --bg-color: \(sanitizeCSSValue(backgroundColor));
+            --accent-color: \(sanitizeCSSValue(accentColor));
+            --placeholder-color: \(sanitizeCSSValue(placeholderColor));
         }
         html, body {
             margin: 0;
@@ -109,6 +109,14 @@ enum HTMLTemplate {
         </body>
         </html>
         """
+    }
+
+    // MARK: - CSS Sanitization
+
+    /// Strips all characters outside a safe set to prevent CSS injection via color parameters.
+    private static func sanitizeCSSValue(_ value: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "#%,.() "))
+        return String(value.unicodeScalars.filter { allowed.contains($0) })
     }
 
     // MARK: - HTML Sanitization

@@ -1,7 +1,7 @@
 import Foundation
 import GRDB
 
-struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord {
+struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord, Sendable {
     static let databaseTableName = "messages"
     static let databaseColumnDecodingStrategy: DatabaseColumnDecodingStrategy = .convertFromSnakeCase
     static let databaseColumnEncodingStrategy: DatabaseColumnEncodingStrategy = .convertToSnakeCase

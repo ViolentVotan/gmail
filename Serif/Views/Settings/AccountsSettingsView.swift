@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 struct AccountsSettingsView: View {
     @State private var accounts: [GmailAccount] = AccountStore.shared.accounts
@@ -14,6 +15,9 @@ struct AccountsSettingsView: View {
         .listStyle(.inset(alternatesRowBackgrounds: true))
         .scrollContentBackground(.hidden)
         .onAppear { refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+            refresh()
+        }
         .overlay {
             if accounts.isEmpty {
                 ContentUnavailableView(

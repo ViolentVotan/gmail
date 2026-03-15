@@ -10,6 +10,7 @@ enum MailDatabaseMigrations {
         registerV2(&migrator)
         registerV3(&migrator)
         registerV4(&migrator)
+        registerV5(&migrator)
         return migrator
     }
 
@@ -184,6 +185,88 @@ enum MailDatabaseMigrations {
             // Drop redundant index — composite PK [message_id, label_id]
             // already supports queries filtering by message_id (leftmost column)
             try db.drop(index: "message_labels_message")
+        }
+    }
+
+    private static func registerV5(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v5_cascade_and_not_null") { db in
+            // -- Fix 1: Recreate message_labels with onDelete: .cascade on label FK --
+            // SQLite doesn't support ALTER COLUMN, so we must recreate the table.
+            // Disable FK checks during the table swap to avoid intermediate violations.
+            try db.execute(sql: "PRAGMA foreign_keys = OFF")
+
+            try db.create(table: "message_labels_new") { t in
+                t.column("message_id", .text).notNull()
+                    .references("messages", column: "gmail_id", onDelete: .cascade)
+                t.column("label_id", .text).notNull()
+                    .references("labels", column: "gmail_id", onDelete: .cascade)
+                t.primaryKey(["message_id", "label_id"])
+            }
+
+            try db.execute(sql: """
+                INSERT INTO message_labels_new (message_id, label_id)
+                SELECT message_id, label_id FROM message_labels
+            """)
+
+            try db.drop(table: "message_labels")
+            try db.rename(table: "message_labels_new", to: "message_labels")
+
+            // Recreate the label index (the PK covers message_id lookups)
+            try db.create(index: "message_labels_label", on: "message_labels", columns: ["label_id"])
+
+            // Verify FK integrity after the swap
+            try db.execute(sql: "PRAGMA foreign_keys = ON")
+            let fkCheck = try Row.fetchAll(db, sql: "PRAGMA foreign_key_check(message_labels)")
+            if !fkCheck.isEmpty {
+                // Orphan rows found — clean them up rather than failing the migration
+                try db.execute(sql: """
+                    DELETE FROM message_labels
+                    WHERE message_id NOT IN (SELECT gmail_id FROM messages)
+                       OR label_id NOT IN (SELECT gmail_id FROM labels)
+                """)
+            }
+
+            // -- Fix 2: Add NOT NULL to attachments.indexing_status and retry_count --
+            // Backfill any NULLs before the constraint change
+            try db.execute(sql: "UPDATE attachments SET indexing_status = 'pending' WHERE indexing_status IS NULL")
+            try db.execute(sql: "UPDATE attachments SET retry_count = 0 WHERE retry_count IS NULL")
+
+            try db.create(table: "attachments_new") { t in
+                t.primaryKey("id", .text)
+                t.column("message_id", .text).notNull()
+                    .references("messages", column: "gmail_id", onDelete: .cascade)
+                t.column("gmail_attachment_id", .text).notNull()
+                t.column("filename", .text)
+                t.column("mime_type", .text)
+                t.column("file_type", .text)
+                t.column("size", .integer)
+                t.column("content_id", .text)
+                t.column("direction", .text)
+                t.column("indexing_status", .text).notNull().defaults(to: "pending")
+                t.column("extracted_text", .text)
+                t.column("indexed_at", .double)
+                t.column("retry_count", .integer).notNull().defaults(to: 0)
+            }
+
+            try db.execute(sql: """
+                INSERT INTO attachments_new
+                    (id, message_id, gmail_attachment_id, filename, mime_type,
+                     file_type, size, content_id, direction, indexing_status,
+                     extracted_text, indexed_at, retry_count)
+                SELECT id, message_id, gmail_attachment_id, filename, mime_type,
+                       file_type, size, content_id, direction,
+                       COALESCE(indexing_status, 'pending'),
+                       extracted_text, indexed_at,
+                       COALESCE(retry_count, 0)
+                FROM attachments
+            """)
+
+            try db.drop(table: "attachments")
+            try db.rename(table: "attachments_new", to: "attachments")
+
+            // Recreate indexes
+            try db.create(index: "attachments_message", on: "attachments", columns: ["message_id"])
+            try db.create(index: "attachments_status", on: "attachments", columns: ["indexing_status"])
         }
     }
 }

@@ -19,11 +19,6 @@ struct EmailListView: View {
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
-    /// Accessibility rotor lists — computed lazily on access, not on every email list update.
-    private var unreadEmails: [Email] { emails.filter { !$0.isRead } }
-    private var starredEmails: [Email] { emails.filter { $0.isStarred } }
-    private var attachmentEmails: [Email] { emails.filter { $0.hasAttachments } }
-
     private func recomputeSortedEmails() {
         switch sortOrder {
         case .dateNewest, .unreadFirst: sortedEmails = emails
@@ -42,6 +37,20 @@ struct EmailListView: View {
         }
         .onAppear { recomputeSortedEmails() }
         .onChange(of: emails) { _, _ in recomputeSortedEmails() }
+        .task(id: "midnight-refresh") {
+            // Refresh date sections at midnight so "Today"/"Yesterday" labels stay correct.
+            while !Task.isCancelled {
+                let calendar = Calendar.current
+                guard let midnight = calendar.nextDate(
+                    after: Date(),
+                    matching: DateComponents(hour: 0, minute: 0, second: 0),
+                    matchingPolicy: .nextTime
+                ) else { break }
+                try? await Task.sleep(for: .seconds(midnight.timeIntervalSinceNow))
+                guard !Task.isCancelled else { break }
+                recomputeSortedEmails()
+            }
+        }
         .onChange(of: searchResetTrigger) { _, _ in
             searchText = ""
             sortOrder = .dateNewest
@@ -336,17 +345,17 @@ struct EmailListView: View {
         .onKeyPress(characters: CharacterSet(charactersIn: "r")) { _ in handleKeyR() }
         .scrollEdgeEffectStyle(.hard, for: .top)
         .accessibilityRotor("Unread Emails") {
-            ForEach(unreadEmails) { email in
+            ForEach(emails.filter { !$0.isRead }) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)
             }
         }
         .accessibilityRotor("Starred") {
-            ForEach(starredEmails) { email in
+            ForEach(emails.filter { $0.isStarred }) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)
             }
         }
         .accessibilityRotor("Has Attachments") {
-            ForEach(attachmentEmails) { email in
+            ForEach(emails.filter { $0.hasAttachments }) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)
             }
         }

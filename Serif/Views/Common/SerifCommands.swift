@@ -52,7 +52,7 @@ struct SerifCommands: Commands {
         CommandMenu("Message") {
             Button {
                 guard let coordinator, let email = selectedEmail else { return }
-                coordinator.actionCoordinator.archiveEmail(email, selectNext: { coordinator.selectNext($0) })
+                Task { await coordinator.actionCoordinator.archiveEmail(email, selectNext: { coordinator.selectNext($0) }) }
             } label: {
                 Label("Archive", systemImage: "archivebox")
             }
@@ -61,7 +61,7 @@ struct SerifCommands: Commands {
 
             Button {
                 guard let coordinator, let email = selectedEmail else { return }
-                coordinator.actionCoordinator.deleteEmail(email, selectNext: { coordinator.selectNext($0) })
+                Task { await coordinator.actionCoordinator.deleteEmail(email, selectNext: { coordinator.selectNext($0) }) }
             } label: {
                 Label("Delete", systemImage: "trash")
             }
@@ -70,7 +70,7 @@ struct SerifCommands: Commands {
 
             Button {
                 guard let coordinator, let email = selectedEmail else { return }
-                coordinator.actionCoordinator.moveToInboxEmail(email, selectedFolder: coordinator.selectedFolder, selectNext: { coordinator.selectNext($0) })
+                Task { await coordinator.actionCoordinator.moveToInboxEmail(email, selectedFolder: coordinator.selectedFolder, selectNext: { coordinator.selectNext($0) }) }
             } label: {
                 Label("Move to Inbox", systemImage: "tray.and.arrow.down")
             }
@@ -80,7 +80,7 @@ struct SerifCommands: Commands {
 
             Button {
                 guard let coordinator, let email = selectedEmail else { return }
-                coordinator.actionCoordinator.toggleStarEmail(email)
+                Task { await coordinator.actionCoordinator.toggleStarEmail(email) }
             } label: {
                 Label(isStarred ? "Remove Star" : "Add Star", systemImage: isStarred ? "star.slash" : "star")
             }
@@ -90,7 +90,7 @@ struct SerifCommands: Commands {
             Button {
                 guard let coordinator, let email = selectedEmail, let msgID = email.gmailMessageID else { return }
                 if isRead {
-                    coordinator.actionCoordinator.markUnreadEmail(email)
+                    Task { await coordinator.actionCoordinator.markUnreadEmail(email) }
                 } else {
                     Task { await coordinator.mailboxViewModel.markAsRead(msgID) }
                 }

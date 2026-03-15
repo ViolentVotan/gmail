@@ -1,6 +1,6 @@
 import GRDB
 
-struct AccountSyncStateRecord: Codable, FetchableRecord, PersistableRecord {
+struct AccountSyncStateRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
     static let databaseTableName = "account_sync_state"
     static let databaseColumnDecodingStrategy: DatabaseColumnDecodingStrategy = .convertFromSnakeCase
     static let databaseColumnEncodingStrategy: DatabaseColumnEncodingStrategy = .convertToSnakeCase

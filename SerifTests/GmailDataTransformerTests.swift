@@ -73,7 +73,7 @@ import Foundation
         (["SPAM"], Folder.spam),
         (["TRASH"], Folder.trash),
         (["INBOX", "UNREAD"], Folder.inbox),
-        ([], Folder.inbox),
+        ([], Folder.archive),
     ] as [([String], Folder)])
     func folderForLabelIDs(labelIDs: [String], expected: Folder) {
         #expect(GmailDataTransformer.folderFor(labelIDs: labelIDs) == expected)
@@ -100,9 +100,9 @@ import Foundation
     }
 
     @Test func deterministicUUIDEmptyInput() {
-        // Should not crash with empty input
-        let uuid = GmailDataTransformer.deterministicUUID(from: "")
-        #expect(uuid != nil)
+        let uuid1 = GmailDataTransformer.deterministicUUID(from: "")
+        let uuid2 = GmailDataTransformer.deterministicUUID(from: "")
+        #expect(uuid1 == uuid2)
     }
 
     // MARK: - avatarColor

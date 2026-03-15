@@ -575,8 +575,12 @@ private struct ClickOutsideDetector: NSViewRepresentable {
             if let eventWindow = event.window, eventWindow !== anchorWindow {
                 return
             }
-            let clickInAnchor = anchor.convert(event.locationInWindow, from: nil)
-            if !anchor.bounds.contains(clickInAnchor) {
+            // The anchor is a zero-size PassthroughView. Walk up the view
+            // hierarchy to find the actual container (the SwiftUI host view
+            // that has a meaningful frame encompassing the reply bar).
+            let container = anchor.superview ?? anchor
+            let clickInContainer = container.convert(event.locationInWindow, from: nil)
+            if !container.bounds.contains(clickInContainer) {
                 onClickOutside?()
             }
         }

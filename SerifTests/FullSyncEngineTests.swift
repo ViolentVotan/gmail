@@ -13,20 +13,16 @@ import GRDB
     @Test func engineTransitionsToInitialSync() async throws {
         let engine = try await makeMockEngine()
         await engine.start()
-        // Allow a brief moment for the state transition
-        try await Task.sleep(for: .milliseconds(100))
-        let state = await engine.state
-        #expect(state == .initialSync || state == .monitoring)
+        try await waitForState(engine, oneOf: [.initialSync, .monitoring])
         await engine.stop()
     }
 
     @Test func stopResetsToIdle() async throws {
         let engine = try await makeMockEngine()
         await engine.start()
-        try await Task.sleep(for: .milliseconds(50))
+        try await waitForState(engine, oneOf: [.initialSync, .monitoring])
         await engine.stop()
-        let state = await engine.state
-        #expect(state == .idle)
+        try await waitForState(engine, .idle)
     }
 
     @Test func triggerIncrementalSyncRequiresMonitoring() async throws {
@@ -35,6 +31,37 @@ import GRDB
         await engine.triggerIncrementalSync()
         let state = await engine.state
         #expect(state == .idle)
+    }
+
+    // MARK: - Helpers
+
+    private func waitForState(
+        _ engine: FullSyncEngine,
+        _ expected: FullSyncEngine.State,
+        timeout: Duration = .seconds(2)
+    ) async throws {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if await engine.state == expected { return }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        #expect(await engine.state == expected)
+    }
+
+    private func waitForState(
+        _ engine: FullSyncEngine,
+        oneOf expected: [FullSyncEngine.State],
+        timeout: Duration = .seconds(2)
+    ) async throws {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            let current = await engine.state
+            if expected.contains(current) { return }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        let finalState = await engine.state
+        #expect(expected.contains(finalState),
+                "Expected one of \(expected) but got \(finalState)")
     }
 
     @MainActor

@@ -478,8 +478,8 @@ final class GmailAPIClient {
             part += "Content-Type: application/http\r\n"
             part += "Content-ID: <\(req.id)>\r\n\r\n"
             part += "\(req.method) \(req.path) HTTP/1.1\r\n"
-            part += "Content-Type: application/json\r\n"
             if let bodyData = req.body, let bodyStr = String(data: bodyData, encoding: .utf8) {
+                part += "Content-Type: application/json\r\n"
                 part += "Content-Length: \(bodyData.count)\r\n\r\n"
                 part += bodyStr + "\r\n"
             } else {

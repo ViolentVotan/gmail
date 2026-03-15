@@ -60,7 +60,7 @@ struct GmailThread: Codable, Sendable {
 struct GmailHistoryListResponse: Codable, Sendable {
     let history:       [GmailHistoryRecord]?
     let nextPageToken: String?
-    let historyId:     String
+    let historyId:     String?
 }
 
 struct GmailHistoryRecord: Codable, Sendable {
