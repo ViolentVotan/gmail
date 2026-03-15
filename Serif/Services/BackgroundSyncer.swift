@@ -25,9 +25,17 @@ actor BackgroundSyncer {
 
             var affectedThreadIds = Set<String>()
 
+            // Batch existence check: single query instead of one SELECT per message
+            let allIds = gmailMessages.map { $0.id }
+            let idPlaceholders = allIds.map { _ in "?" }.joined(separator: ",")
+            let existingIds = try Set(String.fetchAll(db, sql:
+                "SELECT gmail_id FROM messages WHERE gmail_id IN (\(idPlaceholders))",
+                arguments: StatementArguments(allIds)
+            ))
+
             for gmail in gmailMessages {
                 let record = MessageRecord(from: gmail)
-                let existed = try MessageRecord.exists(db, key: record.gmailId)
+                let existed = existingIds.contains(record.gmailId)
 
                 try record.upsert(db)
                 affectedThreadIds.insert(record.threadId)
@@ -93,11 +101,25 @@ actor BackgroundSyncer {
     func deleteMessages(gmailIds: [String]) throws {
         guard !gmailIds.isEmpty else { return }
         try db.dbPool.write { db in
+            // Collect thread IDs before deletion so we can update counts afterward
+            let placeholders = gmailIds.map { _ in "?" }.joined(separator: ",")
+            let affectedThreadIds = try String.fetchAll(db, sql:
+                "SELECT DISTINCT thread_id FROM messages WHERE gmail_id IN (\(placeholders))",
+                arguments: StatementArguments(gmailIds)
+            )
             for id in gmailIds {
                 try FTSManager.delete(gmailId: id, in: db)
             }
             // CASCADE handles message_labels, email_tags, attachments
             try MessageRecord.deleteAll(db, keys: gmailIds)
+            // Update thread counts for remaining messages in affected threads
+            for threadId in affectedThreadIds {
+                try db.execute(sql: """
+                    UPDATE messages SET thread_message_count = (
+                        SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = ?
+                    ) WHERE thread_id = ?
+                """, arguments: [threadId, threadId])
+            }
         }
     }
 
