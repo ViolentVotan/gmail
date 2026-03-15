@@ -10,6 +10,12 @@ struct AvatarView: View {
 
     @State private var image: NSImage? = nil
 
+    private var avatarTextColor: Color {
+        let bgColor = NSColor(Color(hex: color)).usingColorSpace(.sRGB)
+        let luminance = bgColor?.relativeLuminance() ?? 0
+        return luminance > 0.7 ? .primary : .white
+    }
+
     var body: some View {
         ZStack {
             if let image {
@@ -23,7 +29,7 @@ struct AvatarView: View {
                     .fill(Color(hex: color))
                 Text(initials)
                     .font(.system(size: size * 0.38, weight: .semibold, design: .rounded))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(avatarTextColor)
             }
         }
         .frame(width: size, height: size)
