@@ -56,4 +56,7 @@ final class MockMessageFetching: MessageFetching {
     }
     @concurrent func emptyTrash(accountID: String) async throws(GmailAPIError) {}
     @concurrent func emptySpam(accountID: String) async throws(GmailAPIError) {}
+    @concurrent func getProfile(accountID: String) async throws(GmailAPIError) -> GmailProfile {
+        GmailProfile(emailAddress: "test@example.com", messagesTotal: 0, threadsTotal: 0, historyId: "12345")
+    }
 }

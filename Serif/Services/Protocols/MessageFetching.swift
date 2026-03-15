@@ -28,8 +28,13 @@ protocol MessageFetching: Sendable {
     @concurrent func getAttachment(messageID: String, attachmentID: String, accountID: String) async throws(GmailAPIError) -> Data
     @concurrent func emptyTrash(accountID: String) async throws(GmailAPIError)
     @concurrent func emptySpam(accountID: String) async throws(GmailAPIError)
+    @concurrent func getProfile(accountID: String) async throws(GmailAPIError) -> GmailProfile
 }
 
 // MARK: - GmailMessageService conformance
 
-extension GmailMessageService: MessageFetching {}
+extension GmailMessageService: MessageFetching {
+    @concurrent func getProfile(accountID: String) async throws(GmailAPIError) -> GmailProfile {
+        try await GmailProfileService.shared.getProfile(accountID: accountID)
+    }
+}

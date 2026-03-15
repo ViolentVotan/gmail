@@ -163,7 +163,7 @@ actor FullSyncEngine {
             // Using messages.list would yield a stale historyId if new mail arrives
             // during the (potentially long) initial sync.
             await quota.waitForBudget(1) // users.getProfile = 1 unit
-            let profile = try await GmailProfileService.shared.getProfile(accountID: accountID)
+            let profile = try await api.getProfile(accountID: accountID)
             let profileHistoryId = profile.historyId
 
             // Persist the profile historyId immediately so incremental sync can
@@ -432,19 +432,12 @@ actor FullSyncEngine {
     // MARK: - Adaptive Polling
 
     /// Update polling interval based on app state.
-    @MainActor
     func updatePollingInterval(appIsActive: Bool, windowIsKey: Bool) {
-        Task {
-            if !appIsActive || !windowIsKey {
-                await setPollingOverride(60)
-            } else {
-                await setPollingOverride(nil) // use default 30s
-            }
+        if !appIsActive || !windowIsKey {
+            _pollingOverride = 60
+        } else {
+            _pollingOverride = nil // use default 30s
         }
-    }
-
-    private func setPollingOverride(_ interval: TimeInterval?) {
-        _pollingOverride = interval
     }
 
     // MARK: - Label Refresh (every 5 minutes)

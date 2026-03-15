@@ -415,6 +415,8 @@ final class AppCoordinator {
         guard let id = newID else { return }
         // Skip if handleAppear already set up this account
         guard mailboxViewModel.accountID != id else { return }
+        // Set immediately so any racing reads see the correct account
+        mailboxViewModel.accountID = id
         // Keep AccountStore in sync so Settings scene can read the selected account
         AccountStore.shared.selectedAccountID = id
         // Save current account's signatures before switching
@@ -482,7 +484,18 @@ final class AppCoordinator {
     }
 
     func handleAccountsChange(_ accounts: [GmailAccount]) {
-        if selectedAccountID == nil, let first = accounts.first { selectedAccountID = first.id }
+        if selectedAccountID == nil, let first = accounts.first {
+            selectedAccountID = first.id
+        }
+        // Stop engine if current account was removed (sign-out)
+        if let id = selectedAccountID, !accounts.contains(where: { $0.id == id }) {
+            lifecycleTask?.cancel()
+            lifecycleTask = Task { await syncEngine?.stop() }
+            syncEngine = nil
+            mailDatabase = nil
+            backgroundSyncer = nil
+            selectedAccountID = accounts.first?.id
+        }
     }
 
     func handleSelectedEmailChange(_ email: Email?) {
