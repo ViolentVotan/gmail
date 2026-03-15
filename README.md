@@ -26,7 +26,7 @@ A native macOS Gmail client. No Electron. No web wrapper. Just Swift, SwiftUI, a
 
 **Cache-first.** GRDB SQLite with FTS5 — your inbox loads before you blink.
 
-**Privacy-first.** 180+ tracking domains blocked. No telemetry. Ever.
+**Privacy-first.** 200+ tracking domains blocked. No telemetry. Ever.
 
 **Offline-first.** Archive, trash, star, and label emails without a connection — actions sync when you're back online.
 
@@ -37,7 +37,7 @@ A native macOS Gmail client. No Electron. No web wrapper. Just Swift, SwiftUI, a
 | | |
 |---|---|
 | 💬 **Conversation threads** | Collapsible message cards, quote stripping, and thread grouping |
-| 🔒 **Tracker blocking** | Spy pixels, tracking links, and CSS trackers — 180+ domains stripped automatically |
+| 🔒 **Tracker blocking** | Spy pixels, tracking links, and CSS trackers — 200+ domains stripped automatically |
 | 🔍 **Smart search** | Gmail query syntax + FTS5 local full-text search across your entire mailbox |
 | 🤖 **Apple Intelligence** | On-device email summaries, classification, and smart reply suggestions (macOS 26+) |
 | ⏰ **Snooze** | Snooze emails to reappear at a time that works for you |
@@ -55,7 +55,7 @@ A native macOS Gmail client. No Electron. No web wrapper. Just Swift, SwiftUI, a
 | 🎨 **Appearance** | System, light, and dark modes with Liquid Glass design |
 | ⌨️ **Keyboard-first** | `⌘F` search · `⌘N` compose · `⌘E` archive · `⌘⌫` delete · `⌘L` star · `⌘⇧U` read/unread |
 | 👥 **Multi-account** | Switch accounts seamlessly, each with its own database and settings |
-| 🔄 **Auto-update** | Built-in Sparkle updates with appcast |
+| 🔄 **Auto-update** | GitHub Releases distribution with CI-built DMGs |
 | 👤 **Contact avatars** | Google Contacts, Gravatar, and BIMI brand logos |
 | ↩️ **Undo send** | Recall recently sent messages before they're delivered |
 
