@@ -327,42 +327,48 @@ final class AppCoordinator {
             SummaryService.shared.accountID = account.id
             attachmentStore.accountID = account.id
             loadSignatures(for: account.id)
-            let indexer = AttachmentIndexer(
-                database: .shared,
-                messageService: GmailMessageService.shared,
-                accountID: account.id
-            )
-            attachmentIndexer = indexer
-            mailboxViewModel.attachmentIndexer = indexer
-            await setupDatabase(for: account.id)
-            guard !Task.isCancelled else { return }
-            mailboxViewModel.setMailDatabase(self.mailDatabase)
-            mailboxViewModel.setBackgroundSyncer(self.backgroundSyncer)
-            mailboxViewModel.setSyncProgressManager(self.syncProgressManager)
-            // Start sync engine
-            if let db = self.mailDatabase, let syncer = self.backgroundSyncer {
-                let engine = FullSyncEngine(accountID: account.id, db: db, syncer: syncer)
-                await engine.setProgressManager(self.syncProgressManager)
-                self.syncEngine = engine
-                await engine.start()
-            }
-            guard !Task.isCancelled else { return }
-            await indexer.setProgressUpdate { [weak attachmentStore] in
-                Task { await attachmentStore?.refresh() }
-            }
-            async let folderLoad: Void = loadCurrentFolder()
-            async let labelsLoad: Void = mailboxViewModel.loadLabels()
-            async let sendAsLoad: Void = mailboxViewModel.loadSendAs()
-            async let categoryLoad: Void = mailboxViewModel.loadCategoryUnreadCounts()
-            async let photosLoad: Void = PeopleAPIService.shared.loadContactPhotos(accountID: account.id)
-            _ = await (folderLoad, labelsLoad, sendAsLoad, categoryLoad, photosLoad)
-            guard !Task.isCancelled else { return }
+            await setupAccount(account.id)
             lastRefreshedAt = Date()
-            await indexer.resumePending()
-            await indexer.scanForAttachments()
         } else {
             selectedEmail = mailStore.emails(for: .inbox).first
         }
+    }
+
+    // MARK: - Shared Account Setup
+
+    private func setupAccount(_ id: String) async {
+        let indexer = AttachmentIndexer(
+            database: .shared,
+            messageService: GmailMessageService.shared,
+            accountID: id
+        )
+        attachmentIndexer = indexer
+        mailboxViewModel.attachmentIndexer = indexer
+        await setupDatabase(for: id)
+        guard !Task.isCancelled, self.selectedAccountID == id else { return }
+        mailboxViewModel.setMailDatabase(self.mailDatabase)
+        mailboxViewModel.setBackgroundSyncer(self.backgroundSyncer)
+        mailboxViewModel.setSyncProgressManager(self.syncProgressManager)
+        // Start sync engine
+        if let db = self.mailDatabase, let syncer = self.backgroundSyncer {
+            let engine = FullSyncEngine(accountID: id, db: db, syncer: syncer)
+            await engine.setProgressManager(self.syncProgressManager)
+            self.syncEngine = engine
+            await engine.start()
+        }
+        guard !Task.isCancelled, self.selectedAccountID == id else { return }
+        await indexer.setProgressUpdate { [weak attachmentStore] in
+            Task { await attachmentStore?.refresh() }
+        }
+        async let folderLoad: Void = loadCurrentFolder()
+        async let labelsLoad: Void = mailboxViewModel.loadLabels()
+        async let sendAsLoad: Void = mailboxViewModel.loadSendAs()
+        async let categoryLoad: Void = mailboxViewModel.loadCategoryUnreadCounts()
+        async let photosLoad: Void = PeopleAPIService.shared.loadContactPhotos(accountID: id)
+        _ = await (folderLoad, labelsLoad, sendAsLoad, categoryLoad, photosLoad)
+        guard !Task.isCancelled, self.selectedAccountID == id else { return }
+        await indexer.resumePending()
+        await indexer.scanForAttachments()
     }
 
     func handleFolderChange(_ folder: Folder) {
@@ -417,13 +423,13 @@ final class AppCoordinator {
         guard let id = newID else { return }
         // Skip if handleAppear already set up this account
         guard mailboxViewModel.accountID != id else { return }
+        // Save old account's signatures before switching
+        let oldID = mailboxViewModel.accountID
+        if !oldID.isEmpty { saveSignatures(for: oldID) }
         // Set immediately so any racing reads see the correct account
         mailboxViewModel.accountID = id
         // Keep AccountStore in sync so Settings scene can read the selected account
         AccountStore.shared.selectedAccountID = id
-        // Save current account's signatures before switching
-        let oldID = mailboxViewModel.accountID
-        if !oldID.isEmpty { saveSignatures(for: oldID) }
         loadSignatures(for: id)
         selectedFolder = .inbox
         selectedInboxCategory = .all
@@ -440,13 +446,6 @@ final class AppCoordinator {
         ScheduledSendStore.shared.load(accountID: id)
         OfflineActionQueue.shared.load(accountID: id)
         loadContacts()
-        let indexer = AttachmentIndexer(
-            database: .shared,
-            messageService: GmailMessageService.shared,
-            accountID: id
-        )
-        attachmentIndexer = indexer
-        mailboxViewModel.attachmentIndexer = indexer
         lifecycleTask?.cancel()
         lifecycleTask = Task {
             await attachmentStore.refresh()
@@ -454,34 +453,11 @@ final class AppCoordinator {
             await syncEngine?.stop()
             syncEngine = nil
             guard !Task.isCancelled, self.selectedAccountID == id else { return }
-            await setupDatabase(for: id)
-            guard !Task.isCancelled, self.selectedAccountID == id else { return }
-            await indexer.setProgressUpdate { [weak attachmentStore] in
-                Task { await attachmentStore?.refresh() }
-            }
             syncProgressManager.reset()
             await mailboxViewModel.switchAccount(id)
             guard !Task.isCancelled, self.selectedAccountID == id else { return }
-            mailboxViewModel.setMailDatabase(self.mailDatabase)
-            mailboxViewModel.setBackgroundSyncer(self.backgroundSyncer)
-            mailboxViewModel.setSyncProgressManager(self.syncProgressManager)
             SummaryService.shared.accountID = id
-            async let folderLoad: Void = loadCurrentFolder()
-            async let labelsLoad: Void = mailboxViewModel.loadLabels()
-            async let sendAsLoad: Void = mailboxViewModel.loadSendAs()
-            async let categoryLoad: Void = mailboxViewModel.loadCategoryUnreadCounts()
-            async let photosLoad: Void = PeopleAPIService.shared.loadContactPhotos(accountID: id)
-            _ = await (folderLoad, labelsLoad, sendAsLoad, categoryLoad, photosLoad)
-            guard !Task.isCancelled, self.selectedAccountID == id else { return }
-            await indexer.resumePending()
-            await indexer.scanForAttachments()
-            // Start new sync engine
-            if let db = self.mailDatabase, let syncer = self.backgroundSyncer {
-                let engine = FullSyncEngine(accountID: id, db: db, syncer: syncer)
-                await engine.setProgressManager(self.syncProgressManager)
-                self.syncEngine = engine
-                await engine.start()
-            }
+            await setupAccount(id)
         }
     }
 
