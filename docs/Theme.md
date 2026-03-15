@@ -44,7 +44,7 @@ The UI follows a three-plane model:
 |----------|--------|
 | `.elevation(.transient / .elevated)` | Shadow scale for spatial depth |
 | `.floatingPanelStyle()` | Liquid Glass + transient elevation for floating surfaces |
-| `.glassOrMaterial(in:interactive:)` | Liquid Glass on macOS 26+ with `.regularMaterial` fallback |
+| `.glassOrMaterial(in:interactive:)` | Liquid Glass effect with optional interactive press feedback |
 | `.transientGlass()` | Glass + transient elevation for toast cards (macOS 26+ / material fallback) |
 | `.compactCardStyle()` | Compact Base-plane card (`Spacing.md`/`Spacing.sm` padding, `CornerRadius.sm`) for inline banners (tracker, insight) |
 | `.destructiveActionStyle()` | Red text on red 10% opacity background in rounded rect — for destructive folder actions |

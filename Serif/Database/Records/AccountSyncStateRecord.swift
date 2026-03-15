@@ -16,4 +16,5 @@ struct AccountSyncStateRecord: Codable, FetchableRecord, PersistableRecord {
     var lastSyncAt: Double?
     var lastBodyPrefetchAt: Double?
     var directorySyncToken: String?
+    var labelsEtag: String?
 }

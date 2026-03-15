@@ -42,7 +42,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         snippet: String,
         accountID: String
     ) {
-        guard UserDefaults.standard.bool(forKey: "notificationsEnabled") else { return }
+        guard UserDefaults.standard.bool(forKey: UserDefaultsKey.notificationsEnabled) else { return }
 
         let content = UNMutableNotificationContent()
         content.title = senderName

@@ -179,21 +179,23 @@ final class GmailAPIClient {
     ) async throws(GmailAPIError) -> [(id: String, statusCode: Int, data: Data)] {
         guard NetworkMonitor.shared.isConnected else { throw .offline }
         let token = try await validToken(for: accountID)
+        var activeAccessToken = token.accessToken
 
         // First attempt + 401 auto-retry (mirrors rawRequest pattern)
         let initialResults: [(id: String, statusCode: Int, data: Data)]
         do {
-            initialResults = try await performBatch(requests: requests, accessToken: token.accessToken)
+            initialResults = try await performBatch(requests: requests, accessToken: activeAccessToken)
         } catch .unauthorized {
             let fresh = try await refreshAndRetry(accountID: accountID)
-            initialResults = try await performBatch(requests: requests, accessToken: fresh.accessToken)
+            activeAccessToken = fresh.accessToken
+            initialResults = try await performBatch(requests: requests, accessToken: activeAccessToken)
         }
 
         // Retry any parts that failed with HTTP 429 (rate limited)
         return try await retryRateLimitedParts(
             allResults: initialResults,
             originalRequests: requests,
-            accessToken: token.accessToken,
+            accessToken: activeAccessToken,
             accountID: accountID
         )
     }
@@ -823,7 +825,7 @@ enum RetryPolicy {
         }
         let base = pow(2.0, Double(attempt))
         let jitter = Double.random(in: 0...(base * 0.5))
-        return base + jitter
+        return min(base + jitter, 32.0)
     }
 }
 

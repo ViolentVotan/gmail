@@ -55,7 +55,14 @@ private struct KeyboardEventMonitor: NSViewRepresentable {
             guard monitor == nil else { return }
             monitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
                 guard let self else { return event }
-                return self.handleKeyDown(event)
+                // Extract event data before crossing into MainActor (NSEvent isn't Sendable)
+                let keyCode = event.keyCode
+                let modifiers = event.modifierFlags
+                let chars = event.charactersIgnoringModifiers
+                let consumed = MainActor.assumeIsolated {
+                    self.handleKeyDown(keyCode: keyCode, modifiers: modifiers, chars: chars)
+                }
+                return consumed ? nil : event
             }
         }
 
@@ -83,44 +90,39 @@ private struct KeyboardEventMonitor: NSViewRepresentable {
             return false
         }
 
-        private func handleKeyDown(_ event: NSEvent) -> NSEvent? {
-            // Extract event data before crossing into MainActor (NSEvent isn't Sendable)
-            let keyCode = event.keyCode
-            let modifiers = event.modifierFlags
-            let chars = event.charactersIgnoringModifiers
-
-            // NSEvent monitors fire on the main thread — safe to access MainActor state directly.
+        /// Returns `true` if the event was consumed and should not propagate.
+        private func handleKeyDown(keyCode: UInt16, modifiers: NSEvent.ModifierFlags, chars: String?) -> Bool {
             let coord = coordinator
 
             // Escape — close any open panel (takes priority over everything)
             if keyCode == 53 {
                 if coord.panelCoordinator.isAnyOpen {
                     coord.panelCoordinator.closeAll()
-                    return nil
+                    return true
                 }
             }
 
             guard modifiers.contains(.command),
-                  !modifiers.contains(.shift) else { return event }
+                  !modifiers.contains(.shift) else { return false }
 
             switch chars {
             case "a":
-                if isTextInputFocused { return event } // let native select-all handle it
+                if isTextInputFocused { return false } // let native select-all handle it
                 coord.selectAllEmails()
-                return nil
+                return true
 
             case "z":
-                if isTextInputFocused { return event } // let native undo handle it
+                if isTextInputFocused { return false } // let native undo handle it
                 UndoActionManager.shared.undo()
-                return nil
+                return true
 
             case "f":
-                if isTextInputFocused { return event } // let native find handle it
+                if isTextInputFocused { return false } // let native find handle it
                 coord.searchFocusTrigger = true
-                return nil
+                return true
 
             default:
-                return event
+                return false
             }
         }
     }

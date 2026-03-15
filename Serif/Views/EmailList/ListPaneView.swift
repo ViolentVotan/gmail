@@ -69,6 +69,9 @@ struct ListPaneView: View {
         .onChange(of: selectedCategory) { _, newCategory in
             coordinator.selectedInboxCategory = newCategory
         }
+        .onChange(of: coordinator.selectedInboxCategory) { _, newValue in
+            selectedCategory = newValue ?? .all
+        }
     }
 
     private var emailList: some View {

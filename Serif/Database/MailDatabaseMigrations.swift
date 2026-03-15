@@ -8,6 +8,7 @@ enum MailDatabaseMigrations {
         #endif
         registerV1(&migrator)
         registerV2(&migrator)
+        registerV3(&migrator)
         return migrator
     }
 
@@ -156,6 +157,14 @@ enum MailDatabaseMigrations {
                 t.add(column: "directory_sync_token", .text)
             }
             try db.drop(table: "folder_sync_state")
+        }
+    }
+
+    private static func registerV3(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v3_labels_etag") { db in
+            try db.alter(table: "account_sync_state") { t in
+                t.add(column: "labels_etag", .text)
+            }
         }
     }
 }

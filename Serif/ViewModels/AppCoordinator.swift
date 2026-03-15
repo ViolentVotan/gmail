@@ -498,6 +498,7 @@ final class AppCoordinator {
             syncEngine = nil
             mailDatabase = nil
             backgroundSyncer = nil
+            SummaryService.shared.accountID = ""
             selectedAccountID = accounts.first?.id
         }
     }

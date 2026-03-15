@@ -71,6 +71,10 @@ final class AuthViewModel {
         AccountStore.shared.remove(id: account.id)
         SubscriptionsStore.shared.deleteAccount(account.id)
         accounts = AccountStore.shared.accounts
+
+        if accounts.isEmpty {
+            UserDefaults.standard.set(false, forKey: UserDefaultsKey.isSignedIn)
+        }
     }
 
     // MARK: - Helpers

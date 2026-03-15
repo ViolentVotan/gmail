@@ -134,12 +134,10 @@ struct AttachmentCardView: View {
                 .fill(iconBackgroundColor)
 
             if let thumb = thumbCache.thumbnail(for: result.attachment.id) {
-                GeometryReader { geo in
-                    Image(nsImage: thumb)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: geo.size.width, height: geo.size.height)
-                }
+                Image(nsImage: thumb)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 VStack(spacing: 4) {
                     Image(systemName: fileTypeIcon)

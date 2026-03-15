@@ -6,6 +6,11 @@ struct SerifApp: App {
     @State private var appearanceManager = AppearanceManager()
 
     init() {
+        UserDefaults.standard.register(defaults: [
+            UserDefaultsKey.notificationsEnabled: true,
+            UserDefaultsKey.undoDuration: 5,
+            UserDefaultsKey.aiLabelSuggestions: true
+        ])
         NotificationService.shared.setup()
         SerifShortcuts.updateAppShortcutParameters()
     }

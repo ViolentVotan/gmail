@@ -41,14 +41,14 @@ import Foundation
 
     @Test func recommendedDelay_atLeastBase() {
         let monitor = CPUMonitor.shared
-        let base: UInt64 = 200_000_000
+        let base: Duration = .milliseconds(200)
         let delay = monitor.recommendedDelay(base: base)
         #expect(delay >= base, "Delay should be at least the base value")
     }
 
     @Test func recommendedDelay_atMost4xBase() {
         let monitor = CPUMonitor.shared
-        let base: UInt64 = 200_000_000
+        let base: Duration = .milliseconds(200)
         let delay = monitor.recommendedDelay(base: base)
         #expect(delay <= base * 4, "Delay should be at most 4x the base value")
     }

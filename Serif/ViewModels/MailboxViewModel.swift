@@ -314,7 +314,6 @@ final class MailboxViewModel {
             try await api.markAsRead(id: messageID, accountID: accountID)
         } catch {
             if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            markAsReadInDatabase(messageID, isRead: false)
             self.error = error.localizedDescription
         }
     }
@@ -335,7 +334,6 @@ final class MailboxViewModel {
             try await api.markAsUnread(id: messageID, accountID: accountID)
         } catch {
             if let original { restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            updateReadFlagInDatabase(messageID, isRead: true)
             self.error = error.localizedDescription
         }
     }

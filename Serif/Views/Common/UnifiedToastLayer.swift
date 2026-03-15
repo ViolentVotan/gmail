@@ -67,14 +67,12 @@ private struct UndoToastCard: View {
             .padding(.horizontal, Spacing.lg)
             .padding(.vertical, Spacing.md)
 
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Rectangle().fill(.separator)
-                    Rectangle()
-                        .fill(Color.accentColor.opacity(0.7))
-                        .frame(width: geo.size.width * undoMgr.progress)
-                        .animation(.linear(duration: 0.06), value: undoMgr.progress)
-                }
+            ZStack(alignment: .leading) {
+                Rectangle().fill(.separator)
+                Rectangle()
+                    .fill(Color.accentColor.opacity(0.7))
+                    .scaleEffect(x: undoMgr.progress, y: 1, anchor: .leading)
+                    .animation(.linear(duration: 0.06), value: undoMgr.progress)
             }
             .frame(height: 3)
         }

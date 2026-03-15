@@ -264,6 +264,7 @@ final class PeopleAPIService {
             }
             var newDirSyncToken: String?
             var directoryContacts: [StoredContact] = []
+            var needsFullDirFetch = dirSyncToken == nil
 
             if let dirSyncToken {
                 // Incremental sync
@@ -289,15 +290,14 @@ final class PeopleAPIService {
                         try? await mailDB?.dbPool.write { db in
                             try MailDatabaseQueries.updateSyncState({ $0.directorySyncToken = nil }, in: db)
                         }
-                        // Will do full fetch below
+                        needsFullDirFetch = true
                     } else {
                         throw error
                     }
                 }
             }
 
-            if dirSyncToken == nil {
-                // No sync token means we haven't done initial fetch — do full fetch
+            if needsFullDirFetch {
                 directoryContacts = []
                 var pageToken: String? = nil
                 repeat {

@@ -28,7 +28,7 @@ macOS Gmail client built with Swift/SwiftUI. `NavigationSplitView` 3-column layo
 
 ## Entry Point
 
-`SerifApp.swift` -> routes to `OnboardingView` or `ContentView` based on `@AppStorage("isSignedIn")`. Also registers the `Settings` scene (Cmd+,) with `SettingsView`.
+`SerifApp.swift` -> registers `UserDefaults` defaults (notifications, undo duration, AI labels) in `init()`, then routes to `OnboardingView` or `ContentView` based on `@AppStorage("isSignedIn")`. Also registers the `Settings` scene (Cmd+,) with `SettingsView`.
 
 `ContentView.swift` is the main orchestrator: owns ViewModels, wires callbacks, manages navigation state. Uses `NavigationSplitView` for the three-column layout with `@FocusState` pane cycling (Opt+Tab). Advertises `NSUserActivity` for Handoff when viewing an email.
 

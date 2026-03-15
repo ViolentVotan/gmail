@@ -391,6 +391,9 @@ actor FullSyncEngine {
                 if remaining == 0 {
                     // All bodies fetched — sleep 60s then check again
                     try? await Task.sleep(for: .seconds(60))
+                } else if remaining < 0 {
+                    // Error — back off 30s to avoid tight retry loop
+                    try? await Task.sleep(for: .seconds(30))
                 }
             }
         }
@@ -458,9 +461,19 @@ actor FullSyncEngine {
 
     private func syncLabels() async {
         do {
+            let currentEtag = await readSyncState()?.labelsEtag
             await quota.waitForBudget(1)
-            let labels = try await GmailLabelService.shared.listLabels(accountID: accountID)
+            let result = try await GmailLabelService.shared.listLabels(
+                etag: currentEtag, accountID: accountID
+            )
+            guard let (labels, responseEtag) = result else {
+                // 304 Not Modified — labels unchanged
+                return
+            }
             try await syncer.upsertLabels(labels)
+            if let responseEtag {
+                await writeSyncState { $0.labelsEtag = responseEtag }
+            }
         } catch {
             Self.logger.error("Label sync error: \(error.localizedDescription)")
         }

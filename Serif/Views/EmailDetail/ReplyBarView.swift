@@ -95,6 +95,11 @@ struct ReplyBarView: View {
             isInitialLoad = false
         }
         .task(id: email.id) {
+            composeVM = ComposeViewModel(
+                accountID: accountID,
+                fromAddress: fromAddress,
+                threadID: email.gmailThreadID
+            )
             isLoadingReplies = true
             quickReplies = await onGenerateQuickReplies?(email) ?? []
             isLoadingReplies = false

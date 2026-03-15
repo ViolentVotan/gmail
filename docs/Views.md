@@ -33,7 +33,7 @@ Middle column — email rows with native `.swipeActions()` (archive/delete), sea
 
 ### `EmailDetail/`
 Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView), attachments, sender info popover, tracker blocking UI, label picker.
-- `ReplyBarView` — Inline quick reply with To/Cc/Bcc fields, draft persistence, auto-save, discard confirmation, and smart reply chip support. Custom `init` for `@State` initialization. Send success (toast + collapse) driven reactively via `.onChange(of: composeVM.isSent)`.
+- `ReplyBarView` — Inline quick reply with To/Cc/Bcc fields, draft persistence, auto-save, discard confirmation, and smart reply chip support. Custom `init` for `@State` initialization. `.task(id: email.id)` resets `ComposeViewModel` and reloads quick replies on email change. Send success (toast + collapse) driven reactively via `.onChange(of: composeVM.isSent)`.
 - `DetailPaneView` — Contextual empty state (icon + message per folder). Uses `EmailDetailActions.contentActions` factory to build shared content-level actions.
 - `InsightCardView` — Apple Intelligence insight card (summary, action items, key dates) via Foundation Models.
 - `SmartReplyChipsView` — AI-generated reply suggestion chips below the thread (wired via `EmailDetailView`).

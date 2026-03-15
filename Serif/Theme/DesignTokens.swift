@@ -110,8 +110,8 @@ struct DestructiveActionStyle: ViewModifier {
         content
             .font(Typography.subhead)
             .foregroundStyle(.red)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.xs)
             .background(Color.red.opacity(0.1), in: .rect(cornerRadius: CornerRadius.sm))
     }
 }
@@ -186,16 +186,10 @@ struct GlassOrMaterial<S: Shape>: ViewModifier {
     }
 
     func body(content: Content) -> some View {
-        if #available(macOS 26.0, *) {
-            if interactive {
-                content.glassEffect(.regular.interactive(), in: shape)
-            } else {
-                content.glassEffect(.regular, in: shape)
-            }
+        if interactive {
+            content.glassEffect(.regular.interactive(), in: shape)
         } else {
-            content
-                .background(shape.fill(.regularMaterial))
-                .clipShape(shape)
+            content.glassEffect(.regular, in: shape)
         }
     }
 }
