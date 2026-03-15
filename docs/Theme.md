@@ -9,7 +9,7 @@ System-integrated appearance management and centralized design token system foll
 - **System** (default): defers to macOS appearance (passes `nil` to `.preferredColorScheme()`)
 - **Light / Dark**: forces the corresponding color scheme
 
-All views use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`, `Color.accentColor`), materials, and Liquid Glass (`.glassEffect(.regular)`). No custom color definitions exist.
+All views use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`, `Color.accentColor`), materials, and Liquid Glass (`.glassEffect(.regular)`). The `AccentColor` asset catalog entry provides four appearance-specific variants (light, dark, high-contrast light, high-contrast dark) for proper Liquid Glass adaptivity per Apple HIG. Data-driven colors (Gmail API labels, avatar hex colors) are contrast-checked at runtime via utilities in `Color+Contrast.swift` (see `docs/Utilities.md`).
 
 ## Spatial Hierarchy
 

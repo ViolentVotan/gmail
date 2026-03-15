@@ -34,7 +34,7 @@ Middle column — email rows with native `.swipeActions()` (archive/delete), sea
 - `ListPaneView` — Top-level list pane that constructs `EmailListActions` and wires them to ViewModels/coordinators. Bulk and single-email action closures use `Task { await ... }` for async VM calls.
 
 ### `EmailDetail/`
-Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView, uses `WeakScriptMessageHandler` proxy to avoid WKWebView retain cycles), attachments, sender info popover, tracker blocking UI, label picker.
+Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView, uses `WeakScriptMessageHandler` proxy to avoid WKWebView retain cycles, bidirectional WCAG contrast enforcement for both light and dark mode), attachments, sender info popover, tracker blocking UI, label picker.
 - `ReplyBarView` — Inline quick reply with To/Cc/Bcc fields, draft persistence, auto-save, discard confirmation, and smart reply chip support. Custom `init` for `@State` initialization. `.task(id: email.id)` cancels `saveTask` and `loadDraftTask`, resets `ComposeViewModel`, and reloads quick replies on email change. Send success (toast + collapse) driven reactively via `.onChange(of: composeVM.isSent)`. `ClickOutsideDetector` uses `superview` bounds instead of zero-size anchor for hit testing.
 - `DetailPaneView` — Contextual empty state (icon + message per folder). Uses `EmailDetailActions.contentActions` factory to build shared content-level actions. Action closures wrap async VM/coordinator calls in `Task { await ... }` (cascaded from async EmailActionCoordinator/MailboxViewModel changes).
 - `InsightCardView` — Apple Intelligence insight card (summary, action items, key dates) via Foundation Models.
@@ -64,7 +64,7 @@ Tabbed settings view (Accounts, General, Signatures, Filters, Advanced) register
 - `FilterEditorView` — Filter rule editor (criteria + actions) for creating/editing Gmail filters.
 
 ### `Onboarding/`
-Sign-in / welcome screen with OAuth flow. `OnboardingView` hides traffic lights on appear; the `else` branch on dismissal restores window state (movable, standard titlebar, background color).
+Sign-in / welcome screen with OAuth flow. Forces dark appearance via `.preferredColorScheme(.dark)` + `window.appearance = .darkAqua` for the dramatic dark aesthetic regardless of system setting. `OnboardingView` hides traffic lights on appear; the `else` branch on dismissal restores window state (movable, standard titlebar, background color, `window.appearance = nil`).
 - `GoogleLogo` — Multicolor Google "G" logo in SwiftUI.
 
 ### `Common/`
@@ -72,9 +72,9 @@ Shared reusable components:
 | File | Role |
 |------|------|
 | `AccountAvatarBubble` | Account switcher avatar with profile picture/initial fallback |
-| `AvatarView` | Circular avatar with initials fallback or profile image |
+| `AvatarView` | Circular avatar with initials fallback or profile image. Luminance guard: uses `.primary` instead of `.white` for initials when avatar background is light (luminance > 0.7). |
 | `SearchBarView` | Search input with clear button |
-| `LabelChipView` | Colored label pill |
+| `LabelChipView` | Colored label pill with WCAG contrast adjustment (text color auto-adjusted against background via `adjustedForContrast`; respects increased contrast accessibility setting) |
 | `ThemePickerView` | Segmented picker for System / Light / Dark appearance |
 | `SettingsCardsView` | Settings UI with behavior, signature, account cards |
 | `SlidePanel` | Animated side panel overlay (help, debug, previews) with Liquid Glass background |
@@ -84,6 +84,7 @@ Shared reusable components:
 | `CommandPaletteView` | ⌘K command palette with fuzzy search and keyboard navigation |
 | `SnoozePickerView` | Snooze date/time picker with preset options. Defines `SnoozePreset` model struct; uses `SnoozePreset.defaults()` for the preset list. |
 | `DebugMenuView` | API logs, cache controls. Uses file-private `DebugViewModel` wrapper (no direct `AttachmentDatabase` access). |
+| `InAppBrowserView` | In-app web browser with glass toolbar (`GlassEffectContainer` grouping close, back, forward, URL bar, open-in-browser buttons) |
 | `ShortcutsHelpView` | Keyboard shortcuts reference |
 | `SerifCommands` | macOS menu bar commands (File, Edit, View custom menus) |
 | `AttachmentChipRow` | Reusable horizontal attachment chip list (used in ComposeView and ReplyBarView) |
