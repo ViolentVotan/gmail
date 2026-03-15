@@ -9,7 +9,8 @@ struct InAppBrowserView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Toolbar
-            HStack(spacing: 12) {
+            GlassEffectContainer {
+                HStack(spacing: 12) {
                 // Close button
                 Button { onClose() } label: {
                     Image(systemName: "xmark")
@@ -32,6 +33,7 @@ struct InAppBrowserView: View {
                         .font(Typography.subhead)
                         .foregroundStyle(!page.backForwardList.backList.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
                         .frame(width: 28, height: 28)
+                        .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
                 }
                 .buttonStyle(.plain)
                 .disabled(page.backForwardList.backList.isEmpty)
@@ -46,6 +48,7 @@ struct InAppBrowserView: View {
                         .font(Typography.subhead)
                         .foregroundStyle(!page.backForwardList.forwardList.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
                         .frame(width: 28, height: 28)
+                        .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
                 }
                 .buttonStyle(.plain)
                 .disabled(page.backForwardList.forwardList.isEmpty)
@@ -99,9 +102,10 @@ struct InAppBrowserView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Open in default browser")
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
 
             Divider()
 
