@@ -111,7 +111,7 @@ struct HTMLEmailView: NSViewRepresentable {
             font-size: \(Int(NSFont.systemFont(ofSize: 0).pointSize))px;
             line-height: 1.65;
             color: \(textHex);
-            background-color: transparent;
+            background-color: transparent !important;
             word-wrap: break-word;
             overflow-wrap: break-word;
         }
@@ -240,6 +240,9 @@ struct HTMLEmailView: NSViewRepresentable {
             function effectiveBgLum(el) {
                 var node = el;
                 while (node && node !== document.documentElement) {
+                    // Skip body — drawsBackground is false so its CSS background
+                    // is not rendered; using it would hide real contrast problems.
+                    if (node === document.body) { node = node.parentElement; continue; }
                     var bg = window.getComputedStyle(node).backgroundColor;
                     var rgba = parseRgb(bg);
                     if (rgba) {
