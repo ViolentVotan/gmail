@@ -6,6 +6,12 @@ enum UserDefaultsKey {
     static let undoDuration = "undoDuration"
     static let appearancePreference = "appearancePreference"
     static let attachmentScanMonths = "attachmentScanMonths"
+    static let isSignedIn = "isSignedIn"
+    static let notificationsEnabled = "notificationsEnabled"
+    static let aiLabelSuggestions = "aiLabelSuggestions"
+    static let showDebugMenu = "showDebugMenu"
+    static let syncDirectoryContacts = "syncDirectoryContacts"
+    static let dismissedLabelSuggestions = "dismissedLabelSuggestions"
 
     static func signatureForNew(_ accountID: String) -> String {
         "signatureForNew.\(accountID)"

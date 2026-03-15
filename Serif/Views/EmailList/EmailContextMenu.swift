@@ -47,23 +47,9 @@ struct EmailContextMenu: View {
 
         if onSnooze != nil {
             Menu {
-                ForEach(["Later Today", "Tomorrow Morning", "Next Week"], id: \.self) { label in
-                    Button(label) {
-                        let date: Date = {
-                            let cal = Calendar.current
-                            switch label {
-                            case "Later Today": return cal.date(byAdding: .hour, value: 3, to: Date()) ?? Date()
-                            case "Tomorrow Morning":
-                                let tomorrow = cal.date(byAdding: .day, value: 1, to: Date()) ?? Date()
-                                return cal.date(bySettingHour: 8, minute: 0, second: 0, of: tomorrow) ?? tomorrow
-                            default:
-                                let weekday = cal.component(.weekday, from: Date())
-                                let daysUntilMonday = (9 - weekday) % 7
-                                let monday = cal.date(byAdding: .day, value: daysUntilMonday == 0 ? 7 : daysUntilMonday, to: Date()) ?? Date()
-                                return cal.date(bySettingHour: 8, minute: 0, second: 0, of: monday) ?? monday
-                            }
-                        }()
-                        onSnooze?(email, date)
+                ForEach(SnoozePreset.defaults()) { preset in
+                    Button(preset.title) {
+                        onSnooze?(email, preset.date)
                     }
                 }
             } label: {

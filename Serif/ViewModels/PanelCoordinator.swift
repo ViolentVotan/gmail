@@ -53,7 +53,7 @@ final class PanelCoordinator {
         attachmentPreviewName = name
         attachmentPreviewFileType = fileType
         if !showAttachmentPreview {
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            withAnimation(SerifAnimation.springDefault) {
                 showAttachmentPreview = true
             }
         }
@@ -63,7 +63,7 @@ final class PanelCoordinator {
         originalMessage = msg
         originalRawSource = nil
         isLoadingOriginal = true
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+        withAnimation(SerifAnimation.springDefault) {
             showOriginal = true
         }
         originalMessageTask?.cancel()
@@ -81,14 +81,14 @@ final class PanelCoordinator {
     func showEmail(_ email: Email, accountID: String) {
         previewEmail = email
         previewAccountID = accountID
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+        withAnimation(SerifAnimation.springDefault) {
             showEmailPreview = true
         }
     }
 
     func openInAppBrowser(url: URL) {
         webBrowserURL = url
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+        withAnimation(SerifAnimation.springSnappy) {
             showWebBrowser = true
         }
     }
