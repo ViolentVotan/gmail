@@ -4,14 +4,14 @@ import Synchronization
 
 // MARK: - Stored Contact
 
-struct StoredContact: Codable, Identifiable, Hashable, Sendable {
+struct StoredContact: Identifiable, Hashable, Sendable {
     var id: String { email }
     let name: String
     let email: String
     var photoURL: String?
 }
 
-// MARK: - Contact Store (GRDB-backed, reads from per-account SQLite)
+// MARK: - Contact Store (Legacy cleanup — removes deprecated UserDefaults keys on account removal)
 
 @MainActor
 final class ContactStore {

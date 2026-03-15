@@ -67,22 +67,23 @@ final class OfflineActionQueue {
                     }
                 }
             }
-            isDraining = false
             if succeeded > 0 {
                 retryDelay = 2.0
                 ToastManager.shared.show(message: "Synced \(succeeded) action\(succeeded == 1 ? "" : "s")")
             }
             if hitError {
-                // Mark draining now to block concurrent startDraining() calls during the delay.
-                isDraining = true
+                // Keep isDraining = true through the retry delay to block concurrent
+                // startDraining() calls. No flicker — we never set false then true.
                 let delay = retryDelay
                 retryDelay = min(retryDelay * 2, 60)
                 retryTask = Task {
                     try? await Task.sleep(for: .seconds(delay))
-                    guard !Task.isCancelled else { isDraining = false; return }
                     isDraining = false
+                    guard !Task.isCancelled else { return }
                     startDraining()
                 }
+            } else {
+                isDraining = false
             }
         }
     }

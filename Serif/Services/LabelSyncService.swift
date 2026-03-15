@@ -35,24 +35,22 @@ final class LabelSyncService {
         }
     }
 
-    /// Loads unread counts per inbox category via parallel label fetches.
+    /// Loads unread counts per inbox category via a single listLabels() call.
     func loadCategoryUnreadCounts(accountID: String) async -> [InboxCategory: Int] {
         guard !accountID.isEmpty else { return [:] }
-        let aid = accountID
-        var counts: [InboxCategory: Int] = [:]
-        await withTaskGroup(of: (InboxCategory, Int)?.self) { group in
+        do {
+            let labels = try await GmailLabelService.shared.listLabels(accountID: accountID)
+            let labelsByID = Dictionary(uniqueKeysWithValues: labels.map { ($0.id, $0) })
+            var counts: [InboxCategory: Int] = [:]
             for category in InboxCategory.allCases {
                 let labelID = (category == .all) ? GmailSystemLabel.inbox : category.rawValue
-                group.addTask {
-                    guard let label = try? await GmailLabelService.shared.getLabel(id: labelID, accountID: aid),
-                          let unread = label.messagesUnread, unread > 0 else { return nil }
-                    return (category, unread)
+                if let label = labelsByID[labelID], let unread = label.messagesUnread, unread > 0 {
+                    counts[category] = unread
                 }
             }
-            for await result in group {
-                if let (category, count) = result { counts[category] = count }
-            }
+            return counts
+        } catch {
+            return [:]
         }
-        return counts
     }
 }

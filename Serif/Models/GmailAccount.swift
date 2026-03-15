@@ -88,6 +88,7 @@ final class AccountStore {
         UserDefaults.standard.removeObject(forKey: UserDefaultsKey.signatureForReply(id))
         UserDefaults.standard.removeObject(forKey: UserDefaultsKey.attachmentExclusionRules(id))
         UserDefaults.standard.removeObject(forKey: "replyDrafts.\(id)")
+        UserDefaults.standard.removeObject(forKey: "com.vikingz.serif.dbMigrationCompleted.\(id)")
         // Purge avatar disk cache
         AvatarCache.shared.clearAll()
     }

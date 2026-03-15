@@ -6,6 +6,7 @@ private import os
 final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationService()
     nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "NotificationService")
+    private var actionTask: Task<Void, Never>?
     private override init() { super.init() }
 
     func setup() {
@@ -80,22 +81,32 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
               let accountID = userInfo["accountID"] as? String else { return }
 
         await MainActor.run {
+            // Validate account still exists before executing actions
+            guard AccountStore.shared.accounts.contains(where: { $0.id == accountID }) else {
+                Self.logger.warning("Notification action for removed account \(accountID, privacy: .private) — ignoring")
+                return
+            }
+
             switch actionIdentifier {
             case "ARCHIVE":
-                Task {
+                actionTask?.cancel()
+                actionTask = Task {
                     do {
                         try await GmailMessageService.shared.archiveMessage(id: messageId, accountID: accountID)
                     } catch {
+                        guard !Task.isCancelled else { return }
                         OfflineActionQueue.shared.enqueue(
                             OfflineAction(actionType: .archive, messageIds: [messageId], accountID: accountID)
                         )
                     }
                 }
             case "MARK_READ":
-                Task {
+                actionTask?.cancel()
+                actionTask = Task {
                     do {
                         try await GmailMessageService.shared.markAsRead(id: messageId, accountID: accountID)
                     } catch {
+                        guard !Task.isCancelled else { return }
                         OfflineActionQueue.shared.enqueue(
                             OfflineAction(actionType: .markRead, messageIds: [messageId], accountID: accountID)
                         )

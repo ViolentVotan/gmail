@@ -272,6 +272,7 @@ actor FullSyncEngine {
 
         do {
             var allAdded: [String] = []
+            var addedMessageLabels: [String: [String]] = [:]
             var allDeleted: Set<String> = []
             var labelChanges: Set<String> = []
             var latestHistoryId = startHistoryId
@@ -295,6 +296,10 @@ actor FullSyncEngine {
                 for record in response.history ?? [] {
                     for added in record.messagesAdded ?? [] {
                         allAdded.append(added.message.id)
+                        // Capture labelIds from history so we can skip re-fetch for existing messages
+                        if let labels = added.message.labelIds {
+                            addedMessageLabels[added.message.id] = labels
+                        }
                     }
                     for deleted in record.messagesDeleted ?? [] {
                         allDeleted.insert(deleted.message.id)
@@ -308,26 +313,56 @@ actor FullSyncEngine {
                 }
             } while pageToken != nil
 
-            // Fetch metadata for new messages
-            let newIDs = allAdded.filter { !allDeleted.contains($0) }
+            // Save historyId immediately after pagination completes.
+            // On transient metadata fetch failures below, the next sync won't
+            // re-process already-seen history records.
+            let capturedHistoryId = latestHistoryId
+            await writeSyncState { state in
+                state.lastHistoryId = capturedHistoryId
+            }
+
+            // Separate truly new messages (not in local DB) from existing ones.
+            // For existing messages that appear in messagesAdded (e.g. label changes),
+            // use the labelIds from the history record directly instead of re-fetching.
+            let candidateIDs = allAdded.filter { !allDeleted.contains($0) }
+            var existingIDs = Set<String>()
+            if !candidateIDs.isEmpty {
+                existingIDs = try await db.dbPool.read { db in
+                    let placeholders = candidateIDs.map { _ in "?" }.joined(separator: ",")
+                    return try Set(String.fetchAll(db, sql:
+                        "SELECT gmail_id FROM messages WHERE gmail_id IN (\(placeholders))",
+                        arguments: StatementArguments(candidateIDs)
+                    ))
+                }
+            }
+            let trulyNewIDs = candidateIDs.filter { !existingIDs.contains($0) }
+
+            // Existing messages from messagesAdded: apply label updates from history data
+            let historyLabelUpdates: [(gmailId: String, labelIds: [String])] = candidateIDs
+                .filter { existingIDs.contains($0) }
+                .compactMap { id in
+                    guard let labels = addedMessageLabels[id] else { return nil }
+                    return (gmailId: id, labelIds: labels)
+                }
+
             var newMessages: [GmailMessage] = []
-            if !newIDs.isEmpty {
-                await quota.waitForBudget(newIDs.count * 5)
+            if !trulyNewIDs.isEmpty {
+                await quota.waitForBudget(trulyNewIDs.count * 5)
                 newMessages = try await api.getMessages(
-                    ids: newIDs, accountID: accountID, format: "metadata"
+                    ids: trulyNewIDs, accountID: accountID, format: "metadata"
                 )
             }
 
             // Fetch updated label info for changed messages.
             // "minimal" format is sufficient — we only need id and labelIds.
-            let toRefetch = labelChanges.subtracting(allDeleted).subtracting(Set(newIDs))
-            var labelUpdates: [(gmailId: String, labelIds: [String])] = []
+            let toRefetch = labelChanges.subtracting(allDeleted).subtracting(Set(candidateIDs))
+            var labelUpdates: [(gmailId: String, labelIds: [String])] = historyLabelUpdates
             if !toRefetch.isEmpty {
                 await quota.waitForBudget(toRefetch.count * 5)
                 let refreshed = try await api.getMessages(
                     ids: Array(toRefetch), accountID: accountID, format: "minimal"
                 )
-                labelUpdates = refreshed.map { (gmailId: $0.id, labelIds: $0.labelIds ?? []) }
+                labelUpdates += refreshed.map { (gmailId: $0.id, labelIds: $0.labelIds ?? []) }
             }
 
             // Apply delta to DB
@@ -352,16 +387,16 @@ actor FullSyncEngine {
             // Fire local notifications for new inbox messages
             await fireNotifications(for: newMessages)
 
-            // Update history ID
-            let capturedHistoryId = latestHistoryId
+            // Record last sync timestamp (historyId already saved above after pagination)
             await writeSyncState { state in
-                state.lastHistoryId = capturedHistoryId
                 state.lastSyncAt = Date().timeIntervalSince1970
             }
 
         } catch {
             if case .httpError(404, _) = error as? GmailAPIError {
-                // historyId expired — restart full sync
+                // historyId expired — restart full sync.
+                // Cancel sibling tasks directly instead of going through stop(),
+                // which would cancel restartTask itself (the task we're about to create).
                 Self.logger.warning("History ID expired, restarting full sync")
                 await writeSyncState { state in
                     state.initialSyncComplete = false
@@ -369,9 +404,20 @@ actor FullSyncEngine {
                     state.lastHistoryId = nil
                     state.syncedMessageCount = 0
                 }
-                restartTask?.cancel()
+                state = .idle
+                syncTask?.cancel()
+                syncTask = nil
+                bodyPrefetchTask?.cancel()
+                bodyPrefetchTask = nil
+                incrementalTask?.cancel()
+                incrementalTask = nil
+                triggeredSyncTask?.cancel()
+                triggeredSyncTask = nil
+                contactTask?.cancel()
+                contactTask = nil
+                labelRefreshTask?.cancel()
+                labelRefreshTask = nil
                 restartTask = Task { [weak self] in
-                    await self?.stop()
                     await self?.start()
                 }
                 return
