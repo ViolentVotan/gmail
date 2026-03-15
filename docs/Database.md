@@ -17,7 +17,7 @@ Per-account GRDB SQLite persistence layer. Replaces the previous JSON file cache
 
 | File | Role |
 |------|------|
-| `MailDatabase.swift` | `DatabasePool` owner — WAL pragmas, foreign keys, cache size, integrity check, per-account path, `deleteDatabase(accountID:)`, `shared(for:)` instance cache |
+| `MailDatabase.swift` | `DatabasePool` owner — WAL pragmas, foreign keys, cache size, integrity check, per-account path, `deleteDatabase(accountID:)`, `shared(for:)` instance cache (backed by `Mutex`, not `NSLock`) |
 | `MailDatabaseMigrations.swift` | v1 schema: 7 tables (`messages`, `labels`, `message_labels`, `contacts`, `attachments`, `email_tags`, `account_sync_state`), FTS5 virtual table `messages_fts`, 8 indexes. v2 migration: extends `account_sync_state` with sync engine columns (`last_history_id`, `initial_sync_complete`, `initial_sync_page_token`, `synced_message_count`, `total_messages_estimate`, `last_sync_at`, `last_body_prefetch_at`, `directory_sync_token`). v3 migration: adds `AFTER DELETE ON messages` trigger to keep `messages_fts` in sync on CASCADE deletes. |
 | `MailDatabaseQueries.swift` | Static read queries: `messagesForLabel`, `messagesForThread`, `unreadCount`, `labels`, `messagesNeedingBodies`, `messagesWithoutBodiesCount`, `totalMessageCount`, `messageExists` (uses `MessageRecord.exists()` instead of `fetchOne`), `allContacts`, `contactCount`, `syncState`, `updateSyncState` |
 | `FTSManager.swift` | FTS5 maintenance: `index`, `update`, `delete`, `evictBody`, `indexBatch`, `search` |
@@ -27,7 +27,7 @@ Per-account GRDB SQLite persistence layer. Replaces the previous JSON file cache
 
 | File | Role |
 |------|------|
-| `MessageRecord.swift` | Main record — `init(from: GmailMessage)`, `toGmailMessage()`, `toEmail(labels:tags:)`, `fixture()` for tests |
+| `MessageRecord.swift` | Main record — `init(from: GmailMessage)`, `toGmailMessage()`, `toEmail(labels:tags:)` (delegates folder resolution to `GmailDataTransformer.folderFor(labelIDs:)`), `fixture()` for tests |
 | `LabelRecord.swift` | Label record — `init(from: GmailLabel)`, associations to `MessageLabelRecord` |
 | `MessageLabelRecord.swift` | Join table record for message ↔ label many-to-many |
 | `ContactRecord.swift` | Contact record with photo URL |
@@ -38,8 +38,8 @@ Per-account GRDB SQLite persistence layer. Replaces the previous JSON file cache
 ### `Services/BackgroundSyncer.swift`
 
 Actor that centralizes all bulk DB writes:
-- `upsertMessages(_:ensureLabels:)` — upserts messages + labels + join table + FTS
-- `deleteMessages(gmailIds:)` — removes messages + FTS entries
+- `upsertMessages(_:ensureLabels:)` — upserts messages + labels + join table + FTS; uses a batch `SELECT gmail_id IN (...)` into a `Set<String>` to check existence instead of per-record `MessageRecord.exists()` calls
+- `deleteMessages(gmailIds:)` — removes messages + FTS entries; updates `thread_message_count` on remaining messages in affected threads
 - `updateBodies(_:)` — writes pre-fetched full bodies + updates FTS
 - `upsertLabels(_:)` — bulk label sync
 - `upsertContacts(_:)` / `deleteContacts(emails:)` — contact CRUD
