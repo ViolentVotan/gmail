@@ -29,7 +29,7 @@ final class EmailDetailViewModel {
     @ObservationIgnored var attachmentIndexer: AttachmentIndexer?
     @ObservationIgnored var onMessagesRead: (([String]) -> Void)?
     @ObservationIgnored var mailDatabase: MailDatabase?
-    @ObservationIgnored private var backgroundTasks: [Task<Void, Never>] = []
+    @ObservationIgnored nonisolated(unsafe) private var backgroundTasks: [Task<Void, Never>] = []
 
     init(accountID: String, api: any MessageFetching = GmailMessageService.shared) {
         self.accountID = accountID
@@ -64,6 +64,11 @@ final class EmailDetailViewModel {
                 await analyzeTrackers()
                 detectCalendarInvite()
                 if allHaveBodies {
+                    // Notify that unread messages were displayed so the list can update read state
+                    let unreadIDs = gmailMessages.filter(\.isUnread).map(\.id)
+                    if !unreadIDs.isEmpty {
+                        onMessagesRead?(unreadIDs)
+                    }
                     if let latest = gmailMessages.last {
                         await resolveInlineImages(for: latest)
                     }
@@ -77,15 +82,19 @@ final class EmailDetailViewModel {
         // Refresh from API
         do {
             let fresh = try await api.getThread(id: id, accountID: accountID)
+            let changed = fresh.messages?.count != thread?.messages?.count
+                || fresh.messages?.last?.id != thread?.messages?.last?.id
             thread = fresh
-            await analyzeTrackers()
-            detectCalendarInvite()
-            if let latest = fresh.messages?.last {
-                await resolveInlineImages(for: latest)
-            }
-            // Resolve inline images for older thread messages
-            if let allMessages = fresh.messages, allMessages.count > 1 {
-                await resolveInlineImagesForOlderMessages(Array(allMessages.dropLast()))
+            if changed {
+                await analyzeTrackers()
+                detectCalendarInvite()
+                if let latest = fresh.messages?.last {
+                    await resolveInlineImages(for: latest)
+                }
+                // Resolve inline images for older thread messages
+                if let allMessages = fresh.messages, allMessages.count > 1 {
+                    await resolveInlineImagesForOlderMessages(Array(allMessages.dropLast()))
+                }
             }
             // Passive attachment registration from full-format messages
             if let indexer = attachmentIndexer, let messages = fresh.messages {

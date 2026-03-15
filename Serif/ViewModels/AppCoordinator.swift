@@ -42,11 +42,15 @@ final class AppCoordinator {
 
     func loadContacts() {
         guard !accountID.isEmpty else { return }
-        contacts = (try? MailDatabase.shared(for: accountID).dbPool.read { db in
-            try MailDatabaseQueries.allContacts(in: db).map {
-                StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
-            }
-        }) ?? []
+        let id = accountID
+        Task {
+            let result = (try? await MailDatabase.shared(for: id).dbPool.read { db in
+                try MailDatabaseQueries.allContacts(in: db).map {
+                    StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
+                }
+            }) ?? []
+            contacts = result
+        }
     }
 
     // MARK: - UI State
@@ -361,7 +365,6 @@ final class AppCoordinator {
             accountID: id
         )
         attachmentIndexer = indexer
-        mailboxViewModel.attachmentIndexer = indexer
         await setupDatabase(for: id)
         guard !Task.isCancelled, self.selectedAccountID == id else { return }
         mailboxViewModel.setMailDatabase(self.mailDatabase)
@@ -371,6 +374,9 @@ final class AppCoordinator {
         if let db = self.mailDatabase, let syncer = self.backgroundSyncer {
             let engine = FullSyncEngine(accountID: id, db: db, syncer: syncer)
             await engine.setProgressManager(self.syncProgressManager)
+            // Guard AFTER engine creation but BEFORE assignment to avoid orphaning
+            // a running engine if the account switched during setup.
+            guard !Task.isCancelled, self.selectedAccountID == id else { return }
             self.syncEngine = engine
             await engine.start()
         }

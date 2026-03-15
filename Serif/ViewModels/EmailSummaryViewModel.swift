@@ -36,13 +36,11 @@ final class EmailSummaryViewModel {
         }
 
         #if canImport(FoundationModels)
-        if #available(macOS 26.0, *) {
-            insightTask = Task {
-                let stream = SummaryService.shared.insight(for: email)
-                for await snapshot in stream {
-                    guard !Task.isCancelled else { return }
-                    insight = snapshot
-                }
+        insightTask = Task {
+            let stream = SummaryService.shared.insight(for: email)
+            for await snapshot in stream {
+                guard !Task.isCancelled else { return }
+                insight = snapshot
             }
         }
         #endif

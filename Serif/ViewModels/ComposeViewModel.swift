@@ -314,16 +314,14 @@ final class ComposeViewModel {
         }
     }
 
-    /// Opens a file picker and returns selected URLs via completion.
-    func openAttachmentPicker(completion: @escaping ([URL]) -> Void) {
+    /// Opens a file picker and returns selected URLs.
+    /// NOTE: Callers in Views/ (ComposeView, ReplyBarView) need updating to use async call site.
+    func openAttachmentPicker() async -> [URL] {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = false
-        panel.begin { response in
-            if response == .OK {
-                completion(panel.urls)
-            }
-        }
+        let response = await panel.begin()
+        return response == .OK ? panel.urls : []
     }
 
     // MARK: - Undo forwarding

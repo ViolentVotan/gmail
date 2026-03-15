@@ -30,7 +30,6 @@ final class MailboxViewModel {
     var priorityFilterEnabled: Bool = false
 
     var accountID: String
-    var attachmentIndexer: AttachmentIndexer?
     private var currentLabelIDs: [String] = [GmailSystemLabel.inbox]
     private var currentQuery:    String?
 
@@ -58,7 +57,7 @@ final class MailboxViewModel {
     nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "Mailbox")
     private let api: MessageFetching
     private let labelService: LabelSyncService
-    @ObservationIgnored private var messageObservation: (any DatabaseCancellable)?
+    @ObservationIgnored private var observationTask: Task<Void, Never>?
     @ObservationIgnored private var enrichmentTask: Task<Void, Never>?
 
     init(
@@ -71,14 +70,14 @@ final class MailboxViewModel {
     }
 
     deinit {
-        messageObservation?.cancel()
+        observationTask?.cancel()
         enrichmentTask?.cancel()
     }
 
     // MARK: - Database Observation
 
     func startObservingLabel(_ labelId: String) {
-        messageObservation?.cancel()
+        observationTask?.cancel()
         guard let db = mailDatabase else { return }
         // Use GRDB association prefetching: 4 queries instead of N+1.
         // Query 1: SELECT m.* FROM messages … (filtered by label)
@@ -94,18 +93,22 @@ final class MailboxViewModel {
             .order(Column("internal_date").desc)
             .limit(200)
             .asRequest(of: MessageWithAssociations.self)
-        let observation = ValueObservation.tracking { db in
+        // Use trackingConstantRegion: the set of tracked tables is fixed for a
+        // given label observation, so GRDB only computes the region once. This
+        // avoids spurious refreshes when unrelated rows in the labels table are
+        // upserted during sync.
+        let observation = ValueObservation.trackingConstantRegion { db in
             try request.fetchAll(db)
         }
-        messageObservation = observation.start(
-            in: db.dbPool,
-            onError: { [weak self] error in
+        observationTask = Task { @MainActor [weak self] in
+            do {
+                for try await records in observation.values(in: db.dbPool) {
+                    self?.handleDatabaseUpdate(records, from: db)
+                }
+            } catch {
                 self?.error = "Database observation failed: \(error.localizedDescription)"
-            },
-            onChange: { [weak self] enrichedRecords in
-                self?.handleDatabaseUpdate(enrichedRecords, from: db)
             }
-        )
+        }
     }
 
     private func handleDatabaseUpdate(_ records: [MessageWithAssociations], from db: MailDatabase) {
@@ -163,8 +166,8 @@ final class MailboxViewModel {
 
         // FTS fast path: search local database first for instant results
         if let q = newQuery, let db = mailDatabase {
-            messageObservation?.cancel()
-            messageObservation = nil
+            observationTask?.cancel()
+            observationTask = nil
             let localResults = await Self.localSearch(query: q, db: db)
             if !localResults.isEmpty {
                 emails = localResults
@@ -209,7 +212,7 @@ final class MailboxViewModel {
     /// Refreshes the current folder. If the label/query changed, starts a new observation.
     /// Otherwise the sync engine handles incremental sync and ValueObservation updates UI.
     func refreshCurrentFolder(labelIDs: [String], query: String? = nil) async {
-        if labelIDs != currentLabelIDs || query != currentQuery || messageObservation == nil {
+        if labelIDs != currentLabelIDs || query != currentQuery || observationTask == nil {
             await loadFolder(labelIDs: labelIDs, query: query)
         }
         // Otherwise: sync engine handles incremental sync, ValueObservation updates UI
@@ -297,8 +300,8 @@ final class MailboxViewModel {
     // MARK: - Account switching
 
     func switchAccount(_ id: String) async {
-        messageObservation?.cancel()
-        messageObservation = nil
+        observationTask?.cancel()
+        observationTask = nil
         accountID = id
         error     = nil
         emails    = []
