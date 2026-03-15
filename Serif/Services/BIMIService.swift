@@ -31,7 +31,12 @@ final class BIMIService {
         if let cached = cache[domain] { return cached }
 
         let result = await resolveBIMI(for: domain)
-        if cache.count >= maxCacheSize { cache.removeAll() }
+        if cache.count >= maxCacheSize {
+            let removeCount = cache.count / 4
+            for key in cache.keys.prefix(removeCount) {
+                cache.removeValue(forKey: key)
+            }
+        }
         cache[domain] = result
         return result
     }

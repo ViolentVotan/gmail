@@ -12,7 +12,12 @@ private actor URLValidityCache {
     }
 
     func set(_ url: URL, valid: Bool) {
-        if cache.count >= maxCacheSize { cache.removeAll() }
+        if cache.count >= maxCacheSize {
+            let removeCount = cache.count / 4
+            for key in cache.keys.prefix(removeCount) {
+                cache.removeValue(forKey: key)
+            }
+        }
         cache[url] = valid
     }
 

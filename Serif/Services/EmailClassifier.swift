@@ -47,6 +47,12 @@ final class EmailClassifier {
                         hasDeadline: result.content.hasDeadline, financial: result.content.financial
                     )
                     tagCache[msgId] = tags
+                    if tagCache.count > 500 {
+                        let removeCount = tagCache.count / 4
+                        for key in tagCache.keys.prefix(removeCount) {
+                            tagCache.removeValue(forKey: key)
+                        }
+                    }
                     // Write to DB
                     if let db {
                         try? await db.dbPool.write { database in
