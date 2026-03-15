@@ -16,6 +16,8 @@ final class AvatarCache {
     private let memoryCache = NSCache<NSString, NSImage>()
     /// Tracks negative lookups in memory (URLs that returned 404 / no image).
     private let negativeCacheKeys = NSCache<NSString, NSNull>()
+    /// Tracks URLs currently being fetched to prevent duplicate downloads (TOCTOU race).
+    private var inFlightURLs: Set<URL> = []
 
     private let cacheDir: URL = FileManager.default
         .urls(for: .cachesDirectory, in: .userDomainMask)[0]
@@ -47,17 +49,23 @@ final class AvatarCache {
         }
 
         // 3. Fetch from network
-        guard let url = URL(string: urlString),
-              let (data, response) = try? await URLSession.shared.data(from: url) else { return nil }
+        guard let url = URL(string: urlString) else { return nil }
+
+        // Prevent duplicate downloads for the same URL
+        guard !inFlightURLs.contains(url) else { return nil }
+        inFlightURLs.insert(url)
+        defer { inFlightURLs.remove(url) }
+
+        guard let (data, response) = try? await URLSession.shared.data(from: url) else { return nil }
 
         let status = (response as? HTTPURLResponse)?.statusCode ?? 200
         guard status == 200, !data.isEmpty else {
-            try? Data().write(to: fileURL) // cache negative on disk
+            try? Data().write(to: fileURL, options: .atomic) // cache negative on disk
             negativeCacheKeys.setObject(NSNull(), forKey: key)
             return nil
         }
 
-        try? data.write(to: fileURL)
+        try? data.write(to: fileURL, options: .atomic)
         if let img = NSImage(contentsOfFile: fileURL.path) {
             memoryCache.setObject(img, forKey: key)
             return img

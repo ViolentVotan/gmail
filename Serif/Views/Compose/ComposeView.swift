@@ -247,7 +247,14 @@ struct ComposeView: View {
     // MARK: - Send
 
     private func sendEmail() async {
-        guard !to.isEmpty, !subject.isEmpty else { return }
+        guard !to.isEmpty else {
+            sendError = "Please add at least one recipient."
+            return
+        }
+        guard !subject.isEmpty else {
+            sendError = "Please add a subject."
+            return
+        }
         sendError = nil
 
         // Extract inline images from HTML (data: → cid:)
@@ -280,7 +287,8 @@ struct ComposeView: View {
     }
 
     private func attachFiles() {
-        composeVM.openAttachmentPicker { urls in
+        Task {
+            let urls = await composeVM.openAttachmentPicker()
             attachments += urls
         }
     }

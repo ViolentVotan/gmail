@@ -177,7 +177,8 @@ struct ContentView: View {
                 selectedAccountID: $coordinator.selectedAccountID,
                 attachmentStore: coordinator.attachmentStore,
                 mailStore: coordinator.mailStore,
-                mailDatabase: coordinator.mailDatabase
+                mailDatabase: coordinator.mailDatabase,
+                attachmentIndexer: coordinator.attachmentIndexer
             )
 
             if commandPalette.isVisible {
@@ -282,10 +283,20 @@ struct ContentView: View {
 
                         Divider()
 
-                        // Print requires full GmailMessage from detail view
-                        // TODO: Task 12 — restore print from context menu using DB data
-                        Button {} label: { Label("Print", systemImage: "printer") }
-                            .disabled(true)
+                        Button {
+                            Task {
+                                guard let msgID = email.gmailMessageID else { return }
+                                do {
+                                    let message = try await GmailMessageService.shared.getMessage(id: msgID, accountID: coordinator.accountID)
+                                    EmailPrintService.shared.printEmail(message: message, email: email)
+                                } catch {
+                                    ToastManager.shared.show(message: "Print failed: \(error.localizedDescription)", type: .error)
+                                }
+                            }
+                        } label: {
+                            Label("Print", systemImage: "printer")
+                        }
+                        .disabled(email.gmailMessageID == nil)
 
                         Divider()
 

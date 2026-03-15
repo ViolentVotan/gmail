@@ -97,18 +97,22 @@ final class GmailSendService {
                 lines.append("References: \(ref)")
             }
 
+            let plainB64 = Data(body.strippingHTML.utf8).base64EncodedString(options: .lineLength76Characters)
+            let htmlB64 = Data(body.utf8).base64EncodedString(options: .lineLength76Characters)
+
             var mime = lines.joined(separator: "\r\n") + "\r\n\r\n"
             mime += "--\(boundary)\r\n"
             mime += "Content-Type: text/plain; charset=UTF-8\r\n"
-            mime += "Content-Transfer-Encoding: 8bit\r\n\r\n"
-            mime += body.strippingHTML + "\r\n"
+            mime += "Content-Transfer-Encoding: base64\r\n\r\n"
+            mime += plainB64 + "\r\n"
             mime += "--\(boundary)\r\n"
             mime += "Content-Type: text/html; charset=UTF-8\r\n"
-            mime += "Content-Transfer-Encoding: 8bit\r\n\r\n"
-            mime += body + "\r\n"
+            mime += "Content-Transfer-Encoding: base64\r\n\r\n"
+            mime += htmlB64 + "\r\n"
             mime += "--\(boundary)--"
             return try base64URLEncode(mime)
         } else {
+            let bodyB64 = Data(body.utf8).base64EncodedString(options: .lineLength76Characters)
             var lines = [
                 "MIME-Version: 1.0",
                 "Date: \(Self.rfc2822Formatter.string(from: Date()))",
@@ -116,7 +120,7 @@ final class GmailSendService {
                 "To: \(mimeEncodeAddresses(to))",
                 "Subject: \(mimeEncodeHeader(subject))",
                 "Content-Type: text/plain; charset=UTF-8",
-                "Content-Transfer-Encoding: 8bit"
+                "Content-Transfer-Encoding: base64"
             ]
             if !cc.isEmpty  { lines.append("Cc: \(mimeEncodeAddresses(cc))") }
             if !bcc.isEmpty { lines.append("Bcc: \(mimeEncodeAddresses(bcc))") }
@@ -124,7 +128,7 @@ final class GmailSendService {
                 lines.append("In-Reply-To: \(ref)")
                 lines.append("References: \(ref)")
             }
-            let raw = lines.joined(separator: "\r\n") + "\r\n\r\n" + body
+            let raw = lines.joined(separator: "\r\n") + "\r\n\r\n" + bodyB64
             return try base64URLEncode(raw)
         }
     }
@@ -183,22 +187,25 @@ final class GmailSendService {
         func bodyPart(boundary: String) -> String {
             var part = ""
             if isHTML {
+                let plainB64 = Data(body.strippingHTML.utf8).base64EncodedString(options: .lineLength76Characters)
+                let htmlB64 = Data(body.utf8).base64EncodedString(options: .lineLength76Characters)
                 part += "--\(boundary)\r\n"
                 part += "Content-Type: multipart/alternative; boundary=\"\(boundaryAlt)\"\r\n\r\n"
                 part += "--\(boundaryAlt)\r\n"
                 part += "Content-Type: text/plain; charset=UTF-8\r\n"
-                part += "Content-Transfer-Encoding: 8bit\r\n\r\n"
-                part += body.strippingHTML + "\r\n"
+                part += "Content-Transfer-Encoding: base64\r\n\r\n"
+                part += plainB64 + "\r\n"
                 part += "--\(boundaryAlt)\r\n"
                 part += "Content-Type: text/html; charset=UTF-8\r\n"
-                part += "Content-Transfer-Encoding: 8bit\r\n\r\n"
-                part += body + "\r\n"
+                part += "Content-Transfer-Encoding: base64\r\n\r\n"
+                part += htmlB64 + "\r\n"
                 part += "--\(boundaryAlt)--\r\n"
             } else {
+                let bodyB64 = Data(body.utf8).base64EncodedString(options: .lineLength76Characters)
                 part += "--\(boundary)\r\n"
                 part += "Content-Type: text/plain; charset=UTF-8\r\n"
-                part += "Content-Transfer-Encoding: 8bit\r\n\r\n"
-                part += body + "\r\n"
+                part += "Content-Transfer-Encoding: base64\r\n\r\n"
+                part += bodyB64 + "\r\n"
             }
             return part
         }
@@ -269,7 +276,7 @@ final class GmailSendService {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
-        f.timeZone = TimeZone.current
+        f.timeZone = TimeZone.autoupdatingCurrent
         return f
     }()
 

@@ -26,19 +26,14 @@ final class LabelSuggestionService {
             return cached
         }
 
-        if #available(macOS 26.0, *) {
-            #if canImport(FoundationModels)
-            return await generateWithFoundationModels(email: email, existingLabels: existingLabels)
-            #else
-            return []
-            #endif
-        } else {
-            return []
-        }
+        #if canImport(FoundationModels)
+        return await generateWithFoundationModels(email: email, existingLabels: existingLabels)
+        #else
+        return []
+        #endif
     }
 
     #if canImport(FoundationModels)
-    @available(macOS 26.0, *)
     private func generateWithFoundationModels(email: Email, existingLabels: [GmailLabel]) async -> [LabelSuggestion] {
         do {
             let userLabels = existingLabels

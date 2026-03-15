@@ -17,6 +17,7 @@ struct ReplyBarView: View {
     @State private var sendError: String?
     @State private var attachments: [URL] = []
     @State private var saveTask: Task<Void, Never>?
+    @State private var loadDraftTask: Task<Void, Never>?
     @State private var isInitialLoad = true
     @State private var isLoadingDraft = false
     @State private var showDiscardAlert = false
@@ -95,6 +96,10 @@ struct ReplyBarView: View {
             isInitialLoad = false
         }
         .task(id: email.id) {
+            saveTask?.cancel()
+            saveTask = nil
+            loadDraftTask?.cancel()
+            loadDraftTask = nil
             composeVM = ComposeViewModel(
                 accountID: accountID,
                 fromAddress: fromAddress,
@@ -321,14 +326,8 @@ struct ReplyBarView: View {
 
     private var quickReplyChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            Group {
-                if #available(macOS 26.0, *) {
-                    GlassEffectContainer {
-                        quickReplyChipContent
-                    }
-                } else {
-                    quickReplyChipContent
-                }
+            GlassEffectContainer {
+                quickReplyChipContent
             }
         }
         .onAppear { animateChips() }
@@ -442,7 +441,8 @@ struct ReplyBarView: View {
     }
 
     private func attachFiles() {
-        composeVM.openAttachmentPicker { urls in
+        Task {
+            let urls = await composeVM.openAttachmentPicker()
             attachments += urls
         }
     }
@@ -451,20 +451,21 @@ struct ReplyBarView: View {
         guard let threadID = email.gmailThreadID,
               mailStore.replyDrafts[threadID] != nil else { return }
         isLoadingDraft = true
-        Task {
+        loadDraftTask?.cancel()
+        loadDraftTask = Task {
             let result = await composeVM.loadExistingDraft(
                 mailStore: mailStore,
                 loader: onLoadDraft
             )
+            guard !Task.isCancelled else { return }
             if let body = result, !body.isEmpty {
                 isInitialLoad = true
                 replyHTML = body
                 editorState.setHTML(body)
                 isLoadingDraft = false
-                Task { @MainActor in
-                    try? await Task.sleep(for: .seconds(0.5))
-                    isInitialLoad = false
-                }
+                try? await Task.sleep(for: .seconds(0.5))
+                guard !Task.isCancelled else { return }
+                isInitialLoad = false
             } else {
                 isLoadingDraft = false
             }

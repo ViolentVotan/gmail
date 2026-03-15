@@ -11,7 +11,7 @@ actor QuotaTracker {
     }
 
     /// Current spend in the last 60 seconds.
-    var currentSpend: Int {
+    private var currentSpend: Int {
         prune()
         return ledger.reduce(0) { $0 + $1.units }
     }
@@ -27,7 +27,9 @@ actor QuotaTracker {
     }
 
     /// Records a spend of `units` at the current time.
+    /// Skips recording if the calling task has been cancelled to prevent over-counting quota.
     func spend(_ units: Int) {
+        guard !Task.isCancelled else { return }
         ledger.append((timestamp: Date(), units: units))
     }
 

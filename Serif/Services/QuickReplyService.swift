@@ -11,29 +11,24 @@ final class QuickReplyService {
 
     private init() {}
 
-    func cachedReplies(for email: Email) -> [String]? {
-        guard let key = AIServiceHelpers.cacheKey(for: email) else { return nil }
-        return cache[key]
-    }
+    // cachedReplies(for:) removed — generateReplies already returns cached results
+    // when available, and no external caller needs a synchronous cache-only lookup.
+    // (SmartReplyProvider.cachedReplies serves the EmailDetailViewModel's smart-reply
+    // path which uses threadId-keyed structured output, a different mechanism.)
 
     func generateReplies(for email: Email) async -> [String] {
         if let key = AIServiceHelpers.cacheKey(for: email), let cached = cache[key] {
             return cached
         }
 
-        if #available(macOS 26.0, *) {
-            #if canImport(FoundationModels)
-            return await generateWithFoundationModels(email: email)
-            #else
-            return []
-            #endif
-        } else {
-            return []
-        }
+        #if canImport(FoundationModels)
+        return await generateWithFoundationModels(email: email)
+        #else
+        return []
+        #endif
     }
 
     #if canImport(FoundationModels)
-    @available(macOS 26.0, *)
     private func generateWithFoundationModels(email: Email) async -> [String] {
         guard SystemLanguageModel.default.availability == .available else { return [] }
 

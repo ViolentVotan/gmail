@@ -84,6 +84,8 @@ actor AttachmentIndexer {
 
         var pending = await db.pendingAttachments(limit: maxConcurrent, accountID: acctID)
         while !pending.isEmpty {
+            // Stop processing if the owning task was cancelled (e.g., view disappeared)
+            guard !Task.isCancelled else { break }
             // Hard gate: wait if process CPU is above threshold
             await monitor.throttleIfNeeded()
             let batchSize = monitor.recommendedConcurrency(max: maxConcurrent)

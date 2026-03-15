@@ -218,15 +218,13 @@ struct EmailDetailView: View {
             .padding(.bottom, Spacing.md)
 
             #if canImport(FoundationModels)
-            if #available(macOS 26.0, *) {
-                InsightCardView(insight: summaryVM.insight)
-                    .padding(.horizontal, Spacing.xl)
-                    .padding(.bottom, Spacing.md)
-                    .task(id: email.id) {
-                        summaryVM.cancelStreaming()
-                        summaryVM.startStreaming(for: email)
-                    }
-            }
+            InsightCardView(insight: summaryVM.insight)
+                .padding(.horizontal, Spacing.xl)
+                .padding(.bottom, Spacing.md)
+                .task(id: email.id) {
+                    summaryVM.cancelStreaming()
+                    summaryVM.startStreaming(for: email)
+                }
             #endif
 
             if detailVM.hasBlockedTrackers {

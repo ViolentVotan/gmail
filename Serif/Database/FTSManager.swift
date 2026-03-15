@@ -52,9 +52,8 @@ enum FTSManager {
 
         return try MessageRecord.fetchAll(db, sql: """
             SELECT m.* FROM messages m
-            WHERE m.gmail_id IN (
-                SELECT gmail_id FROM messages_fts WHERE messages_fts MATCH ?
-            )
+            JOIN messages_fts f ON f.gmail_id = m.gmail_id
+            WHERE f.messages_fts MATCH ?
             ORDER BY m.internal_date DESC
             LIMIT ?
         """, arguments: [pattern, limit])

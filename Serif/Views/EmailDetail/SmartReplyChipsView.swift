@@ -7,14 +7,8 @@ struct SmartReplyChipsView: View {
     var body: some View {
         if !suggestions.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
-                Group {
-                    if #available(macOS 26.0, *) {
-                        GlassEffectContainer {
-                            chipRow
-                        }
-                    } else {
-                        chipRow
-                    }
+                GlassEffectContainer {
+                    chipRow
                 }
             }
             .padding(.vertical, 4)
@@ -23,7 +17,7 @@ struct SmartReplyChipsView: View {
 
     private var chipRow: some View {
         HStack(spacing: 8) {
-            ForEach(Array(suggestions.enumerated()), id: \.offset) { _, suggestion in
+            ForEach(suggestions, id: \.self) { suggestion in
                 Button {
                     onSelect(suggestion)
                 } label: {
@@ -47,12 +41,6 @@ struct SmartReplyChipsView: View {
 
 private struct SmartReplyChipBackground: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(macOS 26.0, *) {
-            content.glassEffect(.regular.interactive(), in: .capsule)
-        } else {
-            content
-                .background(Color.accentColor.opacity(0.1))
-                .clipShape(Capsule())
-        }
+        content.glassEffect(.regular.interactive(), in: .capsule)
     }
 }

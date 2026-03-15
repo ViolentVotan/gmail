@@ -24,6 +24,9 @@ final class ThumbnailCache {
     /// Tracks in-flight fetch tasks so they can be cancelled on clearAll().
     private var fetchTasks: [String: Task<Void, Never>] = [:]
 
+    /// Tracks saveToDisk tasks so they can be cancelled on clearAll() to prevent stale thumbnails.
+    private var saveTasks: [String: Task<Void, Never>] = [:]
+
     private let maxSize = CGSize(width: 300, height: 200)
 
     /// Directory for disk-cached thumbnails.
@@ -37,6 +40,8 @@ final class ThumbnailCache {
     func clearAll() {
         fetchTasks.values.forEach { $0.cancel() }
         fetchTasks.removeAll()
+        saveTasks.values.forEach { $0.cancel() }
+        saveTasks.removeAll()
         thumbnails.removeAll()
         loading.removeAll()
         pendingQueue.removeAll()
@@ -144,9 +149,10 @@ final class ThumbnailCache {
         let safeName = id.replacingOccurrences(of: "/", with: "_")
         let url = cacheDirectory.appendingPathComponent(safeName + ".jpg")
         let cacheDir = cacheDirectory
-        Task {
+        let task = Task {
             await Self.writeThumbnail(image: image, url: url, cacheDir: cacheDir)
         }
+        saveTasks[id] = task
     }
 
     @concurrent private static func writeThumbnail(image: NSImage, url: URL, cacheDir: URL) async {

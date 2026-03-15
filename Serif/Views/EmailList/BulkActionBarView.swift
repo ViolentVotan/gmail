@@ -26,14 +26,8 @@ struct BulkActionBarView: View {
                 .font(Typography.title)
                 .foregroundStyle(.primary)
 
-            Group {
-                if #available(macOS 26.0, *) {
-                    GlassEffectContainer {
-                        actionRow
-                    }
-                } else {
-                    actionRow
-                }
+            GlassEffectContainer {
+                actionRow
             }
 
             Button {

@@ -3,9 +3,6 @@ import GRDB
 enum MailDatabaseMigrations {
     static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
-        #if DEBUG
-        migrator.eraseDatabaseOnSchemaChange = true
-        #endif
         registerV1(&migrator)
         registerV2(&migrator)
         registerV3(&migrator)
@@ -62,7 +59,7 @@ enum MailDatabaseMigrations {
                 t.column("message_id", .text).notNull()
                     .references("messages", column: "gmail_id", onDelete: .cascade)
                 t.column("label_id", .text).notNull()
-                    .references("labels", column: "gmail_id", onDelete: .cascade)
+                    .references("labels", column: "gmail_id", onDelete: .restrict)
                 t.primaryKey(["message_id", "label_id"])
             }
             try db.create(index: "message_labels_label", on: "message_labels", columns: ["label_id"])
@@ -126,8 +123,8 @@ enum MailDatabaseMigrations {
                 t.column("contacts_sync_token", .text)
                 t.column("other_contacts_sync_token", .text)
             }
-            // Seed the single row
-            try db.execute(sql: "INSERT INTO account_sync_state (id) VALUES (1)")
+            // Seed the single row (OR IGNORE for idempotency)
+            try db.execute(sql: "INSERT OR IGNORE INTO account_sync_state (id) VALUES (1)")
 
             // -- FTS5 (manual, not content-sync) --
             try db.execute(sql: """

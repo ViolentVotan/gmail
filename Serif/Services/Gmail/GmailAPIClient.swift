@@ -27,7 +27,7 @@ final class GmailAPIClient {
 
     // MARK: - Decoded requests
 
-    func request<T: Decodable>(
+    @concurrent func request<T: Decodable>(
         path: String,
         method: String = "GET",
         body: Data? = nil,
@@ -44,7 +44,7 @@ final class GmailAPIClient {
     }
 
     /// Returns raw Data (e.g. for DELETE responses or binary payloads).
-    func rawRequest(
+    @concurrent func rawRequest(
         path: String,
         method: String = "GET",
         body: Data? = nil,
@@ -52,7 +52,7 @@ final class GmailAPIClient {
         fields: String? = nil,
         accountID: String
     ) async throws(GmailAPIError) -> Data {
-        guard NetworkMonitor.shared.isConnected else { throw .offline }
+        guard await NetworkMonitor.shared.isConnected else { throw .offline }
         let token = try await validToken(for: accountID)
 
         // First attempt + 401 auto-retry
@@ -277,55 +277,59 @@ final class GmailAPIClient {
 
         // Multiple chunks — run up to maxConcurrentBatches in parallel.
         // Use non-throwing TaskGroup with Result to satisfy typed throws.
-        let (all, firstError): ([T], GmailAPIError?) = await withTaskGroup(of: Result<[T], GmailAPIError>.self) { group in
-            var chunkIterator = chunks.makeIterator()
+        // Track which chunk indices failed for logging.
+        let (all, firstError, failedChunkCount): ([T], GmailAPIError?, Int) = await withTaskGroup(of: (Int, Result<[T], GmailAPIError>).self) { group in
+            var chunkIterator = chunks.enumerated().makeIterator()
             var collected: [T] = []
             var error: GmailAPIError?
+            var failedChunks = 0
 
             // Seed initial batch
             for _ in 0..<min(maxConcurrentBatches, chunks.count) {
-                if let chunk = chunkIterator.next() {
+                if let (index, chunk) = chunkIterator.next() {
                     group.addTask {
                         do {
                             let items: [T] = try await self.fetchSingleBatch(chunk: chunk, pathBuilder: pathBuilder, accountID: accountID)
-                            return .success(items)
+                            return (index, .success(items))
                         } catch let err as GmailAPIError {
-                            return .failure(err)
+                            return (index, .failure(err))
                         } catch {
-                            return .failure(.networkError(error))
+                            return (index, .failure(.networkError(error)))
                         }
                     }
                 }
             }
 
             // As each completes, add the next
-            for await result in group {
+            for await (chunkIndex, result) in group {
                 switch result {
                 case .success(let items):
                     collected.append(contentsOf: items)
                 case .failure(let err):
+                    failedChunks += 1
+                    Self.logger.error("Batch fetch chunk \(chunkIndex) failed (\(chunks[chunkIndex].count) IDs): \(err.localizedDescription)")
                     if error == nil { error = err }
                 }
-                if let nextChunk = chunkIterator.next() {
+                if let (nextIndex, nextChunk) = chunkIterator.next() {
                     group.addTask {
                         do {
                             let items: [T] = try await self.fetchSingleBatch(chunk: nextChunk, pathBuilder: pathBuilder, accountID: accountID)
-                            return .success(items)
+                            return (nextIndex, .success(items))
                         } catch let err as GmailAPIError {
-                            return .failure(err)
+                            return (nextIndex, .failure(err))
                         } catch {
-                            return .failure(.networkError(error))
+                            return (nextIndex, .failure(.networkError(error)))
                         }
                     }
                 }
             }
 
-            return (collected, error)
+            return (collected, error, failedChunks)
         }
 
         // Log warning if some chunks failed but we still have partial results
         if let firstError, !all.isEmpty {
-            Self.logger.warning("Batch fetch returned partial results (\(all.count) items). Some chunks failed: \(firstError.localizedDescription)")
+            Self.logger.warning("Batch fetch returned partial results (\(all.count) items). \(failedChunkCount) chunk(s) failed: \(firstError.localizedDescription)")
         }
         // Only throw if we got zero results AND there was an error
         if let firstError, all.isEmpty {
@@ -553,26 +557,14 @@ final class GmailAPIClient {
         }
         guard let token else { throw .unauthorized }
         guard token.isExpired else { return token }
-        return try await performRefresh(for: accountID)
+        return try await refreshAndRetry(accountID: accountID)
     }
 
     /// Forces a token refresh (invalidates cached token). Used for 401 auto-retry.
     /// If a refresh is already in flight, awaits it instead of starting a new one
     /// (avoids double-refresh when concurrent 401s race).
     private func refreshAndRetry(accountID: String) async throws(GmailAPIError) -> AuthToken {
-        if let existing = refreshTasks[accountID] {
-            do {
-                return try await existing.value
-            } catch {
-                throw .wrap(error)
-            }
-        }
-        return try await performRefresh(for: accountID)
-    }
-
-    /// Creates (or reuses) a refresh task for the given account and awaits it.
-    /// Coalesces concurrent refresh calls — only one network request per account at a time.
-    private func performRefresh(for accountID: String) async throws(GmailAPIError) -> AuthToken {
+        // Coalesce: if a refresh is already in flight, just await it
         if let existing = refreshTasks[accountID] {
             do {
                 return try await existing.value
@@ -581,6 +573,7 @@ final class GmailAPIClient {
             }
         }
 
+        // No in-flight refresh — create one
         let generation = (refreshGeneration[accountID] ?? 0) + 1
         refreshGeneration[accountID] = generation
 
@@ -597,9 +590,9 @@ final class GmailAPIClient {
             return fresh
         }
         refreshTasks[accountID] = task
+
         do {
             let result = try await task.value
-            // Only clear if this is still our task (generation matches)
             if refreshGeneration[accountID] == generation {
                 refreshTasks[accountID] = nil
                 refreshGeneration.removeValue(forKey: accountID)

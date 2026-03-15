@@ -6,6 +6,17 @@ final class GmailProfileService {
     private let client = GmailAPIClient.shared
     private init() {}
 
+    /// Configured session matching GmailAPIClient's timeout/pooling settings.
+    nonisolated private static let session: URLSession = {
+        let config = URLSessionConfiguration.default
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 120
+        config.httpMaximumConnectionsPerHost = 6
+        config.waitsForConnectivity = true
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return URLSession(configuration: config)
+    }()
+
     // MARK: - Gmail Profile
 
     @concurrent func getProfile(accountID: String) async throws(GmailAPIError) -> GmailProfile {
@@ -32,7 +43,7 @@ final class GmailProfileService {
         let data: Data
         let response: URLResponse
         do {
-            (data, response) = try await URLSession.shared.data(for: request)
+            (data, response) = try await Self.session.data(for: request)
         } catch {
             throw .networkError(error)
         }

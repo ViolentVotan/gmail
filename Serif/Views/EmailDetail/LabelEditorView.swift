@@ -134,9 +134,16 @@ struct LabelEditorView: View {
 
     // MARK: - Dropdown
 
-    private enum DropdownItem {
+    private enum DropdownItem: Identifiable {
         case existing(GmailLabel)
         case create(String)
+
+        var id: String {
+            switch self {
+            case .existing(let label): return label.id
+            case .create(let name): return "create-\(name)"
+            }
+        }
     }
 
     private static let rowHeight: CGFloat = 38
@@ -189,7 +196,7 @@ struct LabelEditorView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         if index > 0 {
                             Divider()
                                 .background(Color(.separatorColor))

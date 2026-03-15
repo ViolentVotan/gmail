@@ -4,7 +4,6 @@ import FoundationModels
 #endif
 
 #if canImport(FoundationModels)
-@available(macOS 26.0, *)
 @Generable
 struct EmailInsight {
     @Guide(description: "2-3 sentence summary of the email content")
@@ -66,22 +65,17 @@ final class SummaryService {
                     return
                 }
 
-                if #available(macOS 26.0, *) {
-                    #if canImport(FoundationModels)
-                    await generateWithFoundationModels(email: email, continuation: continuation)
-                    #else
-                    yieldFallback(email: email, continuation: continuation)
-                    #endif
-                } else {
-                    yieldFallback(email: email, continuation: continuation)
-                }
+                #if canImport(FoundationModels)
+                await generateWithFoundationModels(email: email, continuation: continuation)
+                #else
+                yieldFallback(email: email, continuation: continuation)
+                #endif
             }
             continuation.onTermination = { _ in task.cancel() }
         }
     }
 
     #if canImport(FoundationModels)
-    @available(macOS 26.0, *)
     private func generateWithFoundationModels(email: Email, continuation: AsyncStream<String>.Continuation) async {
         do {
             let instructions = Instructions("""
@@ -163,7 +157,6 @@ final class SummaryService {
     }
 
     #if canImport(FoundationModels)
-    @available(macOS 26.0, *)
     func insight(for email: Email) -> AsyncStream<EmailInsightSnapshot> {
         AsyncStream { continuation in
             let task = Task {

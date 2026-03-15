@@ -37,12 +37,12 @@ enum CacheMigration {
         // Migrate AI classification tags
         await migrateTags(db: db, accountID: accountID)
 
-        // Mark migration complete only after all writes have finished without a critical error
-        UserDefaults.standard.set(true, forKey: "\(migrationKeyPrefix).\(accountID)")
-
         // Remove only this account's cache subdirectory — other accounts may not have migrated yet.
         let accountDir = cacheBaseDir.appendingPathComponent(accountID, isDirectory: true)
         try? FileManager.default.removeItem(at: accountDir)
+
+        // Mark migration complete AFTER cleanup so the flag isn't set if removal fails
+        UserDefaults.standard.set(true, forKey: "\(migrationKeyPrefix).\(accountID)")
     }
 
     // MARK: - Private helpers

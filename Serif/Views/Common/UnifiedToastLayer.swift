@@ -149,16 +149,9 @@ private struct GeneralToastCard: View {
 
 struct TransientGlassModifier: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(macOS 26.0, *) {
-            content
-                .glassEffect(.regular, in: .rect(cornerRadius: CornerRadius.md))
-                .elevation(.transient)
-        } else {
-            content
-                .background(RoundedRectangle(cornerRadius: CornerRadius.md).fill(.regularMaterial))
-                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.md))
-                .elevation(.transient)
-        }
+        content
+            .glassEffect(.regular, in: .rect(cornerRadius: CornerRadius.md))
+            .elevation(.transient)
     }
 }
 

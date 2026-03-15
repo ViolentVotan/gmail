@@ -125,9 +125,15 @@ final class GmailDraftService {
 
     /// Fetches a batch of drafts using Gmail's batch API (up to 50 per request).
     @concurrent func getDrafts(ids: [String], accountID: String, format: String = "metadata") async throws(GmailAPIError) -> [GmailDraft] {
+        let draftFields: String? = switch format {
+        case "metadata": "id,message(id,threadId,labelIds,snippet,payload/headers,internalDate)"
+        case "full": "id,message(id,threadId,labelIds,snippet,payload,internalDate)"
+        default: nil
+        }
+        let fieldsParam = draftFields.map { "&fields=\($0.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0)" } ?? ""
         let drafts: [GmailDraft] = try await client.batchFetch(
             ids: ids,
-            pathBuilder: { "/gmail/v1/users/me/drafts/\($0)?format=\(format)" },
+            pathBuilder: { "/gmail/v1/users/me/drafts/\($0)?format=\(format)\(fieldsParam)" },
             accountID: accountID
         )
         return drafts.sorted {

@@ -68,10 +68,6 @@ struct SlidePanel<Content: View>: View {
 
 private struct SlidePanelBackground: ViewModifier {
     func body(content: Content) -> some View {
-        if #available(macOS 26.0, *) {
-            content.glassEffect(.regular, in: .rect(cornerRadius: 0))
-        } else {
-            content.background(.ultraThinMaterial, in: .rect(cornerRadius: 0))
-        }
+        content.glassEffect(.regular, in: .rect(cornerRadius: 0))
     }
 }

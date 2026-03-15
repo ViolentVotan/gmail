@@ -59,8 +59,20 @@ enum MailDatabaseQueries {
     // MARK: - Contacts
 
     /// All contacts, ordered by name.
+    /// NOTE: Loads the full table — prefer `searchContacts(query:limit:)` for filtered access.
     static func allContacts(in db: Database) throws -> [ContactRecord] {
         try ContactRecord.order(Column("name").asc).fetchAll(db)
+    }
+
+    /// Search contacts by name or email with a bounded result set.
+    static func searchContacts(query: String, limit: Int = 50, in db: Database) throws -> [ContactRecord] {
+        let pattern = "%\(query)%"
+        return try ContactRecord.fetchAll(db, sql: """
+            SELECT * FROM contacts
+            WHERE name LIKE ? OR email LIKE ?
+            ORDER BY name ASC
+            LIMIT ?
+        """, arguments: [pattern, pattern, limit])
     }
 
     /// Total number of contacts.

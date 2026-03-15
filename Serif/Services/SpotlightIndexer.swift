@@ -47,7 +47,7 @@ final class SpotlightIndexer {
     private func cleanLegacyItemsIfNeeded() {
         guard !legacyCleaned else { return }
         legacyCleaned = true
-        Task.detached {
+        Task {
             // Remove legacy items indexed as CSSearchableItem with domain "com.vikingz.serif.emails"
             try? await CSSearchableIndex.default().deleteSearchableItems(
                 withDomainIdentifiers: ["com.vikingz.serif.emails"]

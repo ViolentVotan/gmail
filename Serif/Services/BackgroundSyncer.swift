@@ -15,8 +15,9 @@ actor BackgroundSyncer {
 
     /// Upsert messages from API response into database.
     /// Handles: message records, label records, message_labels join, FTS index, thread counts.
-    func upsertMessages(_ gmailMessages: [GmailMessage], ensureLabels labelIds: [String]) throws {
-        try db.dbPool.write { db in
+    func upsertMessages(_ gmailMessages: [GmailMessage], ensureLabels labelIds: [String]) async throws {
+        guard !gmailMessages.isEmpty else { return }
+        try await db.dbPool.write { db in
             // Ensure label records exist (insert placeholder only if absent — preserves synced metadata)
             for labelId in labelIds {
                 let label = LabelRecord(gmailId: labelId, name: labelId, type: "system", bgColor: nil, textColor: nil)
@@ -73,7 +74,7 @@ actor BackgroundSyncer {
                         indexedAt: nil,
                         retryCount: 0
                     )
-                    try attachment.insert(db)
+                    try attachment.upsert(db)
                 }
 
                 // FTS: index or update
@@ -84,13 +85,14 @@ actor BackgroundSyncer {
                 }
             }
 
-            // Update thread message counts for affected threads
-            for threadId in affectedThreadIds {
+            // Update thread message counts for all affected threads in one statement
+            if !affectedThreadIds.isEmpty {
+                let threadPlaceholders = affectedThreadIds.map { _ in "?" }.joined(separator: ",")
                 try db.execute(sql: """
                     UPDATE messages SET thread_message_count = (
-                        SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = ?
-                    ) WHERE thread_id = ?
-                """, arguments: [threadId, threadId])
+                        SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = messages.thread_id
+                    ) WHERE thread_id IN (\(threadPlaceholders))
+                """, arguments: StatementArguments(Array(affectedThreadIds)))
             }
         }
     }
@@ -98,9 +100,9 @@ actor BackgroundSyncer {
     // MARK: - Message Deletion
 
     /// Remove messages from database (e.g., from history delta).
-    func deleteMessages(gmailIds: [String]) throws {
+    func deleteMessages(gmailIds: [String]) async throws {
         guard !gmailIds.isEmpty else { return }
-        try db.dbPool.write { db in
+        try await db.dbPool.write { db in
             // Collect thread IDs before deletion so we can update counts afterward
             let placeholders = gmailIds.map { _ in "?" }.joined(separator: ",")
             let affectedThreadIds = try String.fetchAll(db, sql:
@@ -112,13 +114,14 @@ actor BackgroundSyncer {
             }
             // CASCADE handles message_labels, email_tags, attachments
             try MessageRecord.deleteAll(db, keys: gmailIds)
-            // Update thread counts for remaining messages in affected threads
-            for threadId in affectedThreadIds {
+            // Update thread counts for remaining messages in one statement
+            if !affectedThreadIds.isEmpty {
+                let threadPlaceholders = affectedThreadIds.map { _ in "?" }.joined(separator: ",")
                 try db.execute(sql: """
                     UPDATE messages SET thread_message_count = (
-                        SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = ?
-                    ) WHERE thread_id = ?
-                """, arguments: [threadId, threadId])
+                        SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = messages.thread_id
+                    ) WHERE thread_id IN (\(threadPlaceholders))
+                """, arguments: StatementArguments(affectedThreadIds))
             }
         }
     }
@@ -126,8 +129,9 @@ actor BackgroundSyncer {
     // MARK: - Body Pre-fetch Update
 
     /// Update message bodies after background pre-fetch.
-    func updateBodies(_ updates: [(gmailId: String, html: String?, plain: String?)]) throws {
-        try db.dbPool.write { db in
+    func updateBodies(_ updates: [(gmailId: String, html: String?, plain: String?)]) async throws {
+        guard !updates.isEmpty else { return }
+        try await db.dbPool.write { db in
             let now = Date().timeIntervalSince1970
             for update in updates {
                 // Fetch record once; use it for both the DB update and FTS — no second read needed.
@@ -145,8 +149,9 @@ actor BackgroundSyncer {
     // MARK: - Label Sync
 
     /// Upsert labels from API.
-    func upsertLabels(_ gmailLabels: [GmailLabel]) throws {
-        try db.dbPool.write { db in
+    func upsertLabels(_ gmailLabels: [GmailLabel]) async throws {
+        guard !gmailLabels.isEmpty else { return }
+        try await db.dbPool.write { db in
             for gmail in gmailLabels {
                 try LabelRecord(from: gmail).upsert(db)
             }
@@ -160,8 +165,8 @@ actor BackgroundSyncer {
         newMessages: [GmailMessage],
         deletedIds: [String],
         labelUpdates: [(gmailId: String, labelIds: [String])]
-    ) throws {
-        try db.dbPool.write { db in
+    ) async throws {
+        try await db.dbPool.write { db in
             var affectedThreadIds = Set<String>()
 
             // Delete removed messages — collect thread IDs before deletion
@@ -209,7 +214,7 @@ actor BackgroundSyncer {
                         indexedAt: nil,
                         retryCount: 0
                     )
-                    try attachment.insert(db)
+                    try attachment.upsert(db)
                 }
 
                 if existed {
@@ -238,21 +243,23 @@ actor BackgroundSyncer {
                 """, arguments: [isRead, isStarred, update.gmailId])
             }
 
-            // Update thread message counts for all affected threads
-            for threadId in affectedThreadIds {
+            // Update thread message counts for all affected threads in one statement
+            if !affectedThreadIds.isEmpty {
+                let threadPlaceholders = affectedThreadIds.map { _ in "?" }.joined(separator: ",")
                 try db.execute(sql: """
                     UPDATE messages SET thread_message_count = (
-                        SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = ?
-                    ) WHERE thread_id = ?
-                """, arguments: [threadId, threadId])
+                        SELECT COUNT(*) FROM messages m2 WHERE m2.thread_id = messages.thread_id
+                    ) WHERE thread_id IN (\(threadPlaceholders))
+                """, arguments: StatementArguments(Array(affectedThreadIds)))
             }
         }
     }
 
     // MARK: - Contact Sync
 
-    func upsertContacts(_ contacts: [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)]) throws {
-        try db.dbPool.write { db in
+    func upsertContacts(_ contacts: [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)]) async throws {
+        guard !contacts.isEmpty else { return }
+        try await db.dbPool.write { db in
             for contact in contacts {
                 try ContactRecord(
                     email: contact.email.lowercased(),
@@ -266,8 +273,9 @@ actor BackgroundSyncer {
         }
     }
 
-    func deleteContacts(emails: [String]) throws {
-        _ = try db.dbPool.write { db in
+    func deleteContacts(emails: [String]) async throws {
+        guard !emails.isEmpty else { return }
+        _ = try await db.dbPool.write { db in
             try ContactRecord.filter(emails.map { $0.lowercased() }.contains(Column("email"))).deleteAll(db)
         }
     }

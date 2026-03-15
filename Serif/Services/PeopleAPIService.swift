@@ -60,7 +60,7 @@ final class PeopleAPIService {
 
     /// Merges `incoming` contacts into `existing`, replacing by email match.
     /// Runs off MainActor to avoid blocking the UI with O(n) dictionary lookups.
-    @concurrent
+    nonisolated
     private func mergeContacts(existing: [StoredContact], incoming: [StoredContact]) -> [StoredContact] {
         var byEmail: [String: Int] = [:]
         var result = existing
@@ -79,7 +79,7 @@ final class PeopleAPIService {
     }
 
     /// Deduplicates contacts by email and prepares upsert tuples, off MainActor.
-    @concurrent
+    nonisolated
     private func deduplicateContacts(_ contacts: [StoredContact]) -> [StoredContact] {
         var seen = Set<String>()
         return contacts.filter { seen.insert($0.email).inserted }
@@ -132,7 +132,7 @@ final class PeopleAPIService {
                         // Merge updated/new contacts (skip deleted ones)
                         let nonDeleted = (response.connections ?? []).filter { $0.metadata?.deleted != true }
                         let parsed = parseContacts(from: nonDeleted)
-                        allContacts = await mergeContacts(existing: allContacts, incoming: parsed)
+                        allContacts = mergeContacts(existing: allContacts, incoming: parsed)
                         incPageToken = response.nextPageToken
                         newSyncToken = response.nextSyncToken ?? newSyncToken
                     } while incPageToken != nil
@@ -211,7 +211,7 @@ final class PeopleAPIService {
                         // Merge non-deleted
                         let nonDeleted = (response.otherContacts ?? []).filter { $0.metadata?.deleted != true }
                         let parsed = parseContacts(from: nonDeleted)
-                        allContacts = await mergeContacts(existing: allContacts, incoming: parsed)
+                        allContacts = mergeContacts(existing: allContacts, incoming: parsed)
                         incPageToken = response.nextPageToken
                         newOtherSyncToken = response.nextSyncToken ?? newOtherSyncToken
                     } while incPageToken != nil
@@ -256,7 +256,7 @@ final class PeopleAPIService {
         }
 
         // Deduplicate by email and persist to GRDB via the caller-supplied syncer.
-        let unique = await deduplicateContacts(allContacts)
+        let unique = deduplicateContacts(allContacts)
         // Delete contacts that were removed during incremental sync
         if !deletedEmails.isEmpty {
             try? await syncer.deleteContacts(emails: Array(deletedEmails))

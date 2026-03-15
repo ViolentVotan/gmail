@@ -8,6 +8,7 @@ struct SlidePanelsOverlay: View {
     var attachmentStore: AttachmentStore
     var mailStore: MailStore
     var mailDatabase: MailDatabase?
+    var attachmentIndexer: AttachmentIndexer?
 
     var body: some View {
         helpPanel
@@ -92,6 +93,7 @@ struct SlidePanelsOverlay: View {
                     accountID: panels.previewAccountID,
                     mailStore: mailStore,
                     actions: buildPreviewActions(for: email),
+                    attachmentIndexer: attachmentIndexer,
                     mailDatabase: mailDatabase
                 )
             }

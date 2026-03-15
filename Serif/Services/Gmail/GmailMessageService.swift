@@ -62,7 +62,7 @@ final class GmailMessageService {
         case "full": "id,threadId,labelIds,snippet,payload,internalDate"
         default: nil
         }
-        let fieldsParam = messageFields.map { "&fields=\($0)" } ?? ""
+        let fieldsParam = messageFields.map { "&fields=\($0.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0)" } ?? ""
         let messages: [GmailMessage] = try await client.batchFetch(
             ids: ids,
             pathBuilder: { "/gmail/v1/users/me/messages/\($0)?format=\(format)\(fieldsParam)" },
@@ -227,7 +227,7 @@ final class GmailMessageService {
                 accountID: accountID,
                 labelIDs: [labelID],
                 pageToken: pageToken,
-                maxResults: 100
+                maxResults: 500
             )
             allIDs.append(contentsOf: response.messages?.map(\.id) ?? [])
             pageToken = response.nextPageToken

@@ -4,7 +4,6 @@ import FoundationModels
 #endif
 
 #if canImport(FoundationModels)
-@available(macOS 26.0, *)
 @Generable
 struct SmartReplies {
     @Guide(description: "2-3 short, contextual reply options for this email. Each should be a complete sentence or two, matching a professional tone.")
@@ -30,44 +29,42 @@ final class SmartReplyProvider {
     func generateReplies(subject: String, senderName: String, body: String, threadId: String) async -> [String] {
         if let cached = cache[threadId] { return cached }
 
-        if #available(macOS 26.0, *) {
-            #if canImport(FoundationModels)
-            do {
-                guard SystemLanguageModel.default.availability == .available else { return [] }
-                let localePhrase = AIServiceHelpers.localeInstructions()
-                let instructions = Instructions("""
-                Generate 2-3 short reply suggestions for the email below. \
-                Each reply should be 1-2 sentences, professional but friendly. \
-                Match the language of the email when possible. \
-                Vary the tone: one positive/agreeable, one asking for clarification, one brief acknowledgment. \
-                \(localePhrase)
-                """)
-                let session = LanguageModelSession(instructions: instructions)
-                let truncatedBody = String(body.cleanedForAI().prefix(10000))
-                let prompt = "From: \(senderName)\nSubject: \(subject)\n\n\(truncatedBody)"
-                let response = try await session.respond(to: prompt, generating: SmartReplies.self)
-                let replies = Array(response.content.replies.prefix(3))
-                cache[threadId] = replies
-                if cache.count > 200 {
-                    let removeCount = cache.count / 4
-                    for key in cache.keys.prefix(removeCount) {
-                        cache.removeValue(forKey: key)
-                    }
+        #if canImport(FoundationModels)
+        do {
+            guard SystemLanguageModel.default.availability == .available else { return [] }
+            let localePhrase = AIServiceHelpers.localeInstructions()
+            let instructions = Instructions("""
+            Generate 2-3 short reply suggestions for the email below. \
+            Each reply should be 1-2 sentences, professional but friendly. \
+            Match the language of the email when possible. \
+            Vary the tone: one positive/agreeable, one asking for clarification, one brief acknowledgment. \
+            \(localePhrase)
+            """)
+            let session = LanguageModelSession(instructions: instructions)
+            let truncatedBody = String(body.cleanedForAI().prefix(10000))
+            let prompt = "From: \(senderName)\nSubject: \(subject)\n\n\(truncatedBody)"
+            let response = try await session.respond(to: prompt, generating: SmartReplies.self)
+            let replies = Array(response.content.replies.prefix(3))
+            cache[threadId] = replies
+            if cache.count > 200 {
+                let removeCount = cache.count / 4
+                for key in cache.keys.prefix(removeCount) {
+                    cache.removeValue(forKey: key)
                 }
-                return replies
-            } catch is CancellationError { return [] }
-            catch let error as LanguageModelSession.GenerationError {
-                switch error {
-                case .unsupportedLanguageOrLocale, .refusal:
-                    return []
-                default:
-                    return []
-                }
-            } catch { return [] }
-            #else
-            return []
-            #endif
-        } else { return [] }
+            }
+            return replies
+        } catch is CancellationError { return [] }
+        catch let error as LanguageModelSession.GenerationError {
+            switch error {
+            case .unsupportedLanguageOrLocale, .refusal:
+                return []
+            default:
+                return []
+            }
+        } catch { return [] }
+        #else
+        return []
+        #endif
     }
 
 }

@@ -72,34 +72,32 @@ struct EmailHoverSummaryView: View {
                     .animation(.easeIn(duration: 0.05), value: summaryVM.displayedText)
 
                 #if canImport(FoundationModels)
-                if #available(macOS 26.0, *) {
-                    if let insight = summaryVM.insight {
-                        VStack(alignment: .leading, spacing: 6) {
-                            if let action = insight.actionNeeded {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "exclamationmark.circle.fill")
-                                        .foregroundStyle(.orange)
-                                    Text(action)
-                                        .font(Typography.captionRegular)
-                                }
+                if let insight = summaryVM.insight {
+                    VStack(alignment: .leading, spacing: 6) {
+                        if let action = insight.actionNeeded {
+                            HStack(spacing: 4) {
+                                Image(systemName: "exclamationmark.circle.fill")
+                                    .foregroundStyle(.orange)
+                                Text(action)
+                                    .font(Typography.captionRegular)
                             }
-                            if let deadline = insight.deadline {
-                                HStack(spacing: 4) {
-                                    Image(systemName: "calendar.badge.clock")
-                                        .foregroundStyle(.red)
-                                    Text(deadline)
-                                        .font(Typography.captionRegular)
-                                }
+                        }
+                        if let deadline = insight.deadline {
+                            HStack(spacing: 4) {
+                                Image(systemName: "calendar.badge.clock")
+                                    .foregroundStyle(.red)
+                                Text(deadline)
+                                    .font(Typography.captionRegular)
                             }
-                            if let sentiment = insight.sentiment {
-                                Text(sentiment.capitalized)
-                                    .font(Typography.captionSmallMedium)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(sentimentColor(sentiment).opacity(0.15))
-                                    .foregroundStyle(sentimentColor(sentiment))
-                                    .clipShape(Capsule())
-                            }
+                        }
+                        if let sentiment = insight.sentiment {
+                            Text(sentiment.capitalized)
+                                .font(Typography.captionSmallMedium)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(sentimentColor(sentiment).opacity(0.15))
+                                .foregroundStyle(sentimentColor(sentiment))
+                                .clipShape(Capsule())
                         }
                     }
                 }
@@ -165,13 +163,13 @@ struct EmailHoverSummaryView: View {
     private var footerView: some View {
         HStack {
             Spacer()
-            if summaryVM.isAISummary, #available(macOS 26.0, *) {
-                #if canImport(FoundationModels)
+            #if canImport(FoundationModels)
+            if summaryVM.isAISummary {
                 Label("Apple Intelligence", systemImage: "apple.intelligence")
                     .font(Typography.captionSmallRegular)
                     .foregroundStyle(.tertiary)
-                #endif
             }
+            #endif
         }
     }
 
