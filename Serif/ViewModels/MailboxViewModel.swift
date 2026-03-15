@@ -85,17 +85,35 @@ final class MailboxViewModel {
 
     // MARK: - Database Observation
 
-    func startObservingLabel(_ labelId: String) {
+    func startObservingLabels(_ labelIDs: [String]) {
         observationTask?.cancel()
-        guard let db = mailDatabase else { return }
+        guard let db = mailDatabase, let primaryLabel = labelIDs.first else { return }
         // Use GRDB association prefetching: 4 queries instead of N+1.
-        // Query 1: SELECT m.* FROM messages … (filtered by label)
+        // Query 1: SELECT m.* FROM messages … (filtered by label(s))
         // Query 2: SELECT l.* FROM labels WHERE … IN (...) (batch)
         // Query 3: SELECT t.* FROM email_tags WHERE … IN (...) (batch)
         // Query 4: SELECT a.* FROM attachments WHERE … IN (...) (batch)
-        let request = MessageRecord
-            .joining(required: MessageRecord.messageLabels
-                .filter(Column("label_id") == labelId))
+        let base: QueryInterfaceRequest<MessageRecord>
+        if labelIDs.count == 1 {
+            // Single label: efficient JOIN
+            base = MessageRecord
+                .joining(required: MessageRecord.messageLabels
+                    .filter(Column("label_id") == primaryLabel))
+        } else {
+            // Multiple labels (e.g. INBOX + CATEGORY_PERSONAL): require ALL labels present.
+            // Matches Gmail API semantics where labelIds filters by AND.
+            let placeholders = labelIDs.map { _ in "?" }.joined(separator: ",")
+            base = MessageRecord
+                .filter(sql: """
+                    gmail_id IN (
+                        SELECT message_id FROM message_labels
+                        WHERE label_id IN (\(placeholders))
+                        GROUP BY message_id
+                        HAVING COUNT(DISTINCT label_id) = \(labelIDs.count)
+                    )
+                """, arguments: StatementArguments(labelIDs))
+        }
+        let request = base
             .including(all: MessageRecord.labels)
             .including(optional: MessageRecord.tags)
             .including(all: MessageRecord.attachments)
@@ -162,9 +180,9 @@ final class MailboxViewModel {
             return
         }
 
-        // DB-only path: start observing the label
-        if let labelId = labelIDs.first, mailDatabase != nil {
-            startObservingLabel(labelId)
+        // DB-only path: start observing the label(s)
+        if !labelIDs.isEmpty, mailDatabase != nil {
+            startObservingLabels(labelIDs)
         }
     }
 
