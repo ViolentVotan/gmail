@@ -12,6 +12,7 @@ struct AttachmentPreviewView: View {
     var onClose: (() -> Void)?
 
     @State private var zoomScale: CGFloat = 1.0
+    @State private var decodedImage: NSImage?
 
     private var fileExtension: String {
         (fileName as NSString).pathExtension.lowercased()
@@ -22,6 +23,9 @@ struct AttachmentPreviewView: View {
             previewToolbar
             Divider().background(Color(.separatorColor))
             previewContent
+        }
+        .task(id: data) {
+            decodedImage = NSImage(data: data)
         }
     }
 
@@ -133,7 +137,7 @@ struct AttachmentPreviewView: View {
     private var imagePreview: some View {
         GeometryReader { geo in
             ScrollView([.horizontal, .vertical]) {
-                if let nsImage = NSImage(data: data) {
+                if let nsImage = decodedImage {
                     // Fit the image inside the available viewport at scale 1,
                     // then multiply by zoomScale for user zoom.
                     let natural = nsImage.size

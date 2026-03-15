@@ -7,6 +7,22 @@ struct OriginalMessageView: View {
 
     @State private var copied = false
 
+    // MARK: - Cached formatters (allocated once per type, not per render)
+
+    private static let rfc2822Formatters: [DateFormatter] = {
+        let formats = [
+            "EEE, dd MMM yyyy HH:mm:ss Z",
+            "dd MMM yyyy HH:mm:ss Z",
+            "EEE, dd MMM yyyy HH:mm:ss z"
+        ]
+        return formats.map { fmt in
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "en_US_POSIX")
+            f.dateFormat = fmt
+            return f
+        }
+    }()
+
     // MARK: - Parsed metadata
 
     private var messageIDValue: String {
@@ -24,11 +40,8 @@ struct OriginalMessageView: View {
         guard let dateHeader = message.header(named: "Date"),
               let internalMs = message.internalDate,
               let ms = Int64(internalMs) else { return nil }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        // Try common RFC 2822 formats
-        for fmt in ["EEE, dd MMM yyyy HH:mm:ss Z", "dd MMM yyyy HH:mm:ss Z", "EEE, dd MMM yyyy HH:mm:ss ZZZZ"] {
-            formatter.dateFormat = fmt
+        // Use pre-allocated static formatters — avoid allocating DateFormatter on every render
+        for formatter in Self.rfc2822Formatters {
             if let sent = formatter.date(from: dateHeader) {
                 let received = Date(timeIntervalSince1970: TimeInterval(ms) / 1000)
                 let diff = Int(received.timeIntervalSince(sent))

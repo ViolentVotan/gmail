@@ -42,6 +42,12 @@ final class TrackerBlockerService: Sendable {
         pattern: "<a\\b[^>]*\\bhref\\s*=\\s*[\"']([^\"']+)[\"'][^>]*>",
         options: .caseInsensitive
     )
+    private static let styleWidthSmallRegex = try! NSRegularExpression(
+        pattern: "width\\s*:\\s*[01]px", options: .caseInsensitive
+    )
+    private static let styleHeightSmallRegex = try! NSRegularExpression(
+        pattern: "height\\s*:\\s*[01]px", options: .caseInsensitive
+    )
 
     /// Pre-built suffix set for O(1) tracker domain lookups.
     private static let trackerSuffixSet: Set<String> = Set(trackerDomainMap.keys)
@@ -219,8 +225,9 @@ final class TrackerBlockerService: Sendable {
         }
         // Check inline style
         let lower = tag.lowercased()
-        let styleWidthSmall = lower.range(of: "width\\s*:\\s*[01]px", options: .regularExpression) != nil
-        let styleHeightSmall = lower.range(of: "height\\s*:\\s*[01]px", options: .regularExpression) != nil
+        let range = NSRange(lower.startIndex..., in: lower)
+        let styleWidthSmall = Self.styleWidthSmallRegex.firstMatch(in: lower, range: range) != nil
+        let styleHeightSmall = Self.styleHeightSmallRegex.firstMatch(in: lower, range: range) != nil
         if styleWidthSmall && styleHeightSmall { return true }
         return false
     }

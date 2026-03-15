@@ -9,18 +9,18 @@ struct InlineImageAttachment {
 
 enum InlineImageProcessor {
 
+    private static let inlineImageRegex: NSRegularExpression = {
+        let pattern = #"<img\s[^>]*src="data:([^;]+);base64,([^"]+)"[^>]*data-cid="([^"]+)"[^>]*>"#
+        return try! NSRegularExpression(pattern: pattern, options: [])
+    }()
+
     /// Scans HTML for `<img src="data:..." data-cid="...">` tags,
     /// extracts the base64 data, replaces with `<img src="cid:...">`.
     static func extractInlineImages(from html: String) -> (html: String, images: [InlineImageAttachment]) {
         var images: [InlineImageAttachment] = []
         var result = html
 
-        // Match <img ... src="data:mime;base64,..." ... data-cid="..." ...>
-        let pattern = #"<img\s[^>]*src="data:([^;]+);base64,([^"]+)"[^>]*data-cid="([^"]+)"[^>]*>"#
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
-            return (html, [])
-        }
-
+        let regex = Self.inlineImageRegex
         let matches = regex.matches(in: html, range: NSRange(html.startIndex..., in: html))
 
         // Process in reverse to keep string indices stable
