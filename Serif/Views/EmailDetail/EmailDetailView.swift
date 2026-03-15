@@ -265,7 +265,7 @@ struct EmailDetailView: View {
 
     private var conversationCards: some View {
         VStack(alignment: .leading, spacing: 0) {
-            let allMessages = detailVM.allMessagesChronological
+            let allMessages = detailVM.messages
             if allMessages.count > 1 {
                 HStack {
                     Text("\(allMessages.count) messages")

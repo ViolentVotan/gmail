@@ -17,7 +17,7 @@ Per-account GRDB SQLite persistence layer. Replaces the previous JSON file cache
 
 | File | Role |
 |------|------|
-| `MailDatabase.swift` | `DatabasePool` owner — WAL pragmas, foreign keys, cache size, integrity check, per-account path, `deleteDatabase(accountID:)`, `shared(for:)` instance cache (backed by `Mutex`, not `NSLock`) |
+| `MailDatabase.swift` | `DatabasePool` owner — WAL mode (enabled by `DatabasePool`), `synchronous = NORMAL`, foreign keys, cache size pragmas, integrity check, per-account path, `deleteDatabase(accountID:)`, `shared(for:)` instance cache (backed by `Mutex`, not `NSLock`) |
 | `MailDatabaseMigrations.swift` | `#if DEBUG eraseDatabaseOnSchemaChange = true`. v1 schema: 7 tables (`messages`, `labels`, `message_labels`, `contacts`, `attachments`, `email_tags`, `account_sync_state`), FTS5 virtual table `messages_fts`, 8 indexes. `message_labels.label_id` FK uses `ON DELETE RESTRICT` (prevents silent cascade). Seed INSERT uses `INSERT OR IGNORE` for idempotency. v2: extends `account_sync_state` with sync engine columns. v3: adds `labels_etag` for ETag-based label sync caching. v4: partial index `messages_unread` on `internal_date WHERE is_read = 0` for unread queries; drops redundant `message_labels_message` index (composite PK covers it). |
 | `MailDatabaseQueries.swift` | Static read queries: `messagesForLabel`, `messagesForThread`, `unreadCount`, `labels`, `messagesNeedingBodies`, `messagesWithoutBodiesCount`, `messageExists` (uses `MessageRecord.exists()` instead of `fetchOne`), `allContacts` (full table load), `syncState`, `updateSyncState` |
 | `FTSManager.swift` | FTS5 maintenance: `index`, `update`, `delete`, `indexBatch`, `search` (JOIN-based query for relevance ordering) |
@@ -27,7 +27,7 @@ Per-account GRDB SQLite persistence layer. Replaces the previous JSON file cache
 
 | File | Role |
 |------|------|
-| `MessageRecord.swift` | Main record — `init(from: GmailMessage)`, `toGmailMessage()`, `toEmail(labels:tags:)` (delegates folder resolution to `GmailDataTransformer.folderFor(labelIDs:)`), `fixture()` for tests |
+| `MessageRecord.swift` | Main record — `init(from: GmailMessage)`, `toGmailMessage()`, `toEmail(labels:tags:)` (delegates folder resolution to `GmailDataTransformer.folderFor(labelIDs:)`), `fixture()` for tests. Uses `GmailSystemLabel` constants for `isRead`/`isStarred` checks. Contact parsing via `GmailDataTransformer.parseContactCore`. |
 | `LabelRecord.swift` | Label record — `init(from: GmailLabel)`, associations to `MessageLabelRecord` |
 | `MessageLabelRecord.swift` | Join table record for message ↔ label many-to-many |
 | `ContactRecord.swift` | Contact record with photo URL |

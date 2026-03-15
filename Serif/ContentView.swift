@@ -398,10 +398,6 @@ struct ContentView: View {
                     await coordinator.syncEngine?.updatePollingInterval(appIsActive: false, windowIsKey: false)
                 }
             }
-            .onChange(of: coordinator.mailboxViewModel.emails) { _, _ in coordinator.recomputeDisplayedEmails() }
-            .onChange(of: coordinator.mailboxViewModel.priorityFilterEnabled) { _, _ in coordinator.recomputeDisplayedEmails() }
-            .onChange(of: coordinator.mailStore.gmailDrafts) { _, _ in coordinator.recomputeDisplayedEmails() }
-            .onChange(of: SubscriptionsStore.shared.entries) { _, _ in coordinator.recomputeDisplayedEmails() }
             .onChange(of: coordinator.mailboxViewModel.lastRestoredMessageID) { _, msgID in
                 guard let msgID else { return }
                 coordinator.mailboxViewModel.lastRestoredMessageID = nil

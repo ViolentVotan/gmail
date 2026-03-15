@@ -219,13 +219,7 @@ struct LabelEditorView: View {
                 }
             }
         }
-        .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: CornerRadius.md)
-                .strokeBorder(Color(.separatorColor), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.12), radius: 12, y: 6)
-        .shadow(color: .black.opacity(0.04), radius: 3, y: 2)
+        .dropdownPanelStyle()
     }
 
     private func confirmHighlighted(items: [DropdownItem], showCreate: Bool) {

@@ -56,8 +56,8 @@ struct FilterEditorView: View {
             hasAttachment: hasAttachment ? true : nil
         )
         var removeLabelIds: [String] = []
-        if shouldArchive { removeLabelIds.append("INBOX") }
-        if shouldMarkRead { removeLabelIds.append("UNREAD") }
+        if shouldArchive { removeLabelIds.append(GmailSystemLabel.inbox) }
+        if shouldMarkRead { removeLabelIds.append(GmailSystemLabel.unread) }
         let action = GmailFilter.FilterAction(removeLabelIds: removeLabelIds.isEmpty ? nil : removeLabelIds)
         do {
             let filter = try await viewModel.createFilter(criteria: criteria, action: action)

@@ -236,8 +236,8 @@ actor BackgroundSyncer {
                     try MessageLabelRecord(messageId: update.gmailId, labelId: labelId).insert(db)
                 }
                 // Update denormalized columns
-                let isRead = !update.labelIds.contains("UNREAD")
-                let isStarred = update.labelIds.contains("STARRED")
+                let isRead = !update.labelIds.contains(GmailSystemLabel.unread)
+                let isStarred = update.labelIds.contains(GmailSystemLabel.starred)
                 try db.execute(sql: """
                     UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?
                 """, arguments: [isRead, isStarred, update.gmailId])
@@ -259,6 +259,7 @@ actor BackgroundSyncer {
 
     func upsertContacts(_ contacts: [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)]) async throws {
         guard !contacts.isEmpty else { return }
+        let now = Date().timeIntervalSince1970
         try await db.dbPool.write { db in
             for contact in contacts {
                 try ContactRecord(
@@ -267,7 +268,7 @@ actor BackgroundSyncer {
                     photoUrl: contact.photoUrl,
                     source: contact.source,
                     resourceName: contact.resourceName,
-                    updatedAt: Date().timeIntervalSince1970
+                    updatedAt: now
                 ).upsert(db)
             }
         }

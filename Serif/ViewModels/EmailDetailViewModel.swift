@@ -1,5 +1,6 @@
 import SwiftUI
 import GRDB
+import Synchronization
 
 /// Drives the email detail / thread view.
 @Observable
@@ -29,7 +30,7 @@ final class EmailDetailViewModel {
     @ObservationIgnored var attachmentIndexer: AttachmentIndexer?
     @ObservationIgnored var onMessagesRead: (([String]) -> Void)?
     @ObservationIgnored var mailDatabase: MailDatabase?
-    @ObservationIgnored nonisolated(unsafe) private var backgroundTasks: [Task<Void, Never>] = []
+    @ObservationIgnored private let backgroundTasks: Mutex<[Task<Void, Never>]> = Mutex([])
 
     init(accountID: String, api: any MessageFetching = GmailMessageService.shared) {
         self.accountID = accountID
@@ -37,14 +38,18 @@ final class EmailDetailViewModel {
     }
 
     deinit {
-        backgroundTasks.forEach { $0.cancel() }
+        backgroundTasks.withLock { tasks in
+            tasks.forEach { $0.cancel() }
+        }
     }
 
     // MARK: - Load
 
     func loadThread(id: String) async {
-        backgroundTasks.forEach { $0.cancel() }
-        backgroundTasks.removeAll()
+        backgroundTasks.withLock { tasks in
+            tasks.forEach { $0.cancel() }
+            tasks.removeAll()
+        }
         isLoading = true
         error     = nil
         allowTrackers = false
@@ -101,7 +106,7 @@ final class EmailDetailViewModel {
                 let withAttachments = messages.filter { !$0.attachmentParts.isEmpty }
                 if !withAttachments.isEmpty {
                     let t = Task { await indexer.registerFromFullMessages(messages: withAttachments) }
-                    backgroundTasks.append(t)
+                    backgroundTasks.withLock { $0.append(t) }
                 }
             }
             // Mark all unread messages in the thread as read (concurrently)
@@ -320,7 +325,7 @@ final class EmailDetailViewModel {
             )
             smartReplySuggestions = replies
         }
-        backgroundTasks.append(t)
+        backgroundTasks.withLock { $0.append(t) }
     }
 
     // MARK: - Label Suggestions
@@ -440,8 +445,4 @@ final class EmailDetailViewModel {
 
     var messages: [GmailMessage] { thread?.messages ?? [] }
     var latestMessage: GmailMessage? { messages.last }
-
-    /// All thread messages in chronological order (oldest first).
-    /// Uses Gmail API's native array order — already sorted by internalDate ascending.
-    var allMessagesChronological: [GmailMessage] { messages }
 }

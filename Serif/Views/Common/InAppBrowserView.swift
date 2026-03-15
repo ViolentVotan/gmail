@@ -4,12 +4,7 @@ import WebKit
 struct InAppBrowserView: View {
     let url: URL
     let onClose: () -> Void
-    @State private var currentURL: URL?
-    @State private var pageTitle: String = ""
-    @State private var isLoading = true
-    @State private var canGoBack = false
-    @State private var canGoForward = false
-    @State private var webViewStore = WebViewStore()
+    @State private var page = WebPage()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -28,29 +23,37 @@ struct InAppBrowserView: View {
                 .keyboardShortcut(.escape, modifiers: [])
 
                 // Navigation
-                Button { webViewStore.webView.goBack() } label: {
+                Button {
+                    if let item = page.backForwardList.backList.last {
+                        page.load(item)
+                    }
+                } label: {
                     Image(systemName: "chevron.left")
                         .font(Typography.subhead)
-                        .foregroundStyle(canGoBack ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
+                        .foregroundStyle(!page.backForwardList.backList.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
                         .frame(width: 28, height: 28)
                 }
                 .buttonStyle(.plain)
-                .disabled(!canGoBack)
+                .disabled(page.backForwardList.backList.isEmpty)
                 .help("Back")
 
-                Button { webViewStore.webView.goForward() } label: {
+                Button {
+                    if let item = page.backForwardList.forwardList.first {
+                        page.load(item)
+                    }
+                } label: {
                     Image(systemName: "chevron.right")
                         .font(Typography.subhead)
-                        .foregroundStyle(canGoForward ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
+                        .foregroundStyle(!page.backForwardList.forwardList.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
                         .frame(width: 28, height: 28)
                 }
                 .buttonStyle(.plain)
-                .disabled(!canGoForward)
+                .disabled(page.backForwardList.forwardList.isEmpty)
                 .help("Forward")
 
                 // URL bar
                 HStack(spacing: 6) {
-                    if isLoading {
+                    if page.isLoading {
                         ProgressView()
                             .scaleEffect(0.5)
                             .frame(width: 12, height: 12)
@@ -76,7 +79,7 @@ struct InAppBrowserView: View {
 
                 // Open in browser
                 Button {
-                    NSWorkspace.shared.open(currentURL ?? url)
+                    NSWorkspace.shared.open(page.url ?? url)
                     onClose()
                 } label: {
                     HStack(spacing: 4) {
@@ -102,90 +105,25 @@ struct InAppBrowserView: View {
 
             Divider()
 
+            // Loading progress
+            if page.isLoading {
+                ProgressView(value: page.estimatedProgress)
+                    .tint(.accentColor)
+            }
+
             // WebView
-            BrowserWebView(
-                url: url,
-                webView: webViewStore.webView,
-                onURLChange: { newURL in currentURL = newURL },
-                onTitleChange: { title in pageTitle = title },
-                onLoadingChange: { loading in isLoading = loading },
-                onNavigationChange: { back, forward in
-                    canGoBack = back
-                    canGoForward = forward
-                }
-            )
+            WebView(page)
+        }
+        .task {
+            page.load(URLRequest(url: url))
         }
     }
 
     private var displayURL: String {
-        let displayedURL = currentURL ?? url
+        let displayedURL = page.url ?? url
         if let host = displayedURL.host {
             return host + displayedURL.path
         }
         return displayedURL.absoluteString
-    }
-}
-
-// MARK: - WebView Store
-
-@Observable
-@MainActor
-private class WebViewStore {
-    let webView = WKWebView()
-}
-
-// MARK: - Browser WebView
-
-private struct BrowserWebView: NSViewRepresentable {
-    let url: URL
-    let webView: WKWebView
-    let onURLChange: (URL) -> Void
-    let onTitleChange: (String) -> Void
-    let onLoadingChange: (Bool) -> Void
-    let onNavigationChange: (Bool, Bool) -> Void
-
-    func makeNSView(context: Context) -> WKWebView {
-        webView.navigationDelegate = context.coordinator
-        webView.load(URLRequest(url: url))
-        return webView
-    }
-
-    func updateNSView(_ nsView: WKWebView, context: Context) {}
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(parent: self)
-    }
-
-    final class Coordinator: NSObject, WKNavigationDelegate {
-        let parent: BrowserWebView
-        private var observation: NSKeyValueObservation?
-
-        init(parent: BrowserWebView) {
-            self.parent = parent
-            super.init()
-
-            observation = parent.webView.observe(\.isLoading) { [weak self] webView, _ in
-                Task { @MainActor [weak self] in
-                    self?.parent.onLoadingChange(webView.isLoading)
-                    self?.parent.onNavigationChange(webView.canGoBack, webView.canGoForward)
-                }
-            }
-        }
-
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            if let url = webView.url {
-                parent.onURLChange(url)
-            }
-            parent.onTitleChange(webView.title ?? "")
-            parent.onLoadingChange(false)
-            parent.onNavigationChange(webView.canGoBack, webView.canGoForward)
-        }
-
-        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-            parent.onLoadingChange(true)
-            if let url = webView.url {
-                parent.onURLChange(url)
-            }
-        }
     }
 }

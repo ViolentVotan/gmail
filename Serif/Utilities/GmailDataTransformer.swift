@@ -75,6 +75,48 @@ enum GmailDataTransformer {
         return parts
     }
 
+    // MARK: - GmailMessage → Email
+
+    /// Converts a `GmailMessage` into an `Email` model.
+    ///
+    /// Handles both normal messages and drafts. For drafts, pass `isDraft: true`
+    /// and supply the `draftID` from the `GmailDraft` wrapper.
+    /// The `labels` parameter provides resolved user labels for display;
+    /// pass an empty array when labels aren't available (e.g. draft sync).
+    @MainActor static func makeEmail(
+        from message: GmailMessage,
+        isDraft: Bool = false,
+        draftID: String? = nil,
+        labels: [EmailLabel] = []
+    ) -> Email {
+        let msgLabelIDs = message.labelIds ?? []
+        let stableID = deterministicUUID(from: draftID ?? message.id)
+        return Email(
+            id:             stableID,
+            sender:         parseContact(message.from),
+            recipients:     parseContacts(message.to),
+            cc:             parseContacts(message.cc),
+            subject:        message.subject,
+            body:           message.body,
+            preview:        message.snippet ?? "",
+            date:           message.date ?? Date(),
+            isRead:         isDraft ? true : !message.isUnread,
+            isStarred:      message.isStarred,
+            hasAttachments: !message.attachmentParts.isEmpty,
+            attachments:    message.attachmentParts.map { makeAttachment(from: $0, messageId: message.id) },
+            folder:         isDraft ? .drafts : folderFor(labelIDs: msgLabelIDs),
+            labels:         labels,
+            isDraft:             isDraft ? true : message.isDraft,
+            isGmailDraft:        isDraft,
+            gmailDraftID:        draftID,
+            gmailMessageID:      message.id,
+            gmailThreadID:       message.threadId,
+            gmailLabelIDs:       msgLabelIDs,
+            isFromMailingList:   isDraft ? false : message.isFromMailingList,
+            unsubscribeURL:      isDraft ? nil : message.unsubscribeURL
+        )
+    }
+
     // MARK: - Attachment
 
     static func makeAttachment(from part: GmailMessagePart, messageId: String) -> Attachment {
@@ -88,10 +130,11 @@ enum GmailDataTransformer {
     // MARK: - Folder
 
     static func folderFor(labelIDs: [String]) -> Folder {
-        if labelIDs.contains(GmailSystemLabel.sent)    { return .sent }
         if labelIDs.contains(GmailSystemLabel.draft)   { return .drafts }
         if labelIDs.contains(GmailSystemLabel.spam)    { return .spam }
         if labelIDs.contains(GmailSystemLabel.trash)   { return .trash }
+        if labelIDs.contains(GmailSystemLabel.sent)    { return .sent }
+        if labelIDs.contains(GmailSystemLabel.inbox)   { return .inbox }
         if labelIDs.contains(GmailSystemLabel.starred) { return .starred }
         return .inbox
     }

@@ -8,8 +8,9 @@ import SwiftUI
 //   3. evaluateJavaScript — content height measurement for sizing the frame
 //   4. WKNavigationDelegate — link interception with custom onOpenLink callback
 //
-// WebRichTextEditorRepresentable and InAppBrowserView also remain WKWebView
-// for similar reasons (JS evaluation, script message handlers).
+// WebRichTextEditorRepresentable also remains WKWebView for similar reasons
+// (JS evaluation, script message handlers). InAppBrowserView has been migrated
+// to native SwiftUI WebView + WebPage (macOS 26).
 
 // MARK: - PassthroughWebView
 
@@ -83,6 +84,7 @@ struct HTMLEmailView: NSViewRepresentable {
         <head>
         <meta name='viewport' content='width=device-width, initial-scale=1'>
         <meta name='color-scheme' content='light dark'>
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: cid: https:; style-src 'unsafe-inline'; font-src https:; frame-src 'none'; connect-src 'none'; script-src 'none';">
         <style>
         html, body {
             margin: 0;

@@ -27,7 +27,6 @@ final class MailDatabase: Sendable {
 
         var config = Configuration()
         config.prepareDatabase { db in
-            try db.execute(sql: "PRAGMA journal_mode = WAL")
             try db.execute(sql: "PRAGMA synchronous = NORMAL")
             try db.execute(sql: "PRAGMA foreign_keys = ON")
             try db.execute(sql: "PRAGMA cache_size = -64000")

@@ -15,9 +15,9 @@ final class UndoActionManager {
     static let shared = UndoActionManager()
 
     /// Stack of pending actions (most recent = last). Max 5.
-    var pendingActions: [PendingUndoAction] = []
-    var progress: Double = 1.0
-    var timeRemaining: Double = 0
+    private(set) var pendingActions: [PendingUndoAction] = []
+    private(set) var progress: Double = 1.0
+    private(set) var timeRemaining: Double = 0
 
     private let maxStack = 5
     private var countdownTask: Task<Void, Never>?
@@ -81,12 +81,12 @@ final class UndoActionManager {
 
         countdownTask = Task { [weak self] in
             guard let self else { return }
-            let totalSteps = Int(duration * 20) // 50ms intervals
+            let totalSteps = Int(duration * 4) // 250ms intervals
             for step in (0..<totalSteps).reversed() {
-                try? await Task.sleep(for: .milliseconds(50))
+                try? await Task.sleep(for: .milliseconds(250))
                 guard !Task.isCancelled else { return }
                 self.progress = Double(step) / Double(totalSteps)
-                self.timeRemaining = Double(step) / 20.0
+                self.timeRemaining = Double(step) / 4.0
             }
             guard !Task.isCancelled else { return }
             self.confirm()

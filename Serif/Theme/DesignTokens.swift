@@ -174,6 +174,24 @@ extension View {
     }
 }
 
+// MARK: - Dropdown Panel Style
+
+struct DropdownPanelStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.md))
+            .overlay(RoundedRectangle(cornerRadius: CornerRadius.md).strokeBorder(.separator, lineWidth: 1))
+            .shadow(color: .black.opacity(0.12), radius: 12, y: 6)
+            .shadow(color: .black.opacity(0.04), radius: 3, y: 2)
+    }
+}
+
+extension View {
+    func dropdownPanelStyle() -> some View {
+        modifier(DropdownPanelStyle())
+    }
+}
+
 // MARK: - Glass or Material Modifier
 
 struct GlassOrMaterial<S: Shape>: ViewModifier {

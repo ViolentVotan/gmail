@@ -73,8 +73,8 @@ struct FiltersSettingsView: View {
         var parts: [String] = []
         if let add = filter.action?.addLabelIds, !add.isEmpty { parts.append("Add labels: \(add.joined(separator: ", "))") }
         if let remove = filter.action?.removeLabelIds {
-            if remove.contains("INBOX") { parts.append("Archive") }
-            if remove.contains("UNREAD") { parts.append("Mark read") }
+            if remove.contains(GmailSystemLabel.inbox) { parts.append("Archive") }
+            if remove.contains(GmailSystemLabel.unread) { parts.append("Mark read") }
         }
         return parts.isEmpty ? "No action" : parts.joined(separator: ", ")
     }

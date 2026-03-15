@@ -313,14 +313,6 @@ actor FullSyncEngine {
                 }
             } while pageToken != nil
 
-            // Save historyId immediately after pagination completes.
-            // On transient metadata fetch failures below, the next sync won't
-            // re-process already-seen history records.
-            let capturedHistoryId = latestHistoryId
-            await writeSyncState { state in
-                state.lastHistoryId = capturedHistoryId
-            }
-
             // Separate truly new messages (not in local DB) from existing ones.
             // For existing messages that appear in messagesAdded (e.g. label changes),
             // use the labelIds from the history record directly instead of re-fetching.
@@ -347,9 +339,11 @@ actor FullSyncEngine {
 
             var newMessages: [GmailMessage] = []
             if !trulyNewIDs.isEmpty {
+                // Fetch with "full" format directly to get headers + body in one call.
+                // This avoids a redundant re-fetch that doubles API quota for new messages.
                 await quota.waitForBudget(trulyNewIDs.count * 5)
                 newMessages = try await api.getMessages(
-                    ids: trulyNewIDs, accountID: accountID, format: "metadata"
+                    ids: trulyNewIDs, accountID: accountID, format: "full"
                 )
             }
 
@@ -372,22 +366,18 @@ actor FullSyncEngine {
                 labelUpdates: labelUpdates
             )
 
-            // Fetch full bodies for new messages immediately
-            if !newMessages.isEmpty {
-                await quota.waitForBudget(newMessages.count * 5)
-                let fullMessages = try await api.getMessages(
-                    ids: newMessages.map(\.id), accountID: accountID, format: "full"
-                )
-                let updates = fullMessages.map { msg in
-                    (gmailId: msg.id, html: msg.htmlBody, plain: msg.plainBody)
-                }
-                try await syncer.updateBodies(updates)
+            // Save historyId only after all message fetches and DB writes succeed.
+            // This ensures that if any fetch above throws, the next sync will
+            // reprocess the same history range and not lose newly discovered messages.
+            let capturedHistoryId = latestHistoryId
+            await writeSyncState { state in
+                state.lastHistoryId = capturedHistoryId
             }
 
             // Fire local notifications for new inbox messages
             await fireNotifications(for: newMessages)
 
-            // Record last sync timestamp (historyId already saved above after pagination)
+            // Record last sync timestamp
             await writeSyncState { state in
                 state.lastSyncAt = Date().timeIntervalSince1970
             }
