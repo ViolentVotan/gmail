@@ -15,7 +15,7 @@ SwiftUI views. UI presentation only — no business logic.
 - **Property wrappers**: `@State` for owning `@Observable` objects (not `@StateObject`). `@Bindable` for write access to bindings on `@Observable` objects (not `@ObservedObject`). `@Environment` with `@Entry` macro for custom environment keys.
 - **onChange syntax**: use `onChange(of:) { oldValue, newValue in }` (two-parameter closure).
 - **`WKNavigationDelegate` / `WKUIDelegate` coordinators** (`WebRichTextEditorCoordinator`, `SearchBarView.Coordinator`) are marked `final` — do not subclass them.
-- **ContentView** routes quick-reply and attachment download through `AppCoordinator` (`handleQuickReply`, `downloadAttachment`) rather than handling them inline.
+- **ContentView** routes quick-reply and attachment download through `AppCoordinator` (`handleQuickReply`, `downloadAttachment`) rather than handling them inline. `withLifecycle` is split into `LifecycleStateModifier` + `LifecycleNotificationModifier` (type-checker fix). Reconnect triggers incremental sync. `onChange` observers for `SnoozeStore`/`ScheduledSendStore` counts drive `refreshSnoozedCacheIfNeeded`/`refreshScheduledCacheIfNeeded`.
 
 ## Subfolders
 
@@ -24,20 +24,21 @@ Left column — `List(.sidebar)` with folder navigation, account switcher, label
 - `SyncBubbleView` — Transient liquid glass sync status bubble (driven by `SyncProgressManager`).
 
 ### `EmailList/`
-Middle column — email rows with native `.swipeActions()` (archive/delete), search, `.refreshable` pull-to-refresh, multi-select with bulk actions. Uses `List(selection:)` for row rendering. Date-based sort orders show section headers (Today, Yesterday, This Week, Last Week, month/year). Email rows merge Gmail labels and AI classification tags into a single capped badge row (max 2 visible + overflow count). `EmailRowView` caches `nudgeText` as a stored `let` in `init` for "Received N days ago" hints (avoids per-render Calendar computation).
+Middle column — email rows with native `.swipeActions()` (archive/delete), search, `.refreshable` pull-to-refresh, multi-select with bulk actions. Uses `List(selection:)` for row rendering. Date-based sort orders show section headers (Today, Yesterday, This Week, Last Week, month/year). Email rows merge Gmail labels and AI classification tags into a single capped badge row (max 2 visible + overflow count). `EmailRowView` computes `nudgeText` as a `private var` computed property in `body` for "Received N days ago" hints. Accessibility rotor filter properties are inlined into rotor closures (no separate stored properties). `EmailListView` has a midnight refresh `.task` that sleeps until the next midnight and triggers a re-render so "Today"/"Yesterday" section headers stay correct.
 - `CategoryTabBar` — Horizontal tab bar for inbox category filtering (Primary, Social, Updates, etc.).
 - `EmailHoverSummaryView` — AI-generated summary tooltip on email row hover.
 - `EmailContextMenu` — Right-click context menu with reply, reply all, forward, archive, delete, star, snooze (uses `SnoozePreset.defaults()`), labels.
 - `EmailSelectionManager` — Utility enum for multi-select logic (Cmd+click toggle, Shift+click range, single click, arrow navigation).
 - `BulkActionBarView` — Floating action bar for bulk operations on selected emails.
+- `ListPaneView` — Top-level list pane that constructs `EmailListActions` and wires them to ViewModels/coordinators. Bulk and single-email action closures use `Task { await ... }` for async VM calls.
 
 ### `EmailDetail/`
-Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView), attachments, sender info popover, tracker blocking UI, label picker.
-- `ReplyBarView` — Inline quick reply with To/Cc/Bcc fields, draft persistence, auto-save, discard confirmation, and smart reply chip support. Custom `init` for `@State` initialization. `.task(id: email.id)` cancels `saveTask` and `loadDraftTask`, resets `ComposeViewModel`, and reloads quick replies on email change. Send success (toast + collapse) driven reactively via `.onChange(of: composeVM.isSent)`.
-- `DetailPaneView` — Contextual empty state (icon + message per folder). Uses `EmailDetailActions.contentActions` factory to build shared content-level actions.
+Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView, uses `WeakScriptMessageHandler` proxy to avoid WKWebView retain cycles), attachments, sender info popover, tracker blocking UI, label picker.
+- `ReplyBarView` — Inline quick reply with To/Cc/Bcc fields, draft persistence, auto-save, discard confirmation, and smart reply chip support. Custom `init` for `@State` initialization. `.task(id: email.id)` cancels `saveTask` and `loadDraftTask`, resets `ComposeViewModel`, and reloads quick replies on email change. Send success (toast + collapse) driven reactively via `.onChange(of: composeVM.isSent)`. `ClickOutsideDetector` uses `superview` bounds instead of zero-size anchor for hit testing.
+- `DetailPaneView` — Contextual empty state (icon + message per folder). Uses `EmailDetailActions.contentActions` factory to build shared content-level actions. Action closures wrap async VM/coordinator calls in `Task { await ... }` (cascaded from async EmailActionCoordinator/MailboxViewModel changes).
 - `InsightCardView` — Apple Intelligence insight card (summary, action items, key dates) via Foundation Models.
 - `SmartReplyChipsView` — AI-generated reply suggestion chips below the thread (wired via `EmailDetailView`).
-- `LabelEditorView` — Label picker with AI-suggested labels and manual search. Uses `precomputed` tuple property to avoid redundant linear scans per render.
+- `LabelEditorView` — Label picker with AI-suggested labels and manual search. Uses `@State` cached properties (`cachedCurrentUser`, `cachedItems`, `cachedShowCreate`, `cachedShouldShowDropdown`) with `onChange`-driven `recomputeLabelData()` to avoid redundant linear scans per render.
 - `ThreadMessageCardView` — Individual message card with quote stripping toggle, click-to-show sender info popover (`.onTapGesture`, `.pointerStyle(.link)`).
 - `GmailThreadMessageView` — Utility enum for HTML computation and quote stripping.
 - `AttachmentChipView` — Individual attachment display with preview/download buttons.
@@ -56,7 +57,7 @@ Attachment explorer with grid view, thumbnails, file type filtering, and search.
 
 ### `Settings/`
 Tabbed settings view (Accounts, General, Signatures, Filters, Advanced) registered as a macOS `Settings` scene — opens via Cmd+,. `SettingsView` uses `@AppStorage("com.vikingz.serif.selectedAccountID")` for reactive account ID (updates when user switches accounts), `AppearanceManager` via `@Bindable`, and closures (`onReauthorize`, `loadSendAs`, `updateSignature`) from `SerifApp`. Uses `@AppStorage` for other settings (notifications, undo duration, directory contacts sync).
-- `AccountsSettingsView` — Account management: reorder (drag + up/down buttons), set default, accent color picker from palette. Refreshes from `AccountStore.shared` on appear. Context menu with "Set as Default" and accent color submenu.
+- `AccountsSettingsView` — Account management: reorder (drag + up/down buttons), set default, accent color picker from palette. Refreshes from `AccountStore.shared` on appear. `onReceive` for `UserDefaults.didChangeNotification` with `AccountStore` cache invalidation. Context menu with "Set as Default" and accent color submenu.
 - `SignaturesSettingsView` — Signature management per send-as alias. Takes explicit `loadSendAs` and `onUpdateSignature` closures.
 - `FiltersSettingsView` — Gmail filter list with create/edit/delete actions.
 - `FilterEditorView` — Filter rule editor (criteria + actions) for creating/editing Gmail filters.
@@ -77,8 +78,8 @@ Shared reusable components:
 | `SettingsCardsView` | Settings UI with behavior, signature, account cards |
 | `SlidePanel` | Animated side panel overlay (help, debug, previews) with Liquid Glass background |
 | `FormattingToolbar` | Rich text toolbar for compose/reply |
-| `WebRichTextEditor` | WKWebView-based HTML editor |
-| `UnifiedToastLayer` | Consolidated toast system (undo, offline, general) with priority ordering |
+| `WebRichTextEditor` | WKWebView-based HTML editor (uses `WeakScriptMessageHandler` proxy to avoid retain cycles) |
+| `UnifiedToastLayer` | Consolidated toast system (undo, offline, general) with priority ordering. Full-screen overlay no longer sets `allowsHitTesting(false)`. |
 | `CommandPaletteView` | ⌘K command palette with fuzzy search and keyboard navigation |
 | `SnoozePickerView` | Snooze date/time picker with preset options. Defines `SnoozePreset` model struct; uses `SnoozePreset.defaults()` for the preset list. |
 | `DebugMenuView` | API logs, cache controls. Uses file-private `DebugViewModel` wrapper (no direct `AttachmentDatabase` access). |

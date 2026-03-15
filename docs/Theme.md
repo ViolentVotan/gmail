@@ -17,7 +17,7 @@ The UI follows a three-plane model:
 
 | Plane | Material | Use |
 |-------|----------|-----|
-| **Base** | Solid/opaque (`.quinary` + `.separator` stroke via `CardStyle`) | Content cards, email body, settings cards |
+| **Base** | Solid/opaque (`.quinary` + `.separator` stroke) | Content cards, email body, settings cards |
 | **Navigation** | `.glassEffect(.regular)` | Category tabs, bulk action bars, smart reply chips |
 | **Transient** | `.glassEffect(.regular)` + `.elevation(.transient)` via `floatingPanelStyle()` | Toasts, popovers, slide panels |
 
@@ -43,10 +43,9 @@ The UI follows a three-plane model:
 | Modifier | Effect |
 |----------|--------|
 | `.elevation(.transient / .elevated)` | Shadow scale for spatial depth |
-| `.floatingPanelStyle()` | Liquid Glass + transient elevation for floating surfaces |
+| `.floatingPanelStyle(cornerRadius:)` | Liquid Glass + transient elevation for floating surfaces (default `CornerRadius.md`) |
 | `.dropdownPanelStyle()` | Glass + separator border overlay + dual shadow for dropdown/popover panels |
 | `.glassOrMaterial(in:interactive:)` | Liquid Glass effect with optional interactive press feedback |
-| `.compactCardStyle()` | Compact Base-plane card (`Spacing.md`/`Spacing.sm` padding, `CornerRadius.sm`) for inline banners (tracker, insight) |
 | `.destructiveActionStyle()` | Red text on red 10% opacity background in rounded rect — for destructive folder actions |
 
 **Shared components** (also in `DesignTokens.swift`):

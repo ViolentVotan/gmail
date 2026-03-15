@@ -18,12 +18,14 @@ Per-account GRDB SQLite persistence layer. Replaces the previous JSON file cache
 | File | Role |
 |------|------|
 | `MailDatabase.swift` | `DatabasePool` owner — WAL mode (enabled by `DatabasePool`), `synchronous = NORMAL`, foreign keys, cache size pragmas, integrity check, per-account path, `deleteDatabase(accountID:)`, `shared(for:)` instance cache (backed by `Mutex`, not `NSLock`) |
-| `MailDatabaseMigrations.swift` | `#if DEBUG eraseDatabaseOnSchemaChange = true`. v1 schema: 7 tables (`messages`, `labels`, `message_labels`, `contacts`, `attachments`, `email_tags`, `account_sync_state`), FTS5 virtual table `messages_fts`, 8 indexes. `message_labels.label_id` FK uses `ON DELETE RESTRICT` (prevents silent cascade). Seed INSERT uses `INSERT OR IGNORE` for idempotency. v2: extends `account_sync_state` with sync engine columns. v3: adds `labels_etag` for ETag-based label sync caching. v4: partial index `messages_unread` on `internal_date WHERE is_read = 0` for unread queries; drops redundant `message_labels_message` index (composite PK covers it). |
+| `MailDatabaseMigrations.swift` | `#if DEBUG eraseDatabaseOnSchemaChange = true`. v1 schema: 7 tables (`messages`, `labels`, `message_labels`, `contacts`, `attachments`, `email_tags`, `account_sync_state`), FTS5 virtual table `messages_fts`, 8 indexes. `message_labels.label_id` FK uses `ON DELETE RESTRICT` (prevents silent cascade). Seed INSERT uses `INSERT OR IGNORE` for idempotency. v2: extends `account_sync_state` with sync engine columns. v3: adds `labels_etag` for ETag-based label sync caching. v4: partial index `messages_unread` on `internal_date WHERE is_read = 0` for unread queries; drops redundant `message_labels_message` index (composite PK covers it). v5: recreates `message_labels` with `ON DELETE CASCADE` on both FKs (cleans orphans first, preserves label index); recreates `attachments` with `NOT NULL` on `indexing_status` and `retry_count` (backfills NULLs, uses COALESCE). |
 | `MailDatabaseQueries.swift` | Static read queries: `messagesForLabel`, `messagesForThread`, `unreadCount`, `labels`, `messagesNeedingBodies`, `messagesWithoutBodiesCount`, `messageExists` (uses `MessageRecord.exists()` instead of `fetchOne`), `allContacts` (full table load), `syncState`, `updateSyncState` |
-| `FTSManager.swift` | FTS5 maintenance: `index`, `update`, `delete`, `indexBatch`, `search` (JOIN-based query for relevance ordering) |
+| `FTSManager.swift` | FTS5 maintenance: `index`, `update`, `delete`, `search` (subquery-based: `WHERE gmail_id IN (SELECT ... FROM messages_fts)`) |
 | `CacheMigration.swift` | One-time JSON cache → GRDB migration (labels, messages, AI tags). Runs on first launch per account. Completion flag set after cleanup succeeds (not before). Flag cleared on account removal. Tag migration performs per-record FK check (`MessageRecord.exists`) to skip orphaned tags. |
 
 ### `Database/Records/`
+
+All 7 record types conform to `Sendable`.
 
 | File | Role |
 |------|------|
@@ -31,7 +33,7 @@ Per-account GRDB SQLite persistence layer. Replaces the previous JSON file cache
 | `LabelRecord.swift` | Label record — `init(from: GmailLabel)`, associations to `MessageLabelRecord` |
 | `MessageLabelRecord.swift` | Join table record for message ↔ label many-to-many |
 | `ContactRecord.swift` | Contact record with photo URL |
-| `AttachmentRecord.swift` | Attachment metadata record |
+| `AttachmentRecord.swift` | Attachment metadata record. `indexingStatus` (default `"pending"`) and `retryCount` (default `0`) are non-optional with defaults. |
 | `EmailTagRecord.swift` | AI classification tags (needsReply, fyiOnly, hasDeadline, financial) |
 | `AccountSyncStateRecord.swift` | Per-account sync state (contacts sync tokens, history ID, initial sync progress, body prefetch tracking, directory sync token, labels ETag) |
 
@@ -56,9 +58,9 @@ Gmail API → FullSyncEngine (orchestrates all sync: initial, incremental, body 
 
 ## Key Patterns
 
-- **ValueObservation**: `MailboxViewModel.startObservingLabel(_:)` uses `ValueObservation.trackingConstantRegion` (tracked tables computed once) with async `for try await` values API for guaranteed MainActor delivery. Fires immediately with current data, then on every DB change.
+- **ValueObservation**: `MailboxViewModel.startObservingLabel(_:)` uses `ValueObservation.tracking` (not `trackingConstantRegion` — the JOIN through `message_labels` means the tracked region varies with the label filter) with async `for try await` values API for guaranteed MainActor delivery. Fires immediately with current data, then on every DB change.
 - **DB identity check**: `handleDatabaseUpdate` guards with `db === mailDatabase` to prevent cross-account races.
 - **Nonisolated enrichment**: `enrichRecords` is a `nonisolated static func` to avoid blocking MainActor during DB reads.
 - **Body preservation**: Metadata-only syncs (no body content) write records without overwriting previously-fetched bodies.
 - **FTS5 search**: `MailboxViewModel.search()` queries FTS locally.
-- **Optimistic mutations**: All email mutations (read, star, archive, trash, spam) write to DB first → ValueObservation updates UI → API call → revert on failure.
+- **Optimistic mutations**: All email mutations (read, star, archive, trash, spam) write to DB first → ValueObservation updates UI → API call → revert on failure. `writeLabels` and `applyReadLocally` in `MailboxViewModel` use `async` (`try await dbPool.write`).
