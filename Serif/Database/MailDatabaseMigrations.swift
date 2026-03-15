@@ -192,8 +192,15 @@ enum MailDatabaseMigrations {
         migrator.registerMigration("v5_cascade_and_not_null") { db in
             // -- Fix 1: Recreate message_labels with onDelete: .cascade on label FK --
             // SQLite doesn't support ALTER COLUMN, so we must recreate the table.
-            // Disable FK checks during the table swap to avoid intermediate violations.
-            try db.execute(sql: "PRAGMA foreign_keys = OFF")
+            // GRDB's .deferred migration disables FK enforcement and runs checkForeignKeys()
+            // automatically, so no manual PRAGMA foreign_keys management is needed.
+
+            // Clean up any orphan rows before the table swap
+            try db.execute(sql: """
+                DELETE FROM message_labels
+                WHERE message_id NOT IN (SELECT gmail_id FROM messages)
+                   OR label_id NOT IN (SELECT gmail_id FROM labels)
+            """)
 
             try db.create(table: "message_labels_new") { t in
                 t.column("message_id", .text).notNull()
@@ -213,18 +220,6 @@ enum MailDatabaseMigrations {
 
             // Recreate the label index (the PK covers message_id lookups)
             try db.create(index: "message_labels_label", on: "message_labels", columns: ["label_id"])
-
-            // Verify FK integrity after the swap
-            try db.execute(sql: "PRAGMA foreign_keys = ON")
-            let fkCheck = try Row.fetchAll(db, sql: "PRAGMA foreign_key_check(message_labels)")
-            if !fkCheck.isEmpty {
-                // Orphan rows found — clean them up rather than failing the migration
-                try db.execute(sql: """
-                    DELETE FROM message_labels
-                    WHERE message_id NOT IN (SELECT gmail_id FROM messages)
-                       OR label_id NOT IN (SELECT gmail_id FROM labels)
-                """)
-            }
 
             // -- Fix 2: Add NOT NULL to attachments.indexing_status and retry_count --
             // Backfill any NULLs before the constraint change

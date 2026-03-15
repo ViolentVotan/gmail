@@ -67,6 +67,10 @@ final class GmailProfileService {
                 }
             case 401:
                 throw .unauthorized
+            case 403 where RetryPolicy.isRateLimited403(data) && attempt < RetryPolicy.maxRetries:
+                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
+                continue
             default:
                 if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
                     let retryAfter = http.value(forHTTPHeaderField: "Retry-After")

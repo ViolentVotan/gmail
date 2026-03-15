@@ -16,6 +16,7 @@ struct AccountsSettingsView: View {
         .scrollContentBackground(.hidden)
         .onAppear { refresh() }
         .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)) { _ in
+            AccountStore.shared.invalidateCache()
             refresh()
         }
         .overlay {

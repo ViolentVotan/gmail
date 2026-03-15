@@ -61,6 +61,12 @@ final class AccountStore {
         }
     }
 
+    /// Clears the in-memory cache so the next `accounts` read re-decodes from UserDefaults.
+    /// Call when an external change (e.g., another window) may have modified the persisted accounts.
+    func invalidateCache() {
+        _cachedAccounts = nil
+    }
+
     func add(_ account: GmailAccount) {
         var acct = account
         if acct.accentColor == nil {
@@ -86,6 +92,7 @@ final class AccountStore {
         SnoozeStore.shared.deleteAccount(id)
         ScheduledSendStore.shared.deleteAccount(id)
         OfflineActionQueue.shared.deleteAccount(id)
+        LabelSyncService.shared.clearETags(for: id)
         // Clean per-account UserDefaults
         UserDefaults.standard.removeObject(forKey: UserDefaultsKey.signatureForNew(id))
         UserDefaults.standard.removeObject(forKey: UserDefaultsKey.signatureForReply(id))

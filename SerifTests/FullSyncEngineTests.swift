@@ -5,20 +5,23 @@ import GRDB
 
 @Suite struct FullSyncEngineTests {
     @Test func engineStartsInIdleState() async throws {
-        let engine = try await makeMockEngine()
+        let (engine, tmpDir) = try await makeMockEngine()
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
         let state = await engine.state
         #expect(state == .idle)
     }
 
     @Test func engineTransitionsToInitialSync() async throws {
-        let engine = try await makeMockEngine()
+        let (engine, tmpDir) = try await makeMockEngine()
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
         await engine.start()
         try await waitForState(engine, oneOf: [.initialSync, .monitoring])
         await engine.stop()
     }
 
     @Test func stopResetsToIdle() async throws {
-        let engine = try await makeMockEngine()
+        let (engine, tmpDir) = try await makeMockEngine()
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
         await engine.start()
         try await waitForState(engine, oneOf: [.initialSync, .monitoring])
         await engine.stop()
@@ -26,7 +29,8 @@ import GRDB
     }
 
     @Test func triggerIncrementalSyncRequiresMonitoring() async throws {
-        let engine = try await makeMockEngine()
+        let (engine, tmpDir) = try await makeMockEngine()
+        defer { try? FileManager.default.removeItem(at: tmpDir) }
         // Engine is idle — triggerIncrementalSync should be a no-op
         await engine.triggerIncrementalSync()
         let state = await engine.state
@@ -65,17 +69,18 @@ import GRDB
     }
 
     @MainActor
-    private func makeMockEngine() async throws -> FullSyncEngine {
+    private func makeMockEngine() async throws -> (FullSyncEngine, URL) {
         let tmpDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("serif-test-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: tmpDir, withIntermediateDirectories: true)
         let mailDB = try MailDatabase(accountID: "test", baseDirectory: tmpDir)
         let syncer = BackgroundSyncer(db: mailDB)
-        return FullSyncEngine(
+        let engine = FullSyncEngine(
             accountID: "test@example.com",
             db: mailDB,
             syncer: syncer,
             api: MockMessageFetching()
         )
+        return (engine, tmpDir)
     }
 }
