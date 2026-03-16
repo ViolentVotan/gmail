@@ -16,13 +16,6 @@ final class SyncProgressManager {
 
     private(set) var phase: SyncPhase = .idle(lastSynced: nil)
 
-    /// Backwards-compatible stub — SidebarView still references this until Task 4.
-    /// Remove in Task 4 when SidebarView's show/hide logic is deleted.
-    var isVisible: Bool {
-        if case .idle = phase { return false }
-        return true
-    }
-
     // MARK: - Private
 
     private var lastSynced: Date?
