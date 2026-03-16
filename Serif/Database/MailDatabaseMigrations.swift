@@ -13,6 +13,7 @@ enum MailDatabaseMigrations {
         registerV5(&migrator)
         registerV6(&migrator)
         registerV7(&migrator)
+        registerV8(&migrator)
         return migrator
     }
 
@@ -296,6 +297,14 @@ enum MailDatabaseMigrations {
                     VALUES (NEW.gmail_id, NEW.subject, NEW.body_plain, NEW.snippet, NEW.sender_name, NEW.sender_email);
                 END
             """)
+        }
+    }
+
+    private static func registerV8(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v8_references_header") { db in
+            try db.alter(table: "messages") { t in
+                t.add(column: "references_header", .text)
+            }
         }
     }
 }

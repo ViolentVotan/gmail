@@ -51,6 +51,45 @@ final class GmailSendService {
         )
     }
 
+    // MARK: - References Chain Builder
+
+    /// Builds a proper RFC 5322 References header from the parent's References and Message-ID.
+    /// Concatenates parent's References + parent's Message-ID, then truncates to ~10 IDs
+    /// if the chain is longer (keeps first + last, trims from second position).
+    nonisolated static func buildReferencesChain(
+        parentReferences: String?,
+        parentMessageID: String?
+    ) -> String? {
+        let refs = (parentReferences ?? "").trimmingCharacters(in: .whitespaces)
+        let mid = (parentMessageID ?? "").trimmingCharacters(in: .whitespaces)
+        let combined = [refs, mid]
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+            .trimmingCharacters(in: .whitespaces)
+        guard !combined.isEmpty else { return nil }
+
+        // Parse individual Message-IDs (angle-bracket delimited)
+        var ids = combined.components(separatedBy: .whitespaces)
+            .filter { !$0.isEmpty }
+        // Deduplicate while preserving order
+        var seen = Set<String>()
+        ids = ids.filter { seen.insert($0).inserted }
+
+        // Truncate to ~10 IDs: keep first + last, trim from second position
+        let maxIDs = 10
+        if ids.count > maxIDs {
+            let first = ids[0]
+            let last = ids[ids.count - 1]
+            let trimCount = ids.count - maxIDs
+            ids.removeSubrange(1...(trimCount))
+            // Ensure first and last are still present
+            if ids.first != first { ids.insert(first, at: 0) }
+            if ids.last != last { ids.append(last) }
+        }
+
+        return ids.joined(separator: " ")
+    }
+
     // MARK: - MIME Building (used by GmailDraftService)
 
     /// Builds a base64url-encoded RFC 2822 message. Used by GmailDraftService for draft payloads.

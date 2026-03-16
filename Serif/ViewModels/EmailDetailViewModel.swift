@@ -355,7 +355,8 @@ final class EmailDetailViewModel {
     static func replyMode(for email: Email, latestHTMLBody: String? = nil) -> ComposeMode {
         let sub = email.subject.withReplyPrefix
         return .reply(to: email.sender.email, subject: sub, quotedBody: quotedHTML(for: email, latestHTMLBody: latestHTMLBody),
-                      replyToMessageID: email.gmailMessageID ?? "", threadID: email.gmailThreadID ?? "")
+                      replyToMessageID: email.gmailMessageID ?? "", threadID: email.gmailThreadID ?? "",
+                      parentMessageID: email.messageIDHeader, parentReferences: email.referencesHeader)
     }
 
     static func replyAllMode(for email: Email, latestHTMLBody: String? = nil, currentUserEmail: String? = nil) -> ComposeMode {
@@ -367,7 +368,8 @@ final class EmailDetailViewModel {
         let toField = ([email.sender.email] + toRecipients).joined(separator: ", ")
         return .replyAll(to: toField, cc: email.cc.map(\.email).joined(separator: ", "),
                          subject: sub, quotedBody: quotedHTML(for: email, latestHTMLBody: latestHTMLBody),
-                         replyToMessageID: email.gmailMessageID ?? "", threadID: email.gmailThreadID ?? "")
+                         replyToMessageID: email.gmailMessageID ?? "", threadID: email.gmailThreadID ?? "",
+                         parentMessageID: email.messageIDHeader, parentReferences: email.referencesHeader)
     }
 
     static func forwardMode(for email: Email, latestHTMLBody: String? = nil) -> ComposeMode {

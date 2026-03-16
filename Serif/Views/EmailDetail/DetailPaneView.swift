@@ -37,8 +37,8 @@ struct DetailPaneView: View {
     /// alias resolution falls back to the primary address.
     private func resolvedFromAddressForCompose() -> String {
         switch composeMode {
-        case .reply(_, _, _, _, let threadID),
-             .replyAll(_, _, _, _, _, let threadID):
+        case .reply(_, _, _, _, let threadID, _, _),
+             .replyAll(_, _, _, _, _, let threadID, _, _):
             if let original = mailboxViewModel.emails.first(where: { $0.gmailThreadID == threadID }) {
                 return resolvedFromAddress(for: original)
             }

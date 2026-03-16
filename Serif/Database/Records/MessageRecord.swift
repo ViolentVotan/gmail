@@ -24,6 +24,7 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord,
     var replyTo: String?
     var messageIdHeader: String?
     var inReplyTo: String?
+    var referencesHeader: String?
     var bodyHtml: String?
     var bodyPlain: String?
     var rawHeaders: String?     // JSON array
@@ -63,6 +64,7 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord,
         self.replyTo = replyToValue
         self.messageIdHeader = headers["message-id"] ?? ""
         self.inReplyTo = headers["in-reply-to"] ?? ""
+        self.referencesHeader = headers["references"]
         self.bodyHtml = gmail.htmlBody
         self.bodyPlain = gmail.plainBody
         self.rawHeaders = Self.encodeHeaders(gmail.payload?.headers)
@@ -187,7 +189,9 @@ extension MessageRecord {
             threadMessageCount: threadMessageCount,
             isFromMailingList: isFromMailingList,
             unsubscribeURL: unsubscribeUrl.flatMap { URL(string: $0) },
-            tags: emailTags
+            tags: emailTags,
+            messageIDHeader: messageIdHeader,
+            referencesHeader: referencesHeader
         )
     }
 
@@ -238,6 +242,7 @@ extension MessageRecord {
         if let replyTo { headers.append(GmailHeader(name: "Reply-To", value: replyTo)) }
         if let messageIdHeader { headers.append(GmailHeader(name: "Message-ID", value: messageIdHeader)) }
         if let inReplyTo { headers.append(GmailHeader(name: "In-Reply-To", value: inReplyTo)) }
+        if let referencesHeader { headers.append(GmailHeader(name: "References", value: referencesHeader)) }
         if let url = unsubscribeUrl { headers.append(GmailHeader(name: "List-Unsubscribe", value: url)) }
         return headers
     }

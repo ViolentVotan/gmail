@@ -221,6 +221,8 @@ struct ComposeView: View {
             currentSignatureHTML = fields.currentSignatureHTML
             if let tid = fields.threadID          { composeVM.threadID = tid }
             if let mid = fields.replyToMessageID  { composeVM.replyToMessageID = mid }
+            if let pid = fields.parentMessageID   { composeVM.parentMessageID = pid }
+            if let ref = fields.parentReferences  { composeVM.parentReferences = ref }
         }
 
         // Delay clearing isInitialLoad so the WebView's didFinish → setHTML → contentChanged

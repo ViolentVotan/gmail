@@ -10,6 +10,8 @@ struct ComposeModeFields {
     var currentSignatureHTML: String = ""
     var threadID: String? = nil
     var replyToMessageID: String? = nil
+    var parentMessageID: String? = nil
+    var parentReferences: String? = nil
 }
 
 /// Populates compose field values based on a ComposeMode and signature settings.
@@ -32,7 +34,7 @@ struct ComposeModeInitializer {
                 fields.bodyHTML = "<br><br>\(sig)"
             }
 
-        case .reply(let replyTo, let replySubject, let quotedBody, let replyToMessageID, let threadID):
+        case .reply(let replyTo, let replySubject, let quotedBody, let replyToMessageID, let threadID, let parentMessageID, let parentReferences):
             fields.to = replyTo
             fields.subject = replySubject.withReplyPrefix
             let sig = SignatureResolver.resolveHTML(preferredEmail: signatureForReply, aliases: aliases)
@@ -40,8 +42,10 @@ struct ComposeModeInitializer {
             fields.bodyHTML = sig.isEmpty ? "<br><br>\(quotedBody)" : "<br><br>\(sig)<br>\(quotedBody)"
             fields.threadID = threadID
             fields.replyToMessageID = replyToMessageID
+            fields.parentMessageID = parentMessageID
+            fields.parentReferences = parentReferences
 
-        case .replyAll(let replyTo, let replyCc, let replySubject, let quotedBody, let replyToMessageID, let threadID):
+        case .replyAll(let replyTo, let replyCc, let replySubject, let quotedBody, let replyToMessageID, let threadID, let parentMessageID, let parentReferences):
             fields.to = replyTo
             fields.cc = replyCc
             fields.showCc = !replyCc.isEmpty
@@ -51,6 +55,8 @@ struct ComposeModeInitializer {
             fields.bodyHTML = sig.isEmpty ? "<br><br>\(quotedBody)" : "<br><br>\(sig)<br>\(quotedBody)"
             fields.threadID = threadID
             fields.replyToMessageID = replyToMessageID
+            fields.parentMessageID = parentMessageID
+            fields.parentReferences = parentReferences
 
         case .forward(let fwdSubject, let quotedBody):
             fields.to = ""

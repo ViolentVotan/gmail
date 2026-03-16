@@ -433,6 +433,8 @@ struct ReplyBarView: View {
             bcc: replyBcc,
             emailSubject: email.subject,
             replyToMessageID: email.gmailMessageID,
+            parentMessageID: email.messageIDHeader,
+            parentReferences: email.referencesHeader,
             attachmentURLs: attachments,
             editorInlineImages: editorState.pendingInlineImages,
             mailStore: mailStore
@@ -457,6 +459,8 @@ struct ReplyBarView: View {
         composeVM.isHTML = true
         composeVM.inlineImages = images + editorState.pendingInlineImages
         composeVM.replyToMessageID = email.gmailMessageID
+        composeVM.parentMessageID = email.messageIDHeader
+        composeVM.parentReferences = email.referencesHeader
         composeVM.attachmentURLs = attachments
 
         // Set cleanup context so scheduleSend can clean up reply drafts

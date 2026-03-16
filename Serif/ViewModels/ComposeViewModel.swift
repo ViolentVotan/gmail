@@ -22,6 +22,8 @@ final class ComposeViewModel {
     @ObservationIgnored private var saveDraftTask: Task<Void, Never>?
     @ObservationIgnored var threadID:         String?   // for replies
     @ObservationIgnored var replyToMessageID: String?   // for In-Reply-To / References headers
+    @ObservationIgnored var parentMessageID:  String?   // parent's RFC 2822 Message-ID (for References chain)
+    @ObservationIgnored var parentReferences: String?   // parent's RFC 2822 References (for References chain)
     @ObservationIgnored var attachmentURLs:   [URL] = []
 
     // Reply draft cleanup context — set by sendReplyMessage/setReplyCleanupContext, consumed by send()/scheduleSend()
@@ -66,6 +68,8 @@ final class ComposeViewModel {
         let capturedIsHTML = isHTML
         let capturedThreadID = threadID
         let capturedReplyToMessageID = replyToMessageID
+        let capturedParentMessageID = parentMessageID
+        let capturedParentReferences = parentReferences
         let capturedInlineImages = inlineImages
         let capturedAttachments = attachmentURLs.isEmpty ? nil : attachmentURLs
         let capturedAccountID = accountID
@@ -88,7 +92,11 @@ final class ComposeViewModel {
                             body:               capturedBody,
                             isHTML:             capturedIsHTML,
                             threadID:           capturedThreadID,
-                            referencesHeader:   capturedReplyToMessageID,
+                            inReplyTo:          capturedParentMessageID,
+                            references:         GmailSendService.buildReferencesChain(
+                                                    parentReferences: capturedParentReferences,
+                                                    parentMessageID: capturedParentMessageID
+                                                ),
                             inlineImages:       capturedInlineImages,
                             attachments:        capturedAttachments,
                             accountID:          capturedAccountID
@@ -230,6 +238,8 @@ final class ComposeViewModel {
         bcc: String,
         emailSubject: String,
         replyToMessageID: String?,
+        parentMessageID: String? = nil,
+        parentReferences: String? = nil,
         attachmentURLs: [URL],
         editorInlineImages: [InlineImageAttachment],
         mailStore: MailStore
@@ -255,6 +265,8 @@ final class ComposeViewModel {
         self.isHTML = true
         self.inlineImages = images + editorInlineImages
         self.replyToMessageID = replyToMessageID
+        self.parentMessageID = parentMessageID
+        self.parentReferences = parentReferences
         self.attachmentURLs = attachmentURLs
 
         await send()

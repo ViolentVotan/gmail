@@ -28,6 +28,9 @@ struct Email: Identifiable, Sendable {
     var isFromMailingList: Bool
     var unsubscribeURL: URL?
     var tags: EmailTags?
+    // RFC 2822 threading headers (from received messages)
+    var messageIDHeader: String?
+    var referencesHeader: String?
 
     init(
         id: UUID = UUID(),
@@ -53,7 +56,9 @@ struct Email: Identifiable, Sendable {
         threadMessageCount: Int = 1,
         isFromMailingList: Bool = false,
         unsubscribeURL: URL? = nil,
-        tags: EmailTags? = nil
+        tags: EmailTags? = nil,
+        messageIDHeader: String? = nil,
+        referencesHeader: String? = nil
     ) {
         self.id = id
         self.sender = sender
@@ -79,6 +84,8 @@ struct Email: Identifiable, Sendable {
         self.isFromMailingList = isFromMailingList
         self.unsubscribeURL = unsubscribeURL
         self.tags = tags
+        self.messageIDHeader = messageIDHeader
+        self.referencesHeader = referencesHeader
     }
 
 }
