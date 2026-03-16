@@ -14,7 +14,6 @@ struct ReplyBarView: View {
 
     @State private var replyHTML = ""
     @State private var isExpanded = false
-    @State private var isSending = false
     @State private var sendError: String?
     @State private var attachments: [URL] = []
     @State private var saveTask: Task<Void, Never>?
@@ -114,7 +113,9 @@ struct ReplyBarView: View {
         }
         .onChange(of: composeVM.isSent) { _, isSent in
             guard isSent else { return }
-            composeVM.showToast("Reply sent", type: .success)
+            if !composeVM.wasScheduled {
+                composeVM.showToast("Reply sent", type: .success)
+            }
             collapse()
         }
         .alert("Discard reply?", isPresented: $showDiscardAlert) {
@@ -286,18 +287,12 @@ struct ReplyBarView: View {
                     .controlSize(.large)
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
 
-                    Button { Task { await sendReply() } } label: {
-                        if isSending {
-                            ProgressView()
-                                .scaleEffect(0.7)
-                                .frame(width: 16, height: 16)
-                        } else {
-                            Text("Send")
-                        }
-                    }
-                    .buttonStyle(.glassProminent)
-                    .controlSize(.large)
-                    .disabled(isSending)
+                    ScheduleSendButton(
+                        onSend: { Task { await sendReply() } },
+                        onSchedule: { date in Task { await scheduleReply(at: date) } },
+                        isSending: composeVM.isSending
+                    )
+                    .disabled(composeVM.isSending)
                     .keyboardShortcut(.return, modifiers: .command)
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
                 }
@@ -411,7 +406,6 @@ struct ReplyBarView: View {
     }
 
     private func sendReply() async {
-        isSending = true
         sendError = nil
         saveTask?.cancel()
 
@@ -426,7 +420,32 @@ struct ReplyBarView: View {
             editorInlineImages: editorState.pendingInlineImages,
             mailStore: mailStore
         )
-        isSending = false
+
+        if let error = composeVM.error {
+            sendError = error
+        }
+    }
+
+    private func scheduleReply(at date: Date) async {
+        sendError = nil
+        saveTask?.cancel()
+
+        // Sync reply fields to the VM before scheduleSend calls saveDraft
+        let (processedHTML, images) = InlineImageProcessor.extractInlineImages(from: replyHTML)
+        composeVM.to = replyTo
+        composeVM.cc = replyCc
+        composeVM.bcc = replyBcc
+        composeVM.subject = email.subject.withReplyPrefix
+        composeVM.body = processedHTML
+        composeVM.isHTML = true
+        composeVM.inlineImages = images + editorState.pendingInlineImages
+        composeVM.replyToMessageID = email.gmailMessageID
+        composeVM.attachmentURLs = attachments
+
+        // Set cleanup context so scheduleSend can clean up reply drafts
+        composeVM.setReplyCleanupContext(mailStore: mailStore)
+
+        await composeVM.scheduleSend(at: date)
 
         if let error = composeVM.error {
             sendError = error

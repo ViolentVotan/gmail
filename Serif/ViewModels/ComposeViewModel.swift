@@ -11,9 +11,10 @@ final class ComposeViewModel {
     var body:      String = ""
     @ObservationIgnored var isHTML = false
     @ObservationIgnored var inlineImages: [InlineImageAttachment] = []
-    var isSending  = false
-    var isSent     = false
-    var error:     String?
+    var isSending    = false
+    var isSent       = false
+    var wasScheduled = false
+    var error:       String?
 
     @ObservationIgnored let accountID:   String
     @ObservationIgnored var fromAddress: String
@@ -23,9 +24,17 @@ final class ComposeViewModel {
     @ObservationIgnored var replyToMessageID: String?   // for In-Reply-To / References headers
     @ObservationIgnored var attachmentURLs:   [URL] = []
 
-    // Reply draft cleanup context — set by sendReplyMessage, consumed by send()'s onConfirm closure
-    @ObservationIgnored private var replyCleanupMailStore: MailStore?
+    // Reply draft cleanup context — set by sendReplyMessage/setReplyCleanupContext, consumed by send()/scheduleSend()
+    @ObservationIgnored private(set) var replyCleanupMailStore: MailStore?
     @ObservationIgnored private var replyCleanupDraftID: String?
+
+    func setReplyCleanupContext(mailStore: MailStore) {
+        replyCleanupMailStore = mailStore
+        if gmailDraftID == nil, let threadID, let saved = mailStore.replyDrafts[threadID] {
+            gmailDraftID = saved.gmailDraftID
+        }
+        replyCleanupDraftID = gmailDraftID
+    }
 
     init(accountID: String, fromAddress: String, threadID: String? = nil) {
         self.accountID   = accountID
@@ -126,6 +135,10 @@ final class ComposeViewModel {
             return
         }
 
+        // Capture reply draft cleanup context after saveDraft (gmailDraftID is now populated)
+        let cleanupStore = replyCleanupMailStore
+        let cleanupThreadID = threadID
+
         let item = ScheduledSendItem(
             draftId: draftID,
             accountID: accountID,
@@ -134,6 +147,13 @@ final class ComposeViewModel {
             recipients: splitAddresses(to)
         )
         ScheduledSendStore.shared.add(item)
+
+        // Clean up reply draft registry if this was a reply
+        if let store = cleanupStore, let tid = cleanupThreadID {
+            store.replyDrafts.removeValue(forKey: tid)
+        }
+
+        wasScheduled = true
         isSent = true
         ToastManager.shared.show(message: "Email scheduled")
     }
