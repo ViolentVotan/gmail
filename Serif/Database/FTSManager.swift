@@ -7,7 +7,9 @@ internal import GRDB
 enum FTSManager {
 
     /// Index a new message into FTS. Call inside a write transaction.
+    /// Deletes any existing entry first so the operation is idempotent.
     static func index(message: MessageRecord, in db: Database) throws {
+        try delete(gmailId: message.gmailId, in: db)
         try db.execute(
             sql: """
                 INSERT INTO messages_fts(gmail_id, subject, body_plain, snippet, sender_name, sender_email)

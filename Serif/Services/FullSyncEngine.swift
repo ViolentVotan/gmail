@@ -82,7 +82,7 @@ actor FullSyncEngine {
         syncTask = Task { await runSyncLifecycle() }
     }
 
-    func stop() {
+    func stop() async {
         syncTask?.cancel()
         bodyPrefetchTask?.cancel()
         incrementalTask?.cancel()
@@ -90,6 +90,14 @@ actor FullSyncEngine {
         contactTask?.cancel()
         labelRefreshTask?.cancel()
         restartTask?.cancel()
+        // Wait for in-flight tasks to actually finish before clearing refs
+        await syncTask?.value
+        await bodyPrefetchTask?.value
+        await incrementalTask?.value
+        await triggeredSyncTask?.value
+        await contactTask?.value
+        await labelRefreshTask?.value
+        await restartTask?.value
         syncTask = nil
         bodyPrefetchTask = nil
         incrementalTask = nil
@@ -405,21 +413,18 @@ actor FullSyncEngine {
                 labelUpdates: labelUpdates
             )
 
-            // Save historyId only after all message fetches and DB writes succeed.
-            // This ensures that if any fetch above throws, the next sync will
-            // reprocess the same history range and not lose newly discovered messages.
+            // Save historyId and timestamp atomically after all fetches and DB writes
+            // succeed. Writing both in one call prevents inconsistent state if the
+            // app crashes between them, and ensures a failed sync retries the full
+            // history range.
             let capturedHistoryId = latestHistoryId
             await writeSyncState { state in
                 state.lastHistoryId = capturedHistoryId
+                state.lastSyncAt = Date().timeIntervalSince1970
             }
 
             // Fire local notifications for new inbox messages
             await fireNotifications(for: newMessages)
-
-            // Record last sync timestamp
-            await writeSyncState { state in
-                state.lastSyncAt = Date().timeIntervalSince1970
-            }
 
             return true
 
@@ -429,7 +434,7 @@ actor FullSyncEngine {
                 // Stop all sync activity — the account needs re-authentication.
                 Self.logger.error("Token revoked for \(self.accountID), stopping sync")
                 state = .error("Session expired — please sign in again")
-                stop()
+                await stop()
                 await reportProgress { $0.syncFailed("Session expired — please sign in again") }
                 return false
             } else if case .httpError(404, _) = error as? GmailAPIError {

@@ -569,6 +569,7 @@ final class AppCoordinator {
             // Clean up additional per-account state for all removed accounts
             for removedID in removedIDs {
                 SubscriptionsStore.shared.deleteAccount(removedID)
+                MailDatabase.evict(accountID: removedID)
             }
             selectedAccountID = accounts.first?.id
         }

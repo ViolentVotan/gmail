@@ -85,7 +85,7 @@ actor AttachmentIndexer {
                 accountID: accountID
             )
 
-            let result = ContentExtractor.extract(
+            let result = await ContentExtractor.extract(
                 from: data,
                 mimeType: att.mimeType,
                 filename: att.filename

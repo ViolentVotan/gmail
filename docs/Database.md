@@ -17,7 +17,7 @@ Per-account GRDB SQLite persistence layer. Replaces the previous JSON file cache
 
 | File | Role |
 |------|------|
-| `MailDatabase.swift` | `DatabasePool` owner — WAL mode (enabled by `DatabasePool`), `synchronous = NORMAL`, foreign keys, cache size pragmas, integrity check, per-account path, `deleteDatabase(accountID:)`, `shared(for:)` instance cache (backed by `Mutex`, double-checked locking: cache lookup under lock, DB creation/migration outside lock, re-check under lock to insert — avoids blocking all threads during migrations) |
+| `MailDatabase.swift` | `DatabasePool` owner — WAL mode (enabled by `DatabasePool`), `synchronous = NORMAL`, foreign keys, cache size pragmas, integrity check, per-account path, `deleteDatabase(accountID:)`, `evict(accountID:)` (removes a closed account's database from the in-memory instance cache on sign-out), `shared(for:)` instance cache (backed by `Mutex`, double-checked locking: cache lookup under lock, DB creation/migration outside lock, re-check under lock to insert — avoids blocking all threads during migrations) |
 | `MailDatabaseMigrations.swift` | `#if DEBUG eraseDatabaseOnSchemaChange = true`. v1 schema: 7 tables (`messages`, `labels`, `message_labels`, `contacts`, `attachments`, `email_tags`, `account_sync_state`), FTS5 virtual table `messages_fts`, 8 indexes. `message_labels.label_id` FK uses `ON DELETE RESTRICT` (prevents silent cascade). Seed INSERT uses `INSERT OR IGNORE` for idempotency. v2: extends `account_sync_state` with sync engine columns. v3: adds `labels_etag` for ETag-based label sync caching. v4: partial index `messages_unread` on `internal_date WHERE is_read = 0` for unread queries; drops redundant `message_labels_message` index (composite PK covers it). v5: recreates `message_labels` with `ON DELETE CASCADE` on both FKs (cleans orphans first, preserves label index); recreates `attachments` with `NOT NULL` on `indexing_status` and `retry_count` (backfills NULLs, uses COALESCE). v6: adds `messages_fts_delete` trigger — `AFTER DELETE ON messages` automatically removes orphaned FTS rows, preventing FTS index divergence on CASCADE deletes. v7: adds `messages_fts_update` trigger — `AFTER UPDATE OF subject, body_plain, snippet, sender_name, sender_email ON messages` keeps FTS in sync on direct column updates (defense-in-depth alongside `FTSManager`). v8: adds `references_header` TEXT column to `messages` table for RFC 2822 References header persistence (used for reply chain construction). |
 | `MailDatabaseQueries.swift` | Static read queries: `messagesForLabel`, `messagesForThread`, `unreadCount`, `labels`, `messagesNeedingBodies`, `messagesWithoutBodiesCount`, `messageExists` (uses `MessageRecord.exists()` instead of `fetchOne`), `allContacts` (full table load), `syncState`, `updateSyncState` |
 | `FTSManager.swift` | FTS5 maintenance: `index`, `update`, `delete`, `search` (subquery-based: `WHERE gmail_id IN (SELECT ... FROM messages_fts)`) |
@@ -41,11 +41,12 @@ All 7 record types conform to `Sendable`.
 
 Actor that centralizes all bulk DB writes. All methods are `async throws` using GRDB's async write API (does not block the actor executor). Shared helpers: `upsertSingleMessage` (DRY extraction used by both upsert and delta paths), `updateThreadCounts` (CTE-based — computes counts once per thread via `GROUP BY`, then batch-updates all affected messages; used by all 3 write paths). FTS always uses unconditional `FTSManager.update` (DELETE + INSERT — safe for new and existing rows):
 - `upsertMessages(_:ensureLabels:)` — delegates per-message work to `upsertSingleMessage`; `thread_message_count` via `updateThreadCounts`
-- `deleteMessages(gmailIds:)` — removes messages + FTS entries; `thread_message_count` via `updateThreadCounts`
+- `deleteMessages(gmailIds:)` — removes messages + FTS entries; also calls `AttachmentDatabase.shared.deleteMessages()` for attachment cleanup; `thread_message_count` via `updateThreadCounts`
 - `updateBodies(_:)` — writes pre-fetched full bodies + updates FTS
 - `upsertLabels(_:)` — bulk label sync (empty-array guard)
 - `upsertContacts(_:)` / `deleteContacts(emails:)` — contact CRUD (empty-array guards)
-- `applyDelta(newMessages:deletedIds:labelUpdates:)` — delegates per-message work to `upsertSingleMessage`; `thread_message_count` via `updateThreadCounts`
+- `upsertContactsWithSyncToken(_:tokenUpdate:accountID:)` — atomic contact upsert + sync token write in a single DB transaction (used by `PeopleAPIService` to prevent token/data skew)
+- `applyDelta(newMessages:deletedIds:labelUpdates:)` — delegates per-message work to `upsertSingleMessage`; `thread_message_count` via `updateThreadCounts`; calls `AttachmentDatabase.shared.deleteMessages()` for deleted IDs
 
 ## Data Flow
 

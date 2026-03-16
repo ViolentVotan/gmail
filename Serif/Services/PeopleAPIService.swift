@@ -91,6 +91,8 @@ final class PeopleAPIService {
     private func fetchAndStoreContacts(accountID: String, syncer: BackgroundSyncer) async {
         var allContacts: [StoredContact] = []
         var deletedEmails = Set<String>()
+        var newContactsSyncToken: String?
+        var newOtherSyncToken: String?
 
         let mailDB = try? MailDatabase.shared(for: accountID)
 
@@ -99,7 +101,6 @@ final class PeopleAPIService {
             let syncToken: String? = try? await mailDB?.dbPool.read { db in
                 try MailDatabaseQueries.syncState(in: db)?.contactsSyncToken
             }
-            var newSyncToken: String?
             var needsFullFetch = syncToken == nil
 
             if let syncToken, !needsFullFetch {
@@ -134,7 +135,7 @@ final class PeopleAPIService {
                         let parsed = parseContacts(from: nonDeleted)
                         allContacts = mergeContacts(existing: allContacts, incoming: parsed)
                         incPageToken = response.nextPageToken
-                        newSyncToken = response.nextSyncToken ?? newSyncToken
+                        newContactsSyncToken = response.nextSyncToken ?? newContactsSyncToken
                     } while incPageToken != nil
                     Self.logger.info("Incremental sync completed")
                 } catch {
@@ -164,16 +165,11 @@ final class PeopleAPIService {
                     let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
                     allContacts.append(contentsOf: parseContacts(from: response.connections ?? []))
                     pageToken = response.nextPageToken
-                    newSyncToken = response.nextSyncToken ?? newSyncToken
+                    newContactsSyncToken = response.nextSyncToken ?? newContactsSyncToken
                 } while pageToken != nil
                 Self.logger.info("Full fetch: loaded \(allContacts.count, privacy: .public) contacts from Connections")
             }
 
-            if let newSyncToken {
-                try? await mailDB?.dbPool.write { db in
-                    try MailDatabaseQueries.updateSyncState({ $0.contactsSyncToken = newSyncToken }, in: db)
-                }
-            }
         } catch {
             Self.logger.error("Connections fetch error: \(error, privacy: .public)")
         }
@@ -184,7 +180,6 @@ final class PeopleAPIService {
             let otherSyncToken: String? = try? await mailDB?.dbPool.read { db in
                 try MailDatabaseQueries.syncState(in: db)?.otherContactsSyncToken
             }
-            var newOtherSyncToken: String?
             var needsFullOtherFetch = otherSyncToken == nil
 
             if let otherSyncToken, !needsFullOtherFetch {
@@ -246,11 +241,6 @@ final class PeopleAPIService {
                 } while pageToken != nil
             }
 
-            if let newOtherSyncToken {
-                try? await mailDB?.dbPool.write { db in
-                    try MailDatabaseQueries.updateSyncState({ $0.otherContactsSyncToken = newOtherSyncToken }, in: db)
-                }
-            }
         } catch {
             Self.logger.error("Other Contacts fetch error: \(error, privacy: .public)")
         }
@@ -262,7 +252,18 @@ final class PeopleAPIService {
             try? await syncer.deleteContacts(emails: Array(deletedEmails))
         }
         let tuples = unique.map { (email: $0.email, name: Optional($0.name), photoUrl: $0.photoURL, source: "people_api", resourceName: nil as String?) }
-        try? await syncer.upsertContacts(tuples)
+        // Atomically upsert contacts and advance the connections sync token in one transaction.
+        if let token = newContactsSyncToken {
+            try? await syncer.upsertContactsWithSyncToken(tuples, tokenUpdate: { $0.contactsSyncToken = token }, accountID: accountID)
+        } else {
+            try? await syncer.upsertContacts(tuples)
+        }
+        // Write the Other Contacts token after contacts are safely committed.
+        if let token = newOtherSyncToken {
+            try? await mailDB?.dbPool.write { db in
+                try MailDatabaseQueries.updateSyncState({ $0.otherContactsSyncToken = token }, in: db)
+            }
+        }
         Self.logger.info("Total unique contacts stored: \(unique.count, privacy: .public)")
     }
 
@@ -328,18 +329,20 @@ final class PeopleAPIService {
                 } while pageToken != nil
             }
 
-            if let newDirSyncToken {
-                try? await mailDB?.dbPool.write { db in
-                    try MailDatabaseQueries.updateSyncState({ $0.directorySyncToken = newDirSyncToken }, in: db)
-                }
-            }
-
-            // Upsert directory contacts via the caller-supplied syncer.
+            // Atomically upsert directory contacts and advance the directory sync token.
             if !directoryContacts.isEmpty {
                 let tuples = directoryContacts.map {
                     (email: $0.email, name: Optional($0.name), photoUrl: $0.photoURL, source: "directory", resourceName: nil as String?)
                 }
-                try? await syncer.upsertContacts(tuples)
+                if let token = newDirSyncToken {
+                    try? await syncer.upsertContactsWithSyncToken(tuples, tokenUpdate: { $0.directorySyncToken = token }, accountID: accountID)
+                } else {
+                    try? await syncer.upsertContacts(tuples)
+                }
+            } else if let token = newDirSyncToken {
+                try? await mailDB?.dbPool.write { db in
+                    try MailDatabaseQueries.updateSyncState({ $0.directorySyncToken = token }, in: db)
+                }
             }
 
         } catch {

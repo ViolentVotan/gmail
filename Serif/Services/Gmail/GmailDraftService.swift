@@ -63,6 +63,7 @@ final class GmailDraftService {
             method: "POST",
             body: body,
             contentType: "application/json",
+            fields: "id",
             accountID: accountID
         )
     }
@@ -97,6 +98,7 @@ final class GmailDraftService {
         return try await client.request(
             path: "/users/me/drafts",
             method: "POST", body: encoded, contentType: "application/json",
+            fields: "id,message(id,threadId)",
             accountID: accountID
         )
     }
@@ -129,6 +131,7 @@ final class GmailDraftService {
         return try await client.request(
             path: "/users/me/drafts/\(draftID)",
             method: "PUT", body: encoded, contentType: "application/json",
+            fields: "id,message(id,threadId)",
             accountID: accountID
         )
     }

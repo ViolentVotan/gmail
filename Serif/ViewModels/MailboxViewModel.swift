@@ -1,4 +1,4 @@
-internal import GRDB
+private import GRDB
 private import os
 import SwiftUI
 
@@ -269,7 +269,6 @@ final class MailboxViewModel {
         if let idx = labels.firstIndex(where: { $0.id == label.id }) {
             let updated = GmailLabel(id: label.id, name: newName, type: label.type,
                                       messagesTotal: label.messagesTotal, messagesUnread: label.messagesUnread,
-                                      threadsTotal: label.threadsTotal, threadsUnread: label.threadsUnread,
                                       color: label.color,
                                       labelListVisibility: label.labelListVisibility,
                                       messageListVisibility: label.messageListVisibility)
@@ -646,8 +645,18 @@ final class MailboxViewModel {
 
     /// Permanently deletes a message. Removes all labels from DB optimistically,
     /// then deletes the message record itself after a successful API call.
-    func deletePermanently(_ messageID: String) async {
-        let original = await removeAllLabelsInDatabase(messageID)
+    ///
+    /// - Parameters:
+    ///   - messageID: The Gmail message ID.
+    ///   - originalLabelIds: When provided (e.g. from the coordinator's earlier optimistic write),
+    ///     skips the redundant `removeAllLabelsInDatabase` and uses these labels for rollback.
+    func deletePermanently(_ messageID: String, originalLabelIds: [String]? = nil) async {
+        let original: [String]?
+        if let originalLabelIds {
+            original = originalLabelIds
+        } else {
+            original = await removeAllLabelsInDatabase(messageID)
+        }
         do {
             try await api.deleteMessagePermanently(id: messageID, accountID: accountID)
             // Delete the message record (CASCADE handles message_labels, email_tags, attachments).

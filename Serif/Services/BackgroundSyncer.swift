@@ -53,6 +53,7 @@ actor BackgroundSyncer {
             try MessageRecord.deleteAll(db, keys: gmailIds)
             try Self.updateThreadCounts(for: affectedThreadIds, in: db)
         }
+        await AttachmentDatabase.shared.deleteMessages(gmailIds)
     }
 
     // MARK: - Body Pre-fetch Update
@@ -136,6 +137,9 @@ actor BackgroundSyncer {
 
             try Self.updateThreadCounts(for: affectedThreadIds, in: db)
         }
+        if !deletedIds.isEmpty {
+            await AttachmentDatabase.shared.deleteMessages(deletedIds)
+        }
     }
 
     // MARK: - Contact Sync
@@ -154,6 +158,29 @@ actor BackgroundSyncer {
                     updatedAt: now
                 ).upsert(db)
             }
+        }
+    }
+
+    /// Atomically upsert contacts and update the sync token in a single transaction.
+    /// Prevents the crash-window where a token advance loses contacts that were never stored.
+    func upsertContactsWithSyncToken(
+        _ contacts: [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)],
+        tokenUpdate: @Sendable (inout AccountSyncStateRecord) -> Void,
+        accountID: String
+    ) async throws {
+        let now = Date().timeIntervalSince1970
+        try await db.dbPool.write { db in
+            for contact in contacts {
+                try ContactRecord(
+                    email: contact.email.lowercased(),
+                    name: contact.name,
+                    photoUrl: contact.photoUrl,
+                    source: contact.source,
+                    resourceName: contact.resourceName,
+                    updatedAt: now
+                ).upsert(db)
+            }
+            try MailDatabaseQueries.updateSyncState(tokenUpdate, in: db)
         }
     }
 

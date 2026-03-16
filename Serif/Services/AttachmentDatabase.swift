@@ -550,6 +550,29 @@ actor AttachmentDatabase {
         exec("VACUUM")
     }
 
+    /// Delete attachment and scanned_messages rows for the given Gmail message IDs.
+    func deleteMessages(_ gmailIds: [String]) {
+        guard !gmailIds.isEmpty else { return }
+        let placeholders = gmailIds.map { _ in "?" }.joined(separator: ",")
+        let sql = "DELETE FROM attachments WHERE messageId IN (\(placeholders))"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+        defer { sqlite3_finalize(stmt) }
+        for (i, id) in gmailIds.enumerated() {
+            bindText(stmt, Int32(i + 1), id)
+        }
+        sqlite3_step(stmt)
+        let sql2 = "DELETE FROM scanned_messages WHERE messageID IN (\(placeholders))"
+        var stmt2: OpaquePointer?
+        if sqlite3_prepare_v2(db, sql2, -1, &stmt2, nil) == SQLITE_OK {
+            defer { sqlite3_finalize(stmt2) }
+            for (i, id) in gmailIds.enumerated() {
+                bindText(stmt2, Int32(i + 1), id)
+            }
+            sqlite3_step(stmt2)
+        }
+    }
+
     // MARK: - Scan State
 
     struct ScanState: Sendable {

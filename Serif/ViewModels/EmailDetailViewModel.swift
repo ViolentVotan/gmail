@@ -323,7 +323,7 @@ final class EmailDetailViewModel {
             smartReplySuggestions = cached
             return
         }
-        let t = Task { [weak self] in
+        let t = Task { @MainActor [weak self] in
             guard let self else { return }
             let replies = await SmartReplyService.shared.generateReplies(
                 subject: email.subject,

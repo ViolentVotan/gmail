@@ -10,6 +10,7 @@ final class SnoozeMonitor {
     nonisolated private static let logger = Logger(subsystem: "com.vikingz.serif", category: "SnoozeMonitor")
 
     private var timerTask: Task<Void, Never>?
+    private var isCheckingExpired = false
     private var snoozeFailureCounts: [String: Int] = [:]
     private var scheduledSendFailureCounts: [String: Int] = [:]
     private let failureNotifyThreshold = 5
@@ -26,13 +27,10 @@ final class SnoozeMonitor {
         }
     }
 
-    /// Stops the monitoring loop. Currently unused — monitor runs for app lifetime.
-    func stop() {
-        timerTask?.cancel()
-        timerTask = nil
-    }
-
     private func checkExpired() async {
+        guard !isCheckingExpired else { return }
+        isCheckingExpired = true
+        defer { isCheckingExpired = false }
         await checkSnoozedItems()
         await checkScheduledSends()
     }

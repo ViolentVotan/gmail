@@ -388,7 +388,7 @@ final class GmailAPIClient {
     /// Retries batch parts that returned HTTP 429, using exponential backoff.
     /// Merges successful results from retries with the original successes.
     /// Limited to `maxPartRetries` attempts to prevent infinite loops.
-    private func retryRateLimitedParts(
+    @concurrent private func retryRateLimitedParts(
         allResults: [(id: String, statusCode: Int, data: Data)],
         originalRequests: [(id: String, method: String, path: String, body: Data?)],
         accessToken: String,
@@ -445,7 +445,7 @@ final class GmailAPIClient {
     /// Runs up to 3 chunks concurrently to reduce latency for large ID sets.
     /// Returns successfully decoded items and IDs that failed — callers should retry failed IDs
     /// on a subsequent sync cycle rather than inline.
-    func batchFetch<T: Decodable & Sendable>(
+    @concurrent func batchFetch<T: Decodable & Sendable>(
         ids: [String],
         pathBuilder: @escaping @Sendable (String) -> String,
         accountID: String

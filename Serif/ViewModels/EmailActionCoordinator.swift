@@ -231,7 +231,7 @@ final class EmailActionCoordinator {
             label: "Deleted permanently",
             onConfirm: { [weak vm] in Task {
                 guard let vm, vm.accountID == expectedAccountID else { return }
-                await vm.deletePermanently(msgID)
+                await vm.deletePermanently(msgID, originalLabelIds: originalLabels)
             } },
             onUndo: { [weak vm] in Task {
                 guard let vm, vm.accountID == expectedAccountID else { return }
@@ -317,14 +317,20 @@ final class EmailActionCoordinator {
     }
 
     func unsnoozeEmail(messageId: String, accountID: String) {
+        let item = SnoozeStore.shared.items.first { $0.messageId == messageId && $0.accountID == accountID }
         SnoozeStore.shared.remove(messageId: messageId, accountID: accountID)
         Task {
-            try? await GmailMessageService.shared.modifyLabels(
-                id: messageId,
-                add: [GmailSystemLabel.inbox],
-                remove: [],
-                accountID: accountID
-            )
+            do {
+                try await GmailMessageService.shared.modifyLabels(
+                    id: messageId,
+                    add: [GmailSystemLabel.inbox],
+                    remove: [],
+                    accountID: accountID
+                )
+            } catch {
+                if let item { SnoozeStore.shared.add(item) }
+                ToastManager.shared.show(message: "Failed to unsnooze", type: .error)
+            }
         }
     }
 

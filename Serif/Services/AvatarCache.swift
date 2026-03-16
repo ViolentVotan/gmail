@@ -97,7 +97,7 @@ final class AvatarCache {
             continuation.resume(returning: result)
         }
 
-        activeFetches -= 1
+        activeFetches = max(0, activeFetches - 1)
         dequeueNext()
 
         return result

@@ -8,7 +8,7 @@ import Testing
     private func makeLabel(id: String = "Label_1", name: String = "Work") -> GmailLabel {
         GmailLabel(id: id, name: name, type: "user",
                    messagesTotal: 10, messagesUnread: 2,
-                   threadsTotal: 8, threadsUnread: 1, color: nil,
+                   color: nil,
                    labelListVisibility: nil, messageListVisibility: nil)
     }
 
@@ -23,7 +23,6 @@ import Testing
         if let idx = vm.labels.firstIndex(where: { $0.id == label.id }) {
             let updated = GmailLabel(id: label.id, name: "Personal", type: label.type,
                                       messagesTotal: label.messagesTotal, messagesUnread: label.messagesUnread,
-                                      threadsTotal: label.threadsTotal, threadsUnread: label.threadsUnread,
                                       color: label.color,
                                       labelListVisibility: label.labelListVisibility,
                                       messageListVisibility: label.messageListVisibility)

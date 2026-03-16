@@ -26,23 +26,23 @@ import Combine
 
     // MARK: - Formatting
 
-    func toggleBold()          { eval("execBold()") }
-    func toggleItalic()        { eval("execItalic()") }
-    func toggleUnderline()     { eval("execUnderline()") }
-    func toggleStrikethrough() { eval("execStrikethrough()") }
+    func toggleBold()          { evalJS("execBold()") }
+    func toggleItalic()        { evalJS("execItalic()") }
+    func toggleUnderline()     { evalJS("execUnderline()") }
+    func toggleStrikethrough() { evalJS("execStrikethrough()") }
 
     func setFontSize(_ size: CGFloat) {
         fontSize = size
-        eval("execFontSize(\(Int(size)))")
+        evalJS("execFontSize(\(Int(size)))")
     }
 
     func setTextColor(_ color: NSColor) {
         textColor = color
         let hex = colorToHex(color)
-        eval("execForeColor('\(hex)')")
+        evalJS("execForeColor('\(hex)')")
     }
 
-    func removeFormat() { eval("execRemoveFormat()") }
+    func removeFormat() { evalJS("execRemoveFormat()") }
 
     func setAlignment(_ alignment: NSTextAlignment) {
         self.alignment = alignment
@@ -53,45 +53,45 @@ import Combine
         case .justified: dir = "justify"
         default:         dir = "left"
         }
-        eval("execAlign('\(dir)')")
+        evalJS("execAlign('\(dir)')")
     }
 
-    func insertNumberedList()  { eval("execInsertOrderedList()") }
-    func insertBulletList()    { eval("execInsertUnorderedList()") }
-    func increaseIndent()      { eval("execIndent()") }
-    func decreaseIndent()      { eval("execOutdent()") }
-    // Note: eval() here is a local helper that calls WKWebView.evaluateJavaScript()
-    // on our own sandboxed editor JS — not arbitrary code execution.
-    func toggleBlockquote()    { eval("execToggleBlockquote()") }
+    func insertNumberedList()  { evalJS("execInsertOrderedList()") }
+    func insertBulletList()    { evalJS("execInsertUnorderedList()") }
+    func increaseIndent()      { evalJS("execIndent()") }
+    func decreaseIndent()      { evalJS("execOutdent()") }
+    // Note: evalJS() calls WKWebView.evaluateJavaScript() on our own sandboxed
+    // editor JS — not arbitrary code execution.
+    func toggleBlockquote()    { evalJS("execToggleBlockquote()") }
 
     func setHighlightColor(_ color: NSColor) {
         highlightColor = color
         let hex = colorToHex(color)
-        eval("execHighlightColor('\(hex)')")
+        evalJS("execHighlightColor('\(hex)')")
     }
 
     func removeHighlightColor() {
         highlightColor = nil
-        eval("execRemoveHighlight()")
+        evalJS("execRemoveHighlight()")
     }
 
     func setFontFamily(_ family: String) {
         fontFamily = family
         let escaped = family.replacingOccurrences(of: "'", with: "\\'")
-        eval("execFontFamily('\(escaped)')")
+        evalJS("execFontFamily('\(escaped)')")
     }
 
     func insertLink(url: String, text: String? = nil) {
         let escapedURL = url.replacingOccurrences(of: "'", with: "\\'")
         if let text = text {
             let escapedText = text.replacingOccurrences(of: "'", with: "\\'")
-            eval("execInsertLink('\(escapedURL)', '\(escapedText)')")
+            evalJS("execInsertLink('\(escapedURL)', '\(escapedText)')")
         } else {
-            eval("execInsertLink('\(escapedURL)', null)")
+            evalJS("execInsertLink('\(escapedURL)', null)")
         }
     }
 
-    func removeLink() { eval("execUnlink()") }
+    func removeLink() { evalJS("execUnlink()") }
 
     func undo() { webView?.evaluateJavaScript("performUndo()", completionHandler: nil) }
     func redo() { webView?.evaluateJavaScript("performRedo()", completionHandler: nil) }
@@ -100,12 +100,12 @@ import Combine
 
     func setHTML(_ html: String) {
         let escaped = html.jsEscaped
-        eval("setHTML(\(escaped))")
+        evalJS("setHTML(\(escaped))")
     }
 
     func insertHTML(_ html: String) {
         let escaped = html.jsEscaped
-        eval("insertHTML(\(escaped))")
+        evalJS("insertHTML(\(escaped))")
     }
 
     @MainActor func getHTMLAsync() async -> String {
@@ -118,7 +118,7 @@ import Combine
         }
     }
 
-    func focus() { eval("focusEditor()") }
+    func focus() { evalJS("focusEditor()") }
 
     // MARK: - Images
 
@@ -133,10 +133,10 @@ import Combine
             if image.size.width > maxWidth {
                 let ratio = maxWidth / image.size.width
                 let newSize = NSSize(width: maxWidth, height: image.size.height * ratio)
-                let resized = NSImage(size: newSize)
-                resized.lockFocus()
-                image.draw(in: NSRect(origin: .zero, size: newSize))
-                resized.unlockFocus()
+                let resized = NSImage(size: newSize, flipped: false) { rect in
+                    image.draw(in: rect)
+                    return true
+                }
                 if let tiff = resized.tiffRepresentation,
                    let rep = NSBitmapImageRep(data: tiff),
                    let jpeg = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.85]) {
@@ -165,13 +165,13 @@ import Combine
 
         let base64 = imageData.base64EncodedString()
         let dataURL = "data:\(mimeType);base64,\(base64)"
-        eval("insertImageBase64('\(dataURL)', '\(cid)')")
+        evalJS("insertImageBase64('\(dataURL)', '\(cid)')")
     }
 
     // MARK: - Theme update
 
     func updateTheme(textColor: String, bgColor: String, accentColor: String, placeholderColor: String) {
-        eval("setThemeColors('\(textColor)', '\(bgColor)', '\(accentColor)', '\(placeholderColor)')")
+        evalJS("setThemeColors('\(textColor)', '\(bgColor)', '\(accentColor)', '\(placeholderColor)')")
     }
 
     // MARK: - Selection state update (called by Coordinator)
@@ -217,7 +217,9 @@ import Combine
 
     // MARK: - Private
 
-    func eval(_ js: String) {
+    /// Executes a predefined JS function in the sandboxed editor WKWebView.
+    /// Fire-and-forget; errors are discarded (editor state is always recoverable).
+    func evalJS(_ js: String) {
         webView?.evaluateJavaScript(js, completionHandler: nil)
     }
 

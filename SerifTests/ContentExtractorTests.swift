@@ -6,10 +6,10 @@ import Foundation
 
     // MARK: - Plain Text Extraction
 
-    @Test func extractPlainText_UTF8() {
+    @Test func extractPlainText_UTF8() async {
         let text = "Hello, this is a plain text file."
         let data = text.data(using: .utf8)!
-        let result = ContentExtractor.extract(from: data, mimeType: "text/plain", filename: "note.txt")
+        let result = await ContentExtractor.extract(from: data, mimeType: "text/plain", filename: "note.txt")
 
         if case .text(let extracted) = result {
             #expect(extracted == text)
@@ -18,10 +18,10 @@ import Foundation
         }
     }
 
-    @Test func extractPlainText_ByExtension() {
+    @Test func extractPlainText_ByExtension() async {
         let text = "CSV data here"
         let data = text.data(using: .utf8)!
-        let result = ContentExtractor.extract(from: data, mimeType: nil, filename: "data.csv")
+        let result = await ContentExtractor.extract(from: data, mimeType: nil, filename: "data.csv")
 
         if case .text(let extracted) = result {
             #expect(extracted == text)
@@ -31,11 +31,11 @@ import Foundation
     }
 
     @Test(arguments: ["swift", "py", "js", "ts", "css", "json", "xml", "html", "md", "yaml", "yml", "toml", "ini", "cfg", "log", "rtf"])
-    func extractPlainText_CodeFiles(ext: String) {
+    func extractPlainText_CodeFiles(ext: String) async {
         let code = "func hello() { print(\"Hello\") }"
         let data = code.data(using: .utf8)!
 
-        let result = ContentExtractor.extract(from: data, mimeType: nil, filename: "file.\(ext)")
+        let result = await ContentExtractor.extract(from: data, mimeType: nil, filename: "file.\(ext)")
         if case .text(let extracted) = result {
             #expect(extracted == code, "Failed for extension: \(ext)")
         } else {
@@ -43,9 +43,9 @@ import Foundation
         }
     }
 
-    @Test func extractPlainText_EmptyData() {
+    @Test func extractPlainText_EmptyData() async {
         let data = Data()
-        let result = ContentExtractor.extract(from: data, mimeType: "text/plain", filename: "empty.txt")
+        let result = await ContentExtractor.extract(from: data, mimeType: "text/plain", filename: "empty.txt")
 
         if case .unsupported = result {
             // Expected: empty data should return .unsupported
@@ -54,10 +54,10 @@ import Foundation
         }
     }
 
-    @Test func extractPlainText_ByMimeType() {
+    @Test func extractPlainText_ByMimeType() async {
         let text = "text content via mime"
         let data = text.data(using: .utf8)!
-        let result = ContentExtractor.extract(from: data, mimeType: "text/html", filename: "unknown_ext.xyz")
+        let result = await ContentExtractor.extract(from: data, mimeType: "text/html", filename: "unknown_ext.xyz")
 
         if case .text(let extracted) = result {
             #expect(extracted == text)
@@ -69,10 +69,10 @@ import Foundation
     // MARK: - Image Types -> OCR (unsupported for garbage data)
 
     @Test(arguments: ["jpg", "jpeg", "png", "tiff", "heic", "bmp", "gif"])
-    func extractImage_ReturnsUnsupportedForInvalidData(ext: String) {
+    func extractImage_ReturnsUnsupportedForInvalidData(ext: String) async {
         let data = "not a real image".data(using: .utf8)!
 
-        let result = ContentExtractor.extract(from: data, mimeType: nil, filename: "photo.\(ext)")
+        let result = await ContentExtractor.extract(from: data, mimeType: nil, filename: "photo.\(ext)")
         if case .unsupported = result {
             // Expected: garbage data cannot be OCR'd
         } else if case .text = result {
@@ -80,9 +80,9 @@ import Foundation
         }
     }
 
-    @Test func extractImage_ByMimeType() {
+    @Test func extractImage_ByMimeType() async {
         let data = "not real image data".data(using: .utf8)!
-        let result = ContentExtractor.extract(from: data, mimeType: "image/png", filename: "unknown.xyz")
+        let result = await ContentExtractor.extract(from: data, mimeType: "image/png", filename: "unknown.xyz")
 
         // Should route to OCR path (which will return .unsupported for invalid data)
         if case .unsupported = result {
@@ -94,9 +94,9 @@ import Foundation
 
     // MARK: - PDF Extraction
 
-    @Test func extractPDF_InvalidData() {
+    @Test func extractPDF_InvalidData() async {
         let data = "not a real PDF".data(using: .utf8)!
-        let result = ContentExtractor.extract(from: data, mimeType: "application/pdf", filename: "doc.pdf")
+        let result = await ContentExtractor.extract(from: data, mimeType: "application/pdf", filename: "doc.pdf")
 
         if case .unsupported = result {
             // Expected: invalid PDF data should return .unsupported
@@ -105,9 +105,9 @@ import Foundation
         }
     }
 
-    @Test func extractPDF_ByExtension() {
+    @Test func extractPDF_ByExtension() async {
         let data = "not a real PDF".data(using: .utf8)!
-        let result = ContentExtractor.extract(from: data, mimeType: nil, filename: "report.pdf")
+        let result = await ContentExtractor.extract(from: data, mimeType: nil, filename: "report.pdf")
 
         if case .unsupported = result {
             // Expected: routes to PDF extractor by extension, invalid data
@@ -118,9 +118,9 @@ import Foundation
 
     // MARK: - Unknown / Unsupported Types
 
-    @Test func extractUnknownMimeType_ReturnsUnsupported() {
+    @Test func extractUnknownMimeType_ReturnsUnsupported() async {
         let data = "some binary data".data(using: .utf8)!
-        let result = ContentExtractor.extract(from: data, mimeType: "application/octet-stream", filename: "blob.bin")
+        let result = await ContentExtractor.extract(from: data, mimeType: "application/octet-stream", filename: "blob.bin")
 
         if case .unsupported = result {
             // Expected
@@ -129,9 +129,9 @@ import Foundation
         }
     }
 
-    @Test func extractUnknownExtension_ReturnsUnsupported() {
+    @Test func extractUnknownExtension_ReturnsUnsupported() async {
         let data = "whatever".data(using: .utf8)!
-        let result = ContentExtractor.extract(from: data, mimeType: nil, filename: "file.xyz123")
+        let result = await ContentExtractor.extract(from: data, mimeType: nil, filename: "file.xyz123")
 
         if case .unsupported = result {
             // Expected
@@ -140,9 +140,9 @@ import Foundation
         }
     }
 
-    @Test func extractNoExtension_NoMimeType_ReturnsUnsupported() {
+    @Test func extractNoExtension_NoMimeType_ReturnsUnsupported() async {
         let data = "data".data(using: .utf8)!
-        let result = ContentExtractor.extract(from: data, mimeType: nil, filename: "noextension")
+        let result = await ContentExtractor.extract(from: data, mimeType: nil, filename: "noextension")
 
         if case .unsupported = result {
             // Expected
@@ -153,9 +153,9 @@ import Foundation
 
     // MARK: - Word Document Extraction
 
-    @Test func extractWordDoc_InvalidData() {
+    @Test func extractWordDoc_InvalidData() async {
         let data = "not a real docx".data(using: .utf8)!
-        let result = ContentExtractor.extract(from: data, mimeType: nil, filename: "report.docx")
+        let result = await ContentExtractor.extract(from: data, mimeType: nil, filename: "report.docx")
 
         if case .unsupported = result {
             // Expected: invalid Word data
@@ -164,9 +164,9 @@ import Foundation
         }
     }
 
-    @Test func extractWordDoc_ByMimeType() {
+    @Test func extractWordDoc_ByMimeType() async {
         let data = "not real".data(using: .utf8)!
-        let result = ContentExtractor.extract(
+        let result = await ContentExtractor.extract(
             from: data,
             mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             filename: "unknown.xyz"
@@ -259,10 +259,10 @@ import Foundation
 
     // MARK: - Routing Priority
 
-    @Test func pdfMimeType_TakesPriorityOverExtension() {
+    @Test func pdfMimeType_TakesPriorityOverExtension() async {
         // A .txt file with application/pdf mime should be routed as PDF
         let data = "not a real PDF".data(using: .utf8)!
-        let result = ContentExtractor.extract(from: data, mimeType: "application/pdf", filename: "file.txt")
+        let result = await ContentExtractor.extract(from: data, mimeType: "application/pdf", filename: "file.txt")
 
         // Should attempt PDF extraction (and fail since data is invalid)
         if case .unsupported = result {
@@ -272,10 +272,10 @@ import Foundation
         }
     }
 
-    @Test func extractPreservesMultilineText() {
+    @Test func extractPreservesMultilineText() async {
         let text = "Line 1\nLine 2\nLine 3"
         let data = text.data(using: .utf8)!
-        let result = ContentExtractor.extract(from: data, mimeType: "text/plain", filename: "multi.txt")
+        let result = await ContentExtractor.extract(from: data, mimeType: "text/plain", filename: "multi.txt")
 
         if case .text(let extracted) = result {
             #expect(extracted == text)

@@ -181,12 +181,11 @@ final class ThumbnailCache {
         guard size.width > 0, size.height > 0 else { return nil }
         let scale = min(maxSize.width / size.width, maxSize.height / size.height, 1.0)
         let thumbSize = CGSize(width: size.width * scale, height: size.height * scale)
-        let thumb = NSImage(size: thumbSize)
-        thumb.lockFocus()
-        image.draw(in: NSRect(origin: .zero, size: thumbSize),
-                   from: NSRect(origin: .zero, size: size),
-                   operation: .copy, fraction: 1.0)
-        thumb.unlockFocus()
+        let originalSize = size
+        let thumb = NSImage(size: thumbSize, flipped: false) { rect in
+            image.draw(in: rect, from: NSRect(origin: .zero, size: originalSize), operation: .copy, fraction: 1.0)
+            return true
+        }
         return thumb
     }
 

@@ -51,6 +51,13 @@ final class MailDatabase: Sendable {
         try? dbPool.close()
     }
 
+    /// Removes a cached instance for the given account and closes its database connections.
+    /// Call on sign-out to ensure the `instances` cache doesn't hold stale DB connections.
+    static func evict(accountID: String) {
+        let removed = instances.withLock { $0.removeValue(forKey: accountID) }
+        removed?.close()
+    }
+
     /// Deletes the database file and WAL/SHM files.
     /// Removes any cached shared instance, then deletes the on-disk SQLite, WAL, and SHM files.
     static func deleteDatabase(accountID: String, baseDirectory: URL? = nil) {

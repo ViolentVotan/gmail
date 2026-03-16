@@ -97,18 +97,6 @@ struct GmailHistoryLabelRemoved: Codable, Sendable {
     let labelIds: [String]
 }
 
-struct GmailThreadListResponse: Codable, Sendable {
-    let threads:            [GmailThreadRef]?
-    let nextPageToken:      String?
-    let resultSizeEstimate: Int?
-}
-
-struct GmailThreadRef: Codable, Sendable {
-    let id:        String
-    let snippet:   String?
-    let historyId: String?
-}
-
 // MARK: - Labels
 
 struct GmailLabelListResponse: Codable, Sendable {
@@ -126,8 +114,6 @@ struct GmailLabel: Codable, Identifiable, Sendable {
     let type:                  String?
     let messagesTotal:         Int?
     let messagesUnread:        Int?
-    let threadsTotal:          Int?
-    let threadsUnread:         Int?
     let color:                 GmailLabelColor?
     let labelListVisibility:   String?
     let messageListVisibility: String?

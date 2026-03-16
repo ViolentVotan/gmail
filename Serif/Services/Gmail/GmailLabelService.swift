@@ -9,7 +9,7 @@ final class GmailLabelService {
     @concurrent func listLabels(accountID: String) async throws(GmailAPIError) -> [GmailLabel] {
         let response: GmailLabelListResponse = try await client.request(
             path: "/users/me/labels",
-            fields: "labels(id,name,type,messagesTotal,messagesUnread,threadsTotal,threadsUnread,color,labelListVisibility,messageListVisibility)",
+            fields: "labels(id,name,type,messagesTotal,messagesUnread,color,labelListVisibility,messageListVisibility)",
             accountID: accountID
         )
         return response.labels
@@ -22,7 +22,7 @@ final class GmailLabelService {
         let result: (GmailLabelListResponse, String?)? = try await client.requestWithETag(
             path: "/users/me/labels",
             etag: etag,
-            fields: "labels(id,name,type,messagesTotal,messagesUnread,threadsTotal,threadsUnread,color,labelListVisibility,messageListVisibility)",
+            fields: "labels(id,name,type,messagesTotal,messagesUnread,color,labelListVisibility,messageListVisibility)",
             accountID: accountID
         )
         guard let (response, responseETag) = result else { return nil }
@@ -32,7 +32,7 @@ final class GmailLabelService {
     @concurrent func getLabel(id: String, accountID: String) async throws(GmailAPIError) -> GmailLabel {
         return try await client.request(
             path: "/users/me/labels/\(id)",
-            fields: "id,name,type,messagesTotal,messagesUnread,threadsTotal,threadsUnread,color",
+            fields: "id,name,type,messagesTotal,messagesUnread,color",
             accountID: accountID
         )
     }

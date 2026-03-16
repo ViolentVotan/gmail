@@ -53,6 +53,7 @@ final class GmailProfileService {
         return try await client.request(
             path: GmailPathBuilder.sendAsPath(sendAsEmail),
             method: "PATCH", body: body, contentType: "application/json",
+            fields: "sendAsEmail,displayName,signature",
             accountID: accountID
         )
     }

@@ -54,7 +54,12 @@ final class GmailFilterService {
         } catch {
             throw .encodingError(error)
         }
-        return try await client.request(path: "/users/me/settings/filters", method: "POST", body: body, contentType: "application/json", accountID: accountID)
+        return try await client.request(
+            path: "/users/me/settings/filters",
+            method: "POST", body: body, contentType: "application/json",
+            fields: "id,criteria,action",
+            accountID: accountID
+        )
     }
 
     @concurrent func deleteFilter(id: String, accountID: String) async throws(GmailAPIError) {

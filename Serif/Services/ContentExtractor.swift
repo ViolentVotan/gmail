@@ -37,12 +37,13 @@ enum ContentExtractor {
     // MARK: - Public API
 
     /// Route extraction based on file extension and MIME type.
-    static func extract(from data: Data, mimeType: String?, filename: String) -> ExtractionResult {
+    @concurrent
+    static func extract(from data: Data, mimeType: String?, filename: String) async -> ExtractionResult {
         let ext = (filename as NSString).pathExtension.lowercased()
 
         // PDF
         if ext == "pdf" || mimeType == "application/pdf" {
-            return extractPDF(data: data)
+            return await extractPDF(data: data)
         }
 
         // Word documents (.doc, .docx, .odt)
@@ -52,7 +53,7 @@ enum ContentExtractor {
 
         // Images
         if imageExtensions.contains(ext) || (mimeType?.hasPrefix("image/") == true) {
-            return extractOCR(data: data)
+            return await extractOCR(data: data)
         }
 
         // Plain-text family
@@ -65,16 +66,16 @@ enum ContentExtractor {
 
     // MARK: - PDF
 
-    private static func extractPDF(data: Data) -> ExtractionResult {
+    private static func extractPDF(data: Data) async -> ExtractionResult {
         if #available(macOS 26.0, *) {
-            let result = extractPDFWithDocumentRecognition(data: data)
+            let result = await extractPDFWithDocumentRecognition(data: data)
             if case .text = result { return result }
         }
         return extractPDFWithLegacy(data: data)
     }
 
     @available(macOS 26.0, *)
-    private static func extractPDFWithDocumentRecognition(data: Data) -> ExtractionResult {
+    private static func extractPDFWithDocumentRecognition(data: Data) async -> ExtractionResult {
         guard let document = PDFDocument(data: data), document.pageCount > 0 else {
             return .unsupported
         }
@@ -93,8 +94,7 @@ enum ContentExtractor {
             ]
             request.textRecognitionOptions.useLanguageCorrection = true
 
-            let capturedRequest = request
-            guard let observations = try? synchronousPerform({ try await capturedRequest.perform(on: tiffData) }),
+            guard let observations = try? await request.perform(on: tiffData),
                   !observations.isEmpty else {
                 continue
             }
@@ -129,15 +129,15 @@ enum ContentExtractor {
 
     // MARK: - OCR (Vision)
 
-    private static func extractOCR(data: Data) -> ExtractionResult {
+    private static func extractOCR(data: Data) async -> ExtractionResult {
         if #available(macOS 26.0, *) {
-            return extractWithDocumentRecognition(data: data)
+            return await extractWithDocumentRecognition(data: data)
         }
         return extractWithLegacyOCR(data: data)
     }
 
     @available(macOS 26.0, *)
-    private static func extractWithDocumentRecognition(data: Data) -> ExtractionResult {
+    private static func extractWithDocumentRecognition(data: Data) async -> ExtractionResult {
         var request = RecognizeDocumentsRequest()
         request.textRecognitionOptions.recognitionLanguages = [
             Locale.Language(identifier: "fr-FR"),
@@ -146,8 +146,7 @@ enum ContentExtractor {
         request.textRecognitionOptions.useLanguageCorrection = true
 
         do {
-            let capturedRequest = request
-            let observations = try synchronousPerform { try await capturedRequest.perform(on: data) }
+            let observations = try await request.perform(on: data)
 
             guard !observations.isEmpty else {
                 return extractWithLegacyOCR(data: data)
@@ -209,25 +208,6 @@ enum ContentExtractor {
         }
 
         return sections.joined(separator: "\n\n")
-    }
-
-    /// Bridge async Vision request to synchronous context.
-    @available(macOS 26.0, *)
-    private static func synchronousPerform<T: Sendable>(
-        _ work: @Sendable @escaping () async throws -> T
-    ) throws -> T {
-        let semaphore = DispatchSemaphore(value: 0)
-        nonisolated(unsafe) var result: Swift.Result<T, Error>?
-        Task {
-            do {
-                result = .success(try await work())
-            } catch {
-                result = .failure(error)
-            }
-            semaphore.signal()
-        }
-        semaphore.wait()
-        return try result!.get()
     }
 
     private static func extractWithLegacyOCR(data: Data) -> ExtractionResult {
