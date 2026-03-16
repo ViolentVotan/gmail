@@ -56,7 +56,6 @@ scripts/                    # release.sh
 ## Dependencies (SPM)
 - AppAuth-iOS 1.7.6 — OAuth 2.0
 - GRDB.swift 7.10.0 — SQLite database (per-account persistence)
-- BlossomColorPicker 1.0.0 — Color picker
 
 ## Data Flow
 Services (Gmail API, GRDB database) → ViewModels (@Observable) → Views (SwiftUI)

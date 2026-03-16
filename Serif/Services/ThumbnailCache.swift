@@ -29,6 +29,15 @@ final class ThumbnailCache {
 
     private let maxSize = CGSize(width: 300, height: 200)
 
+    /// Injected attachment-fetching capability for testability.
+    /// Defaults to the real Gmail API service.
+    @ObservationIgnored
+    var fetchAttachment: @Sendable (_ messageID: String, _ attachmentID: String, _ accountID: String) async throws -> Data = { messageID, attachmentID, accountID in
+        try await GmailMessageService.shared.getAttachment(
+            messageID: messageID, attachmentID: attachmentID, accountID: accountID
+        )
+    }
+
     /// Directory for disk-cached thumbnails.
     private let cacheDirectory: URL = {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -98,11 +107,7 @@ final class ThumbnailCache {
                 dequeueNext()
             }
             do {
-                let data = try await GmailMessageService.shared.getAttachment(
-                    messageID: msgId,
-                    attachmentID: attId,
-                    accountID: accountID
-                )
+                let data = try await self.fetchAttachment(msgId, attId, accountID)
                 guard !Task.isCancelled else { return }
                 let thumb: NSImage? = switch fileType {
                 case .image: Self.imageThumb(from: data, maxSize: maxSize)

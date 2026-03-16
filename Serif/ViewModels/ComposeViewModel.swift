@@ -23,7 +23,7 @@ final class ComposeViewModel {
     @ObservationIgnored var replyToMessageID: String?   // for In-Reply-To / References headers
     @ObservationIgnored var attachmentURLs:   [URL] = []
 
-    // Reply draft cleanup context — set by sendReplyMessage, consumed by executeSend
+    // Reply draft cleanup context — set by sendReplyMessage, consumed by send()'s onConfirm closure
     @ObservationIgnored private var replyCleanupMailStore: MailStore?
     @ObservationIgnored private var replyCleanupDraftID: String?
 
@@ -111,44 +111,6 @@ final class ComposeViewModel {
                 }
             }
         )
-    }
-
-    private func executeSend() async {
-        do {
-            _ = try await GmailSendService.shared.send(
-                from:               fromAddress,
-                to:                 splitAddresses(to),
-                cc:                 splitAddresses(cc),
-                bcc:                splitAddresses(bcc),
-                subject:            subject,
-                body:               body,
-                isHTML:             isHTML,
-                threadID:           threadID,
-                referencesHeader:   replyToMessageID,
-                inlineImages:       inlineImages,
-                attachments:        attachmentURLs.isEmpty ? nil : attachmentURLs,
-                accountID:          accountID
-            )
-            if let draftID = gmailDraftID {
-                try? await GmailDraftService.shared.deleteDraft(draftID: draftID, accountID: accountID)
-            }
-            isSent = true
-            // Clean up reply draft references if this was a reply send
-            if let store = replyCleanupMailStore {
-                if let tid = threadID {
-                    store.replyDrafts.removeValue(forKey: tid)
-                    store.saveReplyDrafts()
-                }
-                if let gid = replyCleanupDraftID {
-                    store.gmailDrafts.removeAll { $0.gmailDraftID == gid }
-                }
-                replyCleanupMailStore = nil
-                replyCleanupDraftID = nil
-            }
-        } catch {
-            self.error = error.localizedDescription
-        }
-        isSending = false
     }
 
     func scheduleSend(at scheduledDate: Date) async {
@@ -256,7 +218,7 @@ final class ComposeViewModel {
             gmailDraftID = saved.gmailDraftID
         }
 
-        // Store cleanup context for executeSend to use on success
+        // Store cleanup context for send()'s onConfirm closure to use on success
         replyCleanupMailStore = mailStore
         replyCleanupDraftID = gmailDraftID
 

@@ -49,6 +49,7 @@ Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). Al
 ## Concurrency
 - `@MainActor` on all ViewModels and UI-touching services (explicit, not via `defaultIsolation`)
 - `@concurrent` on service methods that do network I/O (Gmail API calls, OAuth token refresh)
+- `NetworkMonitor.isReachable` (static, nonisolated, `Mutex<Bool>`) for connectivity checks in `@concurrent`/actor contexts — avoids MainActor hop. `NetworkMonitor.shared.isConnected` for UI-reactive `@Observable` tracking.
 - Typed throws: `throws(GmailAPIError)` on all Gmail service methods for precise error handling
 - `async/await` throughout (no completion handlers)
 - Prefer structured concurrency: `async let` for fixed concurrent work, `TaskGroup`/`withThrowingTaskGroup` for dynamic parallel tasks

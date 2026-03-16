@@ -70,10 +70,16 @@ final class MailDatabase: Sendable {
 
     /// Returns a cached `MailDatabase` for the given account, creating one if needed.
     /// Avoids opening redundant `DatabasePool` connections across Intents and extensions.
+    /// Uses double-checked locking: cache lookup under lock, database creation (which runs
+    /// migrations) outside lock, then re-check under lock to insert. This avoids blocking
+    /// all threads on a global mutex during potentially slow migrations.
     static func shared(for accountID: String) throws -> MailDatabase {
-        try instances.withLock { cache in
+        if let existing = instances.withLock({ $0[accountID] }) {
+            return existing
+        }
+        let db = try MailDatabase(accountID: accountID)
+        return instances.withLock { cache in
             if let existing = cache[accountID] { return existing }
-            let db = try MailDatabase(accountID: accountID)
             cache[accountID] = db
             return db
         }

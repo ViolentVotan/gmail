@@ -62,7 +62,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             trigger: nil
         )
         UNUserNotificationCenter.current().add(request)
-        MailboxViewModel.updateDockBadge()
+        Task { await MailboxViewModel.updateDockBadge() }
     }
 
     // MARK: - UNUserNotificationCenterDelegate

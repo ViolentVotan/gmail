@@ -12,6 +12,7 @@ enum MailDatabaseMigrations {
         registerV4(&migrator)
         registerV5(&migrator)
         registerV6(&migrator)
+        registerV7(&migrator)
         return migrator
     }
 
@@ -276,6 +277,23 @@ enum MailDatabaseMigrations {
                 AFTER DELETE ON messages
                 BEGIN
                     DELETE FROM messages_fts WHERE gmail_id = OLD.gmail_id;
+                END
+            """)
+        }
+    }
+
+    private static func registerV7(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v7_fts_update_trigger") { db in
+            // Keep FTS index in sync when searchable columns are updated via raw SQL.
+            // BackgroundSyncer already calls FTSManager, but this trigger provides
+            // defense-in-depth against any future code path that updates these columns directly.
+            try db.execute(sql: """
+                CREATE TRIGGER IF NOT EXISTS messages_fts_update
+                AFTER UPDATE OF subject, body_plain, snippet, sender_name, sender_email ON messages
+                BEGIN
+                    DELETE FROM messages_fts WHERE gmail_id = OLD.gmail_id;
+                    INSERT INTO messages_fts(gmail_id, subject, body_plain, snippet, sender_name, sender_email)
+                    VALUES (NEW.gmail_id, NEW.subject, NEW.body_plain, NEW.snippet, NEW.sender_name, NEW.sender_email);
                 END
             """)
         }

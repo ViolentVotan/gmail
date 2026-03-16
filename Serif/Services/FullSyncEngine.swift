@@ -129,8 +129,12 @@ actor FullSyncEngine {
             await reportProgress { $0.syncStarted() }
 
             // Immediate incremental sync to catch up
-            await syncIncremental()
-            await reportProgress { $0.syncCompleted() }
+            let succeeded = await syncIncremental()
+            if succeeded {
+                await reportProgress { $0.syncCompleted() }
+            } else {
+                await reportProgress { $0.syncFailed() }
+            }
 
             // Start background loops
             startIncrementalLoop()
@@ -278,8 +282,7 @@ actor FullSyncEngine {
                 try? await Task.sleep(for: .seconds(pollingInterval))
                 guard !Task.isCancelled else { return }
                 // Pause when offline
-                let isConnected = await MainActor.run { NetworkMonitor.shared.isConnected }
-                guard isConnected else { continue }
+                guard NetworkMonitor.isReachable else { continue }
                 await syncIncremental()
             }
         }
@@ -421,7 +424,15 @@ actor FullSyncEngine {
             return true
 
         } catch {
-            if case .httpError(404, _) = error as? GmailAPIError {
+            if case .tokenRevoked = error as? GmailAPIError {
+                // Refresh token permanently revoked (Google returned invalid_grant).
+                // Stop all sync activity — the account needs re-authentication.
+                Self.logger.error("Token revoked for \(self.accountID), stopping sync")
+                state = .error("Session expired — please sign in again")
+                stop()
+                await reportProgress { $0.syncFailed("Session expired — please sign in again") }
+                return false
+            } else if case .httpError(404, _) = error as? GmailAPIError {
                 // Any 404 from history.list means the startHistoryId is expired/invalid.
                 // The only realistic 404 scenario for this endpoint is stale history
                 // (userId is always "me"), so no need to inspect the response body.

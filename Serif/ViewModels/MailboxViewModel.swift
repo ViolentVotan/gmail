@@ -324,7 +324,7 @@ final class MailboxViewModel {
                     return result
                 }
                 categoryUnreadCounts = counts
-                Self.updateDockBadge()
+                await Self.updateDockBadge()
                 return
             } catch {
                 // Fall through to API
@@ -333,15 +333,15 @@ final class MailboxViewModel {
         if let counts = await labelService.loadCategoryUnreadCounts(accountID: accountID) {
             categoryUnreadCounts = counts
         }
-        Self.updateDockBadge()
+        await Self.updateDockBadge()
     }
 
     /// Sums inbox unread counts across all accounts and updates the dock badge.
-    static func updateDockBadge() {
+    static func updateDockBadge() async {
         var total = 0
         for account in AccountStore.shared.accounts {
             guard let db = try? MailDatabase.shared(for: account.id) else { continue }
-            let count = try? db.dbPool.read { database in
+            let count = try? await db.dbPool.read { database in
                 try MailDatabaseQueries.unreadCount(forLabel: GmailSystemLabel.inbox, in: database)
             }
             total += count ?? 0

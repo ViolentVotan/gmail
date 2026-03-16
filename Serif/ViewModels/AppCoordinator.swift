@@ -53,6 +53,7 @@ final class AppCoordinator {
                     StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
                 }
             }) ?? []
+            guard !Task.isCancelled else { return }
             guard let self, self.accountID == id else { return }
             contacts = result
         }

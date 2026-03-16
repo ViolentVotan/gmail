@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		9EBEBCE92F5B21B400145F71 /* serif_icon.icon in Resources */ = {isa = PBXBuildFile; fileRef = 9EBEBCE82F5B21B400145F71 /* serif_icon.icon */; };
 		A10001010000000000000082 /* AppAuth in Frameworks */ = {isa = PBXBuildFile; productRef = A10090010000000000000001 /* AppAuth */; };
-		A10001010000000000000200 /* BlossomColorPicker in Frameworks */ = {isa = PBXBuildFile; productRef = A10090010000000000000003 /* BlossomColorPicker */; };
 		A10001010000000000000300 /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = A10090010000000000000005 /* GRDB */; };
 /* End PBXBuildFile section */
 
@@ -51,7 +50,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10001010000000000000082 /* AppAuth in Frameworks */,
-				A10001010000000000000200 /* BlossomColorPicker in Frameworks */,
 				A10001010000000000000300 /* GRDB in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -114,7 +112,6 @@
 			name = Serif;
 			packageProductDependencies = (
 				A10090010000000000000001 /* AppAuth */,
-				A10090010000000000000003 /* BlossomColorPicker */,
 				A10090010000000000000005 /* GRDB */,
 			);
 			productName = Serif;
@@ -171,7 +168,6 @@
 			mainGroup = A10004010000000000000001;
 			packageReferences = (
 				A10091010000000000000001 /* XCRemoteSwiftPackageReference "AppAuth-iOS" */,
-				A10091010000000000000003 /* XCRemoteSwiftPackageReference "BlossomColorPicker" */,
 				A10091010000000000000005 /* XCRemoteSwiftPackageReference "GRDB.swift" */,
 			);
 			productRefGroup = A10004010000000000000099 /* Products */;
@@ -496,14 +492,6 @@
 				minimumVersion = 1.7.5;
 			};
 		};
-		A10091010000000000000003 /* XCRemoteSwiftPackageReference "BlossomColorPicker" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/Lakr233/BlossomColorPicker";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
-			};
-		};
 		A10091010000000000000005 /* XCRemoteSwiftPackageReference "GRDB.swift" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/groue/GRDB.swift.git";
@@ -519,11 +507,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A10091010000000000000001 /* XCRemoteSwiftPackageReference "AppAuth-iOS" */;
 			productName = AppAuth;
-		};
-		A10090010000000000000003 /* BlossomColorPicker */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A10091010000000000000003 /* XCRemoteSwiftPackageReference "BlossomColorPicker" */;
-			productName = BlossomColorPicker;
 		};
 		A10090010000000000000005 /* GRDB */ = {
 			isa = XCSwiftPackageProductDependency;

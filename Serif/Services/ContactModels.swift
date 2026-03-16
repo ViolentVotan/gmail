@@ -1,5 +1,4 @@
 import Foundation
-import GRDB
 import Synchronization
 
 // MARK: - Stored Contact

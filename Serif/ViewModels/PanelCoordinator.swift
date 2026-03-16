@@ -59,7 +59,13 @@ final class PanelCoordinator {
         }
     }
 
-    func showOriginalMessage(message msg: GmailMessage, accountID: String) {
+    func showOriginalMessage(
+        message msg: GmailMessage,
+        accountID: String,
+        fetchRaw: @escaping @Sendable (_ id: String, _ accountID: String) async throws -> GmailMessage = { id, accountID in
+            try await GmailMessageService.shared.getRawMessage(id: id, accountID: accountID)
+        }
+    ) {
         originalMessage = msg
         originalRawSource = nil
         isLoadingOriginal = true
@@ -69,7 +75,7 @@ final class PanelCoordinator {
         originalMessageTask?.cancel()
         originalMessageTask = Task {
             do {
-                let raw = try await GmailMessageService.shared.getRawMessage(id: msg.id, accountID: accountID)
+                let raw = try await fetchRaw(msg.id, accountID)
                 self.originalRawSource = raw.rawSource
             } catch {
                 self.originalRawSource = nil
@@ -93,10 +99,16 @@ final class PanelCoordinator {
         }
     }
 
-    func downloadMessage(message msg: GmailMessage, accountID: String) {
+    func downloadMessage(
+        message msg: GmailMessage,
+        accountID: String,
+        fetchRaw: @escaping @Sendable (_ id: String, _ accountID: String) async throws -> GmailMessage = { id, accountID in
+            try await GmailMessageService.shared.getRawMessage(id: id, accountID: accountID)
+        }
+    ) {
         Task {
             do {
-                let raw = try await GmailMessageService.shared.getRawMessage(id: msg.id, accountID: accountID)
+                let raw = try await fetchRaw(msg.id, accountID)
                 if let source = raw.rawSource, let data = source.data(using: .utf8) {
                     FileUtils.saveWithPanel(data: data, suggestedName: "\(msg.subject).eml")
                 }

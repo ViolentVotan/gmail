@@ -65,7 +65,7 @@ final class GmailAPIClient {
         fields: String? = nil,
         accountID: String
     ) async throws(GmailAPIError) -> Data {
-        guard await NetworkMonitor.shared.isConnected else { throw .offline }
+        guard NetworkMonitor.isReachable else { throw .offline }
         let token = try await cachedValidToken(for: accountID)
 
         // First attempt + 401 auto-retry
@@ -88,7 +88,7 @@ final class GmailAPIClient {
         fields: String? = nil,
         accountID: String
     ) async throws(GmailAPIError) -> (T, String?)? {
-        guard await NetworkMonitor.shared.isConnected else { throw .offline }
+        guard NetworkMonitor.isReachable else { throw .offline }
         let token = try await cachedValidToken(for: accountID)
 
         let doRequest = { (accessToken: String) async throws(GmailAPIError) -> (T, String?)? in
@@ -182,7 +182,7 @@ final class GmailAPIClient {
 
     /// Makes an authenticated GET request to any Google API (not limited to the Gmail base URL).
     @concurrent func requestURL<T: Decodable>(_ urlString: String, accountID: String) async throws(GmailAPIError) -> T {
-        guard await NetworkMonitor.shared.isConnected else { throw .offline }
+        guard NetworkMonitor.isReachable else { throw .offline }
         let token = try await cachedValidToken(for: accountID)
 
         let doRequest = { (accessToken: String) async throws(GmailAPIError) -> T in
@@ -212,7 +212,7 @@ final class GmailAPIClient {
         requests: [(id: String, method: String, path: String, body: Data?)],
         accountID: String
     ) async throws(GmailAPIError) -> [(id: String, statusCode: Int, data: Data)] {
-        guard await NetworkMonitor.shared.isConnected else { throw .offline }
+        guard NetworkMonitor.isReachable else { throw .offline }
         let token = try await cachedValidToken(for: accountID)
         var activeAccessToken = token.accessToken
 
@@ -868,6 +868,7 @@ enum GmailAPIError: Error, LocalizedError {
     case invalidURL
     case unauthorized
     case offline
+    case tokenRevoked
     case httpError(Int, Data)
     case decodingError(Error)
     case encodingError(Error)
@@ -882,6 +883,7 @@ enum GmailAPIError: Error, LocalizedError {
         case .invalidURL:                      return "Invalid API URL"
         case .unauthorized:                    return "Unauthorized — please sign in again"
         case .offline:                         return "You're offline — please check your connection"
+        case .tokenRevoked:                    return "Session expired — please sign in again"
         case .httpError(let c, _):             return "HTTP \(c)"
         case .decodingError(let e):            return "Decode failed: \(e.localizedDescription)"
         case .encodingError(let e):            return "Encode failed: \(e.localizedDescription)"
@@ -894,8 +896,10 @@ enum GmailAPIError: Error, LocalizedError {
     }
 
     /// Wraps an arbitrary error into a `GmailAPIError`, passing through if already one.
+    /// Maps `OAuthError.tokenRevoked` to `.tokenRevoked` so callers get a clear signal.
     static func wrap(_ error: Error) -> GmailAPIError {
         if let apiError = error as? GmailAPIError { return apiError }
+        if case .tokenRevoked = error as? OAuthError { return .tokenRevoked }
         return .networkError(error)
     }
 }
