@@ -362,7 +362,6 @@ struct EmailListView: View {
                 } label: {
                     Label("Archive", systemImage: "archivebox")
                 }
-                .tint(.gray)
             }
         }
         .swipeActions(edge: .leading, allowsFullSwipe: true) {
@@ -425,7 +424,6 @@ struct EmailListView: View {
             if isLoading && !emails.isEmpty {
                 ProgressView()
                     .scaleEffect(0.7)
-                    .tint(.gray)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
                     .listRowSeparator(.hidden)

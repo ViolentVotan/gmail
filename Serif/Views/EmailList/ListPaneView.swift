@@ -51,7 +51,7 @@ struct ListPaneView: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(.yellow.opacity(0.1))
+                .background(SemanticColor.warning.opacity(0.08))
             }
             if selectedFolder == .inbox {
                 @Bindable var vm = coordinator.mailboxViewModel

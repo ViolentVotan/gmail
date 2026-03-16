@@ -31,10 +31,65 @@ enum CornerRadius {
 // MARK: - Brand Colors
 
 enum BrandColor {
-    /// Serif coral — from onboarding ambient lights and logo
-    static let coral = Color(red: 0.94, green: 0.44, blue: 0.44)   // #F07070
-    /// Serif blue — from onboarding ambient lights
-    static let blue  = Color(red: 0.42, green: 0.61, blue: 0.96)   // #6B9BF5
+    /// Serif coral — warm accent for brand moments and onboarding.
+    static let coral  = Color(red: 0.94, green: 0.44, blue: 0.44)   // #F07070
+    /// Serif blue — canonical brand color, matching AccentColor (light).
+    static let blue   = Color(red: 0.227, green: 0.435, blue: 0.941) // #3A6FF0
+    /// Serif violet — onboarding bridge accent between blue and coral.
+    static let violet = Color(red: 0.639, green: 0.443, blue: 0.969) // #A371F7
+}
+
+// MARK: - Adaptive Color
+
+extension Color {
+    /// Creates a color that automatically resolves for the current appearance (light/dark).
+    /// Uses `NSColor(name:dynamicProvider:)` for zero-cost appearance tracking.
+    static func adaptive(
+        light: (red: CGFloat, green: CGFloat, blue: CGFloat),
+        dark: (red: CGFloat, green: CGFloat, blue: CGFloat)
+    ) -> Color {
+        let lightColor = NSColor(srgbRed: light.red, green: light.green, blue: light.blue, alpha: 1)
+        let darkColor = NSColor(srgbRed: dark.red, green: dark.green, blue: dark.blue, alpha: 1)
+        return Color(nsColor: NSColor(name: nil, dynamicProvider: { appearance in
+            appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? darkColor : lightColor
+        }))
+    }
+}
+
+// MARK: - Semantic State Colors
+
+/// Curated state colors — desaturated and brand-tinted for a cohesive premium feel.
+/// Each color adapts to light/dark appearance automatically.
+enum SemanticColor {
+    /// Teal-green — sync complete, auth pass, positive sentiment.
+    static let success = Color.adaptive(
+        light: (red: 0.18, green: 0.65, blue: 0.47),
+        dark:  (red: 0.30, green: 0.78, blue: 0.58)
+    )
+    /// Warm rose — sync fail, destructive actions, negative sentiment.
+    static let error = Color.adaptive(
+        light: (red: 0.82, green: 0.28, blue: 0.32),
+        dark:  (red: 0.92, green: 0.45, blue: 0.45)
+    )
+    /// Amber — nudge, offline, action needed, urgent.
+    static let warning = Color.adaptive(
+        light: (red: 0.83, green: 0.56, blue: 0.20),
+        dark:  (red: 0.95, green: 0.70, blue: 0.32)
+    )
+}
+
+// MARK: - File Type Colors
+
+/// Muted, cohesive palette for attachment file-type indicators.
+/// Each color adapts to light/dark appearance automatically.
+enum FileTypeColor {
+    static let image        = Color.adaptive(light: (0.30, 0.50, 0.92), dark: (0.42, 0.60, 0.95))
+    static let pdf          = Color.adaptive(light: (0.82, 0.32, 0.35), dark: (0.90, 0.45, 0.45))
+    static let spreadsheet  = Color.adaptive(light: (0.20, 0.65, 0.50), dark: (0.30, 0.75, 0.58))
+    static let document     = Color.adaptive(light: (0.38, 0.40, 0.88), dark: (0.48, 0.50, 0.92))
+    static let presentation = Color.adaptive(light: (0.85, 0.55, 0.22), dark: (0.92, 0.65, 0.32))
+    static let archive      = Color.adaptive(light: (0.55, 0.45, 0.78), dark: (0.65, 0.55, 0.85))
+    static let code         = Color.adaptive(light: (0.25, 0.60, 0.72), dark: (0.35, 0.70, 0.82))
 }
 
 // MARK: - Animation
@@ -119,10 +174,10 @@ struct DestructiveActionStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
             .font(Typography.subhead)
-            .foregroundStyle(.red)
+            .foregroundStyle(SemanticColor.error)
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.xs)
-            .background(Color.red.opacity(0.1), in: .rect(cornerRadius: CornerRadius.sm))
+            .background(SemanticColor.error.opacity(0.1), in: .rect(cornerRadius: CornerRadius.sm))
     }
 }
 

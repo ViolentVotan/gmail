@@ -268,7 +268,7 @@ struct ReplyBarView: View {
                 if let err = sendError {
                     Text(err)
                         .font(Typography.captionRegular)
-                        .foregroundStyle(.red)
+                        .foregroundStyle(SemanticColor.error)
                         .lineLimit(1)
                 }
 

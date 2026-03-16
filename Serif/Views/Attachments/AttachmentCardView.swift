@@ -22,25 +22,25 @@ struct AttachmentCardView: View {
 
     private var iconBackgroundColor: Color {
         switch fileType {
-        case .image:        return .blue.opacity(0.15)
-        case .pdf:          return .red.opacity(0.15)
-        case .spreadsheet:  return .green.opacity(0.15)
-        case .document:     return .indigo.opacity(0.15)
-        case .presentation: return .orange.opacity(0.15)
-        case .archive:      return .purple.opacity(0.15)
-        case .code:         return .teal.opacity(0.15)
+        case .image:        return FileTypeColor.image.opacity(0.12)
+        case .pdf:          return FileTypeColor.pdf.opacity(0.12)
+        case .spreadsheet:  return FileTypeColor.spreadsheet.opacity(0.12)
+        case .document:     return FileTypeColor.document.opacity(0.12)
+        case .presentation: return FileTypeColor.presentation.opacity(0.12)
+        case .archive:      return FileTypeColor.archive.opacity(0.12)
+        case .code:         return FileTypeColor.code.opacity(0.12)
         }
     }
 
     private var iconForegroundColor: Color {
         switch fileType {
-        case .image:        return .blue
-        case .pdf:          return .red
-        case .spreadsheet:  return .green
-        case .document:     return .indigo
-        case .presentation: return .orange
-        case .archive:      return .purple
-        case .code:         return .teal
+        case .image:        return FileTypeColor.image
+        case .pdf:          return FileTypeColor.pdf
+        case .spreadsheet:  return FileTypeColor.spreadsheet
+        case .document:     return FileTypeColor.document
+        case .presentation: return FileTypeColor.presentation
+        case .archive:      return FileTypeColor.archive
+        case .code:         return FileTypeColor.code
         }
     }
 
@@ -55,9 +55,9 @@ struct AttachmentCardView: View {
     }
 
     private var scoreColor: Color {
-        if result.score > 0.7 { return .green }
-        if result.score > 0.4 { return .orange }
-        return .red
+        if result.score > 0.7 { return SemanticColor.success }
+        if result.score > 0.4 { return SemanticColor.warning }
+        return SemanticColor.error
     }
 
     // MARK: - Body

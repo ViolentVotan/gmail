@@ -44,10 +44,6 @@ struct OnboardingView: View {
     @State private var orb3Offset: CGSize = CGSize(width: -60, height: 140)
     @State private var orbsVisible = false
 
-    // Logo colors — sourced from BrandColor tokens
-    private let coral = BrandColor.coral
-    private let blue  = BrandColor.blue
-
     var body: some View {
         ZStack {
             // MARK: - Deep black background
@@ -154,7 +150,7 @@ struct OnboardingView: View {
                 if let error = signInError {
                     Text(error)
                         .font(.system(size: 12))
-                        .foregroundStyle(coral)
+                        .foregroundStyle(BrandColor.coral)
                         .multilineTextAlignment(.center)
                         .padding(.top, 12)
                         .opacity(showButton ? 1 : 0)
@@ -180,11 +176,11 @@ struct OnboardingView: View {
 
     private var ambientLights: some View {
         ZStack {
-            // Coral orb
+            // Brand blue orb
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: [Color(hex: "#58A6FF").opacity(0.35), Color.clear],
+                        colors: [BrandColor.blue.opacity(0.35), Color.clear],
                         center: .center,
                         startRadius: 0,
                         endRadius: 240
@@ -194,11 +190,11 @@ struct OnboardingView: View {
                 .offset(orb1Offset)
                 .blur(radius: 90)
 
-            // Blue orb
+            // Violet bridge orb
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: [Color(hex: "#A371F7").opacity(0.28), Color.clear],
+                        colors: [BrandColor.violet.opacity(0.28), Color.clear],
                         center: .center,
                         startRadius: 0,
                         endRadius: 200
@@ -208,11 +204,11 @@ struct OnboardingView: View {
                 .offset(orb2Offset)
                 .blur(radius: 80)
 
-            // Subtle warm accent
+            // Brand coral orb
             Circle()
                 .fill(
                     RadialGradient(
-                        colors: [Color(hex: "#3FB950").opacity(0.20), Color.clear],
+                        colors: [BrandColor.coral.opacity(0.20), Color.clear],
                         center: .center,
                         startRadius: 0,
                         endRadius: 160

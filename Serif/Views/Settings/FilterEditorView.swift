@@ -29,7 +29,7 @@ struct FilterEditorView: View {
                 Toggle("Mark as Read", isOn: $shouldMarkRead)
             }
             if let error {
-                Text(error).foregroundStyle(.red).font(Typography.captionRegular)
+                Text(error).foregroundStyle(SemanticColor.error).font(Typography.captionRegular)
             }
         }
         .formStyle(.grouped)

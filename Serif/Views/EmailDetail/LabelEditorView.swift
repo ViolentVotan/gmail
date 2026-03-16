@@ -158,7 +158,7 @@ struct LabelEditorView: View {
                 switch item {
                 case .existing(let label):
                     Circle()
-                        .fill(Color(hex: label.resolvedTextColor))
+                        .fill(Color(hex: label.resolvedBgColor))
                         .frame(width: 10, height: 10)
                     Text(label.displayName)
                         .font(Typography.subheadRegular)

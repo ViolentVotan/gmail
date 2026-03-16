@@ -75,7 +75,7 @@ struct BulkActionBarView: View {
                 Text(label)
                     .font(Typography.caption)
             }
-            .foregroundStyle(destructive ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
+            .foregroundStyle(destructive ? AnyShapeStyle(SemanticColor.error) : AnyShapeStyle(.secondary))
             .frame(width: tileWidth, height: tileHeight)
             .glassEffect(.regular.interactive(), in: .rect(cornerRadius: CornerRadius.md))
         }

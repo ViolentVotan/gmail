@@ -204,7 +204,7 @@ struct ContentView: View {
             )
 
             if commandPalette.isVisible {
-                Color.black.opacity(0.3)
+                Color.black.opacity(0.45)
                     .ignoresSafeArea()
                     .onTapGesture { commandPalette.dismiss() }
                     .zIndex(10)

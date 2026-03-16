@@ -44,12 +44,12 @@ struct SyncBubbleView: View {
                 .tint(.accentColor)
         case .success:
             Image(systemName: "checkmark")
-                .foregroundStyle(.green)
+                .foregroundStyle(SemanticColor.success)
                 .fontWeight(.semibold)
                 .contentTransition(.symbolEffect(.replace))
         case .error:
             Image(systemName: "exclamationmark.triangle")
-                .foregroundStyle(.red)
+                .foregroundStyle(SemanticColor.error)
                 .fontWeight(.semibold)
                 .contentTransition(.symbolEffect(.replace))
         }
@@ -93,7 +93,7 @@ struct SyncBubbleView: View {
                 .foregroundStyle(.secondary)
         case .error(let message):
             Text(message)
-                .foregroundStyle(.red)
+                .foregroundStyle(SemanticColor.error)
         }
     }
 

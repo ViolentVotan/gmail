@@ -28,7 +28,7 @@ struct InsightCardView: View {
                             if let action = insight.actionNeeded {
                                 HStack(spacing: 4) {
                                     Image(systemName: "exclamationmark.circle.fill")
-                                        .foregroundStyle(.orange)
+                                        .foregroundStyle(SemanticColor.warning)
                                     Text(action)
                                         .font(Typography.captionRegular)
                                         .foregroundStyle(.primary)
@@ -37,7 +37,7 @@ struct InsightCardView: View {
                             if let deadline = insight.deadline {
                                 HStack(spacing: 4) {
                                     Image(systemName: "calendar.badge.clock")
-                                        .foregroundStyle(.red)
+                                        .foregroundStyle(SemanticColor.warning)
                                     Text(deadline)
                                         .font(Typography.captionRegular)
                                         .foregroundStyle(.primary)
@@ -73,9 +73,9 @@ struct InsightCardView: View {
 
     private func sentimentColor(_ sentiment: String) -> Color {
         switch sentiment.lowercased() {
-        case "positive": return .green
-        case "negative": return .red
-        case "urgent": return .orange
+        case "positive": return SemanticColor.success
+        case "negative": return SemanticColor.error
+        case "urgent": return SemanticColor.warning
         default: return .secondary
         }
     }

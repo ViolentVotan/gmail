@@ -160,7 +160,7 @@ struct EmailRowView: View, Equatable {
                     if showPreview, let nudge = nudgeText {
                         Text(nudge)
                             .font(Typography.captionSmallRegular)
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(SemanticColor.warning)
                     }
 
                     if !labelBadges.isEmpty || (showTags && !tagBadges.isEmpty) {

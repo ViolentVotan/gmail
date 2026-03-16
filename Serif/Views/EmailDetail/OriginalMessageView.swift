@@ -78,9 +78,9 @@ struct OriginalMessageView: View {
 
     private func authStatusColor(_ value: String?) -> Color {
         guard let v = value?.lowercased() else { return Color.secondary }
-        if v.contains("=pass") { return .green }
-        if v.contains("=fail") || v.contains("=softfail") { return .red }
-        return .orange
+        if v.contains("=pass") { return SemanticColor.success }
+        if v.contains("=fail") || v.contains("=softfail") { return SemanticColor.error }
+        return SemanticColor.warning
     }
 
     private func authStatusLabel(_ value: String?) -> String {
@@ -158,7 +158,6 @@ struct OriginalMessageView: View {
                 VStack {
                     Spacer()
                     ProgressView()
-                        .tint(.gray)
                     Text("Loading original message…")
                         .font(Typography.subheadRegular)
                         .foregroundStyle(.tertiary)

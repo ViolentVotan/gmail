@@ -92,7 +92,7 @@ private struct OfflineToastCard: View {
         HStack(spacing: 10) {
             Image(systemName: "wifi.slash")
                 .font(Typography.bodyMedium)
-                .foregroundStyle(.orange)
+                .foregroundStyle(SemanticColor.warning)
             Text("No internet connection")
                 .font(Typography.bodyMedium)
                 .foregroundStyle(.primary)
@@ -142,9 +142,9 @@ private struct GeneralToastCard: View {
 
     private func iconColor(_ type: ToastType) -> Color {
         switch type {
-        case .success: .green
-        case .error:   .red
-        case .info:    .blue
+        case .success: SemanticColor.success
+        case .error:   SemanticColor.error
+        case .info:    Color.accentColor
         }
     }
 }

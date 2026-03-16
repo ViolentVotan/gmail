@@ -68,7 +68,7 @@ struct SenderInfoPopover: View {
 
             Text(value)
                 .font(.caption.weight(suspicious ? .semibold : .regular))
-                .foregroundStyle(suspicious ? AnyShapeStyle(Color.red) : AnyShapeStyle(Color.primary))
+                .foregroundStyle(suspicious ? AnyShapeStyle(SemanticColor.error) : AnyShapeStyle(Color.primary))
                 .lineLimit(multiline ? 3 : 1)
                 .textSelection(.enabled)
 
@@ -88,7 +88,7 @@ struct SenderInfoPopover: View {
             HStack(spacing: 4) {
                 Image(systemName: "lock.fill")
                     .font(Typography.captionSmallRegular)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(SemanticColor.success)
                 Text(value)
                     .font(Typography.captionRegular)
                     .foregroundStyle(.primary)
