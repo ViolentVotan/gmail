@@ -150,16 +150,15 @@ struct ContentView: View {
                 }
                 return .handled
             }
-            .userActivity("com.vikingz.serif.viewEmail", isActive: coordinator.selectedEmail != nil) { activity in
+            .userActivity(UserActivityManager.viewEmailActivityType, isActive: coordinator.selectedEmail != nil) { activity in
                 guard let email = coordinator.selectedEmail else { return }
-                activity.title = email.subject
-                activity.isEligibleForHandoff = true
+                let source = UserActivityManager.activity(for: email, accountID: coordinator.accountID)
+                activity.title = source.title
                 activity.isEligibleForSearch = true
-                activity.userInfo = [
-                    "emailID": email.id.uuidString,
-                    "threadID": email.gmailThreadID ?? "",
-                    "accountID": coordinator.accountID
-                ]
+                activity.isEligibleForHandoff = false
+                activity.targetContentIdentifier = source.targetContentIdentifier
+                activity.contentAttributeSet = source.contentAttributeSet
+                activity.userInfo = source.userInfo
             }
             .onContinueUserActivity("com.vikingz.serif.viewEmail") { activity in
                 if let accountID = activity.userInfo?["accountID"] as? String,
