@@ -4,6 +4,8 @@ struct SyncBubbleView: View {
     let phase: SyncPhase
     var onRefresh: () -> Void = {}
 
+    @State private var isHovered = false
+
     private var isTappable: Bool {
         switch phase {
         case .idle, .error: true
@@ -25,6 +27,12 @@ struct SyncBubbleView: View {
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .capsule)
         .disabled(!isTappable)
+        .onHover { hovering in
+            withAnimation(SerifAnimation.springSnappy) {
+                isHovered = hovering
+            }
+        }
+        .help(isTappable ? "Click to sync" : "")
         .accessibilityLabel(accessibilityText)
         .accessibilityHint(isTappable ? "Double-tap to sync mail" : "")
     }
@@ -36,7 +44,8 @@ struct SyncBubbleView: View {
         switch phase {
         case .idle:
             Image(systemName: "arrow.clockwise")
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(isHovered ? .secondary : .tertiary)
+                .symbolEffect(.breathe, isActive: !isHovered)
                 .contentTransition(.symbolEffect(.replace))
         case .syncing, .initialSync, .bodyPrefetch:
             ProgressView()
@@ -51,6 +60,7 @@ struct SyncBubbleView: View {
             Image(systemName: "exclamationmark.triangle")
                 .foregroundStyle(SemanticColor.error)
                 .fontWeight(.semibold)
+                .symbolEffect(.pulse, isActive: !isHovered)
                 .contentTransition(.symbolEffect(.replace))
         }
     }
@@ -63,11 +73,11 @@ struct SyncBubbleView: View {
         case .idle(let lastSynced):
             if let lastSynced {
                 Text("Last synced: \(lastSynced, format: .relative(presentation: .named))")
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(isHovered ? .secondary : .tertiary)
                     .contentTransition(.interpolate)
             } else {
                 Text("Sync now")
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(isHovered ? .secondary : .tertiary)
                     .contentTransition(.interpolate)
             }
         case .syncing(let remaining):
