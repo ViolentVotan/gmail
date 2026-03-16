@@ -45,9 +45,9 @@ actor FullSyncEngine {
 
     // MARK: - Config
 
-    /// Adaptive polling: 15s (active inbox), 30s (composing/settings), 60s (background)
+    /// Adaptive polling: 60s (app focused), 300s (background/unfocused)
     private var pollingInterval: TimeInterval {
-        _pollingOverride ?? 30
+        _pollingOverride ?? 60
     }
     private var _pollingOverride: TimeInterval?
 
@@ -519,9 +519,9 @@ actor FullSyncEngine {
     /// Update polling interval based on app state.
     func updatePollingInterval(appIsActive: Bool, windowIsKey: Bool) {
         if !appIsActive || !windowIsKey {
-            _pollingOverride = 60
+            _pollingOverride = 300 // 5 minutes when backgrounded/unfocused
         } else {
-            _pollingOverride = nil // use default 30s
+            _pollingOverride = nil // use default 60s
         }
     }
 
