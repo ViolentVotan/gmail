@@ -1,5 +1,25 @@
 import Foundation
 
+// MARK: - App Paths
+
+enum AppPaths {
+    /// App Support subdirectory name. Debug builds use a separate directory so that
+    /// development builds never touch the release database.
+    static var appSupportName: String {
+        #if DEBUG
+        "com.vikingz.serif.app-debug"
+        #else
+        "com.vikingz.serif.app"
+        #endif
+    }
+
+    /// Root directory for all Serif data inside `~/Library/Application Support/`.
+    static var appSupportDirectory: URL {
+        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent(appSupportName, isDirectory: true)
+    }
+}
+
 // MARK: - Network Configuration
 
 enum NetworkConfig {

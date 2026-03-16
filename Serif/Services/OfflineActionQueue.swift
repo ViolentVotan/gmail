@@ -15,8 +15,8 @@ final class OfflineActionQueue {
 
     private let store = PerAccountFileStore<OfflineAction>(
         fileURL: { accountID in
-            FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-                .appendingPathComponent("com.vikingz.serif.app/offline-queue/\(accountID).json")
+            AppPaths.appSupportDirectory
+                .appendingPathComponent("offline-queue/\(accountID).json")
         },
         legacyDecoder: { data in
             guard let contents = try? JSONDecoder().decode(LegacyOfflineQueueFileContents.self, from: data) else {

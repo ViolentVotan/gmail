@@ -50,7 +50,7 @@ actor AttachmentDatabase {
     private nonisolated func openDatabase() throws {
         let fm = FileManager.default
         let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        let dir = support.appendingPathComponent("com.vikingz.serif.app", isDirectory: true)
+        let dir = support.appendingPathComponent(AppPaths.appSupportName, isDirectory: true)
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
 
         let path = dir.appendingPathComponent("attachment-index.sqlite").path

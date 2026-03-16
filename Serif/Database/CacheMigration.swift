@@ -48,8 +48,8 @@ enum CacheMigration {
     // MARK: - Private helpers
 
     private static var cacheBaseDir: URL {
-        FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("com.vikingz.serif.app/mail-cache", isDirectory: true)
+        AppPaths.appSupportDirectory
+            .appendingPathComponent("mail-cache", isDirectory: true)
     }
 
     private static func cacheFileURL(accountID: String, folderKey: String) -> URL {
