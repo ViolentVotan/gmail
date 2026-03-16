@@ -1,4 +1,4 @@
-import GRDB
+internal import GRDB
 
 struct AttachmentRecord: Codable, Identifiable, FetchableRecord, PersistableRecord, Sendable {
     static let databaseTableName = "attachments"

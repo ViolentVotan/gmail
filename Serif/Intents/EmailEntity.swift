@@ -1,53 +1,70 @@
 import AppIntents
-private import GRDB
+internal import GRDB
 
 // MARK: - Mail Account Entity
 
-struct MailAccountEntity: AppEntity {
+@AppEntity(schema: .mail.account)
+struct MailAccountEntity {
     static let defaultQuery = MailAccountEntityQuery()
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Mail Account"
 
     var id: String // Account ID
+    @Property var name: String
+    @Property var emailAddress: String
+
     var displayRepresentation: DisplayRepresentation {
-        DisplayRepresentation(title: "\(id)")
+        DisplayRepresentation(title: "\(name.isEmpty ? id : name)")
     }
 
-    init(id: String) {
+    init(id: String, name: String = "", emailAddress: String = "") {
         self.id = id
+        self.name = name
+        self.emailAddress = emailAddress
     }
 
-    struct MailAccountEntityQuery: EntityQuery {
+    struct MailAccountEntityQuery: EntityStringQuery {
         func entities(for identifiers: [String]) async throws -> [MailAccountEntity] {
             let accounts = await MainActor.run { AccountStore.shared.accounts }
             return accounts
                 .filter { identifiers.contains($0.id) }
-                .map { MailAccountEntity(id: $0.id) }
+                .map { MailAccountEntity(id: $0.id, name: $0.displayName, emailAddress: $0.email) }
+        }
+
+        func entities(matching string: String) async throws -> [MailAccountEntity] {
+            let accounts = await MainActor.run { AccountStore.shared.accounts }
+            let lower = string.lowercased()
+            return accounts
+                .filter {
+                    $0.email.lowercased().contains(lower) ||
+                    $0.displayName.lowercased().contains(lower)
+                }
+                .map { MailAccountEntity(id: $0.id, name: $0.displayName, emailAddress: $0.email) }
         }
 
         func suggestedEntities() async throws -> [MailAccountEntity] {
             let accounts = await MainActor.run { AccountStore.shared.accounts }
-            return accounts.map { MailAccountEntity(id: $0.id) }
+            return accounts.map { MailAccountEntity(id: $0.id, name: $0.displayName, emailAddress: $0.email) }
         }
     }
 }
 
 // MARK: - Mailbox Entity
 
-struct MailboxEntity: AppEntity {
+@AppEntity(schema: .mail.mailbox)
+struct MailboxEntity {
     static let defaultQuery = MailboxEntityQuery()
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Mailbox"
 
     var id: String // Gmail label ID (e.g. "INBOX", "TRASH")
-    @Property(title: "Name")
-    var name: String
+    @Property var name: String
+    @Property var account: MailAccountEntity
 
     var displayRepresentation: DisplayRepresentation {
         DisplayRepresentation(title: "\(name)")
     }
 
-    init(id: String, name: String) {
+    init(id: String, name: String, account: MailAccountEntity = MailAccountEntity(id: "")) {
         self.id = id
         self.name = name
+        self.account = account
     }
 
     struct MailboxEntityQuery: EntityStringQuery {
@@ -94,6 +111,71 @@ struct MailboxEntity: AppEntity {
     }
 }
 
+// MARK: - Mail Draft Entity
+
+@AppEntity(schema: .mail.draft)
+struct MailDraftEntity {
+    static let defaultQuery = MailDraftEntityQuery()
+
+    var id: String
+    @Property var to: [IntentPerson]
+    @Property var cc: [IntentPerson]
+    @Property var bcc: [IntentPerson]
+    @Property var subject: String?
+    @Property var body: AttributedString?
+    @Property var attachments: [IntentFile]
+    @Property var account: MailAccountEntity
+
+    var displayRepresentation: DisplayRepresentation {
+        DisplayRepresentation(title: "\(subject ?? "(No Subject)")")
+    }
+
+    init() {
+        self.id = ""
+        self.to = []
+        self.cc = []
+        self.bcc = []
+        self.subject = nil
+        self.body = nil
+        self.attachments = []
+        self.account = MailAccountEntity(id: "")
+    }
+
+    init(
+        id: String,
+        to: [IntentPerson] = [],
+        cc: [IntentPerson] = [],
+        bcc: [IntentPerson] = [],
+        subject: String? = nil,
+        body: AttributedString? = nil,
+        account: MailAccountEntity = MailAccountEntity(id: "")
+    ) {
+        self.id = id
+        self.to = to
+        self.cc = cc
+        self.bcc = bcc
+        self.subject = subject
+        self.body = body
+        self.attachments = []
+        self.account = account
+    }
+
+    struct MailDraftEntityQuery: EntityStringQuery {
+        func entities(for identifiers: [String]) async throws -> [MailDraftEntity] {
+            // Drafts are transient — return empty for now
+            []
+        }
+
+        func entities(matching string: String) async throws -> [MailDraftEntity] {
+            []
+        }
+
+        func suggestedEntities() async throws -> [MailDraftEntity] {
+            []
+        }
+    }
+}
+
 // MARK: - Mail Message Entity
 
 @AppEntity(schema: .mail.message)
@@ -107,10 +189,13 @@ struct MailMessageEntity: IndexedEntity {
     @Property var sender: IntentPerson
     @Property var to: [IntentPerson]
     @Property var cc: [IntentPerson]
+    @Property var bcc: [IntentPerson]
     @Property var body: AttributedString?
+    @Property var attachments: [IntentFile]
     @Property var dateSent: Date
     @Property var dateReceived: Date
     @Property var isRead: Bool
+    @Property var isJunk: Bool
     @Property var isFlagged: Bool
     @Property var account: MailAccountEntity
     @Property var mailbox: MailboxEntity
@@ -138,10 +223,13 @@ struct MailMessageEntity: IndexedEntity {
         self.sender = Self.makePerson(email: "", name: "")
         self.to = []
         self.cc = []
+        self.bcc = []
         self.body = nil
+        self.attachments = []
         self.dateSent = Date()
         self.dateReceived = Date()
         self.isRead = false
+        self.isJunk = false
         self.isFlagged = false
         self.account = MailAccountEntity(id: "")
         self.mailbox = MailboxEntity(id: GmailSystemLabel.inbox, name: "Inbox")
@@ -158,18 +246,21 @@ struct MailMessageEntity: IndexedEntity {
 
         self.to = Self.parseRecipients(record.toRecipients)
         self.cc = Self.parseRecipients(record.ccRecipients)
+        self.bcc = []
 
         if let snippet = record.snippet {
             self.body = AttributedString(snippet)
         } else {
             self.body = nil
         }
+        self.attachments = []
 
         let messageDate = Date(timeIntervalSince1970: record.internalDate)
         self.dateSent = messageDate
         self.dateReceived = messageDate
 
         self.isRead = record.isRead
+        self.isJunk = false
         self.isFlagged = record.isStarred
 
         self.account = MailAccountEntity(id: accountID)
@@ -189,12 +280,15 @@ struct MailMessageEntity: IndexedEntity {
         self.cc = email.cc.map {
             Self.makePerson(email: $0.email, name: $0.name)
         }
+        self.bcc = []
 
         self.body = email.preview.isEmpty ? nil : AttributedString(email.preview)
+        self.attachments = []
 
         self.dateSent = email.date
         self.dateReceived = email.date
         self.isRead = email.isRead
+        self.isJunk = false
         self.isFlagged = email.isStarred
         self.account = MailAccountEntity(id: "")
         self.mailbox = MailboxEntity(id: GmailSystemLabel.inbox, name: "Inbox")

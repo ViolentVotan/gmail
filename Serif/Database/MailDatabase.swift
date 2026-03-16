@@ -1,5 +1,5 @@
 import Foundation
-import GRDB
+internal import GRDB
 import Synchronization
 
 /// Per-account SQLite database using GRDB DatabasePool (WAL mode).

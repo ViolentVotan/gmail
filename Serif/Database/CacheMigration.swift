@@ -1,5 +1,5 @@
 import Foundation
-import GRDB
+internal import GRDB
 private import os
 
 /// Legacy JSON cache envelope — kept here for migration decoding only.

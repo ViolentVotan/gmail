@@ -6,11 +6,13 @@ struct ComposeEmailIntent {
 
     @Parameter var to: [IntentPerson]
     @Parameter var cc: [IntentPerson]
+    @Parameter var bcc: [IntentPerson]
     @Parameter var subject: String?
     @Parameter var body: AttributedString?
+    @Parameter var attachments: [IntentFile]
     @Parameter var account: MailAccountEntity?
 
-    func perform() async throws -> some IntentResult & ReturnsValue<MailMessageEntity> {
+    func perform() async throws -> some IntentResult & ReturnsValue<MailDraftEntity> {
         let recipient: String? = to.first.flatMap { person in
             guard let handle = person.handle else { return nil }
             switch handle.value {
@@ -26,6 +28,15 @@ struct ComposeEmailIntent {
                 userInfo: recipient.map { ["recipient": $0] } ?? [:]
             )
         }
-        return .result(value: MailMessageEntity())
+        let draft = MailDraftEntity(
+            id: UUID().uuidString,
+            to: to,
+            cc: cc,
+            bcc: bcc,
+            subject: subject,
+            body: body,
+            account: account ?? MailAccountEntity(id: "")
+        )
+        return .result(value: draft)
     }
 }

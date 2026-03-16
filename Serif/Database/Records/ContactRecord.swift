@@ -1,4 +1,4 @@
-import GRDB
+internal import GRDB
 
 struct ContactRecord: Codable, Identifiable, FetchableRecord, PersistableRecord, Sendable {
     static let databaseTableName = "contacts"

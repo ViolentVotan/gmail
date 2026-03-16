@@ -1,5 +1,5 @@
 import Foundation
-import GRDB
+internal import GRDB
 
 /// Centralized read queries for the mail database.
 /// All methods take a `Database` parameter and should be called within dbPool.read { }.

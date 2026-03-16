@@ -6,6 +6,7 @@ struct UpdateMailIntent {
 
     @Parameter var target: [MailMessageEntity]
     @Parameter var isRead: Bool?
+    @Parameter var isJunk: Bool?
     @Parameter var isFlagged: Bool?
     @Parameter var mailbox: MailboxEntity?
 
@@ -26,6 +27,19 @@ struct UpdateMailIntent {
 
             if let isFlagged {
                 try await GmailMessageService.shared.setStarred(isFlagged, id: messageId, accountID: accountID)
+            }
+
+            if let isJunk {
+                if isJunk {
+                    try await GmailMessageService.shared.spamMessage(id: messageId, accountID: accountID)
+                } else {
+                    try await GmailMessageService.shared.modifyLabels(
+                        id: messageId,
+                        add: [GmailSystemLabel.inbox],
+                        remove: [GmailSystemLabel.spam],
+                        accountID: accountID
+                    )
+                }
             }
         }
         return .result()

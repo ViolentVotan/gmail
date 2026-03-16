@@ -1,4 +1,4 @@
-import GRDB
+internal import GRDB
 
 enum MailDatabaseMigrations {
     static var migrator: DatabaseMigrator {

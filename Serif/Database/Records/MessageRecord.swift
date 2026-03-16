@@ -1,5 +1,5 @@
 import Foundation
-import GRDB
+internal import GRDB
 
 struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord, Sendable {
     static let databaseTableName = "messages"

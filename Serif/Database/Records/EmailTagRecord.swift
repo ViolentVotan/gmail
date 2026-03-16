@@ -1,4 +1,4 @@
-import GRDB
+internal import GRDB
 
 struct EmailTagRecord: Codable, Identifiable, FetchableRecord, PersistableRecord, Sendable {
     static let databaseTableName = "email_tags"

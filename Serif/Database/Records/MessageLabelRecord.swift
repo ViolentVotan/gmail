@@ -1,4 +1,4 @@
-import GRDB
+internal import GRDB
 
 struct MessageLabelRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
     static let databaseTableName = "message_labels"

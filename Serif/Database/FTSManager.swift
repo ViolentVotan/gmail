@@ -1,5 +1,5 @@
 import Foundation
-import GRDB
+internal import GRDB
 
 /// Centralized FTS5 index maintenance for the messages_fts virtual table.
 /// All code paths that modify searchable columns on messages MUST go through this.

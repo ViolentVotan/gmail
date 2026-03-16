@@ -1,4 +1,4 @@
-import GRDB
+internal import GRDB
 
 struct AccountSyncStateRecord: Codable, FetchableRecord, PersistableRecord, Sendable {
     static let databaseTableName = "account_sync_state"
