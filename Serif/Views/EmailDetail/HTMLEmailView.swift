@@ -54,6 +54,13 @@ struct HTMLEmailView: NSViewRepresentable {
         let config = WKWebViewConfiguration()
         config.userContentController.add(WeakScriptMessageHandler(context.coordinator), name: "heightChanged")
         config.defaultWebpagePreferences.allowsContentJavaScript = false
+        // Disable automatic Live Text / Image Analysis to prevent a use-after-free
+        // crash in Apple's Vision → TextRecognition → ImageAnalyzerMultiDetectorRecipient
+        // when the email view changes while analysis is in-flight (FB: macOS 26.3.1).
+        let disableTextExtraction = NSSelectorFromString("_setTextExtractionEnabled:")
+        if config.preferences.responds(to: disableTextExtraction) {
+            config.preferences.perform(disableTextExtraction, with: false as NSNumber)
+        }
         #if DEBUG
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
         #endif
@@ -76,6 +83,8 @@ struct HTMLEmailView: NSViewRepresentable {
         guard context.coordinator.lastCacheKey != cacheKey else { return }
         context.coordinator.lastCacheKey = cacheKey
         context.coordinator.isLoadingContent = true
+        // Cancel any in-flight page load / Vision analysis before switching content.
+        webView.stopLoading()
         // Defer height reset so SwiftUI processes it after the current render pass.
         // This shrinks the frame before didFinish measures the new content.
         // Using DispatchQueue.main.async avoids the race with rapid email switching
@@ -141,6 +150,10 @@ struct HTMLEmailView: NSViewRepresentable {
     }
 
     static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
+        // Cancel any in-flight Vision/Live Text analysis by clearing content
+        // before tearing down the web view.
+        webView.stopLoading()
+        webView.loadHTMLString("", baseURL: nil)
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "heightChanged")
     }
 
