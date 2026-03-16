@@ -78,7 +78,8 @@ actor FullSyncEngine {
     // MARK: - Lifecycle
 
     func start() {
-        guard state == .idle else { return }
+        guard syncTask == nil else { return }
+        state = .idle
         syncTask = Task { await runSyncLifecycle() }
     }
 
@@ -159,6 +160,12 @@ actor FullSyncEngine {
 
             if success {
                 state = .monitoring
+                // Immediate incremental sync to catch mail arriving during initial sync
+                // (the historyId captured before listing covers this gap)
+                let gapFillOK = await syncIncremental()
+                if !gapFillOK {
+                    await reportProgress { $0.syncFailed("Gap-fill sync failed") }
+                }
                 startIncrementalLoop()
                 startBodyPrefetchLoop()
                 startContactRefreshLoop()

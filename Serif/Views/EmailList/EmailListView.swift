@@ -6,6 +6,8 @@ struct EmailListView: View {
     let accountID: String
     let actions: EmailListActions
     let searchResetTrigger: Int
+    let hasMoreEmails: Bool
+    let isLoadingMore: Bool
     @Binding var searchFocusTrigger: Bool
     @Binding var selectedEmail: Email?
     @Binding var selectedEmailIDs: Set<String>
@@ -444,6 +446,13 @@ struct EmailListView: View {
                     .scaleEffect(0.7)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
+                    .listRowSeparator(.hidden)
+            }
+
+            if hasMoreEmails && !isLoadingMore {
+                Color.clear
+                    .frame(height: 1)
+                    .onAppear { actions.onLoadMore?() }
                     .listRowSeparator(.hidden)
             }
         }

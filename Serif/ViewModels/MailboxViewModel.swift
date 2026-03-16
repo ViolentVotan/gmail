@@ -37,6 +37,9 @@ final class MailboxViewModel {
     @ObservationIgnored var onEmailsChanged: (() -> Void)?
 
     var priorityFilterEnabled: Bool = false
+    private var displayLimit: Int = 200
+    private(set) var hasMoreEmails: Bool = false
+    private(set) var isLoadingMore: Bool = false
 
     var accountID: String
     private var currentLabelIDs: [String] = [GmailSystemLabel.inbox]
@@ -118,7 +121,7 @@ final class MailboxViewModel {
             .including(optional: MessageRecord.tags)
             .including(all: MessageRecord.attachments)
             .order(Column("internal_date").desc)
-            .limit(200)
+            .limit(displayLimit)
             .asRequest(of: MessageWithAssociations.self)
         // Use tracking (not trackingConstantRegion): the JOIN through
         // message_labels means the tracked region varies with the label filter,
@@ -141,6 +144,8 @@ final class MailboxViewModel {
     private func handleDatabaseUpdate(_ records: [MessageWithAssociations], from db: MailDatabase) {
         // Stale check: ignore updates from a previous account's database
         guard db === mailDatabase else { return }
+        let fetchedCount = records.count
+        let limit = displayLimit
         enrichmentTask?.cancel()
         enrichmentTask = Task { @MainActor [weak self] in
             let threadEmails = Self.threadedEmails(from: records)
@@ -149,6 +154,10 @@ final class MailboxViewModel {
             guard db === self.mailDatabase else { return }
             // Guard against empty results when the observation returned non-empty records
             if threadEmails.isEmpty && !records.isEmpty { return }
+            // Only show "load more" if the DB query hit the limit (more raw rows may exist)
+            // AND we haven't already loaded all available messages
+            self.hasMoreEmails = fetchedCount >= limit
+            self.isLoadingMore = false
             self.emails = threadEmails
         }
     }
@@ -174,6 +183,7 @@ final class MailboxViewModel {
     func loadFolder(labelIDs: [String], query: String? = nil) async {
         currentLabelIDs = labelIDs
         currentQuery = query
+        displayLimit = 200
 
         if let query, !query.isEmpty {
             // Search still uses FTS for local, API for server-side
@@ -244,6 +254,15 @@ final class MailboxViewModel {
             await loadFolder(labelIDs: labelIDs, query: query)
         }
         // Otherwise: sync engine handles incremental sync, ValueObservation updates UI
+    }
+
+    /// Expands the observation limit to load more emails (infinite scroll).
+    func loadMore() {
+        guard hasMoreEmails, !isLoadingMore else { return }
+        if let q = currentQuery, !q.isEmpty { return }
+        isLoadingMore = true
+        displayLimit += 200
+        startObservingLabels(currentLabelIDs)
     }
 
     // MARK: - Labels & Metadata
@@ -359,6 +378,9 @@ final class MailboxViewModel {
         accountID = id
         error     = nil
         emails    = []
+        displayLimit = 200
+        hasMoreEmails = false
+        isLoadingMore = false
     }
 
     // MARK: - Mutations

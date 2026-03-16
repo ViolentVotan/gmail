@@ -194,56 +194,118 @@ actor BackgroundSyncer {
     // MARK: - Private Helpers
 
     /// Upsert a single message: record, labels, attachments, FTS.
-    /// Uses `FTSManager.update` unconditionally (DELETE + INSERT) to avoid FTS5 duplicate rows
-    /// when the same gmailId appears multiple times in a batch.
+    /// Checks whether the message already exists and skips unchanged writes to reduce
+    /// write amplification (avoids CASCADE deletes of labels/attachments on every sync).
     private static func upsertSingleMessage(
         _ gmail: GmailMessage,
         in db: Database,
         affectedThreadIds: inout Set<String>
     ) throws {
         let record = MessageRecord(from: gmail)
-        try record.upsert(db)
-        affectedThreadIds.insert(record.threadId)
+        let existing = try MessageRecord.fetchOne(db, key: record.gmailId)
 
-        // Replace message_labels for this message
+        if let existing {
+            // --- Existing message: conditional update ---
+            // Break into sub-expressions to keep type-checker happy
+            let headersChanged: Bool = existing.subject != record.subject
+                || existing.snippet != record.snippet
+                || existing.senderEmail != record.senderEmail
+                || existing.senderName != record.senderName
+                || existing.historyId != record.historyId
+                || existing.sizeEstimate != record.sizeEstimate
+            let fieldsChanged: Bool = existing.toRecipients != record.toRecipients
+                || existing.ccRecipients != record.ccRecipients
+                || existing.replyTo != record.replyTo
+                || existing.messageIdHeader != record.messageIdHeader
+                || existing.inReplyTo != record.inReplyTo
+                || existing.referencesHeader != record.referencesHeader
+            let metaChanged: Bool = existing.hasAttachments != record.hasAttachments
+                || existing.isFromMailingList != record.isFromMailingList
+                || existing.unsubscribeUrl != record.unsubscribeUrl
+            let contentChanged = headersChanged || fieldsChanged || metaChanged
+
+            let bodyChanged: Bool = (record.fullBodyFetched && !existing.fullBodyFetched)
+                || (record.bodyHtml != nil && existing.bodyHtml != record.bodyHtml)
+                || (record.bodyPlain != nil && existing.bodyPlain != record.bodyPlain)
+
+            // Compare full label set (not just denormalized is_read/is_starred)
+            // to catch category changes, custom label adds, archive, etc.
+            let existingLabelIds = try Set(String.fetchAll(db, sql:
+                "SELECT label_id FROM message_labels WHERE message_id = ?",
+                arguments: [existing.gmailId]
+            ))
+            let newLabelIds = Set(gmail.labelIds ?? [])
+            let labelsChanged: Bool = existingLabelIds != newLabelIds
+
+            if contentChanged || bodyChanged || labelsChanged {
+                // Preserve body if the new record doesn't have it but the old one does
+                var toSave = record
+                if !record.fullBodyFetched && existing.fullBodyFetched {
+                    toSave.bodyHtml = existing.bodyHtml
+                    toSave.bodyPlain = existing.bodyPlain
+                    toSave.fullBodyFetched = true
+                }
+                toSave.fetchedAt = existing.fetchedAt
+                try toSave.update(db)
+
+                // Only update FTS if searchable fields changed
+                if contentChanged || bodyChanged {
+                    try FTSManager.update(message: toSave, in: db)
+                }
+            }
+
+            // Only rebuild labels if they changed
+            if labelsChanged {
+                try rebuildMessageLabels(for: record.gmailId, gmail: gmail, in: db)
+            }
+
+            // Attachments and thread counts: not affected by updates to existing messages
+        } else {
+            // --- New message: full insert ---
+            try record.insert(db)
+            affectedThreadIds.insert(record.threadId)
+
+            try rebuildMessageLabels(for: record.gmailId, gmail: gmail, in: db)
+
+            for part in gmail.attachmentParts {
+                guard let attachmentId = part.body?.attachmentId else { continue }
+                let attachment = AttachmentRecord(
+                    id: "\(record.gmailId)_\(attachmentId)",
+                    messageId: record.gmailId,
+                    gmailAttachmentId: attachmentId,
+                    filename: part.filename,
+                    mimeType: part.mimeType,
+                    fileType: part.filename.map { ($0 as NSString).pathExtension },
+                    size: part.body?.size,
+                    contentId: part.contentID,
+                    direction: nil,
+                    indexingStatus: "pending",
+                    extractedText: nil,
+                    indexedAt: nil,
+                    retryCount: 0
+                )
+                try attachment.insert(db)
+            }
+
+            try FTSManager.update(message: record, in: db)
+        }
+    }
+
+    /// Rebuild message_labels join rows for a message.
+    private static func rebuildMessageLabels(
+        for messageId: String,
+        gmail: GmailMessage,
+        in db: Database
+    ) throws {
         try db.execute(
             sql: "DELETE FROM message_labels WHERE message_id = ?",
-            arguments: [record.gmailId]
+            arguments: [messageId]
         )
         for labelId in gmail.labelIds ?? [] {
             try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil)
                 .insert(db, onConflict: .ignore)
-            try MessageLabelRecord(messageId: record.gmailId, labelId: labelId).insert(db)
+            try MessageLabelRecord(messageId: messageId, labelId: labelId).insert(db)
         }
-
-        // Attachments: replace existing records for this message
-        try db.execute(
-            sql: "DELETE FROM attachments WHERE message_id = ?",
-            arguments: [record.gmailId]
-        )
-        for part in gmail.attachmentParts {
-            guard let attachmentId = part.body?.attachmentId else { continue }
-            let attachment = AttachmentRecord(
-                id: "\(record.gmailId)_\(attachmentId)",
-                messageId: record.gmailId,
-                gmailAttachmentId: attachmentId,
-                filename: part.filename,
-                mimeType: part.mimeType,
-                fileType: part.filename.map { ($0 as NSString).pathExtension },
-                size: part.body?.size,
-                contentId: part.contentID,
-                direction: nil,
-                indexingStatus: "pending",
-                extractedText: nil,
-                indexedAt: nil,
-                retryCount: 0
-            )
-            try attachment.upsert(db)
-        }
-
-        // FTS: always use update (DELETE + INSERT) — safe for new rows since DELETE on
-        // non-existent FTS row is a no-op, and avoids duplicates from batch duplicates.
-        try FTSManager.update(message: record, in: db)
     }
 
     /// Update thread_message_count for all messages belonging to the given threads.

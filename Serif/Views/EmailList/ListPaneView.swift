@@ -122,9 +122,12 @@ struct ListPaneView: View {
                         Task { await mailboxViewModel.search(query: query) }
                     }
                 },
-                onRefresh: { await coordinator.loadCurrentFolder() }
+                onRefresh: { await coordinator.loadCurrentFolder() },
+                onLoadMore: { mailboxViewModel.loadMore() }
             ),
             searchResetTrigger: searchResetTrigger,
+            hasMoreEmails: mailboxViewModel.hasMoreEmails,
+            isLoadingMore: mailboxViewModel.isLoadingMore,
             searchFocusTrigger: $searchFocusTrigger,
             selectedEmail: $selectedEmail,
             selectedEmailIDs: $selectedEmailIDs,

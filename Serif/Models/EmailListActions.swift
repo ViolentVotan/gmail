@@ -36,4 +36,5 @@ struct EmailListActions {
 
     var onSearch: (String) -> Void = { _ in }
     var onRefresh: (() async -> Void)?
+    var onLoadMore: (() -> Void)?
 }
