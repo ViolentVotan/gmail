@@ -30,7 +30,7 @@ Serif/                      # Main app
 │   ├── PanelCoordinator     # Panel state management
 │   ├── AuthViewModel        # Authentication flow
 │   ├── AttachmentStore      # Attachment state
-│   ├── SyncProgressManager  # Sync progress UI state (liquid glass bubble)
+│   ├── SyncProgressManager  # Always-visible sync bubble (manual sync trigger + progress)
 │   ├── MailStore            # Account/folder state management
 │   └── ComposeModeInitializer # Compose mode helpers (structs)
 ├── Views/                   # SwiftUI components
