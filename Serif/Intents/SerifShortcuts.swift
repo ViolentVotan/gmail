@@ -75,5 +75,35 @@ struct SerifShortcuts: AppShortcutsProvider {
             shortTitle: "Trash Email",
             systemImageName: "trash"
         )
+
+        AppShortcut(
+            intent: SendDraftIntent(),
+            phrases: [
+                "Send my draft in \(.applicationName)",
+                "Send draft in \(.applicationName)",
+            ],
+            shortTitle: "Send Draft",
+            systemImageName: "paperplane"
+        )
+
+        AppShortcut(
+            intent: ReplyMailIntent(),
+            phrases: [
+                "Reply to email in \(.applicationName)",
+                "Reply in \(.applicationName)",
+            ],
+            shortTitle: "Reply to Email",
+            systemImageName: "arrowshape.turn.up.left"
+        )
+
+        AppShortcut(
+            intent: ForwardMailIntent(),
+            phrases: [
+                "Forward email in \(.applicationName)",
+                "Forward in \(.applicationName)",
+            ],
+            shortTitle: "Forward Email",
+            systemImageName: "arrowshape.turn.up.right"
+        )
     }
 }

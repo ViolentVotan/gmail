@@ -438,6 +438,28 @@ struct ContentView: View {
                     }
                 }
                 .task {
+                    for await notification in NotificationCenter.default.notifications(named: .replyEmailFromIntent) {
+                        guard let messageId = notification.userInfo?["messageId"] as? String else { continue }
+                        if let accountID = notification.userInfo?["accountID"] as? String,
+                           !accountID.isEmpty,
+                           coordinator.selectedAccountID != accountID {
+                            coordinator.selectedAccountID = accountID
+                        }
+                        coordinator.navigateToMessage(gmailMessageID: messageId)
+                    }
+                }
+                .task {
+                    for await notification in NotificationCenter.default.notifications(named: .forwardEmailFromIntent) {
+                        guard let messageId = notification.userInfo?["messageId"] as? String else { continue }
+                        if let accountID = notification.userInfo?["accountID"] as? String,
+                           !accountID.isEmpty,
+                           coordinator.selectedAccountID != accountID {
+                            coordinator.selectedAccountID = accountID
+                        }
+                        coordinator.navigateToMessage(gmailMessageID: messageId)
+                    }
+                }
+                .task {
                     for await _ in NotificationCenter.default.notifications(named: NSApplication.didBecomeActiveNotification) {
                         await coordinator.syncEngine?.updatePollingInterval(appIsActive: true, windowIsKey: true)
                     }

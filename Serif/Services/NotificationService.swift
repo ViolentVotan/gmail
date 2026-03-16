@@ -158,4 +158,6 @@ extension Notification.Name {
     static let openEmailFromIntent        = Notification.Name("openEmailFromIntent")
     static let composeEmailFromIntent     = Notification.Name("composeEmailFromIntent")
     static let searchEmailFromIntent      = Notification.Name("searchEmailFromIntent")
+    static let replyEmailFromIntent       = Notification.Name("replyEmailFromIntent")
+    static let forwardEmailFromIntent     = Notification.Name("forwardEmailFromIntent")
 }
