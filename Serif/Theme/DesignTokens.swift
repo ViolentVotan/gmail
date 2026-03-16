@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 // MARK: - Spacing
@@ -25,6 +26,15 @@ enum CornerRadius {
     static let md: CGFloat = 12
     static let lg: CGFloat = 16
     static let xl: CGFloat = 24
+}
+
+// MARK: - Brand Colors
+
+enum BrandColor {
+    /// Serif coral — from onboarding ambient lights and logo
+    static let coral = Color(red: 0.94, green: 0.44, blue: 0.44)   // #F07070
+    /// Serif blue — from onboarding ambient lights
+    static let blue  = Color(red: 0.42, green: 0.61, blue: 0.96)   // #6B9BF5
 }
 
 // MARK: - Animation
@@ -216,5 +226,17 @@ extension View {
     func glassOrMaterial<S: Shape>(in shape: S, interactive: Bool = false) -> some View {
         modifier(GlassOrMaterial(in: shape, interactive: interactive))
     }
+}
+
+// MARK: - Haptic Feedback
+
+enum SerifHaptic {
+    static func perform(_ pattern: NSHapticFeedbackManager.FeedbackPattern) {
+        NSHapticFeedbackManager.defaultPerformer.perform(pattern, performanceTime: .default)
+    }
+
+    static func alignment() { perform(.alignment) }
+    static func generic() { perform(.generic) }
+    static func levelChange() { perform(.levelChange) }
 }
 

@@ -27,6 +27,8 @@ enum UserDefaultsKey {
     static let showDebugMenu = "showDebugMenu"
     static let syncDirectoryContacts = "syncDirectoryContacts"
     static let dismissedLabelSuggestions = "dismissedLabelSuggestions"
+    static let emailDensity = "emailDensity"
+    static let soundEffectsEnabled = "soundEffectsEnabled"
 
     static func signatureForNew(_ accountID: String) -> String {
         "signatureForNew.\(accountID)"

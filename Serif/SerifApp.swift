@@ -9,7 +9,9 @@ struct SerifApp: App {
         UserDefaults.standard.register(defaults: [
             UserDefaultsKey.notificationsEnabled: true,
             UserDefaultsKey.undoDuration: 5,
-            UserDefaultsKey.aiLabelSuggestions: true
+            UserDefaultsKey.aiLabelSuggestions: true,
+            UserDefaultsKey.emailDensity: "comfortable",
+            UserDefaultsKey.soundEffectsEnabled: true
         ])
         NotificationService.shared.setup()
         SerifShortcuts.updateAppShortcutParameters()

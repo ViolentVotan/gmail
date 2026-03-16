@@ -13,6 +13,8 @@ struct SettingsView: View {
     @AppStorage("showDebugMenu") private var showDebugMenu = false
     @AppStorage("aiLabelSuggestions") private var aiLabelSuggestions = true
     @AppStorage("syncDirectoryContacts") private var syncDirectoryContacts = false
+    @AppStorage("emailDensity") private var emailDensity = "comfortable"
+    @AppStorage("soundEffectsEnabled") private var soundEffectsEnabled = true
 
     /// Reactive account ID — reads from UserDefaults via @AppStorage,
     /// falling back to the first connected account.
@@ -72,8 +74,18 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
             }
 
+            Section("Display") {
+                Picker("Email density", selection: $emailDensity) {
+                    Text("Compact").tag("compact")
+                    Text("Comfortable").tag("comfortable")
+                    Text("Spacious").tag("spacious")
+                }
+                .pickerStyle(.segmented)
+            }
+
             Section("Behavior") {
                 Toggle("Enable notifications", isOn: $notificationsEnabled)
+                Toggle("Sound effects", isOn: $soundEffectsEnabled)
 
                 Picker("Undo duration", selection: $undoDuration) {
                     Text("5 seconds").tag(5)
