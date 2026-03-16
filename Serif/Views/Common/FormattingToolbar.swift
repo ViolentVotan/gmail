@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct FormattingToolbar: View {
-    @ObservedObject var state: WebRichTextEditorState
+    var state: WebRichTextEditorState
     @State private var showColorPopover = false
     @State private var showHighlightPopover = false
     @State private var showLinkPopover = false
@@ -365,7 +365,7 @@ private struct ToggleHighlight: ViewModifier {
 // MARK: - Color Grid Popover
 
 struct ColorGridPopover: View {
-    @ObservedObject var state: WebRichTextEditorState
+    var state: WebRichTextEditorState
     @Binding var showPopover: Bool
     let colorGrid: [[NSColor]]
     @State private var customColor: Color = .white
@@ -434,7 +434,7 @@ struct ColorGridPopover: View {
 // MARK: - Highlight Color Popover
 
 struct HighlightColorPopover: View {
-    @ObservedObject var state: WebRichTextEditorState
+    var state: WebRichTextEditorState
     @Binding var showPopover: Bool
     let colorGrid: [[NSColor]]
     @State private var customColor: Color = .yellow

@@ -11,6 +11,55 @@ private struct MessageWithAssociations: Decodable, FetchableRecord {
     var attachments: [AttachmentRecord]
 }
 
+/// Per-message label mutation logic: reads current labels, applies a transform, writes results,
+/// and syncs denormalized `is_read`/`is_starred` columns.
+/// Called inside an existing write transaction — does **not** open one itself.
+/// Returns the **original** label IDs (before the transform) for undo.
+///
+/// File-scope to avoid `@MainActor` isolation inheritance from `MailboxViewModel`.
+private func mutateLabels(
+    for messageID: String,
+    ensureLabelRecords: Bool = false,
+    in database: Database,
+    transform: (inout Set<String>) -> Void
+) throws -> [String] {
+    // 1. Read current labels
+    let currentLabels = try String.fetchAll(database, sql:
+        "SELECT label_id FROM message_labels WHERE message_id = ?",
+        arguments: [messageID]
+    )
+    var labels = Set(currentLabels)
+
+    // 2. Apply transform
+    transform(&labels)
+
+    // 3. Delete all label rows for this message
+    try database.execute(
+        sql: "DELETE FROM message_labels WHERE message_id = ?",
+        arguments: [messageID]
+    )
+
+    // 4. Insert new label rows
+    for labelId in labels {
+        if ensureLabelRecords {
+            try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil)
+                .insert(database, onConflict: .ignore)
+        }
+        try MessageLabelRecord(messageId: messageID, labelId: labelId)
+            .insert(database, onConflict: .ignore)
+    }
+
+    // 5. Sync denormalized columns
+    let isRead = !labels.contains(GmailSystemLabel.unread)
+    let isStarred = labels.contains(GmailSystemLabel.starred)
+    try database.execute(
+        sql: "UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?",
+        arguments: [isRead, isStarred, messageID]
+    )
+
+    return currentLabels
+}
+
 /// Drives the email list for a given account and folder.
 ///
 /// DB-only architecture: folder loads start a `ValueObservation` on the label;
@@ -522,41 +571,12 @@ final class MailboxViewModel {
         guard let db = mailDatabase else { return nil }
         do {
             return try await db.dbPool.write { database in
-                // 1. Read current labels
-                let currentLabels = try String.fetchAll(database, sql:
-                    "SELECT label_id FROM message_labels WHERE message_id = ?",
-                    arguments: [messageID]
+                try mutateLabels(
+                    for: messageID,
+                    ensureLabelRecords: ensureLabelRecords,
+                    in: database,
+                    transform: transform
                 )
-                var labels = Set(currentLabels)
-
-                // 2. Apply transform
-                transform(&labels)
-
-                // 3. Delete all label rows for this message
-                try database.execute(
-                    sql: "DELETE FROM message_labels WHERE message_id = ?",
-                    arguments: [messageID]
-                )
-
-                // 4. Insert new label rows
-                for labelId in labels {
-                    if ensureLabelRecords {
-                        try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil)
-                            .insert(database, onConflict: .ignore)
-                    }
-                    try MessageLabelRecord(messageId: messageID, labelId: labelId)
-                        .insert(database, onConflict: .ignore)
-                }
-
-                // 5. Sync denormalized columns
-                let isRead = !labels.contains(GmailSystemLabel.unread)
-                let isStarred = labels.contains(GmailSystemLabel.starred)
-                try database.execute(
-                    sql: "UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?",
-                    arguments: [isRead, isStarred, messageID]
-                )
-
-                return currentLabels
             }
         } catch {
             Self.logger.error("DB label mutation failed for \(messageID, privacy: .public): \(error.localizedDescription, privacy: .public)")
@@ -583,39 +603,15 @@ final class MailboxViewModel {
             return try await db.dbPool.write { database in
                 var originalLabelsMap: [String: [String]] = [:]
                 for msgID in messageIDs {
-                    // 1. Read current labels
-                    let currentLabels = try String.fetchAll(database, sql:
-                        "SELECT label_id FROM message_labels WHERE message_id = ?",
-                        arguments: [msgID]
-                    )
-                    originalLabelsMap[msgID] = currentLabels
-
-                    // 2. Apply changes
-                    var labelSet = Set(currentLabels)
-                    labelSet.subtract(removeLabelIds)
-                    labelSet.formUnion(addLabelIds)
-
-                    // 3. Delete old label rows
-                    try database.execute(
-                        sql: "DELETE FROM message_labels WHERE message_id = ?",
-                        arguments: [msgID]
-                    )
-
-                    // 4. Insert new label rows
-                    for labelId in labelSet {
-                        try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil)
-                            .insert(database, onConflict: .ignore)
-                        try MessageLabelRecord(messageId: msgID, labelId: labelId)
-                            .insert(database, onConflict: .ignore)
+                    let original = try mutateLabels(
+                        for: msgID,
+                        ensureLabelRecords: true,
+                        in: database
+                    ) { labels in
+                        labels.subtract(removeLabelIds)
+                        labels.formUnion(addLabelIds)
                     }
-
-                    // 5. Sync denormalized columns
-                    let isRead = !labelSet.contains(GmailSystemLabel.unread)
-                    let isStarred = labelSet.contains(GmailSystemLabel.starred)
-                    try database.execute(
-                        sql: "UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?",
-                        arguments: [isRead, isStarred, msgID]
-                    )
+                    originalLabelsMap[msgID] = original
                 }
                 return originalLabelsMap
             }

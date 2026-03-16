@@ -77,7 +77,7 @@ import Foundation
         )
         store.gmailDrafts = [gmailDraft]
 
-        store.deleteDraft(id: draftID)
+        store.deleteDraft(id: draftID, accountID: "")
 
         #expect(store.gmailDrafts.isEmpty, "Gmail draft should be removed")
     }

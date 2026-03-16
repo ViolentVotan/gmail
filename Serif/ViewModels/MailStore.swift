@@ -89,7 +89,11 @@ final class MailStore {
                 guard let message = draft.message else { continue }
                 var email = Self.makeEmailFromGmailDraft(draft: draft, message: message)
 
-                // Resolve cid: → data: for inline images so they display in the editor
+                // Resolve cid: → data: for inline images so they display in the editor.
+                // NOTE: Similar CID resolution logic exists in EmailDetailViewModel.replaceCIDReferences.
+                // That version uses a concurrent TaskGroup and only handles the attachment-fetch path.
+                // This version is sequential and additionally handles base64url data embedded in the
+                // "full" response, and preserves the data-cid attribute for the compose editor.
                 let inlineParts = message.inlineParts
                 if !inlineParts.isEmpty && email.body.contains("cid:") {
                     var body = email.body
@@ -185,12 +189,16 @@ final class MailStore {
         }
     }
 
-    func deleteDraft(id: UUID) {
+    func deleteDraft(id: UUID, accountID: String) {
         let gmailDraftID = emails.first(where: { $0.id == id })?.gmailDraftID
+            ?? gmailDrafts.first(where: { $0.id == id })?.gmailDraftID
         emails.removeAll { $0.id == id }
         gmailDrafts.removeAll { $0.id == id }
         if let gid = gmailDraftID {
             gmailDrafts.removeAll { $0.gmailDraftID == gid }
+            if !accountID.isEmpty {
+                Task { try? await GmailDraftService.shared.deleteDraft(draftID: gid, accountID: accountID) }
+            }
         }
     }
 

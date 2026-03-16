@@ -320,8 +320,8 @@ struct EmailDetailView: View {
             }
 
             LazyVStack(spacing: 1) {
-                ForEach(Array(allMessages.enumerated()), id: \.element.id) { index, message in
-                    let isLastCard = index == allMessages.count - 1
+                ForEach(allMessages, id: \.id) { message in
+                    let isLastCard = message.id == allMessages.last?.id
                     ThreadMessageCardView(
                         message: message,
                         isExpanded: expandedMessageIDs.contains(message.id),

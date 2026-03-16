@@ -124,7 +124,7 @@ struct LabelEditorView: View {
 
             Spacer()
         }
-        .onAppear { recomputeLabelData() }
+        .task { recomputeLabelData() }
         .onChange(of: currentLabelIDs) { _, _ in recomputeLabelData() }
         .onChange(of: allLabels.count) { _, _ in recomputeLabelData() }
         .onChange(of: labelSearchText) { _, _ in recomputeLabelData() }
@@ -195,7 +195,8 @@ struct LabelEditorView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    ForEach(Array(items.indices), id: \.self) { index in
+                        let item = items[index]
                         if index > 0 {
                             Divider()
                                 .background(Color(.separatorColor))

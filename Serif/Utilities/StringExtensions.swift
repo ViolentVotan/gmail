@@ -100,7 +100,6 @@ extension String {
 
     // Pre-compiled regexes for cleanedForAI
     private static let htmlTagRegexAI     = try? NSRegularExpression(pattern: "<[^>]+>")
-    private static let tripleNewlineRegex = try? NSRegularExpression(pattern: "\\n{3,}")
     private static let multipleSpaceRegex = try? NSRegularExpression(pattern: " {2,}")
 
     /// Cleans email body text for AI consumption: strips HTML, decodes entities,
@@ -142,7 +141,7 @@ extension String {
         var cleaned = lines.joined(separator: "\n")
 
         // Collapse excessive whitespace using pre-compiled regexes
-        if let re = Self.tripleNewlineRegex {
+        if let re = Self.multipleNewlineRegex {
             cleaned = re.stringByReplacingMatches(in: cleaned, range: NSRange(cleaned.startIndex..., in: cleaned), withTemplate: "\n\n")
         }
         if let re = Self.multipleSpaceRegex {

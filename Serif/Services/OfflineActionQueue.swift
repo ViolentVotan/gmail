@@ -200,10 +200,9 @@ final class OfflineActionQueue {
         _ action: OfflineAction,
         perform: (String, String) async throws -> Void
     ) async throws {
-        var remainingIds = action.messageIds
-        for msgId in action.messageIds {
+        for (index, msgId) in action.messageIds.enumerated() {
             try await perform(msgId, action.accountID)
-            remainingIds.removeAll { $0 == msgId }
+            let remainingIds = Array(action.messageIds[(index + 1)...])
             persistRemainingIds(remainingIds, for: action)
         }
     }

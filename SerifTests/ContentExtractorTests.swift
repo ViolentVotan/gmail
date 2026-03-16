@@ -11,11 +11,11 @@ import Foundation
         let data = text.data(using: .utf8)!
         let result = await ContentExtractor.extract(from: data, mimeType: "text/plain", filename: "note.txt")
 
-        if case .text(let extracted) = result {
-            #expect(extracted == text)
-        } else {
+        guard case .text(let extracted) = result else {
             Issue.record("Expected .text result for text/plain")
+            return
         }
+        #expect(extracted == text)
     }
 
     @Test func extractPlainText_ByExtension() async {
@@ -23,11 +23,11 @@ import Foundation
         let data = text.data(using: .utf8)!
         let result = await ContentExtractor.extract(from: data, mimeType: nil, filename: "data.csv")
 
-        if case .text(let extracted) = result {
-            #expect(extracted == text)
-        } else {
+        guard case .text(let extracted) = result else {
             Issue.record("Expected .text result for .csv extension")
+            return
         }
+        #expect(extracted == text)
     }
 
     @Test(arguments: ["swift", "py", "js", "ts", "css", "json", "xml", "html", "md", "yaml", "yml", "toml", "ini", "cfg", "log", "rtf"])
@@ -36,11 +36,11 @@ import Foundation
         let data = code.data(using: .utf8)!
 
         let result = await ContentExtractor.extract(from: data, mimeType: nil, filename: "file.\(ext)")
-        if case .text(let extracted) = result {
-            #expect(extracted == code, "Failed for extension: \(ext)")
-        } else {
+        guard case .text(let extracted) = result else {
             Issue.record("Expected .text result for .\(ext) extension")
+            return
         }
+        #expect(extracted == code, "Failed for extension: \(ext)")
     }
 
     @Test func extractPlainText_EmptyData() async {
@@ -59,11 +59,11 @@ import Foundation
         let data = text.data(using: .utf8)!
         let result = await ContentExtractor.extract(from: data, mimeType: "text/html", filename: "unknown_ext.xyz")
 
-        if case .text(let extracted) = result {
-            #expect(extracted == text)
-        } else {
+        guard case .text(let extracted) = result else {
             Issue.record("Expected .text result for text/ mime type prefix")
+            return
         }
+        #expect(extracted == text)
     }
 
     // MARK: - Image Types -> OCR (unsupported for garbage data)
@@ -277,11 +277,11 @@ import Foundation
         let data = text.data(using: .utf8)!
         let result = await ContentExtractor.extract(from: data, mimeType: "text/plain", filename: "multi.txt")
 
-        if case .text(let extracted) = result {
-            #expect(extracted == text)
-            #expect(extracted.contains("\n"))
-        } else {
+        guard case .text(let extracted) = result else {
             Issue.record("Expected .text result for multiline text")
+            return
         }
+        #expect(extracted == text)
+        #expect(extracted.contains("\n"))
     }
 }

@@ -311,7 +311,7 @@ final class AppCoordinator {
 
     func discardDraft(id: UUID) {
         composeMode = .new
-        mailStore.deleteDraft(id: id)
+        mailStore.deleteDraft(id: id, accountID: accountID)
         selectedEmail = nil
     }
 
@@ -572,6 +572,7 @@ final class AppCoordinator {
         let oldEngine = syncEngine
         syncEngine = nil
         lifecycleTask?.cancel()
+        lifecycleTask = nil
         accountSwitchTask?.cancel()
         let task = Task {
             defer {
@@ -593,7 +594,6 @@ final class AppCoordinator {
             updateDisplayedEmails()
         }
         accountSwitchTask = task
-        lifecycleTask = task
     }
 
     func handleAccountsChange(old: [GmailAccount], new accounts: [GmailAccount]) {

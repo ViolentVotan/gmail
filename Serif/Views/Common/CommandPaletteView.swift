@@ -46,7 +46,8 @@ struct CommandPaletteView: View {
     private var commandList: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(viewModel.filteredCommands.enumerated()), id: \.element.id) { index, command in
+                ForEach(Array(viewModel.filteredCommands.indices), id: \.self) { index in
+                    let command = viewModel.filteredCommands[index]
                     commandRow(command, isSelected: index == viewModel.selectedIndex)
                         .onTapGesture {
                             viewModel.selectedIndex = index

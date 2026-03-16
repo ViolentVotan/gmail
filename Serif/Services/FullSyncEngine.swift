@@ -117,6 +117,26 @@ actor FullSyncEngine {
         state = .idle
     }
 
+    /// Cancel and nil all task references without awaiting completion.
+    /// Used for tear-down from within a running task (where `stop()` would
+    /// self-deadlock because it awaits the calling task's `.value`).
+    private func cancelAllTasks() {
+        syncTask?.cancel()
+        bodyPrefetchTask?.cancel()
+        incrementalTask?.cancel()
+        triggeredSyncTask?.cancel()
+        contactTask?.cancel()
+        labelRefreshTask?.cancel()
+        restartTask?.cancel()
+        syncTask = nil
+        bodyPrefetchTask = nil
+        incrementalTask = nil
+        triggeredSyncTask = nil
+        contactTask = nil
+        labelRefreshTask = nil
+        restartTask = nil
+    }
+
     /// Request an immediate incremental sync (e.g., user tapped sync bubble).
     /// Also accepts `.error` state to restart the full sync lifecycle after failure.
     func triggerIncrementalSync() {
@@ -571,10 +591,12 @@ actor FullSyncEngine {
         } catch {
             if case .tokenRevoked = error as? GmailAPIError {
                 // Refresh token permanently revoked (Google returned invalid_grant).
-                // Stop all sync activity — the account needs re-authentication.
+                // Cancel all tasks directly — can't use stop() here because we're
+                // running inside incrementalTask/triggeredSyncTask, and stop() awaits
+                // our own task's .value, causing actor self-deadlock.
                 Self.logger.error("Token revoked for \(self.accountID), stopping sync")
+                cancelAllTasks()
                 state = .error("Session expired — please sign in again")
-                await stop()
                 await reportProgress { $0.syncFailed("Session expired — please sign in again") }
                 return false
             } else if case .httpError(let code, _) = error as? GmailAPIError, code == 404 || code == 410 {
@@ -583,8 +605,8 @@ actor FullSyncEngine {
                 // Note: this catch only fires for errors from history.list — getMessages
                 // failures (e.g. deleted messages) surface as BatchFetchResult.failedIDs,
                 // not thrown errors, so they won't trigger this path.
-                // Cancel sibling tasks directly instead of going through stop(),
-                // which would cancel restartTask itself (the task we're about to create).
+                // Cancel all tasks directly — can't use stop() inside restartTask
+                // because stop() awaits restartTask.value, causing self-deadlock.
                 Self.logger.warning("History ID expired, restarting full sync")
                 await writeSyncState { state in
                     state.initialSyncComplete = false
@@ -592,22 +614,10 @@ actor FullSyncEngine {
                     state.lastHistoryId = nil
                     state.syncedMessageCount = 0
                 }
+                cancelAllTasks()
                 state = .idle
-                syncTask?.cancel()
-                syncTask = nil
-                bodyPrefetchTask?.cancel()
-                bodyPrefetchTask = nil
-                incrementalTask?.cancel()
-                incrementalTask = nil
-                triggeredSyncTask?.cancel()
-                triggeredSyncTask = nil
-                contactTask?.cancel()
-                contactTask = nil
-                labelRefreshTask?.cancel()
-                labelRefreshTask = nil
                 restartTask = Task { [weak self] in
                     guard let self else { return }
-                    await self.stop()
                     guard !Task.isCancelled else { return }
                     await self.start()
                 }

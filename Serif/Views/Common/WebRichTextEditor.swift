@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct WebRichTextEditor: View {
-    @ObservedObject var state: WebRichTextEditorState
+    var state: WebRichTextEditorState
     @Binding var htmlContent: String
     var placeholder: String = ""
     var autoFocus: Bool = false

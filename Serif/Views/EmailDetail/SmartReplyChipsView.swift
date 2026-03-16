@@ -17,7 +17,7 @@ struct SmartReplyChipsView: View {
 
     private var chipRow: some View {
         HStack(spacing: 8) {
-            ForEach(Array(suggestions.enumerated()), id: \.offset) { _, suggestion in
+            ForEach(suggestions, id: \.self) { suggestion in
                 Button {
                     onSelect(suggestion)
                 } label: {

@@ -6,7 +6,7 @@ struct SignatureEditorView: View {
     var onSave: ((GmailSendAs) -> Void)?
     var onUpdateSignature: ((String, String, String) async throws -> GmailSendAs)?
 
-    @StateObject private var editorState = WebRichTextEditorState()
+    @State private var editorState = WebRichTextEditorState()
     @State private var htmlContent: String = ""
     @State private var isSaving = false
     @State private var errorMessage: String?

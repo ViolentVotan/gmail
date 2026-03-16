@@ -1,12 +1,12 @@
 import Foundation
 private import Darwin.Mach
-private import os
+import Synchronization
 
 final class CPUMonitor: Sendable {
     static let shared = CPUMonitor()
 
-    // All mutable state protected by os_unfair_lock
-    private let lock = OSAllocatedUnfairLock(initialState: State())
+    // All mutable state protected by a Mutex
+    private let lock = Mutex(State())
 
     private struct State {
         var previousProcessTime: Double = 0

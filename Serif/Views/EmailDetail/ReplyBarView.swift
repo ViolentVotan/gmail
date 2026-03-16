@@ -24,7 +24,7 @@ struct ReplyBarView: View {
     @State private var isInitialLoad = true
     @State private var isLoadingDraft = false
     @State private var showDiscardAlert = false
-    @StateObject private var editorState = WebRichTextEditorState()
+    @State private var editorState = WebRichTextEditorState()
     @State private var composeVM: ComposeViewModel
     @State private var quickReplies: [String] = []
     @State private var isLoadingReplies = false
@@ -358,7 +358,8 @@ struct ReplyBarView: View {
                 .opacity(visibleChipCount > 0 ? 1 : 0)
                 .scaleEffect(visibleChipCount > 0 ? 1 : 0.5)
 
-            ForEach(Array(quickReplies.enumerated()), id: \.element) { index, suggestion in
+            ForEach(quickReplies.indices, id: \.self) { index in
+                let suggestion = quickReplies[index]
                 Button {
                     let escapedHTML = "<p>\(suggestion.htmlEscaped)</p>"
                     editorState.setHTML(escapedHTML)

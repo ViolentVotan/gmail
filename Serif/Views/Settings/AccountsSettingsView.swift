@@ -13,14 +13,15 @@ struct AccountsSettingsView: View {
 
     var body: some View {
         List {
-            ForEach(Array(accounts.enumerated()), id: \.element.id) { index, account in
+            ForEach(Array(accounts.indices), id: \.self) { index in
+                let account = accounts[index]
                 accountRow(account, index: index)
             }
             .onMove(perform: move)
         }
         .listStyle(.inset(alternatesRowBackgrounds: true))
         .scrollContentBackground(.hidden)
-        .onAppear { refresh() }
+        .task { refresh() }
         .overlay {
             if accounts.isEmpty {
                 ContentUnavailableView(

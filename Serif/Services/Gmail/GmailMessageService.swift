@@ -82,7 +82,7 @@ final class GmailMessageService {
     @concurrent func getThread(id: String, accountID: String) async throws(GmailAPIError) -> GmailThread {
         try await client.request(
             path: "/users/me/threads/\(id)?format=full",
-            fields: "id,messages(id,threadId,labelIds,snippet,payload,internalDate)",
+            fields: "id,historyId,messages(id,threadId,labelIds,snippet,payload,internalDate,historyId)",
             accountID: accountID
         )
     }
@@ -271,27 +271,7 @@ final class GmailMessageService {
             pageToken = response.nextPageToken
         } while pageToken != nil
 
-        guard !allIDs.isEmpty else { return }
-
-        // Batch delete in groups of 1000 (API limit), accumulating failures
-        var failedIDs: [String] = []
-        for batch in stride(from: 0, to: allIDs.count, by: 1000) {
-            let ids = Array(allIDs[batch..<min(batch + 1000, allIDs.count)])
-            do {
-                struct BatchDeleteRequest: Encodable { let ids: [String] }
-                let body = try JSONEncoder().encode(BatchDeleteRequest(ids: ids))
-                _ = try await client.rawRequest(
-                    path: "/users/me/messages/batchDelete",
-                    method: "POST", body: body, contentType: "application/json",
-                    accountID: accountID
-                )
-            } catch {
-                failedIDs.append(contentsOf: ids)
-            }
-        }
-        if !failedIDs.isEmpty {
-            throw .partialFailure(failedCount: failedIDs.count)
-        }
+        try await batchDelete(ids: allIDs, accountID: accountID)
     }
 
     // MARK: - Attachments

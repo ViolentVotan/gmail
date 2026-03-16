@@ -14,7 +14,7 @@ private class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
 }
 
 struct WebRichTextEditorRepresentable: NSViewRepresentable {
-    @ObservedObject var state: WebRichTextEditorState
+    var state: WebRichTextEditorState
     @Binding var htmlContent: String
     @Environment(\.colorScheme) private var colorScheme
     var placeholder: String

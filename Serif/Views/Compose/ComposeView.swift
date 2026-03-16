@@ -31,7 +31,7 @@ struct ComposeView: View {
     @State private var showDiscardAlert = false
     @State private var showTranslation = false
     @State private var translationSourceText = ""
-    @StateObject private var editorState = WebRichTextEditorState()
+    @State private var editorState = WebRichTextEditorState()
     @State private var composeVM: ComposeViewModel
 
     init(

@@ -72,7 +72,9 @@ final class PeopleAPIService {
         }
         for contact in incoming {
             if let idx = byEmail[contact.email] {
-                result[idx] = contact
+                // Preserve existing photo when the incoming entry has none (e.g. Other Contacts don't carry photos)
+                let mergedPhotoURL = contact.photoURL ?? result[idx].photoURL
+                result[idx] = StoredContact(name: contact.name, email: contact.email, photoURL: mergedPhotoURL)
             } else {
                 byEmail[contact.email] = result.count
                 result.append(contact)

@@ -18,6 +18,7 @@ final class GmailSendService {
         threadID: String? = nil,
         inReplyTo: String? = nil,
         references: String? = nil,
+        // TODO: Migrate AppCoordinator.handleQuickReply to use inReplyTo/references directly
         referencesHeader: String? = nil,
         inlineImages: [InlineImageAttachment] = [],
         attachments: [URL]? = nil,

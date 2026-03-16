@@ -1,22 +1,21 @@
 import AppKit
 import WebKit
-import Combine
 
-@MainActor final class WebRichTextEditorState: ObservableObject {
+@Observable @MainActor final class WebRichTextEditorState {
     // Formatting state (updated by JS selectionChanged)
-    @Published var isBold = false
-    @Published var isItalic = false
-    @Published var isUnderline = false
-    @Published var isStrikethrough = false
-    @Published var fontSize: CGFloat = 13
-    @Published var textColor: NSColor = .labelColor
-    @Published var alignment: NSTextAlignment = .left
-    @Published var selectedText: String = ""
-    @Published var isBlockquote = false
-    @Published var highlightColor: NSColor? = nil
-    @Published var fontFamily: String = ""
-    @Published var linkPopoverRequest: (text: String, url: String)?
-    @Published var translationRequested = false
+    var isBold = false
+    var isItalic = false
+    var isUnderline = false
+    var isStrikethrough = false
+    var fontSize: CGFloat = 13
+    var textColor: NSColor = .labelColor
+    var alignment: NSTextAlignment = .left
+    var selectedText: String = ""
+    var isBlockquote = false
+    var highlightColor: NSColor? = nil
+    var fontFamily: String = ""
+    var linkPopoverRequest: (text: String, url: String)?
+    var translationRequested = false
 
     // WKWebView reference (set by Coordinator)
     weak var webView: WKWebView?
@@ -194,25 +193,21 @@ import Combine
             }
         }
 
-        // Only publish changes to avoid unnecessary SwiftUI re-renders
-        if isBold != newBold { isBold = newBold }
-        if isItalic != newItalic { isItalic = newItalic }
-        if isUnderline != newUnderline { isUnderline = newUnderline }
-        if isStrikethrough != newStrikethrough { isStrikethrough = newStrikethrough }
-        if selectedText != newSelectedText { selectedText = newSelectedText }
-        if let fs = newFontSize, fontSize != fs { fontSize = fs }
-        if let tc = newTextColor, textColor != tc { textColor = tc }
-        if let a = newAlignment, alignment != a { alignment = a }
+        isBold = newBold
+        isItalic = newItalic
+        isUnderline = newUnderline
+        isStrikethrough = newStrikethrough
+        selectedText = newSelectedText
+        if let fs = newFontSize { fontSize = fs }
+        if let tc = newTextColor { textColor = tc }
+        if let a = newAlignment { alignment = a }
 
-        let newBlockquote = info["isBlockquote"] as? Bool ?? false
-        if isBlockquote != newBlockquote { isBlockquote = newBlockquote }
+        isBlockquote = info["isBlockquote"] as? Bool ?? false
 
-        let newHighlightColor = (info["backgroundColor"] as? String)
+        highlightColor = (info["backgroundColor"] as? String)
             .flatMap { $0.isEmpty ? nil : nsColorFromHex($0) }
-        if highlightColor != newHighlightColor { highlightColor = newHighlightColor }
 
-        let newFontFamily = info["fontFamily"] as? String ?? ""
-        if fontFamily != newFontFamily { fontFamily = newFontFamily }
+        fontFamily = info["fontFamily"] as? String ?? ""
     }
 
     // MARK: - Private

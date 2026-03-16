@@ -32,15 +32,14 @@ Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). Al
 - **ViewModels**: `@Observable @MainActor final class` — 13 VMs follow this pattern (incl. `MailStore`, `SyncProgressManager`, `FiltersViewModel`). No `@Published`, no `ObservableObject`. Properties are plain `var` tracked by `@Observable` macro.
 - **Views**: Pure SwiftUI rendering. No business logic. Access data via ViewModels only.
 - **Models**: Value types (struct). Never reference services.
-- **Exception**: `WebRichTextEditorState` stays as `ObservableObject` with `@Published` + `import Combine` — NSViewRepresentable bridge requirement.
+- **No exceptions**: All classes use `@Observable` — zero remaining `ObservableObject` conformances.
 
 ## SwiftUI Patterns
 - **`@Observable`** macro on all 13 VMs (incl. `MailStore`, `SyncProgressManager`), `AppearanceManager`, and services (`OfflineActionQueue`, `SubscriptionsStore`, `SnoozeMonitor`, `ToastManager`, `UndoActionManager`, `ScheduledSendStore`, `SnoozeStore`, `APILogger`, `ThumbnailCache`, `NetworkMonitor`)
 - **`@State`** for ViewModel ownership in views (not `@StateObject`)
 - **`@Bindable`** for child views needing two-way bindings to `@Observable` objects
 - **Theming**: `AppearanceManager` (`@Observable @MainActor final class`) owns light/dark preference; `DesignTokens.swift` provides static enums (`Spacing`, `ButtonSize`, `CornerRadius`, `SerifAnimation`, `Typography`) and view modifiers (`elevation`, `destructiveActionStyle`, `floatingPanelStyle`, `glassOrMaterial`). Use standard `@Environment(\.colorScheme)` for light/dark — there is no custom theme environment key.
-- **`@StateObject`** only for `WebRichTextEditorState` (3 usages — the sole `ObservableObject`)
-- No `@EnvironmentObject` anywhere — fully migrated away
+- No `@StateObject` or `@EnvironmentObject` anywhere — fully migrated away
 - `@State` for local view state, `@Binding` for parent-child communication
 - `.task { }` for async loading (auto-cancels on disappear)
 - `#Preview { }` macro for previews (not `PreviewProvider`)
