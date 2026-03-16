@@ -35,7 +35,13 @@ macOS Gmail client built with Swift/SwiftUI. `NavigationSplitView` 3-column layo
 ## Key Patterns
 
 - **Delta sync**: `FullSyncEngine` uses Gmail History API for incremental polling (15-60s adaptive). Falls back to full re-sync if historyId expires (404) by resetting sync state and scheduling a `restartTask`.
-- **Offline queue**: `OfflineActionQueue` queues mutations (archive, trash, star, spam, etc.) when offline and drains on reconnect.
+- **Offline queue**: `OfflineActionQueue` queues mutations (archive, trash, star, spam, send, etc.) when offline and drains on reconnect. Offline send queues pre-built RFC 2822 messages for deferred delivery.
 - **Draft lifecycle**: Drafts auto-save with a 2s debounce. Quick replies persist their link (threadID -> gmailDraftID) across sessions via `MailStore.replyDrafts`.
 - **Tracker blocking**: `TrackerBlockerService` strips tracking pixels, known tracker domains, and CSS background-image trackers from email HTML.
 - **Undo system**: `UndoActionManager` queues destructive actions with a configurable countdown. Actions execute after timeout unless cancelled.
+- **Writing Tools**: WKWebView compose editor enables Apple Intelligence Writing Tools via `writingToolsBehavior = .complete`.
+- **Translation**: Email detail offers `.translationPresentation()` for reading; reply bar supports compose-side translation via the formatting toolbar translate button.
+- **Schedule-send in reply**: `ReplyBarView` integrates `ScheduleSendButton` for deferred reply delivery alongside the standard send button.
+- **Rich text editor**: Custom undo stack, blockquote toggle, highlight color picker, font family picker, Cmd+K link popover, ARIA accessibility (`aria-live` formatting announcements via `editor.js`).
+- **Threading headers**: `Email.messageIDHeader`/`referencesHeader` + `GmailSendService.buildReferencesChain` ensure proper RFC 2822 In-Reply-To/References chains in replies.
+- **Resumable upload**: `GmailAPIClient.uploadResumable` for large message sends via Gmail's resumable upload protocol.

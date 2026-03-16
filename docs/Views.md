@@ -35,7 +35,7 @@ Middle column — email rows with native `.swipeActions()` (archive/delete), sea
 
 ### `EmailDetail/`
 Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView, uses `WeakScriptMessageHandler` proxy to avoid WKWebView retain cycles, bidirectional WCAG contrast enforcement for both light and dark mode), attachments, sender info popover, tracker blocking UI, label picker. `EmailDetailView` registers `NSUserActivity` for Siri onscreen awareness and offers `.translationPresentation()` for on-device email translation.
-- `ReplyBarView` — Inline quick reply with To/Cc/Bcc fields, draft persistence, auto-save, discard confirmation, and smart reply chip support. Custom `init` for `@State` initialization. `.task(id: email.id)` cancels `saveTask` and `loadDraftTask`, resets `ComposeViewModel`, and reloads quick replies on email change. Send success (toast + collapse) driven reactively via `.onChange(of: composeVM.isSent)`. `ClickOutsideDetector` uses `superview` bounds instead of zero-size anchor for hit testing.
+- `ReplyBarView` — Inline quick reply with `AutocompleteTextField` for To/Cc/Bcc fields, `ScheduleSendButton` for deferred delivery, draft persistence, auto-save, discard confirmation, compose-side translation (`.translationPresentation` triggered by `editorState.translationRequested`), and smart reply chip support. Custom `init` for `@State` initialization. `.task(id: email.id)` cancels `saveTask` and `loadDraftTask`, resets `ComposeViewModel`, and reloads quick replies on email change. Send success (toast + collapse) driven reactively via `.onChange(of: composeVM.isSent)`. `ClickOutsideDetector` uses `superview` bounds instead of zero-size anchor for hit testing.
 - `DetailPaneView` — Contextual empty state (icon + message per folder). Uses `EmailDetailActions.contentActions` factory to build shared content-level actions. Action closures wrap async VM/coordinator calls in `Task { await ... }` (cascaded from async EmailActionCoordinator/MailboxViewModel changes).
 - `InsightCardView` — Apple Intelligence insight card (summary, action items, key dates) via Foundation Models.
 - `SmartReplyChipsView` — AI-generated reply suggestion chips below the thread (wired via `EmailDetailView`).
@@ -78,8 +78,8 @@ Shared reusable components:
 | `ThemePickerView` | Segmented picker for System / Light / Dark appearance |
 | `SettingsCardsView` | Settings UI with behavior, signature, account cards |
 | `SlidePanel` | Animated side panel overlay (help, debug, previews) with Liquid Glass background |
-| `FormattingToolbar` | Rich text toolbar for compose/reply |
-| `WebRichTextEditor` | WKWebView-based HTML editor (uses `WeakScriptMessageHandler` proxy to avoid retain cycles) |
+| `FormattingToolbar` | Rich text toolbar for compose/reply — bold, italic, underline, strikethrough, font size, text color, highlight color picker (`HighlightColorPopover`), font family picker, alignment, lists, indent, blockquote toggle, link insert (Cmd+K popover), translate globe button (sets `translationRequested` on editor state) |
+| `WebRichTextEditor` | WKWebView-based HTML editor (uses `WeakScriptMessageHandler` proxy to avoid retain cycles). Split into 4 files: `WebRichTextEditor.swift` (SwiftUI wrapper), `WebRichTextEditorRepresentable.swift` (`NSViewRepresentable` with Writing Tools support via `config.writingToolsBehavior = .complete`), `WebRichTextEditorCoordinator.swift` (WKWebView delegate, JS bridge), `WebRichTextEditorState.swift` (`ObservableObject` state — includes `isBlockquote`, `highlightColor`, `fontFamily`, `linkPopoverRequest`, `translationRequested` properties and corresponding formatting methods) |
 | `UnifiedToastLayer` | Consolidated toast system (undo, offline, general) with priority ordering. Full-screen overlay no longer sets `allowsHitTesting(false)`. |
 | `CommandPaletteView` | ⌘K command palette with fuzzy search and keyboard navigation |
 | `SnoozePickerView` | Snooze date/time picker with preset options. Defines `SnoozePreset` model struct; uses `SnoozePreset.defaults()` for the preset list. |
@@ -105,6 +105,10 @@ Shared styled components:
 |------|------|
 | `EmailEntity.swift` | `MailMessageEntity` (`@AppEntity(schema: .mail.message)` + `IndexedEntity`), `MailAccountEntity`, `MailboxEntity`, `MailMessageEntityQuery`. `typealias EmailEntity = MailMessageEntity` for backward compat. |
 | `ComposeEmailIntent.swift` | `@AppIntent(schema: .mail.createDraft)` — creates a draft with recipients, subject, body |
+| `SendDraftIntent.swift` | Sends an existing draft, with optional `sendLaterDate` for schedule-send |
+| `ReplyMailIntent.swift` | Replies to an email with recipients, subject, body, attachments. Supports `isReplyAll` flag. |
+| `ForwardMailIntent.swift` | Forwards an email to new recipients with optional body and attachments |
+| `DeleteDraftIntent.swift` | Deletes one or more drafts |
 | `MarkAsReadIntent.swift` | `UpdateMailIntent` (`@AppIntent(schema: .mail.updateMail)`) — handles isRead, isFlagged, mailbox changes. Shared `IntentError` enum. |
 | `ArchiveEmailIntent.swift` | `@AppIntent(schema: .mail.archiveMail)` — archives emails |
 | `TrashEmailIntent.swift` | `@AppIntent(schema: .mail.deleteMail)` — moves emails to trash |
@@ -112,4 +116,4 @@ Shared styled components:
 | `OpenEmailIntent.swift` | Opens an email in Serif by message ID (resolves account via `IntentHelpers`) |
 | `SearchEmailIntent.swift` | Searches emails by query string (plain `AppIntent` — no `.mail.search` schema) |
 | `IntentHelpers.swift` | Shared helper: `findOwnerAccount(for:)` scans all account DBs to find the owner of a message ID |
-| `SerifShortcuts.swift` | `AppShortcutsProvider` registering all 7 intents with Siri phrases |
+| `SerifShortcuts.swift` | `AppShortcutsProvider` registering intents with Siri phrases |
