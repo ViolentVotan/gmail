@@ -117,6 +117,40 @@ final class ComposeViewModel {
                                 store.gmailDrafts.removeAll { $0.gmailDraftID == gid }
                             }
                         }
+                    } catch let apiError as GmailAPIError {
+                        if case .offline = apiError {
+                            // Offline — build the raw MIME payload and queue for later
+                            do {
+                                let raw = try GmailSendService.buildRawMessage(
+                                    from: capturedFrom,
+                                    to: capturedTo,
+                                    cc: capturedCC,
+                                    bcc: capturedBCC,
+                                    subject: capturedSubject,
+                                    body: capturedBody,
+                                    isHTML: capturedIsHTML,
+                                    inReplyTo: capturedParentMessageID,
+                                    references: GmailSendService.buildReferencesChain(
+                                        parentReferences: capturedParentReferences,
+                                        parentMessageID: capturedParentMessageID
+                                    ),
+                                    inlineImages: capturedInlineImages,
+                                    attachments: capturedAttachments ?? []
+                                )
+                                let action = OfflineAction(
+                                    actionType: .send(rawBase64URL: raw, threadID: capturedThreadID),
+                                    messageIds: [],
+                                    accountID: capturedAccountID
+                                )
+                                OfflineActionQueue.shared.enqueue(action)
+                                self?.isSent = true
+                                ToastManager.shared.show(message: "Email queued — will send when online")
+                            } catch {
+                                self?.error = error.localizedDescription
+                            }
+                        } else {
+                            self?.error = apiError.localizedDescription
+                        }
                     } catch {
                         self?.error = error.localizedDescription
                     }
@@ -180,6 +214,12 @@ final class ComposeViewModel {
                 let (processedBody, extractedImages) = InlineImageProcessor.extractInlineImages(from: body)
                 let allImages = extractedImages + inlineImages
 
+                // Build threading headers for reply drafts
+                let refsChain = GmailSendService.buildReferencesChain(
+                    parentReferences: parentReferences,
+                    parentMessageID: parentMessageID
+                )
+
                 if let draftID = gmailDraftID {
                     let draft = try await GmailDraftService.shared.updateDraft(
                         draftID:      draftID,
@@ -190,6 +230,8 @@ final class ComposeViewModel {
                         subject:      subject,
                         body:         processedBody,
                         isHTML:       isHTML,
+                        inReplyTo:    parentMessageID,
+                        references:   refsChain,
                         inlineImages: allImages,
                         accountID:    accountID
                     )
@@ -204,6 +246,8 @@ final class ComposeViewModel {
                         subject:      subject,
                         body:         processedBody,
                         isHTML:       isHTML,
+                        inReplyTo:    parentMessageID,
+                        references:   refsChain,
                         inlineImages: allImages,
                         accountID:    accountID
                     )

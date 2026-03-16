@@ -72,6 +72,8 @@ final class GmailDraftService {
     @concurrent func createDraft(
         from: String, to: [String], cc: [String] = [], bcc: [String] = [],
         subject: String, body: String, isHTML: Bool = false,
+        inReplyTo: String? = nil,
+        references: String? = nil,
         inlineImages: [InlineImageAttachment] = [],
         threadID: String? = nil,
         accountID: String
@@ -79,6 +81,8 @@ final class GmailDraftService {
         let raw = try GmailSendService.buildRawMessage(
             from: from, to: to, cc: cc, bcc: bcc,
             subject: subject, body: body, isHTML: isHTML,
+            inReplyTo: inReplyTo,
+            references: references,
             inlineImages: inlineImages
         )
         var message: [String: Any] = ["raw": raw]
@@ -100,6 +104,8 @@ final class GmailDraftService {
     @concurrent func updateDraft(
         draftID: String, from: String, to: [String], cc: [String] = [], bcc: [String] = [],
         subject: String, body: String, isHTML: Bool = false,
+        inReplyTo: String? = nil,
+        references: String? = nil,
         inlineImages: [InlineImageAttachment] = [],
         threadID: String? = nil,
         accountID: String
@@ -107,6 +113,8 @@ final class GmailDraftService {
         let raw = try GmailSendService.buildRawMessage(
             from: from, to: to, cc: cc, bcc: bcc,
             subject: subject, body: body, isHTML: isHTML,
+            inReplyTo: inReplyTo,
+            references: references,
             inlineImages: inlineImages
         )
         var message: [String: Any] = ["raw": raw]
