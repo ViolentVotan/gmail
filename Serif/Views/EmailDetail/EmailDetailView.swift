@@ -9,6 +9,7 @@ struct EmailDetailView: View {
     var allLabels: [GmailLabel]
     var fromAddress: String = ""
     var mailStore: MailStore
+    var contacts: [StoredContact] = []
 
     @State private var detailVM: EmailDetailViewModel
     @State private var summaryVM = EmailSummaryViewModel()
@@ -49,7 +50,8 @@ struct EmailDetailView: View {
         attachmentIndexer: AttachmentIndexer? = nil,
         allLabels: [GmailLabel] = [],
         fromAddress: String = "",
-        mailDatabase: MailDatabase? = nil
+        mailDatabase: MailDatabase? = nil,
+        contacts: [StoredContact] = []
     ) {
         self.email = email
         self.accountID = accountID
@@ -58,6 +60,7 @@ struct EmailDetailView: View {
         self.attachmentIndexer = attachmentIndexer
         self.allLabels = allLabels
         self.fromAddress = fromAddress
+        self.contacts = contacts
         let vm = EmailDetailViewModel(accountID: accountID)
         vm.mailDatabase = mailDatabase
         self._detailVM = State(initialValue: vm)
@@ -114,7 +117,8 @@ struct EmailDetailView: View {
                                     threadID: email.gmailThreadID ?? ""
                                 )
                                 actions.onReply?(mode)
-                            }
+                            },
+                            contacts: contacts
                         )
                         .padding(.horizontal, Spacing.lg)
                         .padding(.bottom, Spacing.lg)

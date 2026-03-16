@@ -10,6 +10,7 @@ struct ReplyBarView: View {
     var onLoadDraft: ((String, String) async throws -> GmailDraft?)?
     var smartReplySuggestions: [String] = []
     var onSmartReplySelect: ((String) -> Void)?
+    var contacts: [StoredContact] = []
 
     @State private var replyHTML = ""
     @State private var isExpanded = false
@@ -40,7 +41,8 @@ struct ReplyBarView: View {
         onGenerateQuickReplies: ((Email) async -> [String])? = nil,
         onLoadDraft: ((String, String) async throws -> GmailDraft?)? = nil,
         smartReplySuggestions: [String] = [],
-        onSmartReplySelect: ((String) -> Void)? = nil
+        onSmartReplySelect: ((String) -> Void)? = nil,
+        contacts: [StoredContact] = []
     ) {
         self.email = email
         self.accountID = accountID
@@ -51,6 +53,7 @@ struct ReplyBarView: View {
         self.onLoadDraft = onLoadDraft
         self.smartReplySuggestions = smartReplySuggestions
         self.onSmartReplySelect = onSmartReplySelect
+        self.contacts = contacts
         self._composeVM = State(initialValue: ComposeViewModel(
             accountID: accountID,
             fromAddress: fromAddress,
@@ -190,16 +193,16 @@ struct ReplyBarView: View {
 
             // Recipient fields
             VStack(spacing: 0) {
-                recipientField(label: "To", text: $replyTo)
+                AutocompleteTextField(label: "To", placeholder: "Recipients", text: $replyTo, contacts: contacts)
                 Divider().padding(.horizontal, Spacing.lg)
 
                 if showCc {
-                    recipientField(label: "Cc", text: $replyCc)
+                    AutocompleteTextField(label: "Cc", placeholder: "Cc recipients", text: $replyCc, contacts: contacts)
                     Divider().padding(.horizontal, Spacing.lg)
                 }
 
                 if showBcc {
-                    recipientField(label: "Bcc", text: $replyBcc)
+                    AutocompleteTextField(label: "Bcc", placeholder: "Bcc recipients", text: $replyBcc, contacts: contacts)
                     Divider().padding(.horizontal, Spacing.lg)
                 }
 
@@ -223,6 +226,7 @@ struct ReplyBarView: View {
 
                 Divider().padding(.horizontal, Spacing.lg)
             }
+            .zIndex(10)
 
             WebRichTextEditor(
                 state: editorState,

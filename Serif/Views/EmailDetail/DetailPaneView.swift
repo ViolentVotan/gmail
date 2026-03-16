@@ -122,9 +122,11 @@ struct DetailPaneView: View {
             attachmentIndexer: attachmentIndexer,
             allLabels: mailboxViewModel.labels,
             fromAddress: resolvedFromAddress(for: email),
-            mailDatabase: coordinator.mailDatabase
+            mailDatabase: coordinator.mailDatabase,
+            contacts: coordinator.contacts
         )
         .id(email.id)
+        .task { coordinator.loadContacts() }
     }
 
     /// Builds the actions struct for the given email. Separated from the view builder
