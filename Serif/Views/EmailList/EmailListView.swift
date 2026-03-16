@@ -126,7 +126,7 @@ struct EmailListView: View {
                         if isSearching {
                             ProgressView()
                                 .controlSize(.small)
-                                .padding(.trailing, Spacing.xl)
+                                .padding(.trailing, searchText.isEmpty ? Spacing.xl : 44)
                         }
                     }
 
@@ -198,7 +198,7 @@ struct EmailListView: View {
                 ContentUnavailableView(
                     "You're all caught up",
                     systemImage: "checkmark.circle",
-                    description: Text("No unread emails. Enjoy the moment.")
+                    description: Text("Your inbox is empty.")
                 )
             case .drafts:
                 ContentUnavailableView(

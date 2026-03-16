@@ -44,9 +44,9 @@ struct OnboardingView: View {
     @State private var orb3Offset: CGSize = CGSize(width: -60, height: 140)
     @State private var orbsVisible = false
 
-    // Logo colors
-    private let coral = Color(red: 0.94, green: 0.44, blue: 0.44)   // #F07070
-    private let blue  = Color(red: 0.42, green: 0.61, blue: 0.96)   // #6B9BF5
+    // Logo colors — sourced from BrandColor tokens
+    private let coral = BrandColor.coral
+    private let blue  = BrandColor.blue
 
     var body: some View {
         ZStack {
