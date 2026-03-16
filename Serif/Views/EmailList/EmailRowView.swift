@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct EmailRowView: View {
+struct EmailRowView: View, Equatable {
     let email: Email
     let isSelected: Bool
     let accountID: String
@@ -20,6 +20,12 @@ struct EmailRowView: View {
     private let tagBadges: [BadgeItem]
     /// Cached at init to avoid Calendar arithmetic on every body evaluation.
     private let nudgeText: String?
+
+    /// Equatable conformance compares only the data that affects visual output.
+    /// Closures are excluded — they capture the same email context when equal.
+    static func == (lhs: EmailRowView, rhs: EmailRowView) -> Bool {
+        lhs.email == rhs.email && lhs.isSelected == rhs.isSelected && lhs.accountID == rhs.accountID
+    }
 
     init(email: Email, isSelected: Bool, accountID: String, action: @escaping () -> Void) {
         self.email = email

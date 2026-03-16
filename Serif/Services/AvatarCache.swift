@@ -25,6 +25,12 @@ final class AvatarCache {
     /// Continuations waiting for an in-flight fetch to complete.
     private var waiters: [String: [CheckedContinuation<NSImage?, Never>]] = [:]
 
+    /// Concurrency throttling — prevents 50+ simultaneous network requests when
+    /// scrolling through a large email list. Mirrors ThumbnailCache's pattern.
+    private var activeFetches = 0
+    private let maxConcurrentFetches = 6
+    private var pendingQueue: [(key: String, url: URL, fileURL: URL)] = []
+
     func image(for urlString: String) async -> NSImage? {
         let key = cacheKey(for: urlString) as NSString
 
@@ -58,10 +64,25 @@ final class AvatarCache {
             }
         }
 
-        // 4. Fetch from network
+        // 4. Fetch from network (throttled)
         guard let url = URL(string: urlString) else { return nil }
 
         inFlightKeys.insert(keyString)
+
+        if activeFetches >= maxConcurrentFetches {
+            // Queue the request and wait for it to be dequeued
+            return await withCheckedContinuation { continuation in
+                pendingQueue.append((key: keyString, url: url, fileURL: fileURL))
+                waiters[keyString, default: []].append(continuation)
+            }
+        }
+
+        activeFetches += 1
+        return await performFetch(keyString: keyString, url: url, fileURL: fileURL)
+    }
+
+    private func performFetch(keyString: String, url: URL, fileURL: URL) async -> NSImage? {
+        let key = keyString as NSString
         let result = await fetchAndCache(url: url, fileURL: fileURL)
         if let img = result {
             memoryCache.setObject(img, forKey: key)
@@ -76,7 +97,20 @@ final class AvatarCache {
             continuation.resume(returning: result)
         }
 
+        activeFetches -= 1
+        dequeueNext()
+
         return result
+    }
+
+    private func dequeueNext() {
+        guard activeFetches < maxConcurrentFetches, !pendingQueue.isEmpty else { return }
+        let next = pendingQueue.removeFirst()
+        // Reserve the slot before yielding to the Task to prevent over-scheduling.
+        activeFetches += 1
+        Task {
+            _ = await performFetch(keyString: next.key, url: next.url, fileURL: next.fileURL)
+        }
     }
 
     @concurrent private func fetchAndCache(url: URL, fileURL: URL) async -> NSImage? {
@@ -97,6 +131,8 @@ final class AvatarCache {
         memoryCache.removeAllObjects()
         negativeCacheKeys.removeAllObjects()
         inFlightKeys.removeAll()
+        pendingQueue.removeAll()
+        activeFetches = 0
         // Resume any pending waiters with nil before clearing
         for (_, continuations) in waiters {
             for continuation in continuations {

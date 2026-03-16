@@ -91,6 +91,7 @@ extension Email: Equatable {
         lhs.gmailMessageID == rhs.gmailMessageID &&
         lhs.isRead == rhs.isRead &&
         lhs.isStarred == rhs.isStarred &&
+        lhs.hasAttachments == rhs.hasAttachments &&
         lhs.labels == rhs.labels &&
         lhs.gmailLabelIDs == rhs.gmailLabelIDs &&
         lhs.preview == rhs.preview &&

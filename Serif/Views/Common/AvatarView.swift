@@ -9,6 +9,7 @@ struct AvatarView: View {
     var senderDomain: String? = nil
 
     @State private var image: NSImage? = nil
+    @State private var lastLoadedURL: String?
 
     private var avatarTextColor: Color {
         let bgColor = NSColor(Color(hex: color)).usingColorSpace(.sRGB)
@@ -36,11 +37,14 @@ struct AvatarView: View {
         .accessibilityLabel("\(initials) avatar")
         .accessibilityAddTraits(.isImage)
         .task(id: avatarURL) {
+            // Skip fetch entirely when the URL hasn't changed — image is already correct.
+            guard avatarURL != lastLoadedURL else { return }
             image = nil
 
             // 1. Try primary URL (People API photo / Gravatar)
             if let url = avatarURL, let img = await AvatarCache.shared.image(for: url) {
                 image = img
+                lastLoadedURL = avatarURL
                 return
             }
 
@@ -49,7 +53,11 @@ struct AvatarView: View {
                let bimiURL = await BIMIService.shared.logoURL(for: domain),
                let img = await AvatarCache.shared.image(for: bimiURL) {
                 image = img
+                lastLoadedURL = avatarURL
+                return
             }
+
+            lastLoadedURL = avatarURL
         }
     }
 }

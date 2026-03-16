@@ -16,6 +16,9 @@ struct EmailListView: View {
     @State private var selectionAnchorID: String?
     @State private var sortedEmails: [Email] = []
     @State private var cachedSections: [EmailDateSection] = []
+    /// Tracks email IDs and section mode to skip expensive section rebuilds when only properties changed.
+    @State private var lastEmailIDs: [UUID] = []
+    @State private var lastUseDateSections = false
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
@@ -25,7 +28,16 @@ struct EmailListView: View {
         case .dateOldest:               sortedEmails = emails.reversed()
         case .sender:                   sortedEmails = emails.sorted { $0.sender.name.localizedCaseInsensitiveCompare($1.sender.name) == .orderedAscending }
         }
-        cachedSections = useDateSections ? Self.buildSections(from: sortedEmails) : []
+
+        // Only rebuild date sections when the email list, ordering, or section mode changed.
+        // Property-only updates (read status, star toggle) reuse the existing sections
+        // because SwiftUI's List diffing handles per-row updates via identity.
+        let currentIDs = sortedEmails.map(\.id)
+        if currentIDs != lastEmailIDs || useDateSections != lastUseDateSections {
+            lastEmailIDs = currentIDs
+            lastUseDateSections = useDateSections
+            cachedSections = useDateSections ? Self.buildSections(from: sortedEmails) : []
+        }
     }
 
     var body: some View {
@@ -251,6 +263,7 @@ struct EmailListView: View {
             accountID: accountID,
             action: { handleTap(email: email) }
         )
+        .equatable()
         .tag(email.id.uuidString)
         .listRowBackground(Color.clear)
         .listRowSeparator(.hidden)
@@ -457,45 +470,44 @@ private struct EmailDateSection: Identifiable {
 // MARK: - Skeleton Row
 
 private struct EmailSkeletonRowView: View {
-    @State private var animate = false
-
     var body: some View {
-        HStack(spacing: 12) {
-            Circle()
-                .fill(.tertiary.opacity(0.12))
-                .frame(width: 6, height: 6)
+        PhaseAnimator([false, true]) { phase in
+            let shimmerOpacity = phase ? 0.1 : 0.2
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(.tertiary.opacity(0.12))
+                    .frame(width: 6, height: 6)
 
-            Circle()
-                .fill(.tertiary.opacity(animate ? 0.1 : 0.2))
-                .frame(width: 36, height: 36)
+                Circle()
+                    .fill(.tertiary.opacity(shimmerOpacity))
+                    .frame(width: 36, height: 36)
 
-            VStack(alignment: .leading, spacing: 5) {
-                HStack {
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack {
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(.tertiary.opacity(shimmerOpacity))
+                            .frame(width: 120, height: 10)
+                        Spacer()
+                        RoundedRectangle(cornerRadius: 3)
+                            .fill(.tertiary.opacity(shimmerOpacity))
+                            .frame(width: 38, height: 9)
+                    }
                     RoundedRectangle(cornerRadius: 3)
-                        .fill(.tertiary.opacity(animate ? 0.1 : 0.2))
-                        .frame(width: 120, height: 10)
-                    Spacer()
+                        .fill(.tertiary.opacity(shimmerOpacity))
+                        .frame(height: 9)
+                        .padding(.trailing, 40)
                     RoundedRectangle(cornerRadius: 3)
-                        .fill(.tertiary.opacity(animate ? 0.1 : 0.2))
-                        .frame(width: 38, height: 9)
+                        .fill(.tertiary.opacity(shimmerOpacity))
+                        .frame(height: 8)
+                        .padding(.trailing, Spacing.lg)
                 }
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(.tertiary.opacity(animate ? 0.1 : 0.2))
-                    .frame(height: 9)
-                    .padding(.trailing, 40)
-                RoundedRectangle(cornerRadius: 3)
-                    .fill(.tertiary.opacity(animate ? 0.1 : 0.2))
-                    .frame(height: 8)
-                    .padding(.trailing, Spacing.lg)
             }
-        }
-        .padding(.horizontal, Spacing.lg)
-        .padding(.vertical, Spacing.sm)
-        .padding(.horizontal, Spacing.sm)
-        .onAppear {
-            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
-                animate = true
-            }
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.sm)
+            .padding(.horizontal, Spacing.sm)
+            .drawingGroup(opaque: false)
+        } animation: { _ in
+            .easeInOut(duration: 0.9)
         }
     }
 }

@@ -62,12 +62,10 @@ Services (Gmail API, GRDB database) → ViewModels (@Observable) → Views (Swif
 Views never call Services directly. ViewModels are the single bridge.
 
 ## Key Services
-- `HistorySyncService` — Delta sync via Gmail History API
 - `TrackerBlockerService` — Strips tracking pixels/domains
 - `UndoActionManager` — Queued destructive actions with countdown
 - `BackgroundSyncer` — Actor for bulk API sync → DB writes
-- `FullSyncEngine` — Orchestrates full mailbox sync (initial + periodic)
-- `MessageFetchService` — Message fetch flow with @Observable progress tracking
+- `FullSyncEngine` — Actor orchestrating all sync: initial full sync, incremental delta sync (History API), body pre-fetch, label refresh, contact refresh
 - `LabelSyncService` — Label sync with etag-based caching
 - `OfflineActionQueue` — Queues actions when offline, replays on reconnect
 - `NetworkMonitor` — Observes network reachability
