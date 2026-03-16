@@ -354,6 +354,7 @@ final class AppCoordinator {
             Self.logger.error("Failed to create database for \(accountID): \(error)")
             self.mailDatabase = nil
             self.backgroundSyncer = nil
+            syncProgressManager.syncFailed("Database error — restart app")
         }
     }
 
@@ -422,7 +423,6 @@ final class AppCoordinator {
             loadSignatures(for: account.id)
             await setupAccount(account.id)
             updateDisplayedEmails()
-            syncProgressManager.updateLastSynced()
         } else {
             selectedEmail = mailStore.emails(for: .inbox).first
         }
@@ -439,6 +439,10 @@ final class AppCoordinator {
         attachmentIndexer = indexer
         await setupDatabase(for: id)
         guard !Task.isCancelled, self.selectedAccountID == id else { return }
+        guard self.mailDatabase != nil else {
+            // setupDatabase already reported the error to syncProgressManager
+            return
+        }
         mailboxViewModel.setMailDatabase(self.mailDatabase)
         mailboxViewModel.setBackgroundSyncer(self.backgroundSyncer)
         mailboxViewModel.setSyncProgressManager(self.syncProgressManager)

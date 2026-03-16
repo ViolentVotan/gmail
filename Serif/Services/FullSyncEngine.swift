@@ -43,6 +43,10 @@ actor FullSyncEngine {
     /// synchronously (no `await` between check and set), so it's actor-safe.
     private var isSyncingIncrementally = false
 
+    /// Set by `performInitialSync` when token is permanently revoked.
+    /// Checked by the retry loop to avoid retrying auth failures.
+    private var isTokenRevoked = false
+
     // MARK: - Config
 
     /// Adaptive polling: 60s (app focused), 300s (background/unfocused)
@@ -80,6 +84,7 @@ actor FullSyncEngine {
     func start() {
         guard syncTask == nil else { return }
         state = .idle
+        isTokenRevoked = false
         syncTask = Task { await runSyncLifecycle() }
     }
 
@@ -110,7 +115,15 @@ actor FullSyncEngine {
     }
 
     /// Request an immediate incremental sync (e.g., user tapped sync bubble).
+    /// Also accepts `.error` state to restart the full sync lifecycle after failure.
     func triggerIncrementalSync() {
+        if case .error = state {
+            // Restart full lifecycle. syncTask already completed (returned after
+            // setting error state), so cancel is a no-op — just clean the ref.
+            syncTask = nil
+            start()
+            return
+        }
         guard state == .monitoring else { return }
         triggeredSyncTask?.cancel()
         triggeredSyncTask = Task {
@@ -153,25 +166,54 @@ actor FullSyncEngine {
         } else {
             // Initial or resumed full sync
             state = .initialSync
-            let resumeToken = syncState?.initialSyncPageToken
 
-            let success = await performInitialSync(resumeFrom: resumeToken)
-            guard !Task.isCancelled else { return }
+            // Retry with exponential backoff (1s, 2s, 4s) per Gmail API guidance.
+            // syncStarted() is called at the top of each attempt so the bubble
+            // always shows "Syncing" — avoiding interim syncFailed calls that
+            // would trigger the 2.5s auto-dismiss linger timer.
+            var attempt = 0
+            let maxRetries = 3
+            while !Task.isCancelled {
+                await reportProgress { $0.syncStarted() }
+                let resumeToken = (await readSyncState())?.initialSyncPageToken
+                let success = await performInitialSync(resumeFrom: resumeToken)
+                guard !Task.isCancelled else { return }
 
-            if success {
-                state = .monitoring
-                // Immediate incremental sync to catch mail arriving during initial sync
-                // (the historyId captured before listing covers this gap)
-                let gapFillOK = await syncIncremental()
-                if !gapFillOK {
-                    await reportProgress { $0.syncFailed("Gap-fill sync failed") }
+                if success {
+                    state = .monitoring
+                    // Immediate incremental sync to catch mail arriving during initial sync
+                    // (the historyId captured before listing covers this gap)
+                    let gapFillOK = await syncIncremental()
+                    if !gapFillOK {
+                        await reportProgress { $0.syncFailed("Gap-fill sync failed") }
+                    }
+                    startIncrementalLoop()
+                    startBodyPrefetchLoop()
+                    startContactRefreshLoop()
+                    startLabelRefreshLoop()
+                    return
                 }
-                startIncrementalLoop()
-                startBodyPrefetchLoop()
-                startContactRefreshLoop()
-                startLabelRefreshLoop()
-            } else {
-                state = .error("Initial sync failed")
+
+                // Don't retry auth errors — user must re-authenticate
+                if isTokenRevoked { return }
+
+                attempt += 1
+                if attempt > maxRetries {
+                    state = .error("Initial sync failed")
+                    // Clear stale page token so manual retry starts fresh.
+                    // Log warning if the DB write fails — stale token may cause
+                    // the next retry to resume from an expired position.
+                    let cleared = await writeSyncState { $0.initialSyncPageToken = nil }
+                    if !cleared {
+                        Self.logger.warning("Failed to clear stale page token — next retry may resume from old position")
+                    }
+                    await reportProgress { $0.syncFailed("Sync failed — tap to retry") }
+                    return
+                }
+
+                let delay = pow(2.0, Double(attempt - 1)) // 1s, 2s, 4s
+                Self.logger.info("Initial sync retry \(attempt)/\(maxRetries) in \(delay)s")
+                try? await Task.sleep(for: .seconds(delay))
             }
         }
     }
@@ -289,8 +331,20 @@ actor FullSyncEngine {
         } catch is CancellationError {
             return false
         } catch {
+            // Token revoked: set non-retryable flag and report error. Cannot call
+            // stop() here — we're inside syncTask, and stop() awaits syncTask.value
+            // which would deadlock. The retry loop checks isTokenRevoked to bail.
+            if case .tokenRevoked = error as? GmailAPIError {
+                Self.logger.error("Token revoked during initial sync for \(self.accountID)")
+                isTokenRevoked = true
+                state = .error("Session expired — please sign in again")
+                await reportProgress { $0.syncFailed("Session expired — please sign in again") }
+                return false
+            }
+            // Retryable error — log but don't call syncFailed (the retry loop in
+            // runSyncLifecycle manages progress; calling syncFailed here would
+            // trigger the 2.5s auto-dismiss linger timer mid-retry).
             Self.logger.error("Initial sync failed: \(error.localizedDescription)")
-            await reportProgress { $0.syncFailed(error.localizedDescription) }
             return false
         }
     }
