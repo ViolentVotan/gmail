@@ -51,7 +51,7 @@ Serif/
 └── Utilities/          # Helpers
 ```
 
-**Patterns:** MVVM with coordinator navigation (`AppCoordinator`, `EmailActionCoordinator`). Per-account GRDB SQLite database (WAL mode) for email persistence; `BackgroundSyncer` actor writes, `ValueObservation` drives reactive UI. `SyncProgressManager` (@Observable, environment-injected) drives a transient liquid glass bubble in the sidebar during sync operations — debounced, with linger timers, reset on account switch.
+**Patterns:** MVVM with coordinator navigation (`AppCoordinator`, `EmailActionCoordinator`). Per-account GRDB SQLite database (WAL mode) for email persistence; `BackgroundSyncer` actor writes, `ValueObservation` drives reactive UI. `SyncProgressManager` (@Observable, environment-injected) drives an always-visible interactive liquid glass bubble at the sidebar bottom — tappable to trigger manual sync, with linger timers for success/error states, reset on account switch.
 
 **Path-scoped rules** (`.claude/rules/`): `swift.md` (all Swift), `database.md` (Database layer), `testing.md` (tests), `safety.md` (CI/config safety). Serena `code_style` memory has full reference.
 
