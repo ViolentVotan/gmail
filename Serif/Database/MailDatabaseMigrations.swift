@@ -3,9 +3,9 @@ internal import GRDB
 enum MailDatabaseMigrations {
     static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
-        #if DEBUG
-        migrator.eraseDatabaseOnSchemaChange = true
-        #endif
+        // Note: eraseDatabaseOnSchemaChange intentionally disabled.
+        // It wipes all synced emails whenever a migration is added,
+        // forcing a full re-sync of thousands of messages.
         registerV1(&migrator)
         registerV2(&migrator)
         registerV3(&migrator)

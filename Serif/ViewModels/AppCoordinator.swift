@@ -394,7 +394,14 @@ final class AppCoordinator {
             }
         }
         updateDisplayedEmails()
-        syncProgressManager.updateLastSynced()
+        // Only show "synced just now" if initial sync has completed.
+        // Otherwise the sync engine will report its own progress phases.
+        let hasSynced = try? await mailDatabase?.dbPool.read { db in
+            try MailDatabaseQueries.syncState(in: db)?.initialSyncComplete ?? false
+        }
+        if hasSynced == true {
+            syncProgressManager.updateLastSynced()
+        }
         // Trigger sync engine to check for new messages immediately
         await syncEngine?.triggerIncrementalSync()
         // Classify visible emails with Apple Intelligence (deduped via tagCache + DB)
