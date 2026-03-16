@@ -13,6 +13,7 @@ struct SerifApp: App {
         ])
         NotificationService.shared.setup()
         SerifShortcuts.updateAppShortcutParameters()
+        NSApplication.shared.activate()
     }
 
     var body: some Scene {
