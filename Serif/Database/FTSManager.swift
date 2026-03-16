@@ -19,9 +19,9 @@ enum FTSManager {
         )
     }
 
-    /// Update an existing message's FTS entry. DELETE old + INSERT new.
+    /// Update an existing message's FTS entry. Delegates to `index`, which handles
+    /// DELETE + INSERT internally — no extra delete needed here.
     static func update(message: MessageRecord, in db: Database) throws {
-        try delete(gmailId: message.gmailId, in: db)
         try index(message: message, in: db)
     }
 

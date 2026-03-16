@@ -142,9 +142,10 @@ final class MailboxViewModel {
         // Stale check: ignore updates from a previous account's database
         guard db === mailDatabase else { return }
         enrichmentTask?.cancel()
-        enrichmentTask = Task { @MainActor in
+        enrichmentTask = Task { @MainActor [weak self] in
             let threadEmails = Self.threadedEmails(from: records)
             guard !Task.isCancelled else { return }
+            guard let self else { return }
             guard db === self.mailDatabase else { return }
             // Guard against empty results when the observation returned non-empty records
             if threadEmails.isEmpty && !records.isEmpty { return }
@@ -362,8 +363,37 @@ final class MailboxViewModel {
 
     // MARK: - Mutations
 
+    /// Shared optimistic-update flow: write labels to DB, call API, revert on failure.
+    ///
+    /// 1. Applies `addLabelIDs` / `removeLabelIDs` to the message's labels in the DB.
+    /// 2. Calls `apiCall` (which may also reconcile server labels on success).
+    /// 3. On failure: reverts to original labels, sets `self.error`, shows a toast.
+    ///
+    /// - Parameters:
+    ///   - messageID: The Gmail message ID.
+    ///   - addLabelIDs: Labels to add optimistically.
+    ///   - removeLabelIDs: Labels to remove optimistically.
+    ///   - apiCall: The API operation. May perform post-success reconciliation.
+    ///   - failureToast: The toast message shown on failure.
+    private func performOptimisticAction(
+        _ messageID: String,
+        addLabelIDs: [String] = [],
+        removeLabelIDs: [String] = [],
+        apiCall: () async throws -> Void,
+        failureToast: String
+    ) async {
+        let original = await updateLabelsInDatabase(messageID, addLabelIds: addLabelIDs, removeLabelIds: removeLabelIDs)
+        do {
+            try await apiCall()
+        } catch {
+            if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
+            self.error = error.localizedDescription
+            ToastManager.shared.show(message: failureToast, type: .error)
+        }
+    }
+
     /// Marks a message as read. Optimistic DB write → API call → revert on failure.
-    /// Uses a single transaction to update both labels and read flag, avoiding double ValueObservation notifications.
+    /// Uses `markAsReadInDatabase` (combined label + read flag) instead of the shared helper.
     func markAsRead(_ messageID: String) async {
         let original = await markAsReadInDatabase(messageID, isRead: true)
         do {
@@ -401,53 +431,53 @@ final class MailboxViewModel {
 
     /// Marks a message as unread. Optimistic DB write → API call → revert on failure.
     func markAsUnread(_ messageID: String) async {
-        let original = await updateLabelsInDatabase(messageID, addLabelIds: [GmailSystemLabel.unread], removeLabelIds: [])
-        do {
-            try await api.markAsUnread(id: messageID, accountID: accountID)
-        } catch {
-            if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            self.error = error.localizedDescription
-            ToastManager.shared.show(message: "Failed to mark as unread", type: .error)
-        }
+        await performOptimisticAction(
+            messageID,
+            addLabelIDs: [GmailSystemLabel.unread],
+            apiCall: { [api, accountID] in
+                try await api.markAsUnread(id: messageID, accountID: accountID)
+            },
+            failureToast: "Failed to mark as unread"
+        )
     }
 
     /// Toggles star on a message. Optimistic DB write → API call → revert on failure.
     func toggleStar(_ messageID: String, isStarred: Bool) async {
-        let addLabels = isStarred ? [String]() : [GmailSystemLabel.starred]
-        let removeLabels = isStarred ? [GmailSystemLabel.starred] : [String]()
-        let original = await updateLabelsInDatabase(messageID, addLabelIds: addLabels, removeLabelIds: removeLabels)
-        do {
-            try await api.setStarred(!isStarred, id: messageID, accountID: accountID)
-        } catch {
-            if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            self.error = error.localizedDescription
-            ToastManager.shared.show(message: "Failed to toggle star", type: .error)
-        }
+        await performOptimisticAction(
+            messageID,
+            addLabelIDs: isStarred ? [] : [GmailSystemLabel.starred],
+            removeLabelIDs: isStarred ? [GmailSystemLabel.starred] : [],
+            apiCall: { [api, accountID] in
+                try await api.setStarred(!isStarred, id: messageID, accountID: accountID)
+            },
+            failureToast: "Failed to toggle star"
+        )
     }
 
     /// Trashes a message. Optimistic DB write → API call → reconcile or revert.
     func trash(_ messageID: String) async {
-        let original = await updateLabelsInDatabase(messageID, addLabelIds: [GmailSystemLabel.trash], removeLabelIds: [GmailSystemLabel.inbox])
-        do {
-            let updated = try await api.trashMessage(id: messageID, accountID: accountID)
-            await reconcileLabelsInDatabase(messageID, serverLabelIds: updated.labelIds ?? [])
-        } catch {
-            if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            self.error = error.localizedDescription
-            ToastManager.shared.show(message: "Failed to trash message", type: .error)
-        }
+        await performOptimisticAction(
+            messageID,
+            addLabelIDs: [GmailSystemLabel.trash],
+            removeLabelIDs: [GmailSystemLabel.inbox],
+            apiCall: { [api, accountID, weak self] in
+                let updated = try await api.trashMessage(id: messageID, accountID: accountID)
+                await self?.reconcileLabelsInDatabase(messageID, serverLabelIds: updated.labelIds ?? [])
+            },
+            failureToast: "Failed to trash message"
+        )
     }
 
     /// Archives a message. Optimistic DB write → API call → revert on failure.
     func archive(_ messageID: String) async {
-        let original = await updateLabelsInDatabase(messageID, addLabelIds: [], removeLabelIds: [GmailSystemLabel.inbox])
-        do {
-            try await api.archiveMessage(id: messageID, accountID: accountID)
-        } catch {
-            if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            self.error = error.localizedDescription
-            ToastManager.shared.show(message: "Failed to archive", type: .error)
-        }
+        await performOptimisticAction(
+            messageID,
+            removeLabelIDs: [GmailSystemLabel.inbox],
+            apiCall: { [api, accountID] in
+                try await api.archiveMessage(id: messageID, accountID: accountID)
+            },
+            failureToast: "Failed to archive"
+        )
     }
 
     // MARK: - Label mutation helper
@@ -618,29 +648,29 @@ final class MailboxViewModel {
 
     /// Moves a message to inbox. Optimistic DB write → API call → revert on failure.
     func moveToInbox(_ messageID: String) async {
-        let original = await updateLabelsInDatabase(messageID, addLabelIds: [GmailSystemLabel.inbox], removeLabelIds: [])
-        do {
-            try await api.modifyLabels(
-                id: messageID, add: [GmailSystemLabel.inbox], remove: [], accountID: accountID
-            )
-        } catch {
-            if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            self.error = error.localizedDescription
-            ToastManager.shared.show(message: "Failed to move to inbox", type: .error)
-        }
+        await performOptimisticAction(
+            messageID,
+            addLabelIDs: [GmailSystemLabel.inbox],
+            apiCall: { [api, accountID] in
+                try await api.modifyLabels(
+                    id: messageID, add: [GmailSystemLabel.inbox], remove: [], accountID: accountID
+                )
+            },
+            failureToast: "Failed to move to inbox"
+        )
     }
 
     /// Untrashes a message. Optimistic DB write → API call → reconcile or revert.
     func untrash(_ messageID: String) async {
-        let original = await updateLabelsInDatabase(messageID, addLabelIds: [], removeLabelIds: [GmailSystemLabel.trash])
-        do {
-            let updated = try await api.untrashMessage(id: messageID, accountID: accountID)
-            await reconcileLabelsInDatabase(messageID, serverLabelIds: updated.labelIds ?? [])
-        } catch {
-            if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            self.error = error.localizedDescription
-            ToastManager.shared.show(message: "Failed to untrash", type: .error)
-        }
+        await performOptimisticAction(
+            messageID,
+            removeLabelIDs: [GmailSystemLabel.trash],
+            apiCall: { [api, accountID, weak self] in
+                let updated = try await api.untrashMessage(id: messageID, accountID: accountID)
+                await self?.reconcileLabelsInDatabase(messageID, serverLabelIds: updated.labelIds ?? [])
+            },
+            failureToast: "Failed to untrash"
+        )
     }
 
     /// Permanently deletes a message. Removes all labels from DB optimistically,
@@ -678,31 +708,37 @@ final class MailboxViewModel {
 
     /// Marks a message as not spam. Optimistic DB write → API call → revert on failure.
     func unspam(_ messageID: String) async {
-        let original = await updateLabelsInDatabase(messageID, addLabelIds: [GmailSystemLabel.inbox], removeLabelIds: [GmailSystemLabel.spam])
-        do {
-            try await api.modifyLabels(
-                id: messageID, add: [GmailSystemLabel.inbox], remove: [GmailSystemLabel.spam], accountID: accountID
-            )
-        } catch {
-            if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            self.error = error.localizedDescription
-            ToastManager.shared.show(message: "Failed to remove spam", type: .error)
-        }
+        await performOptimisticAction(
+            messageID,
+            addLabelIDs: [GmailSystemLabel.inbox],
+            removeLabelIDs: [GmailSystemLabel.spam],
+            apiCall: { [api, accountID] in
+                try await api.modifyLabels(
+                    id: messageID, add: [GmailSystemLabel.inbox], remove: [GmailSystemLabel.spam], accountID: accountID
+                )
+            },
+            failureToast: "Failed to remove spam"
+        )
     }
 
     /// Marks a message as spam. Optimistic DB write → API call → revert on failure.
     func spam(_ messageID: String) async {
-        let original = await updateLabelsInDatabase(messageID, addLabelIds: [GmailSystemLabel.spam], removeLabelIds: [GmailSystemLabel.inbox])
-        do {
-            try await api.spamMessage(id: messageID, accountID: accountID)
-        } catch {
-            if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            self.error = error.localizedDescription
-            ToastManager.shared.show(message: "Failed to mark as spam", type: .error)
-        }
+        await performOptimisticAction(
+            messageID,
+            addLabelIDs: [GmailSystemLabel.spam],
+            removeLabelIDs: [GmailSystemLabel.inbox],
+            apiCall: { [api, accountID] in
+                try await api.spamMessage(id: messageID, accountID: accountID)
+            },
+            failureToast: "Failed to mark as spam"
+        )
     }
 
     /// Adds a label to a message. Optimistic DB write → offline queue or API call → revert on failure.
+    ///
+    /// - Note: When offline, the optimistic DB write is preserved and the action is enqueued.
+    ///   If the queued action later fails (e.g. 404), the DB is **not** reverted — the label
+    ///   change is best-effort. A full sync on reconnection will reconcile any drift.
     func addLabel(_ labelID: String, to messageID: String) async {
         let original = await updateLabelsInDatabase(messageID, addLabelIds: [labelID], removeLabelIds: [])
         guard NetworkMonitor.shared.isConnected else {
@@ -739,6 +775,10 @@ final class MailboxViewModel {
     }
 
     /// Removes a label from a message. Optimistic DB write → offline queue or API call → revert on failure.
+    ///
+    /// - Note: When offline, the optimistic DB write is preserved and the action is enqueued.
+    ///   If the queued action later fails (e.g. 404), the DB is **not** reverted — the label
+    ///   change is best-effort. A full sync on reconnection will reconcile any drift.
     func removeLabel(_ labelID: String, from messageID: String) async {
         let original = await updateLabelsInDatabase(messageID, addLabelIds: [], removeLabelIds: [labelID])
         guard NetworkMonitor.shared.isConnected else {
