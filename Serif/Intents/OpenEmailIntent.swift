@@ -6,7 +6,7 @@ struct OpenEmailIntent: AppIntent {
     static let openAppWhenRun = true
 
     @Parameter(title: "Email")
-    var email: EmailEntity
+    var email: MailMessageEntity
 
     func perform() async throws -> some IntentResult {
         let messageId = email.id
@@ -25,4 +25,3 @@ struct OpenEmailIntent: AppIntent {
         return .result()
     }
 }
-

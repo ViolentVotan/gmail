@@ -19,4 +19,3 @@ struct SearchEmailIntent: AppIntent {
         return .result()
     }
 }
-

@@ -1,6 +1,7 @@
 import Foundation
 #if canImport(FoundationModels)
 import FoundationModels
+private import Contacts
 #endif
 
 #if canImport(FoundationModels)
@@ -14,6 +15,51 @@ struct EmailInsight {
     var deadline: String?
     @Guide(description: "Sentiment: positive, neutral, negative, or urgent")
     var sentiment: String
+}
+
+struct ContactLookupTool: Tool {
+    let name = "lookupContact"
+    let description = "Look up a contact by email address to find their name and relationship"
+
+    @Generable
+    struct Arguments {
+        @Guide(description: "Email address to look up")
+        var emailAddress: String
+    }
+
+    func call(arguments: Arguments) async throws -> String {
+        let store = CNContactStore()
+        let keysToFetch: [CNKeyDescriptor] = [
+            CNContactGivenNameKey as CNKeyDescriptor,
+            CNContactFamilyNameKey as CNKeyDescriptor,
+            CNContactOrganizationNameKey as CNKeyDescriptor,
+            CNContactJobTitleKey as CNKeyDescriptor
+        ]
+
+        let predicate = CNContact.predicateForContacts(matchingEmailAddress: arguments.emailAddress)
+
+        guard let contact = (try? store.unifiedContacts(matching: predicate, keysToFetch: keysToFetch)).flatMap({ $0.first }) else {
+            return "Contact not found for \(arguments.emailAddress)"
+        }
+
+        var parts: [String] = []
+        let fullName = [contact.givenName, contact.familyName]
+            .filter { !$0.isEmpty }
+            .joined(separator: " ")
+        if !fullName.isEmpty {
+            parts.append("Name: \(fullName)")
+        }
+        if !contact.organizationName.isEmpty {
+            parts.append("Organization: \(contact.organizationName)")
+        }
+        if !contact.jobTitle.isEmpty {
+            parts.append("Job title: \(contact.jobTitle)")
+        }
+
+        return parts.isEmpty
+            ? "Contact not found for \(arguments.emailAddress)"
+            : parts.joined(separator: ", ")
+    }
 }
 #endif
 
@@ -84,7 +130,7 @@ final class SummaryService {
             - Use the same language as the email body.
             - Strip any signature, disclaimer or legal notice from consideration.
             """)
-            let session = LanguageModelSession(instructions: instructions)
+            let session = LanguageModelSession(tools: [ContactLookupTool()], instructions: instructions)
 
             var context = "From: \(email.sender.name)"
             if !email.recipients.isEmpty {
@@ -139,7 +185,7 @@ final class SummaryService {
                     Analyze this email and provide a structured summary. \
                     Focus on what matters: what is it about, what action is needed, any deadlines.
                     """)
-                    let session = LanguageModelSession(instructions: instructions)
+                    let session = LanguageModelSession(tools: [ContactLookupTool()], instructions: instructions)
                     let body = AIServiceHelpers.cleanedPreview(from: email)
                     let truncated = String(body.prefix(10000))
                     let prompt = "From: \(email.sender.name)\nSubject: \(email.subject)\n\n\(truncated)"

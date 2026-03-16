@@ -3,6 +3,12 @@ import Foundation
 import UserNotifications
 private import os
 
+enum EmailNotificationPriority: Sendable {
+    case urgent    // Has deadline or sender flagged as important
+    case normal    // Regular email
+    case low       // FYI-only, newsletters, marketing
+}
+
 @MainActor
 final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationService()
@@ -41,7 +47,8 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         senderName: String,
         subject: String,
         snippet: String,
-        accountID: String
+        accountID: String,
+        priority: EmailNotificationPriority = .normal
     ) {
         guard UserDefaults.standard.bool(forKey: UserDefaultsKey.notificationsEnabled) else { return }
 
@@ -56,6 +63,20 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             "threadId": threadId,
             "accountID": accountID
         ]
+
+        // Apple Intelligence uses interruption level to determine notification
+        // summarization priority and whether to surface in notification stacks.
+        switch priority {
+        case .urgent:
+            content.interruptionLevel = .timeSensitive
+            content.relevanceScore = 0.9
+        case .normal:
+            content.interruptionLevel = .active
+            content.relevanceScore = 0.5
+        case .low:
+            content.interruptionLevel = .passive
+            content.relevanceScore = 0.1
+        }
 
         let request = UNNotificationRequest(
             identifier: messageId,

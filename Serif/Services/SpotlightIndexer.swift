@@ -21,12 +21,7 @@ final class SpotlightIndexer {
         // Clean up legacy CSSearchableItem entries on first run after migration
         cleanLegacyItemsIfNeeded()
 
-        let entity = EmailEntity(
-            id: messageID,
-            subject: email.subject,
-            senderName: email.sender.name,
-            date: email.date
-        )
+        let entity = MailMessageEntity(from: email)
 
         if indexedIDs.count >= maxIndexed {
             let evictCount = max(1, Int(Double(maxIndexed) * evictionFraction))

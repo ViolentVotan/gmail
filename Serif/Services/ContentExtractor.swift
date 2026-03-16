@@ -66,6 +66,54 @@ enum ContentExtractor {
     // MARK: - PDF
 
     private static func extractPDF(data: Data) -> ExtractionResult {
+        if #available(macOS 26.0, *) {
+            let result = extractPDFWithDocumentRecognition(data: data)
+            if case .text = result { return result }
+        }
+        return extractPDFWithLegacy(data: data)
+    }
+
+    @available(macOS 26.0, *)
+    private static func extractPDFWithDocumentRecognition(data: Data) -> ExtractionResult {
+        guard let document = PDFDocument(data: data), document.pageCount > 0 else {
+            return .unsupported
+        }
+
+        var allText: [String] = []
+
+        for i in 0..<document.pageCount {
+            guard let page = document.page(at: i) else { continue }
+            let pageImage = page.thumbnail(of: CGSize(width: 2048, height: 2048), for: .mediaBox)
+            guard let tiffData = pageImage.tiffRepresentation else { continue }
+
+            var request = RecognizeDocumentsRequest()
+            request.textRecognitionOptions.recognitionLanguages = [
+                Locale.Language(identifier: "fr-FR"),
+                Locale.Language(identifier: "en-US")
+            ]
+            request.textRecognitionOptions.useLanguageCorrection = true
+
+            let capturedRequest = request
+            guard let observations = try? synchronousPerform({ try await capturedRequest.perform(on: tiffData) }),
+                  !observations.isEmpty else {
+                continue
+            }
+
+            let pageText = observations.map { observation in
+                extractText(from: observation.document)
+            }
+            .joined(separator: "\n\n")
+
+            if !pageText.isEmpty {
+                allText.append(pageText)
+            }
+        }
+
+        let combined = allText.joined(separator: "\n\n")
+        return combined.isEmpty ? .unsupported : .text(combined)
+    }
+
+    private static func extractPDFWithLegacy(data: Data) -> ExtractionResult {
         guard let document = PDFDocument(data: data) else { return .unsupported }
 
         var pages: [String] = []
@@ -82,6 +130,107 @@ enum ContentExtractor {
     // MARK: - OCR (Vision)
 
     private static func extractOCR(data: Data) -> ExtractionResult {
+        if #available(macOS 26.0, *) {
+            return extractWithDocumentRecognition(data: data)
+        }
+        return extractWithLegacyOCR(data: data)
+    }
+
+    @available(macOS 26.0, *)
+    private static func extractWithDocumentRecognition(data: Data) -> ExtractionResult {
+        var request = RecognizeDocumentsRequest()
+        request.textRecognitionOptions.recognitionLanguages = [
+            Locale.Language(identifier: "fr-FR"),
+            Locale.Language(identifier: "en-US")
+        ]
+        request.textRecognitionOptions.useLanguageCorrection = true
+
+        do {
+            let capturedRequest = request
+            let observations = try synchronousPerform { try await capturedRequest.perform(on: data) }
+
+            guard !observations.isEmpty else {
+                return extractWithLegacyOCR(data: data)
+            }
+
+            let text = observations.map { observation in
+                extractText(from: observation.document)
+            }
+            .joined(separator: "\n\n")
+
+            return text.isEmpty ? extractWithLegacyOCR(data: data) : .text(text)
+        } catch {
+            return extractWithLegacyOCR(data: data)
+        }
+    }
+
+    @available(macOS 26.0, *)
+    private static func extractText(from container: DocumentObservation.Container) -> String {
+        var sections: [String] = []
+
+        // Extract paragraph text
+        for paragraph in container.paragraphs {
+            let transcript = paragraph.transcript
+            if !transcript.isEmpty {
+                sections.append(transcript)
+            }
+        }
+
+        // Extract table content as formatted text
+        for table in container.tables {
+            var tableLines: [String] = []
+            for row in table.rows {
+                let cells = row.map { cell in
+                    extractText(from: cell.content)
+                }
+                tableLines.append(cells.joined(separator: " | "))
+            }
+            if !tableLines.isEmpty {
+                sections.append(tableLines.joined(separator: "\n"))
+            }
+        }
+
+        // Extract list items
+        for list in container.lists {
+            let items = list.items.map { item in
+                "\(item.markerString) \(item.itemString)"
+            }
+            if !items.isEmpty {
+                sections.append(items.joined(separator: "\n"))
+            }
+        }
+
+        // Fallback to the full text transcript if no structured content was found
+        if sections.isEmpty {
+            let transcript = container.text.transcript
+            if !transcript.isEmpty {
+                sections.append(transcript)
+            }
+        }
+
+        return sections.joined(separator: "\n\n")
+    }
+
+    /// Bridge async Vision request to synchronous context.
+    @available(macOS 26.0, *)
+    private static func synchronousPerform<T: Sendable>(
+        _ work: @Sendable @escaping () async throws -> T
+    ) throws -> T {
+        let semaphore = DispatchSemaphore(value: 0)
+        nonisolated(unsafe) var result: Swift.Result<T, Error>?
+        Task {
+            do {
+                result = .success(try await work())
+            } catch {
+                result = .failure(error)
+            }
+            semaphore.signal()
+        }
+        semaphore.wait()
+        return try result!.get()
+    }
+
+    private static func extractWithLegacyOCR(data: Data) -> ExtractionResult {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
         request.recognitionLanguages = ["fr-FR", "en-US"]

@@ -1,4 +1,5 @@
 import SwiftUI
+import Translation
 
 struct EmailDetailView: View {
     let email: Email
@@ -15,6 +16,7 @@ struct EmailDetailView: View {
     @State private var showOriginalInviteEmail = false
     @State private var expandedMessageIDs: Set<String> = []
     @State private var labelSuggestions: [LabelSuggestion] = []
+    @State private var showTranslation = false
     @AppStorage("aiLabelSuggestions") private var aiLabelSuggestionsEnabled = true
 
     /// Best available unsubscribe URL: header-based (from full thread) or body-scanned.
@@ -126,6 +128,19 @@ struct EmailDetailView: View {
         .task(id: email.id) {
             await loadThread()
         }
+        .userActivity(UserActivityManager.viewEmailActivityType) { activity in
+            let source = UserActivityManager.activity(for: email, accountID: accountID)
+            activity.title = source.title
+            activity.isEligibleForSearch = true
+            activity.isEligibleForHandoff = false
+            activity.targetContentIdentifier = source.targetContentIdentifier
+            activity.contentAttributeSet = source.contentAttributeSet
+            activity.userInfo = source.userInfo
+        }
+        .translationPresentation(
+            isPresented: $showTranslation,
+            text: detailVM.latestMessage?.plainBody ?? email.body
+        )
     }
 
     // MARK: - Thread Metadata
@@ -152,6 +167,12 @@ struct EmailDetailView: View {
                         }
 
                         Divider()
+                    }
+
+                    Button {
+                        showTranslation = true
+                    } label: {
+                        Label("Translate", systemImage: "translate")
                     }
 
                     Button {

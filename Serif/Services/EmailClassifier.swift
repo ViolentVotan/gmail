@@ -13,11 +13,17 @@ final class EmailClassifier {
 
     private let tagCache = LRUCache<String, EmailTags>(maxSize: 500)
 
+    /// Look up cached classification tags without triggering classification.
+    func cachedTags(for messageId: String) -> EmailTags? {
+        tagCache[messageId]
+    }
+
     func classifyBatch(_ emails: [Email], db: MailDatabase? = nil) async {
         #if canImport(FoundationModels)
         guard SystemLanguageModel.default.availability == .available else { return }
+        let model = SystemLanguageModel(useCase: .contentTagging)
         let instructions = Instructions("Classify this email with boolean tags.")
-        let session = LanguageModelSession(instructions: instructions)
+        let session = LanguageModelSession(model: model, instructions: instructions)
         for email in emails.prefix(10) {
             guard !Task.isCancelled else { return }
             guard let msgId = email.gmailMessageID, tagCache[msgId] == nil else { continue }

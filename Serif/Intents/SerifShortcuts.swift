@@ -35,13 +35,45 @@ struct SerifShortcuts: AppShortcutsProvider {
         )
 
         AppShortcut(
-            intent: MarkAsReadIntent(),
+            intent: UpdateMailIntent(),
             phrases: [
                 "Mark email as read in \(.applicationName)",
                 "Mark as read in \(.applicationName)",
+                "Update email in \(.applicationName)",
             ],
-            shortTitle: "Mark as Read",
+            shortTitle: "Update Email",
             systemImageName: "envelope.open.badge.clock"
+        )
+
+        AppShortcut(
+            intent: ArchiveEmailIntent(),
+            phrases: [
+                "Archive email in \(.applicationName)",
+                "Archive message in \(.applicationName)",
+            ],
+            shortTitle: "Archive Email",
+            systemImageName: "archivebox"
+        )
+
+        AppShortcut(
+            intent: FlagEmailIntent(),
+            phrases: [
+                "Flag email in \(.applicationName)",
+                "Star email in \(.applicationName)",
+            ],
+            shortTitle: "Flag Email",
+            systemImageName: "flag"
+        )
+
+        AppShortcut(
+            intent: TrashEmailIntent(),
+            phrases: [
+                "Trash email in \(.applicationName)",
+                "Delete email in \(.applicationName)",
+                "Move email to trash in \(.applicationName)",
+            ],
+            shortTitle: "Trash Email",
+            systemImageName: "trash"
         )
     }
 }

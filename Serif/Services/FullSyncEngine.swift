@@ -591,15 +591,30 @@ actor FullSyncEngine {
             .prefix(5)
         for msg in inboxMessages {
             let sender = GmailDataTransformer.parseContactCore(msg.from)
+            let priority = notificationPriority(for: msg)
             NotificationService.shared.notifyNewEmail(
                 messageId: msg.id,
                 threadId: msg.threadId,
                 senderName: sender.name,
                 subject: msg.subject,
                 snippet: msg.snippet ?? "",
-                accountID: accountID
+                accountID: accountID,
+                priority: priority
             )
         }
+    }
+
+    /// Derive notification priority from classification tags or Gmail label heuristics.
+    @MainActor
+    private func notificationPriority(for message: GmailMessage) -> EmailNotificationPriority {
+        if let tags = EmailClassifier.shared.cachedTags(for: message.id) {
+            if tags.hasDeadline { return .urgent }
+            if tags.fyiOnly { return .low }
+        }
+        let labels = message.labelIds ?? []
+        if labels.contains("IMPORTANT") { return .urgent }
+        if labels.contains("CATEGORY_PROMOTIONS") || labels.contains("CATEGORY_UPDATES") { return .low }
+        return .normal
     }
 
     // MARK: - DB Helpers
