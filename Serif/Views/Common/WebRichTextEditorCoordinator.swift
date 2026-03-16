@@ -42,6 +42,11 @@ final class WebRichTextEditorCoordinator: NSObject, WKScriptMessageHandler, WKNa
                     parent.onOpenLink?(url)
                 }
 
+            case "requestLinkPopover":
+                let selectedText = dict["selectedText"] as? String ?? ""
+                let existingURL = dict["existingURL"] as? String ?? ""
+                parent.state.linkPopoverRequest = (text: selectedText, url: existingURL)
+
             default:
                 break
             }

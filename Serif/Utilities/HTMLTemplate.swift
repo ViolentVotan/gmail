@@ -102,7 +102,8 @@ enum HTMLTemplate {
         </style>
         </head>
         <body>
-        <div id="editor" contenteditable="true" data-placeholder="\(placeholderText.replacingOccurrences(of: "\"", with: "&quot;"))">\(Self.sanitizeHTML(initialHTML))</div>
+        <div id="editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Email body" tabindex="0" data-placeholder="\(placeholderText.replacingOccurrences(of: "\"", with: "&quot;"))">\(Self.sanitizeHTML(initialHTML))</div>
+        <div id="a11y-status" aria-live="polite" aria-atomic="true" style="position:absolute;clip:rect(0 0 0 0);width:1px;height:1px;overflow:hidden;"></div>
         <script nonce="\(nonce)">
         \(jsSource)
         </script>

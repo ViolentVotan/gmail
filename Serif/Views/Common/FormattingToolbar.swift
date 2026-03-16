@@ -3,6 +3,7 @@ import SwiftUI
 struct FormattingToolbar: View {
     @ObservedObject var state: WebRichTextEditorState
     @State private var showColorPopover = false
+    @State private var showHighlightPopover = false
     @State private var showLinkPopover = false
     @State private var linkURL = ""
     @State private var linkText = ""
@@ -15,6 +16,29 @@ struct FormattingToolbar: View {
         [.systemBlue, .systemIndigo, .systemPurple, .systemPink, .systemBrown],
     ]
 
+    private let fontFamilies: [(display: String, css: String)] = [
+        ("Sans Serif", "system-ui, -apple-system, sans-serif"),
+        ("Serif", "Georgia, serif"),
+        ("Monospace", "ui-monospace, SFMono-Regular, monospace"),
+        ("Arial", "Arial, Helvetica, sans-serif"),
+        ("Verdana", "Verdana, Geneva, sans-serif"),
+        ("Trebuchet MS", "Trebuchet MS, sans-serif"),
+        ("Georgia", "Georgia, Times New Roman, serif"),
+        ("Times New Roman", "Times New Roman, Times, serif"),
+        ("Courier New", "Courier New, Courier, monospace"),
+        ("Comic Sans MS", "Comic Sans MS, cursive"),
+    ]
+
+    private func displayNameForFont(_ rawFamily: String) -> String {
+        let lower = rawFamily.lowercased()
+        for ff in fontFamilies {
+            if ff.css.lowercased().contains(lower) || ff.display.lowercased() == lower {
+                return ff.display
+            }
+        }
+        return rawFamily.isEmpty ? "Sans Serif" : rawFamily
+    }
+
     var body: some View {
         HStack(spacing: 0) {
             // Undo / Redo
@@ -26,6 +50,38 @@ struct FormattingToolbar: View {
                     state.redo()
                 }
             }
+
+            separator
+
+            // Font family
+            Menu {
+                ForEach(fontFamilies, id: \.css) { font in
+                    Button {
+                        state.setFontFamily(font.css)
+                    } label: {
+                        HStack {
+                            Text(font.display)
+                            if displayNameForFont(state.fontFamily) == font.display {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 3) {
+                    Text(displayNameForFont(state.fontFamily))
+                        .font(Typography.captionRegular)
+                        .lineLimit(1)
+                    Image(systemName: "chevron.down")
+                        .font(Typography.captionSmallRegular)
+                }
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 4)
+                .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: 110)
 
             separator
 
@@ -104,6 +160,26 @@ struct FormattingToolbar: View {
                 ColorGridPopover(state: state, showPopover: $showColorPopover, colorGrid: colorGrid)
             }
 
+            // Highlight color
+            Button {
+                showHighlightPopover.toggle()
+            } label: {
+                VStack(spacing: 1) {
+                    Image(systemName: "highlighter")
+                        .font(Typography.subheadRegular)
+                        .foregroundStyle(.secondary)
+                    RoundedRectangle(cornerRadius: 1)
+                        .fill(state.highlightColor.map { Color(nsColor: $0) } ?? Color.clear)
+                        .frame(width: 12, height: 2)
+                }
+                .frame(width: ButtonSize.sm, height: ButtonSize.sm)
+            }
+            .buttonStyle(.plain)
+            .help("Highlight color")
+            .popover(isPresented: $showHighlightPopover, arrowEdge: .bottom) {
+                HighlightColorPopover(state: state, showPopover: $showHighlightPopover, colorGrid: colorGrid)
+            }
+
             separator
 
             // Alignment - individual icon buttons
@@ -123,6 +199,9 @@ struct FormattingToolbar: View {
                 }
                 toolbarButton(icon: "list.bullet", tooltip: "Bullet list") {
                     state.insertBulletList()
+                }
+                toggleButton(icon: "text.quote", tooltip: "Blockquote", isActive: state.isBlockquote) {
+                    state.toggleBlockquote()
                 }
             }
 
@@ -202,6 +281,14 @@ struct FormattingToolbar: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
+        .onChange(of: state.linkPopoverRequest?.text) { _, _ in
+            if let request = state.linkPopoverRequest {
+                linkURL = request.url.isEmpty ? "https://" : request.url
+                linkText = request.text
+                showLinkPopover = true
+                state.linkPopoverRequest = nil
+            }
+        }
     }
 
     // MARK: - Helpers
@@ -331,6 +418,81 @@ struct ColorGridPopover: View {
     private func isSelected(_ color: NSColor) -> Bool {
         let c1 = color.usingColorSpace(.deviceRGB) ?? color
         let c2 = state.textColor.usingColorSpace(.deviceRGB) ?? state.textColor
+        return abs(c1.redComponent - c2.redComponent) < 0.05
+            && abs(c1.greenComponent - c2.greenComponent) < 0.05
+            && abs(c1.blueComponent - c2.blueComponent) < 0.05
+    }
+}
+
+// MARK: - Highlight Color Popover
+
+struct HighlightColorPopover: View {
+    @ObservedObject var state: WebRichTextEditorState
+    @Binding var showPopover: Bool
+    let colorGrid: [[NSColor]]
+    @State private var customColor: Color = .yellow
+
+    var body: some View {
+        VStack(spacing: 12) {
+            VStack(spacing: 6) {
+                ForEach(0..<colorGrid.count, id: \.self) { row in
+                    HStack(spacing: 6) {
+                        ForEach(0..<colorGrid[row].count, id: \.self) { col in
+                            let color = colorGrid[row][col]
+                            Button {
+                                state.setHighlightColor(color)
+                                showPopover = false
+                            } label: {
+                                RoundedRectangle(cornerRadius: CornerRadius.xs)
+                                    .fill(Color(nsColor: color))
+                                    .frame(width: 22, height: 22)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: CornerRadius.xs)
+                                            .stroke(isSelected(color) ? Color.white : Color.white.opacity(0.15), lineWidth: isSelected(color) ? 2 : 1)
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+
+            Divider()
+
+            HStack(spacing: 8) {
+                ColorPicker("", selection: $customColor, supportsOpacity: false)
+                    .labelsHidden()
+                    .frame(width: 24, height: 24)
+
+                Text("Custom")
+                    .font(Typography.captionRegular)
+                    .foregroundStyle(.secondary)
+
+                Spacer()
+
+                Button("Remove") {
+                    state.removeHighlightColor()
+                    showPopover = false
+                }
+                .font(Typography.captionRegular)
+                .buttonStyle(.plain)
+
+                Button("Apply") {
+                    state.setHighlightColor(NSColor(customColor))
+                    showPopover = false
+                }
+                .font(Typography.caption)
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(12)
+        .frame(width: 170)
+    }
+
+    private func isSelected(_ color: NSColor) -> Bool {
+        guard let highlight = state.highlightColor else { return false }
+        let c1 = color.usingColorSpace(.deviceRGB) ?? color
+        let c2 = highlight.usingColorSpace(.deviceRGB) ?? highlight
         return abs(c1.redComponent - c2.redComponent) < 0.05
             && abs(c1.greenComponent - c2.greenComponent) < 0.05
             && abs(c1.blueComponent - c2.blueComponent) < 0.05

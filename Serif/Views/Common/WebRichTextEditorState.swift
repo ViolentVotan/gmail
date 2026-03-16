@@ -12,6 +12,10 @@ import Combine
     @Published var textColor: NSColor = .labelColor
     @Published var alignment: NSTextAlignment = .left
     @Published var selectedText: String = ""
+    @Published var isBlockquote = false
+    @Published var highlightColor: NSColor? = nil
+    @Published var fontFamily: String = ""
+    @Published var linkPopoverRequest: (text: String, url: String)?
 
     // WKWebView reference (set by Coordinator)
     weak var webView: WKWebView?
@@ -55,6 +59,26 @@ import Combine
     func insertBulletList()    { eval("execInsertUnorderedList()") }
     func increaseIndent()      { eval("execIndent()") }
     func decreaseIndent()      { eval("execOutdent()") }
+    // Note: eval() here is a local helper that calls WKWebView.evaluateJavaScript()
+    // on our own sandboxed editor JS — not arbitrary code execution.
+    func toggleBlockquote()    { eval("execToggleBlockquote()") }
+
+    func setHighlightColor(_ color: NSColor) {
+        highlightColor = color
+        let hex = colorToHex(color)
+        eval("execHighlightColor('\(hex)')")
+    }
+
+    func removeHighlightColor() {
+        highlightColor = nil
+        eval("execRemoveHighlight()")
+    }
+
+    func setFontFamily(_ family: String) {
+        fontFamily = family
+        let escaped = family.replacingOccurrences(of: "'", with: "\\'")
+        eval("execFontFamily('\(escaped)')")
+    }
 
     func insertLink(url: String, text: String? = nil) {
         let escapedURL = url.replacingOccurrences(of: "'", with: "\\'")
@@ -178,6 +202,16 @@ import Combine
         if let fs = newFontSize, fontSize != fs { fontSize = fs }
         if let tc = newTextColor, textColor != tc { textColor = tc }
         if let a = newAlignment, alignment != a { alignment = a }
+
+        let newBlockquote = info["isBlockquote"] as? Bool ?? false
+        if isBlockquote != newBlockquote { isBlockquote = newBlockquote }
+
+        let newHighlightColor = (info["backgroundColor"] as? String)
+            .flatMap { $0.isEmpty ? nil : nsColorFromHex($0) }
+        if highlightColor != newHighlightColor { highlightColor = newHighlightColor }
+
+        let newFontFamily = info["fontFamily"] as? String ?? ""
+        if fontFamily != newFontFamily { fontFamily = newFontFamily }
     }
 
     // MARK: - Private

@@ -138,11 +138,28 @@
 
     // ── Formatting (called from Swift via evaluateJavaScript) ──
 
-    window.execBold = function() { document.execCommand('bold', false, null); };
-    window.execItalic = function() { document.execCommand('italic', false, null); };
-    window.execUnderline = function() { document.execCommand('underline', false, null); };
-    window.execStrikethrough = function() { document.execCommand('strikeThrough', false, null); };
+    window.execBold = function() {
+        captureUndoSnapshot();
+        document.execCommand('bold', false, null);
+        announceFormatting(document.queryCommandState('bold') ? 'Bold on' : 'Bold off');
+    };
+    window.execItalic = function() {
+        captureUndoSnapshot();
+        document.execCommand('italic', false, null);
+        announceFormatting(document.queryCommandState('italic') ? 'Italic on' : 'Italic off');
+    };
+    window.execUnderline = function() {
+        captureUndoSnapshot();
+        document.execCommand('underline', false, null);
+        announceFormatting(document.queryCommandState('underline') ? 'Underline on' : 'Underline off');
+    };
+    window.execStrikethrough = function() {
+        captureUndoSnapshot();
+        document.execCommand('strikeThrough', false, null);
+        announceFormatting(document.queryCommandState('strikeThrough') ? 'Strikethrough on' : 'Strikethrough off');
+    };
     window.execFontSize = function(px) {
+        captureUndoSnapshot();
         // execCommand fontSize uses 1-7 scale; use inline style instead
         document.execCommand('fontSize', false, '7');
         var fontElements = editor.querySelectorAll('font[size="7"]');
@@ -150,19 +167,99 @@
             fontElements[i].removeAttribute('size');
             fontElements[i].style.fontSize = px + 'px';
         }
+        announceFormatting('Font size ' + px);
     };
-    window.execForeColor = function(hex) { document.execCommand('foreColor', false, hex); };
-    window.execRemoveFormat = function() { document.execCommand('removeFormat', false, null); };
+    window.execForeColor = function(hex) {
+        captureUndoSnapshot();
+        document.execCommand('foreColor', false, hex);
+        announceFormatting('Text color changed');
+    };
+    window.execHighlightColor = function(hex) {
+        captureUndoSnapshot();
+        document.execCommand('hiliteColor', false, hex);
+        announceFormatting('Highlight color changed');
+    };
+    window.execRemoveHighlight = function() {
+        captureUndoSnapshot();
+        document.execCommand('hiliteColor', false, 'transparent');
+        announceFormatting('Highlight removed');
+    };
+    window.execFontFamily = function(family) {
+        captureUndoSnapshot();
+        document.execCommand('fontName', false, family);
+        announceFormatting('Font changed');
+    };
+    window.execRemoveFormat = function() {
+        captureUndoSnapshot();
+        document.execCommand('removeFormat', false, null);
+        announceFormatting('Formatting removed');
+    };
 
-    window.execInsertOrderedList = function() { document.execCommand('insertOrderedList', false, null); };
-    window.execInsertUnorderedList = function() { document.execCommand('insertUnorderedList', false, null); };
-    window.execAlign = function(dir) { document.execCommand('justify' + dir.charAt(0).toUpperCase() + dir.slice(1), false, null); };
-    window.execIndent = function() { document.execCommand('indent', false, null); };
-    window.execOutdent = function() { document.execCommand('outdent', false, null); };
+    window.execInsertOrderedList = function() {
+        captureUndoSnapshot();
+        document.execCommand('insertOrderedList', false, null);
+        announceFormatting('Numbered list');
+    };
+    window.execInsertUnorderedList = function() {
+        captureUndoSnapshot();
+        document.execCommand('insertUnorderedList', false, null);
+        announceFormatting('Bullet list');
+    };
+    window.execAlign = function(dir) {
+        captureUndoSnapshot();
+        document.execCommand('justify' + dir.charAt(0).toUpperCase() + dir.slice(1), false, null);
+        announceFormatting('Align ' + dir);
+    };
+    window.execIndent = function() {
+        captureUndoSnapshot();
+        document.execCommand('indent', false, null);
+        announceFormatting('Indent increased');
+    };
+    window.execOutdent = function() {
+        captureUndoSnapshot();
+        document.execCommand('outdent', false, null);
+        announceFormatting('Indent decreased');
+    };
+
+    // ── Blockquote ──
+
+    window.execToggleBlockquote = function() {
+        captureUndoSnapshot();
+        var sel = window.getSelection();
+        if (!sel.rangeCount) return;
+        var node = sel.focusNode;
+        if (node && node.nodeType === 3) node = node.parentElement;
+        var bq = node;
+        while (bq && bq !== editor) {
+            if (bq.tagName === 'BLOCKQUOTE') {
+                var parent = bq.parentNode;
+                while (bq.firstChild) {
+                    parent.insertBefore(bq.firstChild, bq);
+                }
+                parent.removeChild(bq);
+                notifyContentChanged();
+                announceFormatting('Blockquote removed');
+                return;
+            }
+            bq = bq.parentNode;
+        }
+        var block = node;
+        while (block && block !== editor && block.parentNode !== editor) {
+            block = block.parentNode;
+        }
+        if (block && block !== editor) {
+            var newBQ = document.createElement('blockquote');
+            block.parentNode.insertBefore(newBQ, block);
+            newBQ.appendChild(block);
+        }
+        notifyContentChanged();
+        announceFormatting('Blockquote added');
+    };
 
     // ── Links ──
 
     window.execInsertLink = function(url, text) {
+        captureUndoSnapshot();
         editor.focus();
         var sel = window.getSelection();
         if (sel.toString().length > 0) {
@@ -175,9 +272,11 @@
             var linkHTML = '<a href="' + url + '">' + url + '</a>&nbsp;';
             document.execCommand('insertHTML', false, linkHTML);
         }
+        announceFormatting('Link inserted');
     };
 
     window.execEditLink = function(oldHref, newHref, newText) {
+        captureUndoSnapshot();
         var links = editor.querySelectorAll('a[href="' + oldHref + '"]');
         for (var i = 0; i < links.length; i++) {
             var link = links[i];
@@ -195,6 +294,7 @@
     };
 
     window.execUnlink = function() {
+        captureUndoSnapshot();
         if (activeLinkElement) {
             var text = activeLinkElement.textContent;
             var textNode = document.createTextNode(text);
@@ -202,8 +302,10 @@
             activeLinkElement = null;
             hideLinkPopover();
             notifyContentChanged();
+            announceFormatting('Link removed');
         } else {
             document.execCommand('unlink', false, null);
+            announceFormatting('Link removed');
         }
     };
 
@@ -320,11 +422,13 @@
     // ── Insertion ──
 
     window.insertHTML = function(html) {
+        captureUndoSnapshot();
         editor.focus();
         document.execCommand('insertHTML', false, html);
     };
 
     window.insertImageBase64 = function(dataURL, cid) {
+        captureUndoSnapshot();
         editor.focus();
         var imgTag = '<img src="' + dataURL + '" data-cid="' + cid + '" style="max-width:100%;">';
         document.execCommand('insertHTML', false, imgTag);
@@ -333,7 +437,9 @@
     // ── Content ──
 
     window.getHTML = function() { return editor.innerHTML; };
+    // setHTML restores editor content from its own sanitized drafts (not external input)
     window.setHTML = function(html) {
+        captureUndoSnapshot();
         editor.innerHTML = html;
         notifyContentChanged();
     };
@@ -383,8 +489,10 @@
         var fontSize = 13;
         var textColor = '#000000';
         var alignment = 'left';
+        var bgColor = '';
+        var fontFamily = '';
 
-        // Font size detection
+        // Font size, color, alignment, background, font family detection
         var sel = window.getSelection();
         if (sel.rangeCount > 0) {
             var node = sel.focusNode;
@@ -398,6 +506,26 @@
                 else if (ta === 'center') alignment = 'center';
                 else if (ta === 'right' || ta === 'end') alignment = 'right';
                 else if (ta === 'justify') alignment = 'justify';
+
+                // Background/highlight color
+                var bg = computed.backgroundColor;
+                if (bg && bg !== 'rgba(0, 0, 0, 0)' && bg !== 'transparent') {
+                    bgColor = rgbToHex(bg);
+                }
+
+                // Font family (first family only, cleaned)
+                fontFamily = (computed.fontFamily || '').replace(/["']/g, '').split(',')[0].trim();
+            }
+        }
+
+        // Blockquote detection
+        var isBlockquote = false;
+        if (sel.rangeCount > 0) {
+            var bqNode = sel.focusNode;
+            if (bqNode && bqNode.nodeType === 3) bqNode = bqNode.parentElement;
+            while (bqNode && bqNode !== editor) {
+                if (bqNode.tagName === 'BLOCKQUOTE') { isBlockquote = true; break; }
+                bqNode = bqNode.parentNode;
             }
         }
 
@@ -408,7 +536,10 @@
             bold: bold, italic: italic, underline: underline,
             strikethrough: strikethrough, fontSize: fontSize,
             textColor: textColor, alignment: alignment,
-            selectedText: selectedText
+            selectedText: selectedText,
+            isBlockquote: isBlockquote,
+            backgroundColor: bgColor,
+            fontFamily: fontFamily
         });
     }
 
@@ -418,6 +549,13 @@
         if (!parts || parts.length < 3) return '#000000';
         var r = parseInt(parts[0]), g = parseInt(parts[1]), b = parseInt(parts[2]);
         return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+    }
+
+    function announceFormatting(label) {
+        var el = document.getElementById('a11y-status');
+        if (!el) return;
+        el.textContent = '';
+        requestAnimationFrame(function() { el.textContent = label; });
     }
 
     // ── Events ──
@@ -614,20 +752,29 @@
                     document.execCommand('removeFormat', false, null);
                     return;
 
-                // Link insertion (Cmd+K)
+                // Link insertion (Cmd+K) — delegate to native Swift popover
                 case 'k':
                     e.preventDefault(); e.stopPropagation();
-                    var currentSel = window.getSelection();
-                    var selectedText = currentSel.toString();
-                    var url = prompt('Enter URL:', 'https://');
-                    if (url) {
-                        if (selectedText) {
-                            document.execCommand('createLink', false, url);
-                        } else {
-                            var linkHTML = '<a href="' + url + '">' + url + '</a>';
-                            document.execCommand('insertHTML', false, linkHTML);
+                    var linkSel = window.getSelection();
+                    var linkSelectedText = linkSel.toString();
+                    var existingURL = '';
+                    if (linkSel.rangeCount > 0) {
+                        var linkNode = linkSel.focusNode;
+                        if (linkNode && linkNode.nodeType === 3) linkNode = linkNode.parentElement;
+                        while (linkNode && linkNode !== editor) {
+                            if (linkNode.tagName === 'A') {
+                                existingURL = linkNode.getAttribute('href') || '';
+                                if (!linkSelectedText) linkSelectedText = linkNode.textContent || '';
+                                break;
+                            }
+                            linkNode = linkNode.parentNode;
                         }
                     }
+                    post({
+                        type: 'requestLinkPopover',
+                        selectedText: linkSelectedText,
+                        existingURL: existingURL
+                    });
                     return;
             }
         }
