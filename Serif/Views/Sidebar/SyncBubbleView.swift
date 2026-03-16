@@ -81,9 +81,15 @@ struct SyncBubbleView: View {
                     .contentTransition(.interpolate)
             }
         case .initialSync(let synced, let estimated):
-            Text("Syncing \(synced) / ~\(estimated)")
-                .foregroundStyle(.secondary)
-                .contentTransition(.numericText())
+            if estimated > 0 {
+                Text("Syncing \(synced) / ~\(estimated)")
+                    .foregroundStyle(.secondary)
+                    .contentTransition(.numericText())
+            } else {
+                Text("Preparing sync…")
+                    .foregroundStyle(.secondary)
+                    .contentTransition(.interpolate)
+            }
         case .bodyPrefetch(let remaining):
             Text("\(remaining) bodies remaining")
                 .foregroundStyle(.secondary)
@@ -114,7 +120,7 @@ struct SyncBubbleView: View {
                 "Syncing mail."
             }
         case .initialSync(let synced, let estimated):
-            "Syncing mail. \(synced) of \(estimated)."
+            estimated > 0 ? "Syncing mail. \(synced) of \(estimated)." : "Preparing to sync mail."
         case .bodyPrefetch(let remaining):
             "Downloading message bodies. \(remaining) remaining."
         case .success:

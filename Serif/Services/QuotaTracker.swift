@@ -1,25 +1,27 @@
 import Foundation
 
 /// Paces Gmail API calls to stay within the per-user quota limit.
-/// Uses a sliding window over the last 60 seconds to track per-minute spend,
-/// and a 1-second window to enforce per-second burst protection.
+/// Uses a sliding window over the last 60 seconds to track per-minute spend.
 ///
 /// Quota costs per method (from https://developers.google.com/workspace/gmail/api/reference/quota):
-///   messages.get/list: 5    history.list: 2    labels.list: 1
+///   messages.get/list: 5    history.list: 2    labels.list/get: 1
 ///   messages.send: 100      messages.batchDelete: 50
-///   watch: 100              getProfile: 1
+///   messages.modify: 5      watch: 100          getProfile: 1
+///   drafts.get/list: 5      threads.get/list: 10
 ///
-/// Limits: 15,000 units/user/min, 1,200,000 units/project/min.
-/// Per-user limits cannot be increased by Google.
+/// Limits (official, no per-second limit exists):
+///   Per-user:    15,000 quota units per minute
+///   Per-project: 1,200,000 quota units per minute
+///
+/// Concurrent requests are throttled server-side (HTTP 429 "Too many concurrent
+/// requests for user") — handled by retry logic in GmailAPIClient, not here.
 actor QuotaTracker {
     private let budgetPerMinute: Int
-    private let budgetPerSecond: Int
     private var ledger: [(timestamp: Date, units: Int)] = []
     private var _cachedSpend: Int = 0
 
-    init(budgetPerMinute: Int = 15_000, budgetPerSecond: Int = 200) {
+    init(budgetPerMinute: Int = 15_000) {
         self.budgetPerMinute = budgetPerMinute
-        self.budgetPerSecond = budgetPerSecond
     }
 
     /// Current spend in the last 60 seconds (cached, updated lazily on prune/record).
@@ -33,18 +35,9 @@ actor QuotaTracker {
         max(0, budgetPerMinute - currentSpend)
     }
 
-    /// Returns true if spending `units` would stay within both per-minute and per-second budgets.
+    /// Returns true if spending `units` would stay within the per-minute budget.
     func canSpend(_ units: Int) -> Bool {
-        currentSpend + units <= budgetPerMinute && canSpendPerSecond(units)
-    }
-
-    /// Returns true if spending `units` would stay within the per-second burst limit.
-    private func canSpendPerSecond(_ units: Int) -> Bool {
-        let cutoff = Date().addingTimeInterval(-1)
-        let recentSpend = ledger
-            .filter { $0.timestamp >= cutoff }
-            .reduce(0) { $0 + $1.units }
-        return recentSpend + units <= budgetPerSecond
+        currentSpend + units <= budgetPerMinute
     }
 
     /// Records a spend of `units` at the current time.

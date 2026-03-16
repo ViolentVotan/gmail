@@ -176,7 +176,9 @@ actor FullSyncEngine {
 
             guard !allIDs.isEmpty, !Task.isCancelled else { return }
 
-            // Batch fetch metadata (quota charged internally by batchFetch)
+            // Batch fetch metadata: each messages.get = 5 units (up to 2000 × 5 = 10,000)
+            await quota.waitForBudget(allIDs.count * 5)
+            guard !Task.isCancelled else { return }
             let (messages, _) = try await api.getMessages(
                 ids: allIDs, accountID: accountID, format: "metadata"
             )
@@ -218,14 +220,18 @@ actor FullSyncEngine {
             state = .initialSync
 
             // Retry with exponential backoff (1s, 2s, 4s) per Gmail API guidance.
-            // syncStarted() is called at the top of each attempt so the bubble
-            // always shows "Syncing" — avoiding interim syncFailed calls that
-            // would trigger the 2.5s auto-dismiss linger timer.
+            // initialSyncProgress() is called at the top of each attempt so the
+            // bubble always shows the current count — avoiding interim syncFailed
+            // calls that would trigger the 2.5s auto-dismiss linger timer.
             var attempt = 0
             let maxRetries = 3
             while !Task.isCancelled {
-                await reportProgress { $0.syncStarted() }
-                let resumeToken = (await readSyncState())?.initialSyncPageToken
+                let resumeState = await readSyncState()
+                let resumeToken = resumeState?.initialSyncPageToken
+                // Show initial sync progress immediately (with resumed counts if available)
+                let resumedCount = resumeState?.syncedMessageCount ?? 0
+                let resumedEstimate = resumeState?.totalMessagesEstimate ?? 0
+                await reportProgress { $0.initialSyncProgress(synced: resumedCount, estimated: resumedEstimate) }
                 let success = await performInitialSync(resumeFrom: resumeToken)
                 guard !Task.isCancelled else { return }
 
@@ -322,7 +328,7 @@ actor FullSyncEngine {
 
                 guard !refs.isEmpty else { break }
 
-                // Batch-fetch metadata (50 per batch x 5 units = 250 units/batch)
+                // Batch-fetch metadata: each messages.get = 5 quota units
                 let ids = refs.map(\.id)
                 await quota.waitForBudget(ids.count * 5)
                 guard !Task.isCancelled else { return false }
