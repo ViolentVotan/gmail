@@ -2,10 +2,10 @@
 import SwiftUI
 
 enum SyncPhase: Equatable {
-    case idle
+    case idle(lastSynced: Date?)
     case initialSync(synced: Int, estimated: Int)
     case bodyPrefetch(remaining: Int)
-    case syncing(remaining: Int?)   // incremental sync — nil = quick, non-nil = large (≥50)
+    case syncing(remaining: Int?)
     case success
     case error(String)
 }
@@ -14,21 +14,19 @@ enum SyncPhase: Equatable {
 final class SyncProgressManager {
     // MARK: - Public State
 
-    private(set) var phase: SyncPhase = .idle
+    private(set) var phase: SyncPhase = .idle(lastSynced: nil)
 
+    /// Backwards-compatible stub — SidebarView still references this until Task 4.
+    /// Remove in Task 4 when SidebarView's show/hide logic is deleted.
     var isVisible: Bool {
-        phase != .idle && !debounceActive
+        if case .idle = phase { return false }
+        return true
     }
 
-    // MARK: - Private Timers
+    // MARK: - Private
 
-    private var debounceActive = true
-    private var debounceTask: Task<Void, Never>?
+    private var lastSynced: Date?
     private var lingerTask: Task<Void, Never>?
-
-    // MARK: - Constants
-
-    private let debounceDelay: Duration = .milliseconds(150)
     private let successLinger: Duration = .seconds(1.5)
     private let errorLinger: Duration = .seconds(2.5)
 
@@ -38,17 +36,8 @@ final class SyncProgressManager {
     func syncStarted() {
         lingerTask?.cancel()
         lingerTask = nil
-
-        phase = .syncing(remaining: nil)
-        debounceActive = true
-
-        debounceTask?.cancel()
-        debounceTask = Task {
-            try? await Task.sleep(for: debounceDelay)
-            guard !Task.isCancelled else { return }
-            withAnimation(SerifAnimation.springSnappy) {
-                debounceActive = false
-            }
+        withAnimation(SerifAnimation.springSnappy) {
+            phase = .syncing(remaining: nil)
         }
     }
 
@@ -64,7 +53,6 @@ final class SyncProgressManager {
     func initialSyncProgress(synced: Int, estimated: Int) {
         lingerTask?.cancel()
         lingerTask = nil
-        debounceActive = false // always show initial sync
         withAnimation(SerifAnimation.springDefault) {
             phase = .initialSync(synced: synced, estimated: estimated)
         }
@@ -78,7 +66,6 @@ final class SyncProgressManager {
         }
         lingerTask?.cancel()
         lingerTask = nil
-        debounceActive = false
         withAnimation(SerifAnimation.springDefault) {
             phase = .bodyPrefetch(remaining: remaining)
         }
@@ -86,15 +73,7 @@ final class SyncProgressManager {
 
     /// Call when sync completes successfully.
     func syncCompleted() {
-        debounceTask?.cancel()
-
-        // If debounce never elapsed, skip showing entirely
-        guard !debounceActive else {
-            phase = .idle
-            debounceActive = true
-            return
-        }
-
+        lastSynced = Date()
         withAnimation(SerifAnimation.springDefault) {
             phase = .success
         }
@@ -103,15 +82,6 @@ final class SyncProgressManager {
 
     /// Call when sync fails with a transient error.
     func syncFailed(_ message: String = "Sync failed") {
-        debounceTask?.cancel()
-
-        // If debounce never elapsed, skip showing entirely
-        guard !debounceActive else {
-            phase = .idle
-            debounceActive = true
-            return
-        }
-
         withAnimation(SerifAnimation.springDefault) {
             phase = .error(message)
         }
@@ -120,12 +90,18 @@ final class SyncProgressManager {
 
     /// Cancel all timers and return to idle. Call on account switch.
     func reset() {
-        debounceTask?.cancel()
         lingerTask?.cancel()
-        debounceTask = nil
         lingerTask = nil
-        phase = .idle
-        debounceActive = true
+        lastSynced = nil
+        phase = .idle(lastSynced: nil)
+    }
+
+    /// Update the last-synced timestamp (called by loadCurrentFolder for DB-reload paths).
+    func updateLastSynced(_ date: Date = Date()) {
+        lastSynced = date
+        if case .idle = phase {
+            phase = .idle(lastSynced: lastSynced)
+        }
     }
 
     // MARK: - Private
@@ -136,8 +112,7 @@ final class SyncProgressManager {
             try? await Task.sleep(for: delay)
             guard !Task.isCancelled else { return }
             withAnimation(SerifAnimation.springGentle) {
-                phase = .idle
-                debounceActive = true
+                phase = .idle(lastSynced: lastSynced)
             }
         }
     }
