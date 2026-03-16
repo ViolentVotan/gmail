@@ -1,6 +1,6 @@
 # Serif — Native macOS Gmail Client
 
-Swift 6.2 / SwiftUI / macOS 26+ — a native Gmail client with threading, tracker blocking, multi-account, Apple Intelligence (summaries, classification, smart replies), snooze, schedule-send, offline queue, App Intents, command palette, Gmail filters, and push notifications.
+Swift 6.2 / SwiftUI / macOS 26+ — a native Gmail client with threading, tracker blocking, multi-account, Apple Intelligence (summaries, classification, smart replies, translation, notification priority, onscreen awareness, tool calling), snooze, schedule-send, offline queue, App Intents (AssistantSchemas mail domain), command palette, Gmail filters, and push notifications.
 
 ## Fork & Upstream
 
@@ -44,7 +44,7 @@ Serif/
 │   ├── Auth/           # OAuth & token management
 │   ├── Gmail/          # Gmail REST API clients (one per domain)
 │   └── BackgroundSyncer.swift      # Actor for bulk API sync → DB writes
-├── Intents/            # App Intents (Shortcuts, Spotlight, Siri)
+├── Intents/            # App Intents with AssistantSchemas mail domain (Shortcuts, Spotlight, Siri)
 ├── Theme/              # AppearanceManager, DesignTokens (spacing, corner radius, brand colors, haptics, shared modifiers)
 ├── Resources/          # Assets, localization
 ├── Configuration/      # OAuth credentials (gitignored)

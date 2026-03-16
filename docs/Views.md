@@ -34,7 +34,7 @@ Middle column — email rows with native `.swipeActions()` (archive/delete), sea
 - `ListPaneView` — Top-level list pane that constructs `EmailListActions` and wires them to ViewModels/coordinators. Bulk and single-email action closures use `Task { await ... }` for async VM calls.
 
 ### `EmailDetail/`
-Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView, uses `WeakScriptMessageHandler` proxy to avoid WKWebView retain cycles, bidirectional WCAG contrast enforcement for both light and dark mode), attachments, sender info popover, tracker blocking UI, label picker.
+Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView, uses `WeakScriptMessageHandler` proxy to avoid WKWebView retain cycles, bidirectional WCAG contrast enforcement for both light and dark mode), attachments, sender info popover, tracker blocking UI, label picker. `EmailDetailView` registers `NSUserActivity` for Siri onscreen awareness and offers `.translationPresentation()` for on-device email translation.
 - `ReplyBarView` — Inline quick reply with To/Cc/Bcc fields, draft persistence, auto-save, discard confirmation, and smart reply chip support. Custom `init` for `@State` initialization. `.task(id: email.id)` cancels `saveTask` and `loadDraftTask`, resets `ComposeViewModel`, and reloads quick replies on email change. Send success (toast + collapse) driven reactively via `.onChange(of: composeVM.isSent)`. `ClickOutsideDetector` uses `superview` bounds instead of zero-size anchor for hit testing.
 - `DetailPaneView` — Contextual empty state (icon + message per folder). Uses `EmailDetailActions.contentActions` factory to build shared content-level actions. Action closures wrap async VM/coordinator calls in `Task { await ... }` (cascaded from async EmailActionCoordinator/MailboxViewModel changes).
 - `InsightCardView` — Apple Intelligence insight card (summary, action items, key dates) via Foundation Models.
@@ -99,13 +99,17 @@ Shared styled components:
 
 ## Intents (App Intents)
 
-`Serif/Intents/` — App Intents for Shortcuts, Spotlight, and Siri integration.
+`Serif/Intents/` — App Intents for Shortcuts, Spotlight, and Siri integration via AssistantSchemas mail domain.
 
 | File | Role |
 |------|------|
-| `EmailEntity.swift` | `AppEntity` + `IndexedEntity` representing an email for Shortcuts / Spotlight |
+| `EmailEntity.swift` | `MailMessageEntity` (`@AppEntity(schema: .mail.message)` + `IndexedEntity`), `MailAccountEntity`, `MailboxEntity`, `MailMessageEntityQuery`. `typealias EmailEntity = MailMessageEntity` for backward compat. |
+| `ComposeEmailIntent.swift` | `@AppIntent(schema: .mail.createDraft)` — creates a draft with recipients, subject, body |
+| `MarkAsReadIntent.swift` | `UpdateMailIntent` (`@AppIntent(schema: .mail.updateMail)`) — handles isRead, isFlagged, mailbox changes. Shared `IntentError` enum. |
+| `ArchiveEmailIntent.swift` | `@AppIntent(schema: .mail.archiveMail)` — archives emails |
+| `TrashEmailIntent.swift` | `@AppIntent(schema: .mail.deleteMail)` — moves emails to trash |
+| `FlagEmailIntent.swift` | Toggles star/flag on emails (plain `AppIntent` — no schema for flag-only) |
 | `OpenEmailIntent.swift` | Opens an email in Serif by message ID (resolves account via `IntentHelpers`) |
-| `ComposeEmailIntent.swift` | Opens a new compose window with optional pre-filled fields |
-| `SearchEmailIntent.swift` | Searches emails by query string |
+| `SearchEmailIntent.swift` | Searches emails by query string (plain `AppIntent` — no `.mail.search` schema) |
 | `IntentHelpers.swift` | Shared helper: `findOwnerAccount(for:)` scans all account DBs to find the owner of a message ID |
-| `MarkAsReadIntent.swift` | Marks an email as read (resolves account via `IntentHelpers`) |
+| `SerifShortcuts.swift` | `AppShortcutsProvider` registering all 7 intents with Siri phrases |
