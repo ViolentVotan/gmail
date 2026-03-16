@@ -83,7 +83,7 @@ struct EmailDetailView: View {
                             threadMetadata
                             conversationCards
                         }
-                        .frame(maxWidth: 720, alignment: .leading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                     .task(id: detailVM.latestMessage?.id) {
                         if let latestID = detailVM.latestMessage?.id {
