@@ -117,9 +117,10 @@ final class OfflineActionQueue {
                 try await GmailMessageService.shared.untrashMessage(id: msgId, accountID: accountID)
             }
         case .deletePermanently:
-            try await executeSequentially(action) { msgId, accountID in
-                try await GmailMessageService.shared.deleteMessagePermanently(id: msgId, accountID: accountID)
-            }
+            try await GmailMessageService.shared.batchDelete(
+                ids: action.messageIds,
+                accountID: action.accountID
+            )
         case .archive:
             try await GmailMessageService.shared.batchModifyLabels(
                 ids: action.messageIds,

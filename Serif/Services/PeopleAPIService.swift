@@ -9,6 +9,9 @@ final class PeopleAPIService {
     static let shared = PeopleAPIService()
     private init() {}
 
+    /// Sync tokens expire after 7 days per Google docs. Proactively refresh at 6 days.
+    private static let syncTokenMaxAge: TimeInterval = 6 * 24 * 3600
+
     /// Loads contacts: uses local cache if available, otherwise fetches from network.
     /// The caller must supply the `BackgroundSyncer` for the account so contact
     /// writes are serialized through the same actor instance used by the sync engine.
@@ -98,10 +101,17 @@ final class PeopleAPIService {
 
         // 1. Fetch "My Contacts" via connections
         do {
-            let syncToken: String? = try? await mailDB?.dbPool.read { db in
-                try MailDatabaseQueries.syncState(in: db)?.contactsSyncToken
+            let contactsSyncState = try? await mailDB?.dbPool.read { db in
+                try MailDatabaseQueries.syncState(in: db)
             }
-            var needsFullFetch = syncToken == nil
+            let syncToken = contactsSyncState?.contactsSyncToken
+            let contactsTokenExpired = contactsSyncState?.contactsSyncTokenAt.map {
+                Date().timeIntervalSince1970 - $0 > Self.syncTokenMaxAge
+            } ?? false
+            var needsFullFetch = syncToken == nil || contactsTokenExpired
+            if contactsTokenExpired {
+                Self.logger.info("Contacts sync token older than 6 days, forcing full re-fetch")
+            }
 
             if let syncToken, !needsFullFetch {
                 allContacts = (try? await mailDB?.dbPool.read { db in
@@ -143,7 +153,10 @@ final class PeopleAPIService {
                     if isGone {
                         Self.logger.warning("Sync token expired, performing full re-fetch")
                         try? await mailDB?.dbPool.write { db in
-                            try MailDatabaseQueries.updateSyncState({ $0.contactsSyncToken = nil }, in: db)
+                            try MailDatabaseQueries.updateSyncState({
+                                $0.contactsSyncToken = nil
+                                $0.contactsSyncTokenAt = nil
+                            }, in: db)
                         }
                         allContacts = []
                         needsFullFetch = true
@@ -180,10 +193,17 @@ final class PeopleAPIService {
             // Snapshot the count of Connections-only entries so we can restore it on full re-fetch,
             // discarding any Other Contacts that were partially merged during a failed incremental sync.
             let connectionsCount = allContacts.count
-            let otherSyncToken: String? = try? await mailDB?.dbPool.read { db in
-                try MailDatabaseQueries.syncState(in: db)?.otherContactsSyncToken
+            let otherSyncState = try? await mailDB?.dbPool.read { db in
+                try MailDatabaseQueries.syncState(in: db)
             }
-            var needsFullOtherFetch = otherSyncToken == nil
+            let otherSyncToken = otherSyncState?.otherContactsSyncToken
+            let otherTokenExpired = otherSyncState?.otherContactsSyncTokenAt.map {
+                Date().timeIntervalSince1970 - $0 > Self.syncTokenMaxAge
+            } ?? false
+            var needsFullOtherFetch = otherSyncToken == nil || otherTokenExpired
+            if otherTokenExpired {
+                Self.logger.info("Other Contacts sync token older than 6 days, forcing full re-fetch")
+            }
 
             if let otherSyncToken, !needsFullOtherFetch {
                 // Incremental sync for Other Contacts
@@ -219,7 +239,10 @@ final class PeopleAPIService {
                     if isGone {
                         Self.logger.warning("Other Contacts sync token expired, performing full re-fetch")
                         try? await mailDB?.dbPool.write { db in
-                            try MailDatabaseQueries.updateSyncState({ $0.otherContactsSyncToken = nil }, in: db)
+                            try MailDatabaseQueries.updateSyncState({
+                                $0.otherContactsSyncToken = nil
+                                $0.otherContactsSyncTokenAt = nil
+                            }, in: db)
                         }
                         needsFullOtherFetch = true
                     } else {
@@ -260,14 +283,20 @@ final class PeopleAPIService {
         let tuples = unique.map { (email: $0.email, name: Optional($0.name), photoUrl: $0.photoURL, source: "people_api", resourceName: nil as String?) }
         // Atomically upsert contacts and advance the connections sync token in one transaction.
         if let token = newContactsSyncToken {
-            try? await syncer.upsertContactsWithSyncToken(tuples, tokenUpdate: { $0.contactsSyncToken = token }, accountID: accountID)
+            try? await syncer.upsertContactsWithSyncToken(tuples, tokenUpdate: {
+                $0.contactsSyncToken = token
+                $0.contactsSyncTokenAt = Date().timeIntervalSince1970
+            }, accountID: accountID)
         } else {
             try? await syncer.upsertContacts(tuples)
         }
         // Write the Other Contacts token after contacts are safely committed.
         if let token = newOtherSyncToken {
             try? await mailDB?.dbPool.write { db in
-                try MailDatabaseQueries.updateSyncState({ $0.otherContactsSyncToken = token }, in: db)
+                try MailDatabaseQueries.updateSyncState({
+                    $0.otherContactsSyncToken = token
+                    $0.otherContactsSyncTokenAt = Date().timeIntervalSince1970
+                }, in: db)
             }
         }
         Self.logger.info("Total unique contacts stored: \(unique.count, privacy: .public)")

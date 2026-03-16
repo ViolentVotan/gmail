@@ -35,6 +35,11 @@ final class MailDatabase: Sendable {
 
         dbPool = try DatabasePool(path: path, configuration: config)
         try MailDatabaseMigrations.migrator.migrate(dbPool)
+        // Run PRAGMA optimize once per open to help SQLite's query planner
+        // maintain optimal index statistics without manual ANALYZE.
+        try dbPool.write { db in
+            try db.execute(sql: "PRAGMA optimize")
+        }
     }
 
     /// Returns true if the database passes SQLite integrity check.

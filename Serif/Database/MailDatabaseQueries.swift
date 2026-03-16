@@ -82,4 +82,12 @@ enum MailDatabaseQueries {
         try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM messages WHERE full_body_fetched = 0") ?? 0
     }
 
+    /// Count of messages associated with a given label.
+    static func messageCountForLabel(_ labelId: String, in db: Database) throws -> Int {
+        try Int.fetchOne(db, sql:
+            "SELECT COUNT(*) FROM message_labels WHERE label_id = ?",
+            arguments: [labelId]
+        ) ?? 0
+    }
+
 }

@@ -7,7 +7,9 @@ struct AccountSyncStateRecord: Codable, FetchableRecord, PersistableRecord, Send
 
     var id: Int = 1
     var contactsSyncToken: String?
+    var contactsSyncTokenAt: Double?
     var otherContactsSyncToken: String?
+    var otherContactsSyncTokenAt: Double?
     var lastHistoryId: String?
     var initialSyncComplete: Bool = false
     var initialSyncPageToken: String?

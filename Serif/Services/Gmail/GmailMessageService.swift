@@ -160,6 +160,35 @@ final class GmailMessageService {
         )
     }
 
+    /// Permanently deletes multiple messages in a single batch request (up to 1000 per batch).
+    /// More efficient than per-message deletion — 50 quota units per batch vs 1 per message.
+    @concurrent func batchDelete(ids: [String], accountID: String) async throws(GmailAPIError) {
+        guard !ids.isEmpty else { return }
+        var failedIDs: [String] = []
+        for batch in stride(from: 0, to: ids.count, by: 1000) {
+            let chunk = Array(ids[batch..<min(batch + 1000, ids.count)])
+            do {
+                struct BatchDeleteRequest: Encodable { let ids: [String] }
+                let body = try JSONEncoder().encode(BatchDeleteRequest(ids: chunk))
+                _ = try await client.rawRequest(
+                    path: "/users/me/messages/batchDelete",
+                    method: "POST", body: body, contentType: "application/json",
+                    accountID: accountID
+                )
+            } catch let apiError as GmailAPIError {
+                failedIDs.append(contentsOf: chunk)
+                // Log but continue — partial failure reported at the end
+                _ = apiError
+            } catch {
+                // Encoding or cancellation error — rethrow immediately
+                throw .encodingError(error)
+            }
+        }
+        if !failedIDs.isEmpty {
+            throw .partialFailure(failedCount: failedIDs.count)
+        }
+    }
+
     @concurrent func spamMessage(id: String, accountID: String) async throws(GmailAPIError) {
         try await modifyLabels(id: id, add: [GmailSystemLabel.spam], remove: [GmailSystemLabel.inbox], accountID: accountID)
     }

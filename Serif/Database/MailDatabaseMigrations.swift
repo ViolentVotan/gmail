@@ -14,6 +14,7 @@ enum MailDatabaseMigrations {
         registerV6(&migrator)
         registerV7(&migrator)
         registerV8(&migrator)
+        registerV9(&migrator)
         return migrator
     }
 
@@ -304,6 +305,15 @@ enum MailDatabaseMigrations {
         migrator.registerMigration("v8_references_header") { db in
             try db.alter(table: "messages") { t in
                 t.add(column: "references_header", .text)
+            }
+        }
+    }
+
+    private static func registerV9(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v9_sync_token_timestamps") { db in
+            try db.alter(table: "account_sync_state") { t in
+                t.add(column: "contacts_sync_token_at", .double)
+                t.add(column: "other_contacts_sync_token_at", .double)
             }
         }
     }

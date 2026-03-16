@@ -67,6 +67,10 @@ This project has the `swift-lsp` Claude Code plugin enabled alongside Serena (se
 
 Both share the same `sourcekit-lsp` server and Xcode build index — build in Xcode to refresh.
 
+## Design Decisions
+
+- **Polling over push:** We use polling-based sync (60s foreground / 300s background) intentionally. No Gmail `users.watch` / Cloud Pub/Sub push notifications — the complexity of server-side Pub/Sub infrastructure isn't worth it for a native desktop client. Don't suggest or implement push notifications.
+
 ## Gotchas
 
 - Some computed properties re-sort on every render (performance issue — known)

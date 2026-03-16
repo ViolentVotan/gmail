@@ -3,6 +3,14 @@ import Foundation
 /// Paces Gmail API calls to stay within the per-user quota limit.
 /// Uses a sliding window over the last 60 seconds to track per-minute spend,
 /// and a 1-second window to enforce per-second burst protection.
+///
+/// Quota costs per method (from https://developers.google.com/workspace/gmail/api/reference/quota):
+///   messages.get/list: 5    history.list: 2    labels.list: 1
+///   messages.send: 100      messages.batchDelete: 50
+///   watch: 100              getProfile: 1
+///
+/// Limits: 15,000 units/user/min, 1,200,000 units/project/min.
+/// Per-user limits cannot be increased by Google.
 actor QuotaTracker {
     private let budgetPerMinute: Int
     private let budgetPerSecond: Int

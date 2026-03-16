@@ -452,7 +452,9 @@ final class GmailAPIClient {
     ) async throws(GmailAPIError) -> BatchFetchResult<T> {
         guard !ids.isEmpty else { return BatchFetchResult(items: [], failedIDs: []) }
         let batchSize = 50
-        let maxConcurrentBatches = 3
+        // Reduced from 3 to 2 to avoid hitting Gmail's undocumented per-user
+        // concurrent request limit (50×3=150 in-flight parts can trigger 429s).
+        let maxConcurrentBatches = 2
 
         // Split into chunks of 50
         let chunks: [[String]] = stride(from: 0, to: ids.count, by: batchSize).map { offset in

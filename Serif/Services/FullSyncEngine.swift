@@ -43,6 +43,9 @@ actor FullSyncEngine {
     /// synchronously (no `await` between check and set), so it's actor-safe.
     private var isSyncingIncrementally = false
 
+    /// Consecutive incremental sync failures — drives adaptive backoff.
+    private var consecutiveFailures = 0
+
     /// Set by `performInitialSync` when token is permanently revoked.
     /// Checked by the retry loop to avoid retrying auth failures.
     private var isTokenRevoked = false
@@ -129,6 +132,7 @@ actor FullSyncEngine {
         triggeredSyncTask = Task {
             await reportProgress { $0.syncStarted() }
             let succeeded = await syncIncremental()
+            if succeeded { consecutiveFailures = 0 }
             if !Task.isCancelled {
                 if succeeded {
                     await reportProgress { $0.syncCompleted() }
@@ -136,6 +140,52 @@ actor FullSyncEngine {
                     await reportProgress { $0.syncFailed() }
                 }
             }
+        }
+    }
+
+    /// Fetches messages for a specific label if the local DB has none.
+    /// Used to lazy-load Spam/Trash on first navigation.
+    func syncFolderIfEmpty(labelId: String) async {
+        guard state == .monitoring else { return }
+
+        // Check if we already have messages for this label
+        let count = (try? await db.dbPool.read { db in
+            try MailDatabaseQueries.messageCountForLabel(labelId, in: db)
+        }) ?? 0
+        guard count == 0 else { return }
+
+        Self.logger.info("Lazy-loading folder \(labelId, privacy: .public)")
+
+        do {
+            // List up to 500 message IDs for this label
+            var allIDs: [String] = []
+            var pageToken: String? = nil
+            repeat {
+                await quota.waitForBudget(5)
+                guard !Task.isCancelled else { return }
+                let response = try await api.listMessages(
+                    accountID: accountID,
+                    labelIDs: [labelId],
+                    query: nil,
+                    pageToken: pageToken,
+                    maxResults: 500
+                )
+                allIDs.append(contentsOf: response.messages?.map(\.id) ?? [])
+                pageToken = response.nextPageToken
+            } while pageToken != nil && allIDs.count < 2000
+
+            guard !allIDs.isEmpty, !Task.isCancelled else { return }
+
+            // Batch fetch metadata (quota charged internally by batchFetch)
+            let (messages, _) = try await api.getMessages(
+                ids: allIDs, accountID: accountID, format: "metadata"
+            )
+
+            // Ensure label records exist, then upsert
+            let labelIds = Set(messages.flatMap { $0.labelIds ?? [] })
+            try await syncer.upsertMessages(messages, ensureLabels: Array(labelIds))
+        } catch {
+            Self.logger.error("Lazy folder sync error for \(labelId, privacy: .public): \(error.localizedDescription)")
         }
     }
 
@@ -354,11 +404,28 @@ actor FullSyncEngine {
     private func startIncrementalLoop() {
         incrementalTask = Task {
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(pollingInterval))
+                // Circuit breaker: pause sync after sustained failures
+                if consecutiveFailures >= 5 {
+                    Self.logger.warning("Circuit breaker: pausing sync for 15 min after \(self.consecutiveFailures) failures")
+                    await reportProgress { $0.syncFailed("Sync paused — will retry in 15 min") }
+                    try? await Task.sleep(for: .seconds(900))
+                    consecutiveFailures = 0
+                    continue
+                }
+
+                let backoff = consecutiveFailures > 0
+                    ? min(pollingInterval * pow(2.0, Double(consecutiveFailures)), 300)
+                    : pollingInterval
+                try? await Task.sleep(for: .seconds(backoff))
                 guard !Task.isCancelled else { return }
                 // Pause when offline
                 guard NetworkMonitor.isReachable else { continue }
-                await syncIncremental()
+                let ok = await syncIncremental()
+                if ok {
+                    consecutiveFailures = 0
+                } else if consecutiveFailures < 5 {
+                    consecutiveFailures += 1
+                }
             }
         }
     }
@@ -504,10 +571,12 @@ actor FullSyncEngine {
                 await stop()
                 await reportProgress { $0.syncFailed("Session expired — please sign in again") }
                 return false
-            } else if case .httpError(404, _) = error as? GmailAPIError {
-                // Any 404 from history.list means the startHistoryId is expired/invalid.
-                // The only realistic 404 scenario for this endpoint is stale history
-                // (userId is always "me"), so no need to inspect the response body.
+            } else if case .httpError(let code, _) = error as? GmailAPIError, code == 404 || code == 410 {
+                // 404 or 410 from history.list means the startHistoryId is expired/invalid.
+                // Gmail returns 404 for stale history IDs and 410 (Gone) in some cases.
+                // Note: this catch only fires for errors from history.list — getMessages
+                // failures (e.g. deleted messages) surface as BatchFetchResult.failedIDs,
+                // not thrown errors, so they won't trigger this path.
                 // Cancel sibling tasks directly instead of going through stop(),
                 // which would cancel restartTask itself (the task we're about to create).
                 Self.logger.warning("History ID expired, restarting full sync")
