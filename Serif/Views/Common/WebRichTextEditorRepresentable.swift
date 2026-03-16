@@ -37,6 +37,7 @@ struct WebRichTextEditorRepresentable: NSViewRepresentable {
 
     func makeNSView(context: Context) -> WKWebView {
         let config = WKWebViewConfiguration()
+        config.writingToolsBehavior = .complete
         config.userContentController.add(WeakScriptMessageHandler(context.coordinator), name: "editor")
         #if DEBUG
         config.preferences.setValue(true, forKey: "developerExtrasEnabled")
