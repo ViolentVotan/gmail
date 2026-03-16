@@ -35,6 +35,22 @@ final class GmailSendService {
             inlineImages: inlineImages,
             attachments: attachments ?? []
         )
+
+        // Decode the base64url string back to raw MIME bytes for size check
+        guard let mimeData = Data(base64URLEncoded: raw) else {
+            throw .encodingError(URLError(.cannotParseResponse))
+        }
+
+        // Messages >5 MB use Gmail's resumable upload (raw MIME bytes, not base64url)
+        if mimeData.count > 5_242_880 {
+            return try await GmailAPIClient.shared.uploadResumable(
+                mimeData: mimeData,
+                threadID: threadID,
+                accountID: accountID
+            )
+        }
+
+        // Standard inline send for smaller messages
         var payload: [String: Any] = ["raw": raw]
         if let threadID { payload["threadId"] = threadID }
         let encoded: Data

@@ -77,6 +77,156 @@ final class GmailAPIClient {
         }
     }
 
+    // MARK: - Resumable upload
+
+    /// Sends a message via Gmail's resumable upload protocol.
+    /// Use for MIME payloads >5 MB where inline base64url encoding is impractical.
+    ///
+    /// Two-step process:
+    /// 1. POST to initiate the upload — server returns a resumable upload URI.
+    /// 2. PUT the raw MIME data to that URI — server returns the created `GmailMessage`.
+    @concurrent func uploadResumable(
+        mimeData: Data,
+        threadID: String?,
+        accountID: String
+    ) async throws(GmailAPIError) -> GmailMessage {
+        guard NetworkMonitor.isReachable else { throw .offline }
+        let token = try await cachedValidToken(for: accountID)
+
+        do {
+            return try await doUploadResumable(mimeData: mimeData, threadID: threadID, accessToken: token.accessToken)
+        } catch .unauthorized {
+            let fresh = try await refreshAndRetry(accountID: accountID)
+            return try await doUploadResumable(mimeData: mimeData, threadID: threadID, accessToken: fresh.accessToken)
+        }
+    }
+
+    /// Performs the two-step resumable upload with retry logic.
+    @concurrent private func doUploadResumable(
+        mimeData: Data,
+        threadID: String?,
+        accessToken: String
+    ) async throws(GmailAPIError) -> GmailMessage {
+        // Step 1: Initiate the resumable upload session
+        let uploadURI = try await initiateResumableUpload(
+            mimeData: mimeData, threadID: threadID, accessToken: accessToken
+        )
+
+        // Step 2: PUT the raw MIME data to the upload URI
+        return try await putResumableData(mimeData: mimeData, uploadURI: uploadURI)
+    }
+
+    /// Initiates a resumable upload session, returning the upload URI from the `Location` header.
+    @concurrent private func initiateResumableUpload(
+        mimeData: Data,
+        threadID: String?,
+        accessToken: String
+    ) async throws(GmailAPIError) -> URL {
+        let endpoint = "https://www.googleapis.com/upload/gmail/v1/users/me/messages/send?uploadType=resumable"
+        guard let url = URL(string: endpoint) else { throw .invalidURL }
+
+        var metadata: [String: String] = [:]
+        if let threadID { metadata["threadId"] = threadID }
+        let metadataBody: Data
+        do {
+            metadataBody = try JSONSerialization.data(withJSONObject: metadata)
+        } catch {
+            throw .encodingError(error)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json; charset=UTF-8", forHTTPHeaderField: "Content-Type")
+        request.setValue("message/rfc822", forHTTPHeaderField: "X-Upload-Content-Type")
+        request.setValue("\(mimeData.count)", forHTTPHeaderField: "X-Upload-Content-Length")
+        request.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+        request.httpBody = metadataBody
+
+        for attempt in 0...RetryPolicy.maxRetries {
+            let data: Data
+            let response: URLResponse
+            do {
+                (data, response) = try await Self.sharedSession.data(for: request)
+            } catch {
+                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
+                    continue
+                }
+                throw .networkError(error)
+            }
+            guard let http = response as? HTTPURLResponse else { throw .invalidURL }
+
+            switch http.statusCode {
+            case 200...299:
+                guard let location = http.value(forHTTPHeaderField: "Location"),
+                      let uri = URL(string: location) else {
+                    throw .httpError(http.statusCode, data)
+                }
+                return uri
+            case 401:
+                throw .unauthorized
+            default:
+                if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
+                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
+                    continue
+                }
+                throw .httpError(http.statusCode, data)
+            }
+        }
+
+        throw .httpError(0, Data())
+    }
+
+    /// Uploads raw MIME data to the resumable upload URI, returning the created message.
+    @concurrent private func putResumableData(
+        mimeData: Data,
+        uploadURI: URL
+    ) async throws(GmailAPIError) -> GmailMessage {
+        var request = URLRequest(url: uploadURI)
+        request.httpMethod = "PUT"
+        request.setValue("message/rfc822", forHTTPHeaderField: "Content-Type")
+        request.setValue("\(mimeData.count)", forHTTPHeaderField: "Content-Length")
+        request.setValue("Serif/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+        request.httpBody = mimeData
+
+        for attempt in 0...RetryPolicy.maxRetries {
+            let responseData: Data
+            let response: URLResponse
+            do {
+                (responseData, response) = try await Self.sharedSession.data(for: request)
+            } catch {
+                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
+                    continue
+                }
+                throw .networkError(error)
+            }
+            guard let http = response as? HTTPURLResponse else { throw .invalidURL }
+
+            switch http.statusCode {
+            case 200...299:
+                do {
+                    return try JSONDecoder().decode(GmailMessage.self, from: responseData)
+                } catch {
+                    throw .decodingError(error)
+                }
+            case 401:
+                throw .unauthorized
+            default:
+                if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
+                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
+                    continue
+                }
+                throw .httpError(http.statusCode, responseData)
+            }
+        }
+
+        throw .httpError(0, Data())
+    }
+
     // MARK: - ETag-aware request
 
     /// Makes a GET request with optional `If-None-Match` header for cache validation.
