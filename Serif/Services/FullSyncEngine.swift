@@ -100,11 +100,17 @@ actor FullSyncEngine {
         state = .idle
     }
 
-    /// Request an immediate incremental sync (e.g., user pulled to refresh).
+    /// Request an immediate incremental sync (e.g., user tapped sync bubble).
     func triggerIncrementalSync() {
         guard state == .monitoring else { return }
         triggeredSyncTask?.cancel()
-        triggeredSyncTask = Task { await syncIncremental() }
+        triggeredSyncTask = Task {
+            await reportProgress { $0.syncStarted() }
+            await syncIncremental()
+            if !Task.isCancelled {
+                await reportProgress { $0.syncCompleted() }
+            }
+        }
     }
 
     // MARK: - Main Lifecycle
