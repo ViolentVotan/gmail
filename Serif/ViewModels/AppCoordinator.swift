@@ -115,6 +115,13 @@ final class AppCoordinator {
         } else {
             displayedEmails = mailboxViewModel.emails
         }
+        // Keep selectedEmail fresh: replace with the updated version from the
+        // new list so the detail pane reflects property changes (read, star, labels).
+        if let selected = selectedEmail,
+           let fresh = displayedEmails.first(where: { $0.id == selected.id }),
+           fresh != selected {
+            selectedEmail = fresh
+        }
     }
 
     var listIsLoading: Bool {
@@ -136,6 +143,7 @@ final class AppCoordinator {
     private func refreshSnoozedCache() {
         cachedSnoozedEmails = SnoozeStore.shared.items.map { item in
             Email(
+                id: GmailDataTransformer.deterministicUUID(from: "snoozed-\(item.messageId)"),
                 sender: Contact(name: item.senderName, email: ""),
                 subject: item.subject,
                 body: "",
@@ -165,6 +173,7 @@ final class AppCoordinator {
     private func refreshScheduledCache() {
         cachedScheduledEmails = ScheduledSendStore.shared.items.map { item in
             Email(
+                id: item.id,
                 sender: Contact(name: fromAddress, email: fromAddress),
                 recipients: item.recipients.map { Contact(name: $0, email: $0) },
                 subject: item.subject,

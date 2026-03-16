@@ -168,6 +168,7 @@ extension MessageRecord {
         }
 
         return Email(
+            id: GmailDataTransformer.deterministicUUID(from: gmailId),
             sender: sender,
             recipients: toList.map { Contact(name: $0, email: $0) },
             cc: ccList.map { Contact(name: $0, email: $0) },
