@@ -85,7 +85,9 @@ struct ContentView: View {
                     onShowDebug: {
                         coordinator.panelCoordinator.showDebug = true
                     },
-                    lastRefreshedAt: coordinator.lastRefreshedAt
+                    onRefresh: {
+                        Task { await coordinator.syncEngine?.triggerIncrementalSync() }
+                    }
                 )
                 .focused($appFocus, equals: .sidebar)
             } content: {

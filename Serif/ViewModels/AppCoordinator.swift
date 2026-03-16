@@ -65,7 +65,6 @@ final class AppCoordinator {
     var composeMode: ComposeMode = .new
     var signatureForNew: String = ""
     var signatureForReply: String = ""
-    var lastRefreshedAt: Date?
     var showEmptyTrashConfirm = false
     var trashTotalCount = 0
     var showEmptySpamConfirm = false
@@ -348,7 +347,7 @@ final class AppCoordinator {
             }
         }
         updateDisplayedEmails()
-        lastRefreshedAt = Date()
+        syncProgressManager.updateLastSynced()
         // Trigger sync engine to check for new messages immediately
         await syncEngine?.triggerIncrementalSync()
         // Classify visible emails with Apple Intelligence (deduped via tagCache + DB)
@@ -369,7 +368,7 @@ final class AppCoordinator {
             loadSignatures(for: account.id)
             await setupAccount(account.id)
             updateDisplayedEmails()
-            lastRefreshedAt = Date()
+            syncProgressManager.updateLastSynced()
         } else {
             selectedEmail = mailStore.emails(for: .inbox).first
         }
