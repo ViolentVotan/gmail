@@ -184,6 +184,12 @@ final class OfflineActionQueue {
                 remove: [GmailSystemLabel.inbox],
                 accountID: action.accountID
             )
+        case .send(let rawBase64URL, let threadID):
+            try await GmailSendService.sendRaw(
+                base64url: rawBase64URL,
+                threadID: threadID,
+                accountID: action.accountID
+            )
         }
     }
 

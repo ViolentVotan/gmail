@@ -51,6 +51,31 @@ final class GmailSendService {
         )
     }
 
+    /// Sends a pre-built base64url-encoded MIME message. Used by `OfflineActionQueue`
+    /// to replay queued sends without reconstructing the full MIME payload.
+    @concurrent static func sendRaw(
+        base64url: String,
+        threadID: String?,
+        accountID: String
+    ) async throws(GmailAPIError) {
+        var payload: [String: Any] = ["raw": base64url]
+        if let threadID { payload["threadId"] = threadID }
+        let body: Data
+        do {
+            body = try JSONSerialization.data(withJSONObject: payload)
+        } catch {
+            throw .encodingError(error)
+        }
+        let _: GmailMessage = try await GmailAPIClient.shared.request(
+            path: "/users/me/messages/send",
+            method: "POST",
+            body: body,
+            contentType: "application/json",
+            fields: "id,threadId,labelIds",
+            accountID: accountID
+        )
+    }
+
     // MARK: - References Chain Builder
 
     /// Builds a proper RFC 5322 References header from the parent's References and Message-ID.
