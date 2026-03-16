@@ -1,4 +1,4 @@
-import GRDB
+internal import GRDB
 private import os
 import SwiftUI
 

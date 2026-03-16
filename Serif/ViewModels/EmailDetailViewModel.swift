@@ -1,5 +1,5 @@
 import SwiftUI
-import GRDB
+internal import GRDB
 import Synchronization
 
 /// Drives the email detail / thread view.

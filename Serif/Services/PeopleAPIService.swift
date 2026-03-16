@@ -1,5 +1,5 @@
 import Foundation
-import GRDB
+internal import GRDB
 private import os
 
 /// Fetches contacts and photos from the Google People API.

@@ -1,5 +1,5 @@
 import Foundation
-import GRDB
+internal import GRDB
 
 /// Actor responsible for bulk database writes during API sync.
 /// Bulk operations (sync, pre-fetch, batch upsert) go through this actor.

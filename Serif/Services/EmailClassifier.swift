@@ -2,7 +2,7 @@ import Foundation
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
-import GRDB
+internal import GRDB
 private import os
 
 @MainActor

@@ -1,5 +1,5 @@
 import Foundation
-import GRDB
+internal import GRDB
 private import os
 
 /// Orchestrates complete offline sync for a single Gmail account.
