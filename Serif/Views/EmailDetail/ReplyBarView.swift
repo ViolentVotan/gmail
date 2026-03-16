@@ -1,4 +1,5 @@
 import SwiftUI
+import Translation
 
 struct ReplyBarView: View {
     let email: Email
@@ -15,6 +16,8 @@ struct ReplyBarView: View {
     @State private var replyHTML = ""
     @State private var isExpanded = false
     @State private var sendError: String?
+    @State private var showTranslation = false
+    @State private var translationSourceText = ""
     @State private var attachments: [URL] = []
     @State private var saveTask: Task<Void, Never>?
     @State private var loadDraftTask: Task<Void, Never>?
@@ -123,6 +126,20 @@ struct ReplyBarView: View {
             Button("Discard", role: .destructive) { collapse() }
         } message: {
             Text("Your reply draft will be permanently deleted.")
+        }
+        .onChange(of: editorState.translationRequested) { _, requested in
+            guard requested else { return }
+            editorState.translationRequested = false
+            translationSourceText = replyHTML.strippingHTML
+            showTranslation = true
+        }
+        .translationPresentation(isPresented: $showTranslation, text: translationSourceText) { translated in
+            guard !translated.isEmpty else { return }
+            let html = translated.split(separator: "\n", omittingEmptySubsequences: false)
+                .map { "<p>\($0)</p>" }
+                .joined()
+            editorState.setHTML(html)
+            replyHTML = html
         }
     }
 

@@ -16,6 +16,7 @@ import Combine
     @Published var highlightColor: NSColor? = nil
     @Published var fontFamily: String = ""
     @Published var linkPopoverRequest: (text: String, url: String)?
+    @Published var translationRequested = false
 
     // WKWebView reference (set by Coordinator)
     weak var webView: WKWebView?

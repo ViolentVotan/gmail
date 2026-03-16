@@ -219,6 +219,13 @@ struct FormattingToolbar: View {
 
             separator
 
+            // Translate
+            toolbarButton(icon: "globe", tooltip: "Translate") {
+                state.translationRequested = true
+            }
+
+            separator
+
             // Link
             Button {
                 linkURL = "https://"
