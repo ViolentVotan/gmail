@@ -19,15 +19,15 @@ struct SyncProgressManagerTests {
         #expect(manager.phase == .syncing(remaining: nil))
     }
 
-    @Test("syncProgress updates remaining count")
-    func syncProgress() {
+    @Test("syncProgress shows remaining count at threshold")
+    func syncProgressLarge() {
         let manager = SyncProgressManager()
         manager.syncStarted()
-        manager.syncProgress(remaining: 42)
-        #expect(manager.phase == .syncing(remaining: nil))
+        manager.syncProgress(remaining: 50)
+        #expect(manager.phase == .syncing(remaining: 50))
     }
 
-    @Test("syncProgress ignores small counts")
+    @Test("syncProgress suppresses count below 50")
     func syncProgressSmall() {
         let manager = SyncProgressManager()
         manager.syncStarted()

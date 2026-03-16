@@ -106,9 +106,13 @@ actor FullSyncEngine {
         triggeredSyncTask?.cancel()
         triggeredSyncTask = Task {
             await reportProgress { $0.syncStarted() }
-            await syncIncremental()
+            let succeeded = await syncIncremental()
             if !Task.isCancelled {
-                await reportProgress { $0.syncCompleted() }
+                if succeeded {
+                    await reportProgress { $0.syncCompleted() }
+                } else {
+                    await reportProgress { $0.syncFailed() }
+                }
             }
         }
     }
@@ -281,13 +285,14 @@ actor FullSyncEngine {
         }
     }
 
-    private func syncIncremental() async {
-        guard !isSyncingIncrementally else { return }
+    @discardableResult
+    private func syncIncremental() async -> Bool {
+        guard !isSyncingIncrementally else { return false }
         isSyncingIncrementally = true
         defer { isSyncingIncrementally = false }
 
         guard let syncState = await readSyncState(),
-              let startHistoryId = syncState.lastHistoryId else { return }
+              let startHistoryId = syncState.lastHistoryId else { return true }
 
         do {
             var allAdded: Set<String> = []
@@ -299,7 +304,7 @@ actor FullSyncEngine {
 
             repeat {
                 await quota.waitForBudget(2) // history.list = 2 units per page
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled else { return false }
 
                 let response = try await api.listHistory(
                     accountID: accountID,
@@ -413,6 +418,8 @@ actor FullSyncEngine {
                 state.lastSyncAt = Date().timeIntervalSince1970
             }
 
+            return true
+
         } catch {
             if case .httpError(404, _) = error as? GmailAPIError {
                 // Any 404 from history.list means the startHistoryId is expired/invalid.
@@ -443,9 +450,10 @@ actor FullSyncEngine {
                 restartTask = Task { [weak self] in
                     await self?.start()
                 }
-                return
+                return false
             } else {
                 Self.logger.error("Incremental sync error: \(error.localizedDescription)")
+                return false
             }
         }
     }
