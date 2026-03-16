@@ -67,7 +67,6 @@ final class ComposeViewModel {
         let capturedBody = body
         let capturedIsHTML = isHTML
         let capturedThreadID = threadID
-        let capturedReplyToMessageID = replyToMessageID
         let capturedParentMessageID = parentMessageID
         let capturedParentReferences = parentReferences
         let capturedInlineImages = inlineImages
