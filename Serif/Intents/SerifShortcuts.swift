@@ -25,16 +25,6 @@ struct SerifShortcuts: AppShortcutsProvider {
         )
 
         AppShortcut(
-            intent: OpenEmailIntent(),
-            phrases: [
-                "Open email in \(.applicationName)",
-                "Show email in \(.applicationName)",
-            ],
-            shortTitle: "Open Email",
-            systemImageName: "envelope.open"
-        )
-
-        AppShortcut(
             intent: UpdateMailIntent(),
             phrases: [
                 "Mark email as read in \(.applicationName)",
@@ -84,6 +74,16 @@ struct SerifShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Send Draft",
             systemImageName: "paperplane"
+        )
+
+        AppShortcut(
+            intent: DeleteDraftIntent(),
+            phrases: [
+                "Delete draft in \(.applicationName)",
+                "Discard draft in \(.applicationName)",
+            ],
+            shortTitle: "Delete Draft",
+            systemImageName: "trash"
         )
 
         AppShortcut(
