@@ -68,8 +68,8 @@ import Combine
 
     func removeLink() { eval("execUnlink()") }
 
-    func undo() { webView?.undoManager?.undo() }
-    func redo() { webView?.undoManager?.redo() }
+    func undo() { webView?.evaluateJavaScript("performUndo()", completionHandler: nil) }
+    func redo() { webView?.evaluateJavaScript("performRedo()", completionHandler: nil) }
 
     // MARK: - Content
 
