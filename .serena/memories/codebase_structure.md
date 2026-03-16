@@ -71,7 +71,7 @@ Views never call Services directly. ViewModels are the single bridge.
 - `NetworkMonitor` — Observes network reachability
 - `SnoozeStore` / `ScheduledSendStore` — Per-account snooze & schedule-send persistence
 - `EmailClassifier` — Apple Intelligence email classification (tags)
-- `SummaryService` / `SmartReplyProvider` / `QuickReplyService` — AI-powered features
+- `SummaryService` / `SmartReplyService` — AI-powered features
 - `NotificationService` — Push notification handling
 - `SpotlightIndexer` / `AttachmentIndexer` — Spotlight & attachment text indexing
 - Gmail API layer: `GmailAPIClient` (base), `GmailMessageService`, `GmailLabelService`, `GmailSendService`, `GmailDraftService`, `GmailFilterService`, `GmailProfileService`

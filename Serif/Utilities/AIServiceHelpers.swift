@@ -1,7 +1,7 @@
 import Foundation
 
-/// Shared helpers used across AI service classes (SummaryService, QuickReplyService,
-/// SmartReplyProvider, LabelSuggestionService) to eliminate duplication.
+/// Shared helpers used across AI service classes (SummaryService, SmartReplyService,
+/// LabelSuggestionService) to eliminate duplication.
 enum AIServiceHelpers {
     /// Returns a stable cache key for an email, preferring the Gmail message ID.
     static func cacheKey(for email: Email) -> String {

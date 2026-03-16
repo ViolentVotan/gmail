@@ -303,7 +303,14 @@ final class EmailDetailViewModel {
     // MARK: - Quick Replies
 
     func generateQuickReplies(for email: Email) async -> [String] {
-        await QuickReplyService.shared.generateReplies(for: email)
+        guard let threadId = email.gmailThreadID else { return [] }
+        return await SmartReplyService.shared.generateReplies(
+            subject: email.subject,
+            senderName: email.sender.name,
+            body: email.body,
+            threadId: threadId,
+            style: .brief
+        )
     }
 
     // MARK: - Smart Reply Suggestions
@@ -312,17 +319,18 @@ final class EmailDetailViewModel {
 
     func loadSmartReplies(for email: Email) {
         guard let threadId = email.gmailThreadID else { return }
-        if let cached = SmartReplyProvider.shared.cachedReplies(for: threadId) {
+        if let cached = SmartReplyService.shared.cachedReplies(for: threadId, style: .full) {
             smartReplySuggestions = cached
             return
         }
         let t = Task { [weak self] in
             guard let self else { return }
-            let replies = await SmartReplyProvider.shared.generateReplies(
+            let replies = await SmartReplyService.shared.generateReplies(
                 subject: email.subject,
                 senderName: email.sender.name,
                 body: email.body,
-                threadId: threadId
+                threadId: threadId,
+                style: .full
             )
             self.smartReplySuggestions = replies
         }

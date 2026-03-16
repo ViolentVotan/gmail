@@ -106,7 +106,7 @@ extension String {
     /// Cleans email body text for AI consumption: strips HTML, decodes entities,
     /// removes quoted replies and signature noise, truncates to `maxLength`.
     ///
-    /// Shared by QuickReplyService and SummaryService.
+    /// Shared by SmartReplyService and SummaryService.
     /// SummaryService has been migrated to use this shared method.
     func cleanedForAI(maxLength: Int = 500) -> String {
         var text = self
