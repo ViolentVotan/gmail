@@ -86,7 +86,11 @@ final class MailDatabase: Sendable {
         }
         let db = try MailDatabase(accountID: accountID)
         return instances.withLock { cache in
-            if let existing = cache[accountID] { return existing }
+            if let existing = cache[accountID] {
+                // Another thread created a DB while we were migrating — close ours and use theirs.
+                db.close()
+                return existing
+            }
             cache[accountID] = db
             return db
         }

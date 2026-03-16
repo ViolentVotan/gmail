@@ -11,7 +11,10 @@ enum InlineImageProcessor {
 
     private static let inlineImageRegex: NSRegularExpression = {
         let pattern = #"<img\s[^>]*src="data:([^;]+);base64,([^"]+)"[^>]*data-cid="([^"]+)"[^>]*>"#
-        return try! NSRegularExpression(pattern: pattern, options: [])
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            preconditionFailure("Invalid regex pattern for inlineImageRegex")
+        }
+        return regex
     }()
 
     /// Scans HTML for `<img src="data:..." data-cid="...">` tags,

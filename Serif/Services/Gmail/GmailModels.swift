@@ -233,7 +233,7 @@ extension GmailMessage {
     }
 
     func header(named name: String) -> String? {
-        payload?.headers?.first(where: { $0.name.lowercased() == name.lowercased() })?.value
+        headerMap[name.lowercased()]
     }
 
     var subject:   String { header(named: "Subject") ?? "(no subject)" }

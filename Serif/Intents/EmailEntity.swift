@@ -162,16 +162,86 @@ struct MailDraftEntity {
 
     struct MailDraftEntityQuery: EntityStringQuery {
         func entities(for identifiers: [String]) async throws -> [MailDraftEntity] {
-            // Drafts are transient — return empty for now
-            []
+            guard !identifiers.isEmpty else { return [] }
+            var entities: [MailDraftEntity] = []
+            let accounts = await MainActor.run { AccountStore.shared.accounts }
+            for account in accounts {
+                guard let db = try? MailDatabase.shared(for: account.id) else { continue }
+                let records = try? await db.dbPool.read { database in
+                    try MessageRecord.filter(identifiers.contains(Column("gmail_id"))).fetchAll(database)
+                }
+                guard let records else { continue }
+                for record in records {
+                    entities.append(Self.makeDraftEntity(from: record, accountID: account.id))
+                }
+            }
+            return entities
         }
 
         func entities(matching string: String) async throws -> [MailDraftEntity] {
-            []
+            let drafts = await allDrafts()
+            let lower = string.lowercased()
+            return drafts.filter { entity in
+                if entity.subject?.lowercased().contains(lower) == true { return true }
+                for person in entity.to {
+                    if case .displayName(let name) = person.name,
+                       name.lowercased().contains(lower) { return true }
+                }
+                return false
+            }
         }
 
         func suggestedEntities() async throws -> [MailDraftEntity] {
-            []
+            await Array(allDrafts().prefix(10))
+        }
+
+        // MARK: - Private
+
+        private func allDrafts() async -> [MailDraftEntity] {
+            let accounts = await MainActor.run { AccountStore.shared.accounts }
+            var entities: [MailDraftEntity] = []
+            for account in accounts {
+                guard let db = try? MailDatabase.shared(for: account.id) else { continue }
+                let records = try? await db.dbPool.read { database in
+                    try MailDatabaseQueries.messagesForLabel(GmailSystemLabel.draft, limit: 50, in: database)
+                }
+                guard let records else { continue }
+                for record in records {
+                    entities.append(Self.makeDraftEntity(from: record, accountID: account.id))
+                }
+            }
+            return entities
+        }
+
+        private static func makeDraftEntity(from record: MessageRecord, accountID: String) -> MailDraftEntity {
+            let toPersons = parseRecipientString(record.toRecipients)
+            let ccPersons = parseRecipientString(record.ccRecipients)
+            return MailDraftEntity(
+                id: record.gmailId,
+                to: toPersons,
+                cc: ccPersons,
+                subject: record.subject,
+                body: record.snippet.map { AttributedString($0) },
+                account: MailAccountEntity(id: accountID)
+            )
+        }
+
+        private static func parseRecipientString(_ jsonString: String?) -> [IntentPerson] {
+            guard let jsonString, !jsonString.isEmpty,
+                  let data = jsonString.data(using: .utf8),
+                  let pairs = try? JSONDecoder().decode([[String]].self, from: data) else {
+                return []
+            }
+            return pairs.map { pair in
+                let email = pair.first ?? ""
+                let name = pair.count > 1 ? pair[1] : email
+                let handle = IntentPerson.Handle(emailAddress: email)
+                return IntentPerson(
+                    identifier: .applicationDefined(email),
+                    name: .displayName(name),
+                    handle: handle
+                )
+            }
         }
     }
 }

@@ -23,6 +23,10 @@ struct EmailListView: View {
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
+    private var unreadEmails: [Email] { emails.filter { !$0.isRead } }
+    private var starredEmails: [Email] { emails.filter { $0.isStarred } }
+    private var emailsWithAttachments: [Email] { emails.filter { $0.hasAttachments } }
+
     private func recomputeSortedEmails() {
         switch sortOrder {
         case .dateNewest, .unreadFirst: sortedEmails = emails
@@ -393,6 +397,20 @@ struct EmailListView: View {
                 onForward: actions.onForward
             )
         }
+        .accessibilityAction(named: "Archive") {
+            guard selectedFolder != .archive else { return }
+            actions.onArchive?(email)
+        }
+        .accessibilityAction(named: "Delete") {
+            guard selectedFolder != .trash else { return }
+            actions.onDelete?(email)
+        }
+        .accessibilityAction(named: email.isStarred ? "Unstar" : "Star") {
+            actions.onToggleStar?(email)
+        }
+        .accessibilityAction(named: email.isRead ? "Mark Unread" : "Mark Read") {
+            actions.onMarkUnread?(email)
+        }
     }
 
     // MARK: - Scroll view
@@ -443,17 +461,17 @@ struct EmailListView: View {
         .onKeyPress(characters: CharacterSet(charactersIn: "r")) { _ in handleKeyR() }
         .scrollEdgeEffectStyle(.hard, for: .top)
         .accessibilityRotor("Unread Emails") {
-            ForEach(emails.filter { !$0.isRead }) { email in
+            ForEach(unreadEmails) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)
             }
         }
         .accessibilityRotor("Starred") {
-            ForEach(emails.filter { $0.isStarred }) { email in
+            ForEach(starredEmails) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)
             }
         }
         .accessibilityRotor("Has Attachments") {
-            ForEach(emails.filter { $0.hasAttachments }) { email in
+            ForEach(emailsWithAttachments) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)
             }
         }

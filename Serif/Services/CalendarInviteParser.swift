@@ -21,25 +21,45 @@ enum CalendarInviteParser {
 
     // MARK: - Cached Regex
 
-    private static let rsvpRegex = try! NSRegularExpression(
-        pattern: #"https?://(?:www\.)?calendar\.google\.com/calendar/event\?action=RESPOND[^"'\s<>]*"#,
-        options: .caseInsensitive
-    )
+    private static let rsvpRegex: NSRegularExpression = {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"https?://(?:www\.)?calendar\.google\.com/calendar/event\?action=RESPOND[^"'\s<>]*"#,
+            options: .caseInsensitive
+        ) else {
+            preconditionFailure("Invalid regex pattern for rsvpRegex")
+        }
+        return regex
+    }()
 
-    private static let organizerRegex = try! NSRegularExpression(
-        pattern: #"(?:Organizer|Organisateur|Organizado por)\s*:?\s*</(?:b|td|div|span)>\s*(?:</td>\s*<td[^>]*>)?\s*(.*?)(?=<|$)"#,
-        options: [.caseInsensitive, .dotMatchesLineSeparators]
-    )
+    private static let organizerRegex: NSRegularExpression = {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"(?:Organizer|Organisateur|Organizado por)\s*:?\s*</(?:b|td|div|span)>\s*(?:</td>\s*<td[^>]*>)?\s*(.*?)(?=<|$)"#,
+            options: [.caseInsensitive, .dotMatchesLineSeparators]
+        ) else {
+            preconditionFailure("Invalid regex pattern for organizerRegex")
+        }
+        return regex
+    }()
 
-    private static let htmlTagRegex = try! NSRegularExpression(
-        pattern: #"<[^>]+>"#,
-        options: []
-    )
+    private static let htmlTagRegex: NSRegularExpression = {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"<[^>]+>"#,
+            options: []
+        ) else {
+            preconditionFailure("Invalid regex pattern for htmlTagRegex")
+        }
+        return regex
+    }()
 
-    private static let whitespaceRegex = try! NSRegularExpression(
-        pattern: #"\s+"#,
-        options: []
-    )
+    private static let whitespaceRegex: NSRegularExpression = {
+        guard let regex = try? NSRegularExpression(
+            pattern: #"\s+"#,
+            options: []
+        ) else {
+            preconditionFailure("Invalid regex pattern for whitespaceRegex")
+        }
+        return regex
+    }()
 
     /// Detects a Google Calendar invitation from the HTML body.
     /// Returns nil if no RSVP URLs are found (not a calendar invite).

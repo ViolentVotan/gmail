@@ -33,21 +33,46 @@ final class TrackerBlockerService: Sendable {
 
     // MARK: - Cached regexes (compiled once, reused across all calls)
 
-    private static let imgTagRegex = try! NSRegularExpression(pattern: "<img\\b[^>]*>", options: .caseInsensitive)
-    private static let cssBackgroundRegex = try! NSRegularExpression(
-        pattern: "background(?:-image)?\\s*:[^;]*url\\(\\s*['\"]?([^'\")\\s]+)['\"]?\\s*\\)",
-        options: .caseInsensitive
-    )
-    private static let anchorHrefRegex = try! NSRegularExpression(
-        pattern: "<a\\b[^>]*\\bhref\\s*=\\s*[\"']([^\"']+)[\"'][^>]*>",
-        options: .caseInsensitive
-    )
-    private static let styleWidthSmallRegex = try! NSRegularExpression(
-        pattern: "width\\s*:\\s*[01]px", options: .caseInsensitive
-    )
-    private static let styleHeightSmallRegex = try! NSRegularExpression(
-        pattern: "height\\s*:\\s*[01]px", options: .caseInsensitive
-    )
+    private static let imgTagRegex: NSRegularExpression = {
+        guard let regex = try? NSRegularExpression(pattern: "<img\\b[^>]*>", options: .caseInsensitive) else {
+            preconditionFailure("Invalid regex pattern for imgTagRegex")
+        }
+        return regex
+    }()
+    private static let cssBackgroundRegex: NSRegularExpression = {
+        guard let regex = try? NSRegularExpression(
+            pattern: "background(?:-image)?\\s*:[^;]*url\\(\\s*['\"]?([^'\"\\)\\s]+)['\"]?\\s*\\)",
+            options: .caseInsensitive
+        ) else {
+            preconditionFailure("Invalid regex pattern for cssBackgroundRegex")
+        }
+        return regex
+    }()
+    private static let anchorHrefRegex: NSRegularExpression = {
+        guard let regex = try? NSRegularExpression(
+            pattern: "<a\\b[^>]*\\bhref\\s*=\\s*[\"']([^\"']+)[\"'][^>]*>",
+            options: .caseInsensitive
+        ) else {
+            preconditionFailure("Invalid regex pattern for anchorHrefRegex")
+        }
+        return regex
+    }()
+    private static let styleWidthSmallRegex: NSRegularExpression = {
+        guard let regex = try? NSRegularExpression(
+            pattern: "width\\s*:\\s*[01]px", options: .caseInsensitive
+        ) else {
+            preconditionFailure("Invalid regex pattern for styleWidthSmallRegex")
+        }
+        return regex
+    }()
+    private static let styleHeightSmallRegex: NSRegularExpression = {
+        guard let regex = try? NSRegularExpression(
+            pattern: "height\\s*:\\s*[01]px", options: .caseInsensitive
+        ) else {
+            preconditionFailure("Invalid regex pattern for styleHeightSmallRegex")
+        }
+        return regex
+    }()
 
     /// Pre-built suffix set for O(1) tracker domain lookups.
     private static let trackerSuffixSet: Set<String> = Set(trackerDomainMap.keys)

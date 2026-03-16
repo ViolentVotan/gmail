@@ -103,7 +103,7 @@ Shared styled components:
 
 | File | Role |
 |------|------|
-| `EmailEntity.swift` | `MailMessageEntity` (`@AppEntity(schema: .mail.message)` + `IndexedEntity`), `MailAccountEntity`, `MailboxEntity`, `MailMessageEntityQuery`. `typealias EmailEntity = MailMessageEntity` for backward compat. |
+| `EmailEntity.swift` | `MailMessageEntity` (`@AppEntity(schema: .mail.message)` + `IndexedEntity`), `MailAccountEntity`, `MailboxEntity`, `MailMessageEntityQuery`, `MailDraftEntity` + `MailDraftEntityQuery` (queries GRDB for drafts by ID, subject/recipient search, or recent suggestions). `typealias EmailEntity = MailMessageEntity` for backward compat. |
 | `ComposeEmailIntent.swift` | `@AppIntent(schema: .mail.createDraft)` — creates a draft with recipients, subject, body |
 | `SendDraftIntent.swift` | Sends an existing draft, with optional `sendLaterDate` for schedule-send |
 | `ReplyMailIntent.swift` | Replies to an email with recipients, subject, body, attachments. Supports `isReplyAll` flag. |

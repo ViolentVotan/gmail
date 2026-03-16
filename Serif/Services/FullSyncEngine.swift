@@ -262,11 +262,17 @@ actor FullSyncEngine {
                 currentPageToken = response.nextPageToken
             } while currentPageToken != nil
 
-            // Mark initial sync complete
-            await writeSyncState { state in
+            // Mark initial sync complete — guard against DB write failure to avoid
+            // losing sync state (would cause a redundant full re-sync on next launch)
+            let didPersist = await writeSyncState { state in
                 state.initialSyncComplete = true
                 state.initialSyncPageToken = nil
                 state.lastSyncAt = Date().timeIntervalSince1970
+            }
+            guard didPersist else {
+                Self.logger.error("Failed to persist initialSyncComplete — will retry on next launch")
+                await reportProgress { $0.syncFailed("Failed to save sync state") }
+                return false
             }
 
             await reportProgress { $0.syncCompleted() }
@@ -464,7 +470,10 @@ actor FullSyncEngine {
                 labelRefreshTask?.cancel()
                 labelRefreshTask = nil
                 restartTask = Task { [weak self] in
-                    await self?.start()
+                    guard let self else { return }
+                    await self.stop()
+                    guard !Task.isCancelled else { return }
+                    await self.start()
                 }
                 return false
             } else {
@@ -487,6 +496,9 @@ actor FullSyncEngine {
                 } else if remaining < 0 {
                     // Error — back off 30s to avoid tight retry loop
                     try? await Task.sleep(for: .seconds(30))
+                } else {
+                    // Throttle between batches to avoid hammering API/DB
+                    try? await Task.sleep(for: .seconds(1))
                 }
             }
         }
@@ -630,9 +642,16 @@ actor FullSyncEngine {
         }
     }
 
-    private func writeSyncState(_ update: @Sendable (inout AccountSyncStateRecord) -> Void) async {
-        try? await db.dbPool.write { db in
-            try MailDatabaseQueries.updateSyncState(update, in: db)
+    @discardableResult
+    private func writeSyncState(_ update: @Sendable (inout AccountSyncStateRecord) -> Void) async -> Bool {
+        do {
+            try await db.dbPool.write { db in
+                try MailDatabaseQueries.updateSyncState(update, in: db)
+            }
+            return true
+        } catch {
+            Self.logger.error("Failed to write sync state: \(error.localizedDescription)")
+            return false
         }
     }
 

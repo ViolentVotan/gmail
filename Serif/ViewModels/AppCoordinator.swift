@@ -21,6 +21,7 @@ final class AppCoordinator {
     private(set) var backgroundSyncer: BackgroundSyncer?
     private(set) var syncEngine: FullSyncEngine?
     private var pendingDraftSelection: Email?
+    private var pendingFolderChange: Folder?
     private var lifecycleTask: Task<Void, Never>?
     private var markReadTask: Task<Void, Never>?
     private var navigationTask: Task<Void, Never>?
@@ -247,6 +248,42 @@ final class AppCoordinator {
         }
     }
 
+    /// Navigates to a message and opens the reply compose sheet (from intent).
+    func navigateAndReply(gmailMessageID: String, replyAll: Bool) {
+        navigationTask?.cancel()
+        let expectedAccountID = accountID
+        navigationTask = Task {
+            guard let msg = try? await GmailMessageService.shared.getMessage(
+                id: gmailMessageID, accountID: expectedAccountID, format: "full"
+            ) else { return }
+            guard !Task.isCancelled, accountID == expectedAccountID else { return }
+            let email = mailboxViewModel.makeEmail(from: msg)
+            panelCoordinator.showEmail(email, accountID: expectedAccountID)
+            let mode: ComposeMode = if replyAll {
+                EmailDetailViewModel.replyAllMode(for: email, currentUserEmail: expectedAccountID)
+            } else {
+                EmailDetailViewModel.replyMode(for: email)
+            }
+            startCompose(mode: mode)
+        }
+    }
+
+    /// Navigates to a message and opens the forward compose sheet (from intent).
+    func navigateAndForward(gmailMessageID: String, recipient: String?) {
+        navigationTask?.cancel()
+        let expectedAccountID = accountID
+        navigationTask = Task {
+            guard let msg = try? await GmailMessageService.shared.getMessage(
+                id: gmailMessageID, accountID: expectedAccountID, format: "full"
+            ) else { return }
+            guard !Task.isCancelled, accountID == expectedAccountID else { return }
+            let email = mailboxViewModel.makeEmail(from: msg)
+            panelCoordinator.showEmail(email, accountID: expectedAccountID)
+            let mode = EmailDetailViewModel.forwardMode(for: email)
+            startCompose(mode: mode)
+        }
+    }
+
     func composeNewEmail(recipient: String? = nil) {
         composeMode = .new
         let draft = mailStore.createDraft()
@@ -429,7 +466,11 @@ final class AppCoordinator {
     }
 
     func handleFolderChange(_ folder: Folder) {
-        guard accountSwitchTask == nil else { return }
+        if accountSwitchTask != nil {
+            pendingFolderChange = folder
+            return
+        }
+        pendingFolderChange = nil
         if let pending = pendingDraftSelection {
             pendingDraftSelection = nil
             selectedEmail = pending
@@ -522,7 +563,14 @@ final class AppCoordinator {
         lifecycleTask?.cancel()
         accountSwitchTask?.cancel()
         let task = Task {
-            defer { accountSwitchTask = nil }
+            defer {
+                accountSwitchTask = nil
+                if let folder = pendingFolderChange {
+                    pendingFolderChange = nil
+                    selectedFolder = folder
+                    handleFolderChange(folder)
+                }
+            }
             await oldEngine?.stop()
             await attachmentStore.refresh()
             guard !Task.isCancelled, self.accountSwitchGeneration == generation else { return }

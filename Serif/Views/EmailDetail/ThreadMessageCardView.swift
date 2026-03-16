@@ -125,6 +125,19 @@ struct ThreadMessageCardView: View {
             }
         }
         .animation(SerifAnimation.springSnappy, value: isExpanded)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel({
+            let senderName = isSentByMe ? "Me" : sender.name
+            let dateText = message.date.map { $0.formattedRelative } ?? ""
+            let readState = message.isUnread ? "Unread" : "Read"
+            if isExpanded {
+                return "\(senderName), \(recipientsLine), \(dateText), \(readState)"
+            } else {
+                return "\(senderName), \(snippetText), \(dateText), \(readState)"
+            }
+        }())
+        .accessibilityHint(isExpanded ? "Tap to collapse message" : "Tap to expand message")
+        .accessibilityAddTraits(.isButton)
     }
 
     // MARK: - Header Row

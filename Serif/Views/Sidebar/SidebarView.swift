@@ -149,6 +149,8 @@ struct SidebarView: View {
                     }
                 }
                 .badge(categoryUnreadCounts[category] ?? 0)
+                .accessibilityLabel(category.displayName)
+                .accessibilityAddTraits(selectedFolder == .inbox && selectedInboxCategory == category ? .isSelected : [])
             }
         } label: {
             Button {
@@ -177,6 +179,8 @@ struct SidebarView: View {
                     .frame(width: 20)
             }
         }
+        .accessibilityLabel(folder.rawValue)
+        .accessibilityAddTraits(selectedFolder == folder ? .isSelected : [])
         .dropDestination(for: EmailDragItem.self) { items, _ in
             for item in items {
                 for msgId in item.messageIds {
@@ -222,8 +226,11 @@ struct SidebarView: View {
                     .fill(Color(hex: label.color?.backgroundColor ?? "#888888"))
                     .frame(width: 10, height: 10)
                     .frame(width: 20)
+                    .accessibilityHidden(true)
             }
         }
+        .accessibilityLabel(label.name)
+        .accessibilityAddTraits(selectedLabel?.id == label.id && selectedFolder == .labels ? .isSelected : [])
         .dropDestination(for: EmailDragItem.self) { items, _ in
             for item in items {
                 for msgId in item.messageIds {

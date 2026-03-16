@@ -155,6 +155,7 @@ struct EmailDetailView: View {
                 Text(detailVM.latestMessage?.subject ?? email.subject)
                     .font(Typography.title)
                     .foregroundStyle(.primary)
+                    .accessibilityAddTraits(.isHeader)
 
                 Spacer()
 
@@ -296,6 +297,7 @@ struct EmailDetailView: View {
                     Text("\(allMessages.count) messages")
                         .font(Typography.captionRegular)
                         .foregroundStyle(.tertiary)
+                        .accessibilityLabel("\(allMessages.count) messages in thread")
                     Spacer()
                     if expandedMessageIDs.count > 1 {
                         Button {
@@ -310,6 +312,7 @@ struct EmailDetailView: View {
                                 .foregroundStyle(.secondary)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Collapse other messages")
                     }
                 }
                 .padding(.horizontal, Spacing.xl)

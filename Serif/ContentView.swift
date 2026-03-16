@@ -445,7 +445,8 @@ struct ContentView: View {
                            coordinator.selectedAccountID != accountID {
                             coordinator.selectedAccountID = accountID
                         }
-                        coordinator.navigateToMessage(gmailMessageID: messageId)
+                        let replyAll = notification.userInfo?["replyAll"] as? Bool ?? false
+                        coordinator.navigateAndReply(gmailMessageID: messageId, replyAll: replyAll)
                     }
                 }
                 .task {
@@ -456,7 +457,8 @@ struct ContentView: View {
                            coordinator.selectedAccountID != accountID {
                             coordinator.selectedAccountID = accountID
                         }
-                        coordinator.navigateToMessage(gmailMessageID: messageId)
+                        let recipient = notification.userInfo?["to"] as? String
+                        coordinator.navigateAndForward(gmailMessageID: messageId, recipient: recipient)
                     }
                 }
                 .task {

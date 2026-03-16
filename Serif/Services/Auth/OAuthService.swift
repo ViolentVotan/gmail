@@ -39,7 +39,7 @@ final class OAuthService: NSObject {
             scopes: GoogleCredentials.scopes,
             redirectURL: redirectURI,
             responseType: OIDResponseTypeCode,
-            additionalParameters: ["access_type": "offline", "prompt": "consent"]
+            additionalParameters: ["access_type": "offline"]
         )
 
         let window = presentingWindow

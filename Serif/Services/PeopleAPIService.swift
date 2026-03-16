@@ -177,6 +177,9 @@ final class PeopleAPIService {
         // 2. Fetch "Other Contacts" (auto-created from email interactions)
         // Note: readMask omits "photos" — Other Contacts don't support photo fields.
         do {
+            // Snapshot the count of Connections-only entries so we can restore it on full re-fetch,
+            // discarding any Other Contacts that were partially merged during a failed incremental sync.
+            let connectionsCount = allContacts.count
             let otherSyncToken: String? = try? await mailDB?.dbPool.read { db in
                 try MailDatabaseQueries.syncState(in: db)?.otherContactsSyncToken
             }
@@ -226,6 +229,9 @@ final class PeopleAPIService {
             }
 
             if needsFullOtherFetch {
+                // Truncate back to Connections-only entries, discarding any Other Contacts
+                // that were partially merged during the failed incremental sync.
+                allContacts = Array(allContacts.prefix(connectionsCount))
                 var pageToken: String? = nil
                 repeat {
                     var urlStr = "https://people.googleapis.com/v1/otherContacts"

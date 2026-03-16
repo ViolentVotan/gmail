@@ -84,15 +84,21 @@ struct ComposeView: View {
                     }
 
                     AutocompleteTextField(label: "To", placeholder: "Recipients", text: $to, contacts: contacts)
+                        .accessibilityLabel("To")
+                        .accessibilityHint("Enter recipient email addresses")
                     Divider().padding(.horizontal, Spacing.xl)
 
                     if showCc {
                         AutocompleteTextField(label: "Cc", placeholder: "Cc recipients", text: $cc, contacts: contacts)
+                            .accessibilityLabel("Cc")
+                            .accessibilityHint("Enter carbon copy recipient email addresses")
                         Divider().padding(.horizontal, Spacing.xl)
                     }
 
                     if showBcc {
                         AutocompleteTextField(label: "Bcc", placeholder: "Bcc recipients", text: $bcc, contacts: contacts)
+                            .accessibilityLabel("Bcc")
+                            .accessibilityHint("Enter blind carbon copy recipient email addresses")
                         Divider().padding(.horizontal, Spacing.xl)
                     }
 
@@ -382,6 +388,8 @@ struct ComposeView: View {
             )
             .disabled(composeVM.isSending || to.isEmpty)
             .keyboardShortcut(.return, modifiers: .command)
+            .accessibilityLabel("Send")
+            .accessibilityHint("Sends the email. Use the dropdown to schedule.")
         }
         .padding(.horizontal, Spacing.xl)
         .padding(.vertical, Spacing.md)
@@ -452,11 +460,13 @@ struct ComposeView: View {
                 .font(Typography.subhead)
                 .foregroundStyle(.tertiary)
                 .frame(width: 50, alignment: .leading)
+                .accessibilityHidden(true)
 
             TextField(placeholder, text: text)
                 .textFieldStyle(.plain)
                 .font(Typography.body)
                 .foregroundStyle(.primary)
+                .accessibilityLabel(label)
         }
         .padding(.horizontal, Spacing.xl)
         .padding(.vertical, 10)

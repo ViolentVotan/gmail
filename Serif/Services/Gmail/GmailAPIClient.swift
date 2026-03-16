@@ -851,7 +851,7 @@ final class GmailAPIClient {
         let generation = (refreshGeneration[accountID] ?? 0) + 1
         refreshGeneration[accountID] = generation
 
-        let task = Task<AuthToken, Error> {
+        let task = Task { @MainActor in
             let token: AuthToken?
             do {
                 token = try TokenStore.shared.retrieve(for: accountID)

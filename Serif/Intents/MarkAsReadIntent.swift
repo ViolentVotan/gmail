@@ -41,6 +41,41 @@ struct UpdateMailIntent {
                     )
                 }
             }
+
+            if let mailbox {
+                let targetLabelID = mailbox.id
+                switch targetLabelID {
+                case GmailSystemLabel.inbox:
+                    try await GmailMessageService.shared.modifyLabels(
+                        id: messageId,
+                        add: [GmailSystemLabel.inbox],
+                        remove: [GmailSystemLabel.trash, GmailSystemLabel.spam],
+                        accountID: accountID
+                    )
+                case GmailSystemLabel.trash:
+                    try await GmailMessageService.shared.modifyLabels(
+                        id: messageId,
+                        add: [GmailSystemLabel.trash],
+                        remove: [GmailSystemLabel.inbox],
+                        accountID: accountID
+                    )
+                case GmailSystemLabel.spam:
+                    try await GmailMessageService.shared.modifyLabels(
+                        id: messageId,
+                        add: [GmailSystemLabel.spam],
+                        remove: [GmailSystemLabel.inbox],
+                        accountID: accountID
+                    )
+                default:
+                    // Archive (remove from inbox) or move to any other label
+                    try await GmailMessageService.shared.modifyLabels(
+                        id: messageId,
+                        add: targetLabelID == GmailSystemLabel.starred ? [GmailSystemLabel.starred] : [targetLabelID],
+                        remove: [GmailSystemLabel.inbox],
+                        accountID: accountID
+                    )
+                }
+            }
         }
         return .result()
     }

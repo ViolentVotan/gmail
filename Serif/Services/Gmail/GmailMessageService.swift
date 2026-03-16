@@ -11,9 +11,9 @@ final class GmailMessageService {
     private enum MessageFields {
         static func fields(for format: String) -> String? {
             switch format {
-            case "minimal": "id,threadId,labelIds,internalDate"
-            case "metadata": "id,threadId,labelIds,snippet,payload/headers,internalDate,sizeEstimate"
-            case "full": "id,threadId,labelIds,snippet,payload,internalDate"
+            case "minimal":  "id,threadId,labelIds,internalDate"
+            case "metadata": "id,threadId,labelIds,snippet,payload/headers,internalDate,sizeEstimate,historyId"
+            case "full":     "id,threadId,labelIds,snippet,payload,internalDate"
             default: nil
             }
         }
