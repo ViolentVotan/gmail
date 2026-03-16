@@ -45,7 +45,7 @@ Serif/
 │   ├── Gmail/          # Gmail REST API clients (one per domain)
 │   └── BackgroundSyncer.swift      # Actor for bulk API sync → DB writes
 ├── Intents/            # App Intents (Shortcuts, Spotlight, Siri)
-├── Theme/              # AppearanceManager, DesignTokens (spacing, corner radius, shared modifiers)
+├── Theme/              # AppearanceManager, DesignTokens (spacing, corner radius, brand colors, haptics, shared modifiers)
 ├── Resources/          # Assets, localization
 ├── Configuration/      # OAuth credentials (gitignored)
 └── Utilities/          # Helpers
