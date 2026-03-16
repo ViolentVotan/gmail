@@ -8,6 +8,134 @@
     var contentTimer = null;
     var selectionTimer = null;
 
+    // ── Custom Undo Stack ──
+    // Uses innerHTML snapshots for undo/redo within this sandboxed contenteditable editor.
+    // All content is sanitized by HTMLTemplate.sanitizeHTML() before entering the editor.
+
+    var UNDO_MAX = 100;
+    var undoStack = [];
+    var redoStack = [];
+    var undoDebounceTimer = null;
+    var isUndoRedoInProgress = false;
+
+    function getAbsoluteOffset(container, offset) {
+        var walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null, false);
+        var pos = 0;
+        var node;
+        while ((node = walker.nextNode())) {
+            if (node === container) {
+                return pos + (node.nodeType === 3 ? offset : 0);
+            }
+            if (node.nodeType === 3) {
+                pos += node.textContent.length;
+            } else if (node.nodeType === 1 && (node.tagName === 'IMG' || node.tagName === 'BR')) {
+                pos += 1;
+            }
+        }
+        return pos;
+    }
+
+    function restoreSelection(startOff, endOff) {
+        var walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, null, false);
+        var pos = 0;
+        var startNode = null, startLocal = 0;
+        var endNode = null, endLocal = 0;
+        var node;
+        while ((node = walker.nextNode())) {
+            var len = 0;
+            if (node.nodeType === 3) {
+                len = node.textContent.length;
+            } else if (node.nodeType === 1 && (node.tagName === 'IMG' || node.tagName === 'BR')) {
+                len = 1;
+            }
+            if (!startNode && pos + len >= startOff) {
+                startNode = node;
+                startLocal = startOff - pos;
+            }
+            if (!endNode && pos + len >= endOff) {
+                endNode = node;
+                endLocal = endOff - pos;
+            }
+            if (startNode && endNode) break;
+            pos += len;
+        }
+        if (startNode) {
+            try {
+                var range = document.createRange();
+                if (startNode.nodeType === 3) {
+                    range.setStart(startNode, Math.min(startLocal, startNode.textContent.length));
+                } else {
+                    range.setStartBefore(startNode);
+                }
+                if (endNode && endNode.nodeType === 3) {
+                    range.setEnd(endNode, Math.min(endLocal, endNode.textContent.length));
+                } else if (endNode) {
+                    range.setEndAfter(endNode);
+                } else {
+                    range.collapse(true);
+                }
+                var sel = window.getSelection();
+                sel.removeAllRanges();
+                sel.addRange(range);
+            } catch (ignored) {}
+        }
+    }
+
+    function captureUndoSnapshot() {
+        if (isUndoRedoInProgress) return;
+        var html = editor.innerHTML;
+        if (undoStack.length > 0 && undoStack[undoStack.length - 1].html === html) return;
+        var sel = window.getSelection();
+        var startOff = 0, endOff = 0;
+        if (sel.rangeCount > 0) {
+            var r = sel.getRangeAt(0);
+            startOff = getAbsoluteOffset(r.startContainer, r.startOffset);
+            endOff = getAbsoluteOffset(r.endContainer, r.endOffset);
+        }
+        undoStack.push({ html: html, startOffset: startOff, endOffset: endOff });
+        if (undoStack.length > UNDO_MAX) undoStack.shift();
+        redoStack = [];
+    }
+
+    function scheduleUndoCapture() {
+        clearTimeout(undoDebounceTimer);
+        undoDebounceTimer = setTimeout(captureUndoSnapshot, 300);
+    }
+
+    function currentSnapshot() {
+        var snap = { html: editor.innerHTML, startOffset: 0, endOffset: 0 };
+        var sel = window.getSelection();
+        if (sel.rangeCount > 0) {
+            var r = sel.getRangeAt(0);
+            snap.startOffset = getAbsoluteOffset(r.startContainer, r.startOffset);
+            snap.endOffset = getAbsoluteOffset(r.endContainer, r.endOffset);
+        }
+        return snap;
+    }
+
+    // Undo/redo restore previously-captured editor snapshots (own content only)
+    window.performUndo = function() {
+        if (undoStack.length === 0) return;
+        isUndoRedoInProgress = true;
+        redoStack.push(currentSnapshot());
+        var snapshot = undoStack.pop();
+        editor.innerHTML = snapshot.html;
+        restoreSelection(snapshot.startOffset, snapshot.endOffset);
+        notifyContentChanged();
+        isUndoRedoInProgress = false;
+    };
+
+    window.performRedo = function() {
+        if (redoStack.length === 0) return;
+        isUndoRedoInProgress = true;
+        undoStack.push(currentSnapshot());
+        var snapshot = redoStack.pop();
+        editor.innerHTML = snapshot.html;
+        restoreSelection(snapshot.startOffset, snapshot.endOffset);
+        notifyContentChanged();
+        isUndoRedoInProgress = false;
+    };
+
     // ── Formatting (called from Swift via evaluateJavaScript) ──
 
     window.execBold = function() { document.execCommand('bold', false, null); };
@@ -297,6 +425,7 @@
     editor.addEventListener('input', function() {
         clearTimeout(contentTimer);
         contentTimer = setTimeout(notifyContentChanged, 150);
+        scheduleUndoCapture();
     });
 
     document.addEventListener('selectionchange', function() {
@@ -357,6 +486,17 @@
         e.preventDefault();
     });
 
+    // Intercept browser undo/redo to use custom stack
+    editor.addEventListener('beforeinput', function(e) {
+        if (e.inputType === 'historyUndo') {
+            e.preventDefault();
+            performUndo();
+        } else if (e.inputType === 'historyRedo') {
+            e.preventDefault();
+            performRedo();
+        }
+    });
+
     // ── Keyboard shortcuts ──
     // Intercept formatting shortcuts so they execute in the editor
     // and don't propagate to the app's global shortcut handlers.
@@ -387,9 +527,9 @@
                 case 'z':
                     e.preventDefault(); e.stopPropagation();
                     if (shift) {
-                        document.execCommand('redo', false, null);
+                        performRedo();
                     } else {
-                        document.execCommand('undo', false, null);
+                        performUndo();
                     }
                     return;
 
@@ -536,5 +676,6 @@
     setTimeout(function() {
         notifyContentChanged();
         notifySelectionChanged();
+        captureUndoSnapshot();
     }, 100);
 })();
