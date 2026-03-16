@@ -2,17 +2,31 @@ import SwiftUI
 
 struct SyncBubbleView: View {
     let phase: SyncPhase
+    var onRefresh: () -> Void = {}
+
+    private var isTappable: Bool {
+        switch phase {
+        case .idle, .error: true
+        default: false
+        }
+    }
 
     var body: some View {
-        HStack(spacing: Spacing.sm) {
-            icon
-            label
+        Button(action: onRefresh) {
+            HStack(spacing: Spacing.sm) {
+                icon
+                label
+            }
+            .font(Typography.captionRegular)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
+            .frame(maxWidth: .infinity)
         }
-        .font(Typography.captionRegular)
-        .padding(.horizontal, Spacing.md)
-        .padding(.vertical, Spacing.sm)
-        .frame(maxWidth: .infinity)
-        .glassEffect(.regular, in: .capsule)
+        .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: .capsule)
+        .disabled(!isTappable)
+        .accessibilityLabel(accessibilityText)
+        .accessibilityHint(isTappable ? "Double-tap to sync mail" : "")
     }
 
     // MARK: - Icon
@@ -21,12 +35,10 @@ struct SyncBubbleView: View {
     private var icon: some View {
         switch phase {
         case .idle:
-            EmptyView()
-        case .syncing:
-            ProgressView()
-                .controlSize(.small)
-                .tint(.accentColor)
-        case .initialSync, .bodyPrefetch:
+            Image(systemName: "arrow.clockwise")
+                .foregroundStyle(.tertiary)
+                .contentTransition(.symbolEffect(.replace))
+        case .syncing, .initialSync, .bodyPrefetch:
             ProgressView()
                 .controlSize(.small)
                 .tint(.accentColor)
@@ -34,10 +46,12 @@ struct SyncBubbleView: View {
             Image(systemName: "checkmark")
                 .foregroundStyle(.green)
                 .fontWeight(.semibold)
+                .contentTransition(.symbolEffect(.replace))
         case .error:
             Image(systemName: "exclamationmark.triangle")
                 .foregroundStyle(.red)
                 .fontWeight(.semibold)
+                .contentTransition(.symbolEffect(.replace))
         }
     }
 
@@ -46,8 +60,16 @@ struct SyncBubbleView: View {
     @ViewBuilder
     private var label: some View {
         switch phase {
-        case .idle:
-            EmptyView()
+        case .idle(let lastSynced):
+            if let lastSynced {
+                Text("Last synced: \(lastSynced, format: .relative(presentation: .named))")
+                    .foregroundStyle(.tertiary)
+                    .contentTransition(.interpolate)
+            } else {
+                Text("Sync now")
+                    .foregroundStyle(.tertiary)
+                    .contentTransition(.interpolate)
+            }
         case .syncing(let remaining):
             if let remaining {
                 Text("\(remaining) remaining")
@@ -56,6 +78,7 @@ struct SyncBubbleView: View {
             } else {
                 Text("Syncing")
                     .foregroundStyle(.secondary)
+                    .contentTransition(.interpolate)
             }
         case .initialSync(let synced, let estimated):
             Text("Syncing \(synced) / ~\(estimated)")
@@ -71,6 +94,33 @@ struct SyncBubbleView: View {
         case .error(let message):
             Text(message)
                 .foregroundStyle(.red)
+        }
+    }
+
+    // MARK: - Accessibility
+
+    private var accessibilityText: String {
+        switch phase {
+        case .idle(let lastSynced):
+            if let lastSynced {
+                "Refresh mail. Last synced \(lastSynced.formatted(.relative(presentation: .named)))."
+            } else {
+                "Sync mail now."
+            }
+        case .syncing(let remaining):
+            if let remaining {
+                "Syncing mail. \(remaining) remaining."
+            } else {
+                "Syncing mail."
+            }
+        case .initialSync(let synced, let estimated):
+            "Syncing mail. \(synced) of \(estimated)."
+        case .bodyPrefetch(let remaining):
+            "Downloading message bodies. \(remaining) remaining."
+        case .success:
+            "Mail synced."
+        case .error(let message):
+            "Sync failed: \(message). Double-tap to retry."
         }
     }
 }
