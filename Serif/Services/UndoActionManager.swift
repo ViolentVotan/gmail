@@ -55,6 +55,8 @@ final class UndoActionManager {
         countdownTask = nil
         guard let action = pendingActions.popLast() else { return }
         action.onConfirm()
+        SoundManager.play(.action)
+        SerifHaptic.generic()
 
         if !pendingActions.isEmpty {
             startCountdown()

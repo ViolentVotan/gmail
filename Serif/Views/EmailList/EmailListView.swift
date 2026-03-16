@@ -19,6 +19,7 @@ struct EmailListView: View {
     /// Tracks email IDs and section mode to skip expensive section rebuilds when only properties changed.
     @State private var lastEmailIDs: [UUID] = []
     @State private var lastUseDateSections = false
+    @State private var isSearching = false
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
@@ -77,14 +78,20 @@ struct EmailListView: View {
         .onChange(of: searchText) { _, query in
             searchDebounceTask?.cancel()
             if query.isEmpty {
+                isSearching = false
                 actions.onSearch("")
             } else {
+                isSearching = true
                 searchDebounceTask = Task {
                     try? await Task.sleep(for: .milliseconds(400))
                     guard !Task.isCancelled else { return }
                     actions.onSearch(query)
+                    isSearching = false
                 }
             }
+        }
+        .onChange(of: isLoading) { _, loading in
+            if !loading { isSearching = false }
         }
     }
 
@@ -115,6 +122,13 @@ struct EmailListView: View {
 
             HStack(spacing: Spacing.sm) {
                 SearchBarView(text: $searchText, focusTrigger: $searchFocusTrigger)
+                    .overlay(alignment: .trailing) {
+                        if isSearching {
+                            ProgressView()
+                                .controlSize(.small)
+                                .padding(.trailing, Spacing.xl)
+                        }
+                    }
 
                 sortMenu
             }
@@ -175,6 +189,76 @@ struct EmailListView: View {
     // MARK: - Email list
 
     @ViewBuilder
+    private var emptyListState: some View {
+        if !searchText.isEmpty {
+            ContentUnavailableView.search(text: searchText)
+        } else {
+            switch selectedFolder {
+            case .inbox:
+                ContentUnavailableView(
+                    "You're all caught up",
+                    systemImage: "checkmark.circle",
+                    description: Text("No unread emails. Enjoy the moment.")
+                )
+            case .drafts:
+                ContentUnavailableView(
+                    "No Drafts",
+                    systemImage: "doc.text",
+                    description: Text("Drafts you create will appear here.")
+                )
+            case .sent:
+                ContentUnavailableView(
+                    "No Sent Emails",
+                    systemImage: "paperplane",
+                    description: Text("Emails you send will appear here.")
+                )
+            case .trash:
+                ContentUnavailableView(
+                    "Trash is Empty",
+                    systemImage: "trash",
+                    description: Text("Deleted emails will appear here.")
+                )
+            case .spam:
+                ContentUnavailableView(
+                    "No Spam",
+                    systemImage: "exclamationmark.shield",
+                    description: Text("Messages marked as spam will appear here.")
+                )
+            case .starred:
+                ContentUnavailableView(
+                    "No Starred Emails",
+                    systemImage: "star",
+                    description: Text("Star emails to find them here.")
+                )
+            case .archive:
+                ContentUnavailableView(
+                    "Archive is Empty",
+                    systemImage: "archivebox",
+                    description: Text("Archived emails will appear here.")
+                )
+            case .snoozed:
+                ContentUnavailableView(
+                    "No Snoozed Emails",
+                    systemImage: "moon.zzz",
+                    description: Text("Snoozed emails will reappear when their time is up.")
+                )
+            case .subscriptions:
+                ContentUnavailableView(
+                    "No Subscriptions",
+                    systemImage: "newspaper",
+                    description: Text("Mailing list emails will appear here.")
+                )
+            default:
+                ContentUnavailableView(
+                    "No Emails",
+                    systemImage: "tray",
+                    description: Text("This folder is empty.")
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
     private var emailListSection: some View {
         if isLoading && emails.isEmpty {
             List {
@@ -185,6 +269,9 @@ struct EmailListView: View {
             }
             .listStyle(.plain)
             .scrollEdgeEffectStyle(.hard, for: .top)
+        } else if !isLoading && emails.isEmpty {
+            emptyListState
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             emailScrollView
         }

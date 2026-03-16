@@ -36,6 +36,8 @@ struct OnboardingView: View {
     @State private var iconScale: CGFloat = 0.3
     @State private var isButtonHovered = false
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     // Ambient orbs
     @State private var orb1Offset: CGSize = CGSize(width: -140, height: -100)
     @State private var orb2Offset: CGSize = CGSize(width: 160, height: 80)
@@ -226,6 +228,20 @@ struct OnboardingView: View {
     // MARK: - Animation Sequence
 
     private func runAnimationSequence() {
+        if reduceMotion {
+            orbsVisible = true
+            showSer = true
+            showIcon = true
+            iconDrop = 0
+            iconRotation = 0
+            iconScale = 1.0
+            showF = true
+            showTaglineTop = true
+            showTaglineBottom = true
+            showButton = true
+            return
+        }
+
         // 1. Ambient orbs fade in
         withAnimation(.easeIn(duration: 1.8)) {
             orbsVisible = true
@@ -265,6 +281,7 @@ struct OnboardingView: View {
     }
 
     private func startOrbAnimations() {
+        guard !reduceMotion else { return }
         withAnimation(.easeInOut(duration: 9).repeatForever(autoreverses: true)) {
             orb1Offset = CGSize(width: 120, height: 80)
         }

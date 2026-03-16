@@ -88,6 +88,8 @@ final class ComposeViewModel {
                             try? await GmailDraftService.shared.deleteDraft(draftID: draftID, accountID: capturedAccountID)
                         }
                         self?.isSent = true
+                        SoundManager.play(.sent)
+                        SerifHaptic.levelChange()
                         // Clean up reply draft references if this was a reply send
                         if let store = capturedReplyCleanupMailStore {
                             if let tid = capturedThreadID {

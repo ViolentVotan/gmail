@@ -3,6 +3,7 @@ import SwiftUI
 struct SearchBarView: View {
     @Binding var text: String
     @Binding var focusTrigger: Bool
+    @State private var isFocused = false
 
     init(text: Binding<String>, focusTrigger: Binding<Bool> = .constant(false)) {
         self._text = text
@@ -15,7 +16,7 @@ struct SearchBarView: View {
                 .font(Typography.bodyMedium)
                 .foregroundStyle(.tertiary)
 
-            NonAutoFocusTextField(text: $text, placeholder: "Search", focusTrigger: $focusTrigger)
+            NonAutoFocusTextField(text: $text, placeholder: "Search", focusTrigger: $focusTrigger, isFocused: $isFocused)
                 .font(Typography.body)
                 .foregroundStyle(.primary)
 
@@ -34,6 +35,11 @@ struct SearchBarView: View {
         .padding(.vertical, 7)
         .background(.quinary)
         .clipShape(.rect(cornerRadius: CornerRadius.sm))
+        .overlay(
+            RoundedRectangle(cornerRadius: CornerRadius.sm)
+                .strokeBorder(Color.accentColor.opacity(isFocused ? 0.5 : 0), lineWidth: 1.5)
+        )
+        .animation(SerifAnimation.springSnappy, value: isFocused)
     }
 }
 
@@ -43,6 +49,7 @@ struct NonAutoFocusTextField: NSViewRepresentable {
     @Binding var text: String
     var placeholder: String
     @Binding var focusTrigger: Bool
+    @Binding var isFocused: Bool
 
     func makeNSView(context: Context) -> NoAutoFocusNSTextField {
         let field = NoAutoFocusNSTextField()
@@ -82,6 +89,14 @@ struct NonAutoFocusTextField: NSViewRepresentable {
         func controlTextDidChange(_ obj: Notification) {
             guard let field = obj.object as? NSTextField else { return }
             parent.text = field.stringValue
+        }
+
+        func controlTextDidBeginEditing(_ obj: Notification) {
+            parent.isFocused = true
+        }
+
+        func controlTextDidEndEditing(_ obj: Notification) {
+            parent.isFocused = false
         }
     }
 }

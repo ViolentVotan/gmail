@@ -6,6 +6,7 @@ struct EmailRowView: View, Equatable {
     let accountID: String
     let action: () -> Void
     @State private var isHovered = false
+    @AppStorage("emailDensity") private var density = "comfortable"
     @State private var showTags = false
     @State private var tagRevealTask: Task<Void, Never>?
     @State private var hoverTask: Task<Void, Never>?
@@ -65,6 +66,18 @@ struct EmailRowView: View, Equatable {
             case .tag(let label, _): return "t-\(label)"
             }
         }
+    }
+
+    private var verticalPadding: CGFloat {
+        switch density {
+        case "compact":  return 6
+        case "spacious": return 14
+        default:         return 10
+        }
+    }
+
+    private var showPreview: Bool {
+        density != "compact"
     }
 
     @ViewBuilder
@@ -137,12 +150,14 @@ struct EmailRowView: View, Equatable {
                         .foregroundStyle(email.isRead ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                         .lineLimit(1)
 
-                    Text(email.preview)
-                        .font(Typography.captionRegular)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
+                    if showPreview {
+                        Text(email.preview)
+                            .font(Typography.captionRegular)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                    }
 
-                    if let nudge = nudgeText {
+                    if showPreview, let nudge = nudgeText {
                         Text(nudge)
                             .font(Typography.captionSmallRegular)
                             .foregroundStyle(.orange)
@@ -188,7 +203,7 @@ struct EmailRowView: View, Equatable {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 10)
+            .padding(.vertical, verticalPadding)
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.sm)
                     .fill(isSelected ? AnyShapeStyle(.tint.opacity(0.1)) : (isHovered ? AnyShapeStyle(.fill.quaternary) : AnyShapeStyle(Color.clear)))

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import UserNotifications
 private import os
@@ -62,6 +63,10 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             trigger: nil
         )
         UNUserNotificationCenter.current().add(request)
+        // Play sound only when app is in foreground (system notifications handle background sound)
+        if NSApplication.shared.isActive {
+            SoundManager.play(.newMail)
+        }
         Task { await MailboxViewModel.updateDockBadge() }
     }
 
