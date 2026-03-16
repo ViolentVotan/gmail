@@ -25,13 +25,16 @@ final class AppearanceManager {
         let stored = UserDefaults.standard.string(forKey: UserDefaultsKey.appearancePreference)
         if let stored, let pref = Preference(rawValue: stored) {
             self.preference = pref
-        } else {
-            // Migration: map old theme to appearance preference
-            let oldThemeId = UserDefaults.standard.string(forKey: "selectedThemeId") ?? "midnight"
+        } else if let oldThemeId = UserDefaults.standard.string(forKey: "selectedThemeId") {
+            // Migration: map legacy theme to appearance preference
             let lightThemes = ["light", "paper", "violet", "mono", "ivory"]
             self.preference = lightThemes.contains(oldThemeId) ? .light : .dark
             UserDefaults.standard.removeObject(forKey: "selectedThemeId")
             UserDefaults.standard.removeObject(forKey: "themeOverrides")
+            UserDefaults.standard.set(preference.rawValue, forKey: UserDefaultsKey.appearancePreference)
+        } else {
+            // Fresh install: default to dark
+            self.preference = .dark
             UserDefaults.standard.set(preference.rawValue, forKey: UserDefaultsKey.appearancePreference)
         }
     }
