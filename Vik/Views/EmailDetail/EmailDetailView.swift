@@ -19,6 +19,8 @@ struct EmailDetailView: View {
     @State private var expandedMessageIDs: Set<String> = []
     @State private var labelSuggestions: [LabelSuggestion] = []
     @State private var showTranslation = false
+    @State private var showMetadata = false
+    @State private var showConversation = false
     @AppStorage("aiLabelSuggestions") private var aiLabelSuggestionsEnabled = true
 
     /// Best available unsubscribe URL: header-based (from full thread) or body-scanned.
@@ -81,12 +83,16 @@ struct EmailDetailView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 0) {
                             threadMetadata
+                                .opacity(showMetadata ? 1 : 0)
+                                .offset(y: showMetadata ? 0 : OffsetToken.small)
 
                             Divider()
                                 .padding(.horizontal, Spacing.xl)
-                                .opacity(0.5)
+                                .opacity(showMetadata ? OpacityToken.divider : 0)
 
                             conversationCards
+                                .opacity(showConversation ? 1 : 0)
+                                .offset(y: showConversation ? 0 : OffsetToken.small)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
@@ -134,8 +140,19 @@ struct EmailDetailView: View {
             }
         }
         .task(id: email.id) {
+            showMetadata = false
+            showConversation = false
             detailVM.mailDatabase = mailDatabase
+
+            withAnimation(VikAnimation.springDefault) {
+                showMetadata = true
+            }
+
             await loadThread()
+
+            withAnimation(VikAnimation.springDefault.delay(0.08)) {
+                showConversation = true
+            }
         }
         .userActivity(UserActivityManager.viewEmailActivityType) { activity in
             let source = UserActivityManager.activity(for: email, accountID: accountID)

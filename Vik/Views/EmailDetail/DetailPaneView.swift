@@ -25,6 +25,9 @@ struct DetailPaneView: View {
     let deselectAll: () -> Void
     let startCompose: (ComposeMode) -> Void
     let discardDraft: (UUID) -> Void
+    let selectionDirection: Edge
+    let navigatePrevious: () -> Void
+    let navigateNext: () -> Void
 
     /// Resolves the best send-as alias for the given email, falling back to the primary account address.
     /// For outgoing folders (Sent), recipients are outbound contacts — no alias will match, so this
@@ -74,7 +77,18 @@ struct DetailPaneView: View {
                 composeView(draftId: draftId)
             } else if let email = selectedEmail {
                 emailDetailView(email: email)
-                    .transition(.push(from: .bottom))
+                    .transition(.push(from: selectionDirection))
+                    .gesture(
+                        DragGesture(minimumDistance: 50)
+                            .onEnded { value in
+                                guard abs(value.translation.width) > abs(value.translation.height) else { return }
+                                if value.translation.width > 0 {
+                                    navigatePrevious()
+                                } else {
+                                    navigateNext()
+                                }
+                            }
+                    )
             } else {
                 emptyState
                     .transition(.opacity)
@@ -207,13 +221,13 @@ struct DetailPaneView: View {
     // MARK: - Empty State
 
     private var emptyState: some View {
-        VStack(spacing: Spacing.lg) {
+        VStack(spacing: Spacing.xl) {
             Image(systemName: emptyStateIcon)
-                .font(.system(size: 48, weight: .light))
-                .foregroundStyle(.tint.opacity(0.5))
+                .font(.system(size: 56, weight: .ultraLight))
+                .foregroundStyle(.tint.opacity(OpacityToken.disabled))
                 .symbolEffect(.breathe.plain, isActive: true)
 
-            VStack(spacing: Spacing.xs) {
+            VStack(spacing: Spacing.sm) {
                 Text(emptyStateTitle)
                     .font(Typography.title)
                     .foregroundStyle(.secondary)
@@ -255,13 +269,13 @@ struct DetailPaneView: View {
 
     private var emptyStateDescription: String {
         switch selectedFolder {
-        case .drafts:        "Select a draft to edit"
-        case .sent:          "Select a sent email to view"
-        case .starred:       "Select a starred email to read"
-        case .archive:       "Select an archived email to read"
-        case .attachments:   "Select an email to view attachments"
-        case .subscriptions: "Select a subscription to view"
-        default:             "Select an email to read"
+        case .drafts:        "Pick a draft to continue writing"
+        case .sent:          "Pick a sent email to view"
+        case .starred:       "Pick a starred email to read"
+        case .archive:       "Pick an archived email to read"
+        case .attachments:   "Pick an email to view its attachments"
+        case .subscriptions: "Pick a subscription to view"
+        default:             "Pick an email from the left to start reading"
         }
     }
 }

@@ -40,6 +40,8 @@ final class AppCoordinator {
     var selectedLabel: GmailLabel?
     var selectedEmail: Email?
     var selectedEmailIDs: Set<String> = []
+    /// Direction of the last email selection for directional detail pane transitions.
+    var selectionDirection: Edge = .bottom
 
     // MARK: - Contacts
 
@@ -195,6 +197,28 @@ final class AppCoordinator {
 
     func selectNext(_ email: Email?) {
         selectedEmail = email
+    }
+
+    /// Navigate to the previous email in the displayed list.
+    func selectPrevious() {
+        guard let current = selectedEmail,
+              let idx = displayedEmails.firstIndex(where: { $0.id == current.id }),
+              idx > 0 else { return }
+        selectionDirection = .top
+        let prev = displayedEmails[idx - 1]
+        selectedEmail = prev
+        selectedEmailIDs = [prev.id.uuidString]
+    }
+
+    /// Navigate to the next email in the displayed list.
+    func selectNextEmail() {
+        guard let current = selectedEmail,
+              let idx = displayedEmails.firstIndex(where: { $0.id == current.id }),
+              idx < displayedEmails.count - 1 else { return }
+        selectionDirection = .bottom
+        let next = displayedEmails[idx + 1]
+        selectedEmail = next
+        selectedEmailIDs = [next.id.uuidString]
     }
 
     func clearSelection() {
@@ -554,11 +578,13 @@ final class AppCoordinator {
         // Keep AccountStore in sync so Settings scene can read the selected account
         AccountStore.shared.selectedAccountID = id
         loadSignatures(for: id)
-        selectedFolder = .inbox
-        selectedInboxCategory = .all
-        selectedLabel = nil
-        selectedEmail = nil
-        selectedEmailIDs = []
+        withAnimation(VikAnimation.folderSwitch) {
+            selectedFolder = .inbox
+            selectedInboxCategory = .all
+            selectedLabel = nil
+            selectedEmail = nil
+            selectedEmailIDs = []
+        }
         searchResetTrigger += 1
         navigationTask?.cancel()
         ThumbnailCache.shared.clearAll()

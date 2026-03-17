@@ -6,6 +6,7 @@ struct EmailRowView: View, Equatable {
     let accountID: String
     let action: () -> Void
     @State private var isHovered = false
+    @State private var hasAppeared = false
     @AppStorage("emailDensity") private var density = "comfortable"
     @State private var showTags = false
     @State private var tagRevealTask: Task<Void, Never>?
@@ -228,6 +229,14 @@ struct EmailRowView: View, Equatable {
             messageIds: [email.gmailMessageID ?? ""],
             accountID: accountID
         ))
+        .opacity(hasAppeared ? 1 : 0)
+        .offset(y: hasAppeared ? 0 : OffsetToken.small)
+        .onAppear {
+            guard !hasAppeared else { return }
+            withAnimation(VikAnimation.springDefault) {
+                hasAppeared = true
+            }
+        }
         .background(PopoverAnchor(holder: popoverHolder))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(email.sender.name), \(email.subject), \(email.preview), \(email.date.formatted())")

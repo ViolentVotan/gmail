@@ -254,7 +254,10 @@ struct ContentView: View {
                     clearSelection: { coordinator.clearSelection() },
                     deselectAll: { coordinator.deselectAll() },
                     startCompose: { coordinator.startCompose(mode: $0) },
-                    discardDraft: { coordinator.discardDraft(id: $0) }
+                    discardDraft: { coordinator.discardDraft(id: $0) },
+                    selectionDirection: coordinator.selectionDirection,
+                    navigatePrevious: { coordinator.selectPrevious() },
+                    navigateNext: { coordinator.selectNextEmail() }
                 )
                 .focused($appFocus, equals: .detail)
             }
@@ -434,8 +437,16 @@ struct ContentView: View {
                         Task { await coordinator.syncEngine?.triggerIncrementalSync() }
                     }
                 }
-                .onChange(of: coordinator.selectedEmail) { _, newValue in
+                .onChange(of: coordinator.selectedEmail) { oldValue, newValue in
                     showSnoozePicker = false
+                    // Track direction for directional detail pane transitions
+                    if let newEmail = newValue, let oldEmail = oldValue {
+                        let emails = coordinator.displayedEmails
+                        if let newIdx = emails.firstIndex(where: { $0.id == newEmail.id }),
+                           let oldIdx = emails.firstIndex(where: { $0.id == oldEmail.id }) {
+                            coordinator.selectionDirection = newIdx < oldIdx ? .top : .bottom
+                        }
+                    }
                     coordinator.handleSelectedEmailChange(newValue)
                 }
                 .onChange(of: coordinator.signatureForNew) { _, _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
