@@ -35,14 +35,18 @@ The UI follows a three-plane model:
 | `Spacing` | `xs` (4), `sm` (8), `md` (12), `lg` (16), `xl` (24), `xxl` (32) |
 | `CornerRadius` | `xs` (4), `sm` (6), `md` (12), `lg` (16), `xl` (24) |
 | `ButtonSize` | `sm` (26), `md` (28), `lg` (30) |
-| `VikAnimation` | `springDefault`, `springSnappy`, `springGentle`, `contentSwitch` |
+| `VikAnimation` | `springDefault` (0.35/0.82), `springSnappy` (0.28/0.78), `springGentle` (0.4/0.88), `contentSwitch` (smooth 0.25), `folderSwitch` (smooth 0.3), `microBounce` (0.25/bounce 0.35) |
+| `OpacityToken` | `disabled` (0.5), `subtle` (0.6), `secondary` (0.7), `highlight` (0.08), `tag` (0.12), `interactive` (0.15), `divider` (0.5), `overlay` (0.45) |
+| `ScaleToken` | `hover` (1.03), `press` (0.97), `emphasis` (1.04), `minimize` (0.5), `enterFrom` (0.95), `sidebarCollapse` (0.92) |
+| `OffsetToken` | `nudge` (4), `small` (12), `medium` (24), `large` (40) |
+| `DurationToken` | `micro` (0.12), `quick` (0.2), `standard` (0.25), `deliberate` (0.3), `stagger` (0.04), `slow` (0.5) |
 | `Typography` | `titleLarge`, `title`, `headline`, `subhead`, `subheadRegular`, `subheadSemibold`, `body`, `bodyMedium`, `bodySemibold`, `callout`, `calloutMedium`, `calloutSemibold`, `footnote`, `caption`, `captionRegular`, `captionSemibold`, `captionSmall`, `captionSmallMedium`, `captionSmallRegular`, `microTag` |
 
 **View modifiers:**
 
 | Modifier | Effect |
 |----------|--------|
-| `.elevation(.transient / .elevated)` | Shadow scale for spatial depth |
+| `.elevation(.surface / .raised / .transient / .elevated)` | 4-level shadow scale for spatial depth |
 | `.floatingPanelStyle(cornerRadius:)` | Liquid Glass + transient elevation for floating surfaces (default `CornerRadius.md`) |
 | `.dropdownPanelStyle()` | Glass + separator border overlay + dual shadow for dropdown/popover panels |
 | `.glassOrMaterial(in:interactive:)` | Liquid Glass effect with optional interactive press feedback |
