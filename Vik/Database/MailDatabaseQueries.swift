@@ -94,8 +94,17 @@ enum MailDatabaseQueries {
     }
 
     /// Count of messages without bodies (for body pre-fetch progress).
+    /// Excludes spam/trash to match `messagesNeedingBodies` — those are never fetched.
     static func messagesWithoutBodiesCount(in db: Database) throws -> Int {
-        try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM messages WHERE full_body_fetched = 0") ?? 0
+        try Int.fetchOne(db, sql: """
+            SELECT COUNT(*) FROM messages m
+            WHERE m.full_body_fetched = 0
+            AND NOT EXISTS (
+                SELECT 1 FROM message_labels ml
+                WHERE ml.message_id = m.gmail_id
+                AND ml.label_id IN (?, ?)
+            )
+        """, arguments: [GmailSystemLabel.spam, GmailSystemLabel.trash]) ?? 0
     }
 
     /// Count of messages associated with a given label.
