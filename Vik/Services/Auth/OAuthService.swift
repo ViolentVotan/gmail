@@ -54,32 +54,37 @@ final class OAuthService: NSObject {
                 byPresenting: request,
                 presenting: window
             ) { [weak self] authState, error in
-                self?.redirectHandler = nil
-                self?.currentAuthorizationFlow = nil
+                // AppAuth calls this callback on an arbitrary thread (often the
+                // SafariLaunchAgent XPC queue). Dispatch to MainActor to safely
+                // access @MainActor-isolated properties.
+                Task { @MainActor in
+                    self?.redirectHandler = nil
+                    self?.currentAuthorizationFlow = nil
 
-                if let error = error {
-                    continuation.resume(throwing: error)
-                    return
+                    if let error = error {
+                        continuation.resume(throwing: error)
+                        return
+                    }
+
+                    guard
+                        let tokenResponse = authState?.lastTokenResponse,
+                        let accessToken   = tokenResponse.accessToken,
+                        let refreshToken  = authState?.refreshToken
+                    else {
+                        continuation.resume(throwing: OAuthError.noRefreshToken)
+                        return
+                    }
+
+                    let expiresIn = Int(tokenResponse.accessTokenExpirationDate?.timeIntervalSinceNow ?? 3600)
+                    let token = AuthToken(
+                        accessToken:  accessToken,
+                        refreshToken: refreshToken,
+                        expiresIn:    max(expiresIn, 1),
+                        tokenType:    tokenResponse.tokenType ?? "Bearer",
+                        scope:        tokenResponse.scope ?? ""
+                    )
+                    continuation.resume(returning: token)
                 }
-
-                guard
-                    let tokenResponse = authState?.lastTokenResponse,
-                    let accessToken   = tokenResponse.accessToken,
-                    let refreshToken  = authState?.refreshToken
-                else {
-                    continuation.resume(throwing: OAuthError.noRefreshToken)
-                    return
-                }
-
-                let expiresIn = Int(tokenResponse.accessTokenExpirationDate?.timeIntervalSinceNow ?? 3600)
-                let token = AuthToken(
-                    accessToken:  accessToken,
-                    refreshToken: refreshToken,
-                    expiresIn:    max(expiresIn, 1),
-                    tokenType:    tokenResponse.tokenType ?? "Bearer",
-                    scope:        tokenResponse.scope ?? ""
-                )
-                continuation.resume(returning: token)
             }
         }
     }
