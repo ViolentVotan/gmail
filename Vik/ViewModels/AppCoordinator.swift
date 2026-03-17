@@ -620,9 +620,21 @@ final class AppCoordinator {
 
         // Clean up per-account state for all removed accounts
         for removedID in removedIDs {
+            TokenStore.shared.delete(for: removedID)
+            UnsubscribeService.shared.clearAccount(removedID)
+            ContactStore.shared.deleteAccount(removedID)
+            SnoozeStore.shared.deleteAccount(removedID)
+            ScheduledSendStore.shared.deleteAccount(removedID)
+            OfflineActionQueue.shared.deleteAccount(removedID)
+            LabelSyncService.shared.clearETags(for: removedID)
             SubscriptionsStore.shared.deleteAccount(removedID)
             MailDatabase.evict(accountID: removedID)
             Task { await SpotlightIndexer.shared.deleteAllItems() }
+            UserDefaults.standard.removeObject(forKey: UserDefaultsKey.signatureForNew(removedID))
+            UserDefaults.standard.removeObject(forKey: UserDefaultsKey.signatureForReply(removedID))
+            UserDefaults.standard.removeObject(forKey: UserDefaultsKey.attachmentExclusionRules(removedID))
+            UserDefaults.standard.removeObject(forKey: "replyDrafts.\(removedID)")
+            UserDefaults.standard.removeObject(forKey: "com.vikingz.vik.dbMigrationCompleted.\(removedID)")
         }
         if !removedIDs.isEmpty {
             SnoozeMonitor.shared.clearAllFailureCounts()

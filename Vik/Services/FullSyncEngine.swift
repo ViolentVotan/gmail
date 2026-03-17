@@ -69,7 +69,7 @@ actor FullSyncEngine {
         db: MailDatabase,
         syncer: BackgroundSyncer,
         api: MessageFetching,
-        quota: QuotaTracker = QuotaTracker()
+        quota: QuotaTracker = .shared
     ) {
         self.accountID = accountID
         self.db = db
@@ -595,8 +595,12 @@ actor FullSyncEngine {
                 state.lastSyncAt = Date().timeIntervalSince1970
             }
 
-            // Fire local notifications for new inbox messages
-            await fireNotifications(for: newMessages)
+            // Fire local notifications only if the history actually advanced.
+            // If latestHistoryId == startHistoryId, the same range was processed
+            // (e.g. empty history page) and notifications would be duplicates.
+            if latestHistoryId != startHistoryId {
+                await fireNotifications(for: newMessages)
+            }
 
             return true
 

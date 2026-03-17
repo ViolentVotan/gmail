@@ -10,14 +10,18 @@ struct ListPaneView: View {
     @Binding var searchFocusTrigger: Bool
     var selectedLabel: GmailLabel?
 
-    let coordinator: AppCoordinator
+    // MARK: - Extracted from AppCoordinator (H8)
+
+    let actionCoordinator: EmailActionCoordinator
+    let mailboxViewModel: MailboxViewModel
+    @Binding var selectedInboxCategory: InboxCategory?
+    let selectNext: (Email?) -> Void
+    let startCompose: (ComposeMode) -> Void
+    let emptyTrashRequested: (Int) -> Void
+    let emptySpamRequested: (Int) -> Void
+    let loadCurrentFolder: () async -> Void
 
     @State private var selectedCategory: InboxCategory = .all
-
-    // MARK: - Convenience Accessors
-
-    private var actionCoordinator: EmailActionCoordinator { coordinator.actionCoordinator }
-    private var mailboxViewModel: MailboxViewModel { coordinator.mailboxViewModel }
 
     private var navigationTitleText: String {
         if selectedFolder == .labels {
@@ -26,10 +30,10 @@ struct ListPaneView: View {
         return selectedFolder.rawValue
     }
 
-    @State private var selectedEmails: [Email] = []
+    // MARK: - Derived Selection (M2)
 
-    private func recomputeSelectedEmails() {
-        selectedEmails = emails.filter { selectedEmailIDs.contains($0.id.uuidString) }
+    private var selectedEmails: [Email] {
+        emails.filter { selectedEmailIDs.contains($0.id.uuidString) }
     }
 
     private func clearSelection() {
@@ -56,11 +60,11 @@ struct ListPaneView: View {
                 .background(SemanticColor.warning.opacity(0.08))
             }
             if selectedFolder == .inbox {
-                @Bindable var vm = coordinator.mailboxViewModel
+                @Bindable var vm = mailboxViewModel
                 CategoryTabBar(
                     selectedCategory: $selectedCategory,
                     priorityFilterOn: $vm.priorityFilterEnabled,
-                    unreadCounts: coordinator.mailboxViewModel.categoryUnreadCounts
+                    unreadCounts: mailboxViewModel.categoryUnreadCounts
                 )
                 Divider()
             }
@@ -69,13 +73,11 @@ struct ListPaneView: View {
         .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 400)
         .navigationTitle(navigationTitleText)
         .onChange(of: selectedCategory) { _, newCategory in
-            coordinator.selectedInboxCategory = newCategory
+            selectedInboxCategory = newCategory
         }
-        .onChange(of: coordinator.selectedInboxCategory) { _, newValue in
+        .onChange(of: selectedInboxCategory) { _, newValue in
             selectedCategory = newValue ?? .all
         }
-        .onChange(of: selectedEmailIDs) { _, _ in recomputeSelectedEmails() }
-        .onChange(of: emails) { _, _ in recomputeSelectedEmails() }
     }
 
     private var emailList: some View {
@@ -84,25 +86,25 @@ struct ListPaneView: View {
             isLoading: isLoading,
             accountID: mailboxViewModel.accountID,
             actions: EmailListActions(
-                onArchive:           { email in Task { await actionCoordinator.archiveEmail(email, selectNext: { coordinator.selectNext($0) }) } },
-                onDelete:            { email in Task { await actionCoordinator.deleteEmail(email, selectNext: { coordinator.selectNext($0) }) } },
+                onArchive:           { email in Task { await actionCoordinator.archiveEmail(email, selectNext: selectNext) } },
+                onDelete:            { email in Task { await actionCoordinator.deleteEmail(email, selectNext: selectNext) } },
                 onToggleStar:        { email in Task { await actionCoordinator.toggleStarEmail(email) } },
                 onMarkUnread:        { email in Task { await actionCoordinator.markUnreadEmail(email) } },
-                onMarkSpam:          { email in Task { await actionCoordinator.markSpamEmail(email, selectNext: { coordinator.selectNext($0) }) } },
+                onMarkSpam:          { email in Task { await actionCoordinator.markSpamEmail(email, selectNext: selectNext) } },
                 onUnsubscribe:       { actionCoordinator.unsubscribeEmail($0) },
-                onMoveToInbox:       { email in Task { await actionCoordinator.moveToInboxEmail(email, selectedFolder: selectedFolder, selectNext: { coordinator.selectNext($0) }) } },
-                onDeletePermanently: { email in Task { await actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selectNext($0) }) } },
-                onMarkNotSpam:       { email in Task { await actionCoordinator.markNotSpamEmail(email, selectNext: { coordinator.selectNext($0) }) } },
-                onSnooze:            { email, date in Task { await actionCoordinator.snoozeEmail(email, until: date, selectNext: { coordinator.selectNext($0) }) } },
+                onMoveToInbox:       { email in Task { await actionCoordinator.moveToInboxEmail(email, selectedFolder: selectedFolder, selectNext: selectNext) } },
+                onDeletePermanently: { email in Task { await actionCoordinator.deletePermanentlyEmail(email, selectNext: selectNext) } },
+                onMarkNotSpam:       { email in Task { await actionCoordinator.markNotSpamEmail(email, selectNext: selectNext) } },
+                onSnooze:            { email, date in Task { await actionCoordinator.snoozeEmail(email, until: date, selectNext: selectNext) } },
                 onUnsnooze:          selectedFolder == .snoozed ? { email in actionCoordinator.unsnoozeEmail(messageId: email.gmailMessageID ?? "", accountID: mailboxViewModel.accountID) } : nil,
                 onReply: { email in
-                    coordinator.startCompose(mode: EmailDetailViewModel.replyMode(for: email))
+                    startCompose(EmailDetailViewModel.replyMode(for: email))
                 },
                 onReplyAll: { email in
-                    coordinator.startCompose(mode: EmailDetailViewModel.replyAllMode(for: email))
+                    startCompose(EmailDetailViewModel.replyAllMode(for: email))
                 },
                 onForward: { email in
-                    coordinator.startCompose(mode: EmailDetailViewModel.forwardMode(for: email))
+                    startCompose(EmailDetailViewModel.forwardMode(for: email))
                 },
                 onBulkArchive:    { Task { await actionCoordinator.bulkArchive(selectedEmails, onClear: clearSelection) } },
                 onBulkDelete:     { Task { await actionCoordinator.bulkDelete(selectedEmails, onClear: clearSelection) } },
@@ -111,22 +113,22 @@ struct ListPaneView: View {
                 onBulkToggleStar: { Task { for e in selectedEmails { await actionCoordinator.toggleStarEmail(e) } } },
                 onEmptyTrash: {
                     actionCoordinator.emptyTrash(accountID: mailboxViewModel.accountID) { count in
-                        coordinator.emptyTrashRequested(count: count)
+                        emptyTrashRequested(count)
                     }
                 },
                 onEmptySpam: {
                     actionCoordinator.emptySpam(accountID: mailboxViewModel.accountID) { count in
-                        coordinator.emptySpamRequested(count: count)
+                        emptySpamRequested(count)
                     }
                 },
                 onSearch: { query in
                     if query.isEmpty {
-                        Task { await coordinator.loadCurrentFolder() }
+                        Task { await loadCurrentFolder() }
                     } else {
                         Task { await mailboxViewModel.search(query: query) }
                     }
                 },
-                onRefresh: { await coordinator.loadCurrentFolder() },
+                onRefresh: { await loadCurrentFolder() },
                 onLoadMore: { mailboxViewModel.loadMore() }
             ),
             searchResetTrigger: searchResetTrigger,

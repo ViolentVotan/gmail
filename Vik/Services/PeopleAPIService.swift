@@ -274,21 +274,27 @@ final class PeopleAPIService {
                 // that were partially merged during the failed incremental sync.
                 allContacts = Array(allContacts.prefix(connectionsCount))
                 var pageToken: String? = nil
-                repeat {
-                    var urlStr = "https://people.googleapis.com/v1/otherContacts"
-                        + "?readMask=metadata,names,emailAddresses&pageSize=1000"
-                        + "&requestSyncToken=true"
-                    if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
-                    let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
-                    let beforeCount = allContacts.count
-                    allContacts.append(contentsOf: parseContacts(from: response.otherContacts ?? []))
-                    Self.logger.debug("Loaded \(allContacts.count - beforeCount, privacy: .public) from Other Contacts page")
-                    pageToken = response.nextPageToken
-                    newOtherSyncToken = response.nextSyncToken ?? newOtherSyncToken
-                    if pageToken != nil {
-                        try? await Task.sleep(for: .milliseconds(100))
-                    }
-                } while pageToken != nil
+                do {
+                    repeat {
+                        var urlStr = "https://people.googleapis.com/v1/otherContacts"
+                            + "?readMask=metadata,names,emailAddresses&pageSize=1000"
+                            + "&requestSyncToken=true"
+                        if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
+                        let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
+                        let beforeCount = allContacts.count
+                        allContacts.append(contentsOf: parseContacts(from: response.otherContacts ?? []))
+                        Self.logger.debug("Loaded \(allContacts.count - beforeCount, privacy: .public) from Other Contacts page")
+                        pageToken = response.nextPageToken
+                        newOtherSyncToken = response.nextSyncToken ?? newOtherSyncToken
+                        if pageToken != nil {
+                            try? await Task.sleep(for: .milliseconds(100))
+                        }
+                    } while pageToken != nil
+                } catch {
+                    // Full re-fetch failed mid-pagination — abort without touching the DB.
+                    Self.logger.error("Full Other Contacts fetch failed: \(error, privacy: .public)")
+                    return
+                }
             }
 
         } catch {

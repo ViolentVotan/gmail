@@ -136,8 +136,7 @@ struct SlidePanelsOverlay: View {
         let accountID = panels.previewAccountID
 
         var actions = EmailDetailActions.contentActions(
-            panelCoordinator: panels,
-            accountID: accountID
+            panelCoordinator: panels
         )
 
         // Email mutations — routed through closures from parent (no direct service calls)

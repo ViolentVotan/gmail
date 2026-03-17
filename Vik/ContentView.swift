@@ -112,7 +112,14 @@ struct ContentView: View {
                         selectedEmailIDs: $coordinator.selectedEmailIDs,
                         searchFocusTrigger: $coordinator.searchFocusTrigger,
                         selectedLabel: coordinator.selectedLabel,
-                        coordinator: coordinator
+                        actionCoordinator: coordinator.actionCoordinator,
+                        mailboxViewModel: coordinator.mailboxViewModel,
+                        selectedInboxCategory: $coordinator.selectedInboxCategory,
+                        selectNext: { coordinator.selectNext($0) },
+                        startCompose: { coordinator.startCompose(mode: $0) },
+                        emptyTrashRequested: { coordinator.emptyTrashRequested(count: $0) },
+                        emptySpamRequested: { coordinator.emptySpamRequested(count: $0) },
+                        loadCurrentFolder: { await coordinator.loadCurrentFolder() }
                     )
                     .focused($appFocus, equals: .list)
                 }
@@ -123,7 +130,23 @@ struct ContentView: View {
                         selectedEmailIDs: coordinator.selectedEmailIDs,
                         selectedFolder: coordinator.selectedFolder,
                         displayedEmails: coordinator.displayedEmails,
-                        coordinator: coordinator
+                        actionCoordinator: coordinator.actionCoordinator,
+                        mailboxViewModel: coordinator.mailboxViewModel,
+                        mailStore: coordinator.mailStore,
+                        accountID: coordinator.accountID,
+                        fromAddress: coordinator.fromAddress,
+                        composeMode: coordinator.composeMode,
+                        signatureForNew: coordinator.signatureForNew,
+                        signatureForReply: coordinator.signatureForReply,
+                        panelCoordinator: coordinator.panelCoordinator,
+                        attachmentIndexer: coordinator.attachmentIndexer,
+                        contacts: coordinator.contacts,
+                        mailDatabase: coordinator.mailDatabase,
+                        selectNext: { coordinator.selectNext($0) },
+                        clearSelection: { coordinator.clearSelection() },
+                        deselectAll: { coordinator.deselectAll() },
+                        startCompose: { coordinator.startCompose(mode: $0) },
+                        discardDraft: { coordinator.discardDraft(id: $0) }
                     )
                     .focused($appFocus, equals: .detail)
                 }
@@ -406,73 +429,85 @@ struct ContentView: View {
         func body(content: Content) -> some View {
             content
                 .task {
-                    for await notification in NotificationCenter.default.notifications(named: .composeEmailFromIntent) {
-                        let recipient = notification.userInfo?["recipient"] as? String
-                        coordinator.composeNewEmail(recipient: recipient)
-                    }
-                }
-                .task {
-                    for await notification in NotificationCenter.default.notifications(named: .searchEmailFromIntent) {
-                        coordinator.selectedFolder = .inbox
-                        coordinator.searchFocusTrigger = true
-                        if let query = notification.userInfo?["query"] as? String, !query.isEmpty {
-                            await coordinator.mailboxViewModel.search(query: query)
+                    await withDiscardingTaskGroup { group in
+                        group.addTask {
+                            for await notification in NotificationCenter.default.notifications(named: .composeEmailFromIntent) {
+                                let recipient = notification.userInfo?["recipient"] as? String
+                                await coordinator.composeNewEmail(recipient: recipient)
+                            }
                         }
-                    }
-                }
-                .task {
-                    for await notification in NotificationCenter.default.notifications(named: .quickReplyFromNotification) {
-                        guard let messageId = notification.userInfo?["messageId"] as? String,
-                              let text = notification.userInfo?["text"] as? String,
-                              let accountID = notification.userInfo?["accountID"] as? String,
-                              !text.isEmpty
-                        else { continue }
-                        await coordinator.handleQuickReply(messageId: messageId, text: text, accountID: accountID)
-                    }
-                }
-                .task {
-                    for await notification in NotificationCenter.default.notifications(named: .openEmailFromIntent) {
-                        guard let messageId = notification.userInfo?["messageId"] as? String else { continue }
-                        if let accountID = notification.userInfo?["accountID"] as? String,
-                           !accountID.isEmpty,
-                           coordinator.selectedAccountID != accountID {
-                            coordinator.selectedAccountID = accountID
+                        group.addTask {
+                            for await notification in NotificationCenter.default.notifications(named: .searchEmailFromIntent) {
+                                await MainActor.run {
+                                    coordinator.selectedFolder = .inbox
+                                    coordinator.searchFocusTrigger = true
+                                }
+                                if let query = notification.userInfo?["query"] as? String, !query.isEmpty {
+                                    await coordinator.mailboxViewModel.search(query: query)
+                                }
+                            }
                         }
-                        coordinator.navigateToMessage(gmailMessageID: messageId)
-                    }
-                }
-                .task {
-                    for await notification in NotificationCenter.default.notifications(named: .replyEmailFromIntent) {
-                        guard let messageId = notification.userInfo?["messageId"] as? String else { continue }
-                        if let accountID = notification.userInfo?["accountID"] as? String,
-                           !accountID.isEmpty,
-                           coordinator.selectedAccountID != accountID {
-                            coordinator.selectedAccountID = accountID
+                        group.addTask {
+                            for await notification in NotificationCenter.default.notifications(named: .quickReplyFromNotification) {
+                                guard let messageId = notification.userInfo?["messageId"] as? String,
+                                      let text = notification.userInfo?["text"] as? String,
+                                      let accountID = notification.userInfo?["accountID"] as? String,
+                                      !text.isEmpty
+                                else { continue }
+                                await coordinator.handleQuickReply(messageId: messageId, text: text, accountID: accountID)
+                            }
                         }
-                        let replyAll = notification.userInfo?["replyAll"] as? Bool ?? false
-                        coordinator.navigateAndReply(gmailMessageID: messageId, replyAll: replyAll)
-                    }
-                }
-                .task {
-                    for await notification in NotificationCenter.default.notifications(named: .forwardEmailFromIntent) {
-                        guard let messageId = notification.userInfo?["messageId"] as? String else { continue }
-                        if let accountID = notification.userInfo?["accountID"] as? String,
-                           !accountID.isEmpty,
-                           coordinator.selectedAccountID != accountID {
-                            coordinator.selectedAccountID = accountID
+                        group.addTask {
+                            for await notification in NotificationCenter.default.notifications(named: .openEmailFromIntent) {
+                                guard let messageId = notification.userInfo?["messageId"] as? String else { continue }
+                                let accountID = notification.userInfo?["accountID"] as? String
+                                await MainActor.run {
+                                    if let accountID, !accountID.isEmpty,
+                                       coordinator.selectedAccountID != accountID {
+                                        coordinator.selectedAccountID = accountID
+                                    }
+                                    coordinator.navigateToMessage(gmailMessageID: messageId)
+                                }
+                            }
                         }
-                        let recipient = notification.userInfo?["to"] as? String
-                        coordinator.navigateAndForward(gmailMessageID: messageId, recipient: recipient)
-                    }
-                }
-                .task {
-                    for await _ in NotificationCenter.default.notifications(named: NSApplication.didBecomeActiveNotification) {
-                        await coordinator.syncEngine?.updatePollingInterval(appIsActive: true, windowIsKey: true)
-                    }
-                }
-                .task {
-                    for await _ in NotificationCenter.default.notifications(named: NSApplication.didResignActiveNotification) {
-                        await coordinator.syncEngine?.updatePollingInterval(appIsActive: false, windowIsKey: false)
+                        group.addTask {
+                            for await notification in NotificationCenter.default.notifications(named: .replyEmailFromIntent) {
+                                guard let messageId = notification.userInfo?["messageId"] as? String else { continue }
+                                let accountID = notification.userInfo?["accountID"] as? String
+                                let replyAll = notification.userInfo?["replyAll"] as? Bool ?? false
+                                await MainActor.run {
+                                    if let accountID, !accountID.isEmpty,
+                                       coordinator.selectedAccountID != accountID {
+                                        coordinator.selectedAccountID = accountID
+                                    }
+                                    coordinator.navigateAndReply(gmailMessageID: messageId, replyAll: replyAll)
+                                }
+                            }
+                        }
+                        group.addTask {
+                            for await notification in NotificationCenter.default.notifications(named: .forwardEmailFromIntent) {
+                                guard let messageId = notification.userInfo?["messageId"] as? String else { continue }
+                                let accountID = notification.userInfo?["accountID"] as? String
+                                let recipient = notification.userInfo?["to"] as? String
+                                await MainActor.run {
+                                    if let accountID, !accountID.isEmpty,
+                                       coordinator.selectedAccountID != accountID {
+                                        coordinator.selectedAccountID = accountID
+                                    }
+                                    coordinator.navigateAndForward(gmailMessageID: messageId, recipient: recipient)
+                                }
+                            }
+                        }
+                        group.addTask {
+                            for await _ in NotificationCenter.default.notifications(named: NSApplication.didBecomeActiveNotification) {
+                                await coordinator.syncEngine?.updatePollingInterval(appIsActive: true, windowIsKey: true)
+                            }
+                        }
+                        group.addTask {
+                            for await _ in NotificationCenter.default.notifications(named: NSApplication.didResignActiveNotification) {
+                                await coordinator.syncEngine?.updatePollingInterval(appIsActive: false, windowIsKey: false)
+                            }
+                        }
                     }
                 }
         }

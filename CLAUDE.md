@@ -69,22 +69,22 @@ Both share the same `sourcekit-lsp` server and Xcode build index — build in Xc
 
 ## Swift/SwiftUI Skill Routing
 
-These skills provide current API references and patterns. **Invoke the matching skill before writing code in that area.**
+All skills target **macOS 26+ / Swift 6.2+ exclusively** — no legacy patterns. **Invoke the matching skill before writing code in that area.**
 
 | When working on… | Invoke skill | Why |
 |-------------------|-------------|-----|
-| `@Observable` VMs, `@State`/`@Bindable`, view composition | `swiftui-patterns` | MV architecture, ownership rules |
-| Actors, `@concurrent`, `@MainActor`, `Sendable`, `TaskGroup` | `swift-concurrency` | Swift 6.2 approachable concurrency |
-| Tests (`@Test`, `#expect`, `@Suite`, parameterized) | `swift-testing` | Swift Testing framework patterns |
-| Liquid glass, `glassEffect`, `GlassEffectContainer` | `swiftui-liquid-glass` | macOS 26+ glass API |
-| Stacks, grids, lists, forms, `ScrollView`, `.searchable` | `swiftui-layout-components` | Layout best practices |
-| `NavigationStack`, `NavigationSplitView`, sheets, deep links | `swiftui-navigation` | Navigation patterns |
-| `withAnimation`, springs, keyframes, transitions, SF Symbols | `swiftui-animation` | Animation API reference |
-| Enums, protocols, generics, result builders, `Codable` | `swift-language` | Modern Swift idioms |
-| Slow rendering, excessive updates, body cost, profiling | `swiftui-performance` | Performance audit |
-| `UIViewRepresentable`, `UIHostingController` bridging | `swiftui-uikit-interop` | UIKit interop |
-| Tap/drag/magnify gestures, gesture composition | `swiftui-gestures` | Gesture handling |
-| Bar/line/area/pie charts, data visualization | `swift-charts` | Swift Charts API |
+| `@Observable` VMs, `@State`/`@Bindable`, view composition, `.sensoryFeedback` | `swiftui-patterns` | MV architecture, ownership rules, macOS 26 APIs |
+| Actors, `@concurrent`, `@MainActor`, `isolated deinit`, `Sendable`, `TaskGroup`, `Mutex` | `swift-concurrency` | Swift 6.2 approachable concurrency (SE-0466) |
+| Tests (`@Test`, `#expect`, `@Suite`, `.serialized`, exit tests, image attachments) | `swift-testing` | Swift Testing framework (Xcode 26) |
+| Liquid glass, `glassEffect`, `GlassEffectContainer`, `glassBackgroundEffect` | `swiftui-liquid-glass` | macOS 26 glass API |
+| Stacks, grids, `Table`, `ScrollPosition`, forms, `DragContainer`, `.searchable` | `swiftui-layout-components` | Layout + multi-column data views |
+| `NavigationStack`, `NavigationSplitView`, sheets, tab bar, deep links | `swiftui-navigation` | Navigation + Liquid Glass sheet morphing |
+| `withAnimation`, springs, keyframes, SF Symbols 7 Draw, `@Animatable`, transitions | `swiftui-animation` | Animation API (macOS-native, AppKit bridge) |
+| Enums, protocols, generics, `~Copyable`, `borrowing`/`consuming`, parameter packs, `Codable` | `swift-language` | Modern Swift 6.2 idioms |
+| Slow rendering, excessive updates, Instruments 26, Cause & Effect graph | `swiftui-performance` | Performance audit (macOS-specific) |
+| `NSViewRepresentable`, `NSHostingView`, `NSHostingController`, AppKit bridging | `swiftui-uikit-interop` | AppKit/UIKit interop (macOS primary) |
+| Tap/drag/magnify gestures, `NSGestureRecognizerRepresentable`, composition | `swiftui-gestures` | Gesture handling (macOS 26) |
+| Bar/line/area/pie charts, `Chart3D`, `SurfacePlot`, data visualization | `swift-charts` | Swift Charts + 3D (macOS 26) |
 
 **Not used:** `swift-data` (project uses GRDB, not SwiftData).
 

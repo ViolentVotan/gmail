@@ -260,7 +260,6 @@ struct MailDraftEntity {
 @AppEntity(schema: .mail.message)
 struct MailMessageEntity: IndexedEntity {
     static let defaultQuery = MailMessageEntityQuery()
-    static let typeDisplayRepresentation: TypeDisplayRepresentation = "Email"
 
     var id: String // Gmail message ID
 

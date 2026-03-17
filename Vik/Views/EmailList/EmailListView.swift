@@ -85,7 +85,7 @@ struct EmailListView: View {
             emailListSection
             hiddenButtons
         }
-        .onAppear { recomputeSortedEmails() }
+        .task { recomputeSortedEmails() }
         .onChange(of: emails) { _, _ in recomputeSortedEmails() }
         .task(id: "midnight-refresh") {
             // Refresh date sections at midnight so "Today"/"Yesterday" labels stay correct.

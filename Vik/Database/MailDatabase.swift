@@ -14,7 +14,7 @@ final class MailDatabase: Sendable {
             .appendingPathComponent("mail-db", isDirectory: true)
     }
 
-    /// Creates or opens the database for the given account.
+    /// Creates or opens the database for the given account and runs migrations.
     /// - Parameters:
     ///   - accountID: The Gmail account identifier (email address).
     ///   - baseDirectory: Override for testing. Defaults to Application Support.
@@ -38,6 +38,36 @@ final class MailDatabase: Sendable {
         try MailDatabaseMigrations.migrator.migrate(dbPool)
         // Run PRAGMA optimize once per open to help SQLite's query planner
         // maintain optimal index statistics without manual ANALYZE.
+        try dbPool.write { db in
+            try db.execute(sql: "PRAGMA optimize")
+        }
+    }
+
+    /// Opens the database pool without running migrations.
+    /// Used exclusively by `shared(for:)` so that only the winning instance migrates,
+    /// preventing `close()` from interrupting an in-flight migration on the losing instance.
+    private init(accountID: String, baseDirectory: URL? = nil, skipMigrations: Bool) throws {
+        self.accountID = accountID
+        let dir = baseDirectory ?? Self.defaultBaseDirectory
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        let path = dir.appendingPathComponent("\(accountID).sqlite").path
+
+        var config = Configuration()
+        config.prepareDatabase { db in
+            try db.execute(sql: "PRAGMA synchronous = NORMAL")
+            try db.execute(sql: "PRAGMA foreign_keys = ON")
+            try db.execute(sql: "PRAGMA cache_size = -64000")
+            try db.execute(sql: "PRAGMA wal_autocheckpoint = 400")
+        }
+
+        dbPool = try DatabasePool(path: path, configuration: config)
+    }
+
+    /// Runs schema migrations and PRAGMA optimize.
+    /// Called once, only for the instance that wins the `shared(for:)` race.
+    private func migrate() throws {
+        try MailDatabaseMigrations.migrator.migrate(dbPool)
         try dbPool.write { db in
             try db.execute(sql: "PRAGMA optimize")
         }
@@ -87,22 +117,27 @@ final class MailDatabase: Sendable {
 
     /// Returns a cached `MailDatabase` for the given account, creating one if needed.
     /// Avoids opening redundant `DatabasePool` connections across Intents and extensions.
-    /// Uses double-checked locking: cache lookup under lock, database creation (which runs
-    /// migrations) outside lock, then re-check under lock to insert. This avoids blocking
-    /// all threads on a global mutex during potentially slow migrations.
+    /// Uses double-checked locking: cache lookup under lock, database creation outside lock,
+    /// then re-check under lock to insert. Migration runs only for the winning instance,
+    /// preventing `close()` from interrupting an in-flight migration on the losing instance.
     static func shared(for accountID: String) throws -> MailDatabase {
         if let existing = instances.withLock({ $0[accountID] }) {
             return existing
         }
-        let db = try MailDatabase(accountID: accountID)
-        return instances.withLock { cache in
-            if let existing = cache[accountID] {
-                // Another thread created a DB while we were migrating — close ours and use theirs.
+        let db = try MailDatabase(accountID: accountID, skipMigrations: true)
+        let winner = instances.withLock { cache -> MailDatabase? in
+            if cache[accountID] != nil {
+                // Another thread won the race — discard our instance (no migrations ran yet).
                 db.close()
-                return existing
+                return nil
             }
             cache[accountID] = db
             return db
         }
+        if let winner {
+            try winner.migrate()
+            return winner
+        }
+        return instances.withLock { $0[accountID]! }
     }
 }

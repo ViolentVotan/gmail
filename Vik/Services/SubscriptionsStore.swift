@@ -5,6 +5,7 @@ import Observation
 
 private actor URLValidityCache {
     private var cache: [URL: Bool] = [:]
+    private var insertionOrder: [URL] = []
     private let maxCacheSize = 500
 
     func get(_ url: URL) -> Bool? {
@@ -12,13 +13,16 @@ private actor URLValidityCache {
     }
 
     func set(_ url: URL, valid: Bool) {
-        if cache.count >= maxCacheSize {
-            let removeCount = cache.count / 4
-            for key in cache.keys.prefix(removeCount) {
-                cache.removeValue(forKey: key)
-            }
+        if cache[url] == nil {
+            insertionOrder.append(url)
         }
         cache[url] = valid
+        if cache.count > maxCacheSize {
+            let removeCount = cache.count / 4
+            let toRemove = Array(insertionOrder.prefix(removeCount))
+            toRemove.forEach { cache.removeValue(forKey: $0) }
+            insertionOrder.removeFirst(removeCount)
+        }
     }
 
     /// Performs a HEAD request and returns true if the server replies 2xx/3xx.
@@ -119,9 +123,6 @@ final class SubscriptionsStore {
         }
         guard !candidates.isEmpty else { return }
 
-        // Mark as seen immediately so concurrent calls don't re-process
-        candidates.compactMap(\.gmailMessageID).forEach { processedIDs.insert($0) }
-
         // Cancel any in-flight analysis and bump the generation so the old
         // task's defer block won't corrupt the new task's state.
         analysisTask?.cancel()
@@ -151,6 +152,11 @@ final class SubscriptionsStore {
                 for await (email, valid) in group {
                     guard !Task.isCancelled else { return }
                     guard accountID == expectedAccountID else { break }
+                    // Mark as processed only after validation completes so that
+                    // cancelled tasks don't permanently exclude their candidates.
+                    if let id = email.gmailMessageID {
+                        processedIDs.insert(id)
+                    }
                     guard valid else { continue }
                     if !entries.contains(where: { $0.id == email.id }) {
                         entries.append(email)

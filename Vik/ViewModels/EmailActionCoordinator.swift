@@ -320,6 +320,7 @@ final class EmailActionCoordinator {
 
     private func confirmEmptyFolder(labelID: String, accountID: String, onConfirm: @escaping (Int) -> Void) {
         guard !accountID.isEmpty else { return }
+        let expectedAccountID = accountID
         Task { [weak self] in
             guard let self else { return }
             var count: Int
@@ -327,6 +328,7 @@ final class EmailActionCoordinator {
                 let label = try await GmailLabelService.shared.getLabel(id: labelID, accountID: accountID)
                 count = label.messagesTotal ?? 0
             } catch {
+                guard self.mailboxViewModel.accountID == expectedAccountID else { return }
                 count = self.mailboxViewModel.emails.count
             }
             guard count > 0 else { return }
@@ -347,6 +349,10 @@ final class EmailActionCoordinator {
         offlineToast: String,
         undoLabel: String
     ) async {
+        if offlineType == nil, !NetworkMonitor.shared.isConnected {
+            ToastManager.shared.show(message: offlineToast, type: .error)
+            return
+        }
         let vm = mailboxViewModel
         let msgIDs = emails.compactMap(\.gmailMessageID)
         let originalLabelsMap = await vm.updateLabelsInDatabaseBatch(msgIDs, addLabelIds: addLabels, removeLabelIds: removeLabels)

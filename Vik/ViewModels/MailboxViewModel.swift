@@ -57,6 +57,25 @@ private func mutateLabels(
         arguments: [isRead, isStarred, messageID]
     )
 
+    // 6. Recompute thread_message_count for all messages in the same thread.
+    //    Uses the same CTE-based pattern as BackgroundSyncer.updateThreadCounts.
+    if let threadID = try String.fetchOne(database, sql:
+        "SELECT thread_id FROM messages WHERE gmail_id = ?",
+        arguments: [messageID]
+    ) {
+        try database.execute(sql: """
+            WITH thread_counts AS (
+                SELECT thread_id, COUNT(*) AS cnt
+                FROM messages
+                WHERE thread_id = ?
+                GROUP BY thread_id
+            )
+            UPDATE messages SET thread_message_count = (
+                SELECT cnt FROM thread_counts tc WHERE tc.thread_id = messages.thread_id
+            ) WHERE thread_id = ?
+        """, arguments: [threadID, threadID])
+    }
+
     return currentLabels
 }
 
@@ -368,7 +387,7 @@ final class MailboxViewModel {
         labels.removeAll { $0.id == label.id }
         do {
             try await GmailLabelService.shared.deleteLabel(id: label.id, accountID: accountID)
-            try? await mailDatabase?.dbPool.write { db in
+            _ = try? await mailDatabase?.dbPool.write { db in
                 try LabelRecord.filter(Column("gmail_id") == label.id).deleteAll(db)
             }
         } catch {
@@ -731,7 +750,7 @@ final class MailboxViewModel {
             if let syncer = backgroundSyncer {
                 try? await syncer.deleteMessages(gmailIds: [messageID])
             } else {
-                try? await mailDatabase?.dbPool.write { db in
+                _ = try? await mailDatabase?.dbPool.write { db in
                     try MessageRecord.deleteOne(db, key: messageID)
                 }
             }

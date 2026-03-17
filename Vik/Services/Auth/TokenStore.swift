@@ -50,24 +50,27 @@ final class TokenStore {
         return result as? Data
     }
 
-    private func saveKeyToKeychain(_ data: Data) {
+    private func saveKeychainItem(service: String, account: String, data: Data) {
         let query: [String: Any] = [
             kSecClass as String:            kSecClassGenericPassword,
-            kSecAttrService as String:      keychainService,
-            kSecAttrAccount as String:      keychainAccount,
+            kSecAttrService as String:      service,
+            kSecAttrAccount as String:      account,
             kSecValueData as String:        data,
             kSecAttrAccessible as String:   kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
         ]
         let status = SecItemAdd(query as CFDictionary, nil)
         if status == errSecDuplicateItem {
-            let searchQuery: [String: Any] = [
+            let search: [String: Any] = [
                 kSecClass as String:       kSecClassGenericPassword,
-                kSecAttrService as String: keychainService,
-                kSecAttrAccount as String: keychainAccount,
+                kSecAttrService as String: service,
+                kSecAttrAccount as String: account,
             ]
-            let update: [String: Any] = [kSecValueData as String: data]
-            SecItemUpdate(searchQuery as CFDictionary, update as CFDictionary)
+            SecItemUpdate(search as CFDictionary, [kSecValueData as String: data] as CFDictionary)
         }
+    }
+
+    private func saveKeyToKeychain(_ data: Data) {
+        saveKeychainItem(service: keychainService, account: keychainAccount, data: data)
     }
 
     private func migrateKeyFromUserDefaultsIfNeeded() {
@@ -101,24 +104,7 @@ final class TokenStore {
     }
 
     private func saveTokenData(_ data: Data, for accountID: String) {
-        let account = tokenKeychainAccount(for: accountID)
-        let query: [String: Any] = [
-            kSecClass as String:            kSecClassGenericPassword,
-            kSecAttrService as String:      keychainService,
-            kSecAttrAccount as String:      account,
-            kSecValueData as String:        data,
-            kSecAttrAccessible as String:   kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-        ]
-        let status = SecItemAdd(query as CFDictionary, nil)
-        if status == errSecDuplicateItem {
-            let searchQuery: [String: Any] = [
-                kSecClass as String:       kSecClassGenericPassword,
-                kSecAttrService as String: keychainService,
-                kSecAttrAccount as String: account,
-            ]
-            let update: [String: Any] = [kSecValueData as String: data]
-            SecItemUpdate(searchQuery as CFDictionary, update as CFDictionary)
-        }
+        saveKeychainItem(service: keychainService, account: tokenKeychainAccount(for: accountID), data: data)
     }
 
     private func deleteTokenData(for accountID: String) {

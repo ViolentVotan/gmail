@@ -14,8 +14,8 @@ final class UnsubscribeService {
     // MARK: - Persisted state
 
     func isUnsubscribed(messageID: String, accountID: String) -> Bool {
-        let set = UserDefaults.standard.stringArray(forKey: doneKey(for: accountID)) ?? []
-        return set.contains(messageID)
+        let arr = UserDefaults.standard.stringArray(forKey: doneKey(for: accountID)) ?? []
+        return Set(arr).contains(messageID)
     }
 
     private func markUnsubscribed(messageID: String, accountID: String) {

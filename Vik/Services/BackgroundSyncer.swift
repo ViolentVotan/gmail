@@ -87,7 +87,7 @@ actor BackgroundSyncer {
                 guard var record = try MessageRecord.fetchOne(db, key: update.gmailId) else { continue }
                 record.bodyHtml = update.html
                 record.bodyPlain = update.plain
-                record.fullBodyFetched = true
+                record.fullBodyFetched = update.html != nil || update.plain != nil
                 record.fetchedAt = now
                 try record.update(db)
                 try FTSManager.update(message: record, in: db)
@@ -122,13 +122,6 @@ actor BackgroundSyncer {
             for gmail in gmailLabels {
                 try LabelRecord(from: gmail).upsert(db)
             }
-        }
-    }
-
-    /// @deprecated Use `syncLabels(_:)` instead — it combines upsert and delete in a single transaction.
-    func deleteStaleLabels(keeping validGmailIDs: Set<String>) async throws {
-        try await db.dbPool.write { db in
-            try LabelRecord.filter(!validGmailIDs.contains(Column("gmail_id"))).deleteAll(db)
         }
     }
 

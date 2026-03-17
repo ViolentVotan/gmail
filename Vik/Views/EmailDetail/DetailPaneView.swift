@@ -6,20 +6,25 @@ struct DetailPaneView: View {
     let selectedFolder: Folder
     let displayedEmails: [Email]
 
-    let coordinator: AppCoordinator
+    // MARK: - Extracted from AppCoordinator (H8)
 
-    // MARK: - Convenience Accessors
-
-    private var actionCoordinator: EmailActionCoordinator { coordinator.actionCoordinator }
-    private var mailboxViewModel: MailboxViewModel { coordinator.mailboxViewModel }
-    private var mailStore: MailStore { coordinator.mailStore }
-    private var accountID: String { coordinator.accountID }
-    private var fromAddress: String { coordinator.fromAddress }
-    private var composeMode: ComposeMode { coordinator.composeMode }
-    private var signatureForNew: String { coordinator.signatureForNew }
-    private var signatureForReply: String { coordinator.signatureForReply }
-    private var panelCoordinator: PanelCoordinator { coordinator.panelCoordinator }
-    private var attachmentIndexer: AttachmentIndexer? { coordinator.attachmentIndexer }
+    let actionCoordinator: EmailActionCoordinator
+    let mailboxViewModel: MailboxViewModel
+    let mailStore: MailStore
+    let accountID: String
+    let fromAddress: String
+    let composeMode: ComposeMode
+    let signatureForNew: String
+    let signatureForReply: String
+    let panelCoordinator: PanelCoordinator
+    let attachmentIndexer: AttachmentIndexer?
+    let contacts: [StoredContact]
+    let mailDatabase: MailDatabase?
+    let selectNext: (Email?) -> Void
+    let clearSelection: () -> Void
+    let deselectAll: () -> Void
+    let startCompose: (ComposeMode) -> Void
+    let discardDraft: (UUID) -> Void
 
     /// Resolves the best send-as alias for the given email, falling back to the primary account address.
     /// For outgoing folders (Sent), recipients are outbound contacts — no alias will match, so this
@@ -55,10 +60,10 @@ struct DetailPaneView: View {
         return email.isDraft
     }
 
-    @State private var selectedEmails: [Email] = []
+    // MARK: - Derived Selection (M2)
 
-    private func recomputeSelectedEmails() {
-        selectedEmails = displayedEmails.filter { selectedEmailIDs.contains($0.id.uuidString) }
+    private var selectedEmails: [Email] {
+        displayedEmails.filter { selectedEmailIDs.contains($0.id.uuidString) }
     }
 
     var body: some View {
@@ -74,8 +79,6 @@ struct DetailPaneView: View {
             }
         }
         .navigationSplitViewColumnWidth(min: 500, ideal: 700)
-        .onChange(of: selectedEmailIDs) { _, _ in recomputeSelectedEmails() }
-        .onChange(of: displayedEmails) { _, _ in recomputeSelectedEmails() }
     }
 
     // MARK: - Bulk Actions
@@ -84,13 +87,13 @@ struct DetailPaneView: View {
         BulkActionBarView(
             count: selectedEmailIDs.count,
             selectedFolder: selectedFolder,
-            onArchive:     { Task { await actionCoordinator.bulkArchive(selectedEmails, onClear: { coordinator.clearSelection() }) } },
-            onDelete:      { Task { await actionCoordinator.bulkDelete(selectedEmails, onClear: { coordinator.clearSelection() }) } },
-            onMarkUnread:  { Task { await actionCoordinator.bulkMarkUnread(selectedEmails, onClear: { coordinator.deselectAll() }) } },
-            onMarkRead:    { Task { await actionCoordinator.bulkMarkRead(selectedEmails, onClear: { coordinator.deselectAll() }) } },
+            onArchive:     { Task { await actionCoordinator.bulkArchive(selectedEmails, onClear: clearSelection) } },
+            onDelete:      { Task { await actionCoordinator.bulkDelete(selectedEmails, onClear: clearSelection) } },
+            onMarkUnread:  { Task { await actionCoordinator.bulkMarkUnread(selectedEmails, onClear: deselectAll) } },
+            onMarkRead:    { Task { await actionCoordinator.bulkMarkRead(selectedEmails, onClear: deselectAll) } },
             onToggleStar:  { Task { for e in selectedEmails { await actionCoordinator.toggleStarEmail(e) } } },
-            onMoveToInbox: { Task { await actionCoordinator.bulkMoveToInbox(selectedEmails, selectedFolder: selectedFolder, onClear: { coordinator.clearSelection() }) } },
-            onDeselectAll: { coordinator.deselectAll() }
+            onMoveToInbox: { Task { await actionCoordinator.bulkMoveToInbox(selectedEmails, selectedFolder: selectedFolder, onClear: clearSelection) } },
+            onDeselectAll: deselectAll
         )
     }
 
@@ -106,8 +109,8 @@ struct DetailPaneView: View {
             sendAsAliases: mailboxViewModel.sendAsAliases,
             signatureForNew: signatureForNew,
             signatureForReply: signatureForReply,
-            contacts: coordinator.contacts,
-            onDiscard: { coordinator.discardDraft(id: draftId) },
+            contacts: contacts,
+            onDiscard: { discardDraft(draftId) },
             onOpenLink: { url in panelCoordinator.openInAppBrowser(url: url) }
         )
         .id(draftId)
@@ -125,8 +128,8 @@ struct DetailPaneView: View {
             attachmentIndexer: attachmentIndexer,
             allLabels: mailboxViewModel.labels,
             fromAddress: resolvedFromAddress(for: email),
-            mailDatabase: coordinator.mailDatabase,
-            contacts: coordinator.contacts
+            mailDatabase: mailDatabase,
+            contacts: contacts
         )
         .id(email.id)
     }
@@ -135,29 +138,40 @@ struct DetailPaneView: View {
     /// so SwiftUI can short-circuit the detail view via `.id(email.id)` without
     /// re-evaluating closures when only unrelated state changed.
     private func buildActions(for email: Email) -> EmailDetailActions {
-        let selectNext: (Email?) -> Void = { coordinator.selectNext($0) }
+        let selectNextFn = selectNext
         let msgID = email.gmailMessageID
 
         var actions = EmailDetailActions.contentActions(
             panelCoordinator: panelCoordinator,
-            accountID: accountID
+            onUnsubscribe: { url, oneClick, msgID in
+                await actionCoordinator.unsubscribe(url: url, oneClick: oneClick, messageID: msgID, accountID: accountID)
+            },
+            checkUnsubscribed: { msgID in
+                actionCoordinator.isUnsubscribed(messageID: msgID, accountID: accountID)
+            },
+            extractBodyUnsubscribeURL: { html in
+                actionCoordinator.extractBodyUnsubscribeURL(from: html)
+            },
+            onLoadDraft: { draftID, acctID in
+                try await actionCoordinator.loadDraft(id: draftID, accountID: acctID, format: "full")
+            }
         )
 
         // Email mutations
-        actions.onArchive = selectedFolder == .archive ? nil : { Task { await actionCoordinator.archiveEmail(email, selectNext: selectNext) } }
-        actions.onDelete = selectedFolder == .trash ? nil : { Task { await actionCoordinator.deleteEmail(email, selectNext: selectNext) } }
+        actions.onArchive = selectedFolder == .archive ? nil : { Task { await actionCoordinator.archiveEmail(email, selectNext: selectNextFn) } }
+        actions.onDelete = selectedFolder == .trash ? nil : { Task { await actionCoordinator.deleteEmail(email, selectNext: selectNextFn) } }
         actions.onMoveToInbox = selectedFolder == .archive || selectedFolder == .trash
-            ? { Task { await actionCoordinator.moveToInboxEmail(email, selectedFolder: selectedFolder, selectNext: selectNext) } } : nil
+            ? { Task { await actionCoordinator.moveToInboxEmail(email, selectedFolder: selectedFolder, selectNext: selectNextFn) } } : nil
         actions.onDeletePermanently = selectedFolder == .trash
-            ? { Task { await actionCoordinator.deletePermanentlyEmail(email, selectNext: selectNext) } } : nil
+            ? { Task { await actionCoordinator.deletePermanentlyEmail(email, selectNext: selectNextFn) } } : nil
         actions.onMarkNotSpam = selectedFolder == .spam
-            ? { Task { await actionCoordinator.markNotSpamEmail(email, selectNext: selectNext) } } : nil
+            ? { Task { await actionCoordinator.markNotSpamEmail(email, selectNext: selectNextFn) } } : nil
         actions.onToggleStar = { isCurrentlyStarred in
             guard let msgID else { return }
             Task { await mailboxViewModel.toggleStar(msgID, isStarred: isCurrentlyStarred) }
         }
         actions.onMarkUnread = { Task { await actionCoordinator.markUnreadEmail(email) } }
-        actions.onSnooze = { date in Task { await actionCoordinator.snoozeEmail(email, until: date, selectNext: selectNext) } }
+        actions.onSnooze = { date in Task { await actionCoordinator.snoozeEmail(email, until: date, selectNext: selectNextFn) } }
 
         // Labels
         actions.onAddLabel = { labelID in
@@ -177,9 +191,9 @@ struct DetailPaneView: View {
         }
 
         // Compose
-        actions.onReply = { mode in coordinator.startCompose(mode: mode) }
-        actions.onReplyAll = { mode in coordinator.startCompose(mode: mode) }
-        actions.onForward = { mode in coordinator.startCompose(mode: mode) }
+        actions.onReply = { mode in startCompose(mode) }
+        actions.onReplyAll = { mode in startCompose(mode) }
+        actions.onForward = { mode in startCompose(mode) }
 
         // Email-specific content overrides
         actions.onMessagesRead = { messageIDs in Task { await mailboxViewModel.applyReadLocally(messageIDs) } }

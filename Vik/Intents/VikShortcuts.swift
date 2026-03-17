@@ -105,5 +105,6 @@ struct VikShortcuts: AppShortcutsProvider {
             shortTitle: "Forward Email",
             systemImageName: "arrowshape.turn.up.right"
         )
+
     }
 }

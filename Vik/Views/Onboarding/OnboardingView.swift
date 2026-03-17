@@ -73,6 +73,7 @@ struct OnboardingView: View {
             hideTrafficLights(true)
         }
         .onDisappear {
+            withAnimation { orbsVisible = false }
             hideTrafficLights(false)
         }
         .preferredColorScheme(.dark)
@@ -211,7 +212,7 @@ struct OnboardingView: View {
         .buttonStyle(.glass)
         .disabled(isSigningIn)
         .scaleEffect(isButtonHovered ? 1.04 : 1.0)
-        .animation(.easeOut(duration: 0.2), value: isButtonHovered)
+        .animation(VikAnimation.springSnappy, value: isButtonHovered)
         .onHover { isButtonHovered = $0 }
     }
 
@@ -225,7 +226,7 @@ struct OnboardingView: View {
         .buttonStyle(.plain)
         .disabled(isSigningIn)
         .scaleEffect(isButtonHovered ? 1.04 : 1.0)
-        .animation(.easeOut(duration: 0.2), value: isButtonHovered)
+        .animation(VikAnimation.springSnappy, value: isButtonHovered)
         .onHover { isButtonHovered = $0 }
     }
 
@@ -322,12 +323,12 @@ struct OnboardingView: View {
         }
         startOrbAnimations()
 
-        // 2. Glass card scales up
+        // 2. Glass card scales up — Custom: heavier spring for onboarding entrance
         withAnimation(.spring(response: 0.7, dampingFraction: 0.8).delay(0.3)) {
             showCard = true
         }
 
-        // 3. Viking helmet drops in with rotation + bounce
+        // 3. Viking helmet drops in with rotation + bounce — Custom: underdamped for dramatic bounce
         withAnimation(.spring(response: 0.7, dampingFraction: 0.55).delay(0.7)) {
             showIcon = true
             iconDrop = 0
@@ -345,7 +346,7 @@ struct OnboardingView: View {
             showTagline = true
         }
 
-        // 6. Sign-in button
+        // 6. Sign-in button — Custom: heavier spring for onboarding entrance
         withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(1.8)) {
             showButton = true
         }

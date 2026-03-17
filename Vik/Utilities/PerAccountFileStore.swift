@@ -82,14 +82,16 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
     func save(accountID: String) {
         let url = fileURL(accountID)
         let items = itemsByAccount[accountID] ?? []
-        do {
-            try FileManager.default.createDirectory(
-                at: url.deletingLastPathComponent(),
-                withIntermediateDirectories: true
-            )
-            try JSONEncoder().encode(items).write(to: url, options: .atomic)
-        } catch {
-            Self.logger.error("Save failed for \(accountID, privacy: .public): \(error, privacy: .public)")
+        Task.detached(priority: .utility) {
+            do {
+                try FileManager.default.createDirectory(
+                    at: url.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                try JSONEncoder().encode(items).write(to: url, options: .atomic)
+            } catch {
+                Self.logger.error("Save failed for \(accountID, privacy: .public): \(error, privacy: .public)")
+            }
         }
     }
 

@@ -1,5 +1,17 @@
 import SwiftUI
 
+@Observable @MainActor
+private final class AccountImageLoader {
+    var images: [String: NSImage] = [:]
+
+    func load(accountID: String, profilePictureURL: URL?) async {
+        guard let url = profilePictureURL else { return }
+        if let img = await AvatarCache.shared.image(for: url.absoluteString) {
+            images[accountID] = img
+        }
+    }
+}
+
 struct AccountsSettingsView: View {
     var fetchAccounts: () -> [GmailAccount] = { AccountStore.shared.accounts }
     var onSetAsDefault: ((String) -> Void)?
@@ -10,6 +22,7 @@ struct AccountsSettingsView: View {
 
     @State private var accounts: [GmailAccount] = []
     @State private var colorPickerAccountID: String?
+    @State private var imageLoader = AccountImageLoader()
 
     var body: some View {
         List {
@@ -72,14 +85,12 @@ struct AccountsSettingsView: View {
 
     // MARK: - Avatar
 
-    @State private var avatarImages: [String: NSImage] = [:]
-
     private func avatar(for account: GmailAccount) -> some View {
         ZStack {
             Circle()
                 .fill(.quaternary)
 
-            if let image = avatarImages[account.id] {
+            if let image = imageLoader.images[account.id] {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFill()
@@ -97,8 +108,7 @@ struct AccountsSettingsView: View {
         }
         .frame(width: 28, height: 28)
         .task(id: account.profilePictureURL?.absoluteString) {
-            guard let url = account.profilePictureURL else { return }
-            avatarImages[account.id] = await AvatarCache.shared.image(for: url.absoluteString)
+            await imageLoader.load(accountID: account.id, profilePictureURL: account.profilePictureURL)
         }
     }
 

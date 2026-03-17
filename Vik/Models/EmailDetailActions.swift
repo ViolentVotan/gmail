@@ -45,9 +45,15 @@ struct EmailDetailActions {
 
 extension EmailDetailActions {
     /// Builds content-level actions shared between main detail and preview panels.
+    /// Service-dependent closures (`onUnsubscribe`, `checkUnsubscribed`,
+    /// `extractBodyUnsubscribeURL`, `onLoadDraft`) are injected by the caller so
+    /// this model layer stays free of service dependencies.
     @MainActor static func contentActions(
         panelCoordinator: PanelCoordinator,
-        accountID: String
+        onUnsubscribe: ((URL, Bool, String?) async -> Bool)? = nil,
+        checkUnsubscribed: ((String) -> Bool)? = nil,
+        extractBodyUnsubscribeURL: ((String) -> URL?)? = nil,
+        onLoadDraft: ((String, String) async throws -> GmailDraft?)? = nil
     ) -> EmailDetailActions {
         var actions = EmailDetailActions()
         actions.onPreviewAttachment = { data, name, fileType in
@@ -60,18 +66,10 @@ extension EmailDetailActions {
             panelCoordinator.downloadMessage(message: msg, accountID: acctID)
         }
         actions.onOpenLink = { url in panelCoordinator.openInAppBrowser(url: url) }
-        actions.onUnsubscribe = { url, oneClick, msgID in
-            await UnsubscribeService.shared.unsubscribe(url: url, oneClick: oneClick, messageID: msgID, accountID: accountID)
-        }
-        actions.checkUnsubscribed = { msgID in
-            UnsubscribeService.shared.isUnsubscribed(messageID: msgID, accountID: accountID)
-        }
-        actions.extractBodyUnsubscribeURL = { html in
-            UnsubscribeService.extractBodyUnsubscribeURL(from: html)
-        }
-        actions.onLoadDraft = { draftID, acctID in
-            try await GmailDraftService.shared.getDraft(id: draftID, accountID: acctID, format: "full")
-        }
+        actions.onUnsubscribe = onUnsubscribe
+        actions.checkUnsubscribed = checkUnsubscribed
+        actions.extractBodyUnsubscribeURL = extractBodyUnsubscribeURL
+        actions.onLoadDraft = onLoadDraft
         return actions
     }
 }

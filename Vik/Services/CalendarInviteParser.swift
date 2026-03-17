@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 // MARK: - Model
 
@@ -173,9 +174,20 @@ enum CalendarInviteParser {
         return sender
     }
 
+    private static let regexCache = Mutex<[String: NSRegularExpression]>([:])
+
+    private static func cachedRegex(_ pattern: String) -> NSRegularExpression? {
+        regexCache.withLock { cache in
+            if let cached = cache[pattern] { return cached }
+            let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators])
+            cache[pattern] = regex
+            return regex
+        }
+    }
+
     /// General-purpose regex match helper for parameterized patterns.
     private static func firstMatch(pattern: String, in text: String, group: Int) -> String? {
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive, .dotMatchesLineSeparators]) else { return nil }
+        guard let regex = cachedRegex(pattern) else { return nil }
         let range = NSRange(text.startIndex..., in: text)
         guard let match = regex.firstMatch(in: text, range: range),
               match.numberOfRanges > group,

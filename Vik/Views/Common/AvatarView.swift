@@ -1,6 +1,26 @@
 import SwiftUI
 import AppKit
 
+@Observable @MainActor
+private final class AvatarLoader {
+    var image: NSImage?
+
+    func load(avatarURL: String?, senderDomain: String?) async {
+        image = nil
+
+        if let url = avatarURL, let img = await AvatarCache.shared.image(for: url) {
+            image = img
+            return
+        }
+
+        if let domain = senderDomain,
+           let bimiURL = await BIMIService.shared.logoURL(for: domain),
+           let img = await AvatarCache.shared.image(for: bimiURL) {
+            image = img
+        }
+    }
+}
+
 struct AvatarView: View {
     let initials: String
     let color: String
@@ -8,8 +28,7 @@ struct AvatarView: View {
     var avatarURL: String? = nil
     var senderDomain: String? = nil
 
-    @State private var image: NSImage? = nil
-    @State private var lastLoadedURL: String?
+    @State private var loader = AvatarLoader()
 
     private var avatarTextColor: Color {
         let bgColor = NSColor(Color(hex: color)).usingColorSpace(.sRGB)
@@ -19,7 +38,7 @@ struct AvatarView: View {
 
     var body: some View {
         ZStack {
-            if let image {
+            if let image = loader.image {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFill()
@@ -37,27 +56,7 @@ struct AvatarView: View {
         .accessibilityLabel("\(initials) avatar")
         .accessibilityAddTraits(.isImage)
         .task(id: avatarURL) {
-            // Skip fetch entirely when the URL hasn't changed — image is already correct.
-            guard avatarURL != lastLoadedURL else { return }
-            image = nil
-
-            // 1. Try primary URL (People API photo / Gravatar)
-            if let url = avatarURL, let img = await AvatarCache.shared.image(for: url) {
-                image = img
-                lastLoadedURL = avatarURL
-                return
-            }
-
-            // 2. Fallback: BIMI logo for org/brand domains
-            if let domain = senderDomain,
-               let bimiURL = await BIMIService.shared.logoURL(for: domain),
-               let img = await AvatarCache.shared.image(for: bimiURL) {
-                image = img
-                lastLoadedURL = avatarURL
-                return
-            }
-
-            lastLoadedURL = avatarURL
+            await loader.load(avatarURL: avatarURL, senderDomain: senderDomain)
         }
     }
 }

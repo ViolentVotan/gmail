@@ -253,6 +253,12 @@ struct EmailRowView: View, Equatable {
                 popoverHolder.close()
             }
         }
+        .onChange(of: email.id) {
+            tagRevealTask?.cancel()
+            showTags = false
+            hoverTask?.cancel()
+            popoverHolder.close()
+        }
         .onChange(of: isSelected) { _, _ in
             hoverTask?.cancel()
             popoverHolder.close()

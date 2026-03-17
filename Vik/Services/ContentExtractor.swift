@@ -19,7 +19,7 @@ enum ContentExtractor {
 
     // MARK: - Supported Extensions
 
-    private static var imageExtensions: Set<String> { FileUtils.imageExtensions }
+    private static let imageExtensions: Set<String> = FileUtils.imageExtensions
 
     private static let textExtensions: Set<String> = [
         "txt", "csv", "json", "xml", "html", "md", "rtf", "log",

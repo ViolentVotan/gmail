@@ -80,26 +80,11 @@ final class AccountStore {
         accounts = all
     }
 
-    /// Removes an account and its associated data.
-    /// Note: Caller must also call `SubscriptionsStore.shared.deleteAccount(id)` from `@MainActor` context.
-    /// Note: MailDatabase and AttachmentDatabase deletion are NOT done here — AppCoordinator's
-    /// handleAccountsChange stops the sync engine first, then deletes the DB to avoid a race
-    /// where the engine is still writing when files are removed.
+    /// Removes an account from the persisted list.
+    /// All service cleanup (tokens, caches, per-account stores) is performed by
+    /// AppCoordinator.handleAccountsChange after this returns.
     func remove(id: String) {
         accounts = accounts.filter { $0.id != id }
-        TokenStore.shared.delete(for: id)
-        UnsubscribeService.shared.clearAccount(id)
-        ContactStore.shared.deleteAccount(id)
-        SnoozeStore.shared.deleteAccount(id)
-        ScheduledSendStore.shared.deleteAccount(id)
-        OfflineActionQueue.shared.deleteAccount(id)
-        LabelSyncService.shared.clearETags(for: id)
-        // Clean per-account UserDefaults
-        UserDefaults.standard.removeObject(forKey: UserDefaultsKey.signatureForNew(id))
-        UserDefaults.standard.removeObject(forKey: UserDefaultsKey.signatureForReply(id))
-        UserDefaults.standard.removeObject(forKey: UserDefaultsKey.attachmentExclusionRules(id))
-        UserDefaults.standard.removeObject(forKey: "replyDrafts.\(id)")
-        UserDefaults.standard.removeObject(forKey: "com.vikingz.vik.dbMigrationCompleted.\(id)")
     }
 
     func setAsDefault(id: String) {

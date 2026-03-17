@@ -1,12 +1,24 @@
 import SwiftUI
 import AppKit
 
+@Observable @MainActor
+private final class AccountAvatarLoader {
+    var image: NSImage?
+
+    func load(profilePictureURL: URL?) async {
+        image = nil
+        guard let url = profilePictureURL else { return }
+        image = await AvatarCache.shared.image(for: url.absoluteString)
+    }
+}
+
 struct AccountAvatarBubble: View {
     let account: GmailAccount
     let isSelected: Bool
     var size: CGFloat = 34
     let action: () -> Void
-    @State private var image: NSImage?
+
+    @State private var loader = AccountAvatarLoader()
 
     private var initial: String {
         String(account.displayName.prefix(1)).uppercased()
@@ -17,11 +29,11 @@ struct AccountAvatarBubble: View {
             ZStack {
                 // Base circle
                 Circle().fill(isSelected ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(.quaternary))
-                if !isSelected && image == nil && account.profilePictureURL == nil {
+                if !isSelected && loader.image == nil && account.profilePictureURL == nil {
                     Circle().strokeBorder(.separator, lineWidth: 1)
                 }
 
-                if let image {
+                if let image = loader.image {
                     Image(nsImage: image)
                         .resizable()
                         .scaledToFill()
@@ -44,8 +56,7 @@ struct AccountAvatarBubble: View {
         .buttonStyle(.plain)
         .help(account.email)
         .task(id: account.profilePictureURL?.absoluteString) {
-            guard let url = account.profilePictureURL else { return }
-            image = await AvatarCache.shared.image(for: url.absoluteString)
+            await loader.load(profilePictureURL: account.profilePictureURL)
         }
     }
 }

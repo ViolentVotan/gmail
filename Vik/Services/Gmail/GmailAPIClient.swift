@@ -745,7 +745,6 @@ final class GmailAPIClient {
                       let responseBoundary = contentType.components(separatedBy: "boundary=").last?.trimmingCharacters(in: .whitespaces) else {
                     throw .decodingError(URLError(.cannotParseResponse))
                 }
-                Task { await QuotaTracker.shared.spend(50) }
                 return try Self.parseBatchResponse(data: data, boundary: responseBoundary)
             case 401:
                 throw .unauthorized
@@ -887,7 +886,7 @@ final class GmailAPIClient {
             // Clear revoked tokens from Keychain so we don't retry stale credentials on next launch
             if case .tokenRevoked = error as? OAuthError {
                 TokenStore.shared.delete(for: accountID)
-                cachedTokens.withLock { $0.removeValue(forKey: accountID) }
+                _ = cachedTokens.withLock { $0.removeValue(forKey: accountID) }
             }
             throw .wrap(error)
         }
@@ -995,7 +994,6 @@ final class GmailAPIClient {
 
             switch http.statusCode {
             case 200...299:
-                Task { await QuotaTracker.shared.spend(5) }
                 return (data, http.statusCode, headers)
             case 401:
                 throw .unauthorized

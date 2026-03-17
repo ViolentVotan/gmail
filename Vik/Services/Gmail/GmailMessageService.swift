@@ -6,6 +6,7 @@ final class GmailMessageService {
     private init() {}
 
     private let client = GmailAPIClient.shared
+    private let encoder = JSONEncoder()
 
     /// Field masks for message formats, avoiding repetition across getMessage/getMessages.
     private enum MessageFields {
@@ -169,16 +170,19 @@ final class GmailMessageService {
             let chunk = Array(ids[batch..<min(batch + 1000, ids.count)])
             do {
                 struct BatchDeleteRequest: Encodable { let ids: [String] }
-                let body = try JSONEncoder().encode(BatchDeleteRequest(ids: chunk))
+                let body = try encoder.encode(BatchDeleteRequest(ids: chunk))
                 _ = try await client.rawRequest(
                     path: "/users/me/messages/batchDelete",
                     method: "POST", body: body, contentType: "application/json",
                     accountID: accountID
                 )
             } catch let apiError as GmailAPIError {
-                failedIDs.append(contentsOf: chunk)
-                // Log but continue — partial failure reported at the end
-                _ = apiError
+                switch apiError {
+                case .unauthorized, .tokenRevoked, .dailyLimitExceeded, .offline:
+                    throw apiError
+                default:
+                    failedIDs.append(contentsOf: chunk)
+                }
             } catch {
                 // Encoding or cancellation error — rethrow immediately
                 throw .encodingError(error)
@@ -198,7 +202,7 @@ final class GmailMessageService {
         struct ModifyRequest: Encodable { let addLabelIds: [String]; let removeLabelIds: [String] }
         let body: Data
         do {
-            body = try JSONEncoder().encode(ModifyRequest(addLabelIds: add, removeLabelIds: remove))
+            body = try encoder.encode(ModifyRequest(addLabelIds: add, removeLabelIds: remove))
         } catch {
             throw .encodingError(error)
         }
@@ -233,7 +237,7 @@ final class GmailMessageService {
             )
             let body: Data
             do {
-                body = try JSONEncoder().encode(request)
+                body = try encoder.encode(request)
             } catch {
                 throw .encodingError(error)
             }

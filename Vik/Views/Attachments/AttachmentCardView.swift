@@ -70,9 +70,7 @@ struct AttachmentCardView: View {
         }
         .buttonStyle(.plain)
         .onHover { hovering in isHovered = hovering }
-        .onAppear {
-            thumbCache.loadIfNeeded(attachment: result.attachment, accountID: accountID)
-        }
+        .task(id: result.attachment.id) { thumbCache.loadIfNeeded(attachment: result.attachment, accountID: accountID) }
         .onDisappear {
             thumbCache.cancelIfNeeded(id: result.attachment.id)
         }
