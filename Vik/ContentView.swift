@@ -220,6 +220,7 @@ struct ContentView: View {
                     selectedEmailIDs: $coordinator.selectedEmailIDs,
                     searchFocusTrigger: $coordinator.searchFocusTrigger,
                     selectedLabel: coordinator.selectedLabel,
+                    isSidebarCollapsed: isSidebarCollapsed,
                     actionCoordinator: coordinator.actionCoordinator,
                     mailboxViewModel: coordinator.mailboxViewModel,
                     selectedInboxCategory: $coordinator.selectedInboxCategory,
@@ -227,8 +228,7 @@ struct ContentView: View {
                     startCompose: { coordinator.startCompose(mode: $0) },
                     emptyTrashRequested: { coordinator.emptyTrashRequested(count: $0) },
                     emptySpamRequested: { coordinator.emptySpamRequested(count: $0) },
-                    loadCurrentFolder: { await coordinator.loadCurrentFolder() },
-                    isSidebarCollapsed: isSidebarCollapsed
+                    loadCurrentFolder: { await coordinator.loadCurrentFolder() }
                 )
                 .focused($appFocus, equals: .list)
             }
