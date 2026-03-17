@@ -392,6 +392,8 @@ final class AppCoordinator {
             await mailboxViewModel.loadFolder(labelIDs: [], query: "has:attachment")
         default:
             if let labelID = selectedFolder.gmailLabelID {
+                // Lazy-load folders excluded from initial sync (spam, trash, etc.)
+                await syncEngine?.syncFolderIfEmpty(labelId: labelID)
                 await mailboxViewModel.refreshCurrentFolder(labelIDs: [labelID])
             } else if let query = selectedFolder.gmailQuery {
                 await mailboxViewModel.loadFolder(labelIDs: [], query: query)
@@ -424,6 +426,7 @@ final class AppCoordinator {
             SummaryService.shared.accountID = account.id
             attachmentStore.accountID = account.id
             loadSignatures(for: account.id)
+            loadContacts()
             await setupAccount(account.id)
             updateDisplayedEmails()
         } else {
@@ -629,12 +632,17 @@ final class AppCoordinator {
             LabelSyncService.shared.clearETags(for: removedID)
             SubscriptionsStore.shared.deleteAccount(removedID)
             MailDatabase.evict(accountID: removedID)
-            Task { await SpotlightIndexer.shared.deleteAllItems() }
             UserDefaults.standard.removeObject(forKey: UserDefaultsKey.signatureForNew(removedID))
             UserDefaults.standard.removeObject(forKey: UserDefaultsKey.signatureForReply(removedID))
             UserDefaults.standard.removeObject(forKey: UserDefaultsKey.attachmentExclusionRules(removedID))
             UserDefaults.standard.removeObject(forKey: "replyDrafts.\(removedID)")
             UserDefaults.standard.removeObject(forKey: "com.vikingz.vik.dbMigrationCompleted.\(removedID)")
+        }
+        // Only wipe Spotlight if ALL accounts are being removed.
+        // deleteAllItems() calls CSSearchableIndex.deleteAllSearchableItems()
+        // which is global — it would destroy entries for accounts still signed in.
+        if removedIDs == previousIDs, !removedIDs.isEmpty {
+            Task { await SpotlightIndexer.shared.deleteAllItems() }
         }
         if !removedIDs.isEmpty {
             SnoozeMonitor.shared.clearAllFailureCounts()

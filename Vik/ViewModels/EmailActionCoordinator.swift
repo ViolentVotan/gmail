@@ -125,6 +125,20 @@ final class EmailActionCoordinator {
         await vm.toggleStar(msgID, isStarred: email.isStarred)
     }
 
+    func markReadEmail(_ email: Email) async {
+        guard let msgID = email.gmailMessageID else { return }
+        let vm = mailboxViewModel
+        guard NetworkMonitor.shared.isConnected else {
+            OfflineActionQueue.shared.enqueue(OfflineAction(
+                actionType: .markRead, messageIds: [msgID], accountID: vm.accountID
+            ))
+            _ = await vm.updateLabelsInDatabase(msgID, addLabelIds: [], removeLabelIds: [GmailSystemLabel.unread])
+            ToastManager.shared.show(message: "Marked read (will sync when online)")
+            return
+        }
+        await vm.markAsRead(msgID)
+    }
+
     func markUnreadEmail(_ email: Email) async {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
@@ -266,10 +280,15 @@ final class EmailActionCoordinator {
         UndoActionManager.shared.schedule(
             label: "Snoozed",
             onConfirm: { [weak vm] in
-                guard let vm, vm.accountID == expectedAccountID else { return }
-                guard AccountStore.shared.accounts.contains(where: { $0.id == expectedAccountID }) else { return }
-                SnoozeStore.shared.add(item)
-                Task { await vm.archive(msgID) }
+                Task { @MainActor [weak vm] in
+                    guard let vm, vm.accountID == expectedAccountID else { return }
+                    guard AccountStore.shared.accounts.contains(where: { $0.id == expectedAccountID }) else { return }
+                    // Archive first; only register in SnoozeStore after a successful archive
+                    // so a failed archive doesn't leave the email in both inbox and snoozed list.
+                    await vm.archive(msgID)
+                    guard vm.error == nil else { return }
+                    SnoozeStore.shared.add(item)
+                }
             },
             onUndo: { [weak vm] in Task {
                 guard let vm, vm.accountID == expectedAccountID else { return }

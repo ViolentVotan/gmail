@@ -90,6 +90,7 @@ struct ListPaneView: View {
                 onDelete:            { email in Task { await actionCoordinator.deleteEmail(email, selectNext: selectNext) } },
                 onToggleStar:        { email in Task { await actionCoordinator.toggleStarEmail(email) } },
                 onMarkUnread:        { email in Task { await actionCoordinator.markUnreadEmail(email) } },
+                onMarkRead:          { email in Task { await actionCoordinator.markReadEmail(email) } },
                 onMarkSpam:          { email in Task { await actionCoordinator.markSpamEmail(email, selectNext: selectNext) } },
                 onUnsubscribe:       { actionCoordinator.unsubscribeEmail($0) },
                 onMoveToInbox:       { email in Task { await actionCoordinator.moveToInboxEmail(email, selectedFolder: selectedFolder, selectNext: selectNext) } },

@@ -72,6 +72,11 @@ struct OnboardingView: View {
             runAnimationSequence()
             hideTrafficLights(true)
         }
+        .onChange(of: hostWindow) { _, newWindow in
+            if newWindow != nil {
+                hideTrafficLights(true)
+            }
+        }
         .onDisappear {
             withAnimation { orbsVisible = false }
             hideTrafficLights(false)

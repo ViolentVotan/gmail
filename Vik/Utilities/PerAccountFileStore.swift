@@ -28,6 +28,10 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
     /// On successful legacy decode the next `save` writes the new bare-array format.
     private let legacyDecoder: (@Sendable (Data) -> [Item]?)?
 
+    /// Tracks the latest pending write task per account. Cancels the previous task before
+    /// scheduling a new one so only the most recent state is written (coalescing saves).
+    private var saveTasks: [String: Task<Void, Never>] = [:]
+
     /// Creates a store whose files live at the URL returned by `fileURL`.
     ///
     /// - Parameters:
@@ -82,7 +86,9 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
     func save(accountID: String) {
         let url = fileURL(accountID)
         let items = itemsByAccount[accountID] ?? []
-        Task.detached(priority: .utility) {
+        saveTasks[accountID]?.cancel()
+        saveTasks[accountID] = Task {
+            guard !Task.isCancelled else { return }
             do {
                 try FileManager.default.createDirectory(
                     at: url.deletingLastPathComponent(),

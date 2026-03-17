@@ -25,6 +25,56 @@ struct GmailMessage: Codable, Sendable {
     let sizeEstimate: Int?
     let historyId:    String?
     let raw:          String?   // base64url-encoded RFC 2822 source (format=raw)
+
+    /// Lowercased header name → value, built once during decoding.
+    let headerMap:    [String: String]
+
+    private enum CodingKeys: String, CodingKey {
+        case id, threadId, labelIds, snippet, internalDate, payload, sizeEstimate, historyId, raw
+    }
+
+    init(from decoder: any Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id           = try c.decode(String.self, forKey: .id)
+        threadId     = try c.decode(String.self, forKey: .threadId)
+        labelIds     = try c.decodeIfPresent([String].self, forKey: .labelIds)
+        snippet      = try c.decodeIfPresent(String.self, forKey: .snippet)
+        internalDate = try c.decodeIfPresent(String.self, forKey: .internalDate)
+        payload      = try c.decodeIfPresent(GmailMessagePart.self, forKey: .payload)
+        sizeEstimate = try c.decodeIfPresent(Int.self, forKey: .sizeEstimate)
+        historyId    = try c.decodeIfPresent(String.self, forKey: .historyId)
+        raw          = try c.decodeIfPresent(String.self, forKey: .raw)
+        headerMap    = Dictionary(
+            (payload?.headers ?? []).map { ($0.name.lowercased(), $0.value) },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
+
+    init(
+        id: String,
+        threadId: String,
+        labelIds: [String]? = nil,
+        snippet: String? = nil,
+        internalDate: String? = nil,
+        payload: GmailMessagePart? = nil,
+        sizeEstimate: Int? = nil,
+        historyId: String? = nil,
+        raw: String? = nil
+    ) {
+        self.id           = id
+        self.threadId     = threadId
+        self.labelIds     = labelIds
+        self.snippet      = snippet
+        self.internalDate = internalDate
+        self.payload      = payload
+        self.sizeEstimate = sizeEstimate
+        self.historyId    = historyId
+        self.raw          = raw
+        self.headerMap    = Dictionary(
+            (payload?.headers ?? []).map { ($0.name.lowercased(), $0.value) },
+            uniquingKeysWith: { first, _ in first }
+        )
+    }
 }
 
 struct GmailMessagePart: Codable, Sendable {
@@ -222,16 +272,6 @@ struct GmailDraftRef: Codable, Sendable {
 // MARK: - GmailMessage Helpers
 
 extension GmailMessage {
-    /// Dictionary mapping lowercased header names to values.
-    /// O(headers) to build, O(1) per lookup — cache at call sites that read multiple headers
-    /// from the same message (e.g., MessageRecord(from:) reads 7-12 headers per message).
-    var headerMap: [String: String] {
-        Dictionary(
-            (payload?.headers ?? []).map { ($0.name.lowercased(), $0.value) },
-            uniquingKeysWith: { first, _ in first }
-        )
-    }
-
     func header(named name: String) -> String? {
         headerMap[name.lowercased()]
     }
@@ -302,8 +342,18 @@ extension GmailMessage {
 
     // MARK: - Security / Sender info
 
-    private static let receivedFromRegex = try? NSRegularExpression(pattern: "from\\s+([\\w.-]+)", options: .caseInsensitive)
-    private static let dkimDomainRegex   = try? NSRegularExpression(pattern: "\\bd=([^;\\s]+)", options: .caseInsensitive)
+    private static let receivedFromRegex: NSRegularExpression = {
+        guard let regex = try? NSRegularExpression(pattern: "from\\s+([\\w.-]+)", options: .caseInsensitive) else {
+            preconditionFailure("Invalid receivedFromRegex pattern")
+        }
+        return regex
+    }()
+    private static let dkimDomainRegex: NSRegularExpression = {
+        guard let regex = try? NSRegularExpression(pattern: "\\bd=([^;\\s]+)", options: .caseInsensitive) else {
+            preconditionFailure("Invalid dkimDomainRegex pattern")
+        }
+        return regex
+    }()
 
     /// Domain from the Return-Path or Received header (who actually sent the email).
     var mailedBy: String? {
@@ -318,7 +368,7 @@ extension GmailMessage {
         // Fallback: first Received header domain
         if let received = header(named: "Received") {
             let range = NSRange(received.startIndex..., in: received)
-            if let match = Self.receivedFromRegex?.firstMatch(in: received, range: range),
+            if let match = Self.receivedFromRegex.firstMatch(in: received, range: range),
                let r = Range(match.range(at: 1), in: received) {
                 return String(received[r])
             }
@@ -330,7 +380,7 @@ extension GmailMessage {
     var signedBy: String? {
         guard let dkim = header(named: "DKIM-Signature") else { return nil }
         let range = NSRange(dkim.startIndex..., in: dkim)
-        if let match = Self.dkimDomainRegex?.firstMatch(in: dkim, range: range),
+        if let match = Self.dkimDomainRegex.firstMatch(in: dkim, range: range),
            let r = Range(match.range(at: 1), in: dkim) {
             return String(dkim[r]).trimmingCharacters(in: .whitespacesAndNewlines)
         }
@@ -364,7 +414,10 @@ extension GmailMessage {
     /// True when mailed-by domain doesn't match the From domain — potential spoofing.
     var isSuspiciousSender: Bool {
         guard let fromD = fromDomain, let mailedD = mailedBy?.lowercased() else { return false }
-        return !mailedD.hasSuffix(fromD) && !fromD.hasSuffix(mailedD)
+        func isDomainOrSubdomain(_ candidate: String, of parent: String) -> Bool {
+            candidate == parent || candidate.hasSuffix(".\(parent)")
+        }
+        return !isDomainOrSubdomain(mailedD, of: fromD) && !isDomainOrSubdomain(fromD, of: mailedD)
     }
 
     /// Decodes the raw RFC 2822 source from base64url.

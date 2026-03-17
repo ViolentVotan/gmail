@@ -94,7 +94,7 @@ struct DebugMenuView: View {
                     VStack(spacing: 0) {
                         ForEach(logger.entries.reversed()) { entry in
                             logEntryRow(entry)
-                            if entry.id != logger.entries.first?.id {
+                            if entry.id != logger.entries.last?.id {
                                 Divider()
                             }
                         }

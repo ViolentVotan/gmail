@@ -192,6 +192,10 @@ final class ComposeViewModel {
         // Clean up reply draft registry if this was a reply
         if let store = cleanupStore, let tid = cleanupThreadID {
             store.replyDrafts.removeValue(forKey: tid)
+            store.saveReplyDrafts()
+            if let gid = gmailDraftID {
+                store.gmailDrafts.removeAll { $0.gmailDraftID == gid }
+            }
         }
 
         wasScheduled = true

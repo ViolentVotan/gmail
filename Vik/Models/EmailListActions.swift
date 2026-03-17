@@ -8,6 +8,7 @@ struct EmailListActions {
     var onDelete: ((Email) -> Void)?
     var onToggleStar: ((Email) -> Void)?
     var onMarkUnread: ((Email) -> Void)?
+    var onMarkRead: ((Email) -> Void)?
     var onMarkSpam: ((Email) -> Void)?
     var onUnsubscribe: ((Email) -> Void)?
     var onMoveToInbox: ((Email) -> Void)?

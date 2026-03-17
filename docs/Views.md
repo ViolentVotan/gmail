@@ -31,7 +31,7 @@ Middle column — email rows with native `.swipeActions()` (archive/delete), sea
 - `EmailContextMenu` — Right-click context menu with reply, reply all, forward, archive, delete, star, snooze (uses `SnoozePreset.defaults()`), unsnooze (visible in snoozed folder), labels.
 - `EmailSelectionManager` — Utility enum for multi-select logic (Cmd+click toggle, Shift+click range, single click, arrow navigation).
 - `BulkActionBarView` — Floating action bar for bulk operations on selected emails.
-- `ListPaneView` — Top-level list pane that constructs `EmailListActions` and wires them to ViewModels/coordinators. Bulk and single-email action closures use `Task { await ... }` for async VM calls.
+- `ListPaneView` — Top-level list pane that constructs `EmailListActions` and wires them to ViewModels/coordinators. Wires `onMarkRead` to `EmailActionCoordinator.markReadEmail`. Bulk and single-email action closures use `Task { await ... }` for async VM calls.
 
 ### `EmailDetail/`
 Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView, uses `WeakScriptMessageHandler` proxy to avoid WKWebView retain cycles, bidirectional WCAG contrast enforcement for both light and dark mode, Live Text/ImageAnalyzer disabled via private SPI `_setTextExtractionEnabled` to prevent Vision framework use-after-free crash — Apple bug in macOS 26.3.1), attachments, sender info popover, tracker blocking UI, label picker. `EmailDetailView` registers `NSUserActivity` for Siri onscreen awareness and offers `.translationPresentation()` for on-device email translation.
@@ -42,7 +42,7 @@ Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView, use
 - `LabelEditorView` — Label picker with AI-suggested labels and manual search. Uses `@State` cached properties (`cachedCurrentUser`, `cachedItems`, `cachedShowCreate`, `cachedShouldShowDropdown`) with `onChange`-driven `recomputeLabelData()` to avoid redundant linear scans per render.
 - `HTMLEmailView` — WKWebView-based HTML email renderer (`NSViewRepresentable`). Uses `PassthroughWebView` (scroll-through subclass), `WeakScriptMessageHandler` (prevents WKWebView retain cycles), bidirectional WCAG contrast enforcement, and Live Text disabled via private SPI. `Coordinator` handles navigation delegation and JS bridge.
 - `SenderInfoPopover` — Sender detail popover showing from display name, sent-by domain, formatted date, with info/security rows and suspicious-domain highlighting.
-- `TrackerBannerView` — Tracker blocking notification banner showing count and grouped tracker details with allow/dismiss actions.
+- `TrackerBannerView` — Tracker blocking notification banner showing count and grouped tracker details with allow/dismiss actions. `groupedTrackers` is a stored `let` computed once in `init` (avoids per-render dictionary allocation).
 - `ThreadMessageCardView` — Individual message card with quote stripping toggle, click-to-show sender info popover (`.onTapGesture`, `.pointerStyle(.link)`).
 - `GmailThreadMessageView` — Utility enum for HTML computation and quote stripping.
 - `AttachmentChipView` — Individual attachment display with preview/download buttons.
@@ -54,7 +54,7 @@ Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView, use
 ### `Compose/`
 Email composer — `ComposeView` for the full compose form with rich text editor, send-as alias picker, signature management, attachment list, and discard confirmation. Custom `init` for proper `@State` initialization.
 - `AutocompleteTextField` — Contact suggestions in To/Cc/Bcc fields.
-- `ScheduleSendButton` — Send button with schedule-send popover (date picker for deferred delivery).
+- `ScheduleSendButton` — Send button with schedule-send popover (date picker for deferred delivery). `ComposeView.scheduleEmail(at:)` mirrors `sendEmail()` field population before calling `scheduleSend`.
 
 ### `Attachments/`
 Attachment explorer with grid view, thumbnails, file type filtering, and search.

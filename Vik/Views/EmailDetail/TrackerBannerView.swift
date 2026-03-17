@@ -4,8 +4,26 @@ struct TrackerBannerView: View {
     let trackerCount: Int
     let trackers: [TrackerInfo]
     let onAllow: () -> Void
+    let groupedTrackers: [TrackerGroup]
 
     @State private var showDetails = false
+
+    init(trackerCount: Int, trackers: [TrackerInfo], onAllow: @escaping () -> Void) {
+        self.trackerCount = trackerCount
+        self.trackers = trackers
+        self.onAllow = onAllow
+        var counts: [String: (kind: TrackerKind, count: Int)] = [:]
+        for t in trackers {
+            let name = t.serviceName ?? t.source
+            if let existing = counts[name] {
+                counts[name] = (existing.kind, existing.count + 1)
+            } else {
+                counts[name] = (t.kind, 1)
+            }
+        }
+        self.groupedTrackers = counts.map { TrackerGroup(name: $0.key, kind: $0.value.kind, count: $0.value.count) }
+            .sorted { $0.count > $1.count }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -80,7 +98,7 @@ struct TrackerBannerView: View {
 
     // MARK: - Grouped trackers
 
-    private struct TrackerGroup: Hashable {
+    struct TrackerGroup: Hashable {
         let name: String
         let kind: TrackerKind
         let count: Int
@@ -102,17 +120,4 @@ struct TrackerBannerView: View {
         }
     }
 
-    private var groupedTrackers: [TrackerGroup] {
-        var counts: [String: (kind: TrackerKind, count: Int)] = [:]
-        for t in trackers {
-            let name = t.serviceName ?? t.source
-            if let existing = counts[name] {
-                counts[name] = (existing.kind, existing.count + 1)
-            } else {
-                counts[name] = (t.kind, 1)
-            }
-        }
-        return counts.map { TrackerGroup(name: $0.key, kind: $0.value.kind, count: $0.value.count) }
-            .sorted { $0.count > $1.count }
-    }
 }

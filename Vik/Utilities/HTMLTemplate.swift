@@ -167,6 +167,12 @@ enum HTMLTemplate {
             with: "",
             options: [.regularExpression, .caseInsensitive]
         )
+        // Remove <link> tags (can load external resources)
+        result = result.replacingOccurrences(
+            of: "<link[^>]*>",
+            with: "",
+            options: [.regularExpression, .caseInsensitive]
+        )
         // Remove <base> tags (can hijack relative URLs)
         result = result.replacingOccurrences(
             of: "<base[^>]*>",

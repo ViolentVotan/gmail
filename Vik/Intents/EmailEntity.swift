@@ -338,6 +338,9 @@ struct MailMessageEntity: IndexedEntity {
         self.dateReceived = messageDate
 
         self.isRead = record.isRead
+        // MessageRecord is a bare row without joined label data; folder/junk cannot
+        // be determined here. Callers that need accurate mailbox/isJunk should use
+        // init(from:) with a fully-resolved Email value instead.
         self.isJunk = false
         self.isFlagged = record.isStarred
 
@@ -366,10 +369,13 @@ struct MailMessageEntity: IndexedEntity {
         self.dateSent = email.date
         self.dateReceived = email.date
         self.isRead = email.isRead
-        self.isJunk = false
+        self.isJunk = email.folder == .spam || email.gmailLabelIDs.contains(GmailSystemLabel.spam)
         self.isFlagged = email.isStarred
         self.account = MailAccountEntity(id: "")
-        self.mailbox = MailboxEntity(id: GmailSystemLabel.inbox, name: "Inbox")
+        self.mailbox = MailboxEntity(
+            id: email.folder.gmailLabelID ?? GmailSystemLabel.inbox,
+            name: email.folder.rawValue
+        )
     }
 
     // MARK: - Private

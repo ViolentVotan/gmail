@@ -217,7 +217,7 @@ struct LabelEditorView: View {
             .onChange(of: highlightedIndex) { _, _ in
                 if highlightedIndex < items.count {
                     withAnimation(.easeOut(duration: 0.15)) {
-                        proxy.scrollTo(highlightedIndex, anchor: .center)
+                        proxy.scrollTo(items[highlightedIndex].id, anchor: .center)
                     }
                 }
             }

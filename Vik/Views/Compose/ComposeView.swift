@@ -299,6 +299,29 @@ struct ComposeView: View {
         // and onChange(of: composeVM.error) below.
     }
 
+    private func scheduleEmail(at date: Date) async {
+        guard !to.isEmpty else {
+            sendError = "Please add at least one recipient."
+            return
+        }
+        guard !subject.isEmpty else {
+            sendError = "Please add a subject."
+            return
+        }
+        sendError = nil
+
+        let (processedHTML, images) = InlineImageProcessor.extractInlineImages(from: bodyHTML)
+        composeVM.to             = to
+        composeVM.cc             = cc
+        composeVM.bcc            = bcc
+        composeVM.subject        = subject
+        composeVM.body           = processedHTML
+        composeVM.isHTML         = true
+        composeVM.inlineImages   = images + editorState.pendingInlineImages
+        composeVM.attachmentURLs = attachments
+        await composeVM.scheduleSend(at: date)
+    }
+
     // MARK: - File Drop & Attachments
 
     private func handleFileDrop(_ url: URL) {
@@ -384,7 +407,7 @@ struct ComposeView: View {
 
             ScheduleSendButton(
                 onSend: { Task { await sendEmail() } },
-                onSchedule: { date in Task { await composeVM.scheduleSend(at: date) } },
+                onSchedule: { date in Task { await scheduleEmail(at: date) } },
                 isSending: composeVM.isSending
             )
             .disabled(composeVM.isSending || to.isEmpty)

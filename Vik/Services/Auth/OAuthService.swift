@@ -96,7 +96,7 @@ final class OAuthService: NSObject {
     /// Throws ``OAuthError/tokenRevoked`` when Google returns `invalid_grant`,
     /// indicating the refresh token has been permanently revoked and the user
     /// must re-authenticate.
-    @concurrent func refreshToken(_ token: AuthToken) async throws -> AuthToken {
+    @concurrent func refreshToken(_ token: AuthToken) async throws(OAuthError) -> AuthToken {
         guard let refreshToken = token.refreshToken else { throw OAuthError.noRefreshToken }
 
         let params: [String: String] = [
@@ -114,7 +114,7 @@ final class OAuthService: NSObject {
                 tokenType:    response.tokenType,
                 scope:        response.scope ?? token.scope
             )
-        } catch let OAuthError.httpError(statusCode, data) where statusCode == 400 {
+        } catch OAuthError.httpError(let statusCode, let data) where statusCode == 400 {
             // Parse the error body to distinguish permanent revocation from transient failures.
             if let body = try? JSONDecoder().decode(OAuthErrorResponse.self, from: data),
                body.error == "invalid_grant" {
@@ -147,7 +147,7 @@ final class OAuthService: NSObject {
 
     // MARK: - Private
 
-    @concurrent private func postForm<T: Decodable>(to urlString: String, params: [String: String]) async throws -> T {
+    @concurrent private func postForm<T: Decodable>(to urlString: String, params: [String: String]) async throws(OAuthError) -> T {
         guard let url = URL(string: urlString) else { throw OAuthError.invalidURL }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -158,7 +158,7 @@ final class OAuthService: NSObject {
             .data(using: .utf8)
 
         let maxAttempts = 3
-        var lastError: Error?
+        var lastError: OAuthError?
         for attempt in 0..<maxAttempts {
             do {
                 let (data, response) = try await NetworkConfig.externalSession.data(for: request)
@@ -173,7 +173,7 @@ final class OAuthService: NSObject {
                 throw error
             } catch {
                 // Network error — eligible for retry.
-                lastError = error
+                lastError = .networkError(error)
             }
             if attempt < maxAttempts - 1 {
                 let delay = pow(2.0, Double(attempt))
@@ -217,15 +217,18 @@ enum OAuthError: Error, LocalizedError {
     /// The refresh token has been permanently revoked (Google returned `invalid_grant`).
     /// Callers should prompt re-authentication.
     case tokenRevoked
+    /// A network-level error (e.g. `URLError`) occurred during an OAuth request.
+    case networkError(any Error)
 
     var errorDescription: String? {
         switch self {
-        case .invalidURL:              return "Invalid OAuth URL"
-        case .noAuthCode:              return "No authorization code received"
-        case .noRefreshToken:          return "No refresh token received"
-        case .listenerFailed:          return "Failed to start local HTTP redirect listener"
-        case .httpError(let code, _):  return "OAuth request failed with HTTP \(code)"
-        case .tokenRevoked:            return "Session expired — please sign in again"
+        case .invalidURL:                   return "Invalid OAuth URL"
+        case .noAuthCode:                   return "No authorization code received"
+        case .noRefreshToken:               return "No refresh token received"
+        case .listenerFailed:               return "Failed to start local HTTP redirect listener"
+        case .httpError(let code, _):       return "OAuth request failed with HTTP \(code)"
+        case .tokenRevoked:                 return "Session expired — please sign in again"
+        case .networkError(let error):      return "Network error during OAuth request: \(error.localizedDescription)"
         }
     }
 }

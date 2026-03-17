@@ -519,26 +519,27 @@ struct EmailListView: View {
     // MARK: - Key handlers
 
     private func handleKeyE() -> KeyPress.Result {
-        if isMultiSelect { actions.onBulkArchive?() }
-        else if let email = selectedEmail { actions.onArchive?(email) }
-        return .handled
+        if isMultiSelect { actions.onBulkArchive?(); return .handled }
+        else if let email = selectedEmail { actions.onArchive?(email); return .handled }
+        return .ignored
     }
 
     private func handleKeyS() -> KeyPress.Result {
-        if isMultiSelect { actions.onBulkToggleStar?() }
-        else if let email = selectedEmail { actions.onToggleStar?(email) }
-        return .handled
+        if isMultiSelect { actions.onBulkToggleStar?(); return .handled }
+        else if let email = selectedEmail { actions.onToggleStar?(email); return .handled }
+        return .ignored
     }
 
     private func handleKeyU() -> KeyPress.Result {
-        if isMultiSelect { actions.onBulkMarkUnread?() }
-        else if let email = selectedEmail { actions.onMarkUnread?(email) }
-        return .handled
+        if isMultiSelect { actions.onBulkMarkUnread?(); return .handled }
+        else if let email = selectedEmail { actions.onMarkUnread?(email); return .handled }
+        return .ignored
     }
 
     private func handleKeyR() -> KeyPress.Result {
-        if isMultiSelect { actions.onBulkMarkRead?() }
-        return .handled
+        if isMultiSelect { actions.onBulkMarkRead?(); return .handled }
+        else if let email = selectedEmail { actions.onMarkRead?(email); return .handled }
+        return .ignored
     }
 
     // MARK: - Selection (delegated to EmailSelectionManager)

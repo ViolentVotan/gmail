@@ -75,6 +75,7 @@ final class OfflineActionQueue {
             var succeeded = 0
             var hitError = false
             while let action = pendingActions.first {
+                guard !action.messageIds.isEmpty else { removeAction(action); continue }
                 do {
                     try await executeAction(action)
                     removeAction(action)
