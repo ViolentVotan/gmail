@@ -119,7 +119,7 @@ struct OnboardingView: View {
                 Text("CONQUER YOUR INBOX")
                     .font(.system(size: 15, weight: .medium))
                     .tracking(3)
-                    .foregroundStyle(.white.opacity(0.45))
+                    .foregroundStyle(.white.opacity(OpacityToken.overlay))
                     .opacity(showTagline ? 1 : 0)
 
                 Spacer().frame(height: 36)
@@ -172,7 +172,7 @@ struct OnboardingView: View {
             Text("CONQUER YOUR INBOX")
                 .font(.system(size: 15, weight: .medium))
                 .tracking(3)
-                .foregroundStyle(.white.opacity(0.45))
+                .foregroundStyle(.white.opacity(OpacityToken.overlay))
                 .opacity(showTagline ? 1 : 0)
 
             Spacer().frame(height: 36)
@@ -216,7 +216,7 @@ struct OnboardingView: View {
         }
         .buttonStyle(.glass)
         .disabled(isSigningIn)
-        .scaleEffect(isButtonHovered ? 1.04 : 1.0)
+        .scaleEffect(isButtonHovered ? ScaleToken.emphasis : 1.0)
         .animation(VikAnimation.springSnappy, value: isButtonHovered)
         .onHover { isButtonHovered = $0 }
     }
@@ -230,7 +230,7 @@ struct OnboardingView: View {
         }
         .buttonStyle(.plain)
         .disabled(isSigningIn)
-        .scaleEffect(isButtonHovered ? 1.04 : 1.0)
+        .scaleEffect(isButtonHovered ? ScaleToken.emphasis : 1.0)
         .animation(VikAnimation.springSnappy, value: isButtonHovered)
         .onHover { isButtonHovered = $0 }
     }

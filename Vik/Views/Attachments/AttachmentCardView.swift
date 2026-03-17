@@ -120,7 +120,7 @@ struct AttachmentCardView: View {
                 .strokeBorder(isHovered ? iconForegroundColor.opacity(0.5) : Color(.separatorColor), lineWidth: isHovered ? 1.5 : 1)
         )
         .contentShape(Rectangle())
-        .scaleEffect(isHovered ? 1.03 : 1.0)
+        .scaleEffect(isHovered ? ScaleToken.hover : 1.0)
         .animation(.easeInOut(duration: 0.15), value: isHovered)
     }
 

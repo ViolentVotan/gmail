@@ -624,7 +624,7 @@ private struct EmailSkeletonRowView: View {
             let shimmerOpacity = phase ? 0.1 : 0.2
             HStack(spacing: 12) {
                 Circle()
-                    .fill(.tertiary.opacity(0.12))
+                    .fill(.tertiary.opacity(OpacityToken.tag))
                     .frame(width: 6, height: 6)
 
                 Circle()
