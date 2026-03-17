@@ -35,7 +35,7 @@ The UI follows a three-plane model:
 | `Spacing` | `xs` (4), `sm` (8), `md` (12), `lg` (16), `xl` (24), `xxl` (32) |
 | `CornerRadius` | `xs` (4), `sm` (6), `md` (12), `lg` (16), `xl` (24) |
 | `ButtonSize` | `sm` (26), `md` (28), `lg` (30) |
-| `VikAnimation` | `springDefault`, `springSnappy`, `springGentle` |
+| `VikAnimation` | `springDefault`, `springSnappy`, `springGentle`, `contentSwitch` |
 | `Typography` | `titleLarge`, `title`, `headline`, `subhead`, `subheadRegular`, `subheadSemibold`, `body`, `bodyMedium`, `bodySemibold`, `callout`, `calloutMedium`, `calloutSemibold`, `footnote`, `caption`, `captionRegular`, `captionSemibold`, `captionSmall`, `captionSmallMedium`, `captionSmallRegular`, `microTag` |
 
 **View modifiers:**
