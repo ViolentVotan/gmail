@@ -40,6 +40,9 @@ Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView, use
 - `InsightCardView` — Apple Intelligence insight card (summary, action items, key dates) via Foundation Models.
 - `SmartReplyChipsView` — AI-generated reply suggestion chips below the thread (wired via `EmailDetailView`).
 - `LabelEditorView` — Label picker with AI-suggested labels and manual search. Uses `@State` cached properties (`cachedCurrentUser`, `cachedItems`, `cachedShowCreate`, `cachedShouldShowDropdown`) with `onChange`-driven `recomputeLabelData()` to avoid redundant linear scans per render.
+- `HTMLEmailView` — WKWebView-based HTML email renderer (`NSViewRepresentable`). Uses `PassthroughWebView` (scroll-through subclass), `WeakScriptMessageHandler` (prevents WKWebView retain cycles), bidirectional WCAG contrast enforcement, and Live Text disabled via private SPI. `Coordinator` handles navigation delegation and JS bridge.
+- `SenderInfoPopover` — Sender detail popover showing from display name, sent-by domain, formatted date, with info/security rows and suspicious-domain highlighting.
+- `TrackerBannerView` — Tracker blocking notification banner showing count and grouped tracker details with allow/dismiss actions.
 - `ThreadMessageCardView` — Individual message card with quote stripping toggle, click-to-show sender info popover (`.onTapGesture`, `.pointerStyle(.link)`).
 - `GmailThreadMessageView` — Utility enum for HTML computation and quote stripping.
 - `AttachmentChipView` — Individual attachment display with preview/download buttons.
@@ -62,6 +65,7 @@ Tabbed settings view (Accounts, General, Signatures, Filters, Advanced) register
 - `SignaturesSettingsView` — Signature management per send-as alias. Takes explicit `loadSendAs` and `onUpdateSignature` closures.
 - `FiltersSettingsView` — Gmail filter list with create/edit/delete actions. Uses `.task(id: accountID)` to recreate `FiltersViewModel` on account switch.
 - `FilterEditorView` — Filter rule editor (criteria + actions) for creating/editing Gmail filters.
+- `SignatureEditorView` — Per-alias signature editor with rich text (`WebRichTextEditor`), save action, and error handling.
 
 ### `Onboarding/`
 Sign-in / welcome screen with OAuth flow. Forces dark appearance via `.preferredColorScheme(.dark)` + `window.appearance = .darkAqua` for the dramatic dark aesthetic regardless of system setting. `OnboardingView` hides traffic lights on appear; the `else` branch on dismissal restores window state (movable, standard titlebar, background color, `window.appearance = nil`).
@@ -75,8 +79,6 @@ Shared reusable components:
 | `AvatarView` | Circular avatar with initials fallback or profile image. Luminance guard: uses `.primary` instead of `.white` for initials when avatar background is light (luminance > 0.7). |
 | `SearchBarView` | Search input with clear button |
 | `LabelChipView` | Colored label pill with WCAG contrast adjustment (text color auto-adjusted against background via `adjustedForContrast`; respects increased contrast accessibility setting) |
-| `ThemePickerView` | Segmented picker for System / Light / Dark appearance |
-| `SettingsCardsView` | Settings UI with behavior, signature, account cards |
 | `SlidePanel` | Animated side panel overlay (help, debug, previews) with Liquid Glass background |
 | `FormattingToolbar` | Rich text toolbar for compose/reply — bold, italic, underline, strikethrough, font size, text color, highlight color picker (`HighlightColorPopover`), font family picker, alignment, lists, indent, blockquote toggle, link insert (Cmd+K popover), translate globe button (sets `translationRequested` on editor state) |
 | `WebRichTextEditor` | WKWebView-based HTML editor (uses `WeakScriptMessageHandler` proxy to avoid retain cycles). Split into 4 files: `WebRichTextEditor.swift` (SwiftUI wrapper), `WebRichTextEditorRepresentable.swift` (`NSViewRepresentable` with Writing Tools support via `config.writingToolsBehavior = .complete`), `WebRichTextEditorCoordinator.swift` (WKWebView delegate, JS bridge), `WebRichTextEditorState.swift` (`@Observable` state — includes `isBlockquote`, `highlightColor`, `fontFamily`, `linkPopoverRequest`, `translationRequested` properties and corresponding formatting methods; JS execution via `evalJS(_:)`) |
@@ -85,6 +87,7 @@ Shared reusable components:
 | `SnoozePickerView` | Snooze date/time picker with preset options. Defines `SnoozePreset` model struct; uses `SnoozePreset.defaults()` for the preset list. |
 | `DebugMenuView` | API logs, cache controls. Uses file-private `DebugViewModel` wrapper (no direct `AttachmentDatabase` access). |
 | `InAppBrowserView` | In-app web browser with glass toolbar (`GlassEffectContainer` grouping close, back, forward, URL bar, open-in-browser buttons) |
+| `KeyboardShortcutsView` | Responder-aware keyboard event monitor (`KeyboardEventMonitor` NSViewRepresentable with `Coordinator`) for global shortcut handling |
 | `ShortcutsHelpView` | Keyboard shortcuts reference |
 | `VikCommands` | macOS menu bar commands (File, Edit, View custom menus) |
 | `AttachmentChipRow` | Reusable horizontal attachment chip list (used in ComposeView and ReplyBarView) |
@@ -95,7 +98,6 @@ Shared styled components:
 | File | Role |
 |------|------|
 | `CardStyle` | Base-plane card container (`.quinary` fill + `.separator` stroke) for settings and detail cards. `CompactCardStyle` variant with tighter padding (`Spacing.md`/`Spacing.sm`) for inline banners (tracker, insight). |
-| `BadgeView` | Numeric badge pill (unread counts) |
 
 ## Intents (App Intents)
 

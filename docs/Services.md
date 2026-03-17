@@ -15,7 +15,7 @@ Business logic, networking, and side effects. This is the **only** layer that ta
 ## Subfolders
 
 ### `Auth/`
-OAuth flow, token storage (Keychain), token refresh, token revocation. `OAuthService` handles the Google OAuth PKCE flow, `revokeToken(token:)` for sign-out revocation via Google's endpoint, and `refreshToken` with `invalid_grant` detection (`OAuthError.tokenRevoked`). `postForm` retries on 5xx and network errors with exponential backoff (up to 3 attempts, `pow(2, attempt)` second delays; 4xx errors are not retried). `TokenStore` persists tokens securely. `AuthToken` is the token value type (`Codable`, `Sendable`) with expiration tracking (60-second pre-refresh buffer).
+OAuth flow, token storage (Keychain), token refresh, token revocation. `OAuthService` handles the Google OAuth PKCE flow, `revokeToken(token:)` for sign-out revocation via Google's endpoint, and `refreshToken` with `invalid_grant` detection (`OAuthError.tokenRevoked`). `postForm` retries on 5xx and network errors with exponential backoff (up to 3 attempts, `pow(2, attempt)` second delays; 4xx errors are not retried). `TokenStore` persists tokens securely. `AuthToken` is the token value type (`Codable`, `Sendable`) with `accessToken`, `refreshToken`, `expiresAt`, `tokenType`, `scope` properties and expiration tracking (60-second pre-refresh buffer via `isExpired`).
 
 ### `Protocols/`
 - `MessageFetching` — Protocol abstracting the Gmail message API surface (`@MainActor`, `Sendable`, typed throws). Methods include `getProfile(accountID:)` for history ID retrieval and `batchModifyLabels(ids:add:remove:accountID:)` for bulk label operations. `GmailMessageService` conforms. Enables testing via mocks (`MockMessageFetching`).
@@ -29,6 +29,7 @@ Gmail REST API wrappers. One service per domain:
 - `GmailSendService` — Compose, send, draft CRUD (RFC 2822 MIME encoding with RFC 2047 header encoding, base64 Content-Transfer-Encoding for text parts). Outgoing messages include `Date:` and `Message-ID: <UUID@vik.app>` headers. Reply headers use separate `In-Reply-To` (single parent Message-ID) and `References` (full chain per RFC 2822 §3.6.4). Header construction is extracted into a `nonisolated private static func buildHeaders(...)` reused by both plain and multipart builders. Base64url encoding uses `Data.base64URLEncodedString()` extension. `buildReferencesChain(parentReferences:parentMessageID:)` assembles the References header from parent chain + Message-ID. `sendRaw(base64url:threadID:accountID:)` sends a pre-built RFC 2822 message (used by offline send queue).
 - `GmailDraftService` — Draft fetch (single + batch via `batchFetch` with format-specific `fields` via `DraftFields` enum); `getDrafts` returns `(drafts: [GmailDraft], failedIDs: [String])` tuple. `createDraft`/`updateDraft` accept `bcc`, `inReplyTo`, `references`, and `threadID` parameters (threading headers preserve reply chain; threadID preserves thread association for reply drafts); both delegate to a shared `saveDraft` implementation (POST for create, PUT for update) and pass a `fields` parameter scoping the response payload. `sendDraft` passes `fields: "id"` to minimize response size. Used for quick reply draft loading.
 - `GmailFilterService` — Gmail filter CRUD (list, create, delete filters). `createFilter` includes a `fields` parameter to scope the response to `id,criteria,action`.
+- `GmailSendAs+BestAlias` — `Array<GmailSendAs>` extension with `bestAlias(toRecipients:ccRecipients:)` for selecting the most appropriate send-as alias when composing replies.
 - `GmailModels` — All API response/request types (`Codable` structs)
 
 ### Root-level files
@@ -67,4 +68,5 @@ Gmail REST API wrappers. One service per domain:
 | `ToastManager.swift` | Toast notification state (show/dismiss, typed messages). `currentToast` is `private(set)`. |
 | `TrackerBlockerService.swift` | HTML sanitization, tracking pixel/domain blocking (O(1) domain lookup). `styleWidthSmallRegex` and `styleHeightSmallRegex` are pre-compiled `static` properties for spy pixel detection. |
 | `UndoActionManager.swift` | Undo toast state machine (schedule -> countdown -> confirm/undo). Countdown tick rate is 250ms. `pendingActions` and `progress` are `private(set)`. `timeRemaining` is `@ObservationIgnored` (views derive display from `progress` to halve re-render frequency). |
+| `SoundManager.swift` | Enum with `Effect` cases and `play(_:)` for UI sound effects (gated by `isEnabled` preference) |
 | `UnsubscribeService.swift` | Parses List-Unsubscribe headers, RFC 8058 one-click POST |

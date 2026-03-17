@@ -48,7 +48,7 @@ A native macOS Gmail client. No Electron. No web wrapper. Just Swift, SwiftUI, a
 | 🏷️ **Labels & filters** | Full Gmail label management + filter creation and sync |
 | 📎 **Attachment browser** | Browse, search, and preview all attachments with thumbnail caching |
 | ⌨️ **Command palette** | `⌘K` to search actions, switch accounts, jump anywhere |
-| 🔔 **Notifications** | Native macOS push notifications for new messages |
+| 🔔 **Notifications** | Native macOS notifications for new messages |
 | 🎙️ **App Intents** | Compose, search, and manage email from Shortcuts, Spotlight, and Siri |
 | ✍️ **Signatures** | Per-account signature management synced with Gmail |
 | 🖨️ **Print** | Clean HTML-based email printing |
