@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SyncBubbleView: View {
     let phase: SyncPhase
+    var isCompact = false
     var onRefresh: () -> Void = {}
 
     @State private var isHovered = false
@@ -14,6 +15,28 @@ struct SyncBubbleView: View {
     }
 
     var body: some View {
+        if isCompact {
+            compactBody
+        } else {
+            fullBody
+        }
+    }
+
+    private var compactBody: some View {
+        Button(action: onRefresh) {
+            icon
+                .font(Typography.captionRegular)
+                .frame(width: 32, height: 32)
+        }
+        .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: .circle)
+        .disabled(!isTappable)
+        .help(accessibilityText)
+        .accessibilityLabel(accessibilityText)
+        .accessibilityHint(isTappable ? "Double-tap to sync mail" : "")
+    }
+
+    private var fullBody: some View {
         Button(action: onRefresh) {
             HStack(spacing: Spacing.sm) {
                 icon

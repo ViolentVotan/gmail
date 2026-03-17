@@ -42,6 +42,7 @@ struct ListPaneView: View {
     }
 
     var body: some View {
+        @Bindable var vm = mailboxViewModel
         VStack(spacing: 0) {
             if !actionCoordinator.isConnected {
                 HStack {
@@ -60,17 +61,15 @@ struct ListPaneView: View {
                 .background(SemanticColor.warning.opacity(0.08))
             }
             if selectedFolder == .inbox {
-                @Bindable var vm = mailboxViewModel
                 CategoryTabBar(
                     selectedCategory: $selectedCategory,
-                    priorityFilterOn: $vm.priorityFilterEnabled,
                     unreadCounts: mailboxViewModel.categoryUnreadCounts
                 )
                 Divider()
             }
-            emailList
+            emailList(priorityFilterOn: $vm.priorityFilterEnabled)
         }
-        .navigationSplitViewColumnWidth(min: 280, ideal: 320, max: 400)
+        .navigationSplitViewColumnWidth(min: 380, ideal: 380, max: 380)
         .navigationTitle(navigationTitleText)
         .onChange(of: selectedCategory) { _, newCategory in
             selectedInboxCategory = newCategory
@@ -80,7 +79,7 @@ struct ListPaneView: View {
         }
     }
 
-    private var emailList: some View {
+    private func emailList(priorityFilterOn: Binding<Bool>) -> some View {
         EmailListView(
             emails: emails,
             isLoading: isLoading,
@@ -138,7 +137,9 @@ struct ListPaneView: View {
             searchFocusTrigger: $searchFocusTrigger,
             selectedEmail: $selectedEmail,
             selectedEmailIDs: $selectedEmailIDs,
-            selectedFolder: $selectedFolder
+            selectedFolder: $selectedFolder,
+            priorityFilterOn: priorityFilterOn,
+            showPriorityFilter: selectedFolder == .inbox
         )
     }
 }

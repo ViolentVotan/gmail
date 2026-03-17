@@ -2,7 +2,6 @@ import SwiftUI
 
 struct CategoryTabBar: View {
     @Binding var selectedCategory: InboxCategory
-    @Binding var priorityFilterOn: Bool
     let unreadCounts: [InboxCategory: Int]
 
     var body: some View {
@@ -10,27 +9,12 @@ struct CategoryTabBar: View {
     }
 
     private var tabBarContent: some View {
-        HStack(spacing: 0) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 0) {
-                    ForEach(InboxCategory.allCases) { category in
-                        categoryTab(category)
-                    }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 0) {
+                ForEach(InboxCategory.allCases) { category in
+                    categoryTab(category)
                 }
             }
-
-            Spacer()
-
-            // Priority filter toggle (Gmail IMPORTANT label)
-            Button {
-                priorityFilterOn.toggle()
-            } label: {
-                Label("Priority", systemImage: priorityFilterOn ? "flag.fill" : "flag")
-                    .font(Typography.captionRegular)
-                    .foregroundStyle(priorityFilterOn ? Color.accentColor : .secondary)
-            }
-            .buttonStyle(.plain)
-            .help("Show only important emails")
         }
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.sm)
@@ -57,7 +41,7 @@ struct CategoryTabBar: View {
                         .background(Capsule().fill(.fill.quaternary))
                 }
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 8)
             .padding(.vertical, 6)
             .modifier(TabBackground(isSelected: isSelected))
         }
@@ -85,12 +69,10 @@ private struct TabBackground: ViewModifier {
 
 #Preview {
     @Previewable @State var selectedCategory: InboxCategory = .all
-    @Previewable @State var priorityFilterOn: Bool = false
 
     CategoryTabBar(
         selectedCategory: $selectedCategory,
-        priorityFilterOn: $priorityFilterOn,
         unreadCounts: [.primary: 3, .social: 12, .promotions: 47]
     )
-    .frame(width: 700)
+    .frame(width: 380)
 }

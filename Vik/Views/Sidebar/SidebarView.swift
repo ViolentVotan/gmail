@@ -6,6 +6,7 @@ struct SidebarView: View {
     @Binding var selectedLabel: GmailLabel?
     @Binding var selectedAccountID: String?
     var authViewModel: AuthViewModel
+    var isCollapsed = false
     var categoryUnreadCounts: [InboxCategory: Int] = [:]
     var userLabels: [GmailLabel] = []
     var onRenameLabel: ((GmailLabel, String) -> Void)?
@@ -17,6 +18,7 @@ struct SidebarView: View {
     var onSignOut: ((GmailAccount) -> Void)?
     var onSetAsDefault: ((String) -> Void)?
     var onSetAccentColor: ((String, String) -> Void)?
+    var onToggleSidebar: (() -> Void)?
     var onShowDebug: (() -> Void)?
     var onRefresh: (() -> Void)?
 
@@ -27,11 +29,20 @@ struct SidebarView: View {
     @State private var labelToDelete: GmailLabel?
     @State private var renameText = ""
 
+    private var sidebarWidth: CGFloat { isCollapsed ? 52 : 220 }
+
     var body: some View {
-        VStack(spacing: 0) {
-            accountHeader
-            sidebarList
+        Group {
+            if isCollapsed {
+                collapsedSidebar
+                    .transition(.opacity)
+            } else {
+                expandedSidebar
+                    .transition(.opacity)
+            }
         }
+        .animation(VikAnimation.springDefault, value: isCollapsed)
+        .navigationSplitViewColumnWidth(min: sidebarWidth, ideal: sidebarWidth, max: sidebarWidth)
         .alert("Rename Label", isPresented: Binding(
             get: { labelToRename != nil },
             set: { if !$0 { labelToRename = nil } }
@@ -59,6 +70,75 @@ struct SidebarView: View {
         } message: {
             Text("Are you sure? This will remove the label from all messages.")
         }
+    }
+
+    // MARK: - Expanded Sidebar
+
+    private var expandedSidebar: some View {
+        VStack(spacing: 0) {
+            accountHeader
+            sidebarList
+        }
+    }
+
+    // MARK: - Collapsed Sidebar
+
+    private var collapsedSidebar: some View {
+        VStack(spacing: 0) {
+            // Account avatar — only selected account
+            AccountSwitcherView(
+                accounts: authViewModel.accounts,
+                selectedAccountID: $selectedAccountID,
+                isExpanded: false,
+                onSignIn: { await authViewModel.signIn() },
+                isSigningIn: authViewModel.isSigningIn,
+                onSignOut: onSignOut,
+                onSetAsDefault: onSetAsDefault,
+                onSetAccentColor: onSetAccentColor,
+                onExpandSidebar: onToggleSidebar
+            )
+            .padding(.vertical, Spacing.sm)
+
+            Divider()
+                .padding(.horizontal, Spacing.sm)
+
+            // Folder icons
+            VStack(spacing: 2) {
+                ForEach(Folder.allCases.filter { $0 != .labels }) { folder in
+                    collapsedFolderButton(folder)
+                }
+            }
+            .padding(.vertical, Spacing.xs)
+
+            Spacer(minLength: 0)
+
+            // Sync bubble — compact icon only
+            SyncBubbleView(phase: syncProgress.phase, isCompact: true) {
+                onRefresh?()
+            }
+            .padding(Spacing.sm)
+        }
+    }
+
+    private func collapsedFolderButton(_ folder: Folder) -> some View {
+        Button {
+            selectedFolder = folder
+            selectedInboxCategory = folder == .inbox ? .all : nil
+        } label: {
+            Image(systemName: folder.icon)
+                .font(.system(size: 15))
+                .frame(width: 34, height: 34)
+                .foregroundStyle(selectedFolder == folder ? .primary : .secondary)
+                .background(
+                    selectedFolder == folder ? AnyShapeStyle(.fill.tertiary) : AnyShapeStyle(.clear),
+                    in: RoundedRectangle(cornerRadius: CornerRadius.sm)
+                )
+        }
+        .buttonStyle(.plain)
+        .help(folder.rawValue)
+        .frame(maxWidth: .infinity)
+        .accessibilityLabel(folder.rawValue)
+        .accessibilityAddTraits(selectedFolder == folder ? .isSelected : [])
     }
 
     // MARK: - Account Header
@@ -105,7 +185,6 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
-        .navigationSplitViewColumnWidth(min: 200, ideal: 240)
         .safeAreaInset(edge: .bottom) {
             SyncBubbleView(phase: syncProgress.phase) {
                 onRefresh?()

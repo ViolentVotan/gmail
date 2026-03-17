@@ -30,7 +30,7 @@ macOS Gmail client built with Swift/SwiftUI. `NavigationSplitView` 3-column layo
 
 `VikApp.swift` -> registers `UserDefaults` defaults (notifications, undo duration, AI labels) in `init()`, then routes to `OnboardingView` or `ContentView` based on `@AppStorage("isSignedIn")`. Also registers the `Settings` scene (Cmd+,) with `SettingsView`.
 
-`ContentView.swift` is the main orchestrator: owns ViewModels, wires callbacks, manages navigation state. Uses `NavigationSplitView` for the three-column layout with `@FocusState` pane cycling (Opt+Tab). Advertises `NSUserActivity` for Handoff when viewing an email.
+`ContentView.swift` is the main orchestrator: owns ViewModels, wires callbacks, manages navigation state. Uses `NavigationSplitView` for the three-column layout with `@FocusState` pane cycling (Opt+Tab). Sidebar collapse (`⌘\`) toggles between 220pt expanded and 52pt icon-only mode; the built-in sidebar toggle is suppressed (`.toolbar(removing: .sidebarToggle)`) in favor of a custom toggle. `columnVisibility` is locked to `.all` — collapse is managed via `isSidebarCollapsed` state, not NavigationSplitView's visibility system. Advertises `NSUserActivity` for Handoff when viewing an email.
 
 ## Key Patterns
 

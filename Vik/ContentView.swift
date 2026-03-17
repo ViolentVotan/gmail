@@ -4,6 +4,7 @@ struct ContentView: View {
     var appearanceManager: AppearanceManager
     @State private var coordinator = AppCoordinator()
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var isSidebarCollapsed = false
     @State private var commandPalette = CommandPaletteViewModel()
     @State private var showSnoozePicker = false
 
@@ -22,7 +23,7 @@ struct ContentView: View {
         withLifecycle(
             mainLayout
                 .preferredColorScheme(appearanceManager.colorScheme)
-                .frame(minWidth: 960, minHeight: 600)
+                .frame(minWidth: 1100, minHeight: 600)
                 .focusedSceneValue(\.appCoordinator, coordinator)
                 .focusedSceneValue(\.commandPalette, commandPalette)
                 .toolbar { toolbarContent }
@@ -58,6 +59,7 @@ struct ContentView: View {
                     selectedLabel: $coordinator.selectedLabel,
                     selectedAccountID: $coordinator.selectedAccountID,
                     authViewModel: coordinator.authViewModel,
+                    isCollapsed: isSidebarCollapsed,
                     categoryUnreadCounts: coordinator.mailboxViewModel.categoryUnreadCounts,
                     userLabels: coordinator.mailboxViewModel.userLabels,
                     onRenameLabel: { label, newName in Task { await coordinator.renameLabel(label, to: newName) } },
@@ -82,6 +84,11 @@ struct ContentView: View {
                     },
                     onSetAsDefault: { id in AccountStore.shared.setAsDefault(id: id) },
                     onSetAccentColor: { id, hex in AccountStore.shared.setAccentColor(id: id, hex: hex) },
+                    onToggleSidebar: {
+                        withAnimation(VikAnimation.springDefault) {
+                            isSidebarCollapsed.toggle()
+                        }
+                    },
                     onShowDebug: {
                         coordinator.panelCoordinator.showDebug = true
                     },
@@ -153,7 +160,12 @@ struct ContentView: View {
             }
             .environment(coordinator.syncProgressManager)
             .navigationSplitViewStyle(.balanced)
+            .toolbar(removing: .sidebarToggle)
             .windowResizeAnchor(.top)
+            .onChange(of: columnVisibility) { _, newValue in
+                // Prevent the system from hiding our manually-managed sidebar
+                if newValue != .all { columnVisibility = .all }
+            }
             .onKeyPress(.tab, phases: .down) { keyPress in
                 guard keyPress.modifiers.contains(.option) else { return .ignored }
                 if keyPress.modifiers.contains(.shift) {
@@ -243,6 +255,18 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .navigation) {
+            Button {
+                withAnimation(VikAnimation.springDefault) {
+                    isSidebarCollapsed.toggle()
+                }
+            } label: {
+                Label("Toggle Sidebar", systemImage: "sidebar.leading")
+            }
+            .help("Toggle Sidebar (⌘\\)")
+            .keyboardShortcut("\\", modifiers: .command)
+        }
+
         if !coordinator.panelCoordinator.isAnyOpen {
             ToolbarItem(placement: .primaryAction) {
                 Button { coordinator.composeNewEmail() } label: {

@@ -12,6 +12,8 @@ struct EmailListView: View {
     @Binding var selectedEmail: Email?
     @Binding var selectedEmailIDs: Set<String>
     @Binding var selectedFolder: Folder
+    @Binding var priorityFilterOn: Bool
+    var showPriorityFilter = false
     @State private var searchText = ""
     @State private var searchDebounceTask: Task<Void, Never>?
     @State private var sortOrder: EmailSortOrder = .dateNewest
@@ -155,6 +157,10 @@ struct EmailListView: View {
                         }
                     }
 
+                if showPriorityFilter {
+                    priorityButton
+                }
+
                 sortMenu
             }
         }
@@ -190,6 +196,22 @@ struct EmailListView: View {
             }
             .buttonStyle(.plain)
         }
+    }
+
+    private var priorityButton: some View {
+        Button {
+            priorityFilterOn.toggle()
+        } label: {
+            Image(systemName: priorityFilterOn ? "flag.fill" : "flag")
+                .font(Typography.subheadRegular)
+                .foregroundStyle(priorityFilterOn ? Color.accentColor : .secondary)
+                .frame(width: 28, height: 28)
+                .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
+        }
+        .buttonStyle(.plain)
+        .help("Show only important emails")
+        .accessibilityLabel(priorityFilterOn ? "Priority filter on" : "Priority filter off")
+        .accessibilityHint("Toggle to show only important emails")
     }
 
     private var sortMenu: some View {
