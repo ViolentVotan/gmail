@@ -142,6 +142,8 @@ enum ScaleToken {
     static let enterFrom: CGFloat = 0.95
     /// Sidebar collapse scale
     static let sidebarCollapse: CGFloat = 0.92
+    /// Subtle hover lift on email rows (gentler than cards)
+    static let rowHover: CGFloat = 1.01
 }
 
 // MARK: - Offset Tokens

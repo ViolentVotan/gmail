@@ -387,12 +387,13 @@ struct EmailListView: View {
     // MARK: - Email row builder
 
     @ViewBuilder
-    private func emailRow(for email: Email) -> some View {
+    private func emailRow(for email: Email, entranceIndex: Int = 0) -> some View {
         EmailRowView(
             email: email,
             isSelected: selectedEmailIDs.contains(email.id.uuidString),
             accountID: accountID,
-            action: { handleTap(email: email) }
+            action: { handleTap(email: email) },
+            entranceIndex: entranceIndex
         )
         .equatable()
         .tag(email.id.uuidString)
@@ -460,8 +461,8 @@ struct EmailListView: View {
             if useDateSections {
                 ForEach(cachedSections) { section in
                     Section {
-                        ForEach(section.emails) { email in
-                            emailRow(for: email)
+                        ForEach(Array(section.emails.enumerated()), id: \.element.id) { index, email in
+                            emailRow(for: email, entranceIndex: index)
                         }
                     } header: {
                         Text(section.title)
@@ -472,8 +473,8 @@ struct EmailListView: View {
                     }
                 }
             } else {
-                ForEach(sortedEmails) { email in
-                    emailRow(for: email)
+                ForEach(Array(sortedEmails.enumerated()), id: \.element.id) { index, email in
+                    emailRow(for: email, entranceIndex: index)
                 }
             }
 

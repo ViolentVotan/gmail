@@ -5,6 +5,7 @@ struct EmailRowView: View, Equatable {
     let isSelected: Bool
     let accountID: String
     let action: () -> Void
+    var entranceIndex: Int = 0
     @State private var isHovered = false
     @State private var hasAppeared = false
     @AppStorage("emailDensity") private var density = "comfortable"
@@ -29,11 +30,12 @@ struct EmailRowView: View, Equatable {
         lhs.email == rhs.email && lhs.isSelected == rhs.isSelected && lhs.accountID == rhs.accountID
     }
 
-    init(email: Email, isSelected: Bool, accountID: String, action: @escaping () -> Void) {
+    init(email: Email, isSelected: Bool, accountID: String, action: @escaping () -> Void, entranceIndex: Int = 0) {
         self.email = email
         self.isSelected = isSelected
         self.accountID = accountID
         self.action = action
+        self.entranceIndex = entranceIndex
 
         self.labelBadges = email.labels.map { .label($0) }
 
@@ -127,7 +129,7 @@ struct EmailRowView: View, Equatable {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Text(email.isDraft && email.recipients.isEmpty ? "Draft" : email.sender.name)
-                            .font(.callout.weight(email.isRead ? .medium : .semibold))
+                            .font(.callout.weight(email.isRead ? .regular : .semibold))
                             .foregroundStyle(email.isDraft && email.recipients.isEmpty ? .tertiary : .primary)
                             .lineLimit(1)
 
@@ -213,6 +215,9 @@ struct EmailRowView: View, Equatable {
                 if isSelected {
                     RoundedRectangle(cornerRadius: CornerRadius.sm)
                         .fill(.tint.opacity(OpacityToken.tag))
+                } else if !email.isRead {
+                    RoundedRectangle(cornerRadius: CornerRadius.sm)
+                        .fill(.tint.opacity(0.03))
                 }
             }
             .padding(.horizontal, 8)
@@ -223,6 +228,7 @@ struct EmailRowView: View, Equatable {
             isSelected || isHovered ? .regular.interactive() : .identity,
             in: .rect(cornerRadius: CornerRadius.sm)
         )
+        .scaleEffect(isHovered && !isSelected ? ScaleToken.rowHover : 1.0, anchor: .center)
         .animation(.snappy(duration: 0.2), value: isHovered)
         .animation(.snappy(duration: 0.2), value: isSelected)
         .draggable(EmailDragItem(
@@ -233,7 +239,8 @@ struct EmailRowView: View, Equatable {
         .offset(y: hasAppeared ? 0 : OffsetToken.small)
         .onAppear {
             guard !hasAppeared else { return }
-            withAnimation(VikAnimation.springDefault) {
+            let delay = Double(min(entranceIndex, 8)) * DurationToken.stagger
+            withAnimation(VikAnimation.springDefault.delay(delay)) {
                 hasAppeared = true
             }
         }
