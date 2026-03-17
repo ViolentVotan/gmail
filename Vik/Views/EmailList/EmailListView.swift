@@ -464,13 +464,11 @@ struct EmailListView: View {
                             emailRow(for: email)
                         }
                     } header: {
-                        HStack(spacing: Spacing.sm) {
-                            Text(section.title)
-                                .font(Typography.caption)
-                                .foregroundStyle(.secondary)
-                                .textCase(nil)
-                            VStack { Divider() }
-                        }
+                        Text(section.title)
+                            .font(Typography.captionSemibold)
+                            .foregroundStyle(.secondary)
+                            .textCase(nil)
+                            .padding(.top, Spacing.xs)
                     }
                 }
             } else {

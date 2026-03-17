@@ -11,8 +11,8 @@ struct EmailRowView: View, Equatable {
     @State private var tagRevealTask: Task<Void, Never>?
     @State private var hoverTask: Task<Void, Never>?
     @State private var popoverHolder = PopoverHolder()
-    @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 36
-    @ScaledMetric(relativeTo: .caption2) private var dotSize: CGFloat = 7
+    @ScaledMetric(relativeTo: .body) private var avatarSize: CGFloat = 30
+    @ScaledMetric(relativeTo: .caption2) private var dotSize: CGFloat = 8
     @ScaledMetric(relativeTo: .caption2) private var threadBadgeSize: CGFloat = 18
 
     /// Cached at init to avoid per-render allocations.
@@ -164,8 +164,9 @@ struct EmailRowView: View, Equatable {
                     }
 
                     if !labelBadges.isEmpty || (showTags && !tagBadges.isEmpty) {
+                        let visibleLabelCount = showTags ? 2 : 1
                         HStack(spacing: 4) {
-                            ForEach(labelBadges.prefix(2)) { badge in
+                            ForEach(labelBadges.prefix(visibleLabelCount)) { badge in
                                 badgeView(badge)
                             }
                             if showTags {
@@ -173,7 +174,7 @@ struct EmailRowView: View, Equatable {
                                     badgeView(badge)
                                 }
                             }
-                            let totalVisible = labelBadges.prefix(2).count + (showTags ? tagBadges.prefix(2).count : 0)
+                            let totalVisible = labelBadges.prefix(visibleLabelCount).count + (showTags ? tagBadges.prefix(2).count : 0)
                             let totalCount = labelBadges.count + tagBadges.count
                             if totalCount > totalVisible {
                                 Text("+\(totalCount - totalVisible)")
@@ -204,14 +205,22 @@ struct EmailRowView: View, Equatable {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, verticalPadding)
-            .background(
-                RoundedRectangle(cornerRadius: CornerRadius.sm)
-                    .fill(isSelected ? AnyShapeStyle(.tint.opacity(0.1)) : (isHovered ? AnyShapeStyle(.fill.quaternary) : AnyShapeStyle(Color.clear)))
-            )
+            .background {
+                if isSelected {
+                    RoundedRectangle(cornerRadius: CornerRadius.sm)
+                        .fill(.tint.opacity(0.12))
+                }
+            }
             .padding(.horizontal, 8)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .glassEffect(
+            isSelected || isHovered ? .regular.interactive() : .identity,
+            in: .rect(cornerRadius: CornerRadius.sm)
+        )
+        .animation(.snappy(duration: 0.2), value: isHovered)
+        .animation(.snappy(duration: 0.2), value: isSelected)
         .draggable(EmailDragItem(
             messageIds: [email.gmailMessageID ?? ""],
             accountID: accountID

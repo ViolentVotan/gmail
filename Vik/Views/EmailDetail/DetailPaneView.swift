@@ -78,6 +78,8 @@ struct DetailPaneView: View {
                 emptyState
             }
         }
+        .animation(VikAnimation.contentSwitch, value: selectedEmail?.id)
+        .contentTransition(.opacity)
         .navigationSplitViewColumnWidth(min: 500, ideal: 700)
     }
 
@@ -207,7 +209,7 @@ struct DetailPaneView: View {
         VStack(spacing: Spacing.lg) {
             Image(systemName: emptyStateIcon)
                 .font(.system(size: 48, weight: .light))
-                .foregroundStyle(.quaternary)
+                .foregroundStyle(.tint.opacity(0.5))
                 .symbolEffect(.breathe.plain, isActive: true)
 
             VStack(spacing: Spacing.xs) {

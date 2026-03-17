@@ -98,6 +98,8 @@ enum VikAnimation {
     static let springDefault = Animation.spring(response: 0.35, dampingFraction: 0.85)
     static let springSnappy = Animation.spring(response: 0.3, dampingFraction: 0.8)
     static let springGentle = Animation.spring(response: 0.4, dampingFraction: 0.9)
+    /// Content swap — crossfade with subtle spring for email/category transitions.
+    static let contentSwitch = Animation.smooth(duration: 0.25)
 }
 
 // MARK: - Typography
@@ -139,7 +141,7 @@ enum Typography {
     static let captionSmallRegular: Font = .caption2
 
     // Micro — AI classification tags, tiny badges
-    static let microTag: Font = .system(size: 9, weight: .medium)
+    static let microTag: Font = .system(size: 10, weight: .medium)
 }
 
 // MARK: - Elevation

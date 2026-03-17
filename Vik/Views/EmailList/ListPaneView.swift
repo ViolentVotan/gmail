@@ -68,6 +68,8 @@ struct ListPaneView: View {
                 Divider()
             }
             emailList(priorityFilterOn: $vm.priorityFilterEnabled)
+                .animation(VikAnimation.contentSwitch, value: selectedCategory)
+                .contentTransition(.opacity)
         }
         .navigationSplitViewColumnWidth(min: 300, ideal: 380, max: 480)
         .navigationTitle(navigationTitleText)

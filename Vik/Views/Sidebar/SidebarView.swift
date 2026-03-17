@@ -287,46 +287,9 @@ struct SidebarView: View {
     // MARK: - Mailbox Section
 
     private var mailboxSection: some View {
-        Section("Mailbox") {
+        Section {
             ForEach(Folder.allCases.filter { $0 != .labels }) { folder in
-                if folder == .inbox {
-                    inboxDisclosureGroup(folder: folder)
-                } else {
-                    folderButton(folder: folder)
-                }
-            }
-        }
-    }
-
-    private func inboxDisclosureGroup(folder: Folder) -> some View {
-        DisclosureGroup {
-            ForEach(InboxCategory.allCases) { category in
-                Button {
-                    selectedFolder = .inbox
-                    selectedInboxCategory = category
-                } label: {
-                    Label {
-                        Text(category.displayName)
-                    } icon: {
-                        Image(systemName: category.icon)
-                            .frame(width: 20)
-                    }
-                }
-                .badge(categoryUnreadCounts[category] ?? 0)
-                .accessibilityLabel(category.displayName)
-                .accessibilityAddTraits(selectedFolder == .inbox && selectedInboxCategory == category ? .isSelected : [])
-            }
-        } label: {
-            Button {
-                selectedFolder = .inbox
-                selectedInboxCategory = .all
-            } label: {
-                Label {
-                    Text(folder.rawValue)
-                } icon: {
-                    Image(systemName: folder.icon)
-                        .frame(width: 20)
-                }
+                folderButton(folder: folder)
             }
         }
     }
@@ -334,7 +297,7 @@ struct SidebarView: View {
     private func folderButton(folder: Folder) -> some View {
         Button {
             selectedFolder = folder
-            selectedInboxCategory = nil
+            selectedInboxCategory = folder == .inbox ? .all : nil
         } label: {
             Label {
                 Text(folder.rawValue)
@@ -368,16 +331,9 @@ struct SidebarView: View {
     @ViewBuilder
     private var labelsSection: some View {
         if !userLabels.isEmpty {
-            Section {
+            Section("Labels") {
                 ForEach(userLabels) { label in
                     labelButton(label: label)
-                }
-            } header: {
-                HStack {
-                    Image(systemName: "tag")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(.tertiary)
-                    Text("Labels")
                 }
             }
         }
@@ -396,13 +352,9 @@ struct SidebarView: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
             } icon: {
-                RoundedRectangle(cornerRadius: 3)
+                Circle()
                     .fill(labelColor)
-                    .frame(width: 14, height: 14)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 3)
-                            .strokeBorder(labelColor.opacity(0.3), lineWidth: 1)
-                    )
+                    .frame(width: 8, height: 8)
                     .frame(width: 20)
                     .accessibilityHidden(true)
             }
