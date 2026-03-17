@@ -452,6 +452,8 @@ final class AppCoordinator {
         mailboxViewModel.setMailDatabase(self.mailDatabase)
         mailboxViewModel.setBackgroundSyncer(self.backgroundSyncer)
         mailboxViewModel.setSyncProgressManager(self.syncProgressManager)
+        // Stop any zombie engine left from a previous window (red X → reopen)
+        await FullSyncEngine.stopActive(for: id)
         // Start sync engine
         if let db = self.mailDatabase, let syncer = self.backgroundSyncer {
             let engine = FullSyncEngine(accountID: id, db: db, syncer: syncer, api: GmailMessageService.shared)

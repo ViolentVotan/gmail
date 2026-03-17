@@ -1,6 +1,7 @@
 import Foundation
 internal import GRDB
 private import os
+import Synchronization
 
 /// Orchestrates complete offline sync for a single Gmail account.
 /// Manages: initial full sync, incremental History API polling,
@@ -62,6 +63,20 @@ actor FullSyncEngine {
         subsystem: "com.vikingz.vik", category: "SyncEngine"
     )
 
+    // MARK: - Active Engine Registry
+
+    /// Tracks the active engine per account so `setupAccount` can stop a zombie
+    /// engine from a previous window before creating a replacement.
+    private static let activeEngines = Mutex<[String: FullSyncEngine]>([:])
+
+    /// Stops and removes any active engine for the given account.
+    /// Call before creating a replacement engine to prevent zombie engines
+    /// when the window is closed and reopened without quitting the app.
+    static func stopActive(for accountID: String) async {
+        let old = activeEngines.withLock { $0.removeValue(forKey: accountID) }
+        await old?.stop()
+    }
+
     // MARK: - Init
 
     init(
@@ -86,12 +101,17 @@ actor FullSyncEngine {
 
     func start() {
         guard syncTask == nil else { return }
+        Self.activeEngines.withLock { $0[accountID] = self }
         state = .idle
         isTokenRevoked = false
         syncTask = Task { await runSyncLifecycle() }
     }
 
     func stop() async {
+        let id = accountID
+        Self.activeEngines.withLock { (engines: inout [String: FullSyncEngine]) in
+            if engines[id] === self { engines[id] = nil }
+        }
         syncTask?.cancel()
         bodyPrefetchTask?.cancel()
         incrementalTask?.cancel()

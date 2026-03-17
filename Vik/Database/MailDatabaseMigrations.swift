@@ -3,9 +3,8 @@ internal import GRDB
 enum MailDatabaseMigrations {
     static var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
-        #if DEBUG
-        migrator.eraseDatabaseOnSchemaChange = true
-        #endif
+        // Database is preserved across schema changes in all builds.
+        // Use Settings → Advanced → "Delete Local Database" to reset during development.
         registerV1(&migrator)
         registerV2(&migrator)
         registerV3(&migrator)

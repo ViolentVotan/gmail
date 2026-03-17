@@ -115,6 +115,8 @@ struct SettingsView: View {
         .padding()
     }
 
+    @State private var showDeleteDatabaseConfirmation = false
+
     private var advancedTab: some View {
         Form {
             Section("Intelligence") {
@@ -123,6 +125,27 @@ struct SettingsView: View {
 
             Section("Developer") {
                 Toggle("Show debug menu", isOn: $showDebugMenu)
+            }
+
+            Section {
+                Button("Delete Local Database", role: .destructive) {
+                    showDeleteDatabaseConfirmation = true
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+            } header: {
+                Text("Danger Zone")
+            } footer: {
+                Text("Deletes all cached emails for the current account and triggers a full resync on next launch.")
+            }
+            .alert("Delete Local Database?", isPresented: $showDeleteDatabaseConfirmation) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete", role: .destructive) {
+                    let id = accountID
+                    guard !id.isEmpty else { return }
+                    MailDatabase.deleteDatabase(accountID: id)
+                }
+            } message: {
+                Text("This will permanently delete all cached emails for this account. The app will perform a full resync on next launch.")
             }
         }
         .formStyle(.grouped)
