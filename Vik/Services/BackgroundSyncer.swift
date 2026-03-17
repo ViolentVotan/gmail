@@ -30,7 +30,7 @@ actor BackgroundSyncer {
                 try Self.upsertSingleMessage(gmail, in: db, affectedThreadIds: &affectedThreadIds)
             }
 
-            try Self.updateThreadCounts(for: affectedThreadIds, in: db)
+            try MailDatabaseQueries.updateThreadCounts(for: affectedThreadIds, in: db)
         }
     }
 
@@ -49,7 +49,7 @@ actor BackgroundSyncer {
             // FTS cleanup is handled by the AFTER DELETE trigger (v6 migration) — no manual delete needed.
             // CASCADE handles message_labels, email_tags, attachments
             try MessageRecord.deleteAll(db, keys: gmailIds)
-            try Self.updateThreadCounts(for: affectedThreadIds, in: db)
+            try MailDatabaseQueries.updateThreadCounts(for: affectedThreadIds, in: db)
         }
         // NOTE: GRDB and AttachmentDatabase use separate SQLite connections, so these deletes are
         // not atomic. AttachmentDatabase.deleteMessages is idempotent — stale entries are harmless
@@ -127,16 +127,6 @@ actor BackgroundSyncer {
         }
     }
 
-    /// @deprecated Use `syncLabels(_:)` instead — it combines upsert and delete in a single transaction.
-    func upsertLabels(_ gmailLabels: [GmailLabel]) async throws {
-        guard !gmailLabels.isEmpty else { return }
-        try await db.dbPool.write { db in
-            for gmail in gmailLabels {
-                try LabelRecord(from: gmail).upsert(db)
-            }
-        }
-    }
-
     // MARK: - History Delta Sync
 
     /// Apply history delta: insert new, delete removed, update labels.
@@ -182,7 +172,7 @@ actor BackgroundSyncer {
                 """, arguments: [isRead, isStarred, update.gmailId])
             }
 
-            try Self.updateThreadCounts(for: affectedThreadIds, in: db)
+            try MailDatabaseQueries.updateThreadCounts(for: affectedThreadIds, in: db)
         }
         if !deletedIds.isEmpty {
             await AttachmentDatabase.shared.deleteMessages(deletedIds)
@@ -370,26 +360,6 @@ actor BackgroundSyncer {
                 .insert(db, onConflict: .ignore)
             try MessageLabelRecord(messageId: messageId, labelId: labelId).insert(db)
         }
-    }
-
-    /// Update thread_message_count for all messages belonging to the given threads.
-    /// Uses a CTE to compute counts once per thread, avoiding a correlated subquery
-    /// that would execute COUNT(*) for every row in the UPDATE's target set.
-    private static func updateThreadCounts(for threadIds: Set<String>, in db: Database) throws {
-        guard !threadIds.isEmpty else { return }
-        let placeholders = threadIds.map { _ in "?" }.joined(separator: ",")
-        let args = Array(threadIds)
-        try db.execute(sql: """
-            WITH thread_counts AS (
-                SELECT thread_id, COUNT(*) AS cnt
-                FROM messages
-                WHERE thread_id IN (\(placeholders))
-                GROUP BY thread_id
-            )
-            UPDATE messages SET thread_message_count = (
-                SELECT cnt FROM thread_counts tc WHERE tc.thread_id = messages.thread_id
-            ) WHERE thread_id IN (\(placeholders))
-        """, arguments: StatementArguments(args + args))
     }
 
 }

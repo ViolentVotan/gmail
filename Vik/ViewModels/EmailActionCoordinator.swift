@@ -430,44 +430,48 @@ final class EmailActionCoordinator {
     }
 
     func bulkMarkUnread(_ emails: [Email], onClear: () -> Void) async {
-        let vm = mailboxViewModel
-        let msgIDs = emails.compactMap(\.gmailMessageID)
-        // Save originals for revert via single-transaction batch update
-        let originalLabelsMap = await vm.updateLabelsInDatabaseBatch(msgIDs, addLabelIds: [GmailSystemLabel.unread], removeLabelIds: [])
-        onClear()
-        let accountID = vm.accountID
-        let api = self.api
-        do {
-            try await api.batchModifyLabels(
-                ids: msgIDs, add: [GmailSystemLabel.unread], remove: [], accountID: accountID
-            )
-        } catch {
-            // Revert optimistic update
-            for (id, labels) in originalLabelsMap {
-                await vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
-            }
-            ToastManager.shared.show(message: "Failed to update read status", type: .error)
-        }
+        await performBulkLabelUpdate(
+            emails: emails,
+            addLabelIDs: [GmailSystemLabel.unread],
+            removeLabelIDs: [],
+            onClear: onClear
+        )
     }
 
     func bulkMarkRead(_ emails: [Email], onClear: () -> Void) async {
+        await performBulkLabelUpdate(
+            emails: emails,
+            addLabelIDs: [],
+            removeLabelIDs: [GmailSystemLabel.unread],
+            onClear: onClear
+        )
+    }
+
+    /// Optimistically updates labels in the DB, calls the Gmail API, and reverts on failure.
+    /// Uses `batchModifyLabels` for multiple messages (more efficient) and `modifyLabels` for a single message.
+    private func performBulkLabelUpdate(
+        emails: [Email],
+        addLabelIDs: [String],
+        removeLabelIDs: [String],
+        onClear: () -> Void
+    ) async {
         let vm = mailboxViewModel
         let msgIDs = emails.compactMap(\.gmailMessageID)
-        // Save originals for revert via single-transaction batch update
-        let originalLabelsMap = await vm.updateLabelsInDatabaseBatch(msgIDs, addLabelIds: [], removeLabelIds: [GmailSystemLabel.unread])
+        guard !msgIDs.isEmpty else { return }
+        let originalLabelsMap = await vm.updateLabelsInDatabaseBatch(msgIDs, addLabelIds: addLabelIDs, removeLabelIds: removeLabelIDs)
         onClear()
         let accountID = vm.accountID
-        let api = self.api
         do {
-            try await api.batchModifyLabels(
-                ids: msgIDs, add: [], remove: [GmailSystemLabel.unread], accountID: accountID
-            )
+            if msgIDs.count == 1 {
+                try await api.modifyLabels(id: msgIDs[0], add: addLabelIDs, remove: removeLabelIDs, accountID: accountID)
+            } else {
+                try await api.batchModifyLabels(ids: msgIDs, add: addLabelIDs, remove: removeLabelIDs, accountID: accountID)
+            }
         } catch {
-            // Revert optimistic update
             for (id, labels) in originalLabelsMap {
                 await vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
             }
-            ToastManager.shared.show(message: "Failed to update read status", type: .error)
+            ToastManager.shared.show(message: "Failed to update labels", type: .error)
         }
     }
 

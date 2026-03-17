@@ -45,7 +45,10 @@ final class PeopleAPIService {
 
     /// Extracts contact tuples from a PersonResource array, updating the photo cache.
     /// Returns tuples ready for `BackgroundSyncer.upsertContacts`.
-    private func parseContacts(from persons: [PersonResource]) -> [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)] {
+    private func parseContacts(
+        from persons: [PersonResource],
+        source: String = "people_api"
+    ) -> [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)] {
         var contacts: [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)] = []
         for person in persons {
             let displayName = person.names?.first?.displayName ?? ""
@@ -56,7 +59,7 @@ final class PeopleAPIService {
                 if let url = photoURL {
                     ContactPhotoCache.shared.set(url, for: lowered)
                 }
-                contacts.append((email: lowered, name: displayName, photoUrl: photoURL, source: "people_api", resourceName: nil))
+                contacts.append((email: lowered, name: displayName, photoUrl: photoURL, source: source, resourceName: nil))
             }
         }
         return contacts
@@ -72,6 +75,8 @@ final class PeopleAPIService {
         var newContactsSyncToken: String?
         var newOtherSyncToken: String?
         var contactsFetchSucceeded = false
+        var didFullConnectionsFetch = false
+        let syncStartTime = Date().timeIntervalSince1970
 
         let mailDB = try? MailDatabase.shared(for: accountID)
 
@@ -97,7 +102,8 @@ final class PeopleAPIService {
                         let encoded = syncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? syncToken
                         var urlStr = "https://people.googleapis.com/v1/people/me/connections"
                             + "?personFields=metadata,names,emailAddresses,photos&syncToken=\(encoded)"
-                            + "&pageSize=1000"
+                            + "&pageSize=1000&sortOrder=LAST_MODIFIED_ASCENDING"
+                            + "&fields=\(Self.connectionsFields)"
                         if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
                         let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
@@ -149,7 +155,8 @@ final class PeopleAPIService {
                     repeat {
                         var urlStr = "https://people.googleapis.com/v1/people/me/connections"
                             + "?personFields=metadata,names,emailAddresses,photos&pageSize=1000"
-                            + "&requestSyncToken=true"
+                            + "&requestSyncToken=true&sortOrder=LAST_MODIFIED_ASCENDING"
+                            + "&fields=\(Self.connectionsFields)"
                         if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
                         let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
@@ -164,6 +171,7 @@ final class PeopleAPIService {
                         }
                     } while pageToken != nil
                     contactsFetchSucceeded = true
+                    didFullConnectionsFetch = true
                     Self.logger.info("Full fetch: stored \(totalStored, privacy: .public) contacts from Connections")
                 } catch {
                     Self.logger.error("Full Connections fetch failed: \(error, privacy: .public)")
@@ -199,7 +207,7 @@ final class PeopleAPIService {
                         let encoded = otherSyncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? otherSyncToken
                         var urlStr = "https://people.googleapis.com/v1/otherContacts"
                             + "?readMask=metadata,names,emailAddresses&syncToken=\(encoded)"
-                            + "&pageSize=1000"
+                            + "&pageSize=1000&fields=\(Self.otherContactsFields)"
                         if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
                         let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
@@ -247,7 +255,7 @@ final class PeopleAPIService {
                     repeat {
                         var urlStr = "https://people.googleapis.com/v1/otherContacts"
                             + "?readMask=metadata,names,emailAddresses&pageSize=1000"
-                            + "&requestSyncToken=true"
+                            + "&requestSyncToken=true&fields=\(Self.otherContactsFields)"
                         if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
                         let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
@@ -289,6 +297,21 @@ final class PeopleAPIService {
                 }, in: db)
             }
         }
+        // 4. Purge stale people_api contacts after a full Connections re-fetch.
+        // All live contacts (Connections + Other Contacts) were upserted above,
+        // so anything with updated_at < syncStartTime no longer exists upstream.
+        if didFullConnectionsFetch {
+            let pruned = try? await mailDB?.dbPool.write { db -> Int in
+                try ContactRecord
+                    .filter(Column("source") == "people_api")
+                    .filter(Column("updated_at") < syncStartTime)
+                    .deleteAll(db)
+            }
+            if let pruned, pruned > 0 {
+                Self.logger.info("Pruned \(pruned, privacy: .public) stale people_api contacts")
+            }
+        }
+
         if contactsFetchSucceeded {
             Self.logger.info("Contact sync complete")
         }
@@ -299,6 +322,7 @@ final class PeopleAPIService {
     /// scope isn't granted (403).
     private func fetchDirectoryPeople(accountID: String, syncer: BackgroundSyncer) async {
         let mailDB = try? MailDatabase.shared(for: accountID)
+        let syncStartTime = Date().timeIntervalSince1970
 
         do {
             let dirSyncToken: String? = try? await mailDB?.dbPool.read { db in
@@ -318,11 +342,11 @@ final class PeopleAPIService {
                             + "&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE"
                             + "&readMask=metadata,names,emailAddresses,photos"
                             + "&syncToken=\(encoded)"
-                            + "&pageSize=1000"
+                            + "&pageSize=1000&fields=\(Self.directoryFields)"
                         if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
                         let response: DirectoryPeopleResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
-                        let parsed = parseDirectoryContacts(from: response.people ?? [])
+                        let parsed = parseContacts(from: response.people ?? [], source: "directory")
                         try? await syncer.upsertContacts(parsed)
 
                         pageToken = response.nextPageToken
@@ -353,10 +377,11 @@ final class PeopleAPIService {
                         + "&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE"
                         + "&readMask=metadata,names,emailAddresses,photos"
                         + "&requestSyncToken=true&pageSize=1000"
+                        + "&fields=\(Self.directoryFields)"
                     if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
                     let response: DirectoryPeopleResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
-                    let parsed = parseDirectoryContacts(from: response.people ?? [])
+                    let parsed = parseContacts(from: response.people ?? [], source: "directory")
                     try? await syncer.upsertContacts(parsed)
 
                     pageToken = response.nextPageToken
@@ -365,6 +390,17 @@ final class PeopleAPIService {
                         try? await Task.sleep(for: .milliseconds(100))
                     }
                 } while pageToken != nil
+
+                // Purge directory contacts not seen in this full re-fetch
+                let pruned = try? await mailDB?.dbPool.write { db -> Int in
+                    try ContactRecord
+                        .filter(Column("source") == "directory")
+                        .filter(Column("updated_at") < syncStartTime)
+                        .deleteAll(db)
+                }
+                if let pruned, pruned > 0 {
+                    Self.logger.info("Pruned \(pruned, privacy: .public) stale directory contacts")
+                }
             }
 
             // Persist the sync token after all pages succeeded.
@@ -383,23 +419,29 @@ final class PeopleAPIService {
         }
     }
 
-    /// Extracts contact tuples from directory PersonResources with "directory" source.
-    private func parseDirectoryContacts(from persons: [PersonResource]) -> [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)] {
-        var contacts: [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)] = []
-        for person in persons {
-            let displayName = person.names?.first?.displayName ?? ""
-            let photoURL = person.photos?.first(where: { $0.default != true })?.url
-            for addr in person.emailAddresses ?? [] {
-                guard let email = addr.value, !email.isEmpty else { continue }
-                let lowered = email.lowercased()
-                if let url = photoURL {
-                    ContactPhotoCache.shared.set(url, for: lowered)
-                }
-                contacts.append((email: lowered, name: displayName, photoUrl: photoURL, source: "directory", resourceName: nil))
-            }
-        }
-        return contacts
-    }
+    // MARK: - Response Field Masks
+
+    /// Partial-response `fields` filter for connections.list — limits the response
+    /// envelope to only the fields we decode, avoiding unnecessary metadata transfer.
+    private static let connectionsFields = [
+        "connections(emailAddresses/value,names/displayName,photos(url,default),metadata/deleted)",
+        "nextPageToken",
+        "nextSyncToken",
+    ].joined(separator: ",")
+
+    /// Partial-response `fields` filter for otherContacts.list.
+    private static let otherContactsFields = [
+        "otherContacts(emailAddresses/value,names/displayName,metadata/deleted)",
+        "nextPageToken",
+        "nextSyncToken",
+    ].joined(separator: ",")
+
+    /// Partial-response `fields` filter for people:listDirectoryPeople.
+    private static let directoryFields = [
+        "people(emailAddresses/value,names/displayName,photos(url,default),metadata/deleted)",
+        "nextPageToken",
+        "nextSyncToken",
+    ].joined(separator: ",")
 }
 
 // MARK: - People API response models

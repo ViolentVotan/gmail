@@ -10,6 +10,7 @@ struct EmailDetailView: View {
     var fromAddress: String = ""
     var mailStore: MailStore
     var contacts: [StoredContact] = []
+    private var mailDatabase: MailDatabase?
 
     @State private var detailVM: EmailDetailViewModel
     @State private var summaryVM = EmailSummaryViewModel()
@@ -61,9 +62,8 @@ struct EmailDetailView: View {
         self.allLabels = allLabels
         self.fromAddress = fromAddress
         self.contacts = contacts
-        let vm = EmailDetailViewModel(accountID: accountID)
-        vm.mailDatabase = mailDatabase
-        self._detailVM = State(initialValue: vm)
+        self.mailDatabase = mailDatabase
+        self._detailVM = State(initialValue: EmailDetailViewModel(accountID: accountID))
     }
 
     // MARK: - Derived content (delegated to ViewModel)
@@ -130,6 +130,7 @@ struct EmailDetailView: View {
             }
         }
         .task(id: email.id) {
+            detailVM.mailDatabase = mailDatabase
             await loadThread()
         }
         .userActivity(UserActivityManager.viewEmailActivityType) { activity in

@@ -117,4 +117,26 @@ enum MailDatabaseQueries {
         ) ?? 0
     }
 
+    // MARK: - Thread Counts
+
+    /// Update `thread_message_count` for all messages belonging to the given threads.
+    /// Uses a CTE to compute counts once per thread, avoiding a correlated subquery
+    /// that would execute COUNT(*) for every row in the UPDATE's target set.
+    static func updateThreadCounts(for threadIDs: Set<String>, in db: Database) throws {
+        guard !threadIDs.isEmpty else { return }
+        let placeholders = threadIDs.map { _ in "?" }.joined(separator: ",")
+        let args = Array(threadIDs)
+        try db.execute(sql: """
+            WITH thread_counts AS (
+                SELECT thread_id, COUNT(*) AS cnt
+                FROM messages
+                WHERE thread_id IN (\(placeholders))
+                GROUP BY thread_id
+            )
+            UPDATE messages SET thread_message_count = (
+                SELECT cnt FROM thread_counts tc WHERE tc.thread_id = messages.thread_id
+            ) WHERE thread_id IN (\(placeholders))
+        """, arguments: StatementArguments(args + args))
+    }
+
 }

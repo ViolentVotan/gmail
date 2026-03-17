@@ -20,6 +20,14 @@ final class SpotlightIndexer {
     func indexEmail(_ email: Email) async {
         guard let messageID = email.gmailMessageID else { return }
 
+        // Deduplicate: if already indexed, refresh LRU position and return early
+        if let existingIndex = indexedIDs.firstIndex(of: messageID) {
+            indexedIDs.remove(at: existingIndex)
+            indexedIDs.append(messageID)
+            persistIndexedIDs()
+            return
+        }
+
         // Clean up legacy CSSearchableItem entries on first run after migration
         cleanLegacyItemsIfNeeded()
 

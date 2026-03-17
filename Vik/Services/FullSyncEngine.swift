@@ -301,8 +301,12 @@ actor FullSyncEngine {
                     return
                 }
 
-                // Don't retry auth errors — user must re-authenticate
-                if isTokenRevoked { return }
+                // Don't retry auth errors — user must re-authenticate.
+                // Remove from registry to prevent leak (stop() won't be called).
+                if isTokenRevoked {
+                    Self.activeEngines.withLock { _ = $0.removeValue(forKey: accountID) }
+                    return
+                }
 
                 attempt += 1
                 if attempt > maxRetries {
@@ -315,6 +319,9 @@ actor FullSyncEngine {
                         Self.logger.warning("Failed to clear stale page token — next retry may resume from old position")
                     }
                     await reportProgress { $0.syncFailed("Sync failed — tap to retry") }
+                    // Remove from registry to prevent leak — engine is dead but
+                    // triggerIncrementalSync() can restart it via start().
+                    Self.activeEngines.withLock { _ = $0.removeValue(forKey: accountID) }
                     return
                 }
 
@@ -632,6 +639,7 @@ actor FullSyncEngine {
                 // our own task's .value, causing actor self-deadlock.
                 Self.logger.error("Token revoked for \(self.accountID), stopping sync")
                 cancelAllTasks()
+                Self.activeEngines.withLock { _ = $0.removeValue(forKey: accountID) }
                 state = .error("Session expired — please sign in again")
                 await reportProgress { $0.syncFailed("Session expired — please sign in again") }
                 return false

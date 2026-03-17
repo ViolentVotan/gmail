@@ -85,7 +85,9 @@ final class MailStore {
             let (fetched, _) = try await GmailDraftService.shared.getDrafts(
                 ids: draftIDs, accountID: accountID, format: "full"
             )
-            // Backfill draft IDs into GRDB database for App Intents (SendDraftIntent)
+            // Backfill draft IDs into GRDB database for App Intents (SendDraftIntent).
+            // Direct dbPool.write is safe here: targeted UPDATE by primary key with no
+            // contention against BackgroundSyncer bulk-sync writes (lightweight write convention).
             if let db = try? MailDatabase.shared(for: accountID) {
                 let mappings: [(draftId: String, messageId: String)] = fetched.compactMap { draft in
                     guard let msgId = draft.message?.id else { return nil }

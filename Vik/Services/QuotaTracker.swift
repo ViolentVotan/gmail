@@ -16,14 +16,22 @@ import Foundation
 /// Concurrent requests are throttled server-side (HTTP 429 "Too many concurrent
 /// requests for user") — handled by retry logic in GmailAPIClient, not here.
 actor QuotaTracker {
-    static let shared = QuotaTracker()
+    static let shared = QuotaTracker(interactiveReserve: 3_000)
 
     private let budgetPerMinute: Int
+
+    /// Units reserved for interactive user actions (star, archive, send, label
+    /// modify) that bypass quota tracking. Sync never consumes more than
+    /// `budgetPerMinute - interactiveReserve`, leaving headroom so a burst of
+    /// user actions + running sync won't exceed the 15k/min per-user limit.
+    private let interactiveReserve: Int
+
     private var ledger: [(timestamp: Date, units: Int)] = []
     private var _cachedSpend: Int = 0
 
-    init(budgetPerMinute: Int = 15_000) {
+    init(budgetPerMinute: Int = 15_000, interactiveReserve: Int = 0) {
         self.budgetPerMinute = budgetPerMinute
+        self.interactiveReserve = interactiveReserve
     }
 
     /// Current spend in the last 60 seconds (cached, updated lazily on prune/record).
@@ -32,14 +40,15 @@ actor QuotaTracker {
         return _cachedSpend
     }
 
-    /// Remaining budget in the current minute window.
+    /// Remaining sync budget in the current minute window (accounts for interactive reserve).
     var remainingBudget: Int {
-        max(0, budgetPerMinute - currentSpend)
+        max(0, budgetPerMinute - interactiveReserve - currentSpend)
     }
 
-    /// Returns true if spending `units` would stay within the per-minute budget.
+    /// Returns true if spending `units` would stay within the effective sync budget
+    /// (per-minute budget minus the interactive reserve).
     func canSpend(_ units: Int) -> Bool {
-        currentSpend + units <= budgetPerMinute
+        currentSpend + units <= budgetPerMinute - interactiveReserve
     }
 
     /// Records a spend of `units` at the current time.

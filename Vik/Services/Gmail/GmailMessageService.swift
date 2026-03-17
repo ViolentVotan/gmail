@@ -106,7 +106,7 @@ final class GmailMessageService {
         if let token = pageToken { path += "&pageToken=\(token)" }
         return try await client.request(
             path: path,
-            fields: "history(id,messagesAdded,messagesDeleted,labelsAdded,labelsRemoved),historyId,nextPageToken",
+            fields: "history(id,messagesAdded(message(id,threadId,labelIds)),messagesDeleted(message(id,threadId)),labelsAdded(message(id,threadId),labelIds),labelsRemoved(message(id,threadId),labelIds)),historyId,nextPageToken",
             accountID: accountID
         )
     }

@@ -39,17 +39,16 @@ All 7 record types conform to `Sendable`.
 
 ### `Services/BackgroundSyncer.swift`
 
-Actor that centralizes all bulk DB writes. All methods are `async throws` using GRDB's async write API (does not block the actor executor). Shared helpers: `upsertSingleMessage` (DRY extraction used by both upsert and delta paths), `updateThreadCounts` (CTE-based — computes counts once per thread via `GROUP BY`, then batch-updates all affected messages; used by all 3 write paths). FTS always uses unconditional `FTSManager.update` (DELETE + INSERT — safe for new and existing rows):
-- `upsertMessages(_:ensureLabels:)` — delegates per-message work to `upsertSingleMessage`; `thread_message_count` via `updateThreadCounts`
+Actor that centralizes all bulk DB writes. All methods are `async throws` using GRDB's async write API (does not block the actor executor). Shared helpers: `upsertSingleMessage` (DRY extraction used by both upsert and delta paths). Thread count updates use `MailDatabaseQueries.updateThreadCounts(for:in:)` (CTE-based — computes counts once per thread via `GROUP BY`, then batch-updates all affected messages; shared across BackgroundSyncer and MailboxViewModel). FTS always uses unconditional `FTSManager.update` (DELETE + INSERT — safe for new and existing rows):
+- `upsertMessages(_:ensureLabels:)` — delegates per-message work to `upsertSingleMessage`; `thread_message_count` via `MailDatabaseQueries.updateThreadCounts`
 - `updateDraftIds(_:)` — populates `gmail_draft_id` on existing message records (mapping from Gmail Drafts API)
-- `deleteMessages(gmailIds:)` — removes messages (FTS cleanup handled by v6 trigger); also calls `AttachmentDatabase.shared.deleteMessages()` for attachment cleanup (separate SQLite connection — documented atomicity gap); `thread_message_count` via `updateThreadCounts`
+- `deleteMessages(gmailIds:)` — removes messages (FTS cleanup handled by v6 trigger); also calls `AttachmentDatabase.shared.deleteMessages()` for attachment cleanup (separate SQLite connection — documented atomicity gap); `thread_message_count` via `MailDatabaseQueries.updateThreadCounts`
 - `updateBodies(_:)` — writes pre-fetched full bodies + updates FTS
 - `syncLabels(_:)` — atomic label sync: upserts all labels then deletes stale **user** labels in a single write transaction (prevents cascade-deleting `message_labels` for system labels on transient API blips)
-- `upsertLabels(_:)` — bulk label upsert only (deprecated — prefer `syncLabels` for full sync)
 - `pruneStaleContacts()` — removes `source = 'message'` contacts with no corresponding messages (called after contact refresh)
 - `upsertContacts(_:)` / `deleteContacts(emails:)` — contact CRUD (empty-array guards)
 - `upsertContactsWithSyncToken(_:tokenUpdate:accountID:)` — atomic contact upsert + sync token write in a single DB transaction (used by `PeopleAPIService` to prevent token/data skew)
-- `applyDelta(newMessages:deletedIds:labelUpdates:)` — delegates per-message work to `upsertSingleMessage`; `thread_message_count` via `updateThreadCounts`; calls `AttachmentDatabase.shared.deleteMessages()` for deleted IDs (FTS cleanup handled by v6 trigger)
+- `applyDelta(newMessages:deletedIds:labelUpdates:)` — delegates per-message work to `upsertSingleMessage`; `thread_message_count` via `MailDatabaseQueries.updateThreadCounts`; calls `AttachmentDatabase.shared.deleteMessages()` for deleted IDs (FTS cleanup handled by v6 trigger)
 
 ## Data Flow
 

@@ -70,7 +70,7 @@ enum CacheMigration {
               !labels.isEmpty
         else { return }
 
-        try? await syncer.upsertLabels(labels)
+        try? await syncer.syncLabels(labels)
     }
 
     private static func migrateMessages(syncer: BackgroundSyncer, accountID: String) async {

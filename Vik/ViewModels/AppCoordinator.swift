@@ -240,30 +240,18 @@ final class AppCoordinator {
 
     func navigateToMessage(gmailMessageID: String) {
         navigationTask?.cancel()
-        let expectedAccountID = accountID
         navigationTask = Task {
-            guard let msg = try? await GmailMessageService.shared.getMessage(
-                id: gmailMessageID, accountID: expectedAccountID, format: "full"
-            ) else { return }
-            guard !Task.isCancelled, accountID == expectedAccountID else { return }
-            let email = mailboxViewModel.makeEmail(from: msg)
-            panelCoordinator.showEmail(email, accountID: expectedAccountID)
+            _ = await fetchAndShowMessage(gmailMessageID: gmailMessageID)
         }
     }
 
     /// Navigates to a message and opens the reply compose sheet (from intent).
     func navigateAndReply(gmailMessageID: String, replyAll: Bool) {
         navigationTask?.cancel()
-        let expectedAccountID = accountID
         navigationTask = Task {
-            guard let msg = try? await GmailMessageService.shared.getMessage(
-                id: gmailMessageID, accountID: expectedAccountID, format: "full"
-            ) else { return }
-            guard !Task.isCancelled, accountID == expectedAccountID else { return }
-            let email = mailboxViewModel.makeEmail(from: msg)
-            panelCoordinator.showEmail(email, accountID: expectedAccountID)
+            guard let (email, acctID) = await fetchAndShowMessage(gmailMessageID: gmailMessageID) else { return }
             let mode: ComposeMode = if replyAll {
-                EmailDetailViewModel.replyAllMode(for: email, currentUserEmail: expectedAccountID)
+                EmailDetailViewModel.replyAllMode(for: email, currentUserEmail: acctID)
             } else {
                 EmailDetailViewModel.replyMode(for: email)
             }
@@ -274,17 +262,24 @@ final class AppCoordinator {
     /// Navigates to a message and opens the forward compose sheet (from intent).
     func navigateAndForward(gmailMessageID: String, recipient: String?) {
         navigationTask?.cancel()
-        let expectedAccountID = accountID
         navigationTask = Task {
-            guard let msg = try? await GmailMessageService.shared.getMessage(
-                id: gmailMessageID, accountID: expectedAccountID, format: "full"
-            ) else { return }
-            guard !Task.isCancelled, accountID == expectedAccountID else { return }
-            let email = mailboxViewModel.makeEmail(from: msg)
-            panelCoordinator.showEmail(email, accountID: expectedAccountID)
+            guard let (email, _) = await fetchAndShowMessage(gmailMessageID: gmailMessageID) else { return }
             let mode = EmailDetailViewModel.forwardMode(for: email)
             startCompose(mode: mode)
         }
+    }
+
+    /// Fetches a Gmail message, converts it to an `Email`, and shows it in the preview panel.
+    /// Returns `nil` if the fetch fails, the task is cancelled, or the account changed mid-flight.
+    private func fetchAndShowMessage(gmailMessageID: String) async -> (Email, String)? {
+        let expectedAccountID = accountID
+        guard let msg = try? await GmailMessageService.shared.getMessage(
+            id: gmailMessageID, accountID: expectedAccountID, format: "full"
+        ) else { return nil }
+        guard !Task.isCancelled, accountID == expectedAccountID else { return nil }
+        let email = mailboxViewModel.makeEmail(from: msg)
+        panelCoordinator.showEmail(email, accountID: expectedAccountID)
+        return (email, expectedAccountID)
     }
 
     func composeNewEmail(recipient: String? = nil) {
@@ -666,14 +661,18 @@ final class AppCoordinator {
             selectedAccountID = accounts.first?.id
         }
 
-        // Delete database and attachment files for all removed accounts.
-        // For the selected account, the lifecycleTask above stops the engine
-        // first; for non-selected accounts, no engine is running.
+        // Stop sync engines and delete database/attachment files for all removed accounts.
+        // The selected account's engine is stopped above via the syncEngine property;
+        // non-selected accounts may still have active engines in FullSyncEngine.activeEngines.
         let idsToDelete = removedIDs
         let engineTask = lifecycleTask
         cleanupTask = Task {
-            // Wait for engine stop (no-op if lifecycleTask is nil / different account)
+            // Wait for selected-account engine stop (no-op if lifecycleTask is nil / different account)
             await engineTask?.value
+            // Stop any remaining active engines for non-selected removed accounts
+            for removedID in idsToDelete {
+                await FullSyncEngine.stopActive(for: removedID)
+            }
             for removedID in idsToDelete {
                 MailDatabase.deleteDatabase(accountID: removedID)
                 await AttachmentDatabase.shared.deleteByAccountID(removedID)
@@ -688,6 +687,10 @@ final class AppCoordinator {
             id: messageId, accountID: accountID, format: "metadata"
         ) else { return }
         let replySubject = message.subject.withReplyPrefix
+        let references = GmailSendService.buildReferencesChain(
+            parentReferences: message.header(named: "References"),
+            parentMessageID: message.messageID
+        )
         do {
             _ = try await GmailSendService.shared.send(
                 from: accountID,
@@ -695,7 +698,8 @@ final class AppCoordinator {
                 subject: replySubject,
                 body: text,
                 threadID: message.threadId,
-                referencesHeader: message.messageID,
+                inReplyTo: message.messageID,
+                references: references,
                 accountID: accountID
             )
             ToastManager.shared.show(message: "Reply sent")

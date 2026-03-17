@@ -18,21 +18,15 @@ final class GmailSendService {
         threadID: String? = nil,
         inReplyTo: String? = nil,
         references: String? = nil,
-        // TODO: Migrate AppCoordinator.handleQuickReply to use inReplyTo/references directly
-        referencesHeader: String? = nil,
         inlineImages: [InlineImageAttachment] = [],
         attachments: [URL]? = nil,
         accountID: String
     ) async throws(GmailAPIError) -> GmailMessage {
-        // Support legacy `referencesHeader` callers: if the new separated params
-        // aren't provided, fall back to referencesHeader for both headers.
-        let effectiveInReplyTo = inReplyTo ?? referencesHeader
-        let effectiveReferences = references ?? referencesHeader
         let raw = try Self.buildRawMessage(
             from: from, to: to, cc: cc, bcc: bcc,
             subject: subject, body: body, isHTML: isHTML,
-            inReplyTo: effectiveInReplyTo,
-            references: effectiveReferences,
+            inReplyTo: inReplyTo,
+            references: references,
             inlineImages: inlineImages,
             attachments: attachments ?? []
         )
@@ -206,7 +200,7 @@ final class GmailSendService {
     ) throws(GmailAPIError) -> String {
         if isHTML {
             // multipart/alternative: text/plain + text/html
-            let boundary = "BA_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
+            let boundary = "BA_\(mimeBoundaryID())"
             let lines = buildHeaders(
                 from: mimeEncodeAddress(from),
                 to: mimeEncodeAddresses(to),
@@ -265,9 +259,9 @@ final class GmailSendService {
         inlineImages: [InlineImageAttachment] = [],
         attachments: [URL]
     ) throws(GmailAPIError) -> String {
-        let boundaryMixed = "BM_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
-        let boundaryRelated = "BR_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
-        let boundaryAlt = "BA_\(UUID().uuidString.replacingOccurrences(of: "-", with: ""))"
+        let boundaryMixed = "BM_\(mimeBoundaryID())"
+        let boundaryRelated = "BR_\(mimeBoundaryID())"
+        let boundaryAlt = "BA_\(mimeBoundaryID())"
         let hasInline = !inlineImages.isEmpty
         let hasFileAttachments = !attachments.isEmpty
 
@@ -432,5 +426,10 @@ final class GmailSendService {
             throw .encodingError(URLError(.cannotParseResponse))
         }
         return data.base64URLEncodedString()
+    }
+
+    /// Generates a compact UUID suitable for MIME boundary strings.
+    private nonisolated static func mimeBoundaryID() -> String {
+        UUID().uuidString.replacingOccurrences(of: "-", with: "")
     }
 }

@@ -58,22 +58,11 @@ private func mutateLabels(
     )
 
     // 6. Recompute thread_message_count for all messages in the same thread.
-    //    Uses the same CTE-based pattern as BackgroundSyncer.updateThreadCounts.
     if let threadID = try String.fetchOne(database, sql:
         "SELECT thread_id FROM messages WHERE gmail_id = ?",
         arguments: [messageID]
     ) {
-        try database.execute(sql: """
-            WITH thread_counts AS (
-                SELECT thread_id, COUNT(*) AS cnt
-                FROM messages
-                WHERE thread_id = ?
-                GROUP BY thread_id
-            )
-            UPDATE messages SET thread_message_count = (
-                SELECT cnt FROM thread_counts tc WHERE tc.thread_id = messages.thread_id
-            ) WHERE thread_id = ?
-        """, arguments: [threadID, threadID])
+        try MailDatabaseQueries.updateThreadCounts(for: [threadID], in: database)
     }
 
     return currentLabels
@@ -88,10 +77,8 @@ private func mutateLabels(
 final class MailboxViewModel {
     var isLoading      = false
     var error:         String?
-    var labels:        [GmailLabel] = [] {
-        didSet { userLabels = labels.filter { !$0.isSystemLabel } }
-    }
-    private(set) var userLabels: [GmailLabel] = []
+    var labels:        [GmailLabel] = []
+    var userLabels: [GmailLabel] { labels.filter { !$0.isSystemLabel } }
     var sendAsAliases:         [GmailSendAs] = []
     var categoryUnreadCounts:  [InboxCategory: Int] = [:]
     /// Set by `restoreLabelsInDatabase` so the UI can re-select the restored email.
@@ -159,6 +146,8 @@ final class MailboxViewModel {
     // MARK: - Database Observation
 
     func startObservingLabels(_ labelIDs: [String]) {
+        observationDebounceTask?.cancel()
+        observationDebounceTask = nil
         observationTask?.cancel()
         guard let db = mailDatabase, let primaryLabel = labelIDs.first else { return }
         // Use GRDB association prefetching: 4 queries instead of N+1.

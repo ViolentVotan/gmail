@@ -52,6 +52,10 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord,
         // This init reads 7+ headers; the map avoids repeated linear scans with lowercased().
         let headers = gmail.headerMap
 
+        // Single-pass MIME traversal — extracts body (HTML + plain) and attachment presence
+        // in one walk instead of 3–5 separate recursive traversals.
+        let mime = Self.extractMIMEInfo(from: gmail.payload)
+
         self.gmailId = gmail.id
         self.threadId = gmail.threadId
         self.historyId = gmail.historyId
@@ -71,15 +75,15 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord,
         self.messageIdHeader = headers["message-id"] ?? ""
         self.inReplyTo = headers["in-reply-to"] ?? ""
         self.referencesHeader = headers["references"]
-        self.bodyHtml = gmail.htmlBody
-        self.bodyPlain = gmail.plainBody
+        self.bodyHtml = mime.htmlBody
+        self.bodyPlain = mime.plainBody
         self.rawHeaders = Self.encodeHeaders(gmail.payload?.headers)
-        self.hasAttachments = gmail.attachmentParts.count > 0
+        self.hasAttachments = mime.hasAttachments
         self.isRead = !(gmail.labelIds?.contains(GmailSystemLabel.unread) ?? false)
         self.isStarred = gmail.labelIds?.contains(GmailSystemLabel.starred) ?? false
         self.isFromMailingList = headers["list-unsubscribe"] != nil || headers["list-id"] != nil
         self.unsubscribeUrl = gmail.unsubscribeURL?.absoluteString
-        self.fullBodyFetched = gmail.htmlBody != nil || gmail.plainBody != nil
+        self.fullBodyFetched = mime.htmlBody != nil || mime.plainBody != nil
         self.bodyFetchAttempts = 0
         self.threadMessageCount = 1
         self.fetchedAt = Date().timeIntervalSince1970
@@ -114,6 +118,46 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord,
     #endif
 
     // MARK: - Private helpers
+
+    /// Result of a single-pass MIME tree traversal, collecting body text and attachment info.
+    private struct MIMEInfo {
+        var htmlBody: String?
+        var plainBody: String?
+        var hasAttachments: Bool
+    }
+
+    /// Traverses the MIME tree exactly once to extract HTML body, plain-text body,
+    /// and attachment presence. Replaces three separate recursive traversals
+    /// (`extractBody` x2, `collectAttachments`) that previously tripled traversal cost
+    /// during bulk sync.
+    private static func extractMIMEInfo(from part: GmailMessagePart?) -> MIMEInfo {
+        var info = MIMEInfo(htmlBody: nil, plainBody: nil, hasAttachments: false)
+        guard let part else { return info }
+        traverseMIME(part: part, info: &info)
+        return info
+    }
+
+    private static func traverseMIME(part: GmailMessagePart, info: inout MIMEInfo) {
+        // Check for body content (HTML or plain text)
+        if let mimeType = part.mimeType, let data = part.body?.data {
+            if mimeType == "text/html", info.htmlBody == nil {
+                info.htmlBody = Data(base64URLEncoded: data).flatMap { String(data: $0, encoding: .utf8) }
+            } else if mimeType == "text/plain", info.plainBody == nil {
+                info.plainBody = Data(base64URLEncoded: data).flatMap { String(data: $0, encoding: .utf8) }
+            }
+        }
+
+        // Check for attachments: has a non-empty filename + attachmentId, but no Content-ID (inline)
+        if let filename = part.filename, !filename.isEmpty, part.body?.attachmentId != nil,
+           part.contentID == nil {
+            info.hasAttachments = true
+        }
+
+        // Recurse into child parts
+        for sub in part.parts ?? [] {
+            traverseMIME(part: sub, info: &info)
+        }
+    }
 
     private static func encodeRecipients(_ raw: String?) -> String? {
         guard let raw, !raw.isEmpty else { return nil }
