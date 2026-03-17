@@ -17,7 +17,12 @@ Requires **Xcode 26.3+** (full IDE, not just command-line tools).
 |--------|---------|
 | Build | `xcodebuild -scheme Vik -configuration Debug build` |
 | Test | `xcodebuild -scheme Vik -destination 'platform=macOS' test` |
-| Release | `./scripts/release.sh` |
+| Local install | `./scripts/install-local.sh` |
+| GitHub release | `./scripts/release.sh <version>` |
+
+**`install-local.sh`** — builds Release with Xcode automatic signing (Andre Meyer Personal Team / `9GSLSZ92Z7`), verifies the code signature has a valid team identifier (rejects ad-hoc), and installs to `/Applications`. Use for local deployment on this machine.
+
+**`release.sh`** — pushes a git tag (`v<version>`), which triggers the GitHub Actions workflow (`.github/workflows/release.yml`) to build with Developer ID signing, notarize, create a DMG, and publish a GitHub Release. Requires CI secrets for certificates and Apple ID credentials.
 
 <!-- Human-only setup reference (hidden from Claude context):
 1. Google Cloud project with Gmail API enabled + OAuth 2.0 Desktop credentials
