@@ -14,7 +14,7 @@ struct SearchBarView: View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
                 .font(Typography.bodyMedium)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(isFocused ? .secondary : .tertiary)
 
             NonAutoFocusTextField(text: $text, placeholder: "Search", focusTrigger: $focusTrigger, isFocused: $isFocused)
                 .font(Typography.body)
@@ -29,17 +29,19 @@ struct SearchBarView: View {
                         .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
+                .transition(.scale.combined(with: .opacity))
             }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(.quinary)
+        .background(isFocused ? Color.accentColor.opacity(0.04) : Color(.quinaryLabel))
         .clipShape(.rect(cornerRadius: CornerRadius.sm))
         .overlay(
             RoundedRectangle(cornerRadius: CornerRadius.sm)
                 .strokeBorder(Color.accentColor.opacity(isFocused ? 0.5 : 0), lineWidth: 1.5)
         )
         .animation(VikAnimation.springSnappy, value: isFocused)
+        .animation(VikAnimation.springSnappy, value: text.isEmpty)
     }
 }
 

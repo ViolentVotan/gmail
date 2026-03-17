@@ -325,7 +325,7 @@ struct EmailDetailView: View {
             }
 
             LazyVStack(spacing: 1) {
-                ForEach(allMessages, id: \.id) { message in
+                ForEach(Array(allMessages.enumerated()), id: \.element.id) { index, message in
                     let isLastCard = message.id == allMessages.last?.id
                     ThreadMessageCardView(
                         message: message,
@@ -334,7 +334,7 @@ struct EmailDetailView: View {
                         isLast: isLastCard,
                         resolvedHTML: detailVM.resolvedMessageHTML[message.id],
                         onToggle: {
-                            withAnimation(VikAnimation.springSnappy) {
+                            withAnimation(VikAnimation.springSnappy.delay(Double(index) * DurationToken.stagger)) {
                                 if expandedMessageIDs.contains(message.id) {
                                     expandedMessageIDs.remove(message.id)
                                 } else {

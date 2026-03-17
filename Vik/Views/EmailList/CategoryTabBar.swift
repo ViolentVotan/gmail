@@ -4,6 +4,7 @@ struct CategoryTabBar: View {
     @Binding var selectedCategory: InboxCategory
     let unreadCounts: [InboxCategory: Int]
     @State private var hoveredCategory: InboxCategory?
+    @Namespace private var tabNamespace
 
     var body: some View {
         tabBarContent
@@ -21,6 +22,7 @@ struct CategoryTabBar: View {
         }
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.sm)
+        .animation(VikAnimation.springSnappy, value: selectedCategory)
     }
 
     private func categoryTab(_ category: InboxCategory) -> some View {
@@ -47,6 +49,13 @@ struct CategoryTabBar: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
+        }
+        .background {
+            if isSelected {
+                Capsule()
+                    .fill(Color.accentColor.opacity(OpacityToken.highlight))
+                    .matchedGeometryEffect(id: "activeTab", in: tabNamespace)
+            }
         }
         .buttonStyle(.plain)
         .glassEffect(
