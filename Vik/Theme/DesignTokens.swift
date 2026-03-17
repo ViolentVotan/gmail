@@ -291,7 +291,6 @@ enum VikHaptic {
         NSHapticFeedbackManager.defaultPerformer.perform(pattern, performanceTime: .default)
     }
 
-    static func alignment() { perform(.alignment) }
     static func generic() { perform(.generic) }
     static func levelChange() { perform(.levelChange) }
 }

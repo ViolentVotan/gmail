@@ -107,6 +107,12 @@ actor BackgroundSyncer {
         }
     }
 
+    func deleteStaleLabels(keeping validGmailIDs: Set<String>) async throws {
+        try await db.dbPool.write { db in
+            try LabelRecord.filter(!validGmailIDs.contains(Column("gmail_id"))).deleteAll(db)
+        }
+    }
+
     // MARK: - History Delta Sync
 
     /// Apply history delta: insert new, delete removed, update labels.

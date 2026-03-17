@@ -443,6 +443,7 @@ actor FullSyncEngine {
                     Self.logger.warning("Circuit breaker: pausing sync for 15 min after \(self.consecutiveFailures) failures")
                     await reportProgress { $0.syncFailed("Sync paused — will retry in 15 min") }
                     try? await Task.sleep(for: .seconds(900))
+                    guard !Task.isCancelled else { return }
                     consecutiveFailures = 0
                     continue
                 }
@@ -733,6 +734,8 @@ actor FullSyncEngine {
                 return
             }
             try await syncer.upsertLabels(labels)
+            let validIDs = Set(labels.map(\.id))
+            try await syncer.deleteStaleLabels(keeping: validIDs)
             if let responseEtag {
                 await writeSyncState { $0.labelsEtag = responseEtag }
             }

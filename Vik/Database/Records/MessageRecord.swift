@@ -189,7 +189,6 @@ extension MessageRecord {
             folder: folder,
             labels: userLabels,
             isDraft: isDraft,
-            isGmailDraft: isDraft,
             gmailMessageID: gmailId,
             gmailThreadID: threadId,
             gmailLabelIDs: gmailLabelIDs,

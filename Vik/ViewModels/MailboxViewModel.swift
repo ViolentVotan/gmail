@@ -358,6 +358,9 @@ final class MailboxViewModel {
         labels.removeAll { $0.id == label.id }
         do {
             try await GmailLabelService.shared.deleteLabel(id: label.id, accountID: accountID)
+            try? await mailDatabase?.dbPool.write { db in
+                try LabelRecord.filter(Column("gmail_id") == label.id).deleteAll(db)
+            }
         } catch {
             labels = backup
             self.error = error.localizedDescription

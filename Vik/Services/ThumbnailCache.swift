@@ -146,7 +146,12 @@ final class ThumbnailCache {
 
     private func loadFromDisk(id: String) -> NSImage? {
         let url = cacheFileURL(for: id)
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let modified = attrs[.modificationDate] as? Date,
+              Date().timeIntervalSince(modified) < 90 * 24 * 3600 else {
+            try? FileManager.default.removeItem(at: url)
+            return nil
+        }
         return NSImage(contentsOf: url)
     }
 

@@ -107,7 +107,6 @@ enum GmailDataTransformer {
             folder:         isDraft ? .drafts : folderFor(labelIDs: msgLabelIDs),
             labels:         labels,
             isDraft:             isDraft ? true : message.isDraft,
-            isGmailDraft:        isDraft,
             gmailDraftID:        draftID,
             gmailMessageID:      message.id,
             gmailThreadID:       message.threadId,

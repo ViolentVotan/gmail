@@ -47,9 +47,17 @@ struct EmailListView: View {
         }
 
         // Recompute accessibility rotor caches alongside the sorted emails.
-        unreadEmails = emails.filter { !$0.isRead }
-        starredEmails = emails.filter { $0.isStarred }
-        emailsWithAttachments = emails.filter { $0.hasAttachments }
+        var newUnread: [Email] = []
+        var newStarred: [Email] = []
+        var newAttachments: [Email] = []
+        for email in emails {
+            if !email.isRead { newUnread.append(email) }
+            if email.isStarred { newStarred.append(email) }
+            if email.hasAttachments { newAttachments.append(email) }
+        }
+        unreadEmails = newUnread
+        starredEmails = newStarred
+        emailsWithAttachments = newAttachments
     }
 
     var body: some View {

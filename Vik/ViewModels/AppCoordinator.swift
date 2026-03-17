@@ -26,6 +26,7 @@ final class AppCoordinator {
     private var markReadTask: Task<Void, Never>?
     private var navigationTask: Task<Void, Never>?
     private var contactsTask: Task<Void, Never>?
+    private var cleanupTask: Task<Void, Never>?
     private var cachedSnoozedEmails: [Email] = []
     private var cachedScheduledEmails: [Email] = []
     @ObservationIgnored private var accountSwitchGeneration = 0
@@ -112,7 +113,7 @@ final class AppCoordinator {
         } else if selectedFolder == .scheduled {
             displayedEmails = cachedScheduledEmails
         } else if mailboxViewModel.priorityFilterEnabled {
-            displayedEmails = mailboxViewModel.emails.filter { Set($0.gmailLabelIDs).contains(GmailSystemLabel.important) }
+            displayedEmails = mailboxViewModel.emails.filter { $0.gmailLabelIDs.contains(GmailSystemLabel.important) }
         } else {
             displayedEmails = mailboxViewModel.emails
         }
@@ -622,6 +623,9 @@ final class AppCoordinator {
             SubscriptionsStore.shared.deleteAccount(removedID)
             MailDatabase.evict(accountID: removedID)
         }
+        if !removedIDs.isEmpty {
+            SnoozeMonitor.shared.clearAllFailureCounts()
+        }
 
         // Stop engine if current account was removed (sign-out)
         if let id = selectedAccountID, removedIDs.contains(id) {
@@ -644,7 +648,7 @@ final class AppCoordinator {
         // first; for non-selected accounts, no engine is running.
         let idsToDelete = removedIDs
         let engineTask = lifecycleTask
-        Task {
+        cleanupTask = Task {
             // Wait for engine stop (no-op if lifecycleTask is nil / different account)
             await engineTask?.value
             for removedID in idsToDelete {

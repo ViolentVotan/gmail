@@ -32,6 +32,11 @@ final class SnoozeMonitor {
         timerTask = nil
     }
 
+    func clearAllFailureCounts() {
+        snoozeFailureCounts.removeAll()
+        scheduledSendFailureCounts.removeAll()
+    }
+
     private func checkExpired() async {
         guard !isCheckingExpired else { return }
         isCheckingExpired = true

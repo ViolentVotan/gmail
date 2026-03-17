@@ -719,6 +719,7 @@ final class GmailAPIClient {
             urlRequest.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
             urlRequest.setValue("multipart/mixed; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
             urlRequest.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+            urlRequest.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
             urlRequest.httpBody = bodyData
 
             let data: Data

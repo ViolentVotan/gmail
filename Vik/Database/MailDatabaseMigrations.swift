@@ -16,6 +16,7 @@ enum MailDatabaseMigrations {
         registerV8(&migrator)
         registerV9(&migrator)
         registerV10(&migrator)
+        registerV11(&migrator)
         return migrator
     }
 
@@ -327,6 +328,13 @@ enum MailDatabaseMigrations {
             try db.execute(sql: "CREATE INDEX IF NOT EXISTS message_labels_label_message ON message_labels(label_id, message_id)")
             // Draft resource ID (distinct from gmail_id message ID)
             try db.execute(sql: "ALTER TABLE messages ADD COLUMN gmail_draft_id TEXT")
+        }
+    }
+
+    private static func registerV11(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v11") { db in
+            try db.execute(sql: "DROP TRIGGER IF EXISTS messages_fts_update")
+            try db.drop(index: "message_labels_label")
         }
     }
 }

@@ -71,6 +71,8 @@ final class OfflineActionQueue {
                     try await executeAction(action)
                     removeAction(action)
                     succeeded += 1
+                } catch is CancellationError {
+                    break
                 } catch {
                     if case .httpError(404, _) = error as? GmailAPIError {
                         removeAction(action)

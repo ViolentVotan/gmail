@@ -188,6 +188,7 @@ struct ComposeView: View {
             editorState.setHTML(html)
             bodyHTML = html
         }
+        .onDisappear { saveTask?.cancel() }
     }
 
     // MARK: - Draft

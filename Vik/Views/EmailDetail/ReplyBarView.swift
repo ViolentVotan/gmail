@@ -143,6 +143,7 @@ struct ReplyBarView: View {
             editorState.setHTML(html)
             replyHTML = html
         }
+        .onDisappear { saveTask?.cancel(); loadDraftTask?.cancel() }
     }
 
     private var replyBodyIsEmpty: Bool {

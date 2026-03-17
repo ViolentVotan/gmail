@@ -48,7 +48,6 @@ import Foundation
             date: Date(),
             folder: .drafts,
             isDraft: true,
-            isGmailDraft: true,
             gmailDraftID: "gmail_draft_1"
         )
         store.gmailDrafts = [gmailDraft]
@@ -72,7 +71,6 @@ import Foundation
             date: Date(),
             folder: .drafts,
             isDraft: true,
-            isGmailDraft: true,
             gmailDraftID: "gmail_draft_1"
         )
         store.gmailDrafts = [gmailDraft]
@@ -132,7 +130,6 @@ import Foundation
             date: Date(),
             folder: .drafts,
             isDraft: true,
-            isGmailDraft: true,
             gmailDraftID: "gd_abc"
         )
         store.gmailDrafts = [gmailDraft]
@@ -147,7 +144,7 @@ import Foundation
         // Should have only the Gmail version
         let drafts = store.emails(for: .drafts)
         #expect(drafts.count == 1, "Duplicate should be removed")
-        #expect(drafts[0].isGmailDraft, "Remaining draft should be the Gmail version")
+        #expect(drafts[0].isDraft, "Remaining draft should be the Gmail version")
     }
 
     // MARK: - MailStore: local draft without gmailDraftID survives sync
@@ -177,7 +174,6 @@ import Foundation
             date: Date().addingTimeInterval(-60),
             folder: .drafts,
             isDraft: true,
-            isGmailDraft: true,
             gmailDraftID: "gd_other"
         )
         store.gmailDrafts = [gmailDraft]
@@ -278,7 +274,6 @@ import Foundation
             date: Date().addingTimeInterval(-60),
             folder: .drafts,
             isDraft: true,
-            isGmailDraft: true,
             gmailDraftID: "gd_1"
         )
         store.gmailDrafts = [gmailDraft]

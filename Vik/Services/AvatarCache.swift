@@ -108,6 +108,7 @@ final class AvatarCache {
         let next = pendingQueue.removeFirst()
         // If all waiters for this key were already resolved by a concurrent fetch, skip it.
         guard let pending = waiters[next.key], !pending.isEmpty else {
+            inFlightKeys.remove(next.key)
             dequeueNext()
             return
         }

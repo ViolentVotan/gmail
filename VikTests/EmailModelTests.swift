@@ -83,7 +83,6 @@ import Foundation
         #expect(email.folder == .inbox)
         #expect(email.labels.isEmpty)
         #expect(!email.isDraft)
-        #expect(!email.isGmailDraft)
         #expect(email.gmailDraftID == nil)
         #expect(email.gmailMessageID == nil)
         #expect(email.gmailThreadID == nil)
