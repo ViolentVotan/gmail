@@ -210,6 +210,7 @@ struct ContentView: View {
                     onDownloadAttachment: coordinator.downloadAttachment
                 )
                 .navigationTitle("Attachments")
+                .toolbar(removing: .sidebarToggle)
             } else {
                 ListPaneView(
                     emails: coordinator.displayedEmails,
@@ -260,7 +261,6 @@ struct ContentView: View {
             }
         }
         .navigationSplitViewStyle(.balanced)
-        .toolbar(removing: .sidebarToggle)
     }
 
     // MARK: - Toolbar

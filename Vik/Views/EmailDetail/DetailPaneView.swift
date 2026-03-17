@@ -204,49 +204,61 @@ struct DetailPaneView: View {
     // MARK: - Empty State
 
     private var emptyState: some View {
-        ContentUnavailableView(
-            emptyStateTitle,
-            systemImage: emptyStateIcon,
-            description: Text(emptyStateDescription)
-        )
+        VStack(spacing: Spacing.lg) {
+            Image(systemName: emptyStateIcon)
+                .font(.system(size: 48, weight: .light))
+                .foregroundStyle(.quaternary)
+                .symbolEffect(.breathe.plain, isActive: true)
+
+            VStack(spacing: Spacing.xs) {
+                Text(emptyStateTitle)
+                    .font(Typography.title)
+                    .foregroundStyle(.secondary)
+
+                Text(emptyStateDescription)
+                    .font(Typography.subheadRegular)
+                    .foregroundStyle(.tertiary)
+            }
+        }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .combine)
     }
 
     private var emptyStateIcon: String {
         switch selectedFolder {
-        case .drafts:        return "doc.text"
-        case .sent:          return "paperplane"
-        case .trash:         return "trash"
-        case .spam:          return "exclamationmark.shield"
-        case .starred:       return "star"
-        case .archive:       return "archivebox"
-        case .attachments:   return "paperclip"
-        case .subscriptions: return "newspaper"
-        default:             return "envelope.open"
+        case .drafts:        "doc.text"
+        case .sent:          "paperplane"
+        case .trash:         "trash"
+        case .spam:          "exclamationmark.shield"
+        case .starred:       "star"
+        case .archive:       "archivebox"
+        case .attachments:   "paperclip"
+        case .subscriptions: "newspaper"
+        default:             "envelope.open"
         }
     }
 
     private var emptyStateTitle: String {
         switch selectedFolder {
-        case .drafts:        return "No Draft Selected"
-        case .sent:          return "No Email Selected"
-        case .starred:       return "No Email Selected"
-        case .archive:       return "No Email Selected"
-        case .attachments:   return "No Email Selected"
-        case .subscriptions: return "No Subscription Selected"
-        default:             return "No Email Selected"
+        case .drafts:        "No Draft Selected"
+        case .sent:          "No Email Selected"
+        case .starred:       "No Email Selected"
+        case .archive:       "No Email Selected"
+        case .attachments:   "No Email Selected"
+        case .subscriptions: "No Subscription Selected"
+        default:             "No Email Selected"
         }
     }
 
     private var emptyStateDescription: String {
         switch selectedFolder {
-        case .drafts:        return "Select a draft to edit"
-        case .sent:          return "Select a sent email to view"
-        case .starred:       return "Select a starred email to read"
-        case .archive:       return "Select an archived email to read"
-        case .attachments:   return "Select an email to view attachments"
-        case .subscriptions: return "Select a subscription to view"
-        default:             return "Select an email to read"
+        case .drafts:        "Select a draft to edit"
+        case .sent:          "Select a sent email to view"
+        case .starred:       "Select a starred email to read"
+        case .archive:       "Select an archived email to read"
+        case .attachments:   "Select an email to view attachments"
+        case .subscriptions: "Select a subscription to view"
+        default:             "Select an email to read"
         }
     }
 }

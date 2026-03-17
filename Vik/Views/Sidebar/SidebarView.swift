@@ -28,6 +28,8 @@ struct SidebarView: View {
     @State private var labelToRename: GmailLabel?
     @State private var labelToDelete: GmailLabel?
     @State private var renameText = ""
+    @State private var hoveredFolder: Folder?
+    @State private var showLabelsPopover = false
 
     var body: some View {
         Group {
@@ -82,7 +84,6 @@ struct SidebarView: View {
 
     private var collapsedSidebar: some View {
         VStack(spacing: 0) {
-            // Account avatar — only selected account
             AccountSwitcherView(
                 accounts: authViewModel.accounts,
                 selectedAccountID: $selectedAccountID,
@@ -99,17 +100,26 @@ struct SidebarView: View {
             Divider()
                 .padding(.horizontal, Spacing.sm)
 
-            // Folder icons
-            VStack(spacing: 2) {
-                ForEach(Folder.allCases.filter { $0 != .labels }) { folder in
-                    collapsedFolderButton(folder)
+            // Folder + label icons with glass hover
+            GlassEffectContainer(spacing: 4) {
+                VStack(spacing: 2) {
+                    ForEach(Folder.allCases.filter { $0 != .labels }) { folder in
+                        collapsedFolderButton(folder)
+                    }
+                }
+
+                if !userLabels.isEmpty {
+                    Divider()
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.vertical, Spacing.xs)
+
+                    collapsedLabelsButton
                 }
             }
             .padding(.vertical, Spacing.xs)
 
             Spacer(minLength: 0)
 
-            // Sync bubble — compact icon only
             SyncBubbleView(phase: syncProgress.phase, isCompact: true) {
                 onRefresh?()
             }
@@ -118,24 +128,100 @@ struct SidebarView: View {
     }
 
     private func collapsedFolderButton(_ folder: Folder) -> some View {
-        Button {
+        let isSelected = selectedFolder == folder
+        let isHovered = hoveredFolder == folder
+
+        return Button {
             selectedFolder = folder
             selectedInboxCategory = folder == .inbox ? .all : nil
         } label: {
             Image(systemName: folder.icon)
                 .font(.system(size: 15))
                 .frame(width: 34, height: 34)
-                .foregroundStyle(selectedFolder == folder ? .primary : .secondary)
-                .background(
-                    selectedFolder == folder ? AnyShapeStyle(.fill.tertiary) : AnyShapeStyle(.clear),
-                    in: RoundedRectangle(cornerRadius: CornerRadius.sm)
-                )
+                .foregroundStyle(isSelected ? .primary : isHovered ? .primary : .secondary)
         }
         .buttonStyle(.plain)
+        .glassEffect(
+            isSelected || isHovered ? .regular.interactive() : .identity,
+            in: .rect(cornerRadius: CornerRadius.sm)
+        )
+        .animation(.snappy(duration: 0.2), value: isHovered)
+        .animation(.snappy(duration: 0.2), value: isSelected)
+        .onHover { hovering in
+            if hovering {
+                hoveredFolder = folder
+            } else if hoveredFolder == folder {
+                hoveredFolder = nil
+            }
+        }
         .help(folder.rawValue)
         .frame(maxWidth: .infinity)
         .accessibilityLabel(folder.rawValue)
-        .accessibilityAddTraits(selectedFolder == folder ? .isSelected : [])
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    // MARK: - Collapsed Labels Popover
+
+    private var collapsedLabelsButton: some View {
+        Button {
+            showLabelsPopover.toggle()
+        } label: {
+            Image(systemName: "tag")
+                .font(.system(size: 15))
+                .frame(width: 34, height: 34)
+                .foregroundStyle(selectedFolder == .labels ? .primary : .secondary)
+        }
+        .buttonStyle(.plain)
+        .glassEffect(
+            selectedFolder == .labels ? .regular.interactive() : .identity,
+            in: .rect(cornerRadius: CornerRadius.sm)
+        )
+        .onHover { hovering in
+            if hovering { hoveredFolder = nil }
+        }
+        .help("Labels")
+        .frame(maxWidth: .infinity)
+        .accessibilityLabel("Labels")
+        .accessibilityHint("\(userLabels.count) labels available")
+        .accessibilityAddTraits(selectedFolder == .labels ? .isSelected : [])
+        .popover(isPresented: $showLabelsPopover, arrowEdge: .trailing) {
+            labelsPopoverContent
+        }
+    }
+
+    private var labelsPopoverContent: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text("Labels")
+                .font(Typography.caption)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, Spacing.md)
+                .padding(.top, Spacing.sm)
+                .padding(.bottom, Spacing.xs)
+
+            ForEach(userLabels) { label in
+                Button {
+                    selectedFolder = .labels
+                    selectedLabel = label
+                    showLabelsPopover = false
+                } label: {
+                    HStack(spacing: Spacing.sm) {
+                        Circle()
+                            .fill(Color(hex: label.color?.backgroundColor ?? "#888888"))
+                            .frame(width: 8, height: 8)
+                        Text(label.name)
+                            .font(Typography.subheadRegular)
+                            .lineLimit(1)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.xs)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.vertical, Spacing.xs)
+        .frame(width: 180)
     }
 
     // MARK: - Account Header
@@ -152,16 +238,19 @@ struct SidebarView: View {
                 onSetAsDefault: onSetAsDefault,
                 onSetAccentColor: onSetAccentColor
             ) { }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 12)
+            .padding(.vertical, Spacing.sm)
+            .padding(.horizontal, Spacing.md)
 
             if let account = authViewModel.accounts.first(where: { $0.id == selectedAccountID }) {
                 Text(account.email)
                     .font(Typography.captionRegular)
-                    .foregroundStyle(.secondary)
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 8)
+                    .foregroundStyle(.tertiary)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.bottom, Spacing.sm)
             }
+
+            Divider()
+                .padding(.horizontal, Spacing.sm)
         }
     }
 
@@ -279,16 +368,26 @@ struct SidebarView: View {
     @ViewBuilder
     private var labelsSection: some View {
         if !userLabels.isEmpty {
-            Section("Labels") {
+            Section {
                 ForEach(userLabels) { label in
                     labelButton(label: label)
+                }
+            } header: {
+                HStack {
+                    Image(systemName: "tag")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.tertiary)
+                    Text("Labels")
                 }
             }
         }
     }
 
     private func labelButton(label: GmailLabel) -> some View {
-        Button {
+        let isLabelSelected = selectedLabel?.id == label.id && selectedFolder == .labels
+        let labelColor = Color(hex: label.color?.backgroundColor ?? "#888888")
+
+        return Button {
             selectedFolder = .labels
             selectedLabel = label
         } label: {
@@ -297,15 +396,20 @@ struct SidebarView: View {
                     .lineLimit(1)
                     .truncationMode(.tail)
             } icon: {
-                Circle()
-                    .fill(Color(hex: label.color?.backgroundColor ?? "#888888"))
-                    .frame(width: 10, height: 10)
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(labelColor)
+                    .frame(width: 14, height: 14)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3)
+                            .strokeBorder(labelColor.opacity(0.3), lineWidth: 1)
+                    )
                     .frame(width: 20)
                     .accessibilityHidden(true)
             }
         }
+        .fontWeight(isLabelSelected ? .medium : .regular)
         .accessibilityLabel(label.name)
-        .accessibilityAddTraits(selectedLabel?.id == label.id && selectedFolder == .labels ? .isSelected : [])
+        .accessibilityAddTraits(isLabelSelected ? .isSelected : [])
         .dropDestination(for: EmailDragItem.self) { items, _ in
             for item in items {
                 for msgId in item.messageIds {

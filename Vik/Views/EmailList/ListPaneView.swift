@@ -69,8 +69,9 @@ struct ListPaneView: View {
             }
             emailList(priorityFilterOn: $vm.priorityFilterEnabled)
         }
-        .navigationSplitViewColumnWidth(min: 380, ideal: 380, max: 380)
+        .navigationSplitViewColumnWidth(min: 300, ideal: 380, max: 480)
         .navigationTitle(navigationTitleText)
+        .toolbar(removing: .sidebarToggle)
         .onChange(of: selectedCategory) { _, newCategory in
             selectedInboxCategory = newCategory
         }

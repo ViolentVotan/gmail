@@ -61,7 +61,8 @@ private struct TabBackground: ViewModifier {
             content.glassEffect(.regular.interactive(), in: .capsule)
         } else {
             content
-                .background(isHovered ? AnyShapeStyle(.fill.quaternary) : AnyShapeStyle(Color.clear), in: .capsule)
+                .glassEffect(isHovered ? .regular : .identity, in: .capsule)
+                .animation(.snappy(duration: 0.2), value: isHovered)
                 .onHover { isHovered = $0 }
         }
     }
