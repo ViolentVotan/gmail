@@ -67,6 +67,27 @@ This project has the `swift-lsp` Claude Code plugin enabled alongside Serena (se
 
 Both share the same `sourcekit-lsp` server and Xcode build index — build in Xcode to refresh.
 
+## Swift/SwiftUI Skill Routing
+
+These skills provide current API references and patterns. **Invoke the matching skill before writing code in that area.**
+
+| When working on… | Invoke skill | Why |
+|-------------------|-------------|-----|
+| `@Observable` VMs, `@State`/`@Bindable`, view composition | `swiftui-patterns` | MV architecture, ownership rules |
+| Actors, `@concurrent`, `@MainActor`, `Sendable`, `TaskGroup` | `swift-concurrency` | Swift 6.2 approachable concurrency |
+| Tests (`@Test`, `#expect`, `@Suite`, parameterized) | `swift-testing` | Swift Testing framework patterns |
+| Liquid glass, `glassEffect`, `GlassEffectContainer` | `swiftui-liquid-glass` | macOS 26+ glass API |
+| Stacks, grids, lists, forms, `ScrollView`, `.searchable` | `swiftui-layout-components` | Layout best practices |
+| `NavigationStack`, `NavigationSplitView`, sheets, deep links | `swiftui-navigation` | Navigation patterns |
+| `withAnimation`, springs, keyframes, transitions, SF Symbols | `swiftui-animation` | Animation API reference |
+| Enums, protocols, generics, result builders, `Codable` | `swift-language` | Modern Swift idioms |
+| Slow rendering, excessive updates, body cost, profiling | `swiftui-performance` | Performance audit |
+| `UIViewRepresentable`, `UIHostingController` bridging | `swiftui-uikit-interop` | UIKit interop |
+| Tap/drag/magnify gestures, gesture composition | `swiftui-gestures` | Gesture handling |
+| Bar/line/area/pie charts, data visualization | `swift-charts` | Swift Charts API |
+
+**Not used:** `swift-data` (project uses GRDB, not SwiftData).
+
 ## Design Decisions
 
 - **Polling over push:** We use polling-based sync (60s foreground / 300s background) intentionally. No Gmail `users.watch` / Cloud Pub/Sub push notifications — the complexity of server-side Pub/Sub infrastructure isn't worth it for a native desktop client. Don't suggest or implement push notifications.

@@ -25,15 +25,14 @@ struct OnboardingView: View {
     @State private var hostWindow: NSWindow?
 
     // Animation states
-    @State private var showTaglineTop = false
-    @State private var showSer = false
+    @State private var showCard = false
     @State private var showIcon = false
     @State private var iconDrop: CGFloat = -40
-    @State private var showF = false
-    @State private var showTaglineBottom = false
-    @State private var showButton = false
     @State private var iconRotation: Double = -12
     @State private var iconScale: CGFloat = 0.3
+    @State private var showName = false
+    @State private var showTagline = false
+    @State private var showButton = false
     @State private var isButtonHovered = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -50,110 +49,17 @@ struct OnboardingView: View {
             Color(hex: "#010409")
                 .ignoresSafeArea()
 
-            // Ambient lights — logo colors
+            // Ambient lights — brand colors
             ambientLights
 
             // Content
             VStack(spacing: 0) {
                 Spacer()
 
-                // Headline
-                HStack(alignment: .center, spacing: 0) {
-                    Text("THERE'S A NEW")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.5))
-                        .tracking(11 * 0.18)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(.trailing, 20)
-                        .opacity(showTaglineTop ? 1 : 0)
-                        .offset(x: showTaglineTop ? 0 : -10)
-
-                    // Ser [icon] f
-                    HStack(alignment: .center, spacing: 0) {
-                        Text("Ser")
-                            .font(.system(size: 80, weight: .bold, design: .default))
-                            .foregroundStyle(.white)
-                            .opacity(showSer ? 1 : 0)
-                            .offset(x: showSer ? 0 : 30)
-
-                        Image("VikLogo")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(height: 60)
-                            .opacity(showIcon ? 1 : 0)
-                            .scaleEffect(iconScale)
-                            .rotationEffect(.degrees(iconRotation))
-                            .offset(y: iconDrop)
-                            .padding(.horizontal, -2)
-
-                        Text("f")
-                            .font(.system(size: 80, weight: .bold, design: .default))
-                            .foregroundStyle(.white)
-                            .opacity(showF ? 1 : 0)
-                            .offset(x: showF ? 0 : -30)
-                    }
-
-                    Text("IN TOWN")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.5))
-                        .tracking(11 * 0.18)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.leading, 20)
-                        .opacity(showTaglineBottom ? 1 : 0)
-                        .offset(x: showTaglineBottom ? 0 : 10)
-                }
-                    .opacity(showTaglineBottom ? 1 : 0)
-                    .offset(y: showTaglineBottom ? 0 : -8)
-
-                Spacer().frame(height: 56)
-
-                // Google Sign-In button
-                Button {
-                    Task { await handleSignIn() }
-                } label: {
-                    HStack(spacing: 12) {
-                        Group {
-                            if isSigningIn {
-                                ProgressView()
-                                    .controlSize(.small)
-                                    .tint(Color(hex: "#1C1C1E"))
-                            } else {
-                                GoogleLogo()
-                                    .frame(width: 20, height: 20)
-                            }
-                        }
-                        .frame(width: 20, height: 20)
-                        Text(isSigningIn ? "Signing in\u{2026}" : "Continue with Google")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundStyle(Color(hex: "#1C1C1E"))
-                    }
-                    .padding(.horizontal, 28)
-                    .padding(.vertical, 14)
-                    .frame(minWidth: 260)
-                    .background(
-                        RoundedRectangle(cornerRadius: CornerRadius.xl)
-                            .fill(.white)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: CornerRadius.xl)
-                            .stroke(Color(hex: "#DADCE0"), lineWidth: 1)
-                    )
-                }
-                .buttonStyle(.plain)
-                .disabled(isSigningIn)
-                .scaleEffect(isButtonHovered ? 1.04 : 1.0)
-                .animation(.easeOut(duration: 0.2), value: isButtonHovered)
-                .onHover { isButtonHovered = $0 }
-                .opacity(showButton ? 1 : 0)
-                .offset(y: showButton ? 0 : 24)
-
-                if let error = signInError {
-                    Text(error)
-                        .font(.system(size: 12))
-                        .foregroundStyle(BrandColor.coral)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, 12)
-                        .opacity(showButton ? 1 : 0)
+                if #available(macOS 26, *) {
+                    glassContent
+                } else {
+                    materialContent
                 }
 
                 Spacer()
@@ -170,6 +76,179 @@ struct OnboardingView: View {
             hideTrafficLights(false)
         }
         .preferredColorScheme(.dark)
+    }
+
+    // MARK: - Glass Content (macOS 26+)
+
+    @available(macOS 26, *)
+    private var glassContent: some View {
+        GlassEffectContainer(spacing: 20) {
+            VStack(spacing: 0) {
+                // Viking helmet — hero icon
+                Image("VikLogo")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 72, height: 72)
+                    .foregroundStyle(.white)
+                    .frame(width: 120, height: 120)
+                    .glassEffect(.regular, in: .rect(cornerRadius: 32))
+                    .opacity(showIcon ? 1 : 0)
+                    .scaleEffect(iconScale)
+                    .rotationEffect(.degrees(iconRotation))
+                    .offset(y: iconDrop)
+
+                Spacer().frame(height: 20)
+
+                // App name
+                Text("Vik")
+                    .font(.system(size: 52, weight: .bold))
+                    .tracking(-1)
+                    .foregroundStyle(.white)
+                    .opacity(showName ? 1 : 0)
+                    .offset(y: showName ? 0 : 12)
+
+                Spacer().frame(height: 4)
+
+                // Tagline
+                Text("CONQUER YOUR INBOX")
+                    .font(.system(size: 15, weight: .medium))
+                    .tracking(3)
+                    .foregroundStyle(.white.opacity(0.45))
+                    .opacity(showTagline ? 1 : 0)
+
+                Spacer().frame(height: 36)
+
+                // Google Sign-In button
+                glassSignInButton
+                    .opacity(showButton ? 1 : 0)
+                    .offset(y: showButton ? 0 : 24)
+
+                errorLabel
+            }
+            .padding(.horizontal, 64)
+            .padding(.vertical, 48)
+            .glassEffect(.regular, in: .rect(cornerRadius: 28))
+            .scaleEffect(showCard ? 1 : 0.8)
+            .opacity(showCard ? 1 : 0)
+        }
+    }
+
+    // MARK: - Material Content (pre-macOS 26 fallback)
+
+    private var materialContent: some View {
+        VStack(spacing: 0) {
+            // Viking helmet — hero icon
+            Image("VikLogo")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 72, height: 72)
+                .foregroundStyle(.white)
+                .frame(width: 120, height: 120)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 32))
+                .opacity(showIcon ? 1 : 0)
+                .scaleEffect(iconScale)
+                .rotationEffect(.degrees(iconRotation))
+                .offset(y: iconDrop)
+
+            Spacer().frame(height: 20)
+
+            // App name
+            Text("Vik")
+                .font(.system(size: 52, weight: .bold))
+                .tracking(-1)
+                .foregroundStyle(.white)
+                .opacity(showName ? 1 : 0)
+                .offset(y: showName ? 0 : 12)
+
+            Spacer().frame(height: 4)
+
+            // Tagline
+            Text("CONQUER YOUR INBOX")
+                .font(.system(size: 15, weight: .medium))
+                .tracking(3)
+                .foregroundStyle(.white.opacity(0.45))
+                .opacity(showTagline ? 1 : 0)
+
+            Spacer().frame(height: 36)
+
+            // Google Sign-In button
+            materialSignInButton
+                .opacity(showButton ? 1 : 0)
+                .offset(y: showButton ? 0 : 24)
+
+            errorLabel
+        }
+        .padding(.horizontal, 64)
+        .padding(.vertical, 48)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28))
+        .scaleEffect(showCard ? 1 : 0.8)
+        .opacity(showCard ? 1 : 0)
+    }
+
+    // MARK: - Error Label
+
+    @ViewBuilder
+    private var errorLabel: some View {
+        if let error = signInError {
+            Text(error)
+                .font(.system(size: 12))
+                .foregroundStyle(BrandColor.coral)
+                .multilineTextAlignment(.center)
+                .padding(.top, 12)
+                .opacity(showButton ? 1 : 0)
+        }
+    }
+
+    // MARK: - Sign-In Buttons
+
+    @available(macOS 26, *)
+    private var glassSignInButton: some View {
+        Button {
+            Task { await handleSignIn() }
+        } label: {
+            signInLabel
+        }
+        .buttonStyle(.glass)
+        .disabled(isSigningIn)
+        .scaleEffect(isButtonHovered ? 1.04 : 1.0)
+        .animation(.easeOut(duration: 0.2), value: isButtonHovered)
+        .onHover { isButtonHovered = $0 }
+    }
+
+    private var materialSignInButton: some View {
+        Button {
+            Task { await handleSignIn() }
+        } label: {
+            signInLabel
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: CornerRadius.xl))
+        }
+        .buttonStyle(.plain)
+        .disabled(isSigningIn)
+        .scaleEffect(isButtonHovered ? 1.04 : 1.0)
+        .animation(.easeOut(duration: 0.2), value: isButtonHovered)
+        .onHover { isButtonHovered = $0 }
+    }
+
+    private var signInLabel: some View {
+        HStack(spacing: 12) {
+            Group {
+                if isSigningIn {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(.white)
+                } else {
+                    GoogleLogo()
+                        .frame(width: 20, height: 20)
+                }
+            }
+            .frame(width: 20, height: 20)
+            Text(isSigningIn ? "Signing in\u{2026}" : "Continue with Google")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(.white.opacity(0.9))
+        }
+        .padding(.horizontal, 28)
+        .padding(.vertical, 14)
+        .frame(minWidth: 260)
     }
 
     // MARK: - Ambient Lights
@@ -226,14 +305,13 @@ struct OnboardingView: View {
     private func runAnimationSequence() {
         if reduceMotion {
             orbsVisible = true
-            showSer = true
+            showCard = true
             showIcon = true
             iconDrop = 0
             iconRotation = 0
             iconScale = 1.0
-            showF = true
-            showTaglineTop = true
-            showTaglineBottom = true
+            showName = true
+            showTagline = true
             showButton = true
             return
         }
@@ -244,34 +322,31 @@ struct OnboardingView: View {
         }
         startOrbAnimations()
 
-        // 2. "Ser" slides in from left
-        withAnimation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.5)) {
-            showSer = true
+        // 2. Glass card scales up
+        withAnimation(.spring(response: 0.7, dampingFraction: 0.8).delay(0.3)) {
+            showCard = true
         }
 
-        // 3. Icon drops in with rotation + bounce
-        withAnimation(.spring(response: 0.7, dampingFraction: 0.55).delay(0.9)) {
+        // 3. Viking helmet drops in with rotation + bounce
+        withAnimation(.spring(response: 0.7, dampingFraction: 0.55).delay(0.7)) {
             showIcon = true
             iconDrop = 0
             iconRotation = 0
             iconScale = 1.0
         }
 
-        // 4. "f" slides in from right
-        withAnimation(.spring(response: 0.6, dampingFraction: 0.8).delay(1.2)) {
-            showF = true
+        // 4. "Vik" text fades + slides up
+        withAnimation(.easeOut(duration: 0.5).delay(1.1)) {
+            showName = true
         }
 
-        // 5. Taglines
-        withAnimation(.easeOut(duration: 0.5).delay(1.6)) {
-            showTaglineTop = true
-        }
-        withAnimation(.easeOut(duration: 0.5).delay(1.8)) {
-            showTaglineBottom = true
+        // 5. Tagline fades in
+        withAnimation(.easeOut(duration: 0.4).delay(1.4)) {
+            showTagline = true
         }
 
-        // 6. Button
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(2.3)) {
+        // 6. Sign-in button
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(1.8)) {
             showButton = true
         }
     }
