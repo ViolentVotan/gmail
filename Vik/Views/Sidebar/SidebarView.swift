@@ -7,7 +7,6 @@ struct SidebarView: View {
     @Binding var selectedAccountID: String?
     var authViewModel: AuthViewModel
     var isCollapsed = false
-    var categoryUnreadCounts: [InboxCategory: Int] = [:]
     var userLabels: [GmailLabel] = []
     var onRenameLabel: ((GmailLabel, String) -> Void)?
     var onDeleteLabel: ((GmailLabel) -> Void)?

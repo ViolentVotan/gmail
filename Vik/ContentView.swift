@@ -62,7 +62,6 @@ struct ContentView: View {
                     selectedAccountID: $coordinator.selectedAccountID,
                     authViewModel: coordinator.authViewModel,
                     isCollapsed: isSidebarCollapsed,
-                    categoryUnreadCounts: coordinator.mailboxViewModel.categoryUnreadCounts,
                     userLabels: coordinator.mailboxViewModel.userLabels,
                     onRenameLabel: { label, newName in Task { await coordinator.renameLabel(label, to: newName) } },
                     onDeleteLabel: { label in Task { await coordinator.deleteLabel(label) } },
