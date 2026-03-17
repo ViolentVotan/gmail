@@ -34,6 +34,7 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord,
     var isFromMailingList: Bool
     var unsubscribeUrl: String?
     var fullBodyFetched: Bool
+    var bodyFetchAttempts: Int
     var threadMessageCount: Int
     var fetchedAt: Double?
 
@@ -79,6 +80,7 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord,
         self.isFromMailingList = headers["list-unsubscribe"] != nil || headers["list-id"] != nil
         self.unsubscribeUrl = gmail.unsubscribeURL?.absoluteString
         self.fullBodyFetched = gmail.htmlBody != nil || gmail.plainBody != nil
+        self.bodyFetchAttempts = 0
         self.threadMessageCount = 1
         self.fetchedAt = Date().timeIntervalSince1970
         self.gmailDraftId = nil

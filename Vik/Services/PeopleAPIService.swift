@@ -43,9 +43,10 @@ final class PeopleAPIService {
         }
     }
 
-    /// Extracts StoredContacts from a PersonResource array, updating the photo cache.
-    private func parseContacts(from persons: [PersonResource]) -> [StoredContact] {
-        var contacts: [StoredContact] = []
+    /// Extracts contact tuples from a PersonResource array, updating the photo cache.
+    /// Returns tuples ready for `BackgroundSyncer.upsertContacts`.
+    private func parseContacts(from persons: [PersonResource]) -> [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)] {
+        var contacts: [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)] = []
         for person in persons {
             let displayName = person.names?.first?.displayName ?? ""
             let photoURL = person.photos?.first(where: { $0.default != true })?.url
@@ -55,104 +56,73 @@ final class PeopleAPIService {
                 if let url = photoURL {
                     ContactPhotoCache.shared.set(url, for: lowered)
                 }
-                contacts.append(StoredContact(name: displayName, email: lowered, photoURL: photoURL))
+                contacts.append((email: lowered, name: displayName, photoUrl: photoURL, source: "people_api", resourceName: nil))
             }
         }
         return contacts
     }
 
-    /// Merges `incoming` contacts into `existing`, replacing by email match.
-    /// Runs off MainActor to avoid blocking the UI with O(n) dictionary lookups.
-    nonisolated
-    private func mergeContacts(existing: [StoredContact], incoming: [StoredContact]) -> [StoredContact] {
-        var byEmail: [String: Int] = [:]
-        var result = existing
-        for (index, contact) in result.enumerated() {
-            byEmail[contact.email] = index
-        }
-        for contact in incoming {
-            if let idx = byEmail[contact.email] {
-                // Preserve existing photo when the incoming entry has none (e.g. Other Contacts don't carry photos)
-                let mergedPhotoURL = contact.photoURL ?? result[idx].photoURL
-                result[idx] = StoredContact(name: contact.name, email: contact.email, photoURL: mergedPhotoURL)
-            } else {
-                byEmail[contact.email] = result.count
-                result.append(contact)
-            }
-        }
-        return result
-    }
-
-    /// Deduplicates contacts by email and prepares upsert tuples, off MainActor.
-    nonisolated
-    private func deduplicateContacts(_ contacts: [StoredContact]) -> [StoredContact] {
-        var seen = Set<String>()
-        return contacts.filter { seen.insert($0.email).inserted }
-    }
-
-    /// Fetches contacts from People API and persists them.
+    /// Fetches contacts from People API and persists them per-page.
     /// Uses sync tokens for incremental updates when available.
-    /// The caller supplies `syncer` so writes are serialized through the same actor used by the sync engine.
+    /// Each page is written to the DB immediately — a crash mid-pagination loses
+    /// the sync token (forcing a full re-fetch on restart) but contacts fetched so
+    /// far are already persisted. The sync token is only saved after all pages
+    /// complete, matching the pattern used by `performInitialSync` for messages.
     private func fetchAndStoreContacts(accountID: String, syncer: BackgroundSyncer) async {
-        var allContacts: [StoredContact] = []
-        var deletedEmails = Set<String>()
         var newContactsSyncToken: String?
         var newOtherSyncToken: String?
+        var contactsFetchSucceeded = false
 
         let mailDB = try? MailDatabase.shared(for: accountID)
 
-        // 1. Fetch "My Contacts" via connections
+        // 1. Fetch "My Contacts" via Connections
         do {
-            let contactsSyncState = try? await mailDB?.dbPool.read { db in
+            let syncState = try? await mailDB?.dbPool.read { db in
                 try MailDatabaseQueries.syncState(in: db)
             }
-            let syncToken = contactsSyncState?.contactsSyncToken
-            let contactsTokenExpired = contactsSyncState?.contactsSyncTokenAt.map {
+            let syncToken = syncState?.contactsSyncToken
+            let tokenExpired = syncState?.contactsSyncTokenAt.map {
                 Date().timeIntervalSince1970 - $0 > Self.syncTokenMaxAge
             } ?? false
-            var needsFullFetch = syncToken == nil || contactsTokenExpired
-            if contactsTokenExpired {
+            var needsFullFetch = syncToken == nil || tokenExpired
+            if tokenExpired {
                 Self.logger.info("Contacts sync token older than 6 days, forcing full re-fetch")
             }
 
             if let syncToken, !needsFullFetch {
-                allContacts = (try? await mailDB?.dbPool.read { db in
-                    try MailDatabaseQueries.allContacts(in: db).map {
-                        StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
-                    }
-                }) ?? []
+                // Incremental sync — write per-page
                 do {
-                    var incPageToken: String? = nil
+                    var pageToken: String? = nil
                     repeat {
-                        let encodedSyncToken = syncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? syncToken
+                        let encoded = syncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? syncToken
                         var urlStr = "https://people.googleapis.com/v1/people/me/connections"
-                            + "?personFields=metadata,names,emailAddresses,photos&syncToken=\(encodedSyncToken)"
+                            + "?personFields=metadata,names,emailAddresses,photos&syncToken=\(encoded)"
                             + "&pageSize=1000"
-                        if let pt = incPageToken { urlStr += "&pageToken=\(pt)" }
+                        if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
                         let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
-                        // Remove deleted contacts
-                        let pageDeletedEmails = Set(
-                            (response.connections ?? [])
-                                .filter { $0.metadata?.deleted == true }
-                                .flatMap { $0.emailAddresses?.compactMap { $0.value?.lowercased() } ?? [] }
-                        )
-                        allContacts.removeAll { pageDeletedEmails.contains($0.email) }
-                        deletedEmails.formUnion(pageDeletedEmails)
-                        for email in pageDeletedEmails {
-                            ContactPhotoCache.shared.remove(email)
+
+                        // Delete removed contacts from this page
+                        let deleted = (response.connections ?? [])
+                            .filter { $0.metadata?.deleted == true }
+                            .flatMap { $0.emailAddresses?.compactMap { $0.value?.lowercased() } ?? [] }
+                        if !deleted.isEmpty {
+                            try? await syncer.deleteContacts(emails: deleted)
+                            for email in deleted { ContactPhotoCache.shared.remove(email) }
                         }
 
-                        // Merge updated/new contacts (skip deleted ones)
+                        // Upsert new/updated contacts from this page
                         let nonDeleted = (response.connections ?? []).filter { $0.metadata?.deleted != true }
                         let parsed = parseContacts(from: nonDeleted)
-                        allContacts = mergeContacts(existing: allContacts, incoming: parsed)
-                        incPageToken = response.nextPageToken
+                        try? await syncer.upsertContacts(parsed)
+
+                        pageToken = response.nextPageToken
                         newContactsSyncToken = response.nextSyncToken ?? newContactsSyncToken
-                        if incPageToken != nil {
+                        if pageToken != nil {
                             try? await Task.sleep(for: .milliseconds(100))
                         }
-                    } while incPageToken != nil
-                    Self.logger.info("Incremental sync completed")
+                    } while pageToken != nil
+                    contactsFetchSucceeded = true
+                    Self.logger.info("Contacts incremental sync completed")
                 } catch {
                     let isGone = if case GmailAPIError.httpError(410, _) = error { true } else { false }
                     if isGone {
@@ -163,7 +133,6 @@ final class PeopleAPIService {
                                 $0.contactsSyncTokenAt = nil
                             }, in: db)
                         }
-                        allContacts = []
                         needsFullFetch = true
                     } else {
                         throw error
@@ -171,10 +140,10 @@ final class PeopleAPIService {
                 }
             }
 
-            // Full fetch if no sync token or token expired
             if needsFullFetch {
-                allContacts = []
+                // Full fetch — write each page to DB as it arrives
                 newContactsSyncToken = nil
+                var totalStored = 0
                 var pageToken: String? = nil
                 do {
                     repeat {
@@ -183,16 +152,20 @@ final class PeopleAPIService {
                             + "&requestSyncToken=true"
                         if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
                         let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
-                        allContacts.append(contentsOf: parseContacts(from: response.connections ?? []))
+
+                        let parsed = parseContacts(from: response.connections ?? [])
+                        try? await syncer.upsertContacts(parsed)
+                        totalStored += parsed.count
+
                         pageToken = response.nextPageToken
                         newContactsSyncToken = response.nextSyncToken ?? newContactsSyncToken
                         if pageToken != nil {
                             try? await Task.sleep(for: .milliseconds(100))
                         }
                     } while pageToken != nil
-                    Self.logger.info("Full fetch: loaded \(allContacts.count, privacy: .public) contacts from Connections")
+                    contactsFetchSucceeded = true
+                    Self.logger.info("Full fetch: stored \(totalStored, privacy: .public) contacts from Connections")
                 } catch {
-                    // Full re-fetch failed mid-pagination — abort without touching the DB.
                     Self.logger.error("Full Connections fetch failed: \(error, privacy: .public)")
                     return
                 }
@@ -204,15 +177,13 @@ final class PeopleAPIService {
 
         // 2. Fetch "Other Contacts" (auto-created from email interactions)
         // Note: readMask omits "photos" — Other Contacts don't support photo fields.
+        // Uses photo-preserving upsert to avoid overwriting Connections photos with nil.
         do {
-            // Snapshot the count of Connections-only entries so we can restore it on full re-fetch,
-            // discarding any Other Contacts that were partially merged during a failed incremental sync.
-            let connectionsCount = allContacts.count
-            let otherSyncState = try? await mailDB?.dbPool.read { db in
+            let otherState = try? await mailDB?.dbPool.read { db in
                 try MailDatabaseQueries.syncState(in: db)
             }
-            let otherSyncToken = otherSyncState?.otherContactsSyncToken
-            let otherTokenExpired = otherSyncState?.otherContactsSyncTokenAt.map {
+            let otherSyncToken = otherState?.otherContactsSyncToken
+            let otherTokenExpired = otherState?.otherContactsSyncTokenAt.map {
                 Date().timeIntervalSince1970 - $0 > Self.syncTokenMaxAge
             } ?? false
             var needsFullOtherFetch = otherSyncToken == nil || otherTokenExpired
@@ -221,36 +192,36 @@ final class PeopleAPIService {
             }
 
             if let otherSyncToken, !needsFullOtherFetch {
-                // Incremental sync for Other Contacts
+                // Incremental sync — write per-page
                 do {
-                    var incPageToken: String? = nil
+                    var pageToken: String? = nil
                     repeat {
-                        let encodedToken = otherSyncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? otherSyncToken
+                        let encoded = otherSyncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? otherSyncToken
                         var urlStr = "https://people.googleapis.com/v1/otherContacts"
-                            + "?readMask=metadata,names,emailAddresses&syncToken=\(encodedToken)"
+                            + "?readMask=metadata,names,emailAddresses&syncToken=\(encoded)"
                             + "&pageSize=1000"
-                        if let pt = incPageToken { urlStr += "&pageToken=\(pt)" }
+                        if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
                         let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
-                        // Handle deletions
-                        let otherDeletedEmails = Set(
-                            (response.otherContacts ?? [])
-                                .filter { $0.metadata?.deleted == true }
-                                .flatMap { $0.emailAddresses?.compactMap { $0.value?.lowercased() } ?? [] }
-                        )
-                        allContacts.removeAll { otherDeletedEmails.contains($0.email) }
-                        deletedEmails.formUnion(otherDeletedEmails)
+                        // Delete removed contacts from this page
+                        let deleted = (response.otherContacts ?? [])
+                            .filter { $0.metadata?.deleted == true }
+                            .flatMap { $0.emailAddresses?.compactMap { $0.value?.lowercased() } ?? [] }
+                        if !deleted.isEmpty {
+                            try? await syncer.deleteContacts(emails: deleted)
+                        }
 
-                        // Merge non-deleted
+                        // Upsert non-deleted, preserving photos from Connections
                         let nonDeleted = (response.otherContacts ?? []).filter { $0.metadata?.deleted != true }
                         let parsed = parseContacts(from: nonDeleted)
-                        allContacts = mergeContacts(existing: allContacts, incoming: parsed)
-                        incPageToken = response.nextPageToken
+                        try? await syncer.upsertContactsPreservingPhotos(parsed)
+
+                        pageToken = response.nextPageToken
                         newOtherSyncToken = response.nextSyncToken ?? newOtherSyncToken
-                        if incPageToken != nil {
+                        if pageToken != nil {
                             try? await Task.sleep(for: .milliseconds(100))
                         }
-                    } while incPageToken != nil
+                    } while pageToken != nil
                     Self.logger.info("Other Contacts incremental sync completed")
                 } catch {
                     let isGone = if case GmailAPIError.httpError(410, _) = error { true } else { false }
@@ -270,9 +241,7 @@ final class PeopleAPIService {
             }
 
             if needsFullOtherFetch {
-                // Truncate back to Connections-only entries, discarding any Other Contacts
-                // that were partially merged during the failed incremental sync.
-                allContacts = Array(allContacts.prefix(connectionsCount))
+                // Full fetch — write per-page with photo preservation
                 var pageToken: String? = nil
                 do {
                     repeat {
@@ -281,9 +250,10 @@ final class PeopleAPIService {
                             + "&requestSyncToken=true"
                         if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
                         let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
-                        let beforeCount = allContacts.count
-                        allContacts.append(contentsOf: parseContacts(from: response.otherContacts ?? []))
-                        Self.logger.debug("Loaded \(allContacts.count - beforeCount, privacy: .public) from Other Contacts page")
+
+                        let parsed = parseContacts(from: response.otherContacts ?? [])
+                        try? await syncer.upsertContactsPreservingPhotos(parsed)
+
                         pageToken = response.nextPageToken
                         newOtherSyncToken = response.nextSyncToken ?? newOtherSyncToken
                         if pageToken != nil {
@@ -291,7 +261,6 @@ final class PeopleAPIService {
                         }
                     } while pageToken != nil
                 } catch {
-                    // Full re-fetch failed mid-pagination — abort without touching the DB.
                     Self.logger.error("Full Other Contacts fetch failed: \(error, privacy: .public)")
                     return
                 }
@@ -301,23 +270,17 @@ final class PeopleAPIService {
             Self.logger.error("Other Contacts fetch error: \(error, privacy: .public)")
         }
 
-        // Deduplicate by email and persist to GRDB via the caller-supplied syncer.
-        let unique = deduplicateContacts(allContacts)
-        // Delete contacts that were removed during incremental sync
-        if !deletedEmails.isEmpty {
-            try? await syncer.deleteContacts(emails: Array(deletedEmails))
-        }
-        let tuples = unique.map { (email: $0.email, name: Optional($0.name), photoUrl: $0.photoURL, source: "people_api", resourceName: nil as String?) }
-        // Atomically upsert contacts and advance the connections sync token in one transaction.
+        // 3. Advance sync tokens after all pages succeeded.
+        // Tokens are only available from the last page response — saving them here
+        // ensures we never advance a token without having stored all its contacts.
         if let token = newContactsSyncToken {
-            try? await syncer.upsertContactsWithSyncToken(tuples, tokenUpdate: {
-                $0.contactsSyncToken = token
-                $0.contactsSyncTokenAt = Date().timeIntervalSince1970
-            }, accountID: accountID)
-        } else {
-            try? await syncer.upsertContacts(tuples)
+            try? await mailDB?.dbPool.write { db in
+                try MailDatabaseQueries.updateSyncState({
+                    $0.contactsSyncToken = token
+                    $0.contactsSyncTokenAt = Date().timeIntervalSince1970
+                }, in: db)
+            }
         }
-        // Write the Other Contacts token after contacts are safely committed.
         if let token = newOtherSyncToken {
             try? await mailDB?.dbPool.write { db in
                 try MailDatabaseQueries.updateSyncState({
@@ -326,12 +289,14 @@ final class PeopleAPIService {
                 }, in: db)
             }
         }
-        Self.logger.info("Total unique contacts stored: \(unique.count, privacy: .public)")
+        if contactsFetchSucceeded {
+            Self.logger.info("Contact sync complete")
+        }
     }
 
     /// Fetches Google Workspace directory contacts (domain profiles + contacts).
-    /// Gracefully skips if the directory.readonly scope isn't granted (403).
-    /// The caller supplies `syncer` so writes are serialized through the same actor used by the sync engine.
+    /// Writes each page to DB immediately. Gracefully skips if the directory.readonly
+    /// scope isn't granted (403).
     private func fetchDirectoryPeople(accountID: String, syncer: BackgroundSyncer) async {
         let mailDB = try? MailDatabase.shared(for: accountID)
 
@@ -340,30 +305,32 @@ final class PeopleAPIService {
                 try MailDatabaseQueries.syncState(in: db)?.directorySyncToken
             }
             var newDirSyncToken: String?
-            var directoryContacts: [StoredContact] = []
             var needsFullDirFetch = dirSyncToken == nil
 
             if let dirSyncToken {
-                // Incremental sync
+                // Incremental sync — write per-page
                 do {
-                    var incPageToken: String? = nil
+                    var pageToken: String? = nil
                     repeat {
-                        let encodedToken = dirSyncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? dirSyncToken
+                        let encoded = dirSyncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? dirSyncToken
                         var urlStr = "https://people.googleapis.com/v1/people:listDirectoryPeople"
                             + "?sources=DIRECTORY_SOURCE_TYPE_DOMAIN_CONTACT"
                             + "&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE"
                             + "&readMask=metadata,names,emailAddresses,photos"
-                            + "&syncToken=\(encodedToken)"
+                            + "&syncToken=\(encoded)"
                             + "&pageSize=1000"
-                        if let pt = incPageToken { urlStr += "&pageToken=\(pt)" }
+                        if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
                         let response: DirectoryPeopleResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
-                        directoryContacts.append(contentsOf: parseContacts(from: response.people ?? []))
-                        incPageToken = response.nextPageToken
+
+                        let parsed = parseDirectoryContacts(from: response.people ?? [])
+                        try? await syncer.upsertContacts(parsed)
+
+                        pageToken = response.nextPageToken
                         newDirSyncToken = response.nextSyncToken ?? newDirSyncToken
-                        if incPageToken != nil {
+                        if pageToken != nil {
                             try? await Task.sleep(for: .milliseconds(100))
                         }
-                    } while incPageToken != nil
+                    } while pageToken != nil
                 } catch {
                     let isGone = if case GmailAPIError.httpError(410, _) = error { true } else { false }
                     if isGone {
@@ -378,7 +345,7 @@ final class PeopleAPIService {
             }
 
             if needsFullDirFetch {
-                directoryContacts = []
+                // Full fetch — write per-page
                 var pageToken: String? = nil
                 repeat {
                     var urlStr = "https://people.googleapis.com/v1/people:listDirectoryPeople"
@@ -388,7 +355,10 @@ final class PeopleAPIService {
                         + "&requestSyncToken=true&pageSize=1000"
                     if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
                     let response: DirectoryPeopleResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
-                    directoryContacts.append(contentsOf: parseContacts(from: response.people ?? []))
+
+                    let parsed = parseDirectoryContacts(from: response.people ?? [])
+                    try? await syncer.upsertContacts(parsed)
+
                     pageToken = response.nextPageToken
                     newDirSyncToken = response.nextSyncToken ?? newDirSyncToken
                     if pageToken != nil {
@@ -397,16 +367,7 @@ final class PeopleAPIService {
                 } while pageToken != nil
             }
 
-            // Upsert directory contacts if any were fetched.
-            if !directoryContacts.isEmpty {
-                let tuples = directoryContacts.map {
-                    (email: $0.email, name: Optional($0.name), photoUrl: $0.photoURL, source: "directory", resourceName: nil as String?)
-                }
-                try? await syncer.upsertContacts(tuples)
-            }
-            // Always persist the new sync token if non-nil — decoupled from whether
-            // any contacts were returned. This prevents repeated full re-fetches when
-            // incremental sync returns zero changes but still issues a new sync token.
+            // Persist the sync token after all pages succeeded.
             if let token = newDirSyncToken {
                 try? await mailDB?.dbPool.write { db in
                     try MailDatabaseQueries.updateSyncState({ $0.directorySyncToken = token }, in: db)
@@ -414,13 +375,30 @@ final class PeopleAPIService {
             }
 
         } catch {
-            // 403 = scope not granted — skip silently
             if case GmailAPIError.httpError(403, _) = error {
                 Self.logger.info("Directory contacts skipped — scope not granted")
             } else {
                 Self.logger.error("Directory contacts error: \(error, privacy: .public)")
             }
         }
+    }
+
+    /// Extracts contact tuples from directory PersonResources with "directory" source.
+    private func parseDirectoryContacts(from persons: [PersonResource]) -> [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)] {
+        var contacts: [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)] = []
+        for person in persons {
+            let displayName = person.names?.first?.displayName ?? ""
+            let photoURL = person.photos?.first(where: { $0.default != true })?.url
+            for addr in person.emailAddresses ?? [] {
+                guard let email = addr.value, !email.isEmpty else { continue }
+                let lowered = email.lowercased()
+                if let url = photoURL {
+                    ContactPhotoCache.shared.set(url, for: lowered)
+                }
+                contacts.append((email: lowered, name: displayName, photoUrl: photoURL, source: "directory", resourceName: nil))
+            }
+        }
+        return contacts
     }
 }
 

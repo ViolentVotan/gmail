@@ -17,6 +17,7 @@ enum MailDatabaseMigrations {
         registerV9(&migrator)
         registerV10(&migrator)
         registerV11(&migrator)
+        registerV12(&migrator)
         return migrator
     }
 
@@ -335,6 +336,14 @@ enum MailDatabaseMigrations {
         migrator.registerMigration("v11") { db in
             try db.execute(sql: "DROP TRIGGER IF EXISTS messages_fts_update")
             try db.drop(index: "message_labels_label")
+        }
+    }
+
+    private static func registerV12(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v12_body_fetch_attempts") { db in
+            try db.alter(table: "messages") { t in
+                t.add(column: "body_fetch_attempts", .integer).notNull().defaults(to: 0)
+            }
         }
     }
 }

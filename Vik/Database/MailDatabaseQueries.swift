@@ -48,6 +48,7 @@ enum MailDatabaseQueries {
         try MessageRecord.fetchAll(db, sql: """
             SELECT m.* FROM messages m
             WHERE m.full_body_fetched = 0
+            AND m.body_fetch_attempts < 3
             AND NOT EXISTS (
                 SELECT 1 FROM message_labels ml
                 WHERE ml.message_id = m.gmail_id
@@ -94,11 +95,12 @@ enum MailDatabaseQueries {
     }
 
     /// Count of messages without bodies (for body pre-fetch progress).
-    /// Excludes spam/trash to match `messagesNeedingBodies` — those are never fetched.
+    /// Excludes spam/trash and messages that exceeded retry limit.
     static func messagesWithoutBodiesCount(in db: Database) throws -> Int {
         try Int.fetchOne(db, sql: """
             SELECT COUNT(*) FROM messages m
             WHERE m.full_body_fetched = 0
+            AND m.body_fetch_attempts < 3
             AND NOT EXISTS (
                 SELECT 1 FROM message_labels ml
                 WHERE ml.message_id = m.gmail_id

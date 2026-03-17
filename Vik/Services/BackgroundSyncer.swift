@@ -87,10 +87,22 @@ actor BackgroundSyncer {
                 guard var record = try MessageRecord.fetchOne(db, key: update.gmailId) else { continue }
                 record.bodyHtml = update.html
                 record.bodyPlain = update.plain
-                record.fullBodyFetched = update.html != nil || update.plain != nil
+                record.fullBodyFetched = true
                 record.fetchedAt = now
                 try record.update(db)
                 try FTSManager.update(message: record, in: db)
+            }
+        }
+    }
+
+    /// Increment body fetch attempt counter for messages that failed to fetch.
+    func incrementBodyFetchAttempts(for gmailIds: [String]) async throws {
+        guard !gmailIds.isEmpty else { return }
+        try await db.dbPool.write { db in
+            for id in gmailIds {
+                guard var record = try MessageRecord.fetchOne(db, key: id) else { continue }
+                record.bodyFetchAttempts += 1
+                try record.update(db)
             }
         }
     }
@@ -196,26 +208,34 @@ actor BackgroundSyncer {
         }
     }
 
-    /// Atomically upsert contacts and update the sync token in a single transaction.
-    /// Prevents the crash-window where a token advance loses contacts that were never stored.
-    func upsertContactsWithSyncToken(
-        _ contacts: [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)],
-        tokenUpdate: @Sendable (inout AccountSyncStateRecord) -> Void,
-        accountID: String
+    /// Upsert contacts but preserve existing photo URLs when the incoming value is nil.
+    /// Used for Other Contacts which don't carry photo fields — avoids overwriting
+    /// photos already stored from Connections.
+    func upsertContactsPreservingPhotos(
+        _ contacts: [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)]
     ) async throws {
+        guard !contacts.isEmpty else { return }
         let now = Date().timeIntervalSince1970
         try await db.dbPool.write { db in
             for contact in contacts {
-                try ContactRecord(
-                    email: contact.email.lowercased(),
-                    name: contact.name,
-                    photoUrl: contact.photoUrl,
-                    source: contact.source,
-                    resourceName: contact.resourceName,
-                    updatedAt: now
-                ).upsert(db)
+                try db.execute(sql: """
+                    INSERT INTO contacts (email, name, photo_url, source, resource_name, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(email) DO UPDATE SET
+                        name = excluded.name,
+                        photo_url = COALESCE(excluded.photo_url, contacts.photo_url),
+                        source = excluded.source,
+                        resource_name = excluded.resource_name,
+                        updated_at = excluded.updated_at
+                """, arguments: [
+                    contact.email.lowercased(),
+                    contact.name,
+                    contact.photoUrl,
+                    contact.source,
+                    contact.resourceName,
+                    now,
+                ])
             }
-            try MailDatabaseQueries.updateSyncState(tokenUpdate, in: db)
         }
     }
 

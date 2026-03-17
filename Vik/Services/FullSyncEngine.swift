@@ -684,7 +684,8 @@ actor FullSyncEngine {
                 ids: ids, accountID: accountID, format: "full"
             )
             if !failedBodyIDs.isEmpty {
-                Self.logger.warning("Body prefetch: \(failedBodyIDs.count) message(s) failed to fetch, will retry on next tick")
+                Self.logger.warning("Body prefetch: \(failedBodyIDs.count) message(s) failed to fetch")
+                try await syncer.incrementBodyFetchAttempts(for: failedBodyIDs)
             }
             let updates = fullMessages.map { msg in
                 (gmailId: msg.id, html: msg.htmlBody, plain: msg.plainBody)
