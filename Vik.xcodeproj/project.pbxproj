@@ -374,8 +374,9 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				INFOPLIST_KEY_CFBundleDisplayName = "Vik Dev";
 				MARKETING_VERSION = 1.0.8;
-				PRODUCT_BUNDLE_IDENTIFIER = com.vikingz.vik.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vikingz.vik.app.debug;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;

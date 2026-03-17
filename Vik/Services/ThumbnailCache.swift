@@ -41,7 +41,12 @@ final class ThumbnailCache {
     /// Directory for disk-cached thumbnails.
     private let cacheDirectory: URL = {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
-        let dir = caches.appendingPathComponent("com.vikingz.vik.thumbnails", isDirectory: true)
+        #if DEBUG
+        let name = "com.vikingz.vik.thumbnails-debug"
+        #else
+        let name = "com.vikingz.vik.thumbnails"
+        #endif
+        let dir = caches.appendingPathComponent(name, isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }()

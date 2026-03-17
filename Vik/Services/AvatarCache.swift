@@ -16,9 +16,14 @@ final class AvatarCache {
     private let memoryCache = NSCache<NSString, NSImage>()
     /// Tracks negative lookups in memory (URLs that returned 404 / no image).
     private let negativeCacheKeys = NSCache<NSString, NSNull>()
-    private let cacheDir: URL = FileManager.default
-        .urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        .appendingPathComponent("com.vikingz.vik.avatars")
+    private let cacheDir: URL = {
+        let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+        #if DEBUG
+        return caches.appendingPathComponent("com.vikingz.vik.avatars-debug")
+        #else
+        return caches.appendingPathComponent("com.vikingz.vik.avatars")
+        #endif
+    }()
 
     /// Keys currently being fetched from network (prevents duplicate requests).
     private var inFlightKeys: Set<String> = []

@@ -15,7 +15,13 @@ final class TokenStore {
     private let defaults      = UserDefaults.standard
     private let keyPrefix     = "com.vikingz.vik.token."
     private let accountsKey   = "com.vikingz.vik.token.accounts"
-    private let keychainService = "com.vikingz.vik.token"
+    private let keychainService: String = {
+        #if DEBUG
+        "com.vikingz.vik.token.debug"
+        #else
+        "com.vikingz.vik.token"
+        #endif
+    }()
     private let keychainAccount = "encryption-key"
     private let legacyKeyUD    = "com.vikingz.vik.token.key"
 
