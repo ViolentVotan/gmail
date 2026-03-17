@@ -24,6 +24,7 @@ struct EmailListView: View {
     @State private var lastEmailIDs: [UUID] = []
     @State private var lastUseDateSections = false
     @State private var isSearching = false
+    @State private var scrollPosition = ScrollPosition(edge: .top)
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
@@ -494,6 +495,10 @@ struct EmailListView: View {
             }
         }
         .listStyle(.plain)
+        .scrollPosition($scrollPosition)
+        .onChange(of: selectedFolder) {
+            scrollPosition.scrollTo(edge: .top)
+        }
         .refreshable {
             await actions.onRefresh?()
         }
@@ -620,44 +625,65 @@ private struct EmailDateSection: Identifiable {
 // MARK: - Skeleton Row
 
 private struct EmailSkeletonRowView: View {
+    @State private var shimmerPhase: CGFloat = -1
+
     var body: some View {
-        PhaseAnimator([false, true]) { phase in
-            let shimmerOpacity = phase ? 0.1 : 0.2
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(.tertiary.opacity(OpacityToken.tag))
-                    .frame(width: 6, height: 6)
+        HStack(spacing: 12) {
+            Circle()
+                .fill(.tertiary.opacity(OpacityToken.tag))
+                .frame(width: 6, height: 6)
 
-                Circle()
-                    .fill(.tertiary.opacity(shimmerOpacity))
-                    .frame(width: 36, height: 36)
-
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack {
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(.tertiary.opacity(shimmerOpacity))
-                            .frame(width: 120, height: 10)
-                        Spacer()
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(.tertiary.opacity(shimmerOpacity))
-                            .frame(width: 38, height: 9)
-                    }
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(.tertiary.opacity(shimmerOpacity))
-                        .frame(height: 9)
-                        .padding(.trailing, 40)
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(.tertiary.opacity(shimmerOpacity))
-                        .frame(height: 8)
-                        .padding(.trailing, Spacing.lg)
+            Circle()
+                .fill(.tertiary.opacity(OpacityToken.highlight))
+                .frame(width: 36, height: 36)
+                .overlay {
+                    shimmerOverlay
+                        .clipShape(Circle())
                 }
+
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    shimmerRect(width: 120, height: 10)
+                    Spacer()
+                    shimmerRect(width: 38, height: 9)
+                }
+                shimmerRect(height: 9)
+                    .padding(.trailing, 40)
+                shimmerRect(height: 8)
+                    .padding(.trailing, Spacing.lg)
             }
-            .padding(.horizontal, Spacing.lg)
-            .padding(.vertical, Spacing.sm)
-            .padding(.horizontal, Spacing.sm)
-            .drawingGroup(opaque: false)
-        } animation: { _ in
-            .easeInOut(duration: 0.9)
         }
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.sm)
+        .padding(.horizontal, Spacing.sm)
+        .onAppear {
+            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                shimmerPhase = 1
+            }
+        }
+    }
+
+    private func shimmerRect(width: CGFloat? = nil, height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 3)
+            .fill(.tertiary.opacity(OpacityToken.highlight))
+            .frame(width: width, height: height)
+            .overlay {
+                shimmerOverlay
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+            }
+    }
+
+    private var shimmerOverlay: some View {
+        GeometryReader { geo in
+            let width = geo.size.width
+            LinearGradient(
+                colors: [.clear, .white.opacity(0.06), .clear],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(width: width * 0.4)
+            .offset(x: shimmerPhase * width)
+        }
+        .clipped()
     }
 }
