@@ -28,6 +28,6 @@ struct LabelChipView: View {
         }
         .padding(.horizontal, 7)
         .padding(.vertical, 3)
-        .background(Capsule().fill(chipColor.opacity(0.12)))
+        .background(Capsule().fill(chipColor.opacity(OpacityToken.tag)))
     }
 }

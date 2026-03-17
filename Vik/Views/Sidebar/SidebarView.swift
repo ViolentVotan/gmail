@@ -34,7 +34,7 @@ struct SidebarView: View {
         Group {
             if isCollapsed {
                 collapsedSidebar
-                    .transition(.opacity.combined(with: .scale(scale: 0.92, anchor: .leading)))
+                    .transition(.opacity.combined(with: .scale(scale: ScaleToken.sidebarCollapse, anchor: .leading)))
             } else {
                 expandedSidebar
                     .transition(.move(edge: .leading).combined(with: .opacity))

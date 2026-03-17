@@ -91,7 +91,7 @@ struct EmailRowView: View, Equatable {
                 .font(Typography.microTag)
                 .padding(.horizontal, 4)
                 .padding(.vertical, 1)
-                .background(tagColor(color).opacity(0.15))
+                .background(tagColor(color).opacity(OpacityToken.interactive))
                 .foregroundStyle(tagColor(color))
                 .clipShape(RoundedRectangle(cornerRadius: CornerRadius.xs))
         }
@@ -212,7 +212,7 @@ struct EmailRowView: View, Equatable {
             .background {
                 if isSelected {
                     RoundedRectangle(cornerRadius: CornerRadius.sm)
-                        .fill(.tint.opacity(0.12))
+                        .fill(.tint.opacity(OpacityToken.tag))
                 }
             }
             .padding(.horizontal, 8)

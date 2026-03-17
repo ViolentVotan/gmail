@@ -252,7 +252,7 @@ struct EmailDetailView: View {
                             }
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
-                            .background(Color.accentColor.opacity(0.08))
+                            .background(Color.accentColor.opacity(OpacityToken.highlight))
                             .foregroundStyle(Color.accentColor.opacity(0.7))
                             .clipShape(Capsule())
                         }

@@ -68,7 +68,7 @@ struct CommandPaletteView: View {
         }
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.sm)
-        .background(isSelected ? Color.accentColor.opacity(0.15) : .clear)
+        .background(isSelected ? Color.accentColor.opacity(OpacityToken.interactive) : .clear)
         .contentShape(Rectangle())
         .accessibilityLabel(command.title)
         .accessibilityAddTraits(isSelected ? .isSelected : [])

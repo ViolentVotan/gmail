@@ -95,7 +95,7 @@ struct EmailHoverSummaryView: View {
                                 .font(Typography.captionSmallMedium)
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
-                                .background(sentimentColor(sentiment).opacity(0.15))
+                                .background(sentimentColor(sentiment).opacity(OpacityToken.interactive))
                                 .foregroundStyle(sentimentColor(sentiment))
                                 .clipShape(Capsule())
                         }

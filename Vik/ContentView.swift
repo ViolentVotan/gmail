@@ -181,7 +181,7 @@ struct ContentView: View {
             )
 
             if commandPalette.isVisible {
-                Color.black.opacity(0.45)
+                Color.black.opacity(OpacityToken.overlay)
                     .ignoresSafeArea()
                     .onTapGesture { commandPalette.dismiss() }
                     .zIndex(10)
@@ -189,7 +189,7 @@ struct ContentView: View {
                 CommandPaletteView(viewModel: commandPalette)
                     .matchedGeometryEffect(id: "commandPalette", in: commandPaletteNamespace)
                     .zIndex(11)
-                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                    .transition(.opacity.combined(with: .scale(scale: ScaleToken.enterFrom)))
             }
         }
     }

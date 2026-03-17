@@ -22,13 +22,13 @@ struct AttachmentCardView: View {
 
     private var iconBackgroundColor: Color {
         switch fileType {
-        case .image:        return FileTypeColor.image.opacity(0.12)
-        case .pdf:          return FileTypeColor.pdf.opacity(0.12)
-        case .spreadsheet:  return FileTypeColor.spreadsheet.opacity(0.12)
-        case .document:     return FileTypeColor.document.opacity(0.12)
-        case .presentation: return FileTypeColor.presentation.opacity(0.12)
-        case .archive:      return FileTypeColor.archive.opacity(0.12)
-        case .code:         return FileTypeColor.code.opacity(0.12)
+        case .image:        return FileTypeColor.image.opacity(OpacityToken.tag)
+        case .pdf:          return FileTypeColor.pdf.opacity(OpacityToken.tag)
+        case .spreadsheet:  return FileTypeColor.spreadsheet.opacity(OpacityToken.tag)
+        case .document:     return FileTypeColor.document.opacity(OpacityToken.tag)
+        case .presentation: return FileTypeColor.presentation.opacity(OpacityToken.tag)
+        case .archive:      return FileTypeColor.archive.opacity(OpacityToken.tag)
+        case .code:         return FileTypeColor.code.opacity(OpacityToken.tag)
         }
     }
 

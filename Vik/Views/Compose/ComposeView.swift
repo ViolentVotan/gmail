@@ -139,7 +139,7 @@ struct ComposeView: View {
                 }
                 .padding(.horizontal)
                 .padding(.vertical, Spacing.sm)
-                .background(Color.accentColor.opacity(0.08))
+                .background(Color.accentColor.opacity(OpacityToken.highlight))
 
                 Divider()
             }

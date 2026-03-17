@@ -114,7 +114,7 @@ struct SignatureEditorView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-        .background(SemanticColor.error.opacity(0.08))
+        .background(SemanticColor.error.opacity(OpacityToken.highlight))
     }
 
     // MARK: - Save Action

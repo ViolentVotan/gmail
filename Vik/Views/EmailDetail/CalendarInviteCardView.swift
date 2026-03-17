@@ -120,7 +120,7 @@ struct CalendarInviteCardView: View {
             .background(
                 isSelected
                     ? Color.accentColor
-                    : Color.accentColor.opacity(0.12)
+                    : Color.accentColor.opacity(OpacityToken.tag)
             )
             .foregroundStyle(
                 isSelected

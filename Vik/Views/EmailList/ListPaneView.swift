@@ -58,7 +58,7 @@ struct ListPaneView: View {
                 .foregroundStyle(.secondary)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 6)
-                .background(SemanticColor.warning.opacity(0.08))
+                .background(SemanticColor.warning.opacity(OpacityToken.highlight))
             }
             if selectedFolder == .inbox {
                 CategoryTabBar(
