@@ -85,10 +85,12 @@ struct HTMLEmailView: NSViewRepresentable {
         context.coordinator.isLoadingContent = true
         // Cancel any in-flight page load / Vision analysis before switching content.
         webView.stopLoading()
-        // Defer height reset so SwiftUI processes it after the current render pass.
-        // This shrinks the frame before didFinish measures the new content.
+        // Keep previous height as floor during content switch to prevent accordion collapse.
+        // ResizeObserver updates to actual height once new content loads.
         Task { @MainActor in
-            self.contentHeight = 1
+            if self.contentHeight < 200 {
+                self.contentHeight = 200
+            }
         }
 
         let controller = webView.configuration.userContentController

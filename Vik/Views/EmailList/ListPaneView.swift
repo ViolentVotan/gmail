@@ -9,6 +9,7 @@ struct ListPaneView: View {
     @Binding var selectedEmailIDs: Set<String>
     @Binding var searchFocusTrigger: Bool
     var selectedLabel: GmailLabel?
+    var isSidebarCollapsed: Bool = false
 
     // MARK: - Extracted from AppCoordinator (H8)
 
