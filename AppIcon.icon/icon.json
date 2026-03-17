@@ -1,19 +1,20 @@
 {
-  "fill" : {
-    "automatic-gradient" : "extended-gray:1.00000,1.00000"
-  },
+  "fill" : "automatic",
   "groups" : [
     {
       "layers" : [
         {
-          "glass" : false,
-          "image-name" : "vik_logo 2.svg",
-          "name" : "vik_logo 2",
+          "blend-mode" : "normal",
+          "fill" : "automatic",
+          "glass" : true,
+          "hidden" : false,
+          "image-name" : "layer2-helmet.svg",
+          "name" : "layer2-helmet",
           "position" : {
-            "scale" : 1.95,
+            "scale" : 1.8,
             "translation-in-points" : [
-              0,
-              0
+              -6.688218318690133,
+              182.60383477836956
             ]
           }
         }
