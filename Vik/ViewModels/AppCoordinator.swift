@@ -584,8 +584,8 @@ final class AppCoordinator {
             selectedLabel = nil
             selectedEmail = nil
             selectedEmailIDs = []
+            searchResetTrigger += 1
         }
-        searchResetTrigger += 1
         navigationTask?.cancel()
         ThumbnailCache.shared.clearAll()
         mailStore.accountID = id

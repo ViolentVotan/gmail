@@ -227,7 +227,8 @@ struct ContentView: View {
                     startCompose: { coordinator.startCompose(mode: $0) },
                     emptyTrashRequested: { coordinator.emptyTrashRequested(count: $0) },
                     emptySpamRequested: { coordinator.emptySpamRequested(count: $0) },
-                    loadCurrentFolder: { await coordinator.loadCurrentFolder() }
+                    loadCurrentFolder: { await coordinator.loadCurrentFolder() },
+                    isSidebarCollapsed: isSidebarCollapsed
                 )
                 .focused($appFocus, equals: .list)
             }

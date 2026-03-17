@@ -76,6 +76,8 @@ struct ListPaneView: View {
         .navigationSplitViewColumnWidth(min: 300, ideal: 380, max: 480)
         .navigationTitle(navigationTitleText)
         .toolbar(removing: .sidebarToggle)
+        .safeAreaPadding(.leading, isSidebarCollapsed ? 8 : 0)
+        .animation(VikAnimation.springDefault, value: isSidebarCollapsed)
         .onChange(of: selectedCategory) { _, newCategory in
             selectedInboxCategory = newCategory
         }

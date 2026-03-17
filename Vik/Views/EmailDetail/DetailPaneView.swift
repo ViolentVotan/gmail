@@ -58,6 +58,14 @@ struct DetailPaneView: View {
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
+    private func softDirectionalTransition(from edge: Edge) -> AnyTransition {
+        let yOffset: CGFloat = edge == .bottom ? 8 : -8
+        return .asymmetric(
+            insertion: .opacity.combined(with: .offset(y: yOffset)),
+            removal: .opacity.combined(with: .offset(y: -yOffset))
+        )
+    }
+
     private var isEditingDraft: Bool {
         guard let email = selectedEmail else { return false }
         return email.isDraft
@@ -77,7 +85,7 @@ struct DetailPaneView: View {
                 composeView(draftId: draftId)
             } else if let email = selectedEmail {
                 emailDetailView(email: email)
-                    .transition(.push(from: selectionDirection))
+                    .transition(softDirectionalTransition(from: selectionDirection))
                     .gesture(
                         DragGesture(minimumDistance: 50)
                             .onEnded { value in

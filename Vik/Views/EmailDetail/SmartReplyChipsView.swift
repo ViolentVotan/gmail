@@ -29,7 +29,7 @@ struct SmartReplyChipsView: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .modifier(SmartReplyChipBackground())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.primary)
                 }
                 .buttonStyle(.plain)
                 .help(suggestion)

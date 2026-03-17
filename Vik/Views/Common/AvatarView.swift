@@ -46,7 +46,7 @@ struct AvatarView: View {
                     .clipShape(Circle())
             } else {
                 Circle()
-                    .fill(Color(hex: color).opacity(0.7))
+                    .fill(Color(hex: color).opacity(0.85))
                 Text(initials)
                     .font(.system(size: size * 0.38, weight: .semibold, design: .rounded))
                     .foregroundStyle(avatarTextColor)
