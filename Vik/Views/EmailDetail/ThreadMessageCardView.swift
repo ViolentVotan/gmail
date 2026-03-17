@@ -118,7 +118,7 @@ struct ThreadMessageCardView: View {
         }
         .background(isHovering && !isExpanded ? Color(.quaternaryLabelColor) : Color.clear)
         .animation(.snappy(duration: 0.2), value: isHovering)
-        .scaleEffect(isExpanded ? 1.0 : ScaleToken.press, anchor: .top)
+        .scaleEffect(isExpanded ? 1.0 : 0.99, anchor: .top)
         .overlay(alignment: .leading) {
             if isSentByMe {
                 Rectangle()
