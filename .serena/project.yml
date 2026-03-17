@@ -1,4 +1,4 @@
-# Serif — macOS Gmail Client
+# Vik — macOS Gmail Client
 project_name: "gmail"
 
 # Swift via sourcekit-lsp (available at /usr/bin/sourcekit-lsp)
@@ -21,9 +21,8 @@ ignored_paths:
 - "*.xcworkspace/**"
 - "xcuserdata/**"
 - ".xcodebuildmcp/**"
-- "Serif/Resources/Fonts/**"
-- "Serif/Resources/Assets.xcassets/**"
-- "docs/appcast.xml"
+- "Vik/Resources/Fonts/**"
+- "Vik/Resources/Assets.xcassets/**"
 - "assets/**"
 
 read_only: false
@@ -37,7 +36,7 @@ base_modes:
 default_modes:
 
 # Context for LLM on project activation
-initial_prompt: "Swift/SwiftUI macOS Gmail client (Serif). MVVM: Services → ViewModels → Views.
+initial_prompt: "Swift/SwiftUI macOS Gmail client (Vik). MVVM: Services → ViewModels → Views.
   Read code_style memory before editing Swift code. Multi-account: all persistence keyed by accountID."
 
 symbol_info_budget:

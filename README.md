@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/icon.png" width="128" alt="Serif icon" />
+  <img src="assets/icon.png" width="128" alt="Vik icon" />
 </p>
 
-<h1 align="center">Serif</h1>
+<h1 align="center">Vik</h1>
 
 <p align="center">
   <em>The email client Gmail deserves on macOS.</em>
@@ -66,8 +66,8 @@ git clone https://github.com/ViolentVotan/gmail.git
 ```
 
 1. Create a Google Cloud project with **Gmail API** and **People API** enabled, plus an OAuth 2.0 Desktop client
-2. Create `Serif/Configuration/GoogleCredentials.swift` with your OAuth client ID and secret (gitignored)
-3. Open `Serif.xcodeproj` in **Xcode 26.3+**, build and run
+2. Create `Vik/Configuration/GoogleCredentials.swift` with your OAuth client ID and secret (gitignored)
+3. Open `Vik.xcodeproj` in **Xcode 26.3+**, build and run
 
 ## License
 

@@ -1,9 +1,9 @@
-# Codebase Structure — Serif
+# Codebase Structure — Vik
 
 ## Layout
 ```
-Serif/                      # Main app
-├── SerifApp.swift           # Entry point → OnboardingView or ContentView
+Vik/                      # Main app
+├── VikApp.swift           # Entry point → OnboardingView or ContentView
 ├── ContentView.swift        # Main orchestrator (owns ViewModels, wires callbacks)
 ├── Configuration/           # API keys, OAuth scopes (GoogleCredentials.swift is gitignored)
 ├── Database/                # GRDB SQLite persistence (per-account)
@@ -47,7 +47,7 @@ Serif/                      # Main app
 ├── Theme/                   # AppearanceManager, DesignTokens
 ├── Utilities/               # Pure helpers
 └── Resources/               # Assets.xcassets, editor.js
-SerifTests/                 # Unit tests (root + Database/ + Mocks/ subdirectories)
+VikTests/                 # Unit tests (root + Database/ + Mocks/ subdirectories)
 docs/                       # Architecture docs + superpowers/ specs & plans
 .github/workflows/          # CI: release.yml (signing, notarization, DMG)
 scripts/                    # release.sh
@@ -74,4 +74,15 @@ Views never call Services directly. ViewModels are the single bridge.
 - `SummaryService` / `SmartReplyService` — AI-powered features
 - `NotificationService` — Push notification handling
 - `SpotlightIndexer` / `AttachmentIndexer` — Spotlight & attachment text indexing
+- `PerAccountFileStore` — Generic per-account JSON persistence (used by SnoozeStore, ScheduledSendStore, OfflineActionQueue)
+- `PeopleAPIService` — Google People API for contacts
+- `UnsubscribeService` — Email unsubscribe handling
+- `AvatarCache` — Contact avatar caching
+- `QuotaTracker` — Gmail API rate-limit tracking
+- `BIMIService` — Brand Indicators for Message Identification
+- `SignatureResolver` — Email signature resolution
+- `ContentExtractor` — Email content extraction
+- `EmailPrintService` — Email printing
+- `SoundManager` — UI sound effects
+- `CPUMonitor` — CPU usage monitoring
 - Gmail API layer: `GmailAPIClient` (base), `GmailMessageService`, `GmailLabelService`, `GmailSendService`, `GmailDraftService`, `GmailFilterService`, `GmailProfileService`

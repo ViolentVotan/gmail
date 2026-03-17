@@ -1,6 +1,6 @@
-# Serif — Native macOS Gmail Client
+# Vik — Native macOS Gmail Client
 
-Swift 6.2 / SwiftUI / macOS 26+ — a native Gmail client with threading, tracker blocking, multi-account, Apple Intelligence (summaries, classification, smart replies, translation, notification priority, onscreen awareness, tool calling), snooze, schedule-send, offline queue, App Intents (AssistantSchemas mail domain), command palette, Gmail filters, and push notifications.
+Swift 6.2 / SwiftUI / macOS 26+ — a native Gmail client with threading, tracker blocking, multi-account, Apple Intelligence (summaries, classification, smart replies, translation, notification priority, onscreen awareness, tool calling), snooze, schedule-send, offline queue, App Intents (AssistantSchemas mail domain), command palette, Gmail filters, and local notifications.
 
 ## Fork & Upstream
 
@@ -15,20 +15,20 @@ Requires **Xcode 26.3+** (full IDE, not just command-line tools).
 
 | Action | Command |
 |--------|---------|
-| Build | `xcodebuild -scheme Serif -configuration Debug build` |
-| Test | `xcodebuild -scheme Serif -destination 'platform=macOS' test` |
+| Build | `xcodebuild -scheme Vik -configuration Debug build` |
+| Test | `xcodebuild -scheme Vik -destination 'platform=macOS' test` |
 | Release | `./scripts/release.sh` |
 
 <!-- Human-only setup reference (hidden from Claude context):
 1. Google Cloud project with Gmail API enabled + OAuth 2.0 Desktop credentials
-2. Create Serif/Configuration/GoogleCredentials.swift (gitignored) with OAuth client ID/secret
-3. Open Serif.xcodeproj in Xcode, build and run -->
+2. Create Vik/Configuration/GoogleCredentials.swift (gitignored) with OAuth client ID/secret
+3. Open Vik.xcodeproj in Xcode, build and run -->
 
 ## Architecture
 
 ```
-Serif/
-├── SerifApp.swift      # App entry point
+Vik/
+├── VikApp.swift      # App entry point
 ├── ContentView.swift   # Root view
 ├── Views/              # SwiftUI views
 ├── ViewModels/         # MVVM view models (one per feature)
@@ -53,7 +53,7 @@ Serif/
 
 **Patterns:** MVVM with coordinator navigation (`AppCoordinator`, `EmailActionCoordinator`). Per-account GRDB SQLite database (WAL mode) for email persistence; `BackgroundSyncer` actor writes, `ValueObservation` drives reactive UI. `SyncProgressManager` (@Observable, environment-injected) drives an always-visible interactive liquid glass bubble at the sidebar bottom — tappable to trigger manual sync, with linger timers for success/error states, reset on account switch.
 
-**Path-scoped rules** (`.claude/rules/`): `swift.md` (all Swift), `database.md` (Database layer), `testing.md` (tests), `safety.md` (CI/config safety). Serena `code_style` memory has full reference.
+**Path-scoped rules** (`.claude/rules/`): `_code-style.md` (Swift conventions, auto-synced from Serena `code_style` memory), `database.md` (Database layer), `testing.md` (tests), `safety.md` (CI/config safety).
 
 ## LSP Tool Routing
 

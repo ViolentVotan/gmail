@@ -1,12 +1,12 @@
-# Serif Documentation
+# Vik Documentation
 
-Architecture and conventions for the Serif macOS Gmail client.
+Architecture and conventions for the Vik macOS Gmail client.
 
 ## Guides
 
 | Document | Scope |
 |----------|-------|
-| [Serif.md](Serif.md) | Architecture overview, core principles, entry points |
+| [Vik.md](Vik.md) | Architecture overview, core principles, entry points |
 | [Database.md](Database.md) | GRDB SQLite persistence — schema, records, queries, sync, FTS5 |
 | [Models.md](Models.md) | Data models and local stores |
 | [Services.md](Services.md) | Business logic, networking, API clients |

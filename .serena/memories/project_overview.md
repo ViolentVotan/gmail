@@ -1,11 +1,11 @@
-# Project Overview — Serif
+# Project Overview — Vik
 
 Native macOS Gmail client. Swift 6.2 / SwiftUI. 3-column layout (sidebar, email list, detail). SWIFT_VERSION = 6.2 (Swift 6.2 language mode); Xcode 26.3.
 
 ## Target
 - macOS 26+
 - Xcode 26.3
-- Bundle: `com.vikingz.serif.app`
+- Bundle: `com.vikingz.vik.app`
 
 ## Key Features
 - Multi-account Gmail via OAuth 2.0
@@ -23,5 +23,5 @@ Native macOS Gmail client. Swift 6.2 / SwiftUI. 3-column layout (sidebar, email 
 
 ## Build & Test
 - Build verification: XcodeBuildMCP
-- Tests: `xcodebuild test -scheme Serif -destination 'platform=macOS'`
-- Tests in SerifTests/ (root + Database/ subdirectory)
+- Tests: `xcodebuild test -scheme Vik -destination 'platform=macOS'`
+- Tests in VikTests/ (root + Database/ subdirectory)

@@ -14,9 +14,9 @@ permissions:
   contents: write
 
 env:
-  SCHEME: Serif
-  PROJECT: Serif.xcodeproj
-  APP_NAME: Serif
+  SCHEME: Vik
+  PROJECT: Vik.xcodeproj
+  APP_NAME: Vik
 
 jobs:
   build-and-release:
@@ -41,8 +41,8 @@ jobs:
 
       - name: Generate GoogleCredentials placeholder
         run: |
-          mkdir -p Serif/Configuration
-          cat > Serif/Configuration/GoogleCredentials.swift << 'CREDS_EOF'
+          mkdir -p Vik/Configuration
+          cat > Vik/Configuration/GoogleCredentials.swift << 'CREDS_EOF'
           import Foundation
           enum GoogleCredentials {
               static let clientID     = "${{ secrets.GOOGLE_CLIENT_ID }}"
@@ -120,7 +120,7 @@ jobs:
             -project $PROJECT \
             -scheme $SCHEME \
             -configuration Release \
-            -archivePath build/Serif.xcarchive \
+            -archivePath build/Vik.xcarchive \
             CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Developer ID Application" \
             DEVELOPMENT_TEAM="${{ secrets.APPLE_TEAM_ID }}" \
@@ -129,7 +129,7 @@ jobs:
       - name: Prepare app for DMG
         run: |
           mkdir -p build/export
-          cp -R "build/Serif.xcarchive/Products/Applications/$APP_NAME.app" "build/export/$APP_NAME.app"
+          cp -R "build/Vik.xcarchive/Products/Applications/$APP_NAME.app" "build/export/$APP_NAME.app"
 
       - name: Re-sign embedded frameworks
         run: |
@@ -233,44 +233,6 @@ jobs:
             "build/$APP_NAME-${TAG}.dmg" \
             --title "$APP_NAME $VERSION" \
             --generate-notes
-
-      - name: Generate appcast.xml
-        run: |
-          TAG="${{ steps.version.outputs.TAG }}"
-          VERSION="${{ steps.version.outputs.VERSION }}"
-          BUILD_NUMBER=$(/usr/libexec/PlistBuddy -c "Print CFBundleVersion" "build/export/$APP_NAME.app/Contents/Info.plist")
-          DMG_FILE="build/$APP_NAME-${TAG}.dmg"
-          DMG_SIZE=$(stat -f%z "$DMG_FILE")
-          DMG_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/${APP_NAME}-${TAG}.dmg"
-          PUB_DATE=$(date -R)
-
-          cat > docs/appcast.xml << APPCAST_EOF
-          <?xml version="1.0" encoding="utf-8"?>
-          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
-            <channel>
-              <title>Serif Updates</title>
-              <language>en</language>
-              <item>
-                <title>Version ${VERSION}</title>
-                <pubDate>${PUB_DATE}</pubDate>
-                <sparkle:version>${BUILD_NUMBER}</sparkle:version>
-                <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
-                <enclosure url="${DMG_URL}" length="${DMG_SIZE}" type="application/octet-stream" />
-              </item>
-            </channel>
-          </rss>
-          APPCAST_EOF
-
-      - name: Deploy appcast to GitHub Pages
-        run: |
-          TAG="${{ steps.version.outputs.TAG }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin master
-          git checkout master
-          git add docs/appcast.xml
-          git commit -m "Update appcast for ${TAG}" || true
-          git push origin master
 
       - name: Cleanup keychain
         if: always()

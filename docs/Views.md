@@ -8,7 +8,7 @@ SwiftUI views. UI presentation only — no business logic.
   - Call Services or APIs directly
   - Perform data transformations beyond simple formatting
   - Contain persistence logic
-- **No hardcoded colors.** Use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`, `Color.accentColor`). Use `.cardStyle()` for Base-plane content cards, `.glassEffect(.regular)` for Navigation-plane surfaces, and `.floatingPanelStyle()` for Transient-plane overlays. Use `Spacing`, `CornerRadius`, `Typography`, and `SerifAnimation` tokens from `DesignTokens.swift`.
+- **No hardcoded colors.** Use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`, `Color.accentColor`). Use `.cardStyle()` for Base-plane content cards, `.glassEffect(.regular)` for Navigation-plane surfaces, and `.floatingPanelStyle()` for Transient-plane overlays. Use `Spacing`, `CornerRadius`, `Typography`, and `VikAnimation` tokens from `DesignTokens.swift`.
 - **Action structs over individual closures.** Views receive callbacks via action structs (`EmailListActions`, `EmailDetailActions`) rather than dozens of individual closure parameters. Only top-level views (ListPaneView, DetailPaneView) construct these structs and wire them to ViewModels/coordinators.
 - **Small, composable views.** Extract reusable components into `Common/`. One concern per file.
 - **Animations belong in views**, not in ViewModels or Services.
@@ -57,7 +57,7 @@ Email composer — `ComposeView` for the full compose form with rich text editor
 Attachment explorer with grid view, thumbnails, file type filtering, and search.
 
 ### `Settings/`
-Tabbed settings view (Accounts, General, Signatures, Filters, Advanced) registered as a macOS `Settings` scene — opens via Cmd+,. `SettingsView` uses `@AppStorage("com.vikingz.serif.selectedAccountID")` for reactive account ID (updates when user switches accounts), `AppearanceManager` via `@Bindable`, and closures (`onReauthorize`, `loadSendAs`, `updateSignature`) from `SerifApp`. Uses `@AppStorage` for other settings (notifications, undo duration, directory contacts sync).
+Tabbed settings view (Accounts, General, Signatures, Filters, Advanced) registered as a macOS `Settings` scene — opens via Cmd+,. `SettingsView` uses `@AppStorage("com.vikingz.vik.selectedAccountID")` for reactive account ID (updates when user switches accounts), `AppearanceManager` via `@Bindable`, and closures (`onReauthorize`, `loadSendAs`, `updateSignature`) from `VikApp`. Uses `@AppStorage` for other settings (notifications, undo duration, directory contacts sync).
 - `AccountsSettingsView` — Account management: reorder (drag + up/down buttons), set default, accent color picker from palette. Receives all mutation callbacks (`fetchAccounts`, `onSetAsDefault`, `onSetAccentColor`, `onMoveUp`, `onMoveDown`, `onReorder`) from `SettingsView` — no direct `AccountStore` access. Context menu with "Set as Default" and accent color submenu.
 - `SignaturesSettingsView` — Signature management per send-as alias. Takes explicit `loadSendAs` and `onUpdateSignature` closures.
 - `FiltersSettingsView` — Gmail filter list with create/edit/delete actions. Uses `.task(id: accountID)` to recreate `FiltersViewModel` on account switch.
@@ -86,7 +86,7 @@ Shared reusable components:
 | `DebugMenuView` | API logs, cache controls. Uses file-private `DebugViewModel` wrapper (no direct `AttachmentDatabase` access). |
 | `InAppBrowserView` | In-app web browser with glass toolbar (`GlassEffectContainer` grouping close, back, forward, URL bar, open-in-browser buttons) |
 | `ShortcutsHelpView` | Keyboard shortcuts reference |
-| `SerifCommands` | macOS menu bar commands (File, Edit, View custom menus) |
+| `VikCommands` | macOS menu bar commands (File, Edit, View custom menus) |
 | `AttachmentChipRow` | Reusable horizontal attachment chip list (used in ComposeView and ReplyBarView) |
 | `SlidePanelsOverlay` | Overlay container for slide panels (help, debug, original message, attachment preview, email preview, web browser). Receives `mailDatabase` and `attachmentIndexer` for detail views. Preview actions (`onToggleStar`, `onMarkUnread`, `onMessagesRead`) are closures routed through `AppCoordinator` → `EmailActionCoordinator`/`MailboxViewModel` for optimistic UI + offline support. Uses `EmailDetailActions.contentActions` factory and `FileUtils.saveWithPanel` for content-level actions. |
 
@@ -99,7 +99,7 @@ Shared styled components:
 
 ## Intents (App Intents)
 
-`Serif/Intents/` — App Intents for Shortcuts, Spotlight, and Siri integration via AssistantSchemas mail domain.
+`Vik/Intents/` — App Intents for Shortcuts, Spotlight, and Siri integration via AssistantSchemas mail domain.
 
 | File | Role |
 |------|------|
@@ -113,7 +113,7 @@ Shared styled components:
 | `ArchiveEmailIntent.swift` | `@AppIntent(schema: .mail.archiveMail)` — archives emails |
 | `TrashEmailIntent.swift` | `@AppIntent(schema: .mail.deleteMail)` — moves emails to trash |
 | `FlagEmailIntent.swift` | Toggles star/flag on emails (plain `AppIntent` — no schema for flag-only) |
-| `OpenEmailIntent.swift` | Opens an email in Serif by message ID (resolves account via `IntentHelpers`) |
+| `OpenEmailIntent.swift` | Opens an email in Vik by message ID (resolves account via `IntentHelpers`) |
 | `SearchEmailIntent.swift` | Searches emails by query string (plain `AppIntent` — no `.mail.search` schema) |
 | `IntentHelpers.swift` | Shared helper: `findOwnerAccount(for:)` scans all account DBs to find the owner of a message ID |
-| `SerifShortcuts.swift` | `AppShortcutsProvider` registering intents with Siri phrases |
+| `VikShortcuts.swift` | `AppShortcutsProvider` registering intents with Siri phrases |
