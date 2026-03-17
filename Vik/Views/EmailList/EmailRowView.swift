@@ -126,7 +126,7 @@ struct EmailRowView: View, Equatable {
                     HStack {
                         Text(email.isDraft && email.recipients.isEmpty ? "Draft" : email.sender.name)
                             .font(.callout.weight(email.isRead ? .medium : .semibold))
-                            .foregroundStyle(email.isDraft && email.recipients.isEmpty ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.primary))
+                            .foregroundStyle(email.isDraft && email.recipients.isEmpty ? .tertiary : .primary)
                             .lineLimit(1)
 
                         if email.threadMessageCount > 1 {
@@ -147,7 +147,7 @@ struct EmailRowView: View, Equatable {
 
                     Text(email.subject)
                         .font(Typography.subheadRegular)
-                        .foregroundStyle(email.isRead ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
+                        .foregroundStyle(email.isRead ? .secondary : .primary)
                         .lineLimit(1)
 
                     if showPreview {

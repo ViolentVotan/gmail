@@ -162,12 +162,14 @@ final class AppCoordinator {
     /// Called by ContentView's `.onChange` when `SnoozeStore.shared.items` changes.
     /// Only refreshes the cache if the snoozed folder is currently visible.
     func refreshSnoozedCacheIfNeeded() {
+        guard selectedFolder == .snoozed else { return }
         refreshSnoozedCache()
     }
 
     /// Called by ContentView's `.onChange` when `ScheduledSendStore.shared.items` changes.
     /// Only refreshes the cache if the scheduled folder is currently visible.
     func refreshScheduledCacheIfNeeded() {
+        guard selectedFolder == .scheduled else { return }
         refreshScheduledCache()
     }
 
@@ -562,6 +564,7 @@ final class AppCoordinator {
         mailStore.accountID = id
         SubscriptionsStore.shared.accountID = id
         attachmentStore.accountID = id
+        SummaryService.shared.accountID = id
         // Reload per-account stores for the new account
         SnoozeStore.shared.load(accountID: id)
         ScheduledSendStore.shared.load(accountID: id)
@@ -591,7 +594,6 @@ final class AppCoordinator {
             syncProgressManager.reset()
             await mailboxViewModel.switchAccount(id)
             guard !Task.isCancelled, self.accountSwitchGeneration == generation else { return }
-            SummaryService.shared.accountID = id
             await setupAccount(id)
             updateDisplayedEmails()
         }
@@ -615,24 +617,40 @@ final class AppCoordinator {
             OfflineActionQueue.shared.load(accountID: addedID)
         }
 
+        // Clean up per-account state for all removed accounts
+        for removedID in removedIDs {
+            SubscriptionsStore.shared.deleteAccount(removedID)
+            MailDatabase.evict(accountID: removedID)
+        }
+
         // Stop engine if current account was removed (sign-out)
         if let id = selectedAccountID, removedIDs.contains(id) {
             let engineToStop = syncEngine
             syncEngine = nil
             lifecycleTask?.cancel()
             lifecycleTask = Task {
-                // Await engine stop BEFORE clearing DB references
+                // Await engine stop BEFORE deleting DB files to prevent
+                // writes to a deleted database.
                 await engineToStop?.stop()
                 self.mailDatabase = nil
                 self.backgroundSyncer = nil
             }
             SummaryService.shared.accountID = ""
-            // Clean up additional per-account state for all removed accounts
-            for removedID in removedIDs {
-                SubscriptionsStore.shared.deleteAccount(removedID)
-                MailDatabase.evict(accountID: removedID)
-            }
             selectedAccountID = accounts.first?.id
+        }
+
+        // Delete database and attachment files for all removed accounts.
+        // For the selected account, the lifecycleTask above stops the engine
+        // first; for non-selected accounts, no engine is running.
+        let idsToDelete = removedIDs
+        let engineTask = lifecycleTask
+        Task {
+            // Wait for engine stop (no-op if lifecycleTask is nil / different account)
+            await engineTask?.value
+            for removedID in idsToDelete {
+                MailDatabase.deleteDatabase(accountID: removedID)
+                await AttachmentDatabase.shared.deleteByAccountID(removedID)
+            }
         }
     }
 

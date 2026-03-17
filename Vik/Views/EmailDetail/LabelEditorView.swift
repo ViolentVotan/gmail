@@ -195,8 +195,7 @@ struct LabelEditorView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(items.indices), id: \.self) { index in
-                        let item = items[index]
+                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         if index > 0 {
                             Divider()
                                 .background(Color(.separatorColor))
@@ -204,7 +203,7 @@ struct LabelEditorView: View {
                         }
 
                         dropdownRow(item, isHighlighted: index == highlightedIndex)
-                            .id(index)
+                            .id(item.id)
                     }
                 }
                 .padding(4)

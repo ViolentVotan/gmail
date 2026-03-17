@@ -68,15 +68,18 @@ final class AuthViewModel {
             Task { await OAuthService.shared.revokeToken(token: tokenToRevoke) }
         }
 
-        // Defense-in-depth: cancel scheduled work and delete data BEFORE
-        // AccountStore.remove (which does the same cleanup internally).
-        // Early cancellation prevents a race where SnoozeMonitor fires a
-        // scheduled send between AccountStore removing the account from its
-        // array and reaching its own deleteAccount calls.
+        // Defense-in-depth: cancel scheduled work BEFORE AccountStore.remove
+        // (which does the same cleanup internally). Early cancellation prevents
+        // a race where SnoozeMonitor fires a scheduled send between
+        // AccountStore removing the account from its array and reaching its
+        // own deleteAccount calls.
+        // Note: MailDatabase deletion is NOT done here — AppCoordinator's
+        // handleAccountsChange stops the sync engine first, then deletes the
+        // DB to avoid a race where the engine is still writing when files
+        // are removed.
         ScheduledSendStore.shared.deleteAccount(account.id)
         SnoozeStore.shared.deleteAccount(account.id)
         OfflineActionQueue.shared.deleteAccount(account.id)
-        MailDatabase.deleteDatabase(accountID: account.id)
         TokenStore.shared.delete(for: account.id)
 
         AccountStore.shared.remove(id: account.id)

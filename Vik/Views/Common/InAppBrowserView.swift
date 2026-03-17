@@ -31,7 +31,7 @@ struct InAppBrowserView: View {
                 } label: {
                     Image(systemName: "chevron.left")
                         .font(Typography.subhead)
-                        .foregroundStyle(!page.backForwardList.backList.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
+                        .foregroundStyle(!page.backForwardList.backList.isEmpty ? .secondary : .tertiary)
                         .frame(width: 28, height: 28)
                         .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
                 }
@@ -46,7 +46,7 @@ struct InAppBrowserView: View {
                 } label: {
                     Image(systemName: "chevron.right")
                         .font(Typography.subhead)
-                        .foregroundStyle(!page.backForwardList.forwardList.isEmpty ? AnyShapeStyle(.secondary) : AnyShapeStyle(.tertiary))
+                        .foregroundStyle(!page.backForwardList.forwardList.isEmpty ? .secondary : .tertiary)
                         .frame(width: 28, height: 28)
                         .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
                 }

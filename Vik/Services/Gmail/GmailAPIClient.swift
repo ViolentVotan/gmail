@@ -880,6 +880,11 @@ final class GmailAPIClient {
             // The generation check only guards the success path (don't clear if superseded).
             refreshTasks[accountID] = nil
             refreshGeneration.removeValue(forKey: accountID)
+            // Clear revoked tokens from Keychain so we don't retry stale credentials on next launch
+            if case .tokenRevoked = error as? OAuthError {
+                TokenStore.shared.delete(for: accountID)
+                cachedTokens.withLock { $0.removeValue(forKey: accountID) }
+            }
             throw .wrap(error)
         }
     }
@@ -1098,7 +1103,7 @@ enum RetryPolicy {
             return seconds
         }
         let base = pow(2.0, Double(attempt))
-        let jitter = Double.random(in: 0...(base * 0.5))
+        let jitter = Double.random(in: 0...1.0)
         return min(base + jitter, 64.0)
     }
 }

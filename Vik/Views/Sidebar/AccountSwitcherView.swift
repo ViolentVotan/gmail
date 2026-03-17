@@ -17,8 +17,7 @@ struct AccountSwitcherView: View {
 
     var body: some View {
         HStack(spacing: isExpanded ? 6 : 0) {
-            ForEach(Array(accounts.indices), id: \.self) { index in
-                let account = accounts[index]
+            ForEach(Array(accounts.enumerated()), id: \.element.id) { index, account in
                 let isActive = account.id == selectedAccountID
                 || (selectedAccountID == nil && account.id == accounts.first?.id)
                 let visible = isExpanded || isActive

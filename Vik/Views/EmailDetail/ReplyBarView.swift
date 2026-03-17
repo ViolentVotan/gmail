@@ -360,8 +360,7 @@ struct ReplyBarView: View {
                 .opacity(visibleChipCount > 0 ? 1 : 0)
                 .scaleEffect(visibleChipCount > 0 ? 1 : 0.5)
 
-            ForEach(quickReplies.indices, id: \.self) { index in
-                let suggestion = quickReplies[index]
+            ForEach(Array(quickReplies.enumerated()), id: \.offset) { index, suggestion in
                 Button {
                     let escapedHTML = "<p>\(suggestion.htmlEscaped)</p>"
                     editorState.setHTML(escapedHTML)

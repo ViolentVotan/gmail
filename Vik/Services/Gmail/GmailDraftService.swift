@@ -79,27 +79,11 @@ final class GmailDraftService {
         threadID: String? = nil,
         accountID: String
     ) async throws(GmailAPIError) -> GmailDraft {
-        let raw = try GmailSendService.buildRawMessage(
-            from: from, to: to, cc: cc, bcc: bcc,
+        try await saveDraft(
+            draftID: nil, from: from, to: to, cc: cc, bcc: bcc,
             subject: subject, body: body, isHTML: isHTML,
-            inReplyTo: inReplyTo,
-            references: references,
-            inlineImages: inlineImages
-        )
-        var message: [String: Any] = ["raw": raw]
-        if let threadID { message["threadId"] = threadID }
-        let payload: [String: Any] = ["message": message]
-        let encoded: Data
-        do {
-            encoded = try JSONSerialization.data(withJSONObject: payload)
-        } catch {
-            throw .encodingError(error)
-        }
-        return try await client.request(
-            path: "/users/me/drafts",
-            method: "POST", body: encoded, contentType: "application/json",
-            fields: "id,message(id,threadId)",
-            accountID: accountID
+            inReplyTo: inReplyTo, references: references,
+            inlineImages: inlineImages, threadID: threadID, accountID: accountID
         )
     }
 
@@ -110,6 +94,24 @@ final class GmailDraftService {
         references: String? = nil,
         inlineImages: [InlineImageAttachment] = [],
         threadID: String? = nil,
+        accountID: String
+    ) async throws(GmailAPIError) -> GmailDraft {
+        try await saveDraft(
+            draftID: draftID, from: from, to: to, cc: cc, bcc: bcc,
+            subject: subject, body: body, isHTML: isHTML,
+            inReplyTo: inReplyTo, references: references,
+            inlineImages: inlineImages, threadID: threadID, accountID: accountID
+        )
+    }
+
+    /// Shared implementation for create (POST) and update (PUT) draft operations.
+    @concurrent private func saveDraft(
+        draftID: String?, from: String, to: [String], cc: [String], bcc: [String],
+        subject: String, body: String, isHTML: Bool,
+        inReplyTo: String?,
+        references: String?,
+        inlineImages: [InlineImageAttachment],
+        threadID: String?,
         accountID: String
     ) async throws(GmailAPIError) -> GmailDraft {
         let raw = try GmailSendService.buildRawMessage(
@@ -128,9 +130,11 @@ final class GmailDraftService {
         } catch {
             throw .encodingError(error)
         }
+        let path = if let draftID { "/users/me/drafts/\(draftID)" } else { "/users/me/drafts" }
+        let method = if draftID != nil { "PUT" } else { "POST" }
         return try await client.request(
-            path: "/users/me/drafts/\(draftID)",
-            method: "PUT", body: encoded, contentType: "application/json",
+            path: path,
+            method: method, body: encoded, contentType: "application/json",
             fields: "id,message(id,threadId)",
             accountID: accountID
         )

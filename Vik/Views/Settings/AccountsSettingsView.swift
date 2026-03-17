@@ -13,8 +13,7 @@ struct AccountsSettingsView: View {
 
     var body: some View {
         List {
-            ForEach(Array(accounts.indices), id: \.self) { index in
-                let account = accounts[index]
+            ForEach(Array(accounts.enumerated()), id: \.element.id) { index, account in
                 accountRow(account, index: index)
             }
             .onMove(perform: move)

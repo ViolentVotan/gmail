@@ -40,6 +40,9 @@ struct VikApp: App {
                     ScheduledSendStore.shared.load(accountID: account.id)
                     OfflineActionQueue.shared.load(accountID: account.id)
                 }
+
+                // Drain any pending offline actions if already online at launch
+                OfflineActionQueue.shared.startDraining()
             }
         }
         .defaultSize(width: 1200, height: 750)

@@ -43,12 +43,19 @@ enum MailDatabaseQueries {
     }
 
     /// Messages needing body pre-fetch, newest first.
+    /// Excludes messages in Spam or Trash to avoid unnecessary API calls.
     static func messagesNeedingBodies(limit: Int = 50, in db: Database) throws -> [MessageRecord] {
-        try MessageRecord
-            .filter(Column("full_body_fetched") == false)
-            .order(Column("internal_date").desc)
-            .limit(limit)
-            .fetchAll(db)
+        try MessageRecord.fetchAll(db, sql: """
+            SELECT m.* FROM messages m
+            WHERE m.full_body_fetched = 0
+            AND NOT EXISTS (
+                SELECT 1 FROM message_labels ml
+                WHERE ml.message_id = m.gmail_id
+                AND ml.label_id IN (?, ?)
+            )
+            ORDER BY m.internal_date DESC
+            LIMIT ?
+        """, arguments: [GmailSystemLabel.spam, GmailSystemLabel.trash, limit])
     }
 
     /// Check if a message exists in the database.

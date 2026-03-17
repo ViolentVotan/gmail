@@ -23,7 +23,6 @@ final class EmailClassifier {
         guard SystemLanguageModel.default.availability == .available else { return }
         let model = SystemLanguageModel(useCase: .contentTagging)
         let instructions = Instructions("Classify this email with boolean tags.")
-        let session = LanguageModelSession(model: model, instructions: instructions)
         for email in emails.prefix(10) {
             guard !Task.isCancelled else { return }
             guard let msgId = email.gmailMessageID, tagCache[msgId] == nil else { continue }
@@ -41,6 +40,8 @@ final class EmailClassifier {
                         continue
                     }
                 }
+                // Fresh session per email to prevent context bleed between classifications
+                let session = LanguageModelSession(model: model, instructions: instructions)
                 let body = String(email.body.cleanedForAI().prefix(5000))
                 let prompt = "Subject: \(email.subject)\nFrom: \(email.sender.name)\n\n\(body)"
                 let result = try await session.respond(to: prompt, generating: GeneratedEmailTags.self)

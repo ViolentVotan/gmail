@@ -68,7 +68,7 @@ struct SenderInfoPopover: View {
 
             Text(value)
                 .font(.caption.weight(suspicious ? .semibold : .regular))
-                .foregroundStyle(suspicious ? AnyShapeStyle(SemanticColor.error) : AnyShapeStyle(Color.primary))
+                .foregroundStyle(suspicious ? SemanticColor.error : Color.primary)
                 .lineLimit(multiline ? 3 : 1)
                 .textSelection(.enabled)
 

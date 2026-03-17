@@ -136,7 +136,7 @@ extension MessageRecord {
         )
         let userLabels = labels.filter { $0.type == "user" }.map { label in
             EmailLabel(
-                id: UUID(),
+                id: GmailDataTransformer.deterministicUUID(from: label.gmailId),
                 name: label.name,
                 color: label.bgColor ?? "#e8eaed",
                 textColor: label.textColor ?? "#3c4043"

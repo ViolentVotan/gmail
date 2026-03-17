@@ -128,8 +128,7 @@ struct AutocompleteTextField: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(suggestions.indices), id: \.self) { index in
-                        let contact = suggestions[index]
+                    ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, contact in
                         if index > 0 {
                             Divider()
                                 .padding(.leading, 44)

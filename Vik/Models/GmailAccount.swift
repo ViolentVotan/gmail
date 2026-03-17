@@ -82,11 +82,12 @@ final class AccountStore {
 
     /// Removes an account and its associated data.
     /// Note: Caller must also call `SubscriptionsStore.shared.deleteAccount(id)` from `@MainActor` context.
+    /// Note: MailDatabase and AttachmentDatabase deletion are NOT done here — AppCoordinator's
+    /// handleAccountsChange stops the sync engine first, then deletes the DB to avoid a race
+    /// where the engine is still writing when files are removed.
     func remove(id: String) {
         accounts = accounts.filter { $0.id != id }
         TokenStore.shared.delete(for: id)
-        Task { await AttachmentDatabase.shared.deleteByAccountID(id) }
-        MailDatabase.deleteDatabase(accountID: id)
         UnsubscribeService.shared.clearAccount(id)
         ContactStore.shared.deleteAccount(id)
         SnoozeStore.shared.deleteAccount(id)
