@@ -95,15 +95,83 @@ enum FileTypeColor {
 // MARK: - Animation
 
 enum VikAnimation {
-    static let springDefault = Animation.spring(response: 0.35, dampingFraction: 0.85)
-    static let springSnappy = Animation.spring(response: 0.3, dampingFraction: 0.8)
-    static let springGentle = Animation.spring(response: 0.4, dampingFraction: 0.9)
+    static let springDefault = Animation.spring(response: 0.35, dampingFraction: 0.82)
+    static let springSnappy = Animation.spring(response: 0.28, dampingFraction: 0.78)
+    static let springGentle = Animation.spring(response: 0.4, dampingFraction: 0.88)
     /// Content swap — crossfade with subtle spring for email/category transitions.
     static let contentSwitch = Animation.smooth(duration: 0.25)
     /// Folder/account switch — slightly longer crossfade for larger content areas.
     static let folderSwitch = Animation.smooth(duration: 0.3)
     /// Micro-interaction — quick spring bounce for toggles (star, read).
-    static let microBounce = Animation.spring(duration: 0.25, bounce: 0.3)
+    static let microBounce = Animation.spring(duration: 0.25, bounce: 0.35)
+}
+
+// MARK: - Opacity Tokens
+
+enum OpacityToken {
+    /// Disabled controls, inactive elements
+    static let disabled: CGFloat = 0.5
+    /// Tertiary text, inactive icons
+    static let subtle: CGFloat = 0.6
+    /// Secondary foregrounds, muted icons
+    static let secondary: CGFloat = 0.7
+    /// Subtle background tints, hover highlights
+    static let highlight: CGFloat = 0.08
+    /// Badge/chip/tag backgrounds
+    static let tag: CGFloat = 0.12
+    /// Selection tint, interactive element backgrounds
+    static let interactive: CGFloat = 0.15
+    /// Divider lines, subtle borders
+    static let divider: CGFloat = 0.5
+    /// Modal/scrim overlays
+    static let overlay: CGFloat = 0.45
+}
+
+// MARK: - Scale Tokens
+
+enum ScaleToken {
+    /// Subtle hover lift on cards/buttons
+    static let hover: CGFloat = 1.03
+    /// Press feedback (slight shrink)
+    static let press: CGFloat = 0.97
+    /// Emphasized interaction (onboarding buttons)
+    static let emphasis: CGFloat = 1.04
+    /// Collapsed/hidden state
+    static let minimize: CGFloat = 0.5
+    /// Content entering view (scale-up from)
+    static let enterFrom: CGFloat = 0.95
+    /// Sidebar collapse scale
+    static let sidebarCollapse: CGFloat = 0.92
+}
+
+// MARK: - Offset Tokens
+
+enum OffsetToken {
+    /// Micro nudge for subtle motion
+    static let nudge: CGFloat = 4
+    /// Pop-in animations, small reveals
+    static let small: CGFloat = 12
+    /// Panel/card transitions
+    static let medium: CGFloat = 24
+    /// Full slide animations, large content moves
+    static let large: CGFloat = 40
+}
+
+// MARK: - Duration Tokens
+
+enum DurationToken {
+    /// Micro-feedback (hover, toggle)
+    static let micro: CGFloat = 0.12
+    /// Quick interaction (tab switch, badge)
+    static let quick: CGFloat = 0.2
+    /// Standard content swap
+    static let standard: CGFloat = 0.25
+    /// Deliberate transitions (folder switch)
+    static let deliberate: CGFloat = 0.3
+    /// Stagger delay per item in lists
+    static let stagger: CGFloat = 0.04
+    /// Auth/onboarding transitions
+    static let slow: CGFloat = 0.5
 }
 
 // MARK: - Typography
@@ -154,12 +222,22 @@ struct ElevationModifier: ViewModifier {
     let level: ElevationLevel
 
     enum ElevationLevel {
+        /// Flat surface, no shadow
+        case surface
+        /// Subtle lift — cards, non-modal panels
+        case raised
+        /// Popover/tooltip level
         case transient
+        /// Modal/sheet level
         case elevated
     }
 
     func body(content: Content) -> some View {
         switch level {
+        case .surface:
+            content
+        case .raised:
+            content.shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
         case .transient:
             content.shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 4)
         case .elevated:
@@ -299,5 +377,6 @@ enum VikHaptic {
 
     static func generic() { perform(.generic) }
     static func levelChange() { perform(.levelChange) }
+    static func alignment() { perform(.alignment) }
 }
 
