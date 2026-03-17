@@ -27,7 +27,11 @@ final class SyncProgressManager {
     /// Typical zero-change incremental sync completes in <200ms (single history.list
     /// API call). 300ms gives enough headroom for slow networks while suppressing the
     /// spinner flash for the common no-change case.
-    private let syncShowDelay: Duration = .milliseconds(300)
+    private let syncShowDelay: Duration
+
+    init(syncShowDelay: Duration = .milliseconds(300)) {
+        self.syncShowDelay = syncShowDelay
+    }
 
     // MARK: - Public API
 
@@ -37,15 +41,21 @@ final class SyncProgressManager {
     func syncStarted() {
         lingerTask?.cancel()
         lingerTask = nil
-        syncPending = true
         deferralTask?.cancel()
-        deferralTask = Task {
-            try? await Task.sleep(for: syncShowDelay)
-            guard !Task.isCancelled, syncPending else { return }
-            withAnimation(VikAnimation.springSnappy) {
-                phase = .syncing(remaining: nil)
+        deferralTask = nil
+        if syncShowDelay == .zero {
+            syncPending = false
+            phase = .syncing(remaining: nil)
+        } else {
+            syncPending = true
+            deferralTask = Task {
+                try? await Task.sleep(for: syncShowDelay)
+                guard !Task.isCancelled, syncPending else { return }
+                withAnimation(VikAnimation.springSnappy) {
+                    phase = .syncing(remaining: nil)
+                }
+                deferralTask = nil
             }
-            deferralTask = nil
         }
     }
 

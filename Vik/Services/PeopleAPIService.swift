@@ -112,14 +112,22 @@ final class PeopleAPIService {
                             .filter { $0.metadata?.deleted == true }
                             .flatMap { $0.emailAddresses?.compactMap { $0.value?.lowercased() } ?? [] }
                         if !deleted.isEmpty {
-                            try? await syncer.deleteContacts(emails: deleted)
+                            do {
+                                try await syncer.deleteContacts(emails: deleted)
+                            } catch {
+                                Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
+                            }
                             for email in deleted { ContactPhotoCache.shared.remove(email) }
                         }
 
                         // Upsert new/updated contacts from this page
                         let nonDeleted = (response.connections ?? []).filter { $0.metadata?.deleted != true }
                         let parsed = parseContacts(from: nonDeleted)
-                        try? await syncer.upsertContacts(parsed)
+                        do {
+                            try await syncer.upsertContacts(parsed)
+                        } catch {
+                            Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
+                        }
 
                         pageToken = response.nextPageToken
                         newContactsSyncToken = response.nextSyncToken ?? newContactsSyncToken
@@ -161,7 +169,11 @@ final class PeopleAPIService {
                         let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
                         let parsed = parseContacts(from: response.connections ?? [])
-                        try? await syncer.upsertContacts(parsed)
+                        do {
+                            try await syncer.upsertContacts(parsed)
+                        } catch {
+                            Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
+                        }
                         totalStored += parsed.count
 
                         pageToken = response.nextPageToken
@@ -216,13 +228,21 @@ final class PeopleAPIService {
                             .filter { $0.metadata?.deleted == true }
                             .flatMap { $0.emailAddresses?.compactMap { $0.value?.lowercased() } ?? [] }
                         if !deleted.isEmpty {
-                            try? await syncer.deleteContacts(emails: deleted)
+                            do {
+                                try await syncer.deleteContacts(emails: deleted)
+                            } catch {
+                                Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
+                            }
                         }
 
                         // Upsert non-deleted, preserving photos from Connections
                         let nonDeleted = (response.otherContacts ?? []).filter { $0.metadata?.deleted != true }
                         let parsed = parseContacts(from: nonDeleted)
-                        try? await syncer.upsertContactsPreservingPhotos(parsed)
+                        do {
+                            try await syncer.upsertContactsPreservingPhotos(parsed)
+                        } catch {
+                            Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
+                        }
 
                         pageToken = response.nextPageToken
                         newOtherSyncToken = response.nextSyncToken ?? newOtherSyncToken
@@ -260,7 +280,11 @@ final class PeopleAPIService {
                         let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
                         let parsed = parseContacts(from: response.otherContacts ?? [])
-                        try? await syncer.upsertContactsPreservingPhotos(parsed)
+                        do {
+                            try await syncer.upsertContactsPreservingPhotos(parsed)
+                        } catch {
+                            Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
+                        }
 
                         pageToken = response.nextPageToken
                         newOtherSyncToken = response.nextSyncToken ?? newOtherSyncToken
@@ -347,7 +371,11 @@ final class PeopleAPIService {
                         let response: DirectoryPeopleResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
                         let parsed = parseContacts(from: response.people ?? [], source: "directory")
-                        try? await syncer.upsertContacts(parsed)
+                        do {
+                            try await syncer.upsertContacts(parsed)
+                        } catch {
+                            Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
+                        }
 
                         pageToken = response.nextPageToken
                         newDirSyncToken = response.nextSyncToken ?? newDirSyncToken
@@ -382,7 +410,11 @@ final class PeopleAPIService {
                     let response: DirectoryPeopleResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
                     let parsed = parseContacts(from: response.people ?? [], source: "directory")
-                    try? await syncer.upsertContacts(parsed)
+                    do {
+                        try await syncer.upsertContacts(parsed)
+                    } catch {
+                        Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
+                    }
 
                     pageToken = response.nextPageToken
                     newDirSyncToken = response.nextSyncToken ?? newDirSyncToken

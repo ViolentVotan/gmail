@@ -102,7 +102,7 @@ struct SidebarView: View {
             // Folder + label icons with glass hover
             GlassEffectContainer(spacing: 4) {
                 VStack(spacing: 2) {
-                    ForEach(Folder.allCases.filter { $0 != .labels }) { folder in
+                    ForEach(Folder.mainFolders) { folder in
                         collapsedFolderButton(folder)
                     }
                 }
@@ -277,7 +277,7 @@ struct SidebarView: View {
             .padding(Spacing.sm)
         }
         .accessibilityRotor("Folders") {
-            ForEach(Folder.allCases.filter { $0 != .labels }) { folder in
+            ForEach(Folder.mainFolders) { folder in
                 AccessibilityRotorEntry(folder.rawValue, id: folder.id)
             }
         }
@@ -287,7 +287,7 @@ struct SidebarView: View {
 
     private var mailboxSection: some View {
         Section {
-            ForEach(Folder.allCases.filter { $0 != .labels }) { folder in
+            ForEach(Folder.mainFolders) { folder in
                 folderButton(folder: folder)
             }
         }

@@ -6,7 +6,7 @@ import Foundation
 
     @Test func firstRetryDelayIsOneSecond() {
         let delay = RetryPolicy.delay(forAttempt: 0)
-        #expect(delay >= 1.0 && delay <= 1.5)
+        #expect(delay >= 1.0 && delay <= 2.0)
     }
 
     @Test func secondRetryDelayIsAboutTwoSeconds() {

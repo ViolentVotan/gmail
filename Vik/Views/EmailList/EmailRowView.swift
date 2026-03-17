@@ -8,6 +8,7 @@ struct EmailRowView: View, Equatable {
     var entranceIndex: Int = 0
     @State private var isHovered = false
     @State private var hasAppeared = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("emailDensity") private var density = "comfortable"
     @State private var showTags = false
     @State private var tagRevealTask: Task<Void, Never>?
@@ -239,9 +240,13 @@ struct EmailRowView: View, Equatable {
         .offset(y: hasAppeared ? 0 : OffsetToken.small)
         .onAppear {
             guard !hasAppeared else { return }
-            let delay = Double(min(entranceIndex, 8)) * DurationToken.stagger
-            withAnimation(VikAnimation.springDefault.delay(delay)) {
+            if reduceMotion {
                 hasAppeared = true
+            } else {
+                let delay = Double(min(entranceIndex, 8)) * DurationToken.stagger
+                withAnimation(VikAnimation.springDefault.delay(delay)) {
+                    hasAppeared = true
+                }
             }
         }
         .background(PopoverAnchor(holder: popoverHolder))

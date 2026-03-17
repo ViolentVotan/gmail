@@ -8,22 +8,23 @@ struct AutocompleteTextField: View {
 
     @State private var isFocused = false
     @State private var highlightedIndex = 0
+    @State private var suggestions: [StoredContact] = []
 
     private var currentSegment: String {
         let parts = text.components(separatedBy: ",")
         return (parts.last ?? "").trimmingCharacters(in: .whitespaces)
     }
 
-    private var suggestions: [StoredContact] {
-        let query = currentSegment.lowercased()
-        guard query.count >= 3 else { return [] }
-        return contacts.filter {
-            $0.name.lowercased().contains(query) || $0.email.lowercased().contains(query)
-        }
-    }
-
     private var showDropdown: Bool {
         isFocused && !suggestions.isEmpty
+    }
+
+    private func recomputeSuggestions() {
+        let query = currentSegment.lowercased()
+        guard query.count >= 3 else { suggestions = []; return }
+        suggestions = contacts.filter {
+            $0.name.lowercased().contains(query) || $0.email.lowercased().contains(query)
+        }
     }
 
     var body: some View {
@@ -40,7 +41,7 @@ struct AutocompleteTextField: View {
             .textFieldStyle(.plain)
             .font(Typography.body)
             .foregroundStyle(.primary)
-            .onChange(of: text) { _, _ in highlightedIndex = 0 }
+            .onChange(of: text) { _, _ in highlightedIndex = 0; recomputeSuggestions() }
             .onKeyPress(.return) {
                 guard showDropdown, highlightedIndex < suggestions.count else { return .ignored }
                 selectContact(suggestions[highlightedIndex])
@@ -66,6 +67,7 @@ struct AutocompleteTextField: View {
             }
         }
         .zIndex(10)
+        .onAppear { recomputeSuggestions() }
     }
 
     private func contactInitials(_ contact: StoredContact) -> String {

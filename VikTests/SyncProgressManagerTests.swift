@@ -8,20 +8,20 @@ struct SyncProgressManagerTests {
 
     @Test("starts in idle with nil timestamp")
     func initialState() {
-        let manager = SyncProgressManager()
+        let manager = SyncProgressManager(syncShowDelay: .zero)
         #expect(manager.phase == .idle(lastSynced: nil))
     }
 
     @Test("syncStarted transitions to syncing")
     func syncStarted() {
-        let manager = SyncProgressManager()
+        let manager = SyncProgressManager(syncShowDelay: .zero)
         manager.syncStarted()
         #expect(manager.phase == .syncing(remaining: nil))
     }
 
     @Test("syncProgress shows remaining count at threshold")
     func syncProgressLarge() {
-        let manager = SyncProgressManager()
+        let manager = SyncProgressManager(syncShowDelay: .zero)
         manager.syncStarted()
         manager.syncProgress(remaining: 50)
         #expect(manager.phase == .syncing(remaining: 50))
@@ -29,7 +29,7 @@ struct SyncProgressManagerTests {
 
     @Test("syncProgress suppresses count below 50")
     func syncProgressSmall() {
-        let manager = SyncProgressManager()
+        let manager = SyncProgressManager(syncShowDelay: .zero)
         manager.syncStarted()
         manager.syncProgress(remaining: 10)
         #expect(manager.phase == .syncing(remaining: nil))
@@ -37,7 +37,7 @@ struct SyncProgressManagerTests {
 
     @Test("syncCompleted transitions to success then idle with timestamp")
     func syncCompleted() async throws {
-        let manager = SyncProgressManager()
+        let manager = SyncProgressManager(syncShowDelay: .zero)
         manager.syncStarted()
         manager.syncCompleted()
         #expect(manager.phase == .success)
@@ -51,7 +51,7 @@ struct SyncProgressManagerTests {
 
     @Test("syncFailed transitions to error then idle preserving previous timestamp")
     func syncFailed() async throws {
-        let manager = SyncProgressManager()
+        let manager = SyncProgressManager(syncShowDelay: .zero)
         manager.syncStarted()
         manager.syncCompleted()
         try await Task.sleep(for: .seconds(2))
@@ -72,7 +72,7 @@ struct SyncProgressManagerTests {
 
     @Test("reset clears to idle with nil timestamp")
     func reset() {
-        let manager = SyncProgressManager()
+        let manager = SyncProgressManager(syncShowDelay: .zero)
         manager.syncStarted()
         manager.reset()
         #expect(manager.phase == .idle(lastSynced: nil))
@@ -80,14 +80,14 @@ struct SyncProgressManagerTests {
 
     @Test("initialSyncProgress sets phase directly")
     func initialSyncProgress() {
-        let manager = SyncProgressManager()
+        let manager = SyncProgressManager(syncShowDelay: .zero)
         manager.initialSyncProgress(synced: 100, estimated: 500)
         #expect(manager.phase == .initialSync(synced: 100, estimated: 500))
     }
 
     @Test("bodyPrefetchProgress with zero completes sync")
     func bodyPrefetchZero() {
-        let manager = SyncProgressManager()
+        let manager = SyncProgressManager(syncShowDelay: .zero)
         manager.syncStarted()
         manager.bodyPrefetchProgress(remaining: 0)
         #expect(manager.phase == .success)
@@ -95,7 +95,7 @@ struct SyncProgressManagerTests {
 
     @Test("updateLastSynced updates idle phase timestamp")
     func updateLastSynced() {
-        let manager = SyncProgressManager()
+        let manager = SyncProgressManager(syncShowDelay: .zero)
         let date = Date()
         manager.updateLastSynced(date)
         #expect(manager.phase == .idle(lastSynced: date))
@@ -103,7 +103,7 @@ struct SyncProgressManagerTests {
 
     @Test("updateLastSynced during syncing stores timestamp but does not change phase")
     func updateLastSyncedDuringSyncing() {
-        let manager = SyncProgressManager()
+        let manager = SyncProgressManager(syncShowDelay: .zero)
         manager.syncStarted()
         manager.updateLastSynced()
         #expect(manager.phase == .syncing(remaining: nil))

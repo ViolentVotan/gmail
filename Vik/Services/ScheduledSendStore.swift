@@ -7,6 +7,7 @@ struct ScheduledSendItem: Codable, Identifiable, Sendable {
     let scheduledTime: Date
     let subject: String
     let recipients: [String]
+    var failedPermanently: Bool
 
     init(
         id: UUID = UUID(),
@@ -14,7 +15,8 @@ struct ScheduledSendItem: Codable, Identifiable, Sendable {
         accountID: String,
         scheduledTime: Date,
         subject: String = "",
-        recipients: [String] = []
+        recipients: [String] = [],
+        failedPermanently: Bool = false
     ) {
         self.id = id
         self.draftId = draftId
@@ -22,6 +24,7 @@ struct ScheduledSendItem: Codable, Identifiable, Sendable {
         self.scheduledTime = scheduledTime
         self.subject = subject
         self.recipients = recipients
+        self.failedPermanently = failedPermanently
     }
 }
 
@@ -69,6 +72,13 @@ final class ScheduledSendStore {
         store.removeAll(accountID: accountID) { $0.draftId == draftId }
     }
 
+    func markFailed(draftId: String, accountID: String) {
+        guard var item = store.allItems.first(where: { $0.draftId == draftId && $0.accountID == accountID }) else { return }
+        store.removeAll(accountID: accountID) { $0.draftId == draftId }
+        item.failedPermanently = true
+        store.append(item, accountID: accountID)
+    }
+
     /// Removes all in-memory data and the on-disk JSON file for the given account.
     func deleteAccount(_ accountID: String) {
         store.deleteAccount(accountID)
@@ -76,6 +86,6 @@ final class ScheduledSendStore {
 
     func dueItems() -> [ScheduledSendItem] {
         let now = Date()
-        return store.allItems.filter { $0.scheduledTime <= now }
+        return store.allItems.filter { $0.scheduledTime <= now && !$0.failedPermanently }
     }
 }

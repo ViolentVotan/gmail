@@ -34,6 +34,7 @@ struct ReplyBarView: View {
     @State private var replyBcc = ""
     @State private var showCc = false
     @State private var showBcc = false
+    @State private var cachedStrippedText = ""
     @Namespace private var replyBarNamespace
     init(
         email: Email,
@@ -93,7 +94,8 @@ struct ReplyBarView: View {
                 .strokeBorder(Color(.separatorColor), lineWidth: 0.5)
         )
         .background(ClickOutsideDetector(isExpanded: isExpanded, onClickOutside: { minimize() }))
-        .onChange(of: replyHTML) { _,_ in
+        .onChange(of: replyHTML) { _, _ in
+            cachedStrippedText = replyHTML.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines)
             scheduleAutoSave()
         }
         .animation(VikAnimation.springSnappy, value: replyBodyIsEmpty)
@@ -147,7 +149,7 @@ struct ReplyBarView: View {
     }
 
     private var replyBodyIsEmpty: Bool {
-        replyHTML.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        cachedStrippedText.isEmpty
     }
 
     private var hasSavedDraft: Bool {
@@ -156,10 +158,9 @@ struct ReplyBarView: View {
     }
 
     private var collapsedPlaceholder: String {
-        let currentText = replyHTML.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !currentText.isEmpty {
-            let preview = String(currentText.prefix(50))
-            return "\(preview)\(currentText.count > 50 ? "…" : "")"
+        if !cachedStrippedText.isEmpty {
+            let preview = String(cachedStrippedText.prefix(50))
+            return "\(preview)\(cachedStrippedText.count > 50 ? "…" : "")"
         }
         if let threadID = email.gmailThreadID,
            let saved = mailStore.replyDrafts[threadID] {

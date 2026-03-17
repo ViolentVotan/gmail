@@ -317,3 +317,7 @@ enum Folder: String, CaseIterable, Identifiable, Sendable {
         }
     }
 }
+
+extension Folder {
+    static let mainFolders = allCases.filter { $0 != .labels }
+}

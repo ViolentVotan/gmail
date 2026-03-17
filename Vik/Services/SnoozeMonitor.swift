@@ -85,6 +85,9 @@ final class SnoozeMonitor {
             onSuccess: { item in
                 ToastManager.shared.show(message: "Scheduled email sent: \(item.subject)")
             },
+            onPermanentFailure: { item in
+                ScheduledSendStore.shared.markFailed(draftId: item.draftId, accountID: item.accountID)
+            },
             getFailureCount: { self.scheduledSendFailureCounts[$0] ?? 0 },
             setFailureCount: { self.scheduledSendFailureCounts[$0] = $1 },
             removeFailureCount: { self.scheduledSendFailureCounts.removeValue(forKey: $0) },
@@ -102,6 +105,7 @@ final class SnoozeMonitor {
         action: (T) async throws(GmailAPIError) -> Void,
         remove: (T) -> Void,
         onSuccess: ((T) -> Void)? = nil,
+        onPermanentFailure: ((T) -> Void)? = nil,
         getFailureCount: (String) -> Int,
         setFailureCount: (String, Int) -> Void,
         removeFailureCount: (String) -> Void,
@@ -127,7 +131,11 @@ final class SnoozeMonitor {
                     if count >= failureNotifyThreshold {
                         ToastManager.shared.show(message: failureToast, type: .error)
                         removeFailureCount(id)
-                        remove(item)
+                        if let onPermanentFailure {
+                            onPermanentFailure(item)
+                        } else {
+                            remove(item)
+                        }
                     }
                 }
             }

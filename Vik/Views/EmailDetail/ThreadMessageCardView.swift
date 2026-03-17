@@ -21,6 +21,7 @@ struct ThreadMessageCardView: View {
     private let isSentByMe: Bool
     private let cachedFullHTML: String
     private let cachedHTMLParts: (original: String, quoted: String?)
+    private let cachedRecipientsLine: String
 
     init(
         message: GmailMessage,
@@ -52,6 +53,30 @@ struct ThreadMessageCardView: View {
         let html = GmailThreadMessageView.computeFullHTML(message: message, resolvedHTML: resolvedHTML)
         self.cachedFullHTML = html
         self.cachedHTMLParts = GmailThreadMessageView.stripQuotedHTML(html)
+
+        let parts = message.to.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+        if parts.isEmpty {
+            self.cachedRecipientsLine = parsedSender.email
+        } else {
+            let senderEmail = parsedSender.email
+            let displayParts = parts.prefix(2).map { part -> String in
+                let candidateEmail: String
+                if let lt = part.firstIndex(of: "<"), let gt = part.lastIndex(of: ">"), lt < gt {
+                    candidateEmail = String(part[part.index(after: lt)..<gt])
+                } else {
+                    candidateEmail = part
+                }
+                if candidateEmail.lowercased() == fromAddress.lowercased() { return "me" }
+                if let angleBracket = part.firstIndex(of: "<") {
+                    return String(part[part.startIndex..<angleBracket]).trimmingCharacters(in: .whitespaces)
+                }
+                return part
+            }
+            let remaining = max(0, parts.count - 2)
+            var result = "\(senderEmail) \u{2192} \(displayParts.joined(separator: ", "))"
+            if remaining > 0 { result += ", +\(remaining)" }
+            self.cachedRecipientsLine = result
+        }
     }
 
     // MARK: - Snippet text
@@ -60,31 +85,6 @@ struct ThreadMessageCardView: View {
         if let snippet = message.snippet, !snippet.isEmpty { return snippet }
         if let plain = message.plainBody { return String(plain.prefix(100)) }
         return ""
-    }
-
-    // MARK: - Recipients line
-
-    private var recipientsLine: String {
-        let parts = message.to.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-        guard !parts.isEmpty else { return sender.email }
-        let displayParts = parts.prefix(2).map { part -> String in
-            // Extract email from "Name <email>" format for comparison
-            let candidateEmail: String
-            if let lt = part.firstIndex(of: "<"), let gt = part.lastIndex(of: ">"), lt < gt {
-                candidateEmail = String(part[part.index(after: lt)..<gt])
-            } else {
-                candidateEmail = part
-            }
-            if candidateEmail.lowercased() == fromAddress.lowercased() { return "me" }
-            if let angleBracket = part.firstIndex(of: "<") {
-                return String(part[part.startIndex..<angleBracket]).trimmingCharacters(in: .whitespaces)
-            }
-            return part
-        }
-        let remaining = max(0, parts.count - 2)
-        var result = "\(sender.email) \u{2192} \(displayParts.joined(separator: ", "))"
-        if remaining > 0 { result += ", +\(remaining)" }
-        return result
     }
 
     // MARK: - Rendered HTML
@@ -133,7 +133,7 @@ struct ThreadMessageCardView: View {
             let dateText = message.date.map { $0.formattedRelative } ?? ""
             let readState = message.isUnread ? "Unread" : "Read"
             if isExpanded {
-                return "\(senderName), \(recipientsLine), \(dateText), \(readState)"
+                return "\(senderName), \(cachedRecipientsLine), \(dateText), \(readState)"
             } else {
                 return "\(senderName), \(snippetText), \(dateText), \(readState)"
             }
@@ -194,7 +194,7 @@ struct ThreadMessageCardView: View {
                 }
 
                 if isExpanded {
-                    Text(recipientsLine)
+                    Text(cachedRecipientsLine)
                         .font(Typography.captionRegular)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
