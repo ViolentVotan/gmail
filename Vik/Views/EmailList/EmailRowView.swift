@@ -111,6 +111,7 @@ struct EmailRowView: View, Equatable {
                 Circle()
                     .fill(email.isRead ? Color.clear : Color.accentColor)
                     .frame(width: dotSize, height: dotSize)
+                    .animation(VikAnimation.microBounce, value: email.isRead)
 
                 // Avatar
                 AvatarView(
@@ -185,7 +186,7 @@ struct EmailRowView: View, Equatable {
                                     .background(Capsule().fill(.fill.quaternary))
                             }
                         }
-                        .animation(.easeInOut(duration: 0.2), value: showTags)
+                        .animation(VikAnimation.springSnappy, value: showTags)
                     }
                 }
 
@@ -195,6 +196,8 @@ struct EmailRowView: View, Equatable {
                         Image(systemName: "star.fill")
                             .font(Typography.captionSmallRegular)
                             .foregroundStyle(.tint)
+                            .transition(.scale.combined(with: .opacity))
+                            .symbolEffect(.bounce, value: email.isStarred)
                     }
                     if email.hasAttachments {
                         Image(systemName: "paperclip")

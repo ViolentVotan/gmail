@@ -74,12 +74,13 @@ struct DetailPaneView: View {
                 composeView(draftId: draftId)
             } else if let email = selectedEmail {
                 emailDetailView(email: email)
+                    .transition(.push(from: .bottom))
             } else {
                 emptyState
+                    .transition(.opacity)
             }
         }
         .animation(VikAnimation.contentSwitch, value: selectedEmail?.id)
-        .contentTransition(.opacity)
         .navigationSplitViewColumnWidth(min: 500, ideal: 700)
     }
 

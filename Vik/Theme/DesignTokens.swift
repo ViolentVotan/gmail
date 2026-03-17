@@ -100,6 +100,10 @@ enum VikAnimation {
     static let springGentle = Animation.spring(response: 0.4, dampingFraction: 0.9)
     /// Content swap — crossfade with subtle spring for email/category transitions.
     static let contentSwitch = Animation.smooth(duration: 0.25)
+    /// Folder/account switch — slightly longer crossfade for larger content areas.
+    static let folderSwitch = Animation.smooth(duration: 0.3)
+    /// Micro-interaction — quick spring bounce for toggles (star, read).
+    static let microBounce = Animation.spring(duration: 0.25, bounce: 0.3)
 }
 
 // MARK: - Typography

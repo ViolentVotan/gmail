@@ -81,6 +81,11 @@ struct EmailDetailView: View {
                     ScrollView {
                         VStack(alignment: .leading, spacing: 0) {
                             threadMetadata
+
+                            Divider()
+                                .padding(.horizontal, Spacing.xl)
+                                .opacity(0.5)
+
                             conversationCards
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -92,8 +97,7 @@ struct EmailDetailView: View {
                             withAnimation { proxy.scrollTo(latestID, anchor: .bottom) }
                         }
                     }
-                    .contentTransition(.opacity)
-                    .animation(VikAnimation.springSnappy, value: email.id)
+                    .animation(VikAnimation.contentSwitch, value: email.id)
                     .safeAreaInset(edge: .bottom) {
                         ReplyBarView(
                             email: email,

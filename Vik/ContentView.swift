@@ -17,7 +17,7 @@ struct ContentView: View {
     @FocusState private var appFocus: AppFocus?
     @Namespace private var commandPaletteNamespace
 
-    private var sidebarWidth: CGFloat { isSidebarCollapsed ? 52 : 240 }
+    private var sidebarWidth: CGFloat { isSidebarCollapsed ? 64 : 240 }
 
     // MARK: - Body
 

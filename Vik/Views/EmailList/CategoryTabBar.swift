@@ -3,6 +3,7 @@ import SwiftUI
 struct CategoryTabBar: View {
     @Binding var selectedCategory: InboxCategory
     let unreadCounts: [InboxCategory: Int]
+    @State private var hoveredCategory: InboxCategory?
 
     var body: some View {
         tabBarContent
@@ -10,9 +11,11 @@ struct CategoryTabBar: View {
 
     private var tabBarContent: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 0) {
-                ForEach(InboxCategory.allCases) { category in
-                    categoryTab(category)
+            GlassEffectContainer(spacing: 4) {
+                HStack(spacing: 4) {
+                    ForEach(InboxCategory.allCases) { category in
+                        categoryTab(category)
+                    }
                 }
             }
         }
@@ -22,6 +25,7 @@ struct CategoryTabBar: View {
 
     private func categoryTab(_ category: InboxCategory) -> some View {
         let isSelected = selectedCategory == category
+        let isHovered = hoveredCategory == category
 
         return Button {
             selectedCategory = category
@@ -41,30 +45,22 @@ struct CategoryTabBar: View {
                         .background(Capsule().fill(.fill.quaternary))
                 }
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 10)
             .padding(.vertical, 6)
-            .modifier(TabBackground(isSelected: isSelected))
         }
         .buttonStyle(.plain)
+        .glassEffect(
+            isSelected || isHovered ? .regular.interactive() : .identity,
+            in: .capsule
+        )
+        .animation(.snappy(duration: 0.2), value: isSelected)
+        .animation(.snappy(duration: 0.2), value: isHovered)
+        .onHover { hovering in
+            hoveredCategory = hovering ? category : nil
+        }
         .foregroundStyle(isSelected ? Color.accentColor : .secondary)
         .accessibilityLabel(category.displayName)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-}
-
-private struct TabBackground: ViewModifier {
-    let isSelected: Bool
-    @State private var isHovered = false
-
-    func body(content: Content) -> some View {
-        if isSelected {
-            content.glassEffect(.regular.interactive(), in: .capsule)
-        } else {
-            content
-                .glassEffect(isHovered ? .regular : .identity, in: .capsule)
-                .animation(.snappy(duration: 0.2), value: isHovered)
-                .onHover { isHovered = $0 }
-        }
     }
 }
 
