@@ -99,7 +99,7 @@ struct ContentView: View {
                 )
                 .focused($appFocus, equals: .sidebar)
                 .frame(width: sidebarWidth)
-                .background(.ultraThinMaterial)
+                .background(.regularMaterial)
 
                 listDetailSplit
             }

@@ -96,6 +96,7 @@ struct EmailDetailView: View {
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .scrollEdgeEffectStyle(.soft, for: .top)
                     .task(id: detailVM.latestMessage?.id) {
                         if let latestID = detailVM.latestMessage?.id {
                             expandedMessageIDs = [latestID]
@@ -341,7 +342,8 @@ struct EmailDetailView: View {
                 .padding(.bottom, Spacing.sm)
             }
 
-            LazyVStack(spacing: 1) {
+            GlassEffectContainer(spacing: 1) {
+                LazyVStack(spacing: 1) {
                 ForEach(Array(allMessages.enumerated()), id: \.element.id) { index, message in
                     let isLastCard = message.id == allMessages.last?.id
                     ThreadMessageCardView(
@@ -383,6 +385,7 @@ struct EmailDetailView: View {
                         }
                     )
                     .id(message.id)
+                }
                 }
             }
         }

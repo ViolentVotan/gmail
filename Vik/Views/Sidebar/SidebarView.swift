@@ -34,10 +34,10 @@ struct SidebarView: View {
         Group {
             if isCollapsed {
                 collapsedSidebar
-                    .transition(.opacity.combined(with: .scale(scale: ScaleToken.sidebarCollapse, anchor: .leading)))
+                    .transition(.opacity)
             } else {
                 expandedSidebar
-                    .transition(.move(edge: .leading).combined(with: .opacity))
+                    .transition(.opacity)
             }
         }
         .animation(VikAnimation.springDefault, value: isCollapsed)

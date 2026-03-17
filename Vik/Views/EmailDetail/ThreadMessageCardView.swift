@@ -14,6 +14,7 @@ struct ThreadMessageCardView: View {
 
     @State private var showQuoted = false
     @State private var contentHeight: CGFloat = 60
+    @State private var isHTMLLoaded = false
     @State private var showSenderInfo = false
     @State private var isHovering = false
 
@@ -108,7 +109,7 @@ struct ThreadMessageCardView: View {
             if isExpanded {
                 expandedContent
                     .clipped()
-                    .transition(.opacity.animation(.easeIn(duration: 0.15)))
+                    .transition(.opacity.animation(VikAnimation.springSnappy))
             }
 
             if !isLast {
@@ -116,9 +117,11 @@ struct ThreadMessageCardView: View {
                     .background(Color(.separatorColor))
             }
         }
-        .background(isHovering && !isExpanded ? Color(.quaternaryLabelColor) : Color.clear)
+        .glassEffect(
+            isExpanded || isHovering ? .regular.interactive() : .identity,
+            in: .rect(cornerRadius: CornerRadius.sm)
+        )
         .animation(.snappy(duration: 0.2), value: isHovering)
-        .scaleEffect(isExpanded ? 1.0 : 0.99, anchor: .top)
         .overlay(alignment: .leading) {
             if isSentByMe {
                 Rectangle()
@@ -218,11 +221,13 @@ struct ThreadMessageCardView: View {
                 .background(Color(.separatorColor).opacity(0.5))
                 .padding(.horizontal, Spacing.xl)
 
-            HTMLEmailView(html: renderedHTML, contentHeight: $contentHeight, onOpenLink: onOpenLink)
+            HTMLEmailView(html: renderedHTML, contentHeight: $contentHeight, isContentLoaded: $isHTMLLoaded, onOpenLink: onOpenLink)
                 .frame(height: contentHeight)
                 .padding(.horizontal, Spacing.xl)
                 .padding(.top, Spacing.sm)
                 .padding(.bottom, cachedHTMLParts.quoted != nil ? Spacing.xs : Spacing.md)
+                .opacity(isHTMLLoaded ? 1 : 0)
+                .animation(VikAnimation.contentSwitch, value: isHTMLLoaded)
 
             if cachedHTMLParts.quoted != nil {
                 Button {

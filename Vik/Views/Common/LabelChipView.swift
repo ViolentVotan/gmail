@@ -12,7 +12,7 @@ struct LabelChipView: View {
         HStack(spacing: 3) {
             Text(label.name)
                 .font(Typography.captionSmallMedium)
-                .foregroundStyle(chipColor)
+                .foregroundStyle(.tertiary)
                 .lineLimit(1)
 
             if isRemovable {
@@ -28,6 +28,6 @@ struct LabelChipView: View {
         }
         .padding(.horizontal, 7)
         .padding(.vertical, 3)
-        .background(Capsule().fill(chipColor.opacity(OpacityToken.tag)))
+        .background(Capsule().fill(chipColor.opacity(OpacityToken.highlight)))
     }
 }

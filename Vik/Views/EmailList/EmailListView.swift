@@ -313,7 +313,7 @@ struct EmailListView: View {
                 }
             }
             .listStyle(.plain)
-            .scrollEdgeEffectStyle(.hard, for: .top)
+            .scrollEdgeEffectStyle(.soft, for: .top)
         } else if !isLoading && emails.isEmpty {
             emptyListState
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -467,10 +467,12 @@ struct EmailListView: View {
                         }
                     } header: {
                         Text(section.title)
-                            .font(Typography.captionSemibold)
-                            .foregroundStyle(.secondary)
-                            .textCase(nil)
-                            .padding(.top, Spacing.xs)
+                            .font(Typography.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.tertiary)
+                            .textCase(.uppercase)
+                            .padding(.top, Spacing.lg)
+                            .padding(.bottom, Spacing.xs)
                     }
                 }
             } else {
@@ -496,8 +498,11 @@ struct EmailListView: View {
         }
         .listStyle(.plain)
         .scrollPosition($scrollPosition)
+        .id(selectedFolder)
         .onChange(of: selectedFolder) {
-            scrollPosition.scrollTo(edge: .top)
+            withAnimation(VikAnimation.folderSwitch) {
+                scrollPosition.scrollTo(edge: .top)
+            }
         }
         .refreshable {
             await actions.onRefresh?()
@@ -510,7 +515,7 @@ struct EmailListView: View {
         .onKeyPress(characters: CharacterSet(charactersIn: "s")) { _ in handleKeyS() }
         .onKeyPress(characters: CharacterSet(charactersIn: "u")) { _ in handleKeyU() }
         .onKeyPress(characters: CharacterSet(charactersIn: "r")) { _ in handleKeyR() }
-        .scrollEdgeEffectStyle(.hard, for: .top)
+        .scrollEdgeEffectStyle(.soft, for: .top)
         .accessibilityRotor("Unread Emails") {
             ForEach(unreadEmails) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)

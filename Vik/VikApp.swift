@@ -29,7 +29,7 @@ struct VikApp: App {
                         .transition(.opacity)
                 }
             }
-            .animation(.easeInOut(duration: 0.5), value: isSignedIn)
+            .animation(VikAnimation.folderSwitch, value: isSignedIn)
             .task {
                 // Start background monitors
                 SnoozeMonitor.shared.start()

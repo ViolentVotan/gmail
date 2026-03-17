@@ -77,6 +77,7 @@ struct ListPaneView: View {
         .navigationTitle(navigationTitleText)
         .toolbar(removing: .sidebarToggle)
         .safeAreaPadding(.leading, isSidebarCollapsed ? 8 : 0)
+        .safeAreaPadding(.top, isSidebarCollapsed ? 6 : 0)
         .animation(VikAnimation.springDefault, value: isSidebarCollapsed)
         .onChange(of: selectedCategory) { _, newCategory in
             selectedInboxCategory = newCategory

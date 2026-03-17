@@ -81,6 +81,7 @@ struct DetailPaneView: View {
         Group {
             if isMultiSelect {
                 bulkActionView
+                    .transition(.opacity.combined(with: .scale(scale: ScaleToken.enterFrom)))
             } else if isEditingDraft, let draftId = selectedEmail?.id {
                 composeView(draftId: draftId)
             } else if let email = selectedEmail {
@@ -99,10 +100,11 @@ struct DetailPaneView: View {
                     )
             } else {
                 emptyState
-                    .transition(.opacity)
+                    .transition(.opacity.combined(with: .scale(scale: ScaleToken.enterFrom)))
             }
         }
         .animation(VikAnimation.contentSwitch, value: selectedEmail?.id)
+        .animation(VikAnimation.contentSwitch, value: isMultiSelect)
         .navigationSplitViewColumnWidth(min: 500, ideal: 700)
     }
 

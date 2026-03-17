@@ -45,6 +45,7 @@ private class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
 struct HTMLEmailView: NSViewRepresentable {
     let html: String
     @Binding var contentHeight: CGFloat
+    @Binding var isContentLoaded: Bool
     var onOpenLink: ((URL) -> Void)?
     @Environment(\.colorScheme) private var colorScheme
 
@@ -83,6 +84,8 @@ struct HTMLEmailView: NSViewRepresentable {
         guard context.coordinator.lastCacheKey != cacheKey else { return }
         context.coordinator.lastCacheKey = cacheKey
         context.coordinator.isLoadingContent = true
+        context.coordinator.parent = self
+        context.coordinator.parent.isContentLoaded = false
         // Cancel any in-flight page load / Vision analysis before switching content.
         webView.stopLoading()
         // Keep previous height as floor during content switch to prevent accordion collapse.
@@ -346,6 +349,9 @@ struct HTMLEmailView: NSViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             isLoadingContent = false
+            Task { @MainActor [weak self] in
+                self?.parent.isContentLoaded = true
+            }
         }
 
         func webView(
