@@ -29,8 +29,6 @@ struct SidebarView: View {
     @State private var labelToDelete: GmailLabel?
     @State private var renameText = ""
 
-    private var sidebarWidth: CGFloat { isCollapsed ? 52 : 220 }
-
     var body: some View {
         Group {
             if isCollapsed {
@@ -42,7 +40,6 @@ struct SidebarView: View {
             }
         }
         .animation(VikAnimation.springDefault, value: isCollapsed)
-        .navigationSplitViewColumnWidth(min: sidebarWidth, ideal: sidebarWidth, max: sidebarWidth)
         .alert("Rename Label", isPresented: Binding(
             get: { labelToRename != nil },
             set: { if !$0 { labelToRename = nil } }

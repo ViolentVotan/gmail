@@ -17,6 +17,8 @@ struct ContentView: View {
     @FocusState private var appFocus: AppFocus?
     @Namespace private var commandPaletteNamespace
 
+    private var sidebarWidth: CGFloat { isSidebarCollapsed ? 52 : 220 }
+
     // MARK: - Body
 
     var body: some View {
@@ -52,7 +54,7 @@ struct ContentView: View {
 
     private var mainLayout: some View {
         ZStack {
-            NavigationSplitView(columnVisibility: $columnVisibility) {
+            HStack(spacing: 0) {
                 SidebarView(
                     selectedFolder: $coordinator.selectedFolder,
                     selectedInboxCategory: $coordinator.selectedInboxCategory,
@@ -97,73 +99,15 @@ struct ContentView: View {
                     }
                 )
                 .focused($appFocus, equals: .sidebar)
-            } content: {
-                if coordinator.selectedFolder == .attachments {
-                    AttachmentExplorerView(
-                        store: coordinator.attachmentStore,
-                        panelCoordinator: coordinator.panelCoordinator,
-                        accountID: coordinator.accountID,
-                        onViewMessage: { messageId in
-                            coordinator.navigateToMessage(gmailMessageID: messageId)
-                        },
-                        onDownloadAttachment: coordinator.downloadAttachment
-                    )
-                    .navigationTitle("Attachments")
-                } else {
-                    ListPaneView(
-                        emails: coordinator.displayedEmails,
-                        isLoading: coordinator.listIsLoading,
-                        selectedFolder: $coordinator.selectedFolder,
-                        searchResetTrigger: coordinator.searchResetTrigger,
-                        selectedEmail: $coordinator.selectedEmail,
-                        selectedEmailIDs: $coordinator.selectedEmailIDs,
-                        searchFocusTrigger: $coordinator.searchFocusTrigger,
-                        selectedLabel: coordinator.selectedLabel,
-                        actionCoordinator: coordinator.actionCoordinator,
-                        mailboxViewModel: coordinator.mailboxViewModel,
-                        selectedInboxCategory: $coordinator.selectedInboxCategory,
-                        selectNext: { coordinator.selectNext($0) },
-                        startCompose: { coordinator.startCompose(mode: $0) },
-                        emptyTrashRequested: { coordinator.emptyTrashRequested(count: $0) },
-                        emptySpamRequested: { coordinator.emptySpamRequested(count: $0) },
-                        loadCurrentFolder: { await coordinator.loadCurrentFolder() }
-                    )
-                    .focused($appFocus, equals: .list)
-                }
-            } detail: {
-                if coordinator.selectedFolder != .attachments {
-                    DetailPaneView(
-                        selectedEmail: coordinator.selectedEmail,
-                        selectedEmailIDs: coordinator.selectedEmailIDs,
-                        selectedFolder: coordinator.selectedFolder,
-                        displayedEmails: coordinator.displayedEmails,
-                        actionCoordinator: coordinator.actionCoordinator,
-                        mailboxViewModel: coordinator.mailboxViewModel,
-                        mailStore: coordinator.mailStore,
-                        accountID: coordinator.accountID,
-                        fromAddress: coordinator.fromAddress,
-                        composeMode: coordinator.composeMode,
-                        signatureForNew: coordinator.signatureForNew,
-                        signatureForReply: coordinator.signatureForReply,
-                        panelCoordinator: coordinator.panelCoordinator,
-                        attachmentIndexer: coordinator.attachmentIndexer,
-                        contacts: coordinator.contacts,
-                        mailDatabase: coordinator.mailDatabase,
-                        selectNext: { coordinator.selectNext($0) },
-                        clearSelection: { coordinator.clearSelection() },
-                        deselectAll: { coordinator.deselectAll() },
-                        startCompose: { coordinator.startCompose(mode: $0) },
-                        discardDraft: { coordinator.discardDraft(id: $0) }
-                    )
-                    .focused($appFocus, equals: .detail)
-                }
+                .frame(width: sidebarWidth)
+                .background(.ultraThinMaterial)
+
+                listDetailSplit
             }
             .environment(coordinator.syncProgressManager)
-            .navigationSplitViewStyle(.balanced)
-            .toolbar(removing: .sidebarToggle)
             .windowResizeAnchor(.top)
             .onChange(of: columnVisibility) { _, newValue in
-                // Prevent the system from hiding our manually-managed sidebar
+                // Prevent the system from hiding the list column
                 if newValue != .all { columnVisibility = .all }
             }
             .onKeyPress(.tab, phases: .down) { keyPress in
@@ -249,6 +193,74 @@ struct ContentView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.95)))
             }
         }
+    }
+
+    // MARK: - List + Detail Split
+
+    private var listDetailSplit: some View {
+        NavigationSplitView(columnVisibility: $columnVisibility) {
+            if coordinator.selectedFolder == .attachments {
+                AttachmentExplorerView(
+                    store: coordinator.attachmentStore,
+                    panelCoordinator: coordinator.panelCoordinator,
+                    accountID: coordinator.accountID,
+                    onViewMessage: { messageId in
+                        coordinator.navigateToMessage(gmailMessageID: messageId)
+                    },
+                    onDownloadAttachment: coordinator.downloadAttachment
+                )
+                .navigationTitle("Attachments")
+            } else {
+                ListPaneView(
+                    emails: coordinator.displayedEmails,
+                    isLoading: coordinator.listIsLoading,
+                    selectedFolder: $coordinator.selectedFolder,
+                    searchResetTrigger: coordinator.searchResetTrigger,
+                    selectedEmail: $coordinator.selectedEmail,
+                    selectedEmailIDs: $coordinator.selectedEmailIDs,
+                    searchFocusTrigger: $coordinator.searchFocusTrigger,
+                    selectedLabel: coordinator.selectedLabel,
+                    actionCoordinator: coordinator.actionCoordinator,
+                    mailboxViewModel: coordinator.mailboxViewModel,
+                    selectedInboxCategory: $coordinator.selectedInboxCategory,
+                    selectNext: { coordinator.selectNext($0) },
+                    startCompose: { coordinator.startCompose(mode: $0) },
+                    emptyTrashRequested: { coordinator.emptyTrashRequested(count: $0) },
+                    emptySpamRequested: { coordinator.emptySpamRequested(count: $0) },
+                    loadCurrentFolder: { await coordinator.loadCurrentFolder() }
+                )
+                .focused($appFocus, equals: .list)
+            }
+        } detail: {
+            if coordinator.selectedFolder != .attachments {
+                DetailPaneView(
+                    selectedEmail: coordinator.selectedEmail,
+                    selectedEmailIDs: coordinator.selectedEmailIDs,
+                    selectedFolder: coordinator.selectedFolder,
+                    displayedEmails: coordinator.displayedEmails,
+                    actionCoordinator: coordinator.actionCoordinator,
+                    mailboxViewModel: coordinator.mailboxViewModel,
+                    mailStore: coordinator.mailStore,
+                    accountID: coordinator.accountID,
+                    fromAddress: coordinator.fromAddress,
+                    composeMode: coordinator.composeMode,
+                    signatureForNew: coordinator.signatureForNew,
+                    signatureForReply: coordinator.signatureForReply,
+                    panelCoordinator: coordinator.panelCoordinator,
+                    attachmentIndexer: coordinator.attachmentIndexer,
+                    contacts: coordinator.contacts,
+                    mailDatabase: coordinator.mailDatabase,
+                    selectNext: { coordinator.selectNext($0) },
+                    clearSelection: { coordinator.clearSelection() },
+                    deselectAll: { coordinator.deselectAll() },
+                    startCompose: { coordinator.startCompose(mode: $0) },
+                    discardDraft: { coordinator.discardDraft(id: $0) }
+                )
+                .focused($appFocus, equals: .detail)
+            }
+        }
+        .navigationSplitViewStyle(.balanced)
+        .toolbar(removing: .sidebarToggle)
     }
 
     // MARK: - Toolbar
