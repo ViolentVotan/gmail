@@ -28,6 +28,8 @@ struct EmailListView: View {
     @State private var unreadEmails: [Email] = []
     @State private var starredEmails: [Email] = []
     @State private var emailsWithAttachments: [Email] = []
+    @State private var cachedHasFolderAction = false
+    @State private var cachedUnsubscribableEmails: [Email] = []
 
     private func recomputeSortedEmails() {
         switch sortOrder {
@@ -58,6 +60,22 @@ struct EmailListView: View {
         unreadEmails = newUnread
         starredEmails = newStarred
         emailsWithAttachments = newAttachments
+
+        // Recompute folder action caches.
+        switch selectedFolder {
+        case .subscriptions:
+            cachedUnsubscribableEmails = emails.filter { $0.isFromMailingList && $0.unsubscribeURL != nil }
+            cachedHasFolderAction = !emails.isEmpty && actions.onUnsubscribe != nil && !cachedUnsubscribableEmails.isEmpty
+        case .trash:
+            cachedUnsubscribableEmails = []
+            cachedHasFolderAction = !emails.isEmpty && actions.onEmptyTrash != nil
+        case .spam:
+            cachedUnsubscribableEmails = []
+            cachedHasFolderAction = !emails.isEmpty && actions.onEmptySpam != nil
+        default:
+            cachedUnsubscribableEmails = []
+            cachedHasFolderAction = false
+        }
     }
 
     var body: some View {
@@ -116,19 +134,7 @@ struct EmailListView: View {
 
     // MARK: - Header
 
-    private var hasFolderAction: Bool {
-        switch selectedFolder {
-        case .subscriptions:
-            return !emails.isEmpty && actions.onUnsubscribe != nil
-                && emails.contains { $0.isFromMailingList && $0.unsubscribeURL != nil }
-        case .trash:
-            return !emails.isEmpty && actions.onEmptyTrash != nil
-        case .spam:
-            return !emails.isEmpty && actions.onEmptySpam != nil
-        default:
-            return false
-        }
-    }
+    private var hasFolderAction: Bool { cachedHasFolderAction }
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -159,17 +165,14 @@ struct EmailListView: View {
 
     @ViewBuilder
     private var folderActionButton: some View {
-        if selectedFolder == .subscriptions, !emails.isEmpty, let onUnsubscribe = actions.onUnsubscribe {
-            let unsubscribable = emails.filter { $0.isFromMailingList && $0.unsubscribeURL != nil }
-            if !unsubscribable.isEmpty {
-                Button {
-                    unsubscribable.forEach { onUnsubscribe($0) }
-                } label: {
-                    Text("Unsubscribe All (\(unsubscribable.count))")
-                        .destructiveActionStyle()
-                }
-                .buttonStyle(.plain)
+        if selectedFolder == .subscriptions, !cachedUnsubscribableEmails.isEmpty, let onUnsubscribe = actions.onUnsubscribe {
+            Button {
+                cachedUnsubscribableEmails.forEach { onUnsubscribe($0) }
+            } label: {
+                Text("Unsubscribe All (\(cachedUnsubscribableEmails.count))")
+                    .destructiveActionStyle()
             }
+            .buttonStyle(.plain)
         } else if selectedFolder == .trash, !emails.isEmpty, let onEmptyTrash = actions.onEmptyTrash {
             Button {
                 onEmptyTrash()

@@ -16,9 +16,7 @@ struct LabelEditorView: View {
     @AppStorage("dismissedLabelSuggestions") private var dismissedLabelSuggestionsRaw = ""
 
     /// The set of label IDs the user has dismissed so they are not re-shown.
-    private var dismissedLabelSuggestions: Set<String> {
-        Set(dismissedLabelSuggestionsRaw.split(separator: ",").map(String.init))
-    }
+    @State private var dismissedLabelSuggestions: Set<String> = []
 
     /// Records a label suggestion dismissal so it is excluded from future suggestions.
     func dismissSuggestion(labelID: String) {
@@ -125,6 +123,12 @@ struct LabelEditorView: View {
             Spacer()
         }
         .task { recomputeLabelData() }
+        .onAppear {
+            dismissedLabelSuggestions = Set(dismissedLabelSuggestionsRaw.split(separator: ",").map(String.init))
+        }
+        .onChange(of: dismissedLabelSuggestionsRaw) { _, newValue in
+            dismissedLabelSuggestions = Set(newValue.split(separator: ",").map(String.init))
+        }
         .onChange(of: currentLabelIDs) { _, _ in recomputeLabelData() }
         .onChange(of: allLabels.count) { _, _ in recomputeLabelData() }
         .onChange(of: labelSearchText) { _, _ in recomputeLabelData() }

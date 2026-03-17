@@ -10,8 +10,10 @@ final class SpotlightIndexer {
     /// Fraction of oldest entries to evict when the threshold is reached.
     private let evictionFraction = 0.25
     private var legacyCleaned = false
+    private let indexedIDsKey = "SpotlightIndexedIDs"
 
     private init() {
+        indexedIDs = UserDefaults.standard.stringArray(forKey: indexedIDsKey) ?? []
         cleanLegacyItemsIfNeeded()
     }
 
@@ -28,10 +30,19 @@ final class SpotlightIndexer {
             let toEvict = Array(indexedIDs.prefix(evictCount))
             try? await CSSearchableIndex.default().deleteSearchableItems(withIdentifiers: toEvict)
             indexedIDs.removeFirst(evictCount)
+            persistIndexedIDs()
         }
 
         try? await CSSearchableIndex.default().indexAppEntities([entity])
         indexedIDs.append(messageID)
+        persistIndexedIDs()
+    }
+
+    /// Removes all Spotlight items and resets the indexed ID tracking.
+    func deleteAllItems() async {
+        try? await CSSearchableIndex.default().deleteAllSearchableItems()
+        indexedIDs.removeAll()
+        persistIndexedIDs()
     }
 
     // MARK: - Legacy migration
@@ -45,5 +56,11 @@ final class SpotlightIndexer {
                 withDomainIdentifiers: ["com.vikingz.vik.emails"]
             )
         }
+    }
+
+    // MARK: - Private
+
+    private func persistIndexedIDs() {
+        UserDefaults.standard.set(indexedIDs, forKey: indexedIDsKey)
     }
 }

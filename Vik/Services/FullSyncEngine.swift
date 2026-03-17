@@ -107,6 +107,9 @@ actor FullSyncEngine {
         await contactTask?.value
         await labelRefreshTask?.value
         await restartTask?.value
+        // restartTask may have called start(), creating a new syncTask
+        syncTask?.cancel()
+        await syncTask?.value
         syncTask = nil
         bodyPrefetchTask = nil
         incrementalTask = nil
@@ -733,9 +736,7 @@ actor FullSyncEngine {
                 // 304 Not Modified — labels unchanged
                 return
             }
-            try await syncer.upsertLabels(labels)
-            let validIDs = Set(labels.map(\.id))
-            try await syncer.deleteStaleLabels(keeping: validIDs)
+            try await syncer.syncLabels(labels)
             if let responseEtag {
                 await writeSyncState { $0.labelsEtag = responseEtag }
             }
@@ -752,6 +753,8 @@ actor FullSyncEngine {
                 try? await Task.sleep(for: .seconds(1800)) // 30 minutes
                 guard !Task.isCancelled else { return }
                 await PeopleAPIService.shared.refreshContacts(accountID: accountID, syncer: syncer)
+                // Prune contacts sourced from message headers whose messages no longer exist
+                try? await syncer.pruneStaleContacts()
             }
         }
     }

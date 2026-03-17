@@ -148,6 +148,9 @@ final class PeopleAPIService {
                         allContacts = mergeContacts(existing: allContacts, incoming: parsed)
                         incPageToken = response.nextPageToken
                         newContactsSyncToken = response.nextSyncToken ?? newContactsSyncToken
+                        if incPageToken != nil {
+                            try? await Task.sleep(for: .milliseconds(100))
+                        }
                     } while incPageToken != nil
                     Self.logger.info("Incremental sync completed")
                 } catch {
@@ -183,6 +186,9 @@ final class PeopleAPIService {
                         allContacts.append(contentsOf: parseContacts(from: response.connections ?? []))
                         pageToken = response.nextPageToken
                         newContactsSyncToken = response.nextSyncToken ?? newContactsSyncToken
+                        if pageToken != nil {
+                            try? await Task.sleep(for: .milliseconds(100))
+                        }
                     } while pageToken != nil
                     Self.logger.info("Full fetch: loaded \(allContacts.count, privacy: .public) contacts from Connections")
                 } catch {
@@ -241,6 +247,9 @@ final class PeopleAPIService {
                         allContacts = mergeContacts(existing: allContacts, incoming: parsed)
                         incPageToken = response.nextPageToken
                         newOtherSyncToken = response.nextSyncToken ?? newOtherSyncToken
+                        if incPageToken != nil {
+                            try? await Task.sleep(for: .milliseconds(100))
+                        }
                     } while incPageToken != nil
                     Self.logger.info("Other Contacts incremental sync completed")
                 } catch {
@@ -276,6 +285,9 @@ final class PeopleAPIService {
                     Self.logger.debug("Loaded \(allContacts.count - beforeCount, privacy: .public) from Other Contacts page")
                     pageToken = response.nextPageToken
                     newOtherSyncToken = response.nextSyncToken ?? newOtherSyncToken
+                    if pageToken != nil {
+                        try? await Task.sleep(for: .milliseconds(100))
+                    }
                 } while pageToken != nil
             }
 
@@ -342,6 +354,9 @@ final class PeopleAPIService {
                         directoryContacts.append(contentsOf: parseContacts(from: response.people ?? []))
                         incPageToken = response.nextPageToken
                         newDirSyncToken = response.nextSyncToken ?? newDirSyncToken
+                        if incPageToken != nil {
+                            try? await Task.sleep(for: .milliseconds(100))
+                        }
                     } while incPageToken != nil
                 } catch {
                     let isGone = if case GmailAPIError.httpError(410, _) = error { true } else { false }
@@ -370,6 +385,9 @@ final class PeopleAPIService {
                     directoryContacts.append(contentsOf: parseContacts(from: response.people ?? []))
                     pageToken = response.nextPageToken
                     newDirSyncToken = response.nextSyncToken ?? newDirSyncToken
+                    if pageToken != nil {
+                        try? await Task.sleep(for: .milliseconds(100))
+                    }
                 } while pageToken != nil
             }
 

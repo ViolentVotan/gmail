@@ -57,6 +57,7 @@ final class OfflineActionQueue {
         // Cancel any pending retry and stale drain — a fresh drain supersedes them.
         retryTask?.cancel()
         retryTask = nil
+        let oldDrain = drainTask
         drainTask?.cancel()
         drainTask = nil
         isDraining = false  // Reset before guard to prevent stuck state when cancelled during backoff
@@ -64,6 +65,13 @@ final class OfflineActionQueue {
         isDraining = true
 
         drainTask = Task {
+            // Wait for old drain to finish executing before starting new one
+            // to prevent double-sends when both tasks process the same action.
+            await oldDrain?.value
+            guard !Task.isCancelled else {
+                isDraining = false
+                return
+            }
             var succeeded = 0
             var hitError = false
             while let action = pendingActions.first {

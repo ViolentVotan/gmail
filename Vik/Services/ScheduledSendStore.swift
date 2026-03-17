@@ -39,7 +39,7 @@ final class ScheduledSendStore {
     private let store = PerAccountFileStore<ScheduledSendItem>(
         fileURL: { accountID in
             AppPaths.appSupportDirectory
-                .appendingPathComponent("mail-cache/\(accountID)/scheduled.json")
+                .appendingPathComponent("mail-data/\(accountID)/scheduled.json")
         },
         legacyDecoder: { data in
             guard let contents = try? JSONDecoder().decode(LegacyScheduledFileContents.self, from: data) else {

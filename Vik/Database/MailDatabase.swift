@@ -30,6 +30,7 @@ final class MailDatabase: Sendable {
             try db.execute(sql: "PRAGMA synchronous = NORMAL")
             try db.execute(sql: "PRAGMA foreign_keys = ON")
             try db.execute(sql: "PRAGMA cache_size = -64000")
+            try db.execute(sql: "PRAGMA wal_autocheckpoint = 400")
         }
         // SQL tracing available via GRDB_TRACE environment variable
 
@@ -51,8 +52,12 @@ final class MailDatabase: Sendable {
     }
 
     /// Closes the database pool, releasing all connections.
+    /// Performs a WAL checkpoint before closing to reclaim WAL file space.
     /// Call this before `deleteDatabase(accountID:baseDirectory:)` to avoid WAL/SHM file locks.
     func close() {
+        try? dbPool.writeWithoutTransaction { db in
+            try db.execute(sql: "PRAGMA wal_checkpoint(TRUNCATE)")
+        }
         try? dbPool.close()
     }
 

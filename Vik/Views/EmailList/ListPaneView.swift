@@ -26,8 +26,10 @@ struct ListPaneView: View {
         return selectedFolder.rawValue
     }
 
-    private var selectedEmails: [Email] {
-        emails.filter { selectedEmailIDs.contains($0.id.uuidString) }
+    @State private var selectedEmails: [Email] = []
+
+    private func recomputeSelectedEmails() {
+        selectedEmails = emails.filter { selectedEmailIDs.contains($0.id.uuidString) }
     }
 
     private func clearSelection() {
@@ -72,6 +74,8 @@ struct ListPaneView: View {
         .onChange(of: coordinator.selectedInboxCategory) { _, newValue in
             selectedCategory = newValue ?? .all
         }
+        .onChange(of: selectedEmailIDs) { _, _ in recomputeSelectedEmails() }
+        .onChange(of: emails) { _, _ in recomputeSelectedEmails() }
     }
 
     private var emailList: some View {

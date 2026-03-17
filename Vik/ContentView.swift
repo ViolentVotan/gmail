@@ -344,7 +344,9 @@ struct ContentView: View {
             .modifier(LifecycleStateModifier(
                 coordinator: coordinator,
                 commandPalette: commandPalette,
-                showSnoozePicker: $showSnoozePicker
+                showSnoozePicker: $showSnoozePicker,
+                snoozeCount: SnoozeStore.shared.items.count,
+                scheduledCount: ScheduledSendStore.shared.items.count
             ))
             .modifier(LifecycleNotificationModifier(coordinator: coordinator))
     }
@@ -354,6 +356,8 @@ struct ContentView: View {
         let coordinator: AppCoordinator
         let commandPalette: CommandPaletteViewModel
         @Binding var showSnoozePicker: Bool
+        let snoozeCount: Int
+        let scheduledCount: Int
 
         func body(content: Content) -> some View {
             content
@@ -378,10 +382,10 @@ struct ContentView: View {
                 }
                 .onChange(of: coordinator.signatureForNew) { _, _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
                 .onChange(of: coordinator.signatureForReply) { _, _ in if !coordinator.accountID.isEmpty { coordinator.saveSignatures(for: coordinator.accountID) } }
-                .onChange(of: SnoozeStore.shared.items.count) { _, _ in
+                .onChange(of: snoozeCount) { _, _ in
                     coordinator.refreshSnoozedCacheIfNeeded()
                 }
-                .onChange(of: ScheduledSendStore.shared.items.count) { _, _ in
+                .onChange(of: scheduledCount) { _, _ in
                     coordinator.refreshScheduledCacheIfNeeded()
                 }
                 .onChange(of: coordinator.mailboxViewModel.lastRestoredMessageID) { _, msgID in

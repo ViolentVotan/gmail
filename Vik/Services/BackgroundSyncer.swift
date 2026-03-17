@@ -97,7 +97,25 @@ actor BackgroundSyncer {
 
     // MARK: - Label Sync
 
-    /// Upsert labels from API.
+    /// Upsert labels and delete stale ones in a single transaction.
+    /// Restricts cascade-deletes to user labels only — system labels are never removed,
+    /// preventing `ON DELETE CASCADE` from wiping `message_labels` if the API returns a partial list.
+    func syncLabels(_ gmailLabels: [GmailLabel]) async throws {
+        guard !gmailLabels.isEmpty else { return }
+        let validIDs = Set(gmailLabels.map(\.id))
+        try await db.dbPool.write { db in
+            for gmail in gmailLabels {
+                try LabelRecord(from: gmail).upsert(db)
+            }
+            // Only delete stale user labels — never cascade-delete system labels
+            try LabelRecord
+                .filter(!validIDs.contains(Column("gmail_id")))
+                .filter(Column("type") == "user")
+                .deleteAll(db)
+        }
+    }
+
+    /// @deprecated Use `syncLabels(_:)` instead — it combines upsert and delete in a single transaction.
     func upsertLabels(_ gmailLabels: [GmailLabel]) async throws {
         guard !gmailLabels.isEmpty else { return }
         try await db.dbPool.write { db in
@@ -107,6 +125,7 @@ actor BackgroundSyncer {
         }
     }
 
+    /// @deprecated Use `syncLabels(_:)` instead — it combines upsert and delete in a single transaction.
     func deleteStaleLabels(keeping validGmailIDs: Set<String>) async throws {
         try await db.dbPool.write { db in
             try LabelRecord.filter(!validGmailIDs.contains(Column("gmail_id"))).deleteAll(db)
@@ -211,6 +230,13 @@ actor BackgroundSyncer {
         guard !emails.isEmpty else { return }
         _ = try await db.dbPool.write { db in
             try ContactRecord.filter(emails.map { $0.lowercased() }.contains(Column("email"))).deleteAll(db)
+        }
+    }
+
+    /// Prune contacts sourced from message headers that no longer have corresponding messages.
+    func pruneStaleContacts() async throws {
+        try await db.dbPool.write { db in
+            try MailDatabaseQueries.pruneStaleMessageContacts(in: db)
         }
     }
 

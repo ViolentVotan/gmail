@@ -55,8 +55,10 @@ struct DetailPaneView: View {
         return email.isDraft
     }
 
-    private var selectedEmails: [Email] {
-        displayedEmails.filter { selectedEmailIDs.contains($0.id.uuidString) }
+    @State private var selectedEmails: [Email] = []
+
+    private func recomputeSelectedEmails() {
+        selectedEmails = displayedEmails.filter { selectedEmailIDs.contains($0.id.uuidString) }
     }
 
     var body: some View {
@@ -72,6 +74,8 @@ struct DetailPaneView: View {
             }
         }
         .navigationSplitViewColumnWidth(min: 500, ideal: 700)
+        .onChange(of: selectedEmailIDs) { _, _ in recomputeSelectedEmails() }
+        .onChange(of: displayedEmails) { _, _ in recomputeSelectedEmails() }
     }
 
     // MARK: - Bulk Actions
@@ -107,7 +111,6 @@ struct DetailPaneView: View {
             onOpenLink: { url in panelCoordinator.openInAppBrowser(url: url) }
         )
         .id(draftId)
-        .task { coordinator.loadContacts() }
     }
 
     // MARK: - Email Detail
@@ -126,7 +129,6 @@ struct DetailPaneView: View {
             contacts: coordinator.contacts
         )
         .id(email.id)
-        .task { coordinator.loadContacts() }
     }
 
     /// Builds the actions struct for the given email. Separated from the view builder

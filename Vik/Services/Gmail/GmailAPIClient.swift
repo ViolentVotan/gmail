@@ -141,6 +141,7 @@ final class GmailAPIClient {
         request.setValue("message/rfc822", forHTTPHeaderField: "X-Upload-Content-Type")
         request.setValue("\(mimeData.count)", forHTTPHeaderField: "X-Upload-Content-Length")
         request.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
         request.httpBody = metadataBody
 
         for attempt in 0...RetryPolicy.maxRetries {
@@ -189,6 +190,7 @@ final class GmailAPIClient {
         request.setValue("message/rfc822", forHTTPHeaderField: "Content-Type")
         request.setValue("\(mimeData.count)", forHTTPHeaderField: "Content-Length")
         request.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
         request.httpBody = mimeData
 
         for attempt in 0...RetryPolicy.maxRetries {
@@ -743,6 +745,7 @@ final class GmailAPIClient {
                       let responseBoundary = contentType.components(separatedBy: "boundary=").last?.trimmingCharacters(in: .whitespaces) else {
                     throw .decodingError(URLError(.cannotParseResponse))
                 }
+                Task { await QuotaTracker.shared.spend(50) }
                 return try Self.parseBatchResponse(data: data, boundary: responseBoundary)
             case 401:
                 throw .unauthorized
@@ -992,6 +995,7 @@ final class GmailAPIClient {
 
             switch http.statusCode {
             case 200...299:
+                Task { await QuotaTracker.shared.spend(5) }
                 return (data, http.statusCode, headers)
             case 401:
                 throw .unauthorized

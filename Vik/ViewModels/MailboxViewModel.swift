@@ -120,6 +120,7 @@ final class MailboxViewModel {
     private let labelService: LabelSyncService
     @ObservationIgnored private var observationTask: Task<Void, Never>?
     @ObservationIgnored private var enrichmentTask: Task<Void, Never>?
+    @ObservationIgnored private var observationDebounceTask: Task<Void, Never>?
 
     init(
         accountID: String,
@@ -133,6 +134,7 @@ final class MailboxViewModel {
     deinit {
         observationTask?.cancel()
         enrichmentTask?.cancel()
+        observationDebounceTask?.cancel()
     }
 
     // MARK: - Database Observation
@@ -181,7 +183,15 @@ final class MailboxViewModel {
         observationTask = Task { @MainActor [weak self] in
             do {
                 for try await records in observation.values(in: db.dbPool) {
-                    self?.handleDatabaseUpdate(records, from: db)
+                    guard let self else { return }
+                    // Debounce rapid batch writes: discard intermediate updates and
+                    // process only the last one in a burst (50ms window).
+                    self.observationDebounceTask?.cancel()
+                    self.observationDebounceTask = Task { @MainActor [weak self] in
+                        try? await Task.sleep(for: .milliseconds(50))
+                        guard !Task.isCancelled, let self else { return }
+                        self.handleDatabaseUpdate(records, from: db)
+                    }
                 }
             } catch {
                 self?.error = "Database observation failed: \(error.localizedDescription)"
@@ -431,6 +441,8 @@ final class MailboxViewModel {
         observationTask = nil
         enrichmentTask?.cancel()
         enrichmentTask = nil
+        observationDebounceTask?.cancel()
+        observationDebounceTask = nil
         accountID = id
         error     = nil
         emails    = []
@@ -720,7 +732,6 @@ final class MailboxViewModel {
                 try? await syncer.deleteMessages(gmailIds: [messageID])
             } else {
                 try? await mailDatabase?.dbPool.write { db in
-                    try FTSManager.delete(gmailId: messageID, in: db)
                     try MessageRecord.deleteOne(db, key: messageID)
                 }
             }

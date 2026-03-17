@@ -16,6 +16,8 @@ import Foundation
 /// Concurrent requests are throttled server-side (HTTP 429 "Too many concurrent
 /// requests for user") — handled by retry logic in GmailAPIClient, not here.
 actor QuotaTracker {
+    static let shared = QuotaTracker()
+
     private let budgetPerMinute: Int
     private var ledger: [(timestamp: Date, units: Int)] = []
     private var _cachedSpend: Int = 0

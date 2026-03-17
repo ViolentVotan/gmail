@@ -70,6 +70,15 @@ enum MailDatabaseQueries {
         try ContactRecord.order(Column("name").asc).fetchAll(db)
     }
 
+    /// Deletes contacts sourced from message headers that have no corresponding messages.
+    static func pruneStaleMessageContacts(in db: Database) throws {
+        try db.execute(sql: """
+            DELETE FROM contacts
+            WHERE source = 'message'
+            AND email NOT IN (SELECT DISTINCT sender_email FROM messages WHERE sender_email IS NOT NULL)
+        """)
+    }
+
     // MARK: - Account Sync State
 
     /// Read the single-row account sync state.

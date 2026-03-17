@@ -34,12 +34,11 @@ enum CacheMigration {
         // Migrate all folder caches — individual file failures are logged, not thrown
         await migrateMessages(syncer: syncer, accountID: accountID)
 
-        // Migrate AI classification tags
+        // Migrate AI classification tags — optional, failure does not block cleanup
         do {
             try await migrateTags(db: db, accountID: accountID)
         } catch {
             logger.error("migrateTags failed for \(accountID, privacy: .private): \(error, privacy: .public)")
-            return
         }
 
         // Remove only this account's cache subdirectory — other accounts may not have migrated yet.

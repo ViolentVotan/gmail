@@ -45,7 +45,7 @@ final class SnoozeStore {
     private let store = PerAccountFileStore<SnoozedItem>(
         fileURL: { accountID in
             AppPaths.appSupportDirectory
-                .appendingPathComponent("mail-cache/\(accountID)/snoozed.json")
+                .appendingPathComponent("mail-data/\(accountID)/snoozed.json")
         },
         legacyDecoder: { data in
             guard let contents = try? JSONDecoder().decode(LegacySnoozeFileContents.self, from: data) else {

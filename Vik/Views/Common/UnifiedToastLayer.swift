@@ -47,6 +47,11 @@ struct UnifiedToastLayer: View {
 private struct UndoToastCard: View {
     let action: PendingUndoAction
     var undoMgr = UndoActionManager.shared
+    @AppStorage(UserDefaultsKey.undoDuration) private var undoDuration = 5
+
+    private var derivedTimeRemaining: Int {
+        max(1, Int(ceil(undoMgr.progress * Double(undoDuration))))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -63,7 +68,7 @@ private struct UndoToastCard: View {
                     .foregroundStyle(.tint)
                     .buttonStyle(.plain)
 
-                Text("\(max(1, Int(ceil(undoMgr.timeRemaining))))s")
+                Text("\(derivedTimeRemaining)s")
                     .font(Typography.caption.monospacedDigit())
                     .foregroundStyle(.tertiary)
                     .frame(width: 26, alignment: .trailing)

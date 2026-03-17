@@ -270,3 +270,12 @@ struct ThreadMessageCardView: View {
         }
     }
 }
+
+extension ThreadMessageCardView: Equatable {
+    static func == (lhs: ThreadMessageCardView, rhs: ThreadMessageCardView) -> Bool {
+        lhs.message.id == rhs.message.id &&
+        lhs.resolvedHTML == rhs.resolvedHTML &&
+        lhs.isExpanded == rhs.isExpanded &&
+        lhs.isLast == rhs.isLast
+    }
+}

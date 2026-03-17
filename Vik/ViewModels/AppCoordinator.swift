@@ -622,6 +622,7 @@ final class AppCoordinator {
         for removedID in removedIDs {
             SubscriptionsStore.shared.deleteAccount(removedID)
             MailDatabase.evict(accountID: removedID)
+            Task { await SpotlightIndexer.shared.deleteAllItems() }
         }
         if !removedIDs.isEmpty {
             SnoozeMonitor.shared.clearAllFailureCounts()

@@ -15,7 +15,7 @@ SwiftUI views. UI presentation only — no business logic.
 - **Property wrappers**: `@State` for owning `@Observable` objects (not `@StateObject`). `@Bindable` for write access to bindings on `@Observable` objects (not `@ObservedObject`). `@Environment` with `@Entry` macro for custom environment keys.
 - **onChange syntax**: use `onChange(of:) { oldValue, newValue in }` (two-parameter closure).
 - **`WKNavigationDelegate` / `WKUIDelegate` coordinators** (`WebRichTextEditorCoordinator`, `SearchBarView.Coordinator`) are marked `final` — do not subclass them.
-- **ContentView** routes quick-reply and attachment download through `AppCoordinator` (`handleQuickReply`, `downloadAttachment`) rather than handling them inline. `withLifecycle` is split into `LifecycleStateModifier` + `LifecycleNotificationModifier` (type-checker fix). Reconnect triggers incremental sync. `onChange` observers for `SnoozeStore`/`ScheduledSendStore` counts drive `refreshSnoozedCacheIfNeeded`/`refreshScheduledCacheIfNeeded`.
+- **ContentView** routes quick-reply and attachment download through `AppCoordinator` (`handleQuickReply`, `downloadAttachment`) rather than handling them inline. `withLifecycle` is split into `LifecycleStateModifier` + `LifecycleNotificationModifier` (type-checker fix). `LifecycleStateModifier` receives `snoozeCount`/`scheduledCount` as explicit `Int` props (avoids over-subscribing to all `@Observable` mutations on the singleton stores). Reconnect triggers incremental sync.
 
 ## Subfolders
 
