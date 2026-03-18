@@ -29,6 +29,9 @@ actor CalendarBackgroundSyncer {
                     .fetchOne(db) {
                     if calendar.syncToken == nil { calendar.syncToken = existing.syncToken }
                     if calendar.lastSyncedAt == nil { calendar.lastSyncedAt = existing.lastSyncedAt }
+                    // Preserve local visibility preference — isVisible is treated as a
+                    // local-only toggle once the calendar exists. Server-side `hidden`
+                    // changes from other clients are intentionally not synced back.
                     calendar.isVisible = existing.isVisible
                 }
                 try calendar.upsert(db)

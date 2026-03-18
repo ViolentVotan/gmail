@@ -66,9 +66,11 @@ enum MailDatabaseQueries {
 
     // MARK: - Contacts
 
-    /// All contacts, ordered by name.
-    static func allContacts(in db: Database) throws -> [ContactRecord] {
-        try ContactRecord.order(Column("name").asc).fetchAll(db)
+    /// All contacts, ordered by name. Pass a limit to cap memory usage for large contact sets.
+    static func allContacts(limit: Int? = nil, in db: Database) throws -> [ContactRecord] {
+        var request = ContactRecord.order(Column("name").asc)
+        if let limit { request = request.limit(limit) }
+        return try request.fetchAll(db)
     }
 
     /// Deletes contacts sourced from message headers that have no corresponding messages.

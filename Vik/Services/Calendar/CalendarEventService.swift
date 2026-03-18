@@ -143,7 +143,8 @@ final class CalendarEventService {
 
     // MARK: - Update
 
-    /// Replaces an event (PUT). If an etag is provided, sends `If-Match` for optimistic concurrency.
+    /// Replaces an event (PUT). Sends the full event representation.
+    /// If an etag is provided, sends `If-Match` for optimistic concurrency control.
     @concurrent func updateEvent(
         calendarId: String,
         eventId: String,
@@ -172,7 +173,7 @@ final class CalendarEventService {
         }
         return try await client.request(
             path: "/calendars/\(Self.encodePath(calendarId))/events/\(Self.encodePath(eventId))",
-            method: "PATCH",
+            method: "PUT",
             body: body,
             queryItems: queryItems,
             extraHeaders: headers,

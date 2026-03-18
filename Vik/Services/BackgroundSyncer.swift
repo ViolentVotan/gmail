@@ -160,7 +160,7 @@ actor BackgroundSyncer {
                 try db.execute(sql: "DELETE FROM message_labels WHERE message_id = ?", arguments: [update.gmailId])
                 for labelId in update.labelIds {
                     try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).insert(db, onConflict: .ignore)
-                    try MessageLabelRecord(messageId: update.gmailId, labelId: labelId).insert(db)
+                    try MessageLabelRecord(messageId: update.gmailId, labelId: labelId).insert(db, onConflict: .ignore)
                 }
                 // Update denormalized columns
                 let isRead = !update.labelIds.contains(GmailSystemLabel.unread)
@@ -359,7 +359,7 @@ actor BackgroundSyncer {
         for labelId in gmail.labelIds ?? [] {
             try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil)
                 .insert(db, onConflict: .ignore)
-            try MessageLabelRecord(messageId: messageId, labelId: labelId).insert(db)
+            try MessageLabelRecord(messageId: messageId, labelId: labelId).insert(db, onConflict: .ignore)
         }
     }
 

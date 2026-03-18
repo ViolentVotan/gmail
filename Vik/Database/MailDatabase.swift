@@ -133,7 +133,7 @@ final class MailDatabase: Sendable {
         guard didClaim else {
             // Another caller is migrating — yield cooperatively (not Thread.sleep).
             while migrating.withLock({ $0.contains(accountID) }) {
-                try? await Task.sleep(for: .milliseconds(10))
+                try await Task.sleep(for: .milliseconds(10))
             }
             guard let cached = instances.withLock({ $0[accountID] }) else {
                 // The other caller failed; retry from scratch.

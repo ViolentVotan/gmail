@@ -235,6 +235,9 @@ actor CalendarSyncEngine {
                     var pageToken: String? = nil
                     var finalSyncToken: String? = nil
 
+                    // Note: singleEvents is intentionally not passed here. Google's sync token
+                    // remembers the expansion mode from the initial listEvents(singleEvents: true).
+                    // Passing it with a syncToken may cause API errors per Google's docs.
                     repeat {
                         let response = try await eventService.syncEvents(
                             calendarId: calendar.calendarId,
