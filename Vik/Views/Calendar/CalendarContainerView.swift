@@ -54,9 +54,6 @@ struct CalendarContainerView: View {
             }
         }
         .accessibilityElement(children: .contain)
-        .task {
-            viewModel.startObserving()
-        }
         .sheet(item: $viewModel.selectedEvent) { event in
             CalendarEventDetailView(
                 event: event,

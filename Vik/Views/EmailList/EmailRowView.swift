@@ -296,7 +296,10 @@ struct EmailRowView: View, Equatable {
             popoverHolder.close()
         }
         .onDisappear {
+            tagRevealTask?.cancel()
+            tagRevealTask = nil
             hoverTask?.cancel()
+            hoverTask = nil
             popoverHolder.close()
         }
     }
