@@ -367,6 +367,127 @@ extension View {
     }
 }
 
+// MARK: - Calendar Colors
+
+/// Google Calendar event colorId palette (1–11) — adaptive light/dark variants.
+/// Maps directly to the `colorId` field in the Google Calendar API.
+enum CalendarColor {
+    /// colorId 1 — Lavender
+    static let lavender = Color.adaptive(
+        light: (red: 0.475, green: 0.525, blue: 0.796),
+        dark:  (red: 0.580, green: 0.624, blue: 0.876)
+    )
+    /// colorId 2 — Sage
+    static let sage = Color.adaptive(
+        light: (red: 0.200, green: 0.714, blue: 0.475),
+        dark:  (red: 0.310, green: 0.820, blue: 0.565)
+    )
+    /// colorId 3 — Grape
+    static let grape = Color.adaptive(
+        light: (red: 0.557, green: 0.141, blue: 0.667),
+        dark:  (red: 0.680, green: 0.270, blue: 0.780)
+    )
+    /// colorId 4 — Flamingo
+    static let flamingo = Color.adaptive(
+        light: (red: 0.902, green: 0.486, blue: 0.451),
+        dark:  (red: 0.940, green: 0.600, blue: 0.565)
+    )
+    /// colorId 5 — Banana
+    static let banana = Color.adaptive(
+        light: (red: 0.965, green: 0.749, blue: 0.149),
+        dark:  (red: 0.980, green: 0.820, blue: 0.330)
+    )
+    /// colorId 6 — Tangerine
+    static let tangerine = Color.adaptive(
+        light: (red: 0.957, green: 0.318, blue: 0.118),
+        dark:  (red: 0.970, green: 0.450, blue: 0.260)
+    )
+    /// colorId 7 — Peacock
+    static let peacock = Color.adaptive(
+        light: (red: 0.012, green: 0.608, blue: 0.898),
+        dark:  (red: 0.150, green: 0.710, blue: 0.950)
+    )
+    /// colorId 8 — Graphite
+    static let graphite = Color.adaptive(
+        light: (red: 0.380, green: 0.380, blue: 0.380),
+        dark:  (red: 0.530, green: 0.530, blue: 0.530)
+    )
+    /// colorId 9 — Blueberry
+    static let blueberry = Color.adaptive(
+        light: (red: 0.247, green: 0.318, blue: 0.710),
+        dark:  (red: 0.380, green: 0.450, blue: 0.840)
+    )
+    /// colorId 10 — Basil
+    static let basil = Color.adaptive(
+        light: (red: 0.043, green: 0.502, blue: 0.263),
+        dark:  (red: 0.160, green: 0.640, blue: 0.370)
+    )
+    /// colorId 11 — Tomato
+    static let tomato = Color.adaptive(
+        light: (red: 0.835, green: 0.000, blue: 0.000),
+        dark:  (red: 0.920, green: 0.200, blue: 0.200)
+    )
+
+    /// Returns the adaptive `Color` for a given Google Calendar API `colorId` (1–11).
+    /// Falls back to `BrandColor.blue` for unknown or `nil` colorIds.
+    static func color(forId colorId: Int?) -> Color {
+        switch colorId {
+        case 1:  lavender
+        case 2:  sage
+        case 3:  grape
+        case 4:  flamingo
+        case 5:  banana
+        case 6:  tangerine
+        case 7:  peacock
+        case 8:  graphite
+        case 9:  blueberry
+        case 10: basil
+        case 11: tomato
+        default: BrandColor.blue
+        }
+    }
+}
+
+// MARK: - Calendar Layout
+
+/// Layout constants for calendar views (week grid, day view, agenda, event cards).
+enum CalendarLayout {
+    /// Height of a single hour row in the week/day grid.
+    static let hourRowHeight: CGFloat = 48
+    /// Width of the time-label column on the leading edge.
+    static let timeColumnWidth: CGFloat = 50
+    /// Minimum height for a rendered event card (prevents cards collapsing to nothing).
+    static let eventCardMinHeight: CGFloat = 24
+    /// Leading colored border width on event cards.
+    static let eventCardBorderWidth: CGFloat = 3
+    /// Height of the current-time indicator line.
+    static let currentTimeIndicatorHeight: CGFloat = 2
+    /// Diameter of the dot at the start of the current-time indicator.
+    static let currentTimeIndicatorDotSize: CGFloat = 8
+    /// Fixed height for all-day event chips in the header band.
+    static let allDayEventHeight: CGFloat = 22
+    /// Tap-target size for individual day cells in the mini month picker.
+    static let miniMonthDaySize: CGFloat = 20
+    /// Maximum number of events shown inline in the mini agenda before a "more" link.
+    static let miniAgendaMaxEvents: Int = 5
+}
+
+// MARK: - Calendar Semantic Colors
+
+/// Semantic colors for calendar UI — adapts to light/dark automatically.
+enum CalendarSemanticColor {
+    /// Current-time indicator — coral/red accent matching `BrandColor.coral`.
+    static let currentTimeIndicator = BrandColor.coral
+    /// Today highlight — brand blue at 3% opacity for column background tints.
+    static let todayHighlight = BrandColor.blue.opacity(0.03)
+    /// Today header circle — solid brand blue for the date number badge.
+    static let todayHeaderCircle = BrandColor.blue
+    /// Event card background — apply `.opacity(0.15)` to the event's calendar color.
+    static let eventCardBackgroundOpacity: CGFloat = 0.15
+    /// Weekend column dimming opacity — subtle desaturation of Saturday/Sunday columns.
+    static let weekendColumnOpacity: CGFloat = 0.55
+}
+
 // MARK: - Haptic Feedback
 
 @MainActor

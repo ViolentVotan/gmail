@@ -1020,6 +1020,19 @@ final class GmailAPIClient {
         }
         throw .httpError(0, Data())
     }
+
+    // MARK: - Calendar token bridge
+
+    /// Returns a valid cached or refreshed token for use by `CalendarAPIClient`.
+    /// Avoids duplicating token infrastructure — Calendar delegates auth here.
+    func validCalendarToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
+        try await cachedValidToken(for: accountID)
+    }
+
+    /// Forces a token refresh for use by `CalendarAPIClient` on 401.
+    func refreshCalendarToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
+        try await refreshAndRetry(accountID: accountID)
+    }
 }
 
 // MARK: - Errors
