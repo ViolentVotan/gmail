@@ -7,28 +7,22 @@ private struct ContactPopoverModifier: ViewModifier {
     let composeTo: @MainActor (String) -> Void
     let searchSender: @MainActor (String) -> Void
 
-    @State private var showPopover = false
     @State private var viewModel: ContactPopoverViewModel?
 
     func body(content: Content) -> some View {
         content
             .onTapGesture {
-                if viewModel == nil {
-                    viewModel = ContactPopoverViewModel(
-                        contact: contact,
-                        message: message,
-                        accountID: accountID,
-                        composeTo: composeTo,
-                        searchSender: searchSender
-                    )
-                }
-                showPopover = true
+                viewModel = ContactPopoverViewModel(
+                    contact: contact,
+                    message: message,
+                    accountID: accountID,
+                    composeTo: composeTo,
+                    searchSender: searchSender
+                )
             }
             .pointerStyle(.link)
-            .popover(isPresented: $showPopover, arrowEdge: .bottom) {
-                if let viewModel {
-                    ContactPopoverView(viewModel: viewModel)
-                }
+            .popover(item: $viewModel, arrowEdge: .bottom) { vm in
+                ContactPopoverView(viewModel: vm)
             }
     }
 }

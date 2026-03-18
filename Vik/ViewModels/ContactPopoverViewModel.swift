@@ -4,7 +4,8 @@ private import GRDB
 private import os
 
 @Observable @MainActor
-final class ContactPopoverViewModel {
+final class ContactPopoverViewModel: Identifiable {
+    let id = UUID()
     let contact: Contact
     private let message: GmailMessage?
     private let accountID: String
