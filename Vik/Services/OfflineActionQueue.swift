@@ -11,7 +11,7 @@ private struct LegacyOfflineQueueFileContents: Codable, Sendable {
 @MainActor
 final class OfflineActionQueue {
     static let shared = OfflineActionQueue()
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "OfflineQueue")
+    nonisolated private static let logger = Logger(category: "OfflineQueue")
 
     private let store = PerAccountFileStore<OfflineAction>(
         fileURL: { accountID in

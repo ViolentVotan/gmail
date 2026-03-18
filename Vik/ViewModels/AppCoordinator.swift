@@ -5,7 +5,7 @@ private import os
 @MainActor
 final class AppCoordinator {
 
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "AppCoordinator")
+    nonisolated private static let logger = Logger(category: "AppCoordinator")
 
     // MARK: - Child ViewModels
 
@@ -115,18 +115,15 @@ final class AppCoordinator {
     private(set) var displayedEmails: [Email] = []
 
     private func updateDisplayedEmails() {
-        if selectedFolder == .drafts {
-            displayedEmails = mailStore.emails(for: .drafts)
-        } else if selectedFolder == .subscriptions {
-            displayedEmails = SubscriptionsStore.shared.entries
-        } else if selectedFolder == .snoozed {
-            displayedEmails = cachedSnoozedEmails
-        } else if selectedFolder == .scheduled {
-            displayedEmails = cachedScheduledEmails
-        } else if mailboxViewModel.priorityFilterEnabled {
-            displayedEmails = mailboxViewModel.emails.filter { $0.gmailLabelIDs.contains(GmailSystemLabel.important) }
-        } else {
-            displayedEmails = mailboxViewModel.emails
+        switch selectedFolder {
+        case .drafts:        displayedEmails = mailStore.emails(for: .drafts)
+        case .subscriptions: displayedEmails = SubscriptionsStore.shared.entries
+        case .snoozed:       displayedEmails = cachedSnoozedEmails
+        case .scheduled:     displayedEmails = cachedScheduledEmails
+        default:
+            displayedEmails = mailboxViewModel.priorityFilterEnabled
+                ? mailboxViewModel.emails.filter { $0.gmailLabelIDs.contains(GmailSystemLabel.important) }
+                : mailboxViewModel.emails
         }
         // Keep selectedEmail fresh: replace with the updated version from the
         // new list so the detail pane reflects property changes (read, star, labels).
@@ -138,9 +135,11 @@ final class AppCoordinator {
     }
 
     var listIsLoading: Bool {
-        selectedFolder == .subscriptions ? SubscriptionsStore.shared.isAnalyzing
-        : selectedFolder == .drafts ? mailStore.isLoadingGmailDrafts
-        : mailboxViewModel.isLoading
+        switch selectedFolder {
+        case .subscriptions: SubscriptionsStore.shared.isAnalyzing
+        case .drafts:        mailStore.isLoadingGmailDrafts
+        default:             mailboxViewModel.isLoading
+        }
     }
 
     var isComposeActive: Bool {

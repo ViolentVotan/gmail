@@ -12,7 +12,7 @@ enum EmailNotificationPriority: Sendable {
 @MainActor
 final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     static let shared = NotificationService()
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "NotificationService")
+    nonisolated private static let logger = Logger(category: "NotificationService")
     private override init() { super.init() }
 
     private var badgeTask: Task<Void, Never>?

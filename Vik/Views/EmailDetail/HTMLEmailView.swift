@@ -73,6 +73,8 @@ struct HTMLEmailView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
+        let cacheKey = "\(html)|\(colorScheme)"
+        guard context.coordinator.lastCacheKey != cacheKey else { return }
         let textHex = NSColor.textColor.usingColorSpace(.sRGB).map {
             String(format: "#%02X%02X%02X",
                 Int($0.redComponent * 255),
@@ -80,8 +82,6 @@ struct HTMLEmailView: NSViewRepresentable {
                 Int($0.blueComponent * 255))
         } ?? "#FFFFFF"
         let bgLum = colorScheme == .dark ? "0.015" : "0.96"
-        let cacheKey = "\(html)|\(colorScheme)"
-        guard context.coordinator.lastCacheKey != cacheKey else { return }
         context.coordinator.lastCacheKey = cacheKey
         context.coordinator.isLoadingContent = true
         context.coordinator.parent = self

@@ -2,7 +2,7 @@ private import os
 import WebKit
 
 final class WebRichTextEditorCoordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "RichTextEditor")
+    nonisolated private static let logger = Logger(category: "RichTextEditor")
     var parent: WebRichTextEditorRepresentable
 
     init(_ parent: WebRichTextEditorRepresentable) {

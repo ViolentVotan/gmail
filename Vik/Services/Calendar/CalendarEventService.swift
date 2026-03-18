@@ -5,7 +5,7 @@ private import os
 final class CalendarEventService {
     static let shared = CalendarEventService()
     private let client = CalendarAPIClient.shared
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "CalendarEventService")
+    nonisolated private static let logger = Logger(category: "CalendarEventService")
     private init() {}
 
     // MARK: - Date formatting

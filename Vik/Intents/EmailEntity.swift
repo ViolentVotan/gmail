@@ -455,7 +455,3 @@ struct MailMessageEntityQuery: EntityStringQuery {
     }
 }
 
-// MARK: - Legacy Alias
-
-/// Backward-compatible type alias for SpotlightIndexer and other callers.
-typealias EmailEntity = MailMessageEntity

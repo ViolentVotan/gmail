@@ -20,7 +20,7 @@ final class CalendarAPIClient {
     static let accountIDKey = "accountID"
 
     private let baseURL = "https://www.googleapis.com/calendar/v3"
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "CalendarAPI")
+    nonisolated private static let logger = Logger(category: "CalendarAPI")
 
     // MARK: - Decoded requests
 

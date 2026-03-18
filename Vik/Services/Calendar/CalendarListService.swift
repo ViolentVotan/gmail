@@ -7,7 +7,7 @@ private import os
 final class CalendarListService {
     static let shared = CalendarListService()
     private let client = CalendarAPIClient.shared
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "CalendarListService")
+    nonisolated private static let logger = Logger(category: "CalendarListService")
     private init() {}
 
     // MARK: - Field mask

@@ -7,7 +7,7 @@ private import os
 /// to serialize writes and keep the main actor free for UI work.
 actor CalendarBackgroundSyncer {
     private let db: MailDatabase
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "CalendarBackgroundSyncer")
+    nonisolated private static let logger = Logger(category: "CalendarBackgroundSyncer")
 
     init(db: MailDatabase) {
         self.db = db

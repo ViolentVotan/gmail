@@ -6,7 +6,7 @@ private import os
 @Observable @MainActor
 final class MailStore {
 
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "MailStore")
+    nonisolated private static let logger = Logger(category: "MailStore")
 
     var emails: [Email] {
         didSet { _cachedDrafts = nil }

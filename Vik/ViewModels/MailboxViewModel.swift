@@ -120,7 +120,7 @@ final class MailboxViewModel {
         self.syncProgressManager = manager
     }
 
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "Mailbox")
+    nonisolated private static let logger = Logger(category: "Mailbox")
     private let api: MessageFetching
     private let labelService: LabelSyncService
     @ObservationIgnored private var observationTask: Task<Void, Never>?

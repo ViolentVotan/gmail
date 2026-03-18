@@ -7,7 +7,7 @@ private import os
 
 @MainActor
 final class EmailClassifier {
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "EmailClassifier")
+    nonisolated private static let logger = Logger(category: "EmailClassifier")
     static let shared = EmailClassifier()
     private init() {}
 

@@ -12,7 +12,7 @@ struct FolderCache: Codable, Sendable {
 /// Runs on first launch after the database layer is introduced.
 enum CacheMigration {
     private static let migrationKeyPrefix = "com.vikingz.vik.dbMigrationCompleted"
-    private static let logger = Logger(subsystem: "com.vikingz.vik", category: "CacheMigration")
+    private static let logger = Logger(category: "CacheMigration")
 
     static func needsMigration(accountID: String) -> Bool {
         !UserDefaults.standard.bool(forKey: "\(migrationKeyPrefix).\(accountID)")

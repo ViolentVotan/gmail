@@ -313,7 +313,7 @@ enum Folder: String, CaseIterable, Identifiable, Sendable {
         case .attachments:   return "has:attachment"
         case .subscriptions, .labels: return nil
         case .snoozed, .scheduled:    return nil
-        default:                      return nil
+        case .inbox, .starred, .sent, .drafts, .spam, .trash: return nil
         }
     }
 }

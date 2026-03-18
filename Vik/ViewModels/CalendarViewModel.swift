@@ -28,7 +28,7 @@ final class CalendarViewModel {
     let db: MailDatabase
     private let eventService = CalendarEventService.shared
     private let listService = CalendarListService.shared
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "CalendarViewModel")
+    nonisolated private static let logger = Logger(category: "CalendarViewModel")
 
     // MARK: - Reactive Observation
 

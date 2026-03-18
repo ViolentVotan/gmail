@@ -2,7 +2,7 @@ import Foundation
 private import os
 
 actor AttachmentIndexer {
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "AttachmentIndexer")
+    nonisolated private static let logger = Logger(category: "AttachmentIndexer")
     private let database: AttachmentDatabase
     private let messageService: any MessageFetching
     private let accountID: String

@@ -5,7 +5,7 @@ private import os
 /// Fetches contacts and photos from the Google People API.
 @MainActor
 final class PeopleAPIService {
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "PeopleAPI")
+    nonisolated private static let logger = Logger(category: "PeopleAPI")
     static let shared = PeopleAPIService()
     private init() {}
 

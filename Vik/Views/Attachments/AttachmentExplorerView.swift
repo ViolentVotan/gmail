@@ -2,7 +2,7 @@ import SwiftUI
 private import os
 
 struct AttachmentExplorerView: View {
-    private static let logger = Logger(subsystem: "com.vikingz.vik", category: "AttachmentExplorer")
+    private static let logger = Logger(category: "AttachmentExplorer")
     @Bindable var store: AttachmentStore
     var panelCoordinator: PanelCoordinator
     let accountID: String

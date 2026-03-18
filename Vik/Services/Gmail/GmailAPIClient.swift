@@ -28,7 +28,7 @@ final class GmailAPIClient {
     static let accountIDKey = "accountID"
 
     private let baseURL = "https://gmail.googleapis.com/gmail/v1"
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "GmailAPI")
+    nonisolated private static let logger = Logger(category: "GmailAPI")
     private var refreshTasks: [String: Task<AuthToken, Error>] = [:]
     private var refreshGeneration: [String: Int] = [:]
 

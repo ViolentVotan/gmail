@@ -29,7 +29,7 @@ actor CalendarSyncEngine {
     private let eventService: CalendarEventService
     private let listService: CalendarListService
 
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "CalendarSyncEngine")
+    nonisolated private static let logger = Logger(category: "CalendarSyncEngine")
 
     // MARK: - Adaptive Polling
 

@@ -7,7 +7,7 @@ final class SnoozeMonitor {
     static let shared = SnoozeMonitor()
     private init() {}
 
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "SnoozeMonitor")
+    nonisolated private static let logger = Logger(category: "SnoozeMonitor")
 
     private var timerTask: Task<Void, Never>?
     private var isCheckingExpired = false

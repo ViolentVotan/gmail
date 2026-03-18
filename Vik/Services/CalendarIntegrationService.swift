@@ -5,7 +5,7 @@ private import os
 @MainActor
 final class CalendarIntegrationService {
     static let shared = CalendarIntegrationService()
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "CalendarIntegration")
+    nonisolated private static let logger = Logger(category: "CalendarIntegration")
     private init() {}
 
     // MARK: - Invite Matching

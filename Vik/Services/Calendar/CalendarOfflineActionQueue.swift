@@ -9,7 +9,7 @@ private import os
 @MainActor
 final class CalendarOfflineActionQueue {
     static let shared = CalendarOfflineActionQueue()
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "CalendarOfflineQueue")
+    nonisolated private static let logger = Logger(category: "CalendarOfflineQueue")
 
     private let store = PerAccountFileStore<CalendarOfflineAction>(
         fileURL: { accountID in

@@ -21,7 +21,7 @@ enum AttachmentDatabaseError: Error, Sendable {
 actor AttachmentDatabase {
 
     static let shared = AttachmentDatabase()
-    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "AttachmentDatabase")
+    nonisolated private static let logger = Logger(category: "AttachmentDatabase")
 
     /// `nonisolated(unsafe)` is required because `init()` is nonisolated on actors
     /// and calls `openDatabase()`/`createSchema()` which set `db` before the actor is shared.

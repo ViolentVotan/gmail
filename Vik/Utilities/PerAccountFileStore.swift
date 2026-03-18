@@ -11,7 +11,7 @@ private import os
 final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
 
     nonisolated private static var logger: Logger {
-        Logger(subsystem: "com.vikingz.vik", category: "PerAccountFileStore")
+        Logger(category: "PerAccountFileStore")
     }
 
     /// Per-account storage keyed by accountID.
