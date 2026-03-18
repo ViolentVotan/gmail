@@ -12,6 +12,9 @@ struct CalendarWeekView: View {
     @State private var cachedWeekDays: [Date] = []
     @State private var cachedTimedEventsByDay: [[CalendarEvent]] = []
     @State private var cachedAllDayEventsByDay: [[CalendarEvent]] = []
+    @State private var cachedTodayIndex: Int? = nil
+    @State private var cachedWeekendIndices: Set<Int> = []
+    @State private var dayColumnWidth: CGFloat = 100
 
     private let hours = Array(0..<24)
 
@@ -28,17 +31,18 @@ struct CalendarWeekView: View {
     }()
 
     var body: some View {
-        GeometryReader { geo in
-            let dayColumnWidth = (geo.size.width - CalendarLayout.timeColumnWidth) / 7
-
-            VStack(spacing: 0) {
-                allDaySection(dayColumnWidth: dayColumnWidth)
-                Divider()
-                dayHeaderRow(dayColumnWidth: dayColumnWidth)
-                Divider()
-                timeGrid(dayColumnWidth: dayColumnWidth)
-            }
-            .clipped()
+        VStack(spacing: 0) {
+            allDaySection(dayColumnWidth: dayColumnWidth)
+            Divider()
+            dayHeaderRow(dayColumnWidth: dayColumnWidth)
+            Divider()
+            timeGrid(dayColumnWidth: dayColumnWidth)
+        }
+        .clipped()
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.width
+        } action: { newWidth in
+            dayColumnWidth = (newWidth - CalendarLayout.timeColumnWidth) / 7
         }
         .task(id: viewModel.selectedDate) {
             recomputeCaches()
@@ -121,7 +125,7 @@ struct CalendarWeekView: View {
     }
 
     private func dayHeader(for date: Date, width: CGFloat) -> some View {
-        let isToday = Calendar.current.isDateInToday(date)
+        let isToday = cachedWeekDays.firstIndex(of: date) == cachedTodayIndex
         let weekdayAbbrev = weekdayAbbreviation(for: date)
         let dayNumber = Calendar.current.component(.day, from: date)
         let accessibilityLabel = Self.accessibilityDayFormatter.string(from: date)
@@ -191,9 +195,9 @@ struct CalendarWeekView: View {
 
                     // Day columns with grid lines
                     HStack(spacing: 0) {
-                        ForEach(cachedWeekDays, id: \.self) { day in
-                            let isToday = Calendar.current.isDateInToday(day)
-                            let isWeekendDay = isWeekend(day)
+                        ForEach(Array(cachedWeekDays.enumerated()), id: \.element) { dayIndex, day in
+                            let isToday = dayIndex == cachedTodayIndex
+                            let isWeekendDay = cachedWeekendIndices.contains(dayIndex)
 
                             Rectangle()
                                 .fill(
@@ -294,8 +298,7 @@ struct CalendarWeekView: View {
 
     @ViewBuilder
     private func currentTimeIndicator(dayColumnWidth: CGFloat) -> some View {
-        let todayIndex = cachedWeekDays.firstIndex { Calendar.current.isDateInToday($0) }
-        if let index = todayIndex {
+        if let index = cachedTodayIndex {
             let yPos = CalendarLayout.yPosition(for: currentTime)
             let xStart = CalendarLayout.timeColumnWidth + CGFloat(index) * dayColumnWidth
 
@@ -347,6 +350,8 @@ struct CalendarWeekView: View {
         }
         cachedTimedEventsByDay = timed
         cachedAllDayEventsByDay = allDay
+        cachedTodayIndex = cachedWeekDays.firstIndex(where: { Calendar.current.isDateInToday($0) })
+        cachedWeekendIndices = Set(cachedWeekDays.indices.filter { isWeekend(cachedWeekDays[$0]) })
     }
 
     private func weekdayAbbreviation(for date: Date) -> String {

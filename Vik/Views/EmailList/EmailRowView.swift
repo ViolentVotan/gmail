@@ -22,8 +22,6 @@ struct EmailRowView: View, Equatable {
     private let labelBadges: [BadgeItem]
     /// Cached at init to avoid per-render allocations and direct service access.
     private let tagBadges: [BadgeItem]
-    /// Cached at init to avoid Calendar arithmetic on every body evaluation.
-    private let nudgeText: String?
 
     /// Equatable conformance compares only the data that affects visual output.
     /// Closures are excluded — they capture the same email context when equal.
@@ -45,9 +43,12 @@ struct EmailRowView: View, Equatable {
         } else {
             self.tagBadges = []
         }
+    }
 
+    /// Computed per-render to avoid stale nudge text across midnight.
+    private var nudgeText: String? {
         let daysAgo = Calendar.current.dateComponents([.day], from: email.date, to: .now).day ?? 0
-        self.nudgeText = daysAgo >= 3 ? "Received \(daysAgo) days ago" : nil
+        return daysAgo >= 3 ? "Received \(daysAgo) days ago" : nil
     }
 
     private func tagColor(_ name: String) -> Color {
