@@ -297,25 +297,4 @@ final class CalendarEventService {
             sendUpdates: sendUpdates
         )
     }
-
-    // MARK: - Move
-
-    /// Moves an event to a different calendar.
-    @concurrent func moveEvent(
-        calendarId: String,
-        eventId: String,
-        destinationCalendarId: String,
-        accountID: String
-    ) async throws(CalendarAPIError) -> CalendarAPIEvent {
-        let queryItems = [
-            URLQueryItem(name: "destination", value: destinationCalendarId),
-            URLQueryItem(name: "fields", value: Self.singleEventFieldMask),
-        ]
-        return try await client.request(
-            path: "/calendars/\(Self.encodePath(calendarId))/events/\(Self.encodePath(eventId))/move",
-            method: "POST",
-            queryItems: queryItems,
-            accountID: accountID
-        )
-    }
 }

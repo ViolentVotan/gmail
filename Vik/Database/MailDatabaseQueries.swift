@@ -237,28 +237,6 @@ enum MailDatabaseQueries {
         return try CalendarEventRecord.fetchAll(db, sql: sql, arguments: StatementArguments(args))
     }
 
-    /// Fetches a single event with its attendees. Returns nil if the event is not found.
-    static func eventWithAttendees(
-        eventId: String,
-        calendarId: String,
-        accountId: String,
-        in db: Database
-    ) throws -> (CalendarEventRecord, [CalendarAttendeeRecord])? {
-        guard let event = try CalendarEventRecord
-            .filter(Column("event_id") == eventId)
-            .filter(Column("calendar_id") == calendarId)
-            .filter(Column("account_id") == accountId)
-            .fetchOne(db) else {
-            return nil
-        }
-        let attendees = try CalendarAttendeeRecord
-            .filter(Column("event_id") == eventId)
-            .filter(Column("calendar_id") == calendarId)
-            .filter(Column("account_id") == accountId)
-            .fetchAll(db)
-        return (event, attendees)
-    }
-
     /// Upcoming events that include a specific participant (by email), newest first.
     static func upcomingEventsWithParticipant(
         email: String,

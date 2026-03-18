@@ -66,45 +66,4 @@ final class CalendarListService {
         return response
     }
 
-    // MARK: - Colors
-
-    /// Fetches the color palette for calendar and event colors.
-    @concurrent func getColors(
-        accountID: String
-    ) async throws(CalendarAPIError) -> CalendarAPIColors {
-        let colors: CalendarAPIColors = try await client.request(
-            path: "/colors",
-            accountID: accountID
-        )
-        return colors
-    }
-
-    // MARK: - Settings
-
-    /// Fetches all user settings (e.g., timezone), paginating through all results.
-    @concurrent func getSettings(
-        accountID: String
-    ) async throws(CalendarAPIError) -> [CalendarAPISetting] {
-        var all: [CalendarAPISetting] = []
-        var pageToken: String? = nil
-
-        repeat {
-            var queryItems: [URLQueryItem] = [
-                URLQueryItem(name: "fields", value: "items(id,value),nextPageToken"),
-            ]
-            if let pageToken {
-                queryItems.append(URLQueryItem(name: "pageToken", value: pageToken))
-            }
-            let response: CalendarAPISettingsListResponse = try await client.request(
-                path: "/users/me/settings",
-                queryItems: queryItems,
-                accountID: accountID
-            )
-            all.append(contentsOf: response.items ?? [])
-            pageToken = response.nextPageToken
-        } while pageToken != nil
-
-        Self.logger.debug("getSettings: fetched \(all.count) settings for account \(accountID)")
-        return all
-    }
 }
