@@ -6,6 +6,7 @@ Architecture and conventions for the Vik macOS Gmail client.
 
 | Document | Scope |
 |----------|-------|
+| [design-concept.md](design-concept.md) | **Authoritative design reference** — glass language, animation vocabulary, spatial model, component specs, end-to-end flows, dark mode, anti-patterns |
 | [Vik.md](Vik.md) | Architecture overview, core principles, entry points |
 | [Database.md](Database.md) | GRDB SQLite persistence — schema, records, queries, sync, FTS5 |
 | [Models.md](Models.md) | Data models and local stores |

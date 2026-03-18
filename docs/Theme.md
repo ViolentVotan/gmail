@@ -1,6 +1,6 @@
 # Appearance & Design Tokens
 
-System-integrated appearance management and centralized design token system following Apple's macOS 26 Liquid Glass spatial hierarchy.
+System-integrated appearance management and centralized design token system following Apple's macOS 26 Liquid Glass spatial hierarchy. For the full design language specification (glass rules, animation vocabulary, component specs, end-to-end flows), see [design-concept.md](design-concept.md).
 
 ## How It Works
 
@@ -13,12 +13,12 @@ All views use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`, `C
 
 ## Spatial Hierarchy
 
-The UI follows a three-plane model:
+The UI follows a three-plane model (see `docs/design-concept.md` for the full glass language specification):
 
 | Plane | Material | Use |
 |-------|----------|-----|
 | **Base** | Solid/opaque (`.quinary` + `.separator` stroke) | Content cards, email body, settings cards |
-| **Navigation** | `.glassEffect(.regular)` | Category tabs, bulk action bars, smart reply chips, thread message cards |
+| **Navigation** | `.glassEffect(.regular.interactive())` | Toolbar buttons, category tabs, sidebar items (selected/hovered), email row selection, search bar, calendar event cards, mini calendar, avatars, smart reply chips, label pills, bulk action bars, thread message cards |
 | **Transient** | `.glassEffect(.regular)` + `.elevation(.transient)` via `floatingPanelStyle()` | Toasts, popovers, slide panels |
 
 ## Files
@@ -46,9 +46,9 @@ The UI follows a three-plane model:
 
 | Token | Values |
 |-------|--------|
-| `CalendarColor` | 11 Google Calendar event colors: Lavender, Sage, Grape, Flamingo, Banana, Tangerine, Peacock, Blueberry, Basil, Tomato, and the default Graphite. Each case has adaptive `light` and `dark` `Color` properties for correct appearance in both modes. `static func color(forId id: String) -> Color` maps a Google API color ID string to the SwiftUI color. |
-| `CalendarLayout` | `hourRowHeight` (48), `timeColumnWidth` (50), `eventCardMinHeight` (24), `eventCardBorderWidth` (3), `currentTimeIndicatorHeight` (2), `dayColumnMinWidth` (120), `agendaRowSpacing` (8), `agendaDateHeaderHeight` (32). Used by `CalendarWeekView`, `CalendarDayView`, and `CalendarEventCard` to ensure pixel-consistent layout across views. |
-| `CalendarSemanticColor` | `currentTimeIndicator` (coral — `Color(.systemRed).opacity(0.8)`), `todayHighlight` (brand blue at 3% opacity background tint in day columns), `todayHeaderCircle` (brand blue filled circle behind today's date number in headers), `eventCardBackgroundOpacity` (0.15 — applied to the event color for the glass card fill), `weekendColumnOpacity` (0.55 — Saturday/Sunday columns are dimmed relative to weekdays). |
+| `CalendarColor` | 11 Google Calendar event colors: Lavender, Sage, Grape, Flamingo, Banana, Tangerine, Peacock, Blueberry, Basil, Tomato, and the default Graphite. Each case has adaptive `light` and `dark` `Color` properties for correct appearance in both modes. `static func color(forId colorId: Int?) -> Color` maps a Google API color ID to the SwiftUI color. |
+| `CalendarLayout` | `hourRowHeight` (48), `timeColumnWidth` (50), `eventCardMinHeight` (24), `eventCardBorderWidth` (3), `currentTimeIndicatorHeight` (2), `currentTimeIndicatorDotSize` (8), `allDayEventHeight` (22), `miniMonthDaySize` (20), `miniAgendaMaxEvents` (5). Used by `CalendarWeekView`, `CalendarDayView`, and `CalendarEventCard` to ensure pixel-consistent layout across views. |
+| `CalendarSemanticColor` | `currentTimeIndicator` (`BrandColor.coral`), `todayHighlight` (brand blue at 3% opacity background tint in day columns), `todayHeaderCircle` (brand blue filled circle behind today's date number in headers), `eventCardBackgroundOpacity` (0.15 — applied to the event color for the glass card fill), `weekendColumnOpacity` (0.55 — Saturday/Sunday columns are dimmed relative to weekdays). |
 
 **View modifiers:**
 
