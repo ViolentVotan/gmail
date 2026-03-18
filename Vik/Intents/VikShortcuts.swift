@@ -25,17 +25,6 @@ struct VikShortcuts: AppShortcutsProvider {
         )
 
         AppShortcut(
-            intent: UpdateMailIntent(),
-            phrases: [
-                "Mark email as read in \(.applicationName)",
-                "Mark as read in \(.applicationName)",
-                "Update email in \(.applicationName)",
-            ],
-            shortTitle: "Update Email",
-            systemImageName: "envelope.open.badge.clock"
-        )
-
-        AppShortcut(
             intent: ArchiveEmailIntent(),
             phrases: [
                 "Archive email in \(.applicationName)",
@@ -77,16 +66,6 @@ struct VikShortcuts: AppShortcutsProvider {
         )
 
         AppShortcut(
-            intent: DeleteDraftIntent(),
-            phrases: [
-                "Delete draft in \(.applicationName)",
-                "Discard draft in \(.applicationName)",
-            ],
-            shortTitle: "Delete Draft",
-            systemImageName: "trash"
-        )
-
-        AppShortcut(
             intent: ReplyMailIntent(),
             phrases: [
                 "Reply to email in \(.applicationName)",
@@ -104,6 +83,26 @@ struct VikShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Forward Email",
             systemImageName: "arrowshape.turn.up.right"
+        )
+
+        AppShortcut(
+            intent: ShowUpcomingEventsIntent(),
+            phrases: [
+                "Show my upcoming events in \(.applicationName)",
+                "What's on my calendar in \(.applicationName)",
+            ],
+            shortTitle: "Upcoming Events",
+            systemImageName: "calendar"
+        )
+
+        AppShortcut(
+            intent: CreateCalendarEventIntent(),
+            phrases: [
+                "Create a calendar event in \(.applicationName)",
+                "Schedule an event in \(.applicationName)",
+            ],
+            shortTitle: "Create Event",
+            systemImageName: "calendar.badge.plus"
         )
 
     }
