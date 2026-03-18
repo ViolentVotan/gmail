@@ -23,7 +23,7 @@ Vik/                      # Main app
 │   ├── AppCoordinator       # App-level state coordination (mail + calendar modes)
 │   ├── MailboxViewModel     # Email list for account+folder
 │   ├── CalendarViewModel    # Calendar UI state + CRUD + reactive DB observation
-│   ├── EventDetailViewModel # Calendar event detail/edit + conflict resolution
+
 │   ├── EmailDetailViewModel # Single email display + calendar context detection
 │   ├── EmailSummaryViewModel # AI email summaries
 │   ├── ComposeViewModel     # Email composition
