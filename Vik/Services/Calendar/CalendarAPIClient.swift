@@ -141,14 +141,17 @@ final class CalendarAPIClient {
                     ?? http.value(forHTTPHeaderField: "Etag")
                     ?? ""
                 throw .conflict(etag: etag)
+            case 412:
+                let etag = http.value(forHTTPHeaderField: "ETag")
+                    ?? http.value(forHTTPHeaderField: "Etag")
+                    ?? ""
+                throw .conflict(etag: etag)
             case 410:
                 throw .gone
             case 429:
                 if attempt < RetryPolicy.maxRetries {
                     let retryAfterHeader = http.value(forHTTPHeaderField: "Retry-After")
-                    let retryAfterSecs = retryAfterHeader.flatMap(Int.init) ?? 0
                     try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfterHeader)))
-                    _ = retryAfterSecs // captured above for the error case
                     continue
                 }
                 let retryAfterSecs = http.value(forHTTPHeaderField: "Retry-After").flatMap(Int.init) ?? 0

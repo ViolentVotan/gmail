@@ -247,8 +247,9 @@ final class CalendarViewModel {
         error = nil
         isLoading = true
         defer { isLoading = false }
-        // Snapshot for rollback before optimistic delete.
-        let snapshot: (CalendarEventRecord, [CalendarAttendeeRecord])? = try? await db.dbPool.read { db in
+
+        // Snapshot and delete atomically in one write transaction.
+        let snapshot: (CalendarEventRecord, [CalendarAttendeeRecord])? = try? await db.dbPool.write { db in
             guard let eventRecord = try CalendarEventRecord
                 .filter(Column("event_id") == event.googleEventId
                     && Column("calendar_id") == event.calendarId
@@ -260,19 +261,14 @@ final class CalendarViewModel {
                     && Column("calendar_id") == event.calendarId
                     && Column("account_id") == event.accountID)
                 .fetchAll(db)
-            return (eventRecord, attendees)
-        }
-        // Optimistic local removal regardless of connectivity.
-        try? await db.dbPool.write { db in
+            // Delete event — attendees cascade automatically via ON DELETE CASCADE.
             try db.execute(
                 sql: "DELETE FROM calendar_events WHERE event_id = ? AND calendar_id = ? AND account_id = ?",
                 arguments: [event.googleEventId, event.calendarId, event.accountID]
             )
-            try db.execute(
-                sql: "DELETE FROM calendar_attendees WHERE event_id = ? AND calendar_id = ? AND account_id = ?",
-                arguments: [event.googleEventId, event.calendarId, event.accountID]
-            )
+            return (eventRecord, attendees)
         }
+
         do {
             try await eventService.deleteEvent(
                 calendarId: event.calendarId,

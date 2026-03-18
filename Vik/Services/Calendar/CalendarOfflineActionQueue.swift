@@ -53,17 +53,14 @@ final class CalendarOfflineActionQueue {
     // MARK: - Public API
 
     func enqueue(_ action: CalendarOfflineAction) {
-        store.loadMerging(accountID: action.accountID)
         store.append(action, accountID: action.accountID)
     }
 
     func pendingActions(for accountID: String) -> [CalendarOfflineAction] {
-        store.loadMerging(accountID: accountID)
         return store.itemsByAccount[accountID] ?? []
     }
 
     func hasPendingActions(for accountID: String) -> Bool {
-        store.loadMerging(accountID: accountID)
         return !(store.itemsByAccount[accountID]?.isEmpty ?? true)
     }
 

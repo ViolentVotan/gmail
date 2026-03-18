@@ -110,10 +110,10 @@ actor FullSyncEngine {
 
     func start() {
         guard syncTask == nil else { return }
-        Self.activeEngines.withLock { $0[accountID] = self }
         state = .idle
         isTokenRevoked = false
         syncTask = Task { await runSyncLifecycle() }
+        Self.activeEngines.withLock { $0[accountID] = self }
     }
 
     func stop() async {
@@ -184,7 +184,6 @@ actor FullSyncEngine {
         triggeredSyncTask = Task {
             await reportProgress(.started)
             let succeeded = await syncIncremental()
-            if succeeded { consecutiveFailures = 0 }
             if !Task.isCancelled {
                 if succeeded {
                     await reportProgress(.completed)
@@ -492,12 +491,7 @@ actor FullSyncEngine {
                 guard !Task.isCancelled else { return }
                 // Pause when offline
                 guard NetworkMonitor.isReachable else { continue }
-                let ok = await syncIncremental()
-                if ok {
-                    consecutiveFailures = 0
-                } else if consecutiveFailures < 5 {
-                    consecutiveFailures += 1
-                }
+                await syncIncremental()
             }
         }
     }
@@ -651,6 +645,7 @@ actor FullSyncEngine {
                 await fireNotifications(for: newMessages)
             }
 
+            consecutiveFailures = 0
             return true
 
         } catch {
@@ -690,6 +685,7 @@ actor FullSyncEngine {
                 return false
             } else {
                 Self.logger.error("Incremental sync error: \(error.localizedDescription)")
+                if consecutiveFailures < 5 { consecutiveFailures += 1 }
                 return false
             }
         }

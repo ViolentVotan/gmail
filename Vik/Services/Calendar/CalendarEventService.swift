@@ -172,7 +172,7 @@ final class CalendarEventService {
         }
         return try await client.request(
             path: "/calendars/\(Self.encodePath(calendarId))/events/\(Self.encodePath(eventId))",
-            method: "PUT",
+            method: "PATCH",
             body: body,
             queryItems: queryItems,
             extraHeaders: headers,

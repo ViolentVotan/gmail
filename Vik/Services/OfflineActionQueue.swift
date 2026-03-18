@@ -66,6 +66,11 @@ final class OfflineActionQueue {
         isDraining = true
 
         drainTask = Task {
+            // Bail early if cancelled before waiting for old drain.
+            guard !Task.isCancelled else {
+                isDraining = false
+                return
+            }
             // Wait for old drain to finish executing before starting new one
             // to prevent double-sends when both tasks process the same action.
             await oldDrain?.value

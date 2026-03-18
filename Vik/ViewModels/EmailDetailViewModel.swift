@@ -376,24 +376,23 @@ final class EmailDetailViewModel {
 
     var smartReplySuggestions: [String] = []
 
-    func loadSmartReplies(for email: Email) {
+    func loadSmartReplies(for email: Email) async {
+        smartReplySuggestions = []
         guard let threadId = email.gmailThreadID else { return }
         if let cached = SmartReplyService.shared.cachedReplies(for: threadId, style: .full) {
             smartReplySuggestions = cached
             return
         }
-        let t = Task { @MainActor [weak self] in
-            guard let self else { return }
-            let replies = await SmartReplyService.shared.generateReplies(
-                subject: email.subject,
-                senderName: email.sender.name,
-                body: email.body,
-                threadId: threadId,
-                style: .full
-            )
-            self.smartReplySuggestions = replies
-        }
-        backgroundTasks.withLock { $0.append(t) }
+        guard !Task.isCancelled else { return }
+        let replies = await SmartReplyService.shared.generateReplies(
+            subject: email.subject,
+            senderName: email.sender.name,
+            body: email.body,
+            threadId: threadId,
+            style: .full
+        )
+        guard !Task.isCancelled else { return }
+        smartReplySuggestions = replies
     }
 
     // MARK: - Label Suggestions

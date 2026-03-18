@@ -158,7 +158,7 @@ struct EmailDetailView: View {
                         .padding(.horizontal, Spacing.lg)
                         .padding(.bottom, Spacing.lg)
                         .task(id: email.id) {
-                            detailVM.loadSmartReplies(for: email)
+                            await detailVM.loadSmartReplies(for: email)
                         }
                     }
                 }
