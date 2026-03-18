@@ -63,6 +63,7 @@ struct ContentView: View {
                     authViewModel: coordinator.authViewModel,
                     isCollapsed: isSidebarCollapsed,
                     userLabels: coordinator.mailboxViewModel.userLabels,
+                    coordinator: coordinator,
                     onRenameLabel: { label, newName in Task { await coordinator.renameLabel(label, to: newName) } },
                     onDeleteLabel: { label in Task { await coordinator.deleteLabel(label) } },
                     onDropToTrash: { msgId, accountID in
@@ -95,6 +96,12 @@ struct ContentView: View {
                     },
                     onRefresh: {
                         Task { await coordinator.syncEngine?.triggerIncrementalSync() }
+                    },
+                    onNewEvent: {
+                        if let calendarVM = coordinator.calendarViewModel {
+                            calendarVM.selectedDate = Date()
+                        }
+                        coordinator.switchToCalendar()
                     }
                 )
                 .focused($appFocus, equals: .sidebar)
@@ -453,6 +460,12 @@ struct ContentView: View {
                     if connected {
                         OfflineActionQueue.shared.startDraining()
                         Task { await coordinator.syncEngine?.triggerIncrementalSync() }
+                        if let calendarEngine = coordinator.calendarSyncEngine {
+                            Task {
+                                await CalendarOfflineActionQueue.shared.processQueue(accountID: calendarEngine.accountID)
+                                await calendarEngine.triggerSync()
+                            }
+                        }
                     }
                 }
                 .onChange(of: coordinator.selectedEmail) { oldValue, newValue in

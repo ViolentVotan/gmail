@@ -8,6 +8,7 @@ struct SidebarView: View {
     var authViewModel: AuthViewModel
     var isCollapsed = false
     var userLabels: [GmailLabel] = []
+    var coordinator: AppCoordinator
     var onRenameLabel: ((GmailLabel, String) -> Void)?
     var onDeleteLabel: ((GmailLabel) -> Void)?
     var onDropToTrash: ((String, String) -> Void)?
@@ -20,6 +21,7 @@ struct SidebarView: View {
     var onToggleSidebar: (() -> Void)?
     var onShowDebug: (() -> Void)?
     var onRefresh: (() -> Void)?
+    var onNewEvent: (() -> Void)?
 
     @Environment(SyncProgressManager.self) private var syncProgress
     @AppStorage("showDebugMenu") private var showDebugMenu = false
@@ -75,7 +77,95 @@ struct SidebarView: View {
     private var expandedSidebar: some View {
         VStack(spacing: 0) {
             accountHeader
-            sidebarList
+            modeSwitcher
+            Divider()
+                .padding(.horizontal, Spacing.sm)
+            Group {
+                if coordinator.viewMode == .calendar {
+                    calendarSidebarContent
+                } else {
+                    sidebarList
+                }
+            }
+            .animation(VikAnimation.contentSwitch, value: coordinator.viewMode)
+        }
+    }
+
+    // MARK: - Mode Switcher
+
+    private var modeSwitcher: some View {
+        HStack(spacing: Spacing.xs) {
+            modeSwitcherButton(
+                icon: "envelope.fill",
+                label: "Mail",
+                isActive: coordinator.viewMode == .mail
+            ) {
+                coordinator.switchToMail()
+            }
+            modeSwitcherButton(
+                icon: "calendar",
+                label: "Calendar",
+                isActive: coordinator.viewMode == .calendar
+            ) {
+                coordinator.switchToCalendar()
+            }
+        }
+        .padding(.horizontal, Spacing.md)
+        .padding(.vertical, Spacing.sm)
+    }
+
+    private func modeSwitcherButton(
+        icon: String,
+        label: String,
+        isActive: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: Spacing.xs) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .medium))
+                Text(label)
+                    .font(Typography.captionSemibold)
+            }
+            .foregroundStyle(isActive ? BrandColor.blue : Color.secondary)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Spacing.xs)
+            .background(
+                isActive
+                    ? BrandColor.blue.opacity(OpacityToken.tag)
+                    : Color.clear,
+                in: RoundedRectangle(cornerRadius: CornerRadius.sm)
+            )
+        }
+        .buttonStyle(.plain)
+        .animation(VikAnimation.springSnappy, value: isActive)
+    }
+
+    // MARK: - Calendar Sidebar Content
+
+    @ViewBuilder
+    private var calendarSidebarContent: some View {
+        if let calendarVM = coordinator.calendarViewModel {
+            ScrollView {
+                VStack(spacing: Spacing.md) {
+                    CalendarMiniMonthView(viewModel: calendarVM)
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.top, Spacing.sm)
+
+                    CalendarListSidebarView(
+                        viewModel: calendarVM,
+                        onNewEvent: { onNewEvent?() }
+                    )
+                }
+            }
+            .scrollIndicators(.hidden)
+        } else {
+            ContentUnavailableView(
+                "Calendar Loading",
+                systemImage: "calendar",
+                description: Text("Sign in to view your calendars.")
+            )
+            .frame(maxHeight: .infinity)
         }
     }
 
@@ -271,10 +361,20 @@ struct SidebarView: View {
         }
         .listStyle(.sidebar)
         .safeAreaInset(edge: .bottom) {
-            SyncBubbleView(phase: syncProgress.phase) {
-                onRefresh?()
+            VStack(spacing: Spacing.xs) {
+                if !coordinator.miniAgendaEvents.isEmpty {
+                    MiniAgendaWidget(
+                        events: coordinator.miniAgendaEvents,
+                        onSelectEvent: { event in coordinator.navigateToEvent(event) },
+                        onShowCalendar: { coordinator.switchToCalendar() }
+                    )
+                    .padding(.horizontal, Spacing.sm)
+                }
+                SyncBubbleView(phase: syncProgress.phase) {
+                    onRefresh?()
+                }
+                .padding(Spacing.sm)
             }
-            .padding(Spacing.sm)
         }
         .accessibilityRotor("Folders") {
             ForEach(Folder.mainFolders) { folder in
