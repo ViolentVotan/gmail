@@ -9,6 +9,8 @@ struct CalendarEventDetailView: View {
     let onRSVP: (CalendarRSVPStatus) -> Void
     let onEmailAttendees: () -> Void
     let onDismiss: () -> Void
+    var composeTo: ((String) -> Void)?
+    var searchSender: ((String) -> Void)?
 
     @State private var isHoveringLocation = false
     @State private var isHoveringConference = false
@@ -188,14 +190,22 @@ struct CalendarEventDetailView: View {
                     .font(Typography.caption)
                     .foregroundStyle(.tertiary)
                 if let organizer = event.organizer {
-                    if let name = organizer.displayName {
-                        Text(name)
-                            .font(Typography.callout)
-                            .foregroundStyle(.primary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let name = organizer.displayName {
+                            Text(name)
+                                .font(Typography.callout)
+                                .foregroundStyle(.primary)
+                        }
+                        Text(organizer.email)
+                            .font(Typography.calendarAgendaTime)
+                            .foregroundStyle(.secondary)
                     }
-                    Text(organizer.email)
-                        .font(Typography.calendarAgendaTime)
-                        .foregroundStyle(.secondary)
+                    .contactPopover(
+                        contact: Contact(name: organizer.displayName ?? organizer.email, email: organizer.email),
+                        accountID: event.accountID,
+                        composeTo: { composeTo?($0) },
+                        searchSender: { searchSender?($0) }
+                    )
                 }
             }
         }
@@ -217,7 +227,12 @@ struct CalendarEventDetailView: View {
 
             VStack(alignment: .leading, spacing: Spacing.xs) {
                 ForEach(event.attendees) { attendee in
-                    AttendeeRowView(attendee: attendee)
+                    AttendeeRowView(
+                        attendee: attendee,
+                        accountID: event.accountID,
+                        composeTo: composeTo,
+                        searchSender: searchSender
+                    )
                 }
             }
             .padding(.leading, 26)
@@ -369,6 +384,9 @@ struct CalendarEventDetailView: View {
 
 private struct AttendeeRowView: View {
     let attendee: EventAttendee
+    var accountID: String = ""
+    var composeTo: ((String) -> Void)?
+    var searchSender: ((String) -> Void)?
 
     var body: some View {
         HStack(spacing: Spacing.sm) {
@@ -390,6 +408,12 @@ private struct AttendeeRowView: View {
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
+            .contactPopover(
+                contact: Contact(name: attendee.displayName ?? attendee.email, email: attendee.email),
+                accountID: accountID,
+                composeTo: { composeTo?($0) },
+                searchSender: { searchSender?($0) }
+            )
 
             if attendee.isOrganizer {
                 Text("Organizer")

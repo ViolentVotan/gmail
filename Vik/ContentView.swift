@@ -171,6 +171,12 @@ struct ContentView: View {
                             CalendarEventQuickActions.emailAttendees(event: event) { mode in
                                 coordinator.startCompose(mode: mode)
                             }
+                        },
+                        composeTo: { email in
+                            coordinator.startCompose(mode: .newTo(to: email))
+                        },
+                        searchSender: { email in
+                            Task { await coordinator.mailboxViewModel.search(query: "from:\(email)") }
                         }
                     )
                     .transition(.asymmetric(

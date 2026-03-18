@@ -12,6 +12,8 @@ struct CalendarContainerView: View {
     var onDelete: (CalendarEvent) -> Void = { _ in }
     var onRSVP: (CalendarEvent, CalendarRSVPStatus) -> Void = { _, _ in }
     var onEmailAttendees: (CalendarEvent) -> Void = { _ in }
+    var composeTo: ((String) -> Void)?
+    var searchSender: ((String) -> Void)?
 
     @State private var previousViewMode: CalendarViewMode = .week
 
@@ -61,7 +63,9 @@ struct CalendarContainerView: View {
                 onDelete: { onDelete(event) },
                 onRSVP: { status in onRSVP(event, status) },
                 onEmailAttendees: { onEmailAttendees(event) },
-                onDismiss: { viewModel.selectedEvent = nil }
+                onDismiss: { viewModel.selectedEvent = nil },
+                composeTo: composeTo,
+                searchSender: searchSender
             )
             .frame(minWidth: 420, maxWidth: 420, minHeight: 300, maxHeight: 600)
         }
