@@ -136,11 +136,17 @@ struct CalendarAPICalendarListEntry: Codable, Sendable {
 // MARK: - Conference Types
 
 struct CalendarAPIConferenceData: Codable, Sendable {
-    let entryPoints:        [CalendarAPIConferenceEntryPoint]?
+    let createRequest:       CalendarAPICreateConferenceRequest?
+    let entryPoints:         [CalendarAPIConferenceEntryPoint]?
     let conferenceSolution:  CalendarAPIConferenceSolution?
     let conferenceId:        String?
     let signature:           String?
     let notes:               String?
+}
+
+struct CalendarAPICreateConferenceRequest: Codable, Sendable {
+    let requestId:              String
+    let conferenceSolutionKey:  CalendarAPIConferenceSolutionKey
 }
 
 struct CalendarAPIConferenceEntryPoint: Codable, Sendable {
