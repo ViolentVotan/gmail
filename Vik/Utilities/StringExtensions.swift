@@ -195,5 +195,6 @@ extension String {
         return "Fwd: \(self)"
     }
 
+    /// Returns `nil` if the string is empty, otherwise returns `self`.
     var nilIfEmpty: String? { isEmpty ? nil : self }
 }

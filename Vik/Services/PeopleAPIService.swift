@@ -460,22 +460,28 @@ final class PeopleAPIService {
 
     @concurrent
     func fetchPersonDetails(resourceName: String, accountID: String) async -> PersonDetails? {
-        let encoded = resourceName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? resourceName
-        let urlStr = "https://people.googleapis.com/v1/\(encoded)?personFields=\(Self.personDetailFields)"
+        let segments = resourceName.split(separator: "/", omittingEmptySubsequences: false)
+            .map { String($0).addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? String($0) }
+            .joined(separator: "/")
+        let urlStr = "https://people.googleapis.com/v1/\(segments)?personFields=\(Self.personDetailFields)"
         do {
             let person: PersonResource = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
             let org = person.organizations?.first
             let phone = person.phoneNumbers?.first
             let addr = person.addresses?.first
-            let location = addr?.formattedValue ?? [addr?.city, addr?.region, addr?.country]
-                .compactMap { $0 }
-                .joined(separator: ", ")
-            return PersonDetails(
+            let location: String? = addr.flatMap { a in
+                a.formattedValue ?? [a.city, a.region, a.country].compactMap { $0 }.joined(separator: ", ").nilIfEmpty
+            }
+            let details = PersonDetails(
                 organization: [org?.title, org?.name].compactMap { $0 }.joined(separator: " · ").nilIfEmpty,
-                title: nil,
+                title: org?.title,
                 phoneNumber: phone?.canonicalForm ?? phone?.value,
-                location: location.nilIfEmpty
+                location: location
             )
+            guard details.organization != nil || details.phoneNumber != nil || details.location != nil else {
+                return nil
+            }
+            return details
         } catch {
             Self.logger.debug("Person detail enrichment failed for \(resourceName): \(error)")
             return nil
