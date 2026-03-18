@@ -98,7 +98,18 @@ struct CalendarInfo: Identifiable, Sendable, Equatable {
 
 // MARK: - View Mode Enums
 
-enum CalendarViewMode: String, Sendable { case week, day, agenda }
+enum CalendarViewMode: String, Sendable {
+    case week, day, agenda
+
+    var label: String {
+        switch self {
+        case .day: "Day"
+        case .week: "Week"
+        case .agenda: "Agenda"
+        }
+    }
+}
+
 enum AppViewMode: String, Sendable { case mail, calendar }
 
 // MARK: - Record → Domain Conversions

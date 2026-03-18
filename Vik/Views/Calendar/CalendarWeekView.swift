@@ -97,7 +97,8 @@ struct CalendarWeekView: View {
                 .padding(.horizontal, Spacing.xs)
                 .frame(height: CalendarLayout.allDayEventHeight)
                 .frame(width: width - 2, alignment: .leading)
-                .background(event.resolvedColor, in: .rect(cornerRadius: CornerRadius.xs))
+                .background(event.resolvedColor.opacity(0.8), in: .rect(cornerRadius: CornerRadius.xs))
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: CornerRadius.xs))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(event.summary), all day")
@@ -136,6 +137,7 @@ struct CalendarWeekView: View {
                     Circle()
                         .fill(CalendarSemanticColor.todayHeaderCircle)
                         .frame(width: 26, height: 26)
+                        .glassEffect(.regular.interactive(), in: .circle)
                 }
                 Text("\(dayNumber)")
                     .font(.system(size: 13, weight: isToday ? .bold : .regular))
@@ -212,13 +214,13 @@ struct CalendarWeekView: View {
                                 .overlay(alignment: .top) {
                                     // Horizontal hour divider
                                     Divider()
-                                        .opacity(OpacityToken.highlight)
+                                        .opacity(0.04)
                                 }
                                 .overlay(alignment: .trailing) {
                                     // Vertical column divider
                                     if dayIndex < weekDays.count - 1 {
                                         Divider()
-                                            .opacity(OpacityToken.highlight)
+                                            .opacity(0.04)
                                     }
                                 }
                         }

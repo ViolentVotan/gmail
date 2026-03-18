@@ -8,6 +8,7 @@ struct CalendarMiniMonthView: View {
     @State private var cachedWeeks: [[Date?]] = []
     @State private var cachedMonth: Int = -1
     @State private var cachedYear: Int = -1
+    @State private var hoveredDate: Date?
 
     private let calendar = Calendar.current
     private let dayColumns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
@@ -113,6 +114,7 @@ struct CalendarMiniMonthView: View {
         let isToday = calendar.isDateInToday(date)
         let isSelected = calendar.isDate(date, inSameDayAs: viewModel.selectedDate)
         let isInCurrentMonth = calendar.isDate(date, equalTo: viewModel.selectedDate, toGranularity: .month)
+        let isHovered = hoveredDate.map { calendar.isDate($0, inSameDayAs: date) } ?? false
 
         return Button {
             withAnimation(VikAnimation.springSnappy) {
@@ -130,13 +132,17 @@ struct CalendarMiniMonthView: View {
                     in: Circle()
                 )
                 .glassEffect(
-                    isSelected && !isToday ? .regular.interactive() : .identity,
+                    isToday || isSelected || isHovered ? .regular.interactive() : .identity,
                     in: .circle
                 )
                 .frame(maxWidth: .infinity)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .onHover { hovering in
+            hoveredDate = hovering ? date : nil
+        }
+        .animation(.snappy(duration: 0.15), value: isHovered)
         .accessibilityLabel(date.formatted(date: .complete, time: .omitted))
         .accessibilityAddTraits(isToday ? [.isButton, .isSelected] : .isButton)
         .accessibilityHidden(!isInCurrentMonth)

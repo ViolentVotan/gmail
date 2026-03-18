@@ -379,7 +379,8 @@ struct ContentView: View {
                 Button { coordinator.composeNewEmail() } label: {
                     Label("Compose", systemImage: "square.and.pencil")
                 }
-                .buttonStyle(.glass)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
                 .help("Compose (\u{2318}N)")
             }
 
@@ -430,6 +431,8 @@ struct ContentView: View {
                     }
                 }
             }
+
+            ToolbarSpacer(.fixed, placement: .primaryAction)
 
             if let email = coordinator.selectedEmail {
                 ToolbarItem(placement: .automatic) {

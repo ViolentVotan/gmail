@@ -201,7 +201,7 @@ struct EmailDetailView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
                 Text(detailVM.latestMessage?.subject ?? email.subject)
-                    .font(Typography.title)
+                    .font(Typography.titleLarge)
                     .foregroundStyle(.primary)
                     .accessibilityAddTraits(.isHeader)
 

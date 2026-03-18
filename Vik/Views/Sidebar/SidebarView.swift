@@ -33,6 +33,7 @@ struct SidebarView: View {
     @State private var dropTargetFolder: Folder?
     @State private var dropTargetLabel: String?
     @State private var showLabelsPopover = false
+    @Namespace private var modeNamespace
 
     var body: some View {
         Group {
@@ -98,24 +99,27 @@ struct SidebarView: View {
     // MARK: - Mode Switcher
 
     private var modeSwitcher: some View {
-        HStack(spacing: Spacing.xs) {
-            modeSwitcherButton(
-                icon: "envelope.fill",
-                label: "Mail",
-                isActive: coordinator.viewMode == .mail
-            ) {
-                coordinator.switchToMail()
-            }
-            modeSwitcherButton(
-                icon: "calendar",
-                label: "Calendar",
-                isActive: coordinator.viewMode == .calendar
-            ) {
-                coordinator.switchToCalendar()
+        GlassEffectContainer(spacing: 2) {
+            HStack(spacing: 2) {
+                modeSwitcherButton(
+                    icon: "envelope.fill",
+                    label: "Mail",
+                    isActive: coordinator.viewMode == .mail
+                ) {
+                    coordinator.switchToMail()
+                }
+                modeSwitcherButton(
+                    icon: "calendar",
+                    label: "Calendar",
+                    isActive: coordinator.viewMode == .calendar
+                ) {
+                    coordinator.switchToCalendar()
+                }
             }
         }
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.sm)
+        .animation(VikAnimation.springSnappy, value: coordinator.viewMode)
     }
 
     private func modeSwitcherButton(
@@ -136,11 +140,17 @@ struct SidebarView: View {
             .padding(.vertical, Spacing.xs)
         }
         .buttonStyle(.plain)
+        .background {
+            if isActive {
+                Capsule()
+                    .fill(Color.accentColor.opacity(OpacityToken.highlight))
+                    .matchedGeometryEffect(id: "modeIndicator", in: modeNamespace)
+            }
+        }
         .glassEffect(
             isActive ? .regular.interactive() : .identity,
-            in: .rect(cornerRadius: CornerRadius.sm)
+            in: .capsule
         )
-        .animation(VikAnimation.springSnappy, value: isActive)
     }
 
     // MARK: - Calendar Sidebar Content

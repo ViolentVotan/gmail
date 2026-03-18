@@ -237,6 +237,12 @@ struct ThreadMessageCardView: View {
                     .padding(.bottom, cachedHTMLParts.quoted != nil ? Spacing.xs : Spacing.md)
                     .opacity(isHTMLLoaded ? 1 : 0)
             }
+            .background(.quinary, in: RoundedRectangle(cornerRadius: CornerRadius.sm))
+            .overlay(
+                RoundedRectangle(cornerRadius: CornerRadius.sm)
+                    .strokeBorder(.separator, lineWidth: 0.5)
+            )
+            .padding(.horizontal, Spacing.md)
             .animation(VikAnimation.contentSwitch, value: isHTMLLoaded)
 
             if cachedHTMLParts.quoted != nil {

@@ -69,7 +69,8 @@ struct CalendarDayView: View {
                 .lineLimit(1)
                 .padding(.horizontal, Spacing.sm)
                 .frame(height: CalendarLayout.allDayEventHeight)
-                .background(event.resolvedColor, in: RoundedRectangle(cornerRadius: CornerRadius.xs))
+                .background(event.resolvedColor.opacity(0.8), in: RoundedRectangle(cornerRadius: CornerRadius.xs))
+                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: CornerRadius.xs))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(event.summary)
@@ -134,6 +135,7 @@ struct CalendarDayView: View {
                 .frame(height: CalendarLayout.hourRowHeight)
                 .overlay(alignment: .top) {
                     Divider()
+                        .opacity(0.04)
                 }
                 .contentShape(Rectangle())
                 .onHover { inside in
@@ -286,6 +288,15 @@ private struct DayEventCardView: View {
                     event.resolvedColor.opacity(isHovered ? 0.4 : 0.2),
                     lineWidth: 0.5
                 )
+        )
+        .glassEffect(
+            isHovered ? .regular.interactive() : .identity,
+            in: .rect(cornerRadius: CornerRadius.xs)
+        )
+        .shadow(
+            color: isHovered ? event.resolvedColor.opacity(0.2) : .clear,
+            radius: isHovered ? 4 : 0,
+            y: isHovered ? 2 : 0
         )
         .scaleEffect(isPressed ? ScaleToken.press : (isHovered ? ScaleToken.hover : 1.0))
         .animation(VikAnimation.springSnappy, value: isPressed)

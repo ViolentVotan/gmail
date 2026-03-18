@@ -5,6 +5,7 @@ import SwiftUI
 struct CalendarHeaderView: View {
     @Bindable var viewModel: CalendarViewModel
     var onNewEvent: () -> Void
+    @Namespace private var viewModeNamespace
 
     var body: some View {
         HStack(spacing: Spacing.sm) {
@@ -19,6 +20,7 @@ struct CalendarHeaderView: View {
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.sm)
         .background(.bar)
+        .clipped()
     }
 
     // MARK: - Subviews
@@ -81,16 +83,39 @@ struct CalendarHeaderView: View {
     }
 
     private var viewModePicker: some View {
-        Picker("View mode", selection: $viewModel.viewMode) {
-            Text("Day").tag(CalendarViewMode.day)
-                .accessibilityLabel("Day view")
-            Text("Week").tag(CalendarViewMode.week)
-                .accessibilityLabel("Week view")
-            Text("Agenda").tag(CalendarViewMode.agenda)
-                .accessibilityLabel("Agenda view")
+        GlassEffectContainer(spacing: 2) {
+            HStack(spacing: 2) {
+                ForEach([CalendarViewMode.day, .week, .agenda], id: \.self) { mode in
+                    let isSelected = viewModel.viewMode == mode
+                    Button {
+                        withAnimation(VikAnimation.springSnappy) {
+                            viewModel.viewMode = mode
+                        }
+                    } label: {
+                        Text(mode.label)
+                            .font(Typography.captionSemibold)
+                            .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                            .padding(.horizontal, Spacing.md)
+                            .padding(.vertical, Spacing.xs)
+                    }
+                    .buttonStyle(.plain)
+                    .background {
+                        if isSelected {
+                            Capsule()
+                                .fill(Color.accentColor.opacity(OpacityToken.highlight))
+                                .matchedGeometryEffect(id: "viewModeIndicator", in: viewModeNamespace)
+                        }
+                    }
+                    .glassEffect(
+                        isSelected ? .regular.interactive() : .identity,
+                        in: .capsule
+                    )
+                    .accessibilityLabel("\(mode.label) view")
+                    .accessibilityAddTraits(isSelected ? .isSelected : [])
+                }
+            }
         }
-        .pickerStyle(.segmented)
-        .frame(width: 180)
+        .animation(VikAnimation.springSnappy, value: viewModel.viewMode)
         .accessibilityLabel("Calendar view mode")
     }
 
