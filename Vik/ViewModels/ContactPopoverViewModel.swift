@@ -36,17 +36,19 @@ final class ContactPopoverViewModel {
         let timestamp: Date
     }
 
-    static func cachedPersonDetails(forEmail email: String) -> PersonDetails? {
-        guard let entry = cache[email.lowercased()],
+    static func cachedPersonDetails(forEmail email: String, accountID: String = "") -> PersonDetails? {
+        let key = "\(accountID):\(email.lowercased())"
+        guard let entry = cache[key],
               Date().timeIntervalSince(entry.timestamp) < cacheTTL else {
-            cache.removeValue(forKey: email.lowercased())
+            cache.removeValue(forKey: key)
             return nil
         }
         return entry.details
     }
 
-    static func cachePersonDetails(_ details: PersonDetails, forEmail email: String) {
-        cache[email.lowercased()] = CacheEntry(details: details, timestamp: Date())
+    static func cachePersonDetails(_ details: PersonDetails, forEmail email: String, accountID: String = "") {
+        let key = "\(accountID):\(email.lowercased())"
+        cache[key] = CacheEntry(details: details, timestamp: Date())
     }
 
     // MARK: - Init
@@ -83,7 +85,7 @@ final class ContactPopoverViewModel {
     }
 
     private func enrich(email: String) async {
-        if let cached = Self.cachedPersonDetails(forEmail: email) {
+        if let cached = Self.cachedPersonDetails(forEmail: email, accountID: accountID) {
             applyDetails(cached)
             return
         }
@@ -99,7 +101,7 @@ final class ContactPopoverViewModel {
         isEnriching = false
 
         if let details {
-            Self.cachePersonDetails(details, forEmail: email)
+            Self.cachePersonDetails(details, forEmail: email, accountID: accountID)
             withAnimation(VikAnimation.springSnappy) {
                 applyDetails(details)
             }

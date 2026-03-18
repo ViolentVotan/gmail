@@ -72,8 +72,8 @@ struct ContactPopoverView: View {
             infoRow(icon: "mappin", text: location)
         }
         if viewModel.isEnriching {
-            shimmerRow()
-            shimmerRow()
+            shimmerRow(width: 140)
+            shimmerRow(width: 110)
         }
     }
 
@@ -118,14 +118,14 @@ struct ContactPopoverView: View {
         }
     }
 
-    private func shimmerRow() -> some View {
+    private func shimmerRow(width: CGFloat) -> some View {
         HStack(spacing: Spacing.sm) {
             RoundedRectangle(cornerRadius: 3)
                 .fill(Color.secondary.opacity(0.1))
                 .frame(width: 16, height: 12)
             RoundedRectangle(cornerRadius: 3)
                 .fill(Color.secondary.opacity(0.1))
-                .frame(width: CGFloat.random(in: 100...160), height: 12)
+                .frame(width: width, height: 12)
         }
         .phaseAnimator([0.15, 0.3]) { content, phase in
             content.opacity(phase)
