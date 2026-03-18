@@ -12,9 +12,14 @@ final class CalendarEventService {
 
     /// Formats a Date as RFC3339 with fractional seconds, safe for use from any isolation context.
     nonisolated static func rfc3339(_ date: Date) -> String {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return f.string(from: date)
+        date.formatted(
+            .iso8601
+                .year().month().day()
+                .time(includingFractionalSeconds: true)
+                .timeSeparator(.colon)
+                .dateTimeSeparator(.standard)
+                .timeZone(separator: .omitted)
+        )
     }
 
     /// Percent-encodes a calendar or event ID for safe interpolation into a URL path segment.
@@ -28,6 +33,10 @@ final class CalendarEventService {
 
     nonisolated private static let eventFieldMask =
         "items(id,status,htmlLink,created,updated,summary,description,location,colorId,creator,organizer,start,end,recurrence,recurringEventId,transparency,visibility,iCalUID,sequence,attendees,conferenceData,reminders,attachments,eventType,etag,hangoutLink,guestsCanModify,extendedProperties),nextPageToken,nextSyncToken"
+
+    /// Field mask for single-event endpoints (getEvent, insertEvent, updateEvent, quickAdd, moveEvent).
+    nonisolated private static let singleEventFieldMask =
+        "id,status,htmlLink,created,updated,summary,description,location,colorId,creator,organizer,start,end,recurrence,recurringEventId,transparency,visibility,iCalUID,sequence,attendees,conferenceData,reminders,attachments,eventType,etag,hangoutLink,guestsCanModify,extendedProperties"
 
     // MARK: - List
 
@@ -92,8 +101,10 @@ final class CalendarEventService {
         eventId: String,
         accountID: String
     ) async throws(CalendarAPIError) -> CalendarAPIEvent {
-        try await client.request(
+        let queryItems = [URLQueryItem(name: "fields", value: Self.singleEventFieldMask)]
+        return try await client.request(
             path: "/calendars/\(Self.encodePath(calendarId))/events/\(Self.encodePath(eventId))",
+            queryItems: queryItems,
             accountID: accountID
         )
     }
@@ -113,7 +124,7 @@ final class CalendarEventService {
         } catch {
             throw .encodingError(error)
         }
-        var queryItems: [URLQueryItem] = []
+        var queryItems = [URLQueryItem(name: "fields", value: Self.singleEventFieldMask)]
         if let version = conferenceDataVersion {
             queryItems.append(URLQueryItem(name: "conferenceDataVersion", value: "\(version)"))
         }
@@ -121,7 +132,7 @@ final class CalendarEventService {
             path: "/calendars/\(Self.encodePath(calendarId))/events",
             method: "POST",
             body: body,
-            queryItems: queryItems.isEmpty ? nil : queryItems,
+            queryItems: queryItems,
             accountID: accountID
         )
     }
@@ -146,10 +157,12 @@ final class CalendarEventService {
         if let etag {
             headers = ["If-Match": etag]
         }
+        let queryItems = [URLQueryItem(name: "fields", value: Self.singleEventFieldMask)]
         return try await client.request(
             path: "/calendars/\(Self.encodePath(calendarId))/events/\(Self.encodePath(eventId))",
             method: "PUT",
             body: body,
+            queryItems: queryItems,
             extraHeaders: headers,
             accountID: accountID
         )
@@ -169,10 +182,12 @@ final class CalendarEventService {
         if let etag {
             headers = ["If-Match": etag]
         }
+        let queryItems = [URLQueryItem(name: "fields", value: Self.singleEventFieldMask)]
         return try await client.request(
             path: "/calendars/\(Self.encodePath(calendarId))/events/\(Self.encodePath(eventId))",
             method: "PATCH",
             body: fields,
+            queryItems: queryItems,
             extraHeaders: headers,
             accountID: accountID
         )
@@ -201,7 +216,10 @@ final class CalendarEventService {
         text: String,
         accountID: String
     ) async throws(CalendarAPIError) -> CalendarAPIEvent {
-        let queryItems = [URLQueryItem(name: "text", value: text)]
+        let queryItems = [
+            URLQueryItem(name: "text", value: text),
+            URLQueryItem(name: "fields", value: Self.singleEventFieldMask),
+        ]
         return try await client.request(
             path: "/calendars/\(Self.encodePath(calendarId))/events/quickAdd",
             method: "POST",
@@ -264,7 +282,10 @@ final class CalendarEventService {
         destinationCalendarId: String,
         accountID: String
     ) async throws(CalendarAPIError) -> CalendarAPIEvent {
-        let queryItems = [URLQueryItem(name: "destination", value: destinationCalendarId)]
+        let queryItems = [
+            URLQueryItem(name: "destination", value: destinationCalendarId),
+            URLQueryItem(name: "fields", value: Self.singleEventFieldMask),
+        ]
         return try await client.request(
             path: "/calendars/\(Self.encodePath(calendarId))/events/\(Self.encodePath(eventId))/move",
             method: "POST",

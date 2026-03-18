@@ -11,6 +11,8 @@ struct ContentView: View {
     @State private var newCalendarEventDraft: EventEditDraft? = nil
     @State private var showCalendarScopesAlert = false
     @State private var calendarScopesAccountID: String?
+    @State private var showGmailScopesAlert = false
+    @State private var gmailScopesAccountID: String?
 
     enum AppFocus: Hashable {
         case sidebar
@@ -64,6 +66,20 @@ struct ContentView: View {
                     }
                 } message: {
                     Text("Calendar features require additional permissions. Please re-authorize to grant calendar access.")
+                }
+                .alert("Gmail Access Required", isPresented: $showGmailScopesAlert) {
+                    Button("Cancel", role: .cancel) {}
+                    Button("Re-authorize") {
+                        guard let accountID = gmailScopesAccountID else { return }
+                        Task {
+                            try? await OAuthService.shared.reauthorize(
+                                accountID: accountID,
+                                presentingWindow: NSApp.keyWindow
+                            )
+                        }
+                    }
+                } message: {
+                    Text("Gmail features require additional permissions. Please re-authorize to grant access.")
                 }
         )
     }
@@ -517,6 +533,12 @@ struct ContentView: View {
                     showCalendarScopesAlert = true
                 }
             }
+            .task {
+                for await notification in NotificationCenter.default.notifications(named: .gmailScopesInsufficient) {
+                    gmailScopesAccountID = notification.userInfo?[GmailAPIClient.accountIDKey] as? String
+                    showGmailScopesAlert = true
+                }
+            }
     }
 
     /// State-change observers split out to help the type-checker.
@@ -660,11 +682,19 @@ struct ContentView: View {
                         group.addTask {
                             for await _ in NotificationCenter.default.notifications(named: NSApplication.didBecomeActiveNotification) {
                                 await coordinator.syncEngine?.updatePollingInterval(appIsActive: true, windowIsKey: true)
+                                await coordinator.calendarSyncEngine?.updatePollingInterval(
+                                    calendarActive: coordinator.viewMode == .calendar,
+                                    appFocused: true
+                                )
                             }
                         }
                         group.addTask {
                             for await _ in NotificationCenter.default.notifications(named: NSApplication.didResignActiveNotification) {
                                 await coordinator.syncEngine?.updatePollingInterval(appIsActive: false, windowIsKey: false)
+                                await coordinator.calendarSyncEngine?.updatePollingInterval(
+                                    calendarActive: coordinator.viewMode == .calendar,
+                                    appFocused: false
+                                )
                             }
                         }
                     }

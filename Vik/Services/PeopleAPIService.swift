@@ -76,6 +76,7 @@ final class PeopleAPIService {
         var newOtherSyncToken: String?
         var contactsFetchSucceeded = false
         var didFullConnectionsFetch = false
+        var didFullOtherContactsFetch = false
         let syncStartTime = Date().timeIntervalSince1970
 
         let mailDB = try? await MailDatabase.shared(for: accountID)
@@ -292,6 +293,7 @@ final class PeopleAPIService {
                             try? await Task.sleep(for: .milliseconds(100))
                         }
                     } while pageToken != nil
+                    didFullOtherContactsFetch = true
                 } catch {
                     Self.logger.error("Full Other Contacts fetch failed: \(error, privacy: .public)")
                     return
@@ -321,10 +323,11 @@ final class PeopleAPIService {
                 }, in: db)
             }
         }
-        // 4. Purge stale people_api contacts after a full Connections re-fetch.
-        // All live contacts (Connections + Other Contacts) were upserted above,
-        // so anything with updated_at < syncStartTime no longer exists upstream.
-        if didFullConnectionsFetch {
+        // 4. Purge stale people_api contacts after a full re-fetch.
+        // When both Connections and Other Contacts completed a full fetch, all live
+        // contacts were upserted above — anything with updated_at < syncStartTime
+        // no longer exists upstream and can be safely pruned.
+        if didFullConnectionsFetch || didFullOtherContactsFetch {
             let pruned = try? await mailDB?.dbPool.write { db -> Int in
                 try ContactRecord
                     .filter(Column("source") == "people_api")

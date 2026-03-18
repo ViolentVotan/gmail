@@ -12,7 +12,11 @@ struct CalendarMiniMonthView: View {
 
     private let calendar = Calendar.current
     private let dayColumns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
-    private let daySymbols = ["S", "M", "T", "W", "T", "F", "S"]
+    private var daySymbols: [String] {
+        let symbols = Calendar.current.veryShortWeekdaySymbols
+        let firstWeekday = Calendar.current.firstWeekday
+        return Array(symbols[(firstWeekday - 1)...]) + Array(symbols[..<(firstWeekday - 1)])
+    }
 
     var body: some View {
         VStack(spacing: Spacing.xs) {
@@ -185,7 +189,8 @@ struct CalendarMiniMonthView: View {
               let range = calendar.range(of: .day, in: .month, for: firstOfMonth)
         else { return [] }
 
-        let firstWeekday = calendar.component(.weekday, from: firstOfMonth) - 1
+        let weekdayOfFirst = calendar.component(.weekday, from: firstOfMonth)
+        let firstWeekday = (weekdayOfFirst - calendar.firstWeekday + 7) % 7
         let totalDays = range.count
         let totalCells = firstWeekday + totalDays
         let totalWeeks = Int(ceil(Double(totalCells) / 7.0))

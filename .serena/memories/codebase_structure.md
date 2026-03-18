@@ -70,11 +70,11 @@ Views never call Services directly. ViewModels are the single bridge.
 - `UndoActionManager` — Queued destructive actions with countdown
 - `BackgroundSyncer` — Actor for bulk API sync → DB writes
 - `FullSyncEngine` — @MainActor class orchestrating email sync: initial full sync, incremental delta sync (History API), body pre-fetch, label refresh, contact refresh
-- `CalendarSyncEngine` — @MainActor class (peer to FullSyncEngine) for Google Calendar sync: adaptive polling (15-300s), syncToken incremental, 410 Gone recovery
+- `CalendarSyncEngine` — Actor (peer to FullSyncEngine) for Google Calendar sync: adaptive polling (15-300s), syncToken incremental (events + calendar list), 410 Gone recovery, post-edit tightening via `temporarilyTightenPolling`
 - `CalendarBackgroundSyncer` — Actor for bulk calendar DB writes (upsert events/calendars/attendees)
-- `CalendarOfflineActionQueue` — Queues calendar mutations when offline, replays on reconnect with etag conflict detection
+- `CalendarOfflineActionQueue` — Queues calendar mutations when offline, replays on reconnect with etag conflict detection and automatic 409 conflict resolution (re-fetch + retry)
 - `CalendarIntegrationService` — Cross-feature email↔calendar coordination (find events for invites, upcoming meetings with participants)
-- `CalendarEventService.rfc3339(_:)` — Shared RFC 3339 date formatter (used by CalendarEventEditorView, CalendarIntents)
+- `CalendarEventService.rfc3339(_:)` — Shared RFC 3339 date formatter using lightweight `Date.ISO8601FormatStyle` (used by CalendarEventEditorView, CalendarIntents)
 - `CalendarEventService` / `CalendarListService` / `CalendarFreeBusyService` — Google Calendar API v3 services
 - `LabelSyncService` — Label sync with etag-based caching
 - `OfflineActionQueue` — Queues actions when offline, replays on reconnect

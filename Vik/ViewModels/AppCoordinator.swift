@@ -634,11 +634,11 @@ final class AppCoordinator {
             defer {
                 if self.accountSwitchGeneration == generation {
                     accountSwitchTask = nil
-                }
-                if let folder = pendingFolderChange {
-                    pendingFolderChange = nil
-                    selectedFolder = folder
-                    handleFolderChange(folder)
+                    if let folder = pendingFolderChange {
+                        pendingFolderChange = nil
+                        selectedFolder = folder
+                        handleFolderChange(folder)
+                    }
                 }
             }
             await oldEngine?.stop()
@@ -809,12 +809,17 @@ final class AppCoordinator {
         viewMode = .calendar
         if calendarViewModel == nil, let db = mailDatabase {
             calendarViewModel = CalendarViewModel(db: db)
+            calendarViewModel?.onEventMutated = { [weak self] in
+                await self?.calendarSyncEngine?.temporarilyTightenPolling()
+            }
             calendarViewModel?.startObserving()
         }
+        Task { await calendarSyncEngine?.updatePollingInterval(calendarActive: true, appFocused: true) }
     }
 
     func switchToMail() {
         viewMode = .mail
+        Task { await calendarSyncEngine?.updatePollingInterval(calendarActive: false, appFocused: true) }
     }
 
     func loadMiniAgendaEvents() async {

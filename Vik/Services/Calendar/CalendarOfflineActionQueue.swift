@@ -24,6 +24,11 @@ final class CalendarOfflineActionQueue {
             case updateEvent(calendarId: String, eventId: String, input: CalendarAPIEventInput, etag: String)
             case deleteEvent(calendarId: String, eventId: String)
             case rsvpEvent(calendarId: String, eventId: String, status: String)
+
+            var isUpdate: Bool {
+                if case .updateEvent = self { return true }
+                return false
+            }
         }
     }
 
@@ -64,6 +69,16 @@ final class CalendarOfflineActionQueue {
             do {
                 try await execute(action)
                 processed.append(action.id)
+            } catch CalendarAPIError.conflict(_) where action.actionType.isUpdate {
+                // 409 Conflict on update — re-fetch fresh etag and retry once
+                let resolved = await resolveConflict(for: action)
+                processed.append(action.id)
+                if !resolved {
+                    ToastManager.shared.show(
+                        message: "Calendar edit conflicted with a server change",
+                        type: .error
+                    )
+                }
             } catch let error where error.isNonRetriable {
                 Self.logger.warning("Discarding calendar offline action \(action.id) (non-retriable): \(error)")
                 processed.append(action.id)
@@ -98,6 +113,38 @@ final class CalendarOfflineActionQueue {
             try await service.deleteEvent(calendarId: calendarId, eventId: eventId, accountID: action.accountID)
         case .rsvpEvent(let calendarId, let eventId, let status):
             _ = try await service.respondToEvent(calendarId: calendarId, eventId: eventId, accountID: action.accountID, status: status)
+        }
+    }
+
+    /// Re-fetches the event for a fresh etag, then retries the update once.
+    /// Returns `true` if the retry succeeded, `false` if it failed (action is discarded either way).
+    private func resolveConflict(for action: CalendarOfflineAction) async -> Bool {
+        guard case .updateEvent(let calendarId, let eventId, let input, _) = action.actionType else {
+            return false
+        }
+        let service = CalendarEventService.shared
+        do {
+            let freshEvent = try await service.getEvent(
+                calendarId: calendarId,
+                eventId: eventId,
+                accountID: action.accountID
+            )
+            guard let freshEtag = freshEvent.etag else {
+                Self.logger.warning("Conflict resolution failed for \(action.id): no etag on re-fetched event")
+                return false
+            }
+            _ = try await service.updateEvent(
+                calendarId: calendarId,
+                eventId: eventId,
+                event: input,
+                accountID: action.accountID,
+                etag: freshEtag
+            )
+            Self.logger.info("Conflict resolved for \(action.id) with fresh etag")
+            return true
+        } catch {
+            Self.logger.warning("Conflict resolution failed for \(action.id): \(error)")
+            return false
         }
     }
 

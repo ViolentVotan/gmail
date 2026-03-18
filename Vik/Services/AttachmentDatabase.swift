@@ -23,9 +23,9 @@ actor AttachmentDatabase {
     static let shared = AttachmentDatabase()
     nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "AttachmentDatabase")
 
-    // nonisolated(unsafe) allows access from nonisolated init/deinit.
-    // All runtime access is serialized: init runs before the actor is shared,
-    // deinit runs after, and all other methods are actor-isolated.
+    /// `nonisolated(unsafe)` is required because `init()` is nonisolated on actors
+    /// and calls `openDatabase()`/`createSchema()` which set `db` before the actor is shared.
+    /// Safe: init completes synchronously before any other code can access the actor.
     nonisolated(unsafe) private var db: OpaquePointer?
 
     // MARK: - Lifecycle
@@ -40,8 +40,8 @@ actor AttachmentDatabase {
     }
 
     // Effectively unreachable — `shared` singleton is never deallocated.
-    // `sqlite3_close_v2` is thread-safe so direct call from nonisolated deinit is fine.
-    deinit {
+    // `isolated deinit` allows access to actor-isolated `db` property.
+    isolated deinit {
         if let db { sqlite3_close_v2(db) }
     }
 

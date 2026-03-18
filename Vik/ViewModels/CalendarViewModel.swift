@@ -20,6 +20,9 @@ final class CalendarViewModel {
     /// Set of composite IDs ("\(accountID)_\(calendarId)") for unified multi-account view.
     var visibleCalendarIDs: Set<String> = []
 
+    /// Called after any successful event mutation (create, update, delete, RSVP, quick-add).
+    @ObservationIgnored var onEventMutated: (() async -> Void)?
+
     // MARK: - Dependencies
 
     let db: MailDatabase
@@ -206,6 +209,7 @@ final class CalendarViewModel {
             self.error = error
             throw error
         }
+        await onEventMutated?()
     }
 
     func updateEvent(_ event: CalendarEvent, input: CalendarAPIEventInput) async throws {
@@ -236,6 +240,7 @@ final class CalendarViewModel {
             self.error = error
             throw error
         }
+        await onEventMutated?()
     }
 
     func deleteEvent(_ event: CalendarEvent) async throws {
@@ -292,6 +297,7 @@ final class CalendarViewModel {
             self.error = error
             throw error
         }
+        await onEventMutated?()
     }
 
     func respondToEvent(_ event: CalendarEvent, status: CalendarRSVPStatus) async throws {
@@ -338,6 +344,7 @@ final class CalendarViewModel {
             self.error = error
             throw error
         }
+        await onEventMutated?()
     }
 
     func quickAddEvent(text: String, calendarId: String, accountID: String) async throws {
@@ -354,16 +361,18 @@ final class CalendarViewModel {
             self.error = error
             throw error
         }
+        await onEventMutated?()
     }
 
     // MARK: - Helpers
 
     var selectedWeek: DateInterval {
         let calendar = Calendar.current
-        let weekday = calendar.component(.weekday, from: selectedDate)
-        let startOfWeek = calendar.date(byAdding: .day, value: -(weekday - 1), to: calendar.startOfDay(for: selectedDate))!
-        let endOfWeek = calendar.date(byAdding: .day, value: 7, to: startOfWeek)!
-        return DateInterval(start: startOfWeek, end: endOfWeek)
+        guard let interval = calendar.dateInterval(of: .weekOfYear, for: selectedDate) else {
+            let start = calendar.startOfDay(for: selectedDate)
+            return DateInterval(start: start, end: start.addingTimeInterval(7 * 86400))
+        }
+        return interval
     }
 
     func eventsForDay(_ date: Date) -> [CalendarEvent] {

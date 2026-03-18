@@ -56,16 +56,6 @@ struct VikShortcuts: AppShortcutsProvider {
         )
 
         AppShortcut(
-            intent: SendDraftIntent(),
-            phrases: [
-                "Send my draft in \(.applicationName)",
-                "Send draft in \(.applicationName)",
-            ],
-            shortTitle: "Send Draft",
-            systemImageName: "paperplane"
-        )
-
-        AppShortcut(
             intent: ReplyMailIntent(),
             phrases: [
                 "Reply to email in \(.applicationName)",
@@ -73,16 +63,6 @@ struct VikShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Reply to Email",
             systemImageName: "arrowshape.turn.up.left"
-        )
-
-        AppShortcut(
-            intent: ForwardMailIntent(),
-            phrases: [
-                "Forward email in \(.applicationName)",
-                "Forward in \(.applicationName)",
-            ],
-            shortTitle: "Forward Email",
-            systemImageName: "arrowshape.turn.up.right"
         )
 
         AppShortcut(
@@ -103,6 +83,26 @@ struct VikShortcuts: AppShortcutsProvider {
             ],
             shortTitle: "Create Event",
             systemImageName: "calendar.badge.plus"
+        )
+
+        AppShortcut(
+            intent: RSVPToEventIntent(),
+            phrases: [
+                "Respond to calendar event in \(.applicationName)",
+                "RSVP to event in \(.applicationName)",
+            ],
+            shortTitle: "RSVP to Event",
+            systemImageName: "hand.raised"
+        )
+
+        AppShortcut(
+            intent: CheckAvailabilityIntent(),
+            phrases: [
+                "Check my availability in \(.applicationName)",
+                "Am I free in \(.applicationName)",
+            ],
+            shortTitle: "Check Availability",
+            systemImageName: "calendar.badge.checkmark"
         )
 
     }

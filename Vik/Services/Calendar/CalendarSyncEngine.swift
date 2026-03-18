@@ -8,8 +8,7 @@ private import os
 ///
 /// Adaptive polling: interval adjusts based on whether the calendar view is active,
 /// the app is focused, or a recent edit was made (post-edit tightening).
-@MainActor
-final class CalendarSyncEngine {
+actor CalendarSyncEngine {
 
     // MARK: - State
 
@@ -46,16 +45,19 @@ final class CalendarSyncEngine {
     private var calendarListSyncTask: Task<Void, Never>?
     private var postEditRevertTask: Task<Void, Never>?
 
+    /// Sync token for incremental calendar list sync via `CalendarListService.syncCalendars`.
+    private var calendarListSyncToken: String?
+
     /// Reentrancy guard: prevents overlapping `syncIncremental()` runs.
     /// The polling loop and user-triggered `triggerSync()` can both call
     /// `syncIncremental()` — actor reentrancy allows the second call to start
     /// while the first is suspended at an `await`. This flag is set/cleared
-    /// synchronously (no `await` between check and set), so it's MainActor-safe.
+    /// synchronously (no `await` between check and set), so it's actor-safe.
     private var isSyncingIncrementally = false
 
     // MARK: - Init
 
-    init(accountID: String, db: MailDatabase) {
+    @MainActor init(accountID: String, db: MailDatabase) {
         self.accountID = accountID
         self.db = db
         self.syncer = CalendarBackgroundSyncer(db: db)
@@ -133,9 +135,10 @@ final class CalendarSyncEngine {
 
         do {
             // 1. Fetch calendar list
-            let calendars = try await listService.listCalendars(accountID: accountID)
+            let (calendars, listSyncToken) = try await listService.listCalendars(accountID: accountID)
             let records = calendars.compactMap { Self.calendarRecord(from: $0, accountId: accountID) }
             try await syncer.upsertCalendars(records)
+            calendarListSyncToken = listSyncToken
 
             // 2. For each visible calendar: fetch events (-30d to +90d)
             let now = Date()
@@ -189,6 +192,10 @@ final class CalendarSyncEngine {
             allEvents.append(contentsOf: response.items ?? [])
             pageToken = response.nextPageToken
             if response.nextSyncToken != nil { syncToken = response.nextSyncToken }
+            // Pace pagination requests to avoid 429s
+            if pageToken != nil {
+                try? await Task.sleep(for: .milliseconds(100))
+            }
         } while pageToken != nil
 
         let (eventRecords, attendeeRecords) = Self.convertToRecords(
@@ -321,9 +328,30 @@ final class CalendarSyncEngine {
 
     private func syncCalendarList() async {
         do {
-            let calendars = try await listService.listCalendars(accountID: accountID)
-            let records = calendars.compactMap { Self.calendarRecord(from: $0, accountId: accountID) }
-            try await syncer.upsertCalendars(records)
+            if let token = calendarListSyncToken {
+                // Incremental sync — only changed calendars
+                do {
+                    let response = try await listService.syncCalendars(accountID: accountID, syncToken: token)
+                    let records = (response.items ?? []).compactMap { Self.calendarRecord(from: $0, accountId: accountID) }
+                    if !records.isEmpty {
+                        try await syncer.upsertCalendars(records)
+                    }
+                    if let newToken = response.nextSyncToken {
+                        calendarListSyncToken = newToken
+                    }
+                } catch CalendarAPIError.gone {
+                    // Sync token expired — fall back to full fetch
+                    Self.logger.warning("Calendar list sync token expired, performing full fetch")
+                    calendarListSyncToken = nil
+                    await syncCalendarList()
+                }
+            } else {
+                // Full fetch — no sync token available yet
+                let (calendars, listSyncToken) = try await listService.listCalendars(accountID: accountID)
+                let records = calendars.compactMap { Self.calendarRecord(from: $0, accountId: accountID) }
+                try await syncer.upsertCalendars(records)
+                calendarListSyncToken = listSyncToken
+            }
         } catch {
             Self.logger.error("Calendar list sync failed: \(String(describing: error))")
         }
@@ -490,12 +518,10 @@ final class CalendarSyncEngine {
         data?.entryPoints?.first(where: { $0.entryPointType == "video" })?.uri
     }
 
-    nonisolated(unsafe) private static let jsonEncoder = JSONEncoder()
-
     /// Encodes an `Encodable` value to a JSON string.
     nonisolated private static func encodeJSON<T: Encodable>(_ value: T?) -> String? {
         guard let value else { return nil }
-        guard let data = try? Self.jsonEncoder.encode(value) else { return nil }
+        guard let data = try? JSONEncoder().encode(value) else { return nil }
         return String(data: data, encoding: .utf8)
     }
 }
