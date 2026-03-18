@@ -13,4 +13,4 @@ App-level configuration constants.
 
 | File | Role |
 |------|------|
-| `GoogleCredentials.swift` | Google OAuth client ID, redirect URI, scopes (`mail.google.com` for full access incl. permanent delete, `gmail.settings.basic` for filter management, `userinfo.email`, `userinfo.profile`, `contacts.readonly`) |
+| `GoogleCredentials.swift` | Google OAuth client ID, redirect URI, scopes (`mail.google.com` for full access incl. permanent delete, `gmail.settings.basic` for filter management, `userinfo.email`, `userinfo.profile`, `contacts.readonly`, `calendar.events` for events CRUD, `calendar.calendarlist.readonly` for listing calendars, `calendar.freebusy` for free/busy queries, `calendar.settings.readonly` for user settings including timezone). Granular Calendar scopes are used intentionally — the broad `calendar` scope is avoided to minimize permissions. |
