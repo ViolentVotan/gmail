@@ -204,6 +204,7 @@ struct EmailDetailView: View {
                 Text(detailVM.latestMessage?.subject ?? email.subject)
                     .font(Typography.titleLarge)
                     .foregroundStyle(.primary)
+                    .textSelection(.enabled)
                     .accessibilityAddTraits(.isHeader)
 
                 Spacer()
