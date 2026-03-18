@@ -137,7 +137,7 @@ struct CalendarWeekView: View {
                     Circle()
                         .fill(CalendarSemanticColor.todayHeaderCircle)
                         .frame(width: 26, height: 26)
-                        .glassEffect(.regular.interactive(), in: .circle)
+                        .glassEffect(.regular, in: .circle)
                 }
                 Text("\(dayNumber)")
                     .font(.system(size: 13, weight: isToday ? .bold : .regular))

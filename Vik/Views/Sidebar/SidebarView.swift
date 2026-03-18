@@ -141,16 +141,17 @@ struct SidebarView: View {
         }
         .buttonStyle(.plain)
         .background {
-            if isActive {
-                Capsule()
-                    .fill(Color.accentColor.opacity(OpacityToken.highlight))
-                    .matchedGeometryEffect(id: "modeIndicator", in: modeNamespace)
-            }
+            Capsule()
+                .fill(Color.accentColor.opacity(OpacityToken.highlight))
+                .matchedGeometryEffect(id: "modeIndicator", in: modeNamespace)
+                .opacity(isActive ? 1 : 0)
         }
         .glassEffect(
             isActive ? .regular.interactive() : .identity,
             in: .capsule
         )
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(isActive ? [.isButton, .isSelected] : .isButton)
     }
 
     // MARK: - Calendar Sidebar Content

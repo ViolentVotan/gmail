@@ -100,11 +100,10 @@ struct CalendarHeaderView: View {
                     }
                     .buttonStyle(.plain)
                     .background {
-                        if isSelected {
-                            Capsule()
-                                .fill(Color.accentColor.opacity(OpacityToken.highlight))
-                                .matchedGeometryEffect(id: "viewModeIndicator", in: viewModeNamespace)
-                        }
+                        Capsule()
+                            .fill(Color.accentColor.opacity(OpacityToken.highlight))
+                            .matchedGeometryEffect(id: "viewModeIndicator", in: viewModeNamespace)
+                            .opacity(isSelected ? 1 : 0)
                     }
                     .glassEffect(
                         isSelected ? .regular.interactive() : .identity,
