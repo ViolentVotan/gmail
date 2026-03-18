@@ -742,29 +742,34 @@ final class AppCoordinator {
     // MARK: - Service Routing
 
     func handleQuickReply(messageId: String, text: String, accountID: String) async {
-        guard let message = try? await GmailMessageService.shared.getMessage(
+        do {
+            try await sendQuickReply(messageId: messageId, text: text, accountID: accountID)
+            ToastManager.shared.show(message: "Reply sent")
+        } catch {
+            ToastManager.shared.show(message: "Failed to send reply", type: .error)
+        }
+    }
+
+    @concurrent
+    private func sendQuickReply(messageId: String, text: String, accountID: String) async throws {
+        let message = try await GmailMessageService.shared.getMessage(
             id: messageId, accountID: accountID, format: "metadata"
-        ) else { return }
+        )
         let replySubject = message.subject.withReplyPrefix
         let references = GmailSendService.buildReferencesChain(
             parentReferences: message.header(named: "References"),
             parentMessageID: message.messageID
         )
-        do {
-            _ = try await GmailSendService.shared.send(
-                from: accountID,
-                to: [message.replyTo],
-                subject: replySubject,
-                body: text,
-                threadID: message.threadId,
-                inReplyTo: message.messageID,
-                references: references,
-                accountID: accountID
-            )
-            ToastManager.shared.show(message: "Reply sent")
-        } catch {
-            ToastManager.shared.show(message: "Failed to send reply", type: .error)
-        }
+        _ = try await GmailSendService.shared.send(
+            from: accountID,
+            to: [message.replyTo],
+            subject: replySubject,
+            body: text,
+            threadID: message.threadId,
+            inReplyTo: message.messageID,
+            references: references,
+            accountID: accountID
+        )
     }
 
     @concurrent

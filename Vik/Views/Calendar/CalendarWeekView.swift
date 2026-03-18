@@ -14,6 +14,7 @@ struct CalendarWeekView: View {
     @State private var cachedAllDayEventsByDay: [[CalendarEvent]] = []
     @State private var cachedTodayIndex: Int? = nil
     @State private var cachedWeekendIndices: Set<Int> = []
+    @State private var cachedOverlapGroupsByDay: [[[CalendarEvent]]] = []
     @State private var dayColumnWidth: CGFloat = 100
 
     private let hours = Array(0..<24)
@@ -257,7 +258,7 @@ struct CalendarWeekView: View {
         timedEvents: [CalendarEvent],
         dayColumnWidth: CGFloat
     ) -> some View {
-        let groups = overlapGroups(for: timedEvents)
+        let groups = dayIndex < cachedOverlapGroupsByDay.count ? cachedOverlapGroupsByDay[dayIndex] : []
         ForEach(0..<groups.count, id: \.self) { groupIndex in
             let group = groups[groupIndex]
             ForEach(Array(group.enumerated()), id: \.element.id) { colIndex, event in
@@ -350,6 +351,7 @@ struct CalendarWeekView: View {
         }
         cachedTimedEventsByDay = timed
         cachedAllDayEventsByDay = allDay
+        cachedOverlapGroupsByDay = timed.map { overlapGroups(for: $0) }
         cachedTodayIndex = cachedWeekDays.firstIndex(where: { Calendar.current.isDateInToday($0) })
         cachedWeekendIndices = Set(cachedWeekDays.indices.filter { isWeekend(cachedWeekDays[$0]) })
     }

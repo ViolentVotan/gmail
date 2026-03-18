@@ -83,10 +83,23 @@ actor BackgroundSyncer {
         try await db.dbPool.write { db in
             let now = Date().timeIntervalSince1970
             for update in updates {
+                // When only HTML is available (the majority of real-world emails),
+                // strip tags and store as body_plain so FTS can index the content.
+                let plainText: String?
+                if let plain = update.plain {
+                    plainText = plain
+                } else if let html = update.html {
+                    plainText = html
+                        .replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
+                        .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                } else {
+                    plainText = nil
+                }
                 // Direct SQL UPDATE avoids reading the full record just to write back.
                 try db.execute(
                     sql: "UPDATE messages SET body_html = ?, body_plain = ?, full_body_fetched = 1, fetched_at = ? WHERE gmail_id = ?",
-                    arguments: [update.html, update.plain, now, update.gmailId]
+                    arguments: [update.html, plainText, now, update.gmailId]
                 )
                 // The AFTER UPDATE trigger on `messages` handles FTS maintenance when body columns change.
             }

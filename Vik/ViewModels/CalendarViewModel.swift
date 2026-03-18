@@ -410,18 +410,15 @@ final class CalendarViewModel {
         // Batch-fetch all attendees for all event records in a single async DB read.
         let compositeKeys = records.map { ($0.eventId, $0.calendarId, $0.accountId) }
         let allAttendees: [CalendarAttendeeRecord] = (try? await db.dbPool.read { db in
-            // Build OR-chained filter: (event_id = ? AND calendar_id = ? AND account_id = ?) OR ...
-            guard let first = compositeKeys.first else { return [] }
-            var filter = Column("event_id") == first.0
-                && Column("calendar_id") == first.1
-                && Column("account_id") == first.2
-            for key in compositeKeys.dropFirst() {
-                filter = filter
-                    || (Column("event_id") == key.0
-                        && Column("calendar_id") == key.1
-                        && Column("account_id") == key.2)
-            }
-            return try CalendarAttendeeRecord.filter(filter).fetchAll(db)
+            guard !compositeKeys.isEmpty else { return [] }
+            // Tuple IN clause — SQLite can use index for composite key lookup.
+            // OR-chains degrade to full scans on large attendee tables.
+            let placeholders = compositeKeys.map { _ in "(?, ?, ?)" }.joined(separator: ", ")
+            let args = compositeKeys.flatMap { [$0.0 as (any DatabaseValueConvertible), $0.1, $0.2] }
+            return try CalendarAttendeeRecord.filter(
+                sql: "(event_id, calendar_id, account_id) IN (\(placeholders))",
+                arguments: StatementArguments(args)
+            ).fetchAll(db)
         }) ?? []
 
         // Group attendees by composite key for O(1) lookup.
