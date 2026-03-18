@@ -88,17 +88,6 @@ struct DetailPaneView: View {
             } else if let email = selectedEmail {
                 emailDetailView(email: email)
                     .transition(softDirectionalTransition(from: selectionDirection))
-                    .gesture(
-                        DragGesture(minimumDistance: 50)
-                            .onEnded { value in
-                                guard abs(value.translation.width) > abs(value.translation.height) else { return }
-                                if value.translation.width > 0 {
-                                    navigatePrevious()
-                                } else {
-                                    navigateNext()
-                                }
-                            }
-                    )
             } else {
                 emptyState
                     .transition(.opacity.combined(with: .scale(scale: ScaleToken.enterFrom)))
