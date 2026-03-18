@@ -454,6 +454,34 @@ final class PeopleAPIService {
         }
     }
 
+    // MARK: - Person Detail Enrichment
+
+    nonisolated private static let personDetailFields = "organizations,phoneNumbers,addresses"
+
+    @concurrent
+    func fetchPersonDetails(resourceName: String, accountID: String) async -> PersonDetails? {
+        let encoded = resourceName.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? resourceName
+        let urlStr = "https://people.googleapis.com/v1/\(encoded)?personFields=\(Self.personDetailFields)"
+        do {
+            let person: PersonResource = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
+            let org = person.organizations?.first
+            let phone = person.phoneNumbers?.first
+            let addr = person.addresses?.first
+            let location = addr?.formattedValue ?? [addr?.city, addr?.region, addr?.country]
+                .compactMap { $0 }
+                .joined(separator: ", ")
+            return PersonDetails(
+                organization: [org?.title, org?.name].compactMap { $0 }.joined(separator: " · ").nilIfEmpty,
+                title: nil,
+                phoneNumber: phone?.canonicalForm ?? phone?.value,
+                location: location.nilIfEmpty
+            )
+        } catch {
+            Self.logger.debug("Person detail enrichment failed for \(resourceName): \(error)")
+            return nil
+        }
+    }
+
     // MARK: - Response Field Masks
 
     /// Partial-response `fields` filter for connections.list — limits the response
@@ -508,6 +536,9 @@ struct PersonResource: Decodable {
     let emailAddresses: [PersonEmail]?
     let photos: [PersonPhoto]?
     let names: [PersonName]?
+    let organizations: [PersonOrganization]?
+    let phoneNumbers: [PersonPhoneNumber]?
+    let addresses: [PersonAddress]?
 }
 
 struct PersonEmail: Decodable {
@@ -521,4 +552,28 @@ struct PersonPhoto: Decodable {
 
 struct PersonName: Decodable {
     let displayName: String?
+}
+
+struct PersonOrganization: Decodable {
+    let name: String?
+    let title: String?
+}
+
+struct PersonPhoneNumber: Decodable {
+    let value: String?
+    let canonicalForm: String?
+}
+
+struct PersonAddress: Decodable {
+    let formattedValue: String?
+    let city: String?
+    let region: String?
+    let country: String?
+}
+
+struct PersonDetails: Sendable {
+    let organization: String?
+    let title: String?
+    let phoneNumber: String?
+    let location: String?
 }

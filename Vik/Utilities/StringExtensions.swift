@@ -194,4 +194,6 @@ extension String {
         if l.hasPrefix("fwd:") || l.hasPrefix("fw:") { return self }
         return "Fwd: \(self)"
     }
+
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }
