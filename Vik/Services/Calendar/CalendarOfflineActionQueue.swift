@@ -64,6 +64,9 @@ final class CalendarOfflineActionQueue {
             do {
                 try await execute(action)
                 processed.append(action.id)
+            } catch let error as CalendarAPIError where error.isNonRetriable {
+                Self.logger.warning("Discarding calendar offline action \(action.id) (non-retriable): \(error)")
+                processed.append(action.id)
             } catch {
                 Self.logger.error("Failed to process calendar offline action \(action.id): \(error)")
                 break

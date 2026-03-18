@@ -665,6 +665,7 @@ final class AppCoordinator {
             SnoozeStore.shared.deleteAccount(removedID)
             ScheduledSendStore.shared.deleteAccount(removedID)
             OfflineActionQueue.shared.deleteAccount(removedID)
+            CalendarOfflineActionQueue.shared.deleteAccount(removedID)
             LabelSyncService.shared.clearETags(for: removedID)
             SubscriptionsStore.shared.deleteAccount(removedID)
             MailDatabase.evict(accountID: removedID)
@@ -817,6 +818,8 @@ final class AppCoordinator {
 
     private func startCalendarSync(for id: String) async {
         guard let db = mailDatabase else { return }
+        // Drain any calendar actions queued while offline before starting sync
+        await CalendarOfflineActionQueue.shared.processQueue(accountID: id)
         let engine = CalendarSyncEngine(accountID: id, db: db)
         guard !Task.isCancelled, self.selectedAccountID == id else { return }
         calendarSyncEngine = engine

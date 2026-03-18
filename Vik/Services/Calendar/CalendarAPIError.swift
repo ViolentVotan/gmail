@@ -33,6 +33,14 @@ enum CalendarAPIError: Error, LocalizedError, Sendable {
         }
     }
 
+    /// Whether this error should not be retried (the action should be discarded).
+    var isNonRetriable: Bool {
+        switch self {
+        case .conflict, .gone, .notFound: true
+        default: false
+        }
+    }
+
     /// Wraps an arbitrary error into a `CalendarAPIError`, passing through if already one.
     /// Maps `GmailAPIError.tokenRevoked` and `GmailAPIError.unauthorized` for cross-client delegation.
     static func wrap(_ error: Error) -> CalendarAPIError {

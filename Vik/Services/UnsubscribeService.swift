@@ -26,7 +26,7 @@ final class UnsubscribeService {
         UserDefaults.standard.set(set, forKey: key)
     }
 
-    nonisolated func clearAccount(_ accountID: String) {
+    func clearAccount(_ accountID: String) {
         UserDefaults.standard.removeObject(forKey: doneKey(for: accountID))
     }
 

@@ -16,15 +16,18 @@ Vik/                      # Main app
 ├── Models/                  # Data models (Email, GmailAccount, ComposeMode, OfflineAction, etc.)
 ├── Services/                # Business logic & API
 │   ├── Auth/                # OAuth & token management
-│   ├── Gmail/               # Gmail API clients
-│   └── Protocols/           # Service protocols for testability
+│   ├── Gmail/               # Gmail REST API clients
+│   ├── Calendar/            # Google Calendar API v3 — client, services, sync engine, offline queue
+│   └── Protocols/           # Service protocols (MessageFetching)
 ├── ViewModels/              # @Observable state management
-│   ├── AppCoordinator       # App-level state coordination
+│   ├── AppCoordinator       # App-level state coordination (mail + calendar modes)
 │   ├── MailboxViewModel     # Email list for account+folder
-│   ├── EmailDetailViewModel # Single email display
+│   ├── CalendarViewModel    # Calendar UI state + CRUD + reactive DB observation
+│   ├── EventDetailViewModel # Calendar event detail/edit + conflict resolution
+│   ├── EmailDetailViewModel # Single email display + calendar context detection
 │   ├── EmailSummaryViewModel # AI email summaries
 │   ├── ComposeViewModel     # Email composition
-│   ├── CommandPaletteViewModel # Command palette search/actions
+│   ├── CommandPaletteViewModel # Command palette search/actions (mail + calendar commands)
 │   ├── FiltersViewModel       # Gmail filters management
 │   ├── EmailActionCoordinator # Email action dispatch
 │   ├── PanelCoordinator     # Panel state management
@@ -34,10 +37,11 @@ Vik/                      # Main app
 │   ├── MailStore            # Account/folder state management
 │   └── ComposeModeInitializer # Compose mode helpers (structs)
 ├── Views/                   # SwiftUI components
-│   ├── Sidebar/             # Left panel
+│   ├── Sidebar/             # Left panel (mode switcher, mini-agenda widget)
 │   ├── EmailList/           # Middle panel
-│   ├── EmailDetail/         # Right panel
-│   ├── Common/              # Reusable components
+│   ├── EmailDetail/         # Right panel (calendar context card, enhanced invite RSVP)
+│   ├── Calendar/            # Calendar UI (week/day/agenda grids, event detail/editor, mini-month)
+│   ├── Common/              # Reusable components (command palette, keyboard shortcuts, quick actions)
 │   ├── Components/          # UI building blocks
 │   ├── Compose/             # Email composer
 │   ├── Attachments/         # Attachment handling
@@ -65,7 +69,12 @@ Views never call Services directly. ViewModels are the single bridge.
 - `TrackerBlockerService` — Strips tracking pixels/domains
 - `UndoActionManager` — Queued destructive actions with countdown
 - `BackgroundSyncer` — Actor for bulk API sync → DB writes
-- `FullSyncEngine` — Actor orchestrating all sync: initial full sync, incremental delta sync (History API), body pre-fetch, label refresh, contact refresh
+- `FullSyncEngine` — @MainActor class orchestrating email sync: initial full sync, incremental delta sync (History API), body pre-fetch, label refresh, contact refresh
+- `CalendarSyncEngine` — @MainActor class (peer to FullSyncEngine) for Google Calendar sync: adaptive polling (15-300s), syncToken incremental, 410 Gone recovery
+- `CalendarBackgroundSyncer` — Actor for bulk calendar DB writes (upsert events/calendars/attendees)
+- `CalendarOfflineActionQueue` — Queues calendar mutations when offline, replays on reconnect with etag conflict detection
+- `CalendarIntegrationService` — Cross-feature email↔calendar coordination (find events for invites, upcoming meetings with participants)
+- `CalendarEventService` / `CalendarListService` / `CalendarFreeBusyService` — Google Calendar API v3 services
 - `LabelSyncService` — Label sync with etag-based caching
 - `OfflineActionQueue` — Queues actions when offline, replays on reconnect
 - `NetworkMonitor` — Observes network reachability

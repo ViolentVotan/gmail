@@ -9,24 +9,7 @@ struct CalendarAgendaView: View {
     @Bindable var viewModel: CalendarViewModel
     let onSelectEvent: (CalendarEvent) -> Void
 
-    // MARK: - Computed data
-
-    /// 30-day window of dates with at least one event, starting from selectedDate.
-    private var groupedDays: [(date: Date, events: [CalendarEvent])] {
-        let calendar = Calendar.current
-        let start = calendar.startOfDay(for: viewModel.selectedDate)
-        return (0..<30).compactMap { offset -> (Date, [CalendarEvent])? in
-            guard let day = calendar.date(byAdding: .day, value: offset, to: start) else { return nil }
-            let dayEvents = viewModel.eventsForDay(day)
-                .sorted { lhs, rhs in
-                    // All-day events first, then by start time
-                    if lhs.isAllDay != rhs.isAllDay { return lhs.isAllDay }
-                    return lhs.startTime < rhs.startTime
-                }
-            guard !dayEvents.isEmpty else { return nil }
-            return (day, dayEvents)
-        }
-    }
+    @State private var groupedDays: [(date: Date, events: [CalendarEvent])] = []
 
     // MARK: - Body
 
@@ -52,6 +35,12 @@ struct CalendarAgendaView: View {
             .padding(.bottom, Spacing.xxl)
         }
         .animation(VikAnimation.contentSwitch, value: viewModel.selectedDate)
+        .task(id: viewModel.selectedDate) {
+            recomputeGroupedDays()
+        }
+        .onChange(of: viewModel.events) {
+            recomputeGroupedDays()
+        }
     }
 
     // MARK: - Section header
@@ -101,6 +90,22 @@ struct CalendarAgendaView: View {
     }
 
     // MARK: - Helpers
+
+    /// Recomputes the 30-day grouped event list from the ViewModel.
+    private func recomputeGroupedDays() {
+        let calendar = Calendar.current
+        let start = calendar.startOfDay(for: viewModel.selectedDate)
+        groupedDays = (0..<30).compactMap { offset -> (Date, [CalendarEvent])? in
+            guard let day = calendar.date(byAdding: .day, value: offset, to: start) else { return nil }
+            let dayEvents = viewModel.eventsForDay(day)
+                .sorted { lhs, rhs in
+                    if lhs.isAllDay != rhs.isAllDay { return lhs.isAllDay }
+                    return lhs.startTime < rhs.startTime
+                }
+            guard !dayEvents.isEmpty else { return nil }
+            return (day, dayEvents)
+        }
+    }
 
     private func relativeDayLabel(_ date: Date, isToday: Bool, isTomorrow: Bool) -> String {
         if isToday { return "Today" }
@@ -198,13 +203,21 @@ private struct AgendaEventRow: View {
         .onHover { isHovered = $0 }
     }
 
+    private static let timeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "h:mm"
+        return f
+    }()
+
+    private static let timeAmPmFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "h:mm a"
+        return f
+    }()
+
     private var timeString: String {
         if event.isAllDay { return "All day" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm"
-        let amPmFormatter = DateFormatter()
-        amPmFormatter.dateFormat = "h:mm a"
-        return "\(formatter.string(from: event.startTime)) – \(amPmFormatter.string(from: event.endTime))"
+        return "\(Self.timeFormatter.string(from: event.startTime)) – \(Self.timeAmPmFormatter.string(from: event.endTime))"
     }
 }
 

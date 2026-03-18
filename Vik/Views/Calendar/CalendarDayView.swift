@@ -192,12 +192,17 @@ struct CalendarDayView: View {
         return CGFloat(duration / 3600.0) * CalendarLayout.hourRowHeight
     }
 
+    private static let hourFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h a"
+        return formatter
+    }()
+
     private func hourLabel(_ hour: Int) -> String {
+        guard hour != 0 else { return "" }
         let components = DateComponents(hour: hour)
         guard let date = calendar.date(from: components) else { return "" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = hour == 0 ? "" : (hour < 12 ? "h a" : (hour == 12 ? "12 PM" : "h a"))
-        return formatter.string(from: date)
+        return Self.hourFormatter.string(from: date)
     }
 
     private func scrollToCurrentTime(proxy: ScrollViewProxy) {
@@ -288,15 +293,23 @@ private struct DayEventCardView: View {
         .onHover { isHovered = $0 }
     }
 
-    private var timeRangeString: String {
+    private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm"
-        let amPmFormatter = DateFormatter()
-        amPmFormatter.dateFormat = "h:mm a"
+        return formatter
+    }()
+
+    private static let timeAmPmFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "h:mm a"
+        return formatter
+    }()
+
+    private var timeRangeString: String {
         if event.isAllDay {
             return "All day"
         }
-        return "\(formatter.string(from: event.startTime)) – \(amPmFormatter.string(from: event.endTime))"
+        return "\(Self.timeFormatter.string(from: event.startTime)) – \(Self.timeAmPmFormatter.string(from: event.endTime))"
     }
 }
 

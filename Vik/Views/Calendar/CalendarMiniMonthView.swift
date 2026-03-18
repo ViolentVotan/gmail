@@ -130,10 +130,14 @@ struct CalendarMiniMonthView: View {
 
     // MARK: - Helpers
 
-    private var monthYearText: String {
+    private static let monthYearFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "MMMM yyyy"
-        return formatter.string(from: viewModel.selectedDate)
+        return formatter
+    }()
+
+    private var monthYearText: String {
+        Self.monthYearFormatter.string(from: viewModel.selectedDate)
     }
 
     private func dayTextColor(isToday: Bool, isSelected: Bool, isInMonth: Bool) -> some ShapeStyle {

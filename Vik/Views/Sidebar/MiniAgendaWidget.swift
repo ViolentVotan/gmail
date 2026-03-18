@@ -129,12 +129,21 @@ struct MiniAgendaWidget: View {
 
     // MARK: - Helpers
 
-    private func eventTimeText(_ event: CalendarEvent) -> String {
+    private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "h:mm"
-        let start = formatter.string(from: event.startTime)
+        return formatter
+    }()
+
+    private static let timeAmPmFormatter: DateFormatter = {
+        let formatter = DateFormatter()
         formatter.dateFormat = "h:mm a"
-        let end = formatter.string(from: event.endTime)
+        return formatter
+    }()
+
+    private func eventTimeText(_ event: CalendarEvent) -> String {
+        let start = Self.timeFormatter.string(from: event.startTime)
+        let end = Self.timeAmPmFormatter.string(from: event.endTime)
         return "\(start) – \(end)"
     }
 

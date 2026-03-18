@@ -238,16 +238,15 @@ struct MailDraftEntity {
         private static func parseRecipientString(_ jsonString: String?) -> [IntentPerson] {
             guard let jsonString, !jsonString.isEmpty,
                   let data = jsonString.data(using: .utf8),
-                  let pairs = try? JSONDecoder().decode([[String]].self, from: data) else {
+                  let addresses = try? JSONDecoder().decode([String].self, from: data) else {
                 return []
             }
-            return pairs.map { pair in
-                let email = pair.first ?? ""
-                let name = pair.count > 1 ? pair[1] : email
-                let handle = IntentPerson.Handle(emailAddress: email)
+            return addresses.map { raw in
+                let parsed = GmailDataTransformer.parseContactCore(raw)
+                let handle = IntentPerson.Handle(emailAddress: parsed.email)
                 return IntentPerson(
-                    identifier: .applicationDefined(email),
-                    name: .displayName(name),
+                    identifier: .applicationDefined(parsed.email),
+                    name: .displayName(parsed.name),
                     handle: handle
                 )
             }
@@ -392,13 +391,12 @@ struct MailMessageEntity: IndexedEntity {
     private static func parseRecipients(_ jsonString: String?) -> [IntentPerson] {
         guard let jsonString, !jsonString.isEmpty,
               let data = jsonString.data(using: .utf8),
-              let pairs = try? JSONDecoder().decode([[String]].self, from: data) else {
+              let addresses = try? JSONDecoder().decode([String].self, from: data) else {
             return []
         }
-        return pairs.map { pair in
-            let email = pair.first ?? ""
-            let name = pair.count > 1 ? pair[1] : email
-            return makePerson(email: email, name: name)
+        return addresses.map { raw in
+            let parsed = GmailDataTransformer.parseContactCore(raw)
+            return makePerson(email: parsed.email, name: parsed.name)
         }
     }
 }

@@ -272,18 +272,19 @@ struct ComposeView: View {
 
     // MARK: - Send
 
-    private func sendEmail() async {
+    /// Validates recipients/subject and populates `composeVM` fields from the compose form.
+    /// Returns `false` (with `sendError` set) when validation fails.
+    private func prepareForSend() -> Bool {
         guard !to.isEmpty else {
             sendError = "Please add at least one recipient."
-            return
+            return false
         }
         guard !subject.isEmpty else {
             sendError = "Please add a subject."
-            return
+            return false
         }
         sendError = nil
 
-        // Extract inline images from HTML (data: → cid:)
         let (processedHTML, images) = InlineImageProcessor.extractInlineImages(from: bodyHTML)
         composeVM.to             = to
         composeVM.cc             = cc
@@ -293,6 +294,11 @@ struct ComposeView: View {
         composeVM.isHTML         = true
         composeVM.inlineImages   = images + editorState.pendingInlineImages
         composeVM.attachmentURLs = attachments
+        return true
+    }
+
+    private func sendEmail() async {
+        guard prepareForSend() else { return }
         await composeVM.send()
         // send() returns immediately after scheduling the undo action.
         // Dismissal and error handling are driven by onChange(of: composeVM.isSent)
@@ -300,25 +306,7 @@ struct ComposeView: View {
     }
 
     private func scheduleEmail(at date: Date) async {
-        guard !to.isEmpty else {
-            sendError = "Please add at least one recipient."
-            return
-        }
-        guard !subject.isEmpty else {
-            sendError = "Please add a subject."
-            return
-        }
-        sendError = nil
-
-        let (processedHTML, images) = InlineImageProcessor.extractInlineImages(from: bodyHTML)
-        composeVM.to             = to
-        composeVM.cc             = cc
-        composeVM.bcc            = bcc
-        composeVM.subject        = subject
-        composeVM.body           = processedHTML
-        composeVM.isHTML         = true
-        composeVM.inlineImages   = images + editorState.pendingInlineImages
-        composeVM.attachmentURLs = attachments
+        guard prepareForSend() else { return }
         await composeVM.scheduleSend(at: date)
     }
 

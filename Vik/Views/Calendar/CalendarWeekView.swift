@@ -1,5 +1,4 @@
 import SwiftUI
-import Combine
 
 // MARK: - CalendarWeekView
 
@@ -11,8 +10,19 @@ struct CalendarWeekView: View {
     @State private var currentTime: Date = .now
     @State private var scrollProxy: ScrollViewProxy?
 
-    private let timer = Timer.publish(every: 60, on: .main, in: .common).autoconnect()
     private let hours = Array(0..<24)
+
+    private static let hourFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "h a"
+        return f
+    }()
+
+    private static let weekdayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE"
+        return f
+    }()
 
     var body: some View {
         GeometryReader { geo in
@@ -26,8 +36,11 @@ struct CalendarWeekView: View {
                 timeGrid(dayColumnWidth: dayColumnWidth)
             }
         }
-        .onReceive(timer) { time in
-            currentTime = time
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                currentTime = .now
+            }
         }
     }
 
@@ -36,11 +49,12 @@ struct CalendarWeekView: View {
     @ViewBuilder
     private func allDaySection(dayColumnWidth: CGFloat) -> some View {
         let week = weekDays
-        let hasAllDay = week.contains { day in
-            viewModel.eventsForDay(day).contains { $0.isAllDay }
+        let allDayByDay = week.map { day in
+            viewModel.eventsForDay(day).filter { $0.isAllDay }
         }
+        let maxCount = allDayByDay.map(\.count).max() ?? 0
 
-        if hasAllDay {
+        if maxCount > 0 {
             HStack(spacing: 0) {
                 // Time column spacer
                 Text("all-day")
@@ -50,8 +64,7 @@ struct CalendarWeekView: View {
                     .padding(.trailing, Spacing.xs)
 
                 // All-day chips per day
-                ForEach(week, id: \.self) { day in
-                    let allDayEvents = viewModel.eventsForDay(day).filter { $0.isAllDay }
+                ForEach(Array(allDayByDay.enumerated()), id: \.offset) { _, allDayEvents in
                     VStack(spacing: 2) {
                         ForEach(allDayEvents) { event in
                             allDayChip(event: event, width: dayColumnWidth)
@@ -61,7 +74,7 @@ struct CalendarWeekView: View {
                     .padding(.vertical, Spacing.xs)
                 }
             }
-            .frame(height: CGFloat(max(1, week.map { viewModel.eventsForDay($0).filter { $0.isAllDay }.count }.max() ?? 1)) * (CalendarLayout.allDayEventHeight + 2) + Spacing.sm)
+            .frame(height: CGFloat(max(1, maxCount)) * (CalendarLayout.allDayEventHeight + 2) + Spacing.sm)
         }
     }
 
@@ -294,9 +307,7 @@ struct CalendarWeekView: View {
     }
 
     private func weekdayAbbreviation(for date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEE"
-        return formatter.string(from: date).uppercased()
+        Self.weekdayFormatter.string(from: date).uppercased()
     }
 
     private func isWeekend(_ date: Date) -> Bool {
@@ -307,9 +318,7 @@ struct CalendarWeekView: View {
     private func hourLabel(for hour: Int) -> String {
         guard hour > 0 else { return "" }
         let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: .now) ?? .now
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h a"
-        return formatter.string(from: date)
+        return Self.hourFormatter.string(from: date)
     }
 
     private func yPosition(for date: Date) -> CGFloat {

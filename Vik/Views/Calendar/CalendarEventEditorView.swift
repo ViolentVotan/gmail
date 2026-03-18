@@ -587,7 +587,7 @@ private enum RecurrenceOption: String, CaseIterable, Identifiable {
         case .none: return "Does not repeat"
         case .daily: return "Daily"
         case .weekly:
-            let dayName = DateFormatter().weekdaySymbols[Calendar.current.component(.weekday, from: date) - 1]
+            let dayName = Calendar.current.weekdaySymbols[Calendar.current.component(.weekday, from: date) - 1]
             return "Weekly on \(dayName)"
         case .monthly: return "Monthly"
         case .custom: return "Custom..."

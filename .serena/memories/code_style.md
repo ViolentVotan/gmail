@@ -29,16 +29,16 @@ Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). Al
 
 ## Architecture (MVVM)
 - **Services**: Singletons via `static let shared` + `private init()`. `@MainActor` when touching UI state; `@concurrent` on I/O-bound methods. Dependency injection via initializer params for testability.
-- **ViewModels**: `@Observable @MainActor final class` — 13 VMs follow this pattern (incl. `MailStore`, `SyncProgressManager`, `FiltersViewModel`). No `@Published`, no `ObservableObject`. Properties are plain `var` tracked by `@Observable` macro.
+- **ViewModels**: `@Observable @MainActor final class` — 15 VMs follow this pattern (incl. `MailStore`, `SyncProgressManager`, `FiltersViewModel`, `CalendarViewModel`, `EventDetailViewModel`). No `@Published`, no `ObservableObject`. Properties are plain `var` tracked by `@Observable` macro.
 - **Views**: Pure SwiftUI rendering. No business logic. Access data via ViewModels only.
 - **Models**: Value types (struct). Never reference services.
 - **No exceptions**: All classes use `@Observable` — zero remaining `ObservableObject` conformances.
 
 ## SwiftUI Patterns
-- **`@Observable`** macro on all 13 VMs (incl. `MailStore`, `SyncProgressManager`), `AppearanceManager`, and services (`OfflineActionQueue`, `SubscriptionsStore`, `SnoozeMonitor`, `ToastManager`, `UndoActionManager`, `ScheduledSendStore`, `SnoozeStore`, `APILogger`, `ThumbnailCache`, `NetworkMonitor`, `PerAccountFileStore`)
+- **`@Observable`** macro on all 15 VMs (incl. `MailStore`, `SyncProgressManager`, `CalendarViewModel`, `EventDetailViewModel`), `AppearanceManager`, and services (`OfflineActionQueue`, `SubscriptionsStore`, `SnoozeMonitor`, `ToastManager`, `UndoActionManager`, `ScheduledSendStore`, `SnoozeStore`, `APILogger`, `ThumbnailCache`, `NetworkMonitor`, `PerAccountFileStore`)
 - **`@State`** for ViewModel ownership in views (not `@StateObject`)
 - **`@Bindable`** for child views needing two-way bindings to `@Observable` objects
-- **Theming**: `AppearanceManager` (`@Observable @MainActor final class`) owns light/dark preference; `DesignTokens.swift` provides static enums (`Spacing`, `ButtonSize`, `CornerRadius`, `VikAnimation`, `Typography`) and view modifiers (`elevation`, `destructiveActionStyle`, `floatingPanelStyle`, `glassOrMaterial`). Use standard `@Environment(\.colorScheme)` for light/dark — there is no custom theme environment key.
+- **Theming**: `AppearanceManager` (`@Observable @MainActor final class`) owns light/dark preference; `DesignTokens.swift` provides static enums (`Spacing`, `ButtonSize`, `CornerRadius`, `VikAnimation`, `Typography`, `CalendarColor`, `CalendarLayout`, `CalendarSemanticColor`) and view modifiers (`elevation`, `destructiveActionStyle`, `floatingPanelStyle`, `glassOrMaterial`). Use standard `@Environment(\.colorScheme)` for light/dark — there is no custom theme environment key.
 - No `@StateObject` or `@EnvironmentObject` anywhere — fully migrated away
 - `@State` for local view state, `@Binding` for parent-child communication
 - `.task { }` for async loading (auto-cancels on disappear)
@@ -49,14 +49,14 @@ Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). Al
 - `@MainActor` on all ViewModels and UI-touching services (explicit, not via `defaultIsolation`)
 - `@concurrent` on service methods that do network I/O (Gmail API calls, OAuth token refresh)
 - `NetworkMonitor.isReachable` (static, nonisolated, `Mutex<Bool>`) for connectivity checks in `@concurrent`/actor contexts — avoids MainActor hop. `NetworkMonitor.shared.isConnected` for UI-reactive `@Observable` tracking.
-- Typed throws: `throws(GmailAPIError)` on all Gmail service methods for precise error handling
+- Typed throws: `throws(GmailAPIError)` on Gmail services, `throws(CalendarAPIError)` on Calendar services — callers get exhaustive error handling
 - `async/await` throughout (no completion handlers)
 - Prefer structured concurrency: `async let` for fixed concurrent work, `TaskGroup`/`withThrowingTaskGroup` for dynamic parallel tasks
 - `Task { }` only for bridging sync → async (button actions, `.onAppear`); document why if unstructured
 - Avoid `@unchecked Sendable` — restructure to use actors or value types instead
 
 ## Error Handling
-- Typed throws (`throws(GmailAPIError)`) for Gmail API layer — callers get exhaustive error handling
+- Typed throws (`throws(GmailAPIError)` / `throws(CalendarAPIError)`) for API layers — callers get exhaustive error handling
 - `do/catch` for operations that need error recovery
 - `try?` when error details don't matter (fire-and-forget API calls)
 - No `Result` type (async/await handles it)
@@ -89,7 +89,8 @@ Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). Al
 ### Records
 - Pattern: `struct FooRecord: Codable, Identifiable, FetchableRecord, PersistableRecord` (omit `Identifiable` for join tables like `MessageLabelRecord` and single-row tables like `AccountSyncStateRecord`)
 - Column strategy on every record: `static let databaseColumnDecodingStrategy: DatabaseColumnDecodingStrategy = .convertFromSnakeCase` / `.convertToSnakeCase` — Swift camelCase properties map to snake_case columns
-- 7 record types: `MessageRecord`, `LabelRecord`, `MessageLabelRecord`, `AttachmentRecord`, `EmailTagRecord`, `ContactRecord`, `AccountSyncStateRecord`
+- 10 record types: `MessageRecord`, `LabelRecord`, `MessageLabelRecord`, `AttachmentRecord`, `EmailTagRecord`, `ContactRecord`, `AccountSyncStateRecord`, `CalendarRecord`, `CalendarEventRecord`, `CalendarAttendeeRecord`
+- Calendar records use composite primary keys `(calendarId, accountId)` / `(eventId, calendarId, accountId)` — Google IDs are not globally unique
 - `databaseTableName` is set explicitly on every record (e.g. `"messages"`, `"labels"`, `"message_labels"`)
 
 ### Associations
@@ -99,7 +100,7 @@ Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). Al
 
 ### Migrations
 - `MailDatabaseMigrations` is a case-less enum with `static var migrator: DatabaseMigrator`
-- `#if DEBUG migrator.eraseDatabaseOnSchemaChange = true #endif` for dev convenience
+- `eraseDatabaseOnSchemaChange` is **not used** — database is preserved across schema changes in all builds. Use Settings → Advanced → "Delete Local Database" to reset during development
 - Each migration is a private static method (e.g. `registerV1`) called from the migrator property
 - Schema uses explicit column types (`.text`, `.integer`, `.boolean`, `.double`), `notNull()`, `defaults(to:)`, and explicit indexes
 - Foreign keys declared inline: `.references("messages", column: "gmail_id", onDelete: .cascade)`
@@ -112,9 +113,10 @@ Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). Al
 - `gmail_id` column marked `UNINDEXED` (used for joining, not searching)
 
 ### Concurrency & Writes
-- `BackgroundSyncer` is an **actor** (not a class) for bulk database writes during sync (upsert messages, labels, contacts, delta sync)
+- `BackgroundSyncer` is an **actor** for bulk email database writes during sync (upsert messages, labels, contacts, delta sync)
+- `CalendarBackgroundSyncer` is an **actor** for bulk calendar database writes (upsert events, calendars, attendees)
 - Lightweight writes (star, read, archive) go directly through `dbPool.write` — no actor needed
-- `ValueObservation` in `MailboxViewModel` for reactive UI — observes DB changes, SwiftUI re-renders automatically
+- `ValueObservation` in `MailboxViewModel` and `CalendarViewModel` for reactive UI — observes DB changes, SwiftUI re-renders automatically
 - Use `dbPool.read` for reads; `dbPool.write` for writes — never hold database connections across `await`
 
 ## Performance

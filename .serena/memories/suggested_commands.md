@@ -1,8 +1,7 @@
 # Suggested Commands
 
 ## Build
-- XcodeBuildMCP for compilation verification (preferred)
-- `xcodebuild build -scheme Vik -destination 'platform=macOS'`
+- `xcodebuild -scheme Vik -configuration Debug build`
 
 ## Test
 - `xcodebuild test -scheme Vik -destination 'platform=macOS'`

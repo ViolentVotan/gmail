@@ -580,13 +580,21 @@ actor FullSyncEngine {
             if !trulyNewIDs.isEmpty {
                 // Fetch with "full" format directly to get headers + body in one call.
                 // This avoids a redundant re-fetch that doubles API quota for new messages.
-                await quota.waitForBudget(trulyNewIDs.count * 5)
-                let (fetched, failedNew) = try await api.getMessages(
-                    ids: trulyNewIDs, accountID: accountID, format: "full"
-                )
-                newMessages = fetched
-                if !failedNew.isEmpty {
-                    Self.logger.warning("Delta sync: \(failedNew.count) new message(s) failed to fetch, will retry on next sync")
+                // Reserve quota per chunk (50 IDs = 250 units) instead of all upfront,
+                // which would deadlock when trulyNewIDs.count * 5 exceeds budgetPerMinute.
+                let quotaChunkSize = 50
+                var failedNewCount = 0
+                for chunkStart in stride(from: 0, to: trulyNewIDs.count, by: quotaChunkSize) {
+                    let chunk = Array(trulyNewIDs[chunkStart..<min(chunkStart + quotaChunkSize, trulyNewIDs.count)])
+                    await quota.waitForBudget(chunk.count * 5)
+                    let (fetched, failed) = try await api.getMessages(
+                        ids: chunk, accountID: accountID, format: "full"
+                    )
+                    newMessages.append(contentsOf: fetched)
+                    failedNewCount += failed.count
+                }
+                if failedNewCount > 0 {
+                    Self.logger.warning("Delta sync: \(failedNewCount) new message(s) failed to fetch, will retry on next sync")
                 }
             }
 
@@ -595,13 +603,20 @@ actor FullSyncEngine {
             let toRefetch = labelChanges.subtracting(allDeleted).subtracting(Set(candidateIDs))
             var labelUpdates: [(gmailId: String, labelIds: [String])] = historyLabelUpdates
             if !toRefetch.isEmpty {
-                await quota.waitForBudget(toRefetch.count * 5)
-                let (refreshed, failedRefresh) = try await api.getMessages(
-                    ids: Array(toRefetch), accountID: accountID, format: "minimal"
-                )
-                labelUpdates += refreshed.map { (gmailId: $0.id, labelIds: $0.labelIds ?? []) }
-                if !failedRefresh.isEmpty {
-                    Self.logger.warning("Delta sync: \(failedRefresh.count) label-refresh message(s) failed to fetch")
+                let refetchIDs = Array(toRefetch)
+                let quotaChunkSize = 50
+                var failedRefreshCount = 0
+                for chunkStart in stride(from: 0, to: refetchIDs.count, by: quotaChunkSize) {
+                    let chunk = Array(refetchIDs[chunkStart..<min(chunkStart + quotaChunkSize, refetchIDs.count)])
+                    await quota.waitForBudget(chunk.count * 5)
+                    let (refreshed, failed) = try await api.getMessages(
+                        ids: chunk, accountID: accountID, format: "minimal"
+                    )
+                    labelUpdates += refreshed.map { (gmailId: $0.id, labelIds: $0.labelIds ?? []) }
+                    failedRefreshCount += failed.count
+                }
+                if failedRefreshCount > 0 {
+                    Self.logger.warning("Delta sync: \(failedRefreshCount) label-refresh message(s) failed to fetch")
                 }
             }
 

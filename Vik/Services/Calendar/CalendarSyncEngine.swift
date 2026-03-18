@@ -200,33 +200,45 @@ final class CalendarSyncEngine {
                 guard let syncToken = calendar.syncToken, !syncToken.isEmpty else { continue }
 
                 do {
-                    let response = try await eventService.syncEvents(
-                        calendarId: calendar.calendarId,
-                        accountID: accountID,
-                        syncToken: syncToken
-                    )
+                    var allCancelled: [CalendarAPIEvent] = []
+                    var allActive: [CalendarAPIEvent] = []
+                    var pageToken: String? = nil
+                    var finalSyncToken: String? = nil
 
-                    let cancelledEvents = (response.items ?? []).filter { $0.status == "cancelled" }
-                    let activeEvents = (response.items ?? []).filter { $0.status != "cancelled" }
+                    repeat {
+                        let response = try await eventService.syncEvents(
+                            calendarId: calendar.calendarId,
+                            accountID: accountID,
+                            syncToken: syncToken,
+                            pageToken: pageToken
+                        )
 
-                    if !cancelledEvents.isEmpty {
-                        let deleteIds = cancelledEvents.compactMap { event -> (eventId: String, calendarId: String, accountId: String)? in
+                        let items = response.items ?? []
+                        allCancelled.append(contentsOf: items.filter { $0.status == "cancelled" })
+                        allActive.append(contentsOf: items.filter { $0.status != "cancelled" })
+
+                        pageToken = response.nextPageToken
+                        if response.nextSyncToken != nil { finalSyncToken = response.nextSyncToken }
+                    } while pageToken != nil
+
+                    if !allCancelled.isEmpty {
+                        let deleteIds = allCancelled.compactMap { event -> (eventId: String, calendarId: String, accountId: String)? in
                             guard let id = event.id else { return nil }
                             return (eventId: id, calendarId: calendar.calendarId, accountId: accountID)
                         }
                         try await syncer.deleteEvents(deleteIds)
                     }
 
-                    if !activeEvents.isEmpty {
+                    if !allActive.isEmpty {
                         let (eventRecords, attendeeRecords) = Self.convertToRecords(
-                            events: activeEvents, calendarId: calendar.calendarId, accountId: accountID
+                            events: allActive, calendarId: calendar.calendarId, accountId: accountID
                         )
                         try await syncer.upsertEvents(eventRecords, attendees: attendeeRecords)
                     }
 
-                    if let newToken = response.nextSyncToken {
+                    if let finalSyncToken {
                         try await syncer.updateSyncToken(
-                            calendarId: calendar.calendarId, accountId: accountID, token: newToken
+                            calendarId: calendar.calendarId, accountId: accountID, token: finalSyncToken
                         )
                     }
                 } catch CalendarAPIError.gone {
@@ -386,19 +398,28 @@ final class CalendarSyncEngine {
 
     // MARK: - Date Parsing
 
+    private nonisolated(unsafe) static let iso8601WithFractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private nonisolated(unsafe) static let iso8601Standard: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
     /// Parses a `CalendarAPIDateTime` into a Unix timestamp.
     nonisolated private static func parseDateTime(_ dt: CalendarAPIDateTime) -> Double {
         if let dateTime = dt.dateTime {
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let date = formatter.date(from: dateTime) {
+            if let date = iso8601WithFractional.date(from: dateTime) {
                 return date.timeIntervalSince1970
             }
             // Retry without fractional seconds
-            formatter.formatOptions = [.withInternetDateTime]
-            return formatter.date(from: dateTime)?.timeIntervalSince1970 ?? Date().timeIntervalSince1970
+            return iso8601Standard.date(from: dateTime)?.timeIntervalSince1970 ?? Date().timeIntervalSince1970
         } else if let dateStr = dt.date {
-            // All-day event: "yyyy-MM-dd"
+            // All-day event: "yyyy-MM-dd" — timezone varies per event, so use a local formatter
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
             formatter.timeZone = TimeZone(identifier: dt.timeZone ?? "UTC")
@@ -410,11 +431,8 @@ final class CalendarSyncEngine {
     /// Parses an RFC3339 string into a Unix timestamp.
     nonisolated private static func parseRFC3339(_ str: String?) -> Double? {
         guard let str else { return nil }
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: str) { return date.timeIntervalSince1970 }
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter.date(from: str)?.timeIntervalSince1970
+        if let date = iso8601WithFractional.date(from: str) { return date.timeIntervalSince1970 }
+        return iso8601Standard.date(from: str)?.timeIntervalSince1970
     }
 
     /// Finds the response status for the self attendee.

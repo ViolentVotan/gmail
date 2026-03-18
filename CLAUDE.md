@@ -58,13 +58,13 @@ Vik/
 └── Utilities/          # Helpers
 ```
 
-**Patterns:** MVVM with coordinator navigation (`AppCoordinator`, `EmailActionCoordinator`). Per-account GRDB SQLite database (WAL mode) for email + calendar persistence; `BackgroundSyncer` actor writes email data, `CalendarBackgroundSyncer` actor writes calendar data, `ValueObservation` drives reactive UI. Dual-mode app: Mail (⌘1) and Calendar (⌘2), switchable via sidebar segmented control. `CalendarSyncEngine` (peer to `FullSyncEngine`, both owned by `AppCoordinator`) handles calendar sync with adaptive polling. `SyncProgressManager` (@Observable, environment-injected) drives an always-visible interactive liquid glass bubble at the sidebar bottom — tappable to trigger manual sync, with linger timers for success/error states, reset on account switch.
+**Patterns:** MVVM with coordinators (`AppCoordinator`, `EmailActionCoordinator`). Dual-mode app: Mail (⌘1) and Calendar (⌘2), switchable via sidebar segmented control. `AppCoordinator` owns both `FullSyncEngine` (email) and `CalendarSyncEngine` (calendar) with adaptive polling. `CalendarBackgroundSyncer` actor handles calendar DB writes (peer to email's `BackgroundSyncer`). `SyncProgressManager` (@Observable, environment-injected) drives an always-visible interactive liquid glass bubble at the sidebar bottom — tappable to trigger manual sync, with linger timers for success/error states, reset on account switch.
 
 **Path-scoped rules** (`.claude/rules/`): `_code-style.md` (Swift conventions, auto-synced from Serena `code_style` memory), `database.md` (Database layer), `testing.md` (tests), `safety.md` (CI/config safety).
 
 ## LSP Tool Routing
 
-This project has the `swift-lsp` Claude Code plugin enabled alongside Serena (see global CLAUDE.md § Serena for the full routing table). The Claude Code `LSP` tool adds these capabilities Serena lacks:
+The Claude Code `LSP` tool (via the `swift-lsp` plugin) supplements Serena with capabilities it lacks:
 
 | Task | Tool | Why |
 |------|------|-----|
