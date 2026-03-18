@@ -33,7 +33,16 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             actions: [replyAction, archiveAction, markReadAction],
             intentIdentifiers: []
         )
-        center.setNotificationCategories([emailCategory])
+
+        let joinAction = UNNotificationAction(identifier: "JOIN_MEETING", title: "Join Meeting", options: [.foreground])
+        let snoozeAction = UNNotificationAction(identifier: "SNOOZE_5MIN", title: "Snooze 5 min")
+        let calendarCategory = UNNotificationCategory(
+            identifier: "CALENDAR_REMINDER",
+            actions: [joinAction, snoozeAction],
+            intentIdentifiers: []
+        )
+
+        center.setNotificationCategories([emailCategory, calendarCategory])
 
         Task {
             let granted = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
@@ -94,6 +103,87 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         badgeTask = Task { await MailboxViewModel.updateDockBadge() }
     }
 
+    // MARK: - Calendar Notifications
+
+    /// Removes stale calendar reminder notifications and schedules fresh ones for upcoming events.
+    func scheduleCalendarReminders(events: [CalendarEvent]) {
+        guard UserDefaults.standard.bool(forKey: UserDefaultsKey.notificationsEnabled) else { return }
+
+        let center = UNUserNotificationCenter.current()
+        let now = Date()
+
+        // Remove all previously scheduled calendar reminders before rescheduling.
+        center.getPendingNotificationRequests { requests in
+            let staleIds = requests
+                .map(\.identifier)
+                .filter { $0.hasPrefix("calendar-") }
+            center.removePendingNotificationRequests(withIdentifiers: staleIds)
+        }
+
+        let formatter = DateFormatter()
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+
+        for event in events {
+            guard !event.reminders.isEmpty else { continue }
+
+            for reminder in event.reminders {
+                let fireDate = event.startTime.addingTimeInterval(TimeInterval(-reminder.minutes * 60))
+                guard fireDate > now else { continue }
+
+                let content = UNMutableNotificationContent()
+                content.title = event.summary
+                var bodyParts = [formatter.string(from: event.startTime)]
+                if let location = event.location { bodyParts.append(location) }
+                content.body = bodyParts.joined(separator: " · ")
+                content.categoryIdentifier = "CALENDAR_REMINDER"
+                content.userInfo = [
+                    "eventId": event.googleEventId,
+                    "calendarId": event.calendarId,
+                    "accountID": event.accountID,
+                    "conferenceLink": event.conferenceLink?.absoluteString ?? ""
+                ]
+
+                let interval = fireDate.timeIntervalSinceNow
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
+                let identifier = "calendar-\(event.googleEventId)-\(reminder.minutes)"
+                let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
+                center.add(request)
+            }
+        }
+    }
+
+    /// Loads upcoming events from the database and reschedules all calendar reminder notifications.
+    /// Call this from `CalendarSyncEngine` after each sync completes.
+    func refreshCalendarReminders(db: MailDatabase, accountID: String) async {
+        guard UserDefaults.standard.bool(forKey: UserDefaultsKey.notificationsEnabled) else { return }
+
+        do {
+            let now = Date()
+            let windowEnd = now.addingTimeInterval(7 * 86400) // look-ahead: 7 days
+
+            let records = try await db.dbPool.read { database in
+                // Fetch all visible calendar IDs for this account, then query upcoming events.
+                let calendars = try MailDatabaseQueries.visibleCalendars(accountId: accountID, in: database)
+                let calendarIds = calendars.map(\.calendarId)
+                guard !calendarIds.isEmpty else { return [CalendarEventRecord]() }
+                return try MailDatabaseQueries.eventsForDateRange(
+                    accountId: accountID,
+                    calendarIds: calendarIds,
+                    start: now.timeIntervalSince1970,
+                    end: windowEnd.timeIntervalSince1970,
+                    in: database
+                )
+            }
+
+            // Convert records to domain events (no attendees needed for notifications).
+            let events = records.map { $0.toCalendarEvent(attendees: [], calendarColor: .blue) }
+            scheduleCalendarReminders(events: events)
+        } catch {
+            Self.logger.error("Failed to refresh calendar reminders: \(String(describing: error))")
+        }
+    }
+
     // MARK: - UNUserNotificationCenterDelegate
 
     nonisolated func userNotificationCenter(
@@ -105,6 +195,31 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         let userInfo = response.notification.request.content.userInfo
         let actionIdentifier = response.actionIdentifier
         let replyText = (response as? UNTextInputNotificationResponse)?.userText
+        let requestIdentifier = response.notification.request.identifier
+        let requestContent = response.notification.request.content
+
+        // Handle calendar reminder actions separately — they have no messageId.
+        if requestContent.categoryIdentifier == "CALENDAR_REMINDER" {
+            guard let accountID = userInfo["accountID"] as? String else { return }
+            switch actionIdentifier {
+            case "JOIN_MEETING":
+                if let linkString = userInfo["conferenceLink"] as? String,
+                   !linkString.isEmpty,
+                   let url = URL(string: linkString) {
+                    await MainActor.run { NSWorkspace.shared.open(url) }
+                }
+            case "SNOOZE_5MIN":
+                let snoozedContent = requestContent.mutableCopy() as! UNMutableNotificationContent
+                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5 * 60, repeats: false)
+                let snoozedId = requestIdentifier + "-snoozed"
+                let request = UNNotificationRequest(identifier: snoozedId, content: snoozedContent, trigger: trigger)
+                center.add(request)
+            default:
+                // Default tap — no-op for calendar notifications (could open calendar view in future).
+                break
+            }
+            return
+        }
 
         guard let messageId = userInfo["messageId"] as? String,
               let accountID = userInfo["accountID"] as? String else { return }
