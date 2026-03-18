@@ -94,9 +94,9 @@ struct EmailRowView: View, Equatable {
                 .font(Typography.microTag)
                 .padding(.horizontal, 4)
                 .padding(.vertical, 1)
-                .background(tagColor(color).opacity(OpacityToken.interactive))
+                .background(tagColor(color).opacity(OpacityToken.highlight), in: .capsule)
                 .foregroundStyle(tagColor(color))
-                .clipShape(RoundedRectangle(cornerRadius: CornerRadius.xs))
+                .glassEffect(.regular, in: .capsule)
         }
     }
 

@@ -25,6 +25,7 @@ struct EmailListView: View {
     @State private var lastUseDateSections = false
     @State private var isSearching = false
     @State private var scrollPosition = ScrollPosition(edge: .top)
+    @AppStorage("emailDensity") private var density = "comfortable"
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
@@ -84,7 +85,8 @@ struct EmailListView: View {
     var body: some View {
         VStack(spacing: 0) {
             headerSection
-            Divider().background(.separator)
+            Divider()
+                .padding(.horizontal, Spacing.xl)
             emailListSection
             hiddenButtons
         }
@@ -246,11 +248,16 @@ struct EmailListView: View {
                     description: Text("Your inbox is empty.")
                 )
             case .drafts:
-                ContentUnavailableView(
-                    "No Drafts",
-                    systemImage: "doc.text",
-                    description: Text("Drafts you create will appear here.")
-                )
+                ContentUnavailableView {
+                    Label("No Drafts", systemImage: "doc.text")
+                } description: {
+                    Text("Drafts you create will appear here.")
+                } actions: {
+                    if let onCompose = actions.onCompose {
+                        Button("Compose") { onCompose() }
+                            .buttonStyle(.bordered)
+                    }
+                }
             case .sent:
                 ContentUnavailableView(
                     "No Sent Emails",
@@ -273,7 +280,7 @@ struct EmailListView: View {
                 ContentUnavailableView(
                     "No Starred Emails",
                     systemImage: "star",
-                    description: Text("Star emails to find them here.")
+                    description: Text("Star emails to find them quickly.")
                 )
             case .archive:
                 ContentUnavailableView(
@@ -518,6 +525,7 @@ struct EmailListView: View {
         .onKeyPress(characters: CharacterSet(charactersIn: "u")) { _ in handleKeyU() }
         .onKeyPress(characters: CharacterSet(charactersIn: "r")) { _ in handleKeyR() }
         .scrollEdgeEffectStyle(.soft, for: .top)
+        .animation(VikAnimation.springDefault, value: density)
         .accessibilityRotor("Unread Emails") {
             ForEach(unreadEmails) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)

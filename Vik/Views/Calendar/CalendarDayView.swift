@@ -226,75 +226,78 @@ private struct DayEventCardView: View {
     let onSelect: (CalendarEvent) -> Void
 
     @State private var isHovered = false
+    @GestureState private var isPressed = false
 
     var body: some View {
-        Button {
-            onSelect(event)
-        } label: {
-            HStack(spacing: 0) {
-                // Left color bar
-                RoundedRectangle(cornerRadius: CalendarLayout.eventCardBorderWidth / 2)
-                    .fill(event.resolvedColor)
-                    .frame(width: CalendarLayout.eventCardBorderWidth)
+        HStack(spacing: 0) {
+            // Left color bar
+            RoundedRectangle(cornerRadius: CalendarLayout.eventCardBorderWidth / 2)
+                .fill(event.resolvedColor)
+                .frame(width: CalendarLayout.eventCardBorderWidth)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    // Title
-                    Text(event.summary)
-                        .font(Typography.captionSemibold)
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
+            VStack(alignment: .leading, spacing: 2) {
+                // Title
+                Text(event.summary)
+                    .font(Typography.captionSemibold)
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
 
-                    // Time range
-                    Text(timeRangeString)
+                // Time range
+                Text(timeRangeString)
+                    .font(Typography.captionSmallRegular)
+                    .foregroundStyle(.secondary)
+
+                // Description preview
+                if let description = event.description, !description.isEmpty {
+                    Text(description)
                         .font(Typography.captionSmallRegular)
                         .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
 
-                    // Description preview
-                    if let description = event.description, !description.isEmpty {
-                        Text(description)
-                            .font(Typography.captionSmallRegular)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                    }
-
-                    // Badges row
-                    if event.attendees.count > 0 || event.conferenceLink != nil {
-                        HStack(spacing: Spacing.sm) {
-                            if event.attendees.count > 0 {
-                                Label("\(event.attendees.count)", systemImage: "person.2")
-                                    .font(Typography.captionSmallRegular)
-                                    .foregroundStyle(.secondary)
-                            }
-                            if event.conferenceLink != nil {
-                                Image(systemName: "video")
-                                    .font(Typography.captionSmallRegular)
-                                    .foregroundStyle(.secondary)
-                            }
+                // Badges row
+                if event.attendees.count > 0 || event.conferenceLink != nil {
+                    HStack(spacing: Spacing.sm) {
+                        if event.attendees.count > 0 {
+                            Label("\(event.attendees.count)", systemImage: "person.2")
+                                .font(Typography.captionSmallRegular)
+                                .foregroundStyle(.secondary)
+                        }
+                        if event.conferenceLink != nil {
+                            Image(systemName: "video")
+                                .font(Typography.captionSmallRegular)
+                                .foregroundStyle(.secondary)
                         }
                     }
                 }
-                .padding(.horizontal, Spacing.xs)
-                .padding(.vertical, Spacing.xs)
-
-                Spacer(minLength: 0)
             }
-            .background(
-                event.resolvedColor.opacity(CalendarSemanticColor.eventCardBackgroundOpacity),
-                in: RoundedRectangle(cornerRadius: CornerRadius.xs)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: CornerRadius.xs)
-                    .strokeBorder(
-                        event.resolvedColor.opacity(isHovered ? 0.4 : 0.2),
-                        lineWidth: 0.5
-                    )
-            )
-            .scaleEffect(isHovered ? ScaleToken.hover : 1.0)
-            .animation(VikAnimation.springSnappy, value: isHovered)
+            .padding(.horizontal, Spacing.xs)
+            .padding(.vertical, Spacing.xs)
+
+            Spacer(minLength: 0)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(event.summary), \(timeRangeString)")
+        .background(
+            event.resolvedColor.opacity(CalendarSemanticColor.eventCardBackgroundOpacity),
+            in: RoundedRectangle(cornerRadius: CornerRadius.xs)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: CornerRadius.xs)
+                .strokeBorder(
+                    event.resolvedColor.opacity(isHovered ? 0.4 : 0.2),
+                    lineWidth: 0.5
+                )
+        )
+        .scaleEffect(isPressed ? ScaleToken.press : (isHovered ? ScaleToken.hover : 1.0))
+        .animation(VikAnimation.springSnappy, value: isPressed)
+        .animation(VikAnimation.springSnappy, value: isHovered)
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .updating($isPressed) { _, state, _ in state = true }
+                .onEnded { _ in onSelect(event) }
+        )
         .onHover { isHovered = $0 }
+        .accessibilityLabel("\(event.summary), \(timeRangeString)")
+        .accessibilityAddTraits(.isButton)
     }
 
     private static let timeFormatter: DateFormatter = {

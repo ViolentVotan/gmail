@@ -26,8 +26,8 @@ struct LabelChipView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 7)
-        .padding(.vertical, 3)
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, Spacing.xs)
         .background(chipColor.opacity(OpacityToken.highlight), in: .capsule)
         .glassEffect(.regular, in: .capsule)
     }

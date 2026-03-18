@@ -30,6 +30,8 @@ struct SidebarView: View {
     @State private var labelToDelete: GmailLabel?
     @State private var renameText = ""
     @State private var hoveredFolder: Folder?
+    @State private var dropTargetFolder: Folder?
+    @State private var dropTargetLabel: String?
     @State private var showLabelsPopover = false
 
     var body: some View {
@@ -394,7 +396,9 @@ struct SidebarView: View {
     }
 
     private func folderButton(folder: Folder) -> some View {
-        Button {
+        let isDropTarget = dropTargetFolder == folder
+
+        return Button {
             selectedFolder = folder
             selectedInboxCategory = folder == .inbox ? .all : nil
         } label: {
@@ -407,6 +411,16 @@ struct SidebarView: View {
         }
         .accessibilityLabel(folder.rawValue)
         .accessibilityAddTraits(selectedFolder == folder ? .isSelected : [])
+        .glassEffect(
+            isDropTarget ? .regular.interactive() : .identity,
+            in: .rect(cornerRadius: CornerRadius.sm)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: CornerRadius.sm)
+                .strokeBorder(Color.accentColor.opacity(isDropTarget ? 0.4 : 0), lineWidth: 1.5)
+        )
+        .scaleEffect(isDropTarget ? ScaleToken.rowHover : 1.0)
+        .animation(VikAnimation.springSnappy, value: isDropTarget)
         .dropDestination(for: EmailDragItem.self) { items, _ in
             for item in items {
                 for msgId in item.messageIds {
@@ -422,6 +436,8 @@ struct SidebarView: View {
                 }
             }
             return true
+        } isTargeted: { targeted in
+            dropTargetFolder = targeted ? folder : nil
         }
     }
 
@@ -440,6 +456,7 @@ struct SidebarView: View {
 
     private func labelButton(label: GmailLabel) -> some View {
         let isLabelSelected = selectedLabel?.id == label.id && selectedFolder == .labels
+        let isDropTarget = dropTargetLabel == label.id
         let labelColor = Color(hex: label.color?.backgroundColor ?? "#888888")
 
         return Button {
@@ -461,6 +478,16 @@ struct SidebarView: View {
         .fontWeight(isLabelSelected ? .medium : .regular)
         .accessibilityLabel(label.name)
         .accessibilityAddTraits(isLabelSelected ? .isSelected : [])
+        .glassEffect(
+            isDropTarget ? .regular.interactive() : .identity,
+            in: .rect(cornerRadius: CornerRadius.sm)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: CornerRadius.sm)
+                .strokeBorder(Color.accentColor.opacity(isDropTarget ? 0.4 : 0), lineWidth: 1.5)
+        )
+        .scaleEffect(isDropTarget ? ScaleToken.rowHover : 1.0)
+        .animation(VikAnimation.springSnappy, value: isDropTarget)
         .dropDestination(for: EmailDragItem.self) { items, _ in
             for item in items {
                 for msgId in item.messageIds {
@@ -468,6 +495,8 @@ struct SidebarView: View {
                 }
             }
             return true
+        } isTargeted: { targeted in
+            dropTargetLabel = targeted ? label.id : nil
         }
         .contextMenu {
             Button("Rename...") {

@@ -45,12 +45,12 @@ struct MiniAgendaWidget: View {
         Button(action: onShowCalendar) {
             HStack {
                 Text(headerTitle.uppercased())
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Typography.calendarEventTitle)
                     .foregroundStyle(.secondary)
                     .kerning(0.5)
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .medium))
+                    .font(Typography.calendarMiniWeekday)
                     .foregroundStyle(.tertiary)
             }
         }
@@ -77,19 +77,19 @@ struct MiniAgendaWidget: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(event.summary)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(Typography.calendarMiniEventTitle)
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .truncationMode(.tail)
 
                     if event.isAllDay {
                         Text("All day")
-                            .font(.system(size: 11))
+                            .font(Typography.calendarMiniEventTime)
                             .foregroundStyle(.secondary)
                     } else {
                         HStack(spacing: 4) {
                             Text(eventTimeText(event))
-                                .font(.system(size: 11))
+                                .font(Typography.calendarMiniEventTime)
                                 .foregroundStyle(.secondary)
 
                             if isHappeningNow(event) {
@@ -107,7 +107,7 @@ struct MiniAgendaWidget: View {
 
     private var nowBadge: some View {
         Text("Now")
-            .font(.system(size: 10, weight: .semibold))
+            .font(Typography.captionSmall)
             .foregroundStyle(.white)
             .padding(.horizontal, 5)
             .padding(.vertical, 1)
@@ -120,7 +120,7 @@ struct MiniAgendaWidget: View {
                 .font(.system(size: 14))
                 .foregroundStyle(.tertiary)
             Text("No events today")
-                .font(.system(size: 12))
+                .font(Typography.calendarAgendaTime)
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

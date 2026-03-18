@@ -52,7 +52,7 @@ struct CalendarInviteCardView: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             // Title
             HStack(spacing: 8) {
                 Image(systemName: "calendar")
@@ -155,7 +155,7 @@ struct CalendarInviteCardView: View {
                 Spacer()
 
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { showOriginalEmail.toggle() }
+                    withAnimation(VikAnimation.springSnappy) { showOriginalEmail.toggle() }
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: showOriginalEmail ? "chevron.up" : "chevron.down")

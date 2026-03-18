@@ -50,6 +50,8 @@ struct SnoozePickerView: View {
     @State private var showCustomPicker = false
     @State private var customDate = Date()
     @State private var presets = SnoozePreset.defaults()
+    @State private var hoveredPresetID: String?
+    @State private var isPickDateHovered = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -74,6 +76,8 @@ struct SnoozePickerView: View {
                     .padding(.vertical, 4)
                 }
                 .buttonStyle(.plain)
+                .glassEffect(hoveredPresetID == preset.id ? .regular.interactive() : .identity, in: .rect(cornerRadius: CornerRadius.sm))
+                .onHover { hoveredPresetID = $0 ? preset.id : nil }
             }
 
             Divider()
@@ -99,6 +103,8 @@ struct SnoozePickerView: View {
                         .padding(.vertical, 4)
                 }
                 .buttonStyle(.plain)
+                .glassEffect(isPickDateHovered ? .regular.interactive() : .identity, in: .rect(cornerRadius: CornerRadius.sm))
+                .onHover { isPickDateHovered = $0 }
             }
         }
         .frame(width: 260)

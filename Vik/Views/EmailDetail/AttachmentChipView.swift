@@ -62,7 +62,7 @@ struct AttachmentChipView: View {
             .buttonStyle(.plain)
             .help("Download")
             .opacity(isHovered ? 1 : 0)
-            .animation(.easeInOut(duration: 0.12), value: isHovered)
+            .animation(VikAnimation.springSnappy, value: isHovered)
             .onHover { isDownloadHovered = $0 }
             .padding(.trailing, 4)
         }

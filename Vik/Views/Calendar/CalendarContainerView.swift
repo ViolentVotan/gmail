@@ -13,6 +13,8 @@ struct CalendarContainerView: View {
     var onRSVP: (CalendarEvent, CalendarRSVPStatus) -> Void = { _, _ in }
     var onEmailAttendees: (CalendarEvent) -> Void = { _ in }
 
+    @State private var previousViewMode: CalendarViewMode = .week
+
     var body: some View {
         VStack(spacing: 0) {
             CalendarHeaderView(viewModel: viewModel, onNewEvent: onNewEvent)
@@ -26,7 +28,7 @@ struct CalendarContainerView: View {
                         onSelectEvent: onSelectEvent,
                         onCreateEvent: onCreateEvent
                     )
-                    .transition(.opacity)
+                    .transition(directionalTransition(for: .week))
 
                 case .day:
                     CalendarDayView(
@@ -34,19 +36,22 @@ struct CalendarContainerView: View {
                         onSelectEvent: onSelectEvent,
                         onCreateEvent: onCreateEvent
                     )
-                    .transition(.opacity)
+                    .transition(directionalTransition(for: .day))
 
                 case .agenda:
                     CalendarAgendaView(
                         viewModel: viewModel,
                         onSelectEvent: onSelectEvent
                     )
-                    .transition(.opacity)
+                    .transition(directionalTransition(for: .agenda))
                 }
             }
             .animation(VikAnimation.contentSwitch, value: viewModel.viewMode)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
+            .onChange(of: viewModel.viewMode) { old, _ in
+                previousViewMode = old
+            }
         }
         .accessibilityElement(children: .contain)
         .task {
@@ -63,6 +68,29 @@ struct CalendarContainerView: View {
             )
             .frame(minWidth: 420, maxWidth: 420, minHeight: 300, maxHeight: 600)
         }
+    }
+
+    // MARK: - Private
+
+    /// Maps each view mode to a positional index for directional comparison.
+    private func modeIndex(_ mode: CalendarViewMode) -> Int {
+        switch mode {
+        case .week:   0
+        case .day:    1
+        case .agenda: 2
+        }
+    }
+
+    /// Returns an asymmetric slide+fade transition based on the navigation direction.
+    /// Moving forward (week→day, day→agenda) slides left; backward slides right.
+    private func directionalTransition(for mode: CalendarViewMode) -> AnyTransition {
+        let isForward = modeIndex(mode) > modeIndex(previousViewMode)
+        let insertOffset: CGFloat = isForward ? OffsetToken.small : -OffsetToken.small
+        let removeOffset: CGFloat = isForward ? -OffsetToken.small : OffsetToken.small
+        return .asymmetric(
+            insertion: .opacity.combined(with: .offset(x: insertOffset)),
+            removal:   .opacity.combined(with: .offset(x: removeOffset))
+        )
     }
 }
 

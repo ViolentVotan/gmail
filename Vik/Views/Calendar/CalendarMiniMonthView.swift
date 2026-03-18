@@ -68,7 +68,7 @@ struct CalendarMiniMonthView: View {
         HStack(spacing: 0) {
             ForEach(daySymbols.indices, id: \.self) { index in
                 Text(daySymbols[index])
-                    .font(.system(size: 10, weight: .medium))
+                    .font(Typography.calendarMiniWeekday)
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity)
             }
@@ -120,7 +120,7 @@ struct CalendarMiniMonthView: View {
             }
         } label: {
             Text("\(calendar.component(.day, from: date))")
-                .font(.system(size: 11, weight: isToday ? .bold : .regular))
+                .font(isToday ? Typography.calendarMiniDay.bold() : Typography.calendarMiniDay)
                 .foregroundStyle(dayTextColor(isToday: isToday, isSelected: isSelected, isInMonth: isInCurrentMonth))
                 .frame(width: CalendarLayout.miniMonthDaySize, height: CalendarLayout.miniMonthDaySize)
                 .background(

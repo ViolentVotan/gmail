@@ -216,7 +216,7 @@ struct LabelEditorView: View {
             .frame(width: 220, height: Self.rowHeight * min(CGFloat(items.count), 5) + 8)
             .onChange(of: highlightedIndex) { _, _ in
                 if highlightedIndex < items.count {
-                    withAnimation(.easeOut(duration: 0.15)) {
+                    withAnimation(VikAnimation.springSnappy) {
                         proxy.scrollTo(items[highlightedIndex].id, anchor: .center)
                     }
                 }

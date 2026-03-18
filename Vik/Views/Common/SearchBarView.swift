@@ -32,8 +32,8 @@ struct SearchBarView: View {
                 .transition(.scale.combined(with: .opacity))
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
+        .padding(.horizontal, Spacing.md)
+        .padding(.vertical, Spacing.sm)
         .glassEffect(
             isFocused ? .regular.interactive() : .regular,
             in: .capsule

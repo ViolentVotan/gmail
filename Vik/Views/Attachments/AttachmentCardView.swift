@@ -121,7 +121,7 @@ struct AttachmentCardView: View {
         )
         .contentShape(Rectangle())
         .scaleEffect(isHovered ? ScaleToken.hover : 1.0)
-        .animation(.easeInOut(duration: 0.15), value: isHovered)
+        .animation(VikAnimation.springSnappy, value: isHovered)
     }
 
     // MARK: - Subviews

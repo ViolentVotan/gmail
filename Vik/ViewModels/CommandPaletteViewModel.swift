@@ -56,7 +56,9 @@ final class CommandPaletteViewModel {
     }
 
     func toggle() {
-        isVisible.toggle()
+        withAnimation(VikAnimation.springDefault) {
+            isVisible.toggle()
+        }
         if isVisible {
             query = ""
             selectedIndex = 0
@@ -64,7 +66,9 @@ final class CommandPaletteViewModel {
     }
 
     func dismiss() {
-        isVisible = false
+        withAnimation(VikAnimation.springDefault) {
+            isVisible = false
+        }
         query = ""
     }
 

@@ -14,6 +14,8 @@ struct BulkActionBarView: View {
     @ScaledMetric(relativeTo: .title3) private var tileWidth: CGFloat = 64
     @ScaledMetric(relativeTo: .title3) private var tileHeight: CGFloat = 56
 
+    @State private var showDeleteConfirmation = false
+
     var body: some View {
         VStack(spacing: Spacing.xl) {
             Spacer()
@@ -54,7 +56,13 @@ struct BulkActionBarView: View {
                 actionButton(icon: "archivebox", label: "Archive", action: onArchive)
             }
             if selectedFolder != .trash {
-                actionButton(icon: "trash", label: "Delete", action: onDelete, destructive: true)
+                actionButton(icon: "trash", label: "Delete", action: { showDeleteConfirmation = true }, destructive: true)
+                    .alert("Delete \(count) email\(count == 1 ? "" : "s")?", isPresented: $showDeleteConfirmation) {
+                        Button("Delete", role: .destructive) { onDelete() }
+                        Button("Cancel", role: .cancel) { }
+                    } message: {
+                        Text("This will move the selected emails to Trash.")
+                    }
             }
             actionButton(icon: "envelope.badge", label: "Unread", action: onMarkUnread)
             actionButton(icon: "envelope.open", label: "Read", action: onMarkRead)

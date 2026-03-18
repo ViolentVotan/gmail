@@ -146,7 +146,7 @@ struct AutocompleteTextField: View {
             .frame(width: 300, height: Self.rowHeight * min(CGFloat(suggestions.count), 5) + 8)
             .onChange(of: highlightedIndex) { _, _ in
                 if highlightedIndex < suggestions.count {
-                    withAnimation(.easeOut(duration: 0.15)) {
+                    withAnimation(VikAnimation.springSnappy) {
                         proxy.scrollTo(suggestions[highlightedIndex].id, anchor: .center)
                     }
                 }

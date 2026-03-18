@@ -51,6 +51,7 @@ struct AccountAvatarBubble: View {
             }
             .frame(width: size, height: size)
             .clipShape(Circle())
+            .glassEffect(.regular, in: .circle)
             .drawingGroup(opaque: false)
         }
         .buttonStyle(.plain)

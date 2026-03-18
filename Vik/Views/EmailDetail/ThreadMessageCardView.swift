@@ -109,7 +109,7 @@ struct ThreadMessageCardView: View {
             if isExpanded {
                 expandedContent
                     .clipped()
-                    .transition(.opacity.animation(VikAnimation.springSnappy))
+                    .transition(.opacity.animation(VikAnimation.springSnappy.delay(0.05)))
             }
 
             if !isLast {
@@ -129,7 +129,7 @@ struct ThreadMessageCardView: View {
                     .foregroundStyle(Color.accentColor)
             }
         }
-        .animation(VikAnimation.springSnappy, value: isExpanded)
+        .animation(VikAnimation.springDefault, value: isExpanded)
         .accessibilityElement(children: .combine)
         .accessibilityLabel({
             let senderName = isSentByMe ? "Me" : sender.name

@@ -48,9 +48,9 @@ struct InsightCardView: View {
                                     .font(Typography.captionSmallMedium)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
-                                    .background(sentimentColor(sentiment).opacity(OpacityToken.interactive))
+                                    .background(sentimentColor(sentiment).opacity(OpacityToken.highlight), in: .capsule)
                                     .foregroundStyle(sentimentColor(sentiment))
-                                    .clipShape(Capsule())
+                                    .glassEffect(.regular, in: .capsule)
                             }
                             Spacer()
                         }

@@ -7,9 +7,16 @@ struct CommandPaletteView: View {
         VStack(spacing: 0) {
             searchField
             Divider()
+                .padding(.horizontal, Spacing.xl)
             commandList
         }
         .accessibilityLabel("Command palette")
+        .transition(
+            .asymmetric(
+                insertion: .opacity.combined(with: .scale(scale: ScaleToken.enterFrom)),
+                removal: .opacity.combined(with: .scale(scale: ScaleToken.enterFrom))
+            )
+        )
         .frame(width: 500)
         .frame(maxHeight: 400)
         .floatingPanelStyle(cornerRadius: CornerRadius.md)

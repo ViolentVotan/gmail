@@ -23,6 +23,7 @@ struct EmailDetailView: View {
     @State private var showConversation = false
     @State private var calendarContextDismissed = false
     @AppStorage("aiLabelSuggestions") private var aiLabelSuggestionsEnabled = true
+    @Environment(\.colorScheme) private var colorScheme
 
     /// Best available unsubscribe URL: header-based (from full thread) or body-scanned.
     private var resolvedUnsubscribeURL: URL? {
@@ -92,6 +93,28 @@ struct EmailDetailView: View {
                                 .opacity(showMetadata ? OpacityToken.divider : 0)
 
                             conversationCards
+                                .overlay(alignment: .top) {
+                                    if colorScheme == .dark {
+                                        LinearGradient(
+                                            colors: [Color(nsColor: .windowBackgroundColor).opacity(0.3), .clear],
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                        .frame(height: 16)
+                                        .allowsHitTesting(false)
+                                    }
+                                }
+                                .overlay(alignment: .bottom) {
+                                    if colorScheme == .dark {
+                                        LinearGradient(
+                                            colors: [.clear, Color(nsColor: .windowBackgroundColor).opacity(0.3)],
+                                            startPoint: .top,
+                                            endPoint: .bottom
+                                        )
+                                        .frame(height: 16)
+                                        .allowsHitTesting(false)
+                                    }
+                                }
                                 .opacity(showConversation ? 1 : 0)
                                 .offset(y: showConversation ? 0 : OffsetToken.small)
                         }

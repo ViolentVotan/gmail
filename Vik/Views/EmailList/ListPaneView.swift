@@ -69,9 +69,13 @@ struct ListPaneView: View {
                 Divider()
             }
             emailList(priorityFilterOn: $vm.priorityFilterEnabled)
+                .id("\(selectedFolder.rawValue)-\(selectedCategory.rawValue)")
+                .transition(.asymmetric(
+                    insertion: .opacity,
+                    removal: .opacity.combined(with: .offset(y: -OffsetToken.nudge))
+                ))
                 .animation(VikAnimation.contentSwitch, value: selectedCategory)
                 .animation(VikAnimation.folderSwitch, value: selectedFolder)
-                .contentTransition(.opacity)
         }
         .navigationSplitViewColumnWidth(min: 300, ideal: 380, max: 480)
         .navigationTitle(navigationTitleText)
@@ -129,6 +133,7 @@ struct ListPaneView: View {
                         emptySpamRequested(count)
                     }
                 },
+                onCompose: { startCompose(.new) },
                 onSearch: { query in
                     if query.isEmpty {
                         Task { await loadCurrentFolder() }

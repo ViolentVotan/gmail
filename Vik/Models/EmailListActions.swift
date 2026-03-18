@@ -33,6 +33,10 @@ struct EmailListActions {
     var onEmptyTrash: (() -> Void)?
     var onEmptySpam: (() -> Void)?
 
+    // MARK: - Compose
+
+    var onCompose: (() -> Void)?
+
     // MARK: - Data loading
 
     var onSearch: (String) -> Void = { _ in }

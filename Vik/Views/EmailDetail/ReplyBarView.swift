@@ -35,6 +35,7 @@ struct ReplyBarView: View {
     @State private var showCc = false
     @State private var showBcc = false
     @State private var cachedStrippedText = ""
+    @State private var isEditorFocused = false
     @Namespace private var replyBarNamespace
     init(
         email: Email,
@@ -220,23 +221,25 @@ struct ReplyBarView: View {
 
                 if showCc {
                     AutocompleteTextField(label: "Cc", placeholder: "Cc recipients", text: $replyCc, contacts: contacts)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                     Divider().padding(.horizontal, Spacing.lg)
                 }
 
                 if showBcc {
                     AutocompleteTextField(label: "Bcc", placeholder: "Bcc recipients", text: $replyBcc, contacts: contacts)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                     Divider().padding(.horizontal, Spacing.lg)
                 }
 
                 HStack(spacing: 8) {
                     Spacer()
-                    Button { withAnimation { showCc.toggle() } } label: {
+                    Button { withAnimation(VikAnimation.springSnappy) { showCc.toggle() } } label: {
                         Text("Cc")
                             .font(Typography.caption)
                             .foregroundStyle(showCc ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
                     }
                     .buttonStyle(.plain)
-                    Button { withAnimation { showBcc.toggle() } } label: {
+                    Button { withAnimation(VikAnimation.springSnappy) { showBcc.toggle() } } label: {
                         Text("Bcc")
                             .font(Typography.caption)
                             .foregroundStyle(showBcc ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
@@ -259,9 +262,16 @@ struct ReplyBarView: View {
                 onOpenLink: onOpenLink
             )
             .frame(minHeight: 120, maxHeight: 200)
+            .overlay(
+                RoundedRectangle(cornerRadius: CornerRadius.sm)
+                    .strokeBorder(Color.accentColor.opacity(isEditorFocused ? 0.3 : 0), lineWidth: 1)
+            )
+            .animation(VikAnimation.springSnappy, value: isEditorFocused)
             .padding(.horizontal, Spacing.lg)
             .padding(.top, Spacing.lg)
             .padding(.bottom, Spacing.sm)
+            .onAppear { isEditorFocused = true }
+            .onDisappear { isEditorFocused = false }
 
             AttachmentChipRow(attachments: $attachments)
 

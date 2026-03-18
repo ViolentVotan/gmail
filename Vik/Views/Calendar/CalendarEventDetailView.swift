@@ -56,7 +56,7 @@ struct CalendarEventDetailView: View {
                 .frame(width: 10, height: 10)
 
             Text(event.summary)
-                .font(.system(size: 18, weight: .semibold))
+                .font(Typography.calendarDetailTitle)
                 .foregroundStyle(.primary)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -194,7 +194,7 @@ struct CalendarEventDetailView: View {
                             .foregroundStyle(.primary)
                     }
                     Text(organizer.email)
-                        .font(.system(size: 12))
+                        .font(Typography.calendarAgendaTime)
                         .foregroundStyle(.secondary)
                 }
             }
@@ -349,7 +349,7 @@ struct CalendarEventDetailView: View {
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Typography.calendarEventTitle)
                 Text(label)
                     .font(Typography.captionSemibold)
             }
@@ -381,7 +381,7 @@ private struct AttendeeRowView: View {
         HStack(spacing: Spacing.sm) {
             // Response status badge
             Image(systemName: statusIcon)
-                .font(.system(size: 11, weight: .semibold))
+                .font(Typography.calendarEventTitle)
                 .foregroundStyle(statusColor)
                 .frame(width: 14)
 
@@ -393,7 +393,7 @@ private struct AttendeeRowView: View {
                         .lineLimit(1)
                 }
                 Text(attendee.email)
-                    .font(.system(size: 11))
+                    .font(Typography.calendarMiniEventTime)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -455,7 +455,7 @@ private struct ActionBarButton: View {
         Button(action: action) {
             HStack(spacing: 4) {
                 Image(systemName: icon)
-                    .font(.system(size: 12))
+                    .font(Typography.calendarAgendaTime)
                 Text(label)
                     .font(Typography.caption)
             }

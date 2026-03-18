@@ -214,6 +214,26 @@ enum Typography {
 
     // Micro — AI classification tags, tiny badges
     static let microTag: Font = .system(size: 10, weight: .medium)
+
+    // Calendar-specific
+    /// Event card title — compact semibold label inside timed event chips.
+    static let calendarEventTitle: Font = .system(size: 11, weight: .semibold)
+    /// Event card time — small regular label inside compact timed event chips.
+    static let calendarEventTime: Font = .system(size: 9, weight: .regular)
+    /// Detail popover title — prominent semibold heading in CalendarEventDetailView.
+    static let calendarDetailTitle: Font = .system(size: 18, weight: .semibold)
+    /// Agenda event title — semibold label for event rows in the agenda list.
+    static let calendarAgendaTitle: Font = .system(size: 14, weight: .semibold)
+    /// Agenda time / metadata — small regular label for time strings and metadata chips.
+    static let calendarAgendaTime: Font = .system(size: 12, weight: .regular)
+    /// Mini month day cell — regular weight digit label for non-today cells.
+    static let calendarMiniDay: Font = .system(size: 11, weight: .regular)
+    /// Mini month weekday header — uppercase single-letter column headers.
+    static let calendarMiniWeekday: Font = .system(size: 10, weight: .medium)
+    /// Mini agenda widget event title — medium weight event name in sidebar widget.
+    static let calendarMiniEventTitle: Font = .system(size: 12, weight: .medium)
+    /// Mini agenda widget time — small regular time string in sidebar widget.
+    static let calendarMiniEventTime: Font = .system(size: 11, weight: .regular)
 }
 
 // MARK: - Elevation

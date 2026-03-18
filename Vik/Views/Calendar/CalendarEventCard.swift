@@ -8,6 +8,7 @@ struct CalendarEventCard: View {
     let onSelect: (CalendarEvent) -> Void
 
     @State private var isHovered = false
+    @GestureState private var isPressed = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -19,13 +20,13 @@ struct CalendarEventCard: View {
             // Content
             VStack(alignment: .leading, spacing: 1) {
                 Text(event.summary)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Typography.calendarEventTitle)
                     .foregroundStyle(.primary)
                     .lineLimit(height > 36 ? 2 : 1)
 
                 if height > 28 {
                     Text(timeRangeText)
-                        .font(.system(size: 9, weight: .regular))
+                        .font(Typography.calendarEventTime)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -43,15 +44,20 @@ struct CalendarEventCard: View {
             isHovered ? .regular.interactive() : .identity,
             in: .rect(cornerRadius: CornerRadius.sm)
         )
-        .scaleEffect(isHovered ? ScaleToken.rowHover : 1.0)
+        .scaleEffect(isPressed ? ScaleToken.press : (isHovered ? ScaleToken.rowHover : 1.0))
         .shadow(
             color: isHovered ? event.resolvedColor.opacity(0.2) : .clear,
             radius: isHovered ? 4 : 0,
             y: isHovered ? 2 : 0
         )
+        .animation(VikAnimation.springSnappy, value: isPressed)
         .animation(VikAnimation.springDefault, value: isHovered)
+        .gesture(
+            DragGesture(minimumDistance: 0)
+                .updating($isPressed) { _, state, _ in state = true }
+                .onEnded { _ in onSelect(event) }
+        )
         .onHover { isHovered = $0 }
-        .onTapGesture { onSelect(event) }
         .accessibilityLabel("\(event.summary), \(timeRangeText)")
         .accessibilityAddTraits(.isButton)
     }

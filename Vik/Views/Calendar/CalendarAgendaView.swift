@@ -159,12 +159,12 @@ private struct AgendaEventRow: View {
                 VStack(alignment: .leading, spacing: 3) {
                     // Time
                     Text(timeString)
-                        .font(.system(size: 12))
+                        .font(Typography.calendarAgendaTime)
                         .foregroundStyle(.secondary)
 
                     // Title
                     Text(event.summary)
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Typography.calendarAgendaTitle)
                         .foregroundStyle(.primary)
                         .lineLimit(2)
 
@@ -172,18 +172,18 @@ private struct AgendaEventRow: View {
                     HStack(spacing: Spacing.md) {
                         if let location = event.location, !location.isEmpty {
                             Label(location, systemImage: "mappin")
-                                .font(.system(size: 12))
+                                .font(Typography.calendarAgendaTime)
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                         }
                         if event.attendees.count > 0 {
                             Label("\(event.attendees.count)", systemImage: "person.2")
-                                .font(.system(size: 12))
+                                .font(Typography.calendarAgendaTime)
                                 .foregroundStyle(.secondary)
                         }
                         if event.conferenceLink != nil {
                             Image(systemName: "video")
-                                .font(.system(size: 12))
+                                .font(Typography.calendarAgendaTime)
                                 .foregroundStyle(.secondary)
                         }
                     }

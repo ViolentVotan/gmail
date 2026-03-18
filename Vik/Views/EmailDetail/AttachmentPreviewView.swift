@@ -48,7 +48,7 @@ struct AttachmentPreviewView: View {
             if fileType == .image {
                 HStack(spacing: 4) {
                     Button {
-                        withAnimation(.easeInOut(duration: 0.15)) {
+                        withAnimation(VikAnimation.springSnappy) {
                             zoomScale = max(0.25, zoomScale - 0.25)
                         }
                     } label: {
@@ -67,7 +67,7 @@ struct AttachmentPreviewView: View {
                         .frame(minWidth: 36)
 
                     Button {
-                        withAnimation(.easeInOut(duration: 0.15)) {
+                        withAnimation(VikAnimation.springSnappy) {
                             zoomScale = min(4.0, zoomScale + 0.25)
                         }
                     } label: {
@@ -81,7 +81,7 @@ struct AttachmentPreviewView: View {
                     .help("Zoom in")
 
                     Button {
-                        withAnimation(.easeInOut(duration: 0.15)) { zoomScale = 1.0 }
+                        withAnimation(VikAnimation.springSnappy) { zoomScale = 1.0 }
                     } label: {
                         Image(systemName: "1.magnifyingglass")
                             .font(Typography.body)
@@ -153,7 +153,7 @@ struct AttachmentPreviewView: View {
                         .resizable()
                         .frame(width: displayW, height: displayH)
                         .padding(24)
-                        .animation(.easeInOut(duration: 0.15), value: zoomScale)
+                        .animation(VikAnimation.springSnappy, value: zoomScale)
                 } else {
                     corruptedFileView
                         .frame(width: geo.size.width, height: geo.size.height)
