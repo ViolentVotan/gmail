@@ -165,9 +165,9 @@ final class ThumbnailCache {
         let safeName = id.replacingOccurrences(of: "/", with: "_")
         let url = cacheDirectory.appendingPathComponent(safeName + ".jpg")
         let cacheDir = cacheDirectory
-        let task = Task {
+        let task = Task { [weak self] in
             await Self.writeThumbnail(image: image, url: url, cacheDir: cacheDir)
-            self.saveTasks.removeValue(forKey: id)
+            self?.saveTasks.removeValue(forKey: id)
         }
         saveTasks[id] = task
     }

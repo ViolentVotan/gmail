@@ -923,7 +923,7 @@ final class GmailAPIClient {
                 if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
                 if body.contains("domainPolicy") { throw .domainPolicy }
                 if body.contains("insufficientPermissions") {
-                    Task { @MainActor in self.postInsufficientPermissionsNotification(accountID: accountID) }
+                    await postInsufficientPermissionsNotification(accountID: accountID)
                     throw .insufficientPermissions
                 }
             }

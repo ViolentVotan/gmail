@@ -680,6 +680,9 @@ actor FullSyncEngine {
                 restartTask = Task { [weak self] in
                     guard let self else { return }
                     guard !Task.isCancelled else { return }
+                    // Yield to let any concurrent stop() complete before restarting
+                    try? await Task.sleep(for: .milliseconds(50))
+                    guard !Task.isCancelled else { return }
                     await self.start()
                 }
                 return false
