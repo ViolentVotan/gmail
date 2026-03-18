@@ -58,7 +58,7 @@ actor CalendarBackgroundSyncer {
     func upsertEvents(_ events: [CalendarEventRecord], attendees: [CalendarAttendeeRecord]) async throws {
         guard !events.isEmpty else { return }
         try await db.dbPool.write { db in
-            for var event in events {
+            for event in events {
                 try event.save(db, onConflict: .replace)
             }
 
@@ -75,7 +75,7 @@ actor CalendarBackgroundSyncer {
                     .deleteAll(db)
             }
 
-            for var attendee in attendees {
+            for attendee in attendees {
                 try attendee.save(db, onConflict: .replace)
             }
         }
