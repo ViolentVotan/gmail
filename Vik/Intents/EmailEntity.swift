@@ -1,6 +1,24 @@
 import AppIntents
 internal import GRDB
 
+/// Shared helper — decodes a JSON array of email addresses into IntentPerson values.
+private func parseRecipientPersons(_ jsonString: String?) -> [IntentPerson] {
+    guard let jsonString, !jsonString.isEmpty,
+          let data = jsonString.data(using: .utf8),
+          let addresses = try? JSONDecoder().decode([String].self, from: data) else {
+        return []
+    }
+    return addresses.map { raw in
+        let parsed = GmailDataTransformer.parseContactCore(raw)
+        let handle = IntentPerson.Handle(emailAddress: parsed.email)
+        return IntentPerson(
+            identifier: .applicationDefined(parsed.email),
+            name: .displayName(parsed.name),
+            handle: handle
+        )
+    }
+}
+
 // MARK: - Mail Account Entity
 
 @AppEntity(schema: .mail.account)
@@ -221,8 +239,8 @@ struct MailDraftEntity {
         }
 
         private static func makeDraftEntity(from record: MessageRecord, accountID: String) -> MailDraftEntity {
-            let toPersons = parseRecipientString(record.toRecipients)
-            let ccPersons = parseRecipientString(record.ccRecipients)
+            let toPersons = parseRecipientPersons(record.toRecipients)
+            let ccPersons = parseRecipientPersons(record.ccRecipients)
             // Use the Gmail draft ID for entity identity — the drafts/send API requires it.
             // Falls back to gmailId for pre-migration records that haven't been backfilled yet.
             return MailDraftEntity(
@@ -235,22 +253,6 @@ struct MailDraftEntity {
             )
         }
 
-        private static func parseRecipientString(_ jsonString: String?) -> [IntentPerson] {
-            guard let jsonString, !jsonString.isEmpty,
-                  let data = jsonString.data(using: .utf8),
-                  let addresses = try? JSONDecoder().decode([String].self, from: data) else {
-                return []
-            }
-            return addresses.map { raw in
-                let parsed = GmailDataTransformer.parseContactCore(raw)
-                let handle = IntentPerson.Handle(emailAddress: parsed.email)
-                return IntentPerson(
-                    identifier: .applicationDefined(parsed.email),
-                    name: .displayName(parsed.name),
-                    handle: handle
-                )
-            }
-        }
     }
 }
 
@@ -321,8 +323,8 @@ struct MailMessageEntity: IndexedEntity {
         let senderDisplayName = record.senderName ?? senderEmail
         self.sender = Self.makePerson(email: senderEmail, name: senderDisplayName)
 
-        self.to = Self.parseRecipients(record.toRecipients)
-        self.cc = Self.parseRecipients(record.ccRecipients)
+        self.to = parseRecipientPersons(record.toRecipients)
+        self.cc = parseRecipientPersons(record.ccRecipients)
         self.bcc = []
 
         if let snippet = record.snippet {
@@ -388,17 +390,6 @@ struct MailMessageEntity: IndexedEntity {
         )
     }
 
-    private static func parseRecipients(_ jsonString: String?) -> [IntentPerson] {
-        guard let jsonString, !jsonString.isEmpty,
-              let data = jsonString.data(using: .utf8),
-              let addresses = try? JSONDecoder().decode([String].self, from: data) else {
-            return []
-        }
-        return addresses.map { raw in
-            let parsed = GmailDataTransformer.parseContactCore(raw)
-            return makePerson(email: parsed.email, name: parsed.name)
-        }
-    }
 }
 
 // MARK: - Entity Query

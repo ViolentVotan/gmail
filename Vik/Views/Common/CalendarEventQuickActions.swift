@@ -11,7 +11,7 @@ enum CalendarEventQuickActions {
     @MainActor
     static func emailAttendees(event: CalendarEvent, composeAction: (ComposeMode) -> Void) {
         let recipients = event.attendees
-            .filter { !$0.isOrganizer || !event.organizer.map(\.isSelf).defaulted(false) }
+            .filter { !$0.isOrganizer || !(event.organizer?.isSelf ?? false) }
             .filter { $0.email != selfEmail(event: event) }
             .map(\.email)
 
@@ -49,18 +49,6 @@ enum CalendarEventQuickActions {
     static func shareEvent(event: CalendarEvent, composeAction: (ComposeMode) -> Void) {
         let body = eventBody(event: event)
         composeAction(.forward(subject: event.summary, quotedBody: body))
-    }
-
-    // MARK: - Schedule from recipients
-
-    /// Passes the email list upstream so a new calendar event editor can be
-    /// opened with those addresses pre-filled as attendees.
-    @MainActor
-    static func scheduleWithRecipients(
-        recipients: [String],
-        onCreateEvent: ([String]) -> Void
-    ) {
-        onCreateEvent(recipients)
     }
 
     // MARK: - Private helpers
@@ -106,10 +94,4 @@ enum CalendarEventQuickActions {
 
         return lines.joined(separator: "\n")
     }
-}
-
-// MARK: - Optional Bool helper
-
-private extension Optional where Wrapped == Bool {
-    func defaulted(_ fallback: Bool) -> Bool { self ?? fallback }
 }

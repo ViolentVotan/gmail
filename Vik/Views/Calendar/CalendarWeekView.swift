@@ -345,9 +345,9 @@ struct CalendarWeekView: View {
         timed.reserveCapacity(7)
         allDay.reserveCapacity(7)
         for day in days {
-            let dayEvents = viewModel.eventsForDay(day)
-            timed.append(dayEvents.filter { !$0.isAllDay })
-            allDay.append(dayEvents.filter { $0.isAllDay })
+            let (dayAllDay, dayTimed) = viewModel.eventsForDay(day).partitioned()
+            timed.append(dayTimed)
+            allDay.append(dayAllDay)
         }
         cachedTimedEventsByDay = timed
         cachedAllDayEventsByDay = allDay

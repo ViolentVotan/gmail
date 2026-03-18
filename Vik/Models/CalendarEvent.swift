@@ -238,3 +238,16 @@ private struct AttachmentJSON: Decodable {
     let mimeType: String?
     let iconLink: String?
 }
+
+extension Array where Element == CalendarEvent {
+    /// Single-pass partition into all-day and timed events.
+    func partitioned() -> (allDay: [CalendarEvent], timed: [CalendarEvent]) {
+        var allDay: [CalendarEvent] = []
+        var timed: [CalendarEvent] = []
+        for event in self {
+            if event.isAllDay { allDay.append(event) }
+            else { timed.append(event) }
+        }
+        return (allDay, timed)
+    }
+}

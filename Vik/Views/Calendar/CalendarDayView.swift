@@ -39,8 +39,9 @@ struct CalendarDayView: View {
 
     private func recomputeEvents() {
         let allEvents = viewModel.eventsForDay(viewModel.selectedDate)
-        cachedAllDayEvents = allEvents.filter(\.isAllDay)
-        cachedTimedEvents = allEvents.filter { !$0.isAllDay }
+        let (allDay, timed) = allEvents.partitioned()
+        cachedAllDayEvents = allDay
+        cachedTimedEvents = timed
     }
 
     // MARK: - All-day header

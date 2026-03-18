@@ -335,12 +335,6 @@ struct EmailListView: View {
         sortOrder == .dateNewest || sortOrder == .dateOldest
     }
 
-    private static let monthYearFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "MMMM yyyy"
-        return f
-    }()
-
     private static func buildSections(from emails: [Email]) -> [EmailDateSection] {
         var sections: [EmailDateSection] = []
         var currentTitle = ""
@@ -389,7 +383,7 @@ struct EmailListView: View {
             return "Last Week"
         }
 
-        return monthYearFormatter.string(from: date)
+        return date.formattedMonthYear
     }
 
     // MARK: - Email row builder

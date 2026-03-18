@@ -56,6 +56,12 @@ extension Date {
         return f
     }()
 
+    private static let monthYearFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMMM yyyy"
+        return f
+    }()
+
     // MARK: - Calendar formatters
 
     private static let calendarTimeFormatter: DateFormatter = {
@@ -135,5 +141,10 @@ extension Date {
     /// Calendar hour label: "2 PM".
     var formattedCalendarHour: String {
         Self.calendarHourFormatter.string(from: self)
+    }
+
+    /// Month and year: "March 2026".
+    var formattedMonthYear: String {
+        Self.monthYearFormatter.string(from: self)
     }
 }

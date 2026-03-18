@@ -128,9 +128,9 @@ struct MiniAgendaWidget: View {
     // MARK: - Helpers
 
     private func recomputeSortedEvents() {
-        let allDay = events.filter { $0.isAllDay }
-        let timed = events.filter { !$0.isAllDay }.sorted { $0.startTime < $1.startTime }
-        cachedSortedEvents = Array((allDay + timed).prefix(CalendarLayout.miniAgendaMaxEvents))
+        let (allDay, timed) = events.partitioned()
+        let sortedTimed = timed.sorted { $0.startTime < $1.startTime }
+        cachedSortedEvents = Array((allDay + sortedTimed).prefix(CalendarLayout.miniAgendaMaxEvents))
     }
 
     private func eventTimeText(_ event: CalendarEvent) -> String {

@@ -221,9 +221,7 @@ final class MailStore {
                     do {
                         try await GmailDraftService.shared.deleteDraft(draftID: gid, accountID: accountID)
                     } catch {
-                        await MainActor.run {
-                            ToastManager.shared.show(message: "Failed to delete draft from server", type: .error)
-                        }
+                        ToastManager.shared.show(message: "Failed to delete draft from server", type: .error)
                     }
                 }
             }
