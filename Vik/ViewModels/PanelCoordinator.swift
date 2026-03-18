@@ -98,6 +98,12 @@ final class PanelCoordinator {
     }
 
     func openInAppBrowser(url: URL) {
+        // Only load http/https in the in-app browser; pass other schemes
+        // (mailto:, tel:, maps:, etc.) to the system handler.
+        guard url.scheme == "http" || url.scheme == "https" else {
+            NSWorkspace.shared.open(url)
+            return
+        }
         webBrowserURL = url
         withAnimation(VikAnimation.springSnappy) {
             showWebBrowser = true
