@@ -1,6 +1,6 @@
 # Vik — Architecture Overview
 
-macOS Gmail client built with Swift/SwiftUI. `NavigationSplitView` 3-column layout (sidebar, email list, email detail) with Liquid Glass chrome.
+macOS Gmail client built with Swift/SwiftUI. `NavigationSplitView` 3-column layout (sidebar, email list, email detail) with Liquid Glass chrome. Dual-mode: Mail and Calendar, switchable via sidebar segmented control (⌘1/⌘2).
 
 ## Folder Structure
 
@@ -9,11 +9,13 @@ macOS Gmail client built with Swift/SwiftUI. `NavigationSplitView` 3-column layo
 | `Configuration/` | App-level config (API keys, scopes) |
 | `Database/` | GRDB SQLite persistence — per-account DatabasePool, record types, migrations, FTS5 |
 | `Models/` | Data models and local stores |
-| `Services/` | Network, auth, business logic, background sync |
+| `Services/` | Network, auth, business logic, background sync (Gmail + Calendar) |
+| `Services/Calendar/` | Google Calendar API v3 — client, services, sync engine, offline queue |
 | `Theme/` | Appearance management (system/light/dark) |
 | `Utilities/` | Pure helper functions (no state, no side effects); also `PerAccountFileStore` — a generic stateful per-account JSON persistence base |
 | `ViewModels/` | State management layer between Services and Views |
 | `Views/` | SwiftUI views (UI only) |
+| `Views/Calendar/` | Calendar UI — week/day/agenda grids, event detail/editor, mini-month |
 | `Resources/` | Assets, fonts, static files |
 
 ## Core Principles
@@ -45,3 +47,6 @@ macOS Gmail client built with Swift/SwiftUI. `NavigationSplitView` 3-column layo
 - **Rich text editor**: Custom undo stack, blockquote toggle, highlight color picker, font family picker, Cmd+K link popover, ARIA accessibility (`aria-live` formatting announcements via `editor.js`).
 - **Threading headers**: `Email.messageIDHeader`/`referencesHeader` + `GmailSendService.buildReferencesChain` ensure proper RFC 2822 In-Reply-To/References chains in replies.
 - **Resumable upload**: `GmailAPIClient.uploadResumable` for large message sends via Gmail's resumable upload protocol.
+- **Calendar sync**: `CalendarSyncEngine` polls Google Calendar API v3 with adaptive intervals (30s calendar-active, 60s mail-active, 300s background). Uses per-calendar `syncToken` for incremental changes; recovers from 410 Gone with full resync. Peer to `FullSyncEngine` (both owned by `AppCoordinator`).
+- **Calendar offline queue**: `CalendarOfflineActionQueue` queues calendar mutations (create/update/delete/RSVP) when offline with per-account JSON persistence. Drains on network restoration with etag-based conflict detection.
+- **Email↔Calendar integration**: 4 layers — (1) enhanced RSVP via Calendar API on email invites, (2) contextual "meeting with sender" cards, (3) mini-agenda sidebar widget, (4) smart actions (email attendees, schedule meeting, quick-add via ⌘K).

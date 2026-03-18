@@ -1,6 +1,6 @@
 # Vik — Native macOS Gmail Client
 
-Swift 6.2 / SwiftUI / macOS 26+ — a premium, native Gmail client with threading, tracker blocking, multi-account, Apple Intelligence (summaries, classification, smart replies, translation, notification priority, onscreen awareness, tool calling), snooze, schedule-send, offline queue, App Intents (AssistantSchemas mail domain), command palette, Gmail filters, and local notifications.
+Swift 6.2 / SwiftUI / macOS 26+ — a premium, native Gmail client with threading, tracker blocking, multi-account, Apple Intelligence (summaries, classification, smart replies, translation, notification priority, onscreen awareness, tool calling), snooze, schedule-send, offline queue, App Intents (AssistantSchemas mail domain), command palette, Gmail filters, local notifications, and **full Google Calendar integration** (week/day/agenda views, deep email↔calendar integration, offline queue with etag conflict resolution).
 
 ## Fork & Upstream
 
@@ -48,6 +48,8 @@ Vik/
 ├── Services/           # Business logic & API
 │   ├── Auth/           # OAuth & token management
 │   ├── Gmail/          # Gmail REST API clients (one per domain)
+│   ├── Calendar/       # Google Calendar API v3 — client, services, sync engine, offline queue
+│   ├── CalendarIntegrationService.swift  # Cross-feature email↔calendar coordination
 │   └── BackgroundSyncer.swift      # Actor for bulk API sync → DB writes
 ├── Intents/            # App Intents with AssistantSchemas mail domain (Shortcuts, Spotlight, Siri)
 ├── Theme/              # AppearanceManager, DesignTokens (spacing, corner radius, brand colors, haptics, shared modifiers)
@@ -56,7 +58,7 @@ Vik/
 └── Utilities/          # Helpers
 ```
 
-**Patterns:** MVVM with coordinator navigation (`AppCoordinator`, `EmailActionCoordinator`). Per-account GRDB SQLite database (WAL mode) for email persistence; `BackgroundSyncer` actor writes, `ValueObservation` drives reactive UI. `SyncProgressManager` (@Observable, environment-injected) drives an always-visible interactive liquid glass bubble at the sidebar bottom — tappable to trigger manual sync, with linger timers for success/error states, reset on account switch.
+**Patterns:** MVVM with coordinator navigation (`AppCoordinator`, `EmailActionCoordinator`). Per-account GRDB SQLite database (WAL mode) for email + calendar persistence; `BackgroundSyncer` actor writes email data, `CalendarBackgroundSyncer` actor writes calendar data, `ValueObservation` drives reactive UI. Dual-mode app: Mail (⌘1) and Calendar (⌘2), switchable via sidebar segmented control. `CalendarSyncEngine` (peer to `FullSyncEngine`, both owned by `AppCoordinator`) handles calendar sync with adaptive polling. `SyncProgressManager` (@Observable, environment-injected) drives an always-visible interactive liquid glass bubble at the sidebar bottom — tappable to trigger manual sync, with linger timers for success/error states, reset on account switch.
 
 **Path-scoped rules** (`.claude/rules/`): `_code-style.md` (Swift conventions, auto-synced from Serena `code_style` memory), `database.md` (Database layer), `testing.md` (tests), `safety.md` (CI/config safety).
 
