@@ -444,8 +444,8 @@ struct ComposeView: View {
     private func replaceSignature(for aliasEmail: String) {
         let isReplyOrForward: Bool
         switch mode {
-        case .new: isReplyOrForward = false
-        default:   isReplyOrForward = true
+        case .new, .newTo: isReplyOrForward = false
+        default:           isReplyOrForward = true
         }
         let preferredEmail = isReplyOrForward ? signatureForReply : signatureForNew
         let newSig = SignatureResolver.signatureHTMLForAlias(

@@ -428,7 +428,10 @@ struct EmailDetailView: View {
                                 ) else { return }
                                 saveAttachmentData(data, named: attachment.name)
                             }
-                        }
+                        },
+                        accountID: accountID,
+                        composeTo: { actions.onComposeTo?($0) },
+                        searchSender: { actions.onSearchSender?($0) }
                     )
                     .id(message.id)
                 }

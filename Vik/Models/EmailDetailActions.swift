@@ -40,6 +40,11 @@ struct EmailDetailActions {
     var checkUnsubscribed: ((String) -> Bool)?
     var extractBodyUnsubscribeURL: ((String) -> URL?)?
 
+    // MARK: - Contact Popover
+
+    var onComposeTo: ((String) -> Void)?
+    var onSearchSender: ((String) -> Void)?
+
     // MARK: - Calendar
 
     /// Called when the user taps the calendar context card to switch to Calendar mode.

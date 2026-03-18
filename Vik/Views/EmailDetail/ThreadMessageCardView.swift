@@ -11,11 +11,13 @@ struct ThreadMessageCardView: View {
     var attachmentPairs: [(Attachment, GmailMessagePart?)] = []
     var onPreviewAttachment: ((Attachment, GmailMessagePart) -> Void)?
     var onDownloadAttachment: ((Attachment, GmailMessagePart) -> Void)?
+    var accountID: String = ""
+    var composeTo: ((String) -> Void)?
+    var searchSender: ((String) -> Void)?
 
     @State private var showQuoted = false
     @State private var contentHeight: CGFloat = 60
     @State private var isHTMLLoaded = false
-    @State private var showSenderInfo = false
     @State private var isHovering = false
 
     private let sender: Contact
@@ -34,7 +36,10 @@ struct ThreadMessageCardView: View {
         onOpenLink: ((URL) -> Void)? = nil,
         attachmentPairs: [(Attachment, GmailMessagePart?)] = [],
         onPreviewAttachment: ((Attachment, GmailMessagePart) -> Void)? = nil,
-        onDownloadAttachment: ((Attachment, GmailMessagePart) -> Void)? = nil
+        onDownloadAttachment: ((Attachment, GmailMessagePart) -> Void)? = nil,
+        accountID: String = "",
+        composeTo: ((String) -> Void)? = nil,
+        searchSender: ((String) -> Void)? = nil
     ) {
         self.message = message
         self.isExpanded = isExpanded
@@ -46,6 +51,9 @@ struct ThreadMessageCardView: View {
         self.attachmentPairs = attachmentPairs
         self.onPreviewAttachment = onPreviewAttachment
         self.onDownloadAttachment = onDownloadAttachment
+        self.accountID = accountID
+        self.composeTo = composeTo
+        self.searchSender = searchSender
 
         let parsedSender = GmailDataTransformer.parseContact(message.from)
         self.sender = parsedSender
@@ -158,21 +166,31 @@ struct ThreadMessageCardView: View {
             }
             .frame(width: 6)
 
-            AvatarView(
-                initials: sender.initials,
-                color: sender.avatarColor,
-                size: 24,
-                avatarURL: sender.avatarURL,
-                senderDomain: sender.domain
+            HStack(spacing: 0) {
+                AvatarView(
+                    initials: sender.initials,
+                    color: sender.avatarColor,
+                    size: 24,
+                    avatarURL: sender.avatarURL,
+                    senderDomain: sender.domain
+                )
+
+                Text(isSentByMe ? "Me" : sender.name)
+                    .font(message.isUnread ? Typography.calloutSemibold : Typography.callout)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .padding(.leading, 8)
+            }
+            .contactPopover(
+                contact: sender,
+                message: message,
+                accountID: accountID,
+                composeTo: { composeTo?($0) },
+                searchSender: { searchSender?($0) }
             )
 
             VStack(alignment: .leading, spacing: isExpanded ? 2 : 0) {
                 HStack {
-                    Text(isSentByMe ? "Me" : sender.name)
-                        .font(message.isUnread ? Typography.calloutSemibold : Typography.callout)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-
                     if !isExpanded {
                         Text(snippetText)
                             .font(Typography.callout)
@@ -201,11 +219,13 @@ struct ThreadMessageCardView: View {
                         .font(Typography.captionRegular)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
-                        .onTapGesture { showSenderInfo.toggle() }
-                        .pointerStyle(.link)
-                        .popover(isPresented: $showSenderInfo, arrowEdge: .bottom) {
-                            SenderInfoPopover(message: message)
-                        }
+                        .contactPopover(
+                            contact: GmailDataTransformer.parseContact(message.to),
+                            message: message,
+                            accountID: accountID,
+                            composeTo: { composeTo?($0) },
+                            searchSender: { searchSender?($0) }
+                        )
                 }
             }
         }
@@ -300,6 +320,7 @@ extension ThreadMessageCardView: Equatable {
         lhs.fromAddress == rhs.fromAddress &&
         lhs.resolvedHTML == rhs.resolvedHTML &&
         lhs.isExpanded == rhs.isExpanded &&
-        lhs.isLast == rhs.isLast
+        lhs.isLast == rhs.isLast &&
+        lhs.accountID == rhs.accountID
     }
 }

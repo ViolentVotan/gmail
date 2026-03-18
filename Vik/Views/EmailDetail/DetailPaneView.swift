@@ -212,6 +212,10 @@ struct DetailPaneView: View {
         actions.onReplyAll = { mode in startCompose(mode) }
         actions.onForward = { mode in startCompose(mode) }
 
+        // Contact popover
+        actions.onComposeTo = { email in startCompose(.newTo(to: email)) }
+        actions.onSearchSender = { email in Task { await mailboxViewModel.search(query: "from:\(email)") } }
+
         // Email-specific content overrides
         actions.onMessagesRead = { messageIDs in Task { await mailboxViewModel.applyReadLocally(messageIDs) } }
 

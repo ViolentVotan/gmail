@@ -34,6 +34,14 @@ struct ComposeModeInitializer {
                 fields.bodyHTML = "<br><br>\(sig)"
             }
 
+        case .newTo(let to):
+            fields.to = to
+            let sig = SignatureResolver.resolveHTML(preferredEmail: signatureForNew, aliases: aliases)
+            if !sig.isEmpty {
+                fields.currentSignatureHTML = sig
+                fields.bodyHTML = "<br><br>\(sig)"
+            }
+
         case .reply(let replyTo, let replySubject, let quotedBody, let replyToMessageID, let threadID, let parentMessageID, let parentReferences):
             fields.to = replyTo
             fields.subject = replySubject.withReplyPrefix
