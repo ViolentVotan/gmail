@@ -187,6 +187,13 @@ final class CalendarViewModel {
                 accountID: accountID
             )
             // Sync engine will pick up the new event via incremental sync.
+        } catch CalendarAPIError.offline {
+            CalendarOfflineActionQueue.shared.enqueue(.init(
+                id: UUID(),
+                accountID: accountID,
+                createdAt: .now,
+                actionType: .createEvent(calendarId: calendarId, input: input)
+            ))
         } catch {
             self.error = error
             throw error
@@ -204,6 +211,18 @@ final class CalendarViewModel {
                 accountID: event.accountID,
                 etag: event.etag
             )
+        } catch CalendarAPIError.offline {
+            CalendarOfflineActionQueue.shared.enqueue(.init(
+                id: UUID(),
+                accountID: event.accountID,
+                createdAt: .now,
+                actionType: .updateEvent(
+                    calendarId: event.calendarId,
+                    eventId: event.googleEventId,
+                    input: input,
+                    etag: event.etag
+                )
+            ))
         } catch {
             self.error = error
             throw error
@@ -213,23 +232,30 @@ final class CalendarViewModel {
     func deleteEvent(_ event: CalendarEvent) async throws {
         isLoading = true
         defer { isLoading = false }
+        // Optimistic local removal regardless of connectivity.
+        try? await db.dbPool.write { db in
+            try db.execute(
+                sql: "DELETE FROM calendar_events WHERE event_id = ? AND calendar_id = ? AND account_id = ?",
+                arguments: [event.googleEventId, event.calendarId, event.accountID]
+            )
+            try db.execute(
+                sql: "DELETE FROM calendar_attendees WHERE event_id = ? AND calendar_id = ? AND account_id = ?",
+                arguments: [event.googleEventId, event.calendarId, event.accountID]
+            )
+        }
         do {
             try await eventService.deleteEvent(
                 calendarId: event.calendarId,
                 eventId: event.googleEventId,
                 accountID: event.accountID
             )
-            // Optimistic removal from local DB.
-            try? await db.dbPool.write { db in
-                try db.execute(
-                    sql: "DELETE FROM calendar_events WHERE event_id = ? AND calendar_id = ? AND account_id = ?",
-                    arguments: [event.googleEventId, event.calendarId, event.accountID]
-                )
-                try db.execute(
-                    sql: "DELETE FROM calendar_attendees WHERE event_id = ? AND calendar_id = ? AND account_id = ?",
-                    arguments: [event.googleEventId, event.calendarId, event.accountID]
-                )
-            }
+        } catch CalendarAPIError.offline {
+            CalendarOfflineActionQueue.shared.enqueue(.init(
+                id: UUID(),
+                accountID: event.accountID,
+                createdAt: .now,
+                actionType: .deleteEvent(calendarId: event.calendarId, eventId: event.googleEventId)
+            ))
         } catch {
             self.error = error
             throw error
@@ -239,6 +265,16 @@ final class CalendarViewModel {
     func respondToEvent(_ event: CalendarEvent, status: CalendarRSVPStatus) async throws {
         isLoading = true
         defer { isLoading = false }
+        // Optimistic local update regardless of connectivity.
+        try? await db.dbPool.write { db in
+            try db.execute(
+                sql: """
+                    UPDATE calendar_events SET self_response_status = ?
+                    WHERE event_id = ? AND calendar_id = ? AND account_id = ?
+                    """,
+                arguments: [status.rawValue, event.googleEventId, event.calendarId, event.accountID]
+            )
+        }
         do {
             _ = try await eventService.respondToEvent(
                 calendarId: event.calendarId,
@@ -246,16 +282,13 @@ final class CalendarViewModel {
                 accountID: event.accountID,
                 status: status.rawValue
             )
-            // Optimistic local update of self response status.
-            try? await db.dbPool.write { db in
-                try db.execute(
-                    sql: """
-                        UPDATE calendar_events SET self_response_status = ?
-                        WHERE event_id = ? AND calendar_id = ? AND account_id = ?
-                        """,
-                    arguments: [status.rawValue, event.googleEventId, event.calendarId, event.accountID]
-                )
-            }
+        } catch CalendarAPIError.offline {
+            CalendarOfflineActionQueue.shared.enqueue(.init(
+                id: UUID(),
+                accountID: event.accountID,
+                createdAt: .now,
+                actionType: .rsvpEvent(calendarId: event.calendarId, eventId: event.googleEventId, status: status.rawValue)
+            ))
         } catch {
             self.error = error
             throw error
