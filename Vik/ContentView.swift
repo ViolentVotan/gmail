@@ -380,7 +380,7 @@ struct ContentView: View {
                     Label("Compose", systemImage: "square.and.pencil")
                 }
                 .buttonStyle(.borderedProminent)
-                .controlSize(.regular)
+                .controlSize(.large)
                 .help("Compose (\u{2318}N)")
             }
 
