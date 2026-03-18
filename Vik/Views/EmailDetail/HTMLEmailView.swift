@@ -88,14 +88,6 @@ struct HTMLEmailView: NSViewRepresentable {
         context.coordinator.parent.isContentLoaded = false
         // Cancel any in-flight page load / Vision analysis before switching content.
         webView.stopLoading()
-        // Keep previous height as floor during content switch to prevent accordion collapse.
-        // ResizeObserver updates to actual height once new content loads.
-        Task { @MainActor in
-            if self.contentHeight < 200 {
-                self.contentHeight = 200
-            }
-        }
-
         let controller = webView.configuration.userContentController
         controller.removeAllUserScripts()
         let userScript = WKUserScript(
@@ -151,10 +143,11 @@ struct HTMLEmailView: NSViewRepresentable {
         }
         </style>
         </head>
-        <body><div id="emailContent" style="padding-bottom:16px">\(html)</div></body>
+        <body><div id="emailContent" style="padding-bottom:16px"></div></body>
         </html>
         """
         webView.loadHTMLString(fullHTML, baseURL: nil)
+        context.coordinator.pendingHTML = html
     }
 
     static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
@@ -324,6 +317,7 @@ struct HTMLEmailView: NSViewRepresentable {
         var parent: HTMLEmailView
         var lastCacheKey = ""
         var isLoadingContent = false
+        var pendingHTML: String?
         weak var webView: WKWebView?
 
         init(_ parent: HTMLEmailView) { self.parent = parent }
@@ -356,6 +350,20 @@ struct HTMLEmailView: NSViewRepresentable {
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             isLoadingContent = false
+            if let html = pendingHTML {
+                // Parameter binding prevents template breakout — html is passed as a JS
+                // variable, not interpolated into the script source. CSP script-src 'none'
+                // prevents any injected scripts from executing.
+                webView.callAsyncJavaScript(
+                    """
+                    document.getElementById('emailContent').innerHTML = html;
+                    if (typeof fixContrastColors === 'function') { fixContrastColors(); }
+                    """,
+                    arguments: ["html": html],
+                    contentWorld: .page
+                ) { _ in }
+                pendingHTML = nil
+            }
             Task { @MainActor [weak self] in
                 self?.parent.isContentLoaded = true
             }
