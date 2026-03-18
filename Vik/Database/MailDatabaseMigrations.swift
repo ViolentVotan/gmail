@@ -17,6 +17,7 @@ enum MailDatabaseMigrations {
         registerV10(&migrator)
         registerV11(&migrator)
         registerV12(&migrator)
+        registerV13(&migrator)
         return migrator
     }
 
@@ -343,6 +344,87 @@ enum MailDatabaseMigrations {
             try db.alter(table: "messages") { t in
                 t.add(column: "body_fetch_attempts", .integer).notNull().defaults(to: 0)
             }
+        }
+    }
+
+    private static func registerV13(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v13_calendar_tables") { db in
+            // Calendars — composite PK (calendar_id, account_id) because "primary" repeats across accounts
+            try db.create(table: "calendars") { t in
+                t.column("calendar_id", .text).notNull()
+                t.column("account_id", .text).notNull()
+                t.primaryKey(["calendar_id", "account_id"])
+                t.column("summary", .text).notNull()
+                t.column("description", .text)
+                t.column("time_zone", .text)
+                t.column("background_color", .text).notNull().defaults(to: "#3A6FF0")
+                t.column("foreground_color", .text).notNull().defaults(to: "#FFFFFF")
+                t.column("is_primary", .boolean).notNull().defaults(to: false)
+                t.column("access_role", .text).notNull().defaults(to: "reader")
+                t.column("is_visible", .boolean).notNull().defaults(to: true)
+                t.column("summary_override", .text)
+                t.column("sync_token", .text)
+                t.column("last_synced_at", .double)
+            }
+            try db.create(index: "idx_calendars_account", on: "calendars", columns: ["account_id"])
+
+            // Events — composite PK (event_id, calendar_id, account_id)
+            try db.create(table: "calendar_events") { t in
+                t.column("event_id", .text).notNull()
+                t.column("calendar_id", .text).notNull()
+                t.column("account_id", .text).notNull()
+                t.primaryKey(["event_id", "calendar_id", "account_id"])
+                t.foreignKey(["calendar_id", "account_id"], references: "calendars", columns: ["calendar_id", "account_id"], onDelete: .cascade)
+                t.column("summary", .text)
+                t.column("description", .text)
+                t.column("location", .text)
+                t.column("start_time", .double).notNull()
+                t.column("end_time", .double).notNull()
+                t.column("is_all_day", .boolean).notNull().defaults(to: false)
+                t.column("time_zone", .text)
+                t.column("status", .text).notNull().defaults(to: "confirmed")
+                t.column("organizer_email", .text)
+                t.column("organizer_name", .text)
+                t.column("organizer_is_self", .boolean).notNull().defaults(to: false)
+                t.column("creator_email", .text)
+                t.column("self_response_status", .text)
+                t.column("color_id", .text)
+                t.column("is_recurring", .boolean).notNull().defaults(to: false)
+                t.column("recurring_event_id", .text)
+                t.column("conference_link", .text)
+                t.column("conference_name", .text)
+                t.column("event_type", .text).notNull().defaults(to: "default")
+                t.column("etag", .text).notNull()
+                t.column("html_link", .text)
+                t.column("can_edit", .boolean).notNull().defaults(to: false)
+                t.column("i_cal_uid", .text)
+                t.column("sequence", .integer)
+                t.column("reminders_json", .text)
+                t.column("attachments_json", .text)
+                t.column("extended_properties_json", .text)
+                t.column("updated_at", .double).notNull()
+            }
+            try db.create(index: "idx_events_calendar", on: "calendar_events", columns: ["calendar_id", "account_id"])
+            try db.create(index: "idx_events_time", on: "calendar_events", columns: ["start_time", "end_time"])
+            try db.create(index: "idx_events_account_time", on: "calendar_events", columns: ["account_id", "start_time", "end_time"])
+            try db.create(index: "idx_events_recurring", on: "calendar_events", columns: ["recurring_event_id"])
+            try db.create(index: "idx_events_ical_uid", on: "calendar_events", columns: ["i_cal_uid"])
+
+            // Attendees — FK to events composite PK
+            try db.create(table: "calendar_attendees") { t in
+                t.column("event_id", .text).notNull()
+                t.column("calendar_id", .text).notNull()
+                t.column("account_id", .text).notNull()
+                t.column("email", .text).notNull()
+                t.column("display_name", .text)
+                t.column("response_status", .text).notNull().defaults(to: "needsAction")
+                t.column("is_organizer", .boolean).notNull().defaults(to: false)
+                t.column("is_resource", .boolean).notNull().defaults(to: false)
+                t.column("is_optional", .boolean).notNull().defaults(to: false)
+                t.primaryKey(["event_id", "calendar_id", "account_id", "email"])
+                t.foreignKey(["event_id", "calendar_id", "account_id"], references: "calendar_events", columns: ["event_id", "calendar_id", "account_id"], onDelete: .cascade)
+            }
+            try db.create(index: "idx_attendees_email", on: "calendar_attendees", columns: ["email"])
         }
     }
 }
