@@ -484,8 +484,20 @@ final class AppCoordinator {
         await FullSyncEngine.stopActive(for: id)
         // Start sync engine
         if let db = self.mailDatabase, let syncer = self.backgroundSyncer {
-            let engine = FullSyncEngine(accountID: id, db: db, syncer: syncer, api: GmailMessageService.shared)
-            await engine.setProgressManager(self.syncProgressManager)
+            let progressManager = self.syncProgressManager
+            let engine = FullSyncEngine(
+                accountID: id, db: db, syncer: syncer,
+                api: GmailMessageService.shared
+            ) { @MainActor event in
+                switch event {
+                case .started: progressManager.syncStarted()
+                case .progress(let remaining): progressManager.syncProgress(remaining: remaining)
+                case .initialProgress(let synced, let estimated): progressManager.initialSyncProgress(synced: synced, estimated: estimated)
+                case .bodyPrefetch(let remaining): progressManager.bodyPrefetchProgress(remaining: remaining)
+                case .completed: progressManager.syncCompleted()
+                case .failed(let message): progressManager.syncFailed(message)
+                }
+            }
             // Guard AFTER engine creation but BEFORE assignment to avoid orphaning
             // a running engine if the account switched during setup.
             guard !Task.isCancelled, self.selectedAccountID == id else { return }

@@ -6,6 +6,17 @@ import Synchronization
 /// Orchestrates complete offline sync for a single Gmail account.
 /// Manages: initial full sync, incremental History API polling,
 /// body pre-fetch, label refresh, and contact refresh.
+/// Progress events emitted by `FullSyncEngine` to update UI.
+/// A Sendable value type — safe to cross actor boundaries.
+enum SyncProgressEvent: Sendable {
+    case started
+    case progress(remaining: Int)
+    case initialProgress(synced: Int, estimated: Int)
+    case bodyPrefetch(remaining: Int)
+    case completed
+    case failed(String = "Sync failed")
+}
+
 actor FullSyncEngine {
     // MARK: - State
 
@@ -25,7 +36,7 @@ actor FullSyncEngine {
     private let syncer: BackgroundSyncer
     private let api: MessageFetching
     private let quota: QuotaTracker
-    private var progressManager: SyncProgressManager?
+    private let onProgress: @Sendable (SyncProgressEvent) async -> Void
 
     // MARK: - Tasks
 
@@ -84,17 +95,15 @@ actor FullSyncEngine {
         db: MailDatabase,
         syncer: BackgroundSyncer,
         api: MessageFetching,
-        quota: QuotaTracker = .shared
+        quota: QuotaTracker = .shared,
+        onProgress: @escaping @Sendable (SyncProgressEvent) async -> Void = { _ in }
     ) {
         self.accountID = accountID
         self.db = db
         self.syncer = syncer
         self.api = api
         self.quota = quota
-    }
-
-    func setProgressManager(_ manager: SyncProgressManager) {
-        progressManager = manager
+        self.onProgress = onProgress
     }
 
     // MARK: - Lifecycle
@@ -173,14 +182,14 @@ actor FullSyncEngine {
         guard state == .monitoring else { return }
         triggeredSyncTask?.cancel()
         triggeredSyncTask = Task {
-            await reportProgress { $0.syncStarted() }
+            await reportProgress(.started)
             let succeeded = await syncIncremental()
             if succeeded { consecutiveFailures = 0 }
             if !Task.isCancelled {
                 if succeeded {
-                    await reportProgress { $0.syncCompleted() }
+                    await reportProgress(.completed)
                 } else {
-                    await reportProgress { $0.syncFailed() }
+                    await reportProgress(.failed())
                 }
             }
         }
@@ -251,14 +260,14 @@ actor FullSyncEngine {
         if syncState?.initialSyncComplete == true {
             // Resume monitoring mode
             state = .monitoring
-            await reportProgress { $0.syncStarted() }
+            await reportProgress(.started)
 
             // Immediate incremental sync to catch up
             let succeeded = await syncIncremental()
             if succeeded {
-                await reportProgress { $0.syncCompleted() }
+                await reportProgress(.completed)
             } else {
-                await reportProgress { $0.syncFailed() }
+                await reportProgress(.failed())
             }
 
             // Start background loops
@@ -282,7 +291,7 @@ actor FullSyncEngine {
                 // Show initial sync progress immediately (with resumed counts if available)
                 let resumedCount = resumeState?.syncedMessageCount ?? 0
                 let resumedEstimate = resumeState?.totalMessagesEstimate ?? 0
-                await reportProgress { $0.initialSyncProgress(synced: resumedCount, estimated: resumedEstimate) }
+                await reportProgress(.initialProgress(synced: resumedCount, estimated: resumedEstimate))
                 let success = await performInitialSync(resumeFrom: resumeToken)
                 guard !Task.isCancelled else { return }
 
@@ -292,7 +301,7 @@ actor FullSyncEngine {
                     // (the historyId captured before listing covers this gap)
                     let gapFillOK = await syncIncremental()
                     if !gapFillOK {
-                        await reportProgress { $0.syncFailed("Gap-fill sync failed") }
+                        await reportProgress(.failed("Gap-fill sync failed"))
                     }
                     startIncrementalLoop()
                     startBodyPrefetchLoop()
@@ -318,7 +327,7 @@ actor FullSyncEngine {
                     if !cleared {
                         Self.logger.warning("Failed to clear stale page token — next retry may resume from old position")
                     }
-                    await reportProgress { $0.syncFailed("Sync failed — tap to retry") }
+                    await reportProgress(.failed("Sync failed — tap to retry"))
                     // Remove from registry to prevent leak — engine is dead but
                     // triggerIncrementalSync() can restart it via start().
                     Self.activeEngines.withLock { _ = $0.removeValue(forKey: accountID) }
@@ -415,12 +424,10 @@ actor FullSyncEngine {
                 }
 
                 // Report progress
-                await reportProgress { manager in
-                    manager.initialSyncProgress(
-                        synced: syncedCount,
-                        estimated: totalEstimate ?? syncedCount
-                    )
-                }
+                await reportProgress(.initialProgress(
+                    synced: syncedCount,
+                    estimated: totalEstimate ?? syncedCount
+                ))
 
                 currentPageToken = response.nextPageToken
             } while currentPageToken != nil
@@ -434,11 +441,11 @@ actor FullSyncEngine {
             }
             guard didPersist else {
                 Self.logger.error("Failed to persist initialSyncComplete — will retry on next launch")
-                await reportProgress { $0.syncFailed("Failed to save sync state") }
+                await reportProgress(.failed("Failed to save sync state"))
                 return false
             }
 
-            await reportProgress { $0.syncCompleted() }
+            await reportProgress(.completed)
             Self.logger.info("Initial sync complete: \(syncedCount) messages")
             return true
 
@@ -452,7 +459,7 @@ actor FullSyncEngine {
                 Self.logger.error("Token revoked during initial sync for \(self.accountID)")
                 isTokenRevoked = true
                 state = .error("Session expired — please sign in again")
-                await reportProgress { $0.syncFailed("Session expired — please sign in again") }
+                await reportProgress(.failed("Session expired — please sign in again"))
                 return false
             }
             // Retryable error — log but don't call syncFailed (the retry loop in
@@ -471,7 +478,7 @@ actor FullSyncEngine {
                 // Circuit breaker: pause sync after sustained failures
                 if consecutiveFailures >= 5 {
                     Self.logger.warning("Circuit breaker: pausing sync for 15 min after \(self.consecutiveFailures) failures")
-                    await reportProgress { $0.syncFailed("Sync paused — will retry in 15 min") }
+                    await reportProgress(.failed("Sync paused — will retry in 15 min"))
                     try? await Task.sleep(for: .seconds(900))
                     guard !Task.isCancelled else { return }
                     consecutiveFailures = 0
@@ -566,7 +573,7 @@ actor FullSyncEngine {
             // Report incremental sync progress for large syncs
             let toRefetchCount = labelChanges.subtracting(allDeleted).subtracting(Set(candidateIDs)).count
             let totalRemaining = trulyNewIDs.count + toRefetchCount + allDeleted.count
-            await reportProgress { $0.syncProgress(remaining: totalRemaining) }
+            await reportProgress(.progress(remaining: totalRemaining))
 
             // Existing messages from messagesAdded: apply label updates from history data
             let historyLabelUpdates: [(gmailId: String, labelIds: [String])] = candidateIDs
@@ -656,7 +663,7 @@ actor FullSyncEngine {
                 cancelAllTasks()
                 Self.activeEngines.withLock { _ = $0.removeValue(forKey: accountID) }
                 state = .error("Session expired — please sign in again")
-                await reportProgress { $0.syncFailed("Session expired — please sign in again") }
+                await reportProgress(.failed("Session expired — please sign in again"))
                 return false
             } else if case .httpError(let code, _) = error as? GmailAPIError, code == 404 || code == 410 {
                 // 404 or 410 from history.list means the startHistoryId is expired/invalid.
@@ -739,7 +746,7 @@ actor FullSyncEngine {
                 try MailDatabaseQueries.messagesWithoutBodiesCount(in: db)
             }
 
-            await reportProgress { $0.bodyPrefetchProgress(remaining: remaining) }
+            await reportProgress(.bodyPrefetch(remaining: remaining))
             return remaining
 
         } catch {
@@ -863,8 +870,7 @@ actor FullSyncEngine {
         }
     }
 
-    private func reportProgress(_ action: @Sendable @MainActor (SyncProgressManager) -> Void) async {
-        guard let manager = progressManager else { return }
-        await MainActor.run { action(manager) }
+    private func reportProgress(_ event: SyncProgressEvent) async {
+        await onProgress(event)
     }
 }
