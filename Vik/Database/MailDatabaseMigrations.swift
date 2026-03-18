@@ -18,6 +18,7 @@ enum MailDatabaseMigrations {
         registerV11(&migrator)
         registerV12(&migrator)
         registerV13(&migrator)
+        registerV14(&migrator)
         return migrator
     }
 
@@ -425,6 +426,32 @@ enum MailDatabaseMigrations {
                 t.foreignKey(["event_id", "calendar_id", "account_id"], references: "calendar_events", columns: ["event_id", "calendar_id", "account_id"], onDelete: .cascade)
             }
             try db.create(index: "idx_attendees_email", on: "calendar_attendees", columns: ["email"])
+        }
+    }
+
+    private static func registerV14(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v14_fts_trigger_index_cleanup") { db in
+            // M20: Reinstate FTS update trigger (dropped in V11).
+            // Only fires when searchable content actually changes, avoiding unnecessary FTS churn.
+            try db.execute(sql: """
+                CREATE TRIGGER IF NOT EXISTS messages_fts_update
+                AFTER UPDATE OF subject, snippet, body_html, body_plain ON messages
+                WHEN NEW.subject IS NOT OLD.subject
+                  OR NEW.snippet IS NOT OLD.snippet
+                  OR NEW.body_html IS NOT OLD.body_html
+                  OR NEW.body_plain IS NOT OLD.body_plain
+                BEGIN
+                    DELETE FROM messages_fts WHERE gmail_id = OLD.gmail_id;
+                    INSERT INTO messages_fts(gmail_id, subject, body_plain, snippet, sender_name, sender_email)
+                    VALUES (NEW.gmail_id, NEW.subject, NEW.body_plain, NEW.snippet, NEW.sender_name, NEW.sender_email);
+                END
+            """)
+
+            // M21: Drop messages_read_state index — provides no benefit over PK.
+            try db.execute(sql: "DROP INDEX IF EXISTS messages_read_state")
+
+            // M23: Index for pruneStaleMessageContacts NOT EXISTS query.
+            try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_contacts_source ON contacts(source, email)")
         }
     }
 }

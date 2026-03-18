@@ -24,16 +24,23 @@ struct CalendarWeekView: View {
         return f
     }()
 
+    private static let accessibilityDayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEEE, MMMM d"
+        return f
+    }()
+
     var body: some View {
+        let weekDays = computeWeekDays()
         GeometryReader { geo in
             let dayColumnWidth = (geo.size.width - CalendarLayout.timeColumnWidth) / 7
 
             VStack(spacing: 0) {
-                allDaySection(dayColumnWidth: dayColumnWidth)
+                allDaySection(weekDays: weekDays, dayColumnWidth: dayColumnWidth)
                 Divider()
-                dayHeaderRow(dayColumnWidth: dayColumnWidth)
+                dayHeaderRow(weekDays: weekDays, dayColumnWidth: dayColumnWidth)
                 Divider()
-                timeGrid(dayColumnWidth: dayColumnWidth)
+                timeGrid(weekDays: weekDays, dayColumnWidth: dayColumnWidth)
             }
         }
         .task {
@@ -47,9 +54,8 @@ struct CalendarWeekView: View {
     // MARK: - All-Day Section
 
     @ViewBuilder
-    private func allDaySection(dayColumnWidth: CGFloat) -> some View {
-        let week = weekDays
-        let allDayByDay = week.map { day in
+    private func allDaySection(weekDays: [Date], dayColumnWidth: CGFloat) -> some View {
+        let allDayByDay = weekDays.map { day in
             viewModel.eventsForDay(day).filter { $0.isAllDay }
         }
         let maxCount = allDayByDay.map(\.count).max() ?? 0
@@ -62,6 +68,7 @@ struct CalendarWeekView: View {
                     .foregroundStyle(.tertiary)
                     .frame(width: CalendarLayout.timeColumnWidth, alignment: .trailing)
                     .padding(.trailing, Spacing.xs)
+                    .accessibilityHidden(true)
 
                 // All-day chips per day
                 ForEach(Array(allDayByDay.enumerated()), id: \.offset) { _, allDayEvents in
@@ -79,24 +86,30 @@ struct CalendarWeekView: View {
     }
 
     private func allDayChip(event: CalendarEvent, width: CGFloat) -> some View {
-        Text(event.summary)
-            .font(.system(size: 10, weight: .medium))
-            .foregroundStyle(.white)
-            .lineLimit(1)
-            .padding(.horizontal, Spacing.xs)
-            .frame(height: CalendarLayout.allDayEventHeight)
-            .frame(width: width - 2, alignment: .leading)
-            .background(event.resolvedColor, in: .rect(cornerRadius: CornerRadius.xs))
-            .onTapGesture { onSelectEvent(event) }
+        Button {
+            onSelectEvent(event)
+        } label: {
+            Text(event.summary)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .padding(.horizontal, Spacing.xs)
+                .frame(height: CalendarLayout.allDayEventHeight)
+                .frame(width: width - 2, alignment: .leading)
+                .background(event.resolvedColor, in: .rect(cornerRadius: CornerRadius.xs))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(event.summary), all day")
     }
 
     // MARK: - Day Header Row
 
-    private func dayHeaderRow(dayColumnWidth: CGFloat) -> some View {
+    private func dayHeaderRow(weekDays: [Date], dayColumnWidth: CGFloat) -> some View {
         HStack(spacing: 0) {
             // Empty time column header
             Spacer()
                 .frame(width: CalendarLayout.timeColumnWidth)
+                .accessibilityHidden(true)
 
             ForEach(weekDays, id: \.self) { day in
                 dayHeader(for: day, width: dayColumnWidth)
@@ -110,6 +123,7 @@ struct CalendarWeekView: View {
         let isToday = Calendar.current.isDateInToday(date)
         let weekdayAbbrev = weekdayAbbreviation(for: date)
         let dayNumber = Calendar.current.component(.day, from: date)
+        let accessibilityLabel = Self.accessibilityDayFormatter.string(from: date)
 
         return VStack(spacing: 2) {
             Text(weekdayAbbrev)
@@ -128,22 +142,29 @@ struct CalendarWeekView: View {
             }
         }
         .frame(width: width)
+        .accessibilityLabel(isToday ? "\(accessibilityLabel), today" : accessibilityLabel)
+        .accessibilityAddTraits(.isHeader)
     }
 
     // MARK: - Time Grid
 
-    private func timeGrid(dayColumnWidth: CGFloat) -> some View {
-        ScrollViewReader { proxy in
+    private func timeGrid(weekDays: [Date], dayColumnWidth: CGFloat) -> some View {
+        let timedEventsByDay = buildTimedEventsByDay(weekDays: weekDays)
+        return ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
                 ZStack(alignment: .topLeading) {
                     // Background grid
-                    gridBackground(dayColumnWidth: dayColumnWidth)
+                    gridBackground(weekDays: weekDays, dayColumnWidth: dayColumnWidth)
 
                     // Events overlay
-                    eventsOverlay(dayColumnWidth: dayColumnWidth)
+                    eventsOverlay(
+                        weekDays: weekDays,
+                        timedEventsByDay: timedEventsByDay,
+                        dayColumnWidth: dayColumnWidth
+                    )
 
                     // Current time indicator
-                    currentTimeIndicator(dayColumnWidth: dayColumnWidth)
+                    currentTimeIndicator(weekDays: weekDays, dayColumnWidth: dayColumnWidth)
                 }
                 .frame(height: CGFloat(hours.count) * CalendarLayout.hourRowHeight)
             }
@@ -158,7 +179,7 @@ struct CalendarWeekView: View {
 
     // MARK: - Grid Background
 
-    private func gridBackground(dayColumnWidth: CGFloat) -> some View {
+    private func gridBackground(weekDays: [Date], dayColumnWidth: CGFloat) -> some View {
         VStack(spacing: 0) {
             ForEach(hours, id: \.self) { hour in
                 HStack(spacing: 0) {
@@ -169,6 +190,7 @@ struct CalendarWeekView: View {
                         .frame(width: CalendarLayout.timeColumnWidth, alignment: .trailing)
                         .padding(.trailing, Spacing.xs)
                         .offset(y: -7)
+                        .accessibilityHidden(true)
 
                     // Day columns with grid lines
                     HStack(spacing: 0) {
@@ -204,6 +226,8 @@ struct CalendarWeekView: View {
                 .frame(height: CalendarLayout.hourRowHeight)
                 .id("hour-\(hour)")
                 .contentShape(Rectangle())
+                .accessibilityLabel(hour == 0 ? "Create event at midnight" : "Create event at \(hourLabel(for: hour))")
+                .accessibilityAddTraits(.isButton)
                 .onTapGesture { [hour] in
                     onCreateEvent(dateForTap(hour: hour), hour)
                 }
@@ -213,18 +237,30 @@ struct CalendarWeekView: View {
 
     // MARK: - Events Overlay
 
-    private func eventsOverlay(dayColumnWidth: CGFloat) -> some View {
+    private func eventsOverlay(
+        weekDays: [Date],
+        timedEventsByDay: [Date: [CalendarEvent]],
+        dayColumnWidth: CGFloat
+    ) -> some View {
         ZStack(alignment: .topLeading) {
             ForEach(0..<weekDays.count, id: \.self) { dayIndex in
-                dayEventsOverlay(dayIndex: dayIndex, dayColumnWidth: dayColumnWidth)
+                dayEventsOverlay(
+                    dayIndex: dayIndex,
+                    day: weekDays[dayIndex],
+                    timedEvents: timedEventsByDay[weekDays[dayIndex]] ?? [],
+                    dayColumnWidth: dayColumnWidth
+                )
             }
         }
     }
 
     @ViewBuilder
-    private func dayEventsOverlay(dayIndex: Int, dayColumnWidth: CGFloat) -> some View {
-        let day = weekDays[dayIndex]
-        let timedEvents = viewModel.eventsForDay(day).filter { !$0.isAllDay }
+    private func dayEventsOverlay(
+        dayIndex: Int,
+        day: Date,
+        timedEvents: [CalendarEvent],
+        dayColumnWidth: CGFloat
+    ) -> some View {
         let groups = overlapGroups(for: timedEvents)
         ForEach(0..<groups.count, id: \.self) { groupIndex in
             let group = groups[groupIndex]
@@ -265,7 +301,7 @@ struct CalendarWeekView: View {
     // MARK: - Current Time Indicator
 
     @ViewBuilder
-    private func currentTimeIndicator(dayColumnWidth: CGFloat) -> some View {
+    private func currentTimeIndicator(weekDays: [Date], dayColumnWidth: CGFloat) -> some View {
         let todayIndex = weekDays.firstIndex { Calendar.current.isDateInToday($0) }
         if let index = todayIndex {
             let yPos = yPosition(for: currentTime)
@@ -290,20 +326,31 @@ struct CalendarWeekView: View {
             }
             .offset(y: yPos - CalendarLayout.currentTimeIndicatorDotSize / 2)
             .allowsHitTesting(false)
+            .accessibilityHidden(true)
         }
     }
 
     // MARK: - Helpers
 
-    private var weekDays: [Date] {
+    private func computeWeekDays() -> [Date] {
         let week = viewModel.selectedWeek
         var days: [Date] = []
+        days.reserveCapacity(7)
         var current = week.start
         for _ in 0..<7 {
             days.append(current)
             current = Calendar.current.date(byAdding: .day, value: 1, to: current) ?? current
         }
         return days
+    }
+
+    /// Partitions timed (non-all-day) events for each day into a lookup dictionary.
+    private func buildTimedEventsByDay(weekDays: [Date]) -> [Date: [CalendarEvent]] {
+        var result: [Date: [CalendarEvent]] = Dictionary(minimumCapacity: weekDays.count)
+        for day in weekDays {
+            result[day] = viewModel.eventsForDay(day).filter { !$0.isAllDay }
+        }
+        return result
     }
 
     private func weekdayAbbreviation(for date: Date) -> String {

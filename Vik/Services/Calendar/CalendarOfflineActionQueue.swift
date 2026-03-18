@@ -64,7 +64,7 @@ final class CalendarOfflineActionQueue {
             do {
                 try await execute(action)
                 processed.append(action.id)
-            } catch let error as CalendarAPIError where error.isNonRetriable {
+            } catch let error where error.isNonRetriable {
                 Self.logger.warning("Discarding calendar offline action \(action.id) (non-retriable): \(error)")
                 processed.append(action.id)
             } catch {
@@ -88,7 +88,7 @@ final class CalendarOfflineActionQueue {
 
     // MARK: - Execution
 
-    private func execute(_ action: CalendarOfflineAction) async throws {
+    private func execute(_ action: CalendarOfflineAction) async throws(CalendarAPIError) {
         let service = CalendarEventService.shared
         switch action.actionType {
         case .createEvent(let calendarId, let input):

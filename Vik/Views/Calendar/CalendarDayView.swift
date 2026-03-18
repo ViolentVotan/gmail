@@ -72,12 +72,14 @@ struct CalendarDayView: View {
                 .background(event.resolvedColor, in: RoundedRectangle(cornerRadius: CornerRadius.xs))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(event.summary)
     }
 
     // MARK: - Time grid
 
     private var timeGrid: some View {
-        ScrollViewReader { proxy in
+        let timedEvents = viewModel.eventsForDay(viewModel.selectedDate).filter { !$0.isAllDay }
+        return ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
                 ZStack(alignment: .topLeading) {
                     // Hour rows
@@ -89,8 +91,7 @@ struct CalendarDayView: View {
 
                     // Event cards overlaid on the grid
                     GeometryReader { geo in
-                        let timeEvents = viewModel.eventsForDay(viewModel.selectedDate).filter { !$0.isAllDay }
-                        ForEach(timeEvents) { event in
+                        ForEach(timedEvents) { event in
                             dayEventCard(event: event, totalWidth: geo.size.width)
                         }
                     }
@@ -141,6 +142,8 @@ struct CalendarDayView: View {
                 .onTapGesture {
                     onCreateEvent(viewModel.selectedDate, hour)
                 }
+                .accessibilityLabel(hour == 0 ? "Create event at midnight" : "Create event at \(hourLabel(hour))")
+                .accessibilityAddTraits(.isButton)
         }
         .id("hour-\(hour)")
     }
@@ -290,6 +293,7 @@ private struct DayEventCardView: View {
             .animation(VikAnimation.springSnappy, value: isHovered)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(event.summary), \(timeRangeString)")
         .onHover { isHovered = $0 }
     }
 

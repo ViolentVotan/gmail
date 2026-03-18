@@ -13,6 +13,7 @@ final class FiltersViewModel {
     }
 
     func loadFilters() async {
+        error = nil
         isLoading = true
         defer { isLoading = false }
         do {
@@ -27,6 +28,7 @@ final class FiltersViewModel {
         criteria: GmailFilter.FilterCriteria,
         action: GmailFilter.FilterAction
     ) async throws -> GmailFilter {
+        error = nil
         let filter = try await GmailFilterService.shared.createFilter(
             criteria: criteria,
             action: action,
@@ -37,6 +39,7 @@ final class FiltersViewModel {
     }
 
     func deleteFilter(id: String) async {
+        error = nil
         do {
             try await GmailFilterService.shared.deleteFilter(id: id, accountID: accountID)
         } catch {

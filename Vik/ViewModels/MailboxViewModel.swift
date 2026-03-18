@@ -76,7 +76,6 @@ private func mutateLabels(
 @MainActor
 final class MailboxViewModel {
     var isLoading      = false
-    var error:         String?
     var labels:        [GmailLabel] = []
     var userLabels: [GmailLabel] { labels.filter { !$0.isSystemLabel } }
     var sendAsAliases:         [GmailSendAs] = []
@@ -202,7 +201,6 @@ final class MailboxViewModel {
                     }
                 }
             } catch {
-                self?.error = "Database observation failed: \(error.localizedDescription)"
                 ToastManager.shared.show(message: "Database observation failed", type: .error)
             }
         }
@@ -337,8 +335,7 @@ final class MailboxViewModel {
     func loadLabels() async {
         let result = await labelService.loadLabels(accountID: accountID, currentLabels: labels)
         labels = result.labels
-        if let err = result.error {
-            error = err
+        if result.error != nil {
             ToastManager.shared.show(message: "Failed to load labels", type: .error)
         }
     }
@@ -346,8 +343,7 @@ final class MailboxViewModel {
     func loadSendAs() async {
         let result = await labelService.loadSendAs(accountID: accountID)
         sendAsAliases = result.aliases
-        if let err = result.error {
-            error = err
+        if result.error != nil {
             ToastManager.shared.show(message: "Failed to load send-as aliases", type: .error)
         }
     }
@@ -366,7 +362,6 @@ final class MailboxViewModel {
             if let idx = labels.firstIndex(where: { $0.id == fresh.id }) { labels[idx] = fresh }
         } catch {
             if let idx = labels.firstIndex(where: { $0.id == label.id }) { labels[idx] = label }
-            self.error = error.localizedDescription
             ToastManager.shared.show(message: "Failed to rename label", type: .error)
         }
     }
@@ -381,7 +376,6 @@ final class MailboxViewModel {
             }
         } catch {
             labels = backup
-            self.error = error.localizedDescription
             ToastManager.shared.show(message: "Failed to delete label", type: .error)
         }
     }
@@ -452,7 +446,6 @@ final class MailboxViewModel {
         observationDebounceTask?.cancel()
         observationDebounceTask = nil
         accountID = id
-        error     = nil
         emails    = []
         displayLimit = 200
         hasMoreEmails = false
@@ -473,20 +466,22 @@ final class MailboxViewModel {
     ///   - removeLabelIDs: Labels to remove optimistically.
     ///   - apiCall: The API operation. May perform post-success reconciliation.
     ///   - failureToast: The toast message shown on failure.
+    @discardableResult
     private func performOptimisticAction(
         _ messageID: String,
         addLabelIDs: [String] = [],
         removeLabelIDs: [String] = [],
         apiCall: () async throws -> Void,
         failureToast: String
-    ) async {
+    ) async -> Bool {
         let original = await updateLabelsInDatabase(messageID, addLabelIds: addLabelIDs, removeLabelIds: removeLabelIDs)
         do {
             try await apiCall()
+            return true
         } catch {
             if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            self.error = error.localizedDescription
             ToastManager.shared.show(message: failureToast, type: .error)
+            return false
         }
     }
 
@@ -498,7 +493,6 @@ final class MailboxViewModel {
             try await api.markAsRead(id: messageID, accountID: accountID)
         } catch {
             if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            self.error = error.localizedDescription
             ToastManager.shared.show(message: "Failed to mark as read", type: .error)
         }
     }
@@ -567,7 +561,8 @@ final class MailboxViewModel {
     }
 
     /// Archives a message. Optimistic DB write → API call → revert on failure.
-    func archive(_ messageID: String) async {
+    @discardableResult
+    func archive(_ messageID: String) async -> Bool {
         await performOptimisticAction(
             messageID,
             removeLabelIDs: [GmailSystemLabel.inbox],
@@ -683,10 +678,8 @@ final class MailboxViewModel {
             try await action()
             // Sync engine will detect changes on next delta sync; ValueObservation updates UI.
         } catch GmailAPIError.partialFailure {
-            self.error = "Some messages could not be deleted"
             ToastManager.shared.show(message: "Some messages could not be deleted", type: .error)
         } catch {
-            self.error = error.localizedDescription
             ToastManager.shared.show(message: "Failed to empty folder", type: .error)
         }
     }
@@ -745,7 +738,6 @@ final class MailboxViewModel {
             }
         } catch {
             if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            self.error = error.localizedDescription
             ToastManager.shared.show(message: "Failed to delete permanently", type: .error)
         }
     }
@@ -799,7 +791,6 @@ final class MailboxViewModel {
             )
         } catch {
             if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            self.error = error.localizedDescription
             ToastManager.shared.show(message: "Failed to add label", type: .error)
         }
     }
@@ -812,7 +803,6 @@ final class MailboxViewModel {
             await addLabel(newLabel.id, to: messageID)
             return newLabel.id
         } catch {
-            self.error = error.localizedDescription
             ToastManager.shared.show(message: "Failed to create label", type: .error)
             return nil
         }
@@ -839,7 +829,6 @@ final class MailboxViewModel {
             )
         } catch {
             if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            self.error = error.localizedDescription
             ToastManager.shared.show(message: "Failed to remove label", type: .error)
         }
     }

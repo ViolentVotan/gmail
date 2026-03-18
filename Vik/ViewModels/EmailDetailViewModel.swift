@@ -57,6 +57,9 @@ final class EmailDetailViewModel {
         isLoading = true
         error     = nil
         allowTrackers = false
+        smartReplySuggestions = []
+        matchedCalendarEvent = nil
+        calendarContextEvent = nil
         defer { isLoading = false }
 
         resolvedMessageHTML.removeAll()

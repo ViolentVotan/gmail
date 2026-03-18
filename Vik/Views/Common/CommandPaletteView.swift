@@ -71,6 +71,7 @@ struct CommandPaletteView: View {
         .background(isSelected ? Color.accentColor.opacity(OpacityToken.interactive) : .clear)
         .contentShape(Rectangle())
         .accessibilityLabel(command.title)
+        .accessibilityAddTraits(.isButton)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

@@ -37,6 +37,7 @@ struct CalendarHeaderView: View {
             }
             .buttonStyle(.plain)
             .help("Previous week")
+            .accessibilityLabel("Previous week")
 
             Button {
                 withAnimation(VikAnimation.springSnappy) {
@@ -50,6 +51,7 @@ struct CalendarHeaderView: View {
             }
             .buttonStyle(.plain)
             .help("Next week")
+            .accessibilityLabel("Next week")
         }
     }
 
@@ -78,16 +80,21 @@ struct CalendarHeaderView: View {
         }
         .buttonStyle(.plain)
         .help("Go to today")
+        .accessibilityLabel("Go to today")
     }
 
     private var viewModePicker: some View {
-        Picker("View", selection: $viewModel.viewMode) {
+        Picker("View mode", selection: $viewModel.viewMode) {
             Text("Day").tag(CalendarViewMode.day)
+                .accessibilityLabel("Day view")
             Text("Week").tag(CalendarViewMode.week)
+                .accessibilityLabel("Week view")
             Text("Agenda").tag(CalendarViewMode.agenda)
+                .accessibilityLabel("Agenda view")
         }
         .pickerStyle(.segmented)
         .frame(width: 180)
+        .accessibilityLabel("Calendar view mode")
     }
 
     private var newEventButton: some View {
@@ -109,31 +116,49 @@ struct CalendarHeaderView: View {
 
     // MARK: - Helpers
 
+    private static let weekRangeShortFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
+        return f
+    }()
+
+    private static let weekRangeLongFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d, yyyy"
+        return f
+    }()
+
+    private static let weekRangeEndSameMonthFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "d, yyyy"
+        return f
+    }()
+
     private var weekRangeText: String {
         let week = viewModel.selectedWeek
         let start = week.start
         let end = Calendar.current.date(byAdding: .day, value: -1, to: week.end) ?? week.end
-
-        let startFormatter = DateFormatter()
-        let endFormatter = DateFormatter()
 
         let startMonth = Calendar.current.component(.month, from: start)
         let endMonth = Calendar.current.component(.month, from: end)
         let startYear = Calendar.current.component(.year, from: start)
         let endYear = Calendar.current.component(.year, from: end)
 
+        let startText: String
+        let endText: String
+
         if startYear != endYear {
-            startFormatter.dateFormat = "MMM d, yyyy"
-            endFormatter.dateFormat = "MMM d, yyyy"
+            startText = Self.weekRangeLongFormatter.string(from: start)
+            endText = Self.weekRangeLongFormatter.string(from: end)
         } else if startMonth != endMonth {
-            startFormatter.dateFormat = "MMM d"
-            endFormatter.dateFormat = "MMM d, yyyy"
+            startText = Self.weekRangeShortFormatter.string(from: start)
+            endText = Self.weekRangeLongFormatter.string(from: end)
         } else {
-            startFormatter.dateFormat = "MMM d"
-            endFormatter.dateFormat = "d, yyyy"
+            startText = Self.weekRangeShortFormatter.string(from: start)
+            endText = Self.weekRangeEndSameMonthFormatter.string(from: end)
         }
 
-        return "\(startFormatter.string(from: start)) – \(endFormatter.string(from: end))"
+        return "\(startText) – \(endText)"
     }
 }
 

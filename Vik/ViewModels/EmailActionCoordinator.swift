@@ -285,8 +285,8 @@ final class EmailActionCoordinator {
                     guard AccountStore.shared.accounts.contains(where: { $0.id == expectedAccountID }) else { return }
                     // Archive first; only register in SnoozeStore after a successful archive
                     // so a failed archive doesn't leave the email in both inbox and snoozed list.
-                    await vm.archive(msgID)
-                    guard vm.error == nil else { return }
+                    let success = await vm.archive(msgID)
+                    guard success else { return }
                     SnoozeStore.shared.add(item)
                 }
             },

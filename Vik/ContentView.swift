@@ -9,6 +9,8 @@ struct ContentView: View {
     @State private var showSnoozePicker = false
     @State private var showNewCalendarEvent = false
     @State private var newCalendarEventDraft: EventEditDraft? = nil
+    @State private var showCalendarScopesAlert = false
+    @State private var calendarScopesAccountID: String?
 
     enum AppFocus: Hashable {
         case sidebar
@@ -48,6 +50,20 @@ struct ContentView: View {
                     }
                 } message: {
                     Text("This will permanently delete \(coordinator.spamTotalCount) spam message\(coordinator.spamTotalCount == 1 ? "" : "s"). This action cannot be undone.")
+                }
+                .alert("Calendar Access Required", isPresented: $showCalendarScopesAlert) {
+                    Button("Cancel", role: .cancel) {}
+                    Button("Re-authorize") {
+                        guard let accountID = calendarScopesAccountID else { return }
+                        Task {
+                            try? await OAuthService.shared.reauthorize(
+                                accountID: accountID,
+                                presentingWindow: NSApp.keyWindow
+                            )
+                        }
+                    }
+                } message: {
+                    Text("Calendar features require additional permissions. Please re-authorize to grant calendar access.")
                 }
         )
     }
@@ -118,11 +134,27 @@ struct ContentView: View {
                             showNewCalendarEvent = true
                         },
                         onSelectEvent: { event in
-                            coordinator.selectedCalendarEvent = event
                             calendarVM.selectedEvent = event
                         },
                         onCreateEvent: { date, hour in
                             calendarVM.selectedDate = date
+                        },
+                        onEdit: { event in
+                            calendarVM.selectedEvent = nil
+                            newCalendarEventDraft = EventEditDraft(from: event)
+                            showNewCalendarEvent = true
+                        },
+                        onDelete: { event in
+                            calendarVM.selectedEvent = nil
+                            Task { try? await calendarVM.deleteEvent(event) }
+                        },
+                        onRSVP: { event, status in
+                            Task { try? await calendarVM.respondToEvent(event, status: status) }
+                        },
+                        onEmailAttendees: { event in
+                            CalendarEventQuickActions.emailAttendees(event: event) { mode in
+                                coordinator.startCompose(mode: mode)
+                            }
                         }
                     )
                     .transition(.opacity)
@@ -464,6 +496,12 @@ struct ContentView: View {
                 scheduledCount: ScheduledSendStore.shared.items.count
             ))
             .modifier(LifecycleNotificationModifier(coordinator: coordinator))
+            .task {
+                for await notification in NotificationCenter.default.notifications(named: .calendarScopesInsufficient) {
+                    calendarScopesAccountID = notification.userInfo?[CalendarAPIClient.accountIDKey] as? String
+                    showCalendarScopesAlert = true
+                }
+            }
     }
 
     /// State-change observers split out to help the type-checker.

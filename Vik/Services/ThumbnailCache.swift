@@ -7,6 +7,7 @@ import PDFKit
 @MainActor
 final class ThumbnailCache {
     static let shared = ThumbnailCache()
+    private init() {}
 
     /// Cached thumbnails keyed by attachment ID.
     private(set) var thumbnails: [String: NSImage] = [:]

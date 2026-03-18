@@ -362,7 +362,7 @@ struct SidebarView: View {
         .listStyle(.sidebar)
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: Spacing.xs) {
-                if !coordinator.miniAgendaEvents.isEmpty {
+                if coordinator.viewMode == .mail && !coordinator.miniAgendaEvents.isEmpty {
                     MiniAgendaWidget(
                         events: coordinator.miniAgendaEvents,
                         onSelectEvent: { event in coordinator.navigateToEvent(event) },

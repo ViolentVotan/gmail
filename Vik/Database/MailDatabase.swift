@@ -114,18 +114,41 @@ final class MailDatabase: Sendable {
     // MARK: - Shared Instance Cache
 
     private static let instances = Mutex<[String: MailDatabase]>([:])
+    private static let migrating = Mutex<Set<String>>([])
 
     /// Returns a cached `MailDatabase` for the given account, creating one if needed.
     /// Avoids opening redundant `DatabasePool` connections across Intents and extensions.
-    /// Creation and migration run inside the lock to prevent concurrent migrations on the
-    /// same SQLite file. The lock is held briefly (only on first access per account).
+    /// Uses per-account locking so that migration for one account doesn't block access
+    /// to other accounts' already-cached instances.
     static func shared(for accountID: String) throws -> MailDatabase {
-        try instances.withLock { cache -> MailDatabase in
-            if let existing = cache[accountID] { return existing }
-            let db = try MailDatabase(accountID: accountID, skipMigrations: true)
-            try db.migrate()
-            cache[accountID] = db
-            return db
+        // Fast path: return cached instance without migration overhead.
+        if let existing = instances.withLock({ $0[accountID] }) {
+            return existing
         }
+
+        // Ensure only one caller migrates a given account at a time.
+        // If another thread is already migrating this account, spin until it finishes
+        // and then return the cached result.
+        let didClaim = migrating.withLock { $0.insert(accountID).inserted }
+        guard didClaim else {
+            // Another thread is migrating — wait for it to finish and cache the result.
+            while migrating.withLock({ $0.contains(accountID) }) {
+                Thread.sleep(forTimeInterval: 0.01)
+            }
+            guard let cached = instances.withLock({ $0[accountID] }) else {
+                // The other thread failed; retry from scratch.
+                return try shared(for: accountID)
+            }
+            return cached
+        }
+
+        defer { _ = migrating.withLock { $0.remove(accountID) } }
+
+        // Create and migrate outside the instances lock.
+        let db = try MailDatabase(accountID: accountID, skipMigrations: true)
+        try db.migrate()
+
+        instances.withLock { $0[accountID] = db }
+        return db
     }
 }

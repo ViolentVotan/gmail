@@ -88,7 +88,6 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
         let items = itemsByAccount[accountID] ?? []
         saveTasks[accountID]?.cancel()
         saveTasks[accountID] = Task {
-            guard !Task.isCancelled else { return }
             do {
                 try FileManager.default.createDirectory(
                     at: url.deletingLastPathComponent(),

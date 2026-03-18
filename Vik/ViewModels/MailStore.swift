@@ -217,7 +217,15 @@ final class MailStore {
         if let gid = gmailDraftID {
             gmailDrafts.removeAll { $0.gmailDraftID == gid }
             if !accountID.isEmpty {
-                Task { try? await GmailDraftService.shared.deleteDraft(draftID: gid, accountID: accountID) }
+                Task {
+                    do {
+                        try await GmailDraftService.shared.deleteDraft(draftID: gid, accountID: accountID)
+                    } catch {
+                        await MainActor.run {
+                            ToastManager.shared.show(message: "Failed to delete draft from server", type: .error)
+                        }
+                    }
+                }
             }
         }
     }

@@ -83,14 +83,15 @@ actor BackgroundSyncer {
         try await db.dbPool.write { db in
             let now = Date().timeIntervalSince1970
             for update in updates {
-                // Fetch record once; use it for both the DB update and FTS — no second read needed.
-                guard var record = try MessageRecord.fetchOne(db, key: update.gmailId) else { continue }
-                record.bodyHtml = update.html
-                record.bodyPlain = update.plain
-                record.fullBodyFetched = true
-                record.fetchedAt = now
-                try record.update(db)
-                try FTSManager.update(message: record, in: db)
+                // Direct SQL UPDATE avoids reading the full record just to write back.
+                try db.execute(
+                    sql: "UPDATE messages SET body_html = ?, body_plain = ?, full_body_fetched = 1, fetched_at = ? WHERE gmail_id = ?",
+                    arguments: [update.html, update.plain, now, update.gmailId]
+                )
+                // FTS needs the full record for indexing — read once after the update.
+                if let record = try MessageRecord.fetchOne(db, key: update.gmailId) {
+                    try FTSManager.update(message: record, in: db)
+                }
             }
         }
     }
@@ -99,11 +100,11 @@ actor BackgroundSyncer {
     func incrementBodyFetchAttempts(for gmailIds: [String]) async throws {
         guard !gmailIds.isEmpty else { return }
         try await db.dbPool.write { db in
-            for id in gmailIds {
-                guard var record = try MessageRecord.fetchOne(db, key: id) else { continue }
-                record.bodyFetchAttempts += 1
-                try record.update(db)
-            }
+            let placeholders = gmailIds.map { _ in "?" }.joined(separator: ",")
+            try db.execute(
+                sql: "UPDATE messages SET body_fetch_attempts = body_fetch_attempts + 1 WHERE gmail_id IN (\(placeholders))",
+                arguments: StatementArguments(gmailIds)
+            )
         }
     }
 

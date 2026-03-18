@@ -5,6 +5,10 @@ import SwiftUI
 struct CalendarMiniMonthView: View {
     @Bindable var viewModel: CalendarViewModel
 
+    @State private var cachedWeeks: [[Date?]] = []
+    @State private var cachedMonth: Int = -1
+    @State private var cachedYear: Int = -1
+
     private let calendar = Calendar.current
     private let dayColumns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
     private let daySymbols = ["S", "M", "T", "W", "T", "F", "S"]
@@ -74,11 +78,16 @@ struct CalendarMiniMonthView: View {
     // MARK: - Days Grid
 
     private var daysGrid: some View {
-        let weeks = weeksInMonth()
-        return VStack(spacing: 2) {
-            ForEach(weeks.indices, id: \.self) { weekIndex in
-                weekRow(weeks[weekIndex], isSelectedWeek: isSelectedWeek(weeks[weekIndex]))
+        VStack(spacing: 2) {
+            ForEach(cachedWeeks.indices, id: \.self) { weekIndex in
+                weekRow(cachedWeeks[weekIndex], isSelectedWeek: isSelectedWeek(cachedWeeks[weekIndex]))
             }
+        }
+        .onAppear {
+            recomputeWeeksIfNeeded()
+        }
+        .onChange(of: viewModel.selectedDate) {
+            recomputeWeeksIfNeeded()
         }
     }
 
@@ -126,6 +135,9 @@ struct CalendarMiniMonthView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(date.formatted(date: .complete, time: .omitted))
+        .accessibilityAddTraits(isToday ? [.isButton, .isSelected] : .isButton)
+        .accessibilityHidden(!isInCurrentMonth)
     }
 
     // MARK: - Helpers
@@ -148,6 +160,15 @@ struct CalendarMiniMonthView: View {
 
     private func isSelectedWeek(_ days: [Date?]) -> Bool {
         days.compactMap { $0 }.contains { calendar.isDate($0, equalTo: viewModel.selectedDate, toGranularity: .weekOfYear) }
+    }
+
+    private func recomputeWeeksIfNeeded() {
+        let month = calendar.component(.month, from: viewModel.selectedDate)
+        let year = calendar.component(.year, from: viewModel.selectedDate)
+        guard month != cachedMonth || year != cachedYear else { return }
+        cachedMonth = month
+        cachedYear = year
+        cachedWeeks = weeksInMonth()
     }
 
     private func weeksInMonth() -> [[Date?]] {

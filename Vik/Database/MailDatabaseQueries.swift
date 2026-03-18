@@ -74,9 +74,8 @@ enum MailDatabaseQueries {
     /// Deletes contacts sourced from message headers that have no corresponding messages.
     static func pruneStaleMessageContacts(in db: Database) throws {
         try db.execute(sql: """
-            DELETE FROM contacts
-            WHERE source = 'message'
-            AND email NOT IN (SELECT DISTINCT sender_email FROM messages WHERE sender_email IS NOT NULL)
+            DELETE FROM contacts WHERE source = 'message'
+            AND NOT EXISTS (SELECT 1 FROM messages WHERE messages.sender_email = contacts.email)
         """)
     }
 
@@ -191,20 +190,26 @@ enum MailDatabaseQueries {
     }
 
     /// Events for today (midnight to midnight UTC), optionally scoped to an account.
+    /// Only returns events from visible/selected calendars.
     static func eventsForToday(accountId: String?, in db: Database) throws -> [CalendarEventRecord] {
         let calendar = Calendar.current
         let todayStart = calendar.startOfDay(for: Date()).timeIntervalSince1970
         let todayEnd = todayStart + 86400
 
-        var request = CalendarEventRecord
-            .filter(Column("start_time") < todayEnd)
-            .filter(Column("end_time") > todayStart)
+        var sql = """
+            SELECT ce.* FROM calendar_events ce
+            JOIN calendars c ON c.calendar_id = ce.calendar_id AND c.account_id = ce.account_id
+            WHERE c.is_visible = 1
+            AND ce.start_time < ?
+            AND ce.end_time > ?
+            """
+        var args: [any DatabaseValueConvertible] = [todayEnd, todayStart]
         if let accountId {
-            request = request.filter(Column("account_id") == accountId)
+            sql += "\nAND ce.account_id = ?"
+            args.append(accountId)
         }
-        return try request
-            .order(Column("start_time").asc)
-            .fetchAll(db)
+        sql += "\nORDER BY ce.start_time ASC"
+        return try CalendarEventRecord.fetchAll(db, sql: sql, arguments: StatementArguments(args))
     }
 
     /// Fetches a single event with its attendees. Returns nil if the event is not found.

@@ -41,6 +41,10 @@ final class PanelCoordinator {
     }
 
     func closeAll() {
+        originalMessageTask?.cancel()
+        originalMessageTask = nil
+        downloadTask?.cancel()
+        downloadTask = nil
         showHelp = false
         showDebug = false
         showAttachmentPreview = false

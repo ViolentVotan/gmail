@@ -106,19 +106,18 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     // MARK: - Calendar Notifications
 
     /// Removes stale calendar reminder notifications and schedules fresh ones for upcoming events.
-    func scheduleCalendarReminders(events: [CalendarEvent]) {
+    func scheduleCalendarReminders(events: [CalendarEvent]) async {
         guard UserDefaults.standard.bool(forKey: UserDefaultsKey.notificationsEnabled) else { return }
 
         let center = UNUserNotificationCenter.current()
         let now = Date()
 
-        // Remove all previously scheduled calendar reminders before rescheduling.
-        center.getPendingNotificationRequests { requests in
-            let staleIds = requests
-                .map(\.identifier)
-                .filter { $0.hasPrefix("calendar-") }
-            center.removePendingNotificationRequests(withIdentifiers: staleIds)
-        }
+        // Remove all previously scheduled calendar reminders before scheduling new ones.
+        let requests = await center.pendingNotificationRequests()
+        let staleIds = requests
+            .map(\.identifier)
+            .filter { $0.hasPrefix("calendar-") }
+        center.removePendingNotificationRequests(withIdentifiers: staleIds)
 
         let formatter = DateFormatter()
         formatter.dateStyle = .none
@@ -148,7 +147,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
                 let trigger = UNTimeIntervalNotificationTrigger(timeInterval: interval, repeats: false)
                 let identifier = "calendar-\(event.googleEventId)-\(reminder.minutes)"
                 let request = UNNotificationRequest(identifier: identifier, content: content, trigger: trigger)
-                center.add(request)
+                try? await center.add(request)
             }
         }
     }
@@ -178,7 +177,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
 
             // Convert records to domain events (no attendees needed for notifications).
             let events = records.map { $0.toCalendarEvent(attendees: [], calendarColor: .blue) }
-            scheduleCalendarReminders(events: events)
+            await scheduleCalendarReminders(events: events)
         } catch {
             Self.logger.error("Failed to refresh calendar reminders: \(String(describing: error))")
         }

@@ -37,7 +37,6 @@ final class AppCoordinator {
     var viewMode: AppViewMode = .mail
     private(set) var calendarViewModel: CalendarViewModel?
     private(set) var calendarSyncEngine: CalendarSyncEngine?
-    var selectedCalendarEvent: CalendarEvent?
     var miniAgendaEvents: [CalendarEvent] = []
     var calendarNewEventTrigger: Bool = false
 
@@ -58,10 +57,11 @@ final class AppCoordinator {
 
     func loadContacts() {
         guard !accountID.isEmpty else { return }
+        guard let db = mailDatabase else { return }
         let id = accountID
         contactsTask?.cancel()
         contactsTask = Task { [weak self] in
-            let result = (try? await MailDatabase.shared(for: id).dbPool.read { db in
+            let result = (try? await db.dbPool.read { db in
                 try MailDatabaseQueries.allContacts(in: db).map {
                     StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
                 }
@@ -623,8 +623,10 @@ final class AppCoordinator {
         // Capture the old engines before cancelling, so stop is guaranteed
         // even if a third account switch cancels this task later
         let oldEngine = syncEngine
+        let oldCalendarEngine = calendarSyncEngine
         syncEngine = nil
-        stopCalendarSync()
+        calendarSyncEngine = nil
+        calendarViewModel = nil
         viewMode = .mail
         lifecycleTask?.cancel()
         lifecycleTask = nil
@@ -641,6 +643,7 @@ final class AppCoordinator {
                 }
             }
             await oldEngine?.stop()
+            await oldCalendarEngine?.stop()
             await attachmentStore.refresh()
             guard !Task.isCancelled, self.accountSwitchGeneration == generation else { return }
             syncProgressManager.reset()
@@ -700,14 +703,17 @@ final class AppCoordinator {
         // Stop engines if current account was removed (sign-out)
         if let id = selectedAccountID, removedIDs.contains(id) {
             let engineToStop = syncEngine
+            let calendarEngineToStop = calendarSyncEngine
             syncEngine = nil
-            stopCalendarSync()
+            calendarSyncEngine = nil
+            calendarViewModel = nil
             viewMode = .mail
             lifecycleTask?.cancel()
             lifecycleTask = Task {
                 // Await engine stop BEFORE deleting DB files to prevent
                 // writes to a deleted database.
                 await engineToStop?.stop()
+                await calendarEngineToStop?.stop()
                 self.mailDatabase = nil
                 self.backgroundSyncer = nil
             }
@@ -838,9 +844,10 @@ final class AppCoordinator {
         await engine.start()
     }
 
-    private func stopCalendarSync() {
-        calendarSyncEngine?.stop()
+    private func stopCalendarSync() async {
+        await calendarSyncEngine?.stop()
         calendarSyncEngine = nil
         calendarViewModel = nil
     }
+
 }

@@ -46,6 +46,13 @@ final class CalendarSyncEngine {
     private var calendarListSyncTask: Task<Void, Never>?
     private var postEditRevertTask: Task<Void, Never>?
 
+    /// Reentrancy guard: prevents overlapping `syncIncremental()` runs.
+    /// The polling loop and user-triggered `triggerSync()` can both call
+    /// `syncIncremental()` — actor reentrancy allows the second call to start
+    /// while the first is suspended at an `await`. This flag is set/cleared
+    /// synchronously (no `await` between check and set), so it's MainActor-safe.
+    private var isSyncingIncrementally = false
+
     // MARK: - Init
 
     init(accountID: String, db: MailDatabase) {
@@ -76,13 +83,19 @@ final class CalendarSyncEngine {
         startCalendarListSyncLoop()
     }
 
-    /// Stops all sync tasks.
-    func stop() {
+    /// Stops all sync tasks, awaiting in-flight work so that
+    /// `CalendarBackgroundSyncer` DB writes complete before the engine is discarded.
+    func stop() async {
         syncTask?.cancel()
         calendarListSyncTask?.cancel()
         postEditRevertTask?.cancel()
+        // Wait for in-flight tasks to actually finish before clearing refs
+        await syncTask?.value
+        await calendarListSyncTask?.value
+        await postEditRevertTask?.value
         syncTask = nil
         calendarListSyncTask = nil
+        postEditRevertTask = nil
     }
 
     /// Triggers an immediate incremental sync (e.g., after an event edit).
@@ -129,7 +142,11 @@ final class CalendarSyncEngine {
             let timeMin = now.addingTimeInterval(-30 * 86400)
             let timeMax = now.addingTimeInterval(90 * 86400)
 
-            for calendar in records where calendar.isVisible {
+            for (index, calendar) in records.enumerated() where calendar.isVisible {
+                // Pace API calls to avoid 429s during initial sync of many calendars
+                if index > 0 {
+                    try? await Task.sleep(for: .milliseconds(200))
+                }
                 do {
                     try await syncFullEvents(
                         calendarId: calendar.calendarId,
@@ -189,6 +206,9 @@ final class CalendarSyncEngine {
 
     private func syncIncremental() async {
         if case .initialSync = state { return }
+        guard !isSyncingIncrementally else { return }
+        isSyncingIncrementally = true
+        defer { isSyncingIncrementally = false }
         state = .syncing
 
         do {
@@ -398,26 +418,24 @@ final class CalendarSyncEngine {
 
     // MARK: - Date Parsing
 
-    private nonisolated(unsafe) static let iso8601WithFractional: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
+    /// Thread-safe ISO8601 strategy with fractional seconds.
+    /// `Date.ISO8601FormatStyle` is a value type — safe to use from any isolation context.
+    nonisolated private static let iso8601WithFractional = Date.ISO8601FormatStyle(includingFractionalSeconds: true)
 
-    private nonisolated(unsafe) static let iso8601Standard: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter
-    }()
+    /// Thread-safe ISO8601 strategy without fractional seconds.
+    nonisolated private static let iso8601Standard = Date.ISO8601FormatStyle(includingFractionalSeconds: false)
 
     /// Parses a `CalendarAPIDateTime` into a Unix timestamp.
     nonisolated private static func parseDateTime(_ dt: CalendarAPIDateTime) -> Double {
         if let dateTime = dt.dateTime {
-            if let date = iso8601WithFractional.date(from: dateTime) {
+            if let date = try? iso8601WithFractional.parse(dateTime) {
                 return date.timeIntervalSince1970
             }
             // Retry without fractional seconds
-            return iso8601Standard.date(from: dateTime)?.timeIntervalSince1970 ?? Date().timeIntervalSince1970
+            if let date = try? iso8601Standard.parse(dateTime) {
+                return date.timeIntervalSince1970
+            }
+            return Date().timeIntervalSince1970
         } else if let dateStr = dt.date {
             // All-day event: "yyyy-MM-dd" — timezone varies per event, so use a local formatter
             let formatter = DateFormatter()
@@ -431,8 +449,9 @@ final class CalendarSyncEngine {
     /// Parses an RFC3339 string into a Unix timestamp.
     nonisolated private static func parseRFC3339(_ str: String?) -> Double? {
         guard let str else { return nil }
-        if let date = iso8601WithFractional.date(from: str) { return date.timeIntervalSince1970 }
-        return iso8601Standard.date(from: str)?.timeIntervalSince1970
+        if let date = try? iso8601WithFractional.parse(str) { return date.timeIntervalSince1970 }
+        if let date = try? iso8601Standard.parse(str) { return date.timeIntervalSince1970 }
+        return nil
     }
 
     /// Finds the response status for the self attendee.

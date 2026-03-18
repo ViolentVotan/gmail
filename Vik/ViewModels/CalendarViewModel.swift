@@ -29,9 +29,9 @@ final class CalendarViewModel {
 
     // MARK: - Reactive Observation
 
-    private var observationTask: Task<Void, Never>?
-    private var calendarObservationTask: Task<Void, Never>?
-    private var debounceTask: Task<Void, Never>?
+    @ObservationIgnored private var observationTask: Task<Void, Never>?
+    @ObservationIgnored private var calendarObservationTask: Task<Void, Never>?
+    @ObservationIgnored private var debounceTask: Task<Void, Never>?
 
     // MARK: - Init
 
@@ -178,6 +178,7 @@ final class CalendarViewModel {
     // MARK: - CRUD
 
     func createEvent(_ input: CalendarAPIEventInput, calendarId: String, accountID: String) async throws {
+        error = nil
         isLoading = true
         defer { isLoading = false }
         do {
@@ -201,6 +202,7 @@ final class CalendarViewModel {
     }
 
     func updateEvent(_ event: CalendarEvent, input: CalendarAPIEventInput) async throws {
+        error = nil
         isLoading = true
         defer { isLoading = false }
         do {
@@ -230,6 +232,7 @@ final class CalendarViewModel {
     }
 
     func deleteEvent(_ event: CalendarEvent) async throws {
+        error = nil
         isLoading = true
         defer { isLoading = false }
         // Optimistic local removal regardless of connectivity.
@@ -263,6 +266,7 @@ final class CalendarViewModel {
     }
 
     func respondToEvent(_ event: CalendarEvent, status: CalendarRSVPStatus) async throws {
+        error = nil
         isLoading = true
         defer { isLoading = false }
         // Optimistic local update regardless of connectivity.
@@ -296,6 +300,7 @@ final class CalendarViewModel {
     }
 
     func quickAddEvent(text: String, calendarId: String, accountID: String) async throws {
+        error = nil
         isLoading = true
         defer { isLoading = false }
         do {
@@ -360,20 +365,38 @@ final class CalendarViewModel {
 
     /// Enriches event records with attendee data and resolved colors.
     private func enrichRecords(_ records: [CalendarEventRecord]) -> [CalendarEvent] {
+        guard !records.isEmpty else { return [] }
+
         // Build a lookup of calendar colors by calendarId.
         let calendarColorMap: [String: Color] = calendars.reduce(into: [:]) { map, cal in
             map[cal.calendarId] = Color(hex: cal.backgroundColor)
         }
 
-        return records.compactMap { record in
-            let attendees: [CalendarAttendeeRecord] = (try? db.dbPool.read { db in
-                try CalendarAttendeeRecord
-                    .filter(Column("event_id") == record.eventId)
-                    .filter(Column("calendar_id") == record.calendarId)
-                    .filter(Column("account_id") == record.accountId)
-                    .fetchAll(db)
-            }) ?? []
+        // Batch-fetch all attendees for all event records in a single DB read.
+        let compositeKeys = records.map { ($0.eventId, $0.calendarId, $0.accountId) }
+        let allAttendees: [CalendarAttendeeRecord] = (try? db.dbPool.read { db in
+            // Build OR-chained filter: (event_id = ? AND calendar_id = ? AND account_id = ?) OR ...
+            guard let first = compositeKeys.first else { return [] }
+            var filter = Column("event_id") == first.0
+                && Column("calendar_id") == first.1
+                && Column("account_id") == first.2
+            for key in compositeKeys.dropFirst() {
+                filter = filter
+                    || (Column("event_id") == key.0
+                        && Column("calendar_id") == key.1
+                        && Column("account_id") == key.2)
+            }
+            return try CalendarAttendeeRecord.filter(filter).fetchAll(db)
+        }) ?? []
 
+        // Group attendees by composite key for O(1) lookup.
+        let attendeesByKey: [String: [CalendarAttendeeRecord]] = Dictionary(
+            grouping: allAttendees
+        ) { "\($0.eventId)_\($0.calendarId)_\($0.accountId)" }
+
+        return records.compactMap { record in
+            let key = "\(record.eventId)_\(record.calendarId)_\(record.accountId)"
+            let attendees = attendeesByKey[key] ?? []
             let calendarColor = calendarColorMap[record.calendarId] ?? BrandColor.blue
             return record.toCalendarEvent(attendees: attendees, calendarColor: calendarColor)
         }

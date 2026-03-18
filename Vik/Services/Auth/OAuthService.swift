@@ -17,7 +17,7 @@ final class OAuthService: NSObject {
     // MARK: - Public API
 
     /// Runs the full OAuth flow: opens system browser → loopback redirect → tokens.
-    func authorize(presentingWindow: NSWindow?) async throws -> AuthToken {
+    func authorize(presentingWindow: NSWindow?, forceConsent: Bool = false) async throws -> AuthToken {
         let config = OIDServiceConfiguration(
             authorizationEndpoint: URL(string: "https://accounts.google.com/o/oauth2/v2/auth")!,
             tokenEndpoint: URL(string: "https://oauth2.googleapis.com/token")!
@@ -32,6 +32,10 @@ final class OAuthService: NSObject {
         // PKCE S256 is applied automatically: this convenience initializer (the clientSecret
         // variant) generates a secure state parameter and a PKCE code_challenge with
         // S256 as the code_challenge_method without requiring manual codeVerifier construction.
+        var additionalParameters: [String: String] = ["access_type": "offline"]
+        if forceConsent {
+            additionalParameters["prompt"] = "consent"
+        }
         let request = OIDAuthorizationRequest(
             configuration: config,
             clientId: GoogleCredentials.clientID,
@@ -39,7 +43,7 @@ final class OAuthService: NSObject {
             scopes: GoogleCredentials.scopes,
             redirectURL: redirectURI,
             responseType: OIDResponseTypeCode,
-            additionalParameters: ["access_type": "offline"]
+            additionalParameters: additionalParameters
         )
 
         let window = presentingWindow
@@ -92,7 +96,7 @@ final class OAuthService: NSObject {
     /// Re-authorizes the user with the full scope set.
     /// Needed when new scopes are added after the user already signed in.
     func reauthorize(accountID: String, presentingWindow: NSWindow?) async throws {
-        let token = try await authorize(presentingWindow: presentingWindow)
+        let token = try await authorize(presentingWindow: presentingWindow, forceConsent: true)
         try TokenStore.shared.save(token, for: accountID)
     }
 

@@ -151,7 +151,8 @@ private struct KeyboardEventMonitor: NSViewRepresentable {
                 return true
             case "e":
                 guard let event = calVM.selectedEvent, event.canEdit else { return nil }
-                coord.selectedCalendarEvent = event
+                // Open the event detail sheet; the user can edit from there.
+                calVM.selectedEvent = event
                 return true
             case "y":
                 guard let event = calVM.selectedEvent else { return nil }

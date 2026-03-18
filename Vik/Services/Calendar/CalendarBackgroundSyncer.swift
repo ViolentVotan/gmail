@@ -58,21 +58,21 @@ actor CalendarBackgroundSyncer {
     func upsertEvents(_ events: [CalendarEventRecord], attendees: [CalendarAttendeeRecord]) async throws {
         guard !events.isEmpty else { return }
         try await db.dbPool.write { db in
+            // Track which events we've already cleared attendees for
+            // to avoid redundant deletes when the same event appears multiple times.
+            var clearedEvents: Set<EventKey> = []
+
             for event in events {
                 try event.save(db, onConflict: .replace)
-            }
 
-            // Delete existing attendees per-event, then insert fresh ones.
-            // Avoids complex multi-column IN clauses that may not work across SQLite versions.
-            let eventKeys = Set(events.map { "\($0.eventId)|\($0.calendarId)|\($0.accountId)" })
-            for key in eventKeys {
-                let parts = key.split(separator: "|", maxSplits: 2)
-                guard parts.count == 3 else { continue }
-                try CalendarAttendeeRecord
-                    .filter(Column("event_id") == String(parts[0]))
-                    .filter(Column("calendar_id") == String(parts[1]))
-                    .filter(Column("account_id") == String(parts[2]))
-                    .deleteAll(db)
+                let key = EventKey(eventId: event.eventId, calendarId: event.calendarId, accountId: event.accountId)
+                if clearedEvents.insert(key).inserted {
+                    try CalendarAttendeeRecord
+                        .filter(Column("event_id") == event.eventId)
+                        .filter(Column("calendar_id") == event.calendarId)
+                        .filter(Column("account_id") == event.accountId)
+                        .deleteAll(db)
+                }
             }
 
             for attendee in attendees {
@@ -107,5 +107,14 @@ actor CalendarBackgroundSyncer {
                 calendarId: calendarId, accountId: accountId, token: token, in: db
             )
         }
+    }
+
+    // MARK: - Private Types
+
+    /// Hashable key for deduplicating events by their composite primary key.
+    private struct EventKey: Hashable {
+        let eventId: String
+        let calendarId: String
+        let accountId: String
     }
 }

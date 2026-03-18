@@ -72,6 +72,8 @@ struct CalendarAgendaView: View {
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.sm)
         .background(.regularMaterial)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(relativeDayLabel(date, isToday: isToday, isTomorrow: isTomorrow)), \(fullDateLabel(date))")
     }
 
     // MARK: - Empty state
@@ -107,18 +109,26 @@ struct CalendarAgendaView: View {
         }
     }
 
+    private static let dayOfWeekFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        return formatter
+    }()
+
+    private static let monthDayFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM d"
+        return formatter
+    }()
+
     private func relativeDayLabel(_ date: Date, isToday: Bool, isTomorrow: Bool) -> String {
         if isToday { return "Today" }
         if isTomorrow { return "Tomorrow" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE"
-        return formatter.string(from: date)
+        return Self.dayOfWeekFormatter.string(from: date)
     }
 
     private func fullDateLabel(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM d"
-        return formatter.string(from: date)
+        Self.monthDayFormatter.string(from: date)
     }
 }
 
@@ -201,6 +211,8 @@ private struct AgendaEventRow: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
+        .accessibilityLabel("\(timeString), \(event.summary)")
+        .accessibilityAddTraits(.isButton)
     }
 
     private static let timeFormatter: DateFormatter = {
