@@ -30,9 +30,10 @@ final class CalendarAPIClient {
         method: String = "GET",
         body: Data? = nil,
         queryItems: [URLQueryItem]? = nil,
+        extraHeaders: [String: String]? = nil,
         accountID: String
     ) async throws(CalendarAPIError) -> T {
-        let data = try await requestData(path: path, method: method, body: body, queryItems: queryItems, accountID: accountID)
+        let data = try await requestData(path: path, method: method, body: body, queryItems: queryItems, extraHeaders: extraHeaders, accountID: accountID)
         do {
             return try JSONDecoder().decode(T.self, from: data)
         } catch {
@@ -49,7 +50,7 @@ final class CalendarAPIClient {
         queryItems: [URLQueryItem]? = nil,
         accountID: String
     ) async throws(CalendarAPIError) {
-        _ = try await requestData(path: path, method: method, body: body, queryItems: queryItems, accountID: accountID)
+        _ = try await requestData(path: path, method: method, body: body, queryItems: queryItems, extraHeaders: nil, accountID: accountID)
     }
 
     // MARK: - Core request
@@ -59,6 +60,7 @@ final class CalendarAPIClient {
         method: String,
         body: Data?,
         queryItems: [URLQueryItem]?,
+        extraHeaders: [String: String]?,
         accountID: String
     ) async throws(CalendarAPIError) -> Data {
         guard NetworkMonitor.isReachable else { throw .offline }
@@ -72,7 +74,7 @@ final class CalendarAPIClient {
         }
 
         do {
-            return try await perform(path: path, method: method, body: body, queryItems: queryItems, accessToken: token.accessToken, accountID: accountID)
+            return try await perform(path: path, method: method, body: body, queryItems: queryItems, extraHeaders: extraHeaders, accessToken: token.accessToken, accountID: accountID)
         } catch CalendarAPIError.unauthorized {
             // 401: force refresh via GmailAPIClient, then retry once
             let fresh: AuthToken
@@ -81,7 +83,7 @@ final class CalendarAPIClient {
             } catch {
                 throw CalendarAPIError.wrap(error)
             }
-            return try await perform(path: path, method: method, body: body, queryItems: queryItems, accessToken: fresh.accessToken, accountID: accountID)
+            return try await perform(path: path, method: method, body: body, queryItems: queryItems, extraHeaders: extraHeaders, accessToken: fresh.accessToken, accountID: accountID)
         }
     }
 
@@ -92,6 +94,7 @@ final class CalendarAPIClient {
         method: String,
         body: Data?,
         queryItems: [URLQueryItem]?,
+        extraHeaders: [String: String]?,
         accessToken: String,
         accountID: String
     ) async throws(CalendarAPIError) -> Data {
@@ -110,6 +113,7 @@ final class CalendarAPIClient {
             if body != nil {
                 request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             }
+            extraHeaders?.forEach { request.setValue($1, forHTTPHeaderField: $0) }
             request.httpBody = body
 
             let data: Data
