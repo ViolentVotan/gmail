@@ -36,6 +36,7 @@ struct ReplyBarView: View {
     @State private var showBcc = false
     @State private var cachedStrippedText = ""
     @State private var isEditorFocused = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var replyBarNamespace
     init(
         email: Email,
@@ -68,7 +69,10 @@ struct ReplyBarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if !isExpanded && !smartReplySuggestions.isEmpty {
+            if !quickReplies.isEmpty {
+                quickReplyChips
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            } else if !isExpanded && !smartReplySuggestions.isEmpty {
                 SmartReplyChipsView(suggestions: smartReplySuggestions) { suggestion in
                     if replyTo.isEmpty {
                         replyTo = email.sender.email
@@ -82,6 +86,7 @@ struct ReplyBarView: View {
                     }
                     onSmartReplySelect?(suggestion)
                 }
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
             if isExpanded {
                 expandedContent
@@ -100,6 +105,7 @@ struct ReplyBarView: View {
             scheduleAutoSave()
         }
         .animation(VikAnimation.springSnappy, value: replyBodyIsEmpty)
+        .animation(VikAnimation.springSnappy, value: smartReplySuggestions.isEmpty)
         .task {
             try? await Task.sleep(for: .seconds(0.5))
             isInitialLoad = false
@@ -184,11 +190,6 @@ struct ReplyBarView: View {
             }
         } label: {
             HStack(spacing: 10) {
-                if !quickReplies.isEmpty {
-                    Image(systemName: "apple.intelligence")
-                        .font(Typography.body)
-                        .foregroundStyle(appleIntelligenceGradient)
-                }
                 Text(collapsedPlaceholder)
                     .font(Typography.body)
                     .foregroundStyle(.tertiary)
@@ -210,10 +211,6 @@ struct ReplyBarView: View {
 
     private var expandedContent: some View {
         VStack(spacing: 0) {
-            if !quickReplies.isEmpty {
-                quickReplyChips
-            }
-
             // Recipient fields
             VStack(spacing: 0) {
                 AutocompleteTextField(label: "To", placeholder: "Recipients", text: $replyTo, contacts: contacts)
@@ -377,6 +374,11 @@ struct ReplyBarView: View {
                     let escapedHTML = "<p>\(suggestion.htmlEscaped)</p>"
                     editorState.setHTML(escapedHTML)
                     replyHTML = escapedHTML
+                    if !isExpanded {
+                        if replyTo.isEmpty { replyTo = email.sender.email }
+                        loadExistingDraft()
+                        withAnimation(VikAnimation.springSnappy) { isExpanded = true }
+                    }
                 } label: {
                     Text(suggestion)
                         .font(Typography.subheadRegular)
@@ -401,9 +403,13 @@ struct ReplyBarView: View {
     private func animateChips() {
         visibleChipCount = 0
         guard !quickReplies.isEmpty else { return }
-        for i in 0..<quickReplies.count {
-            withAnimation(VikAnimation.springGentle.delay(Double(i) * 0.1)) {
-                visibleChipCount = i + 1
+        if reduceMotion {
+            visibleChipCount = quickReplies.count
+        } else {
+            for i in 0..<quickReplies.count {
+                withAnimation(VikAnimation.springGentle.delay(Double(i) * 0.1)) {
+                    visibleChipCount = i + 1
+                }
             }
         }
     }
