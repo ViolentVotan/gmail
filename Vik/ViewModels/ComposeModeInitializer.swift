@@ -37,35 +37,47 @@ struct ComposeModeInitializer {
         case .reply(let replyTo, let replySubject, let quotedBody, let replyToMessageID, let threadID, let parentMessageID, let parentReferences):
             fields.to = replyTo
             fields.subject = replySubject.withReplyPrefix
-            let sig = SignatureResolver.resolveHTML(preferredEmail: signatureForReply, aliases: aliases)
-            fields.currentSignatureHTML = sig
-            fields.bodyHTML = sig.isEmpty ? "<br><br>\(quotedBody)" : "<br><br>\(sig)<br>\(quotedBody)"
-            fields.threadID = threadID
-            fields.replyToMessageID = replyToMessageID
-            fields.parentMessageID = parentMessageID
-            fields.parentReferences = parentReferences
+            applyQuotedBody(&fields, signatureForReply: signatureForReply, aliases: aliases, quotedBody: quotedBody)
+            applyThreading(&fields, threadID: threadID, replyToMessageID: replyToMessageID, parentMessageID: parentMessageID, parentReferences: parentReferences)
 
         case .replyAll(let replyTo, let replyCc, let replySubject, let quotedBody, let replyToMessageID, let threadID, let parentMessageID, let parentReferences):
             fields.to = replyTo
             fields.cc = replyCc
             fields.showCc = !replyCc.isEmpty
             fields.subject = replySubject.withReplyPrefix
-            let sig = SignatureResolver.resolveHTML(preferredEmail: signatureForReply, aliases: aliases)
-            fields.currentSignatureHTML = sig
-            fields.bodyHTML = sig.isEmpty ? "<br><br>\(quotedBody)" : "<br><br>\(sig)<br>\(quotedBody)"
-            fields.threadID = threadID
-            fields.replyToMessageID = replyToMessageID
-            fields.parentMessageID = parentMessageID
-            fields.parentReferences = parentReferences
+            applyQuotedBody(&fields, signatureForReply: signatureForReply, aliases: aliases, quotedBody: quotedBody)
+            applyThreading(&fields, threadID: threadID, replyToMessageID: replyToMessageID, parentMessageID: parentMessageID, parentReferences: parentReferences)
 
         case .forward(let fwdSubject, let quotedBody):
             fields.to = ""
             fields.subject = fwdSubject.withForwardPrefix
-            let sig = SignatureResolver.resolveHTML(preferredEmail: signatureForReply, aliases: aliases)
-            fields.currentSignatureHTML = sig
-            fields.bodyHTML = sig.isEmpty ? "<br><br>\(quotedBody)" : "<br><br>\(sig)<br>\(quotedBody)"
+            applyQuotedBody(&fields, signatureForReply: signatureForReply, aliases: aliases, quotedBody: quotedBody)
         }
 
         return fields
+    }
+
+    private static func applyQuotedBody(
+        _ fields: inout ComposeModeFields,
+        signatureForReply: String,
+        aliases: [GmailSendAs],
+        quotedBody: String
+    ) {
+        let sig = SignatureResolver.resolveHTML(preferredEmail: signatureForReply, aliases: aliases)
+        fields.currentSignatureHTML = sig
+        fields.bodyHTML = sig.isEmpty ? "<br><br>\(quotedBody)" : "<br><br>\(sig)<br>\(quotedBody)"
+    }
+
+    private static func applyThreading(
+        _ fields: inout ComposeModeFields,
+        threadID: String?,
+        replyToMessageID: String?,
+        parentMessageID: String?,
+        parentReferences: String?
+    ) {
+        fields.threadID = threadID
+        fields.replyToMessageID = replyToMessageID
+        fields.parentMessageID = parentMessageID
+        fields.parentReferences = parentReferences
     }
 }

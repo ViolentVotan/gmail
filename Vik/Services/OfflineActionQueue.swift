@@ -61,6 +61,7 @@ final class OfflineActionQueue {
         drainTask?.cancel()
         drainTask = nil
         isDraining = false  // Reset before guard to prevent stuck state when cancelled during backoff
+        retryDelay = 2.0    // Fresh drain cycle starts with base delay
         guard !pendingActions.isEmpty else { return }
         isDraining = true
 

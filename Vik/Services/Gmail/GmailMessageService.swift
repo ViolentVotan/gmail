@@ -265,6 +265,7 @@ final class GmailMessageService {
         var pageToken: String? = nil
         var allIDs: [String] = []
         repeat {
+            await QuotaTracker.shared.waitForBudget(5)
             let response = try await listMessages(
                 accountID: accountID,
                 labelIDs: [labelID],
@@ -275,6 +276,11 @@ final class GmailMessageService {
             pageToken = response.nextPageToken
         } while pageToken != nil
 
+        // batchDelete processes in chunks of 1000; each chunk is one API call (50 units)
+        let chunkCount = allIDs.isEmpty ? 0 : (allIDs.count + 999) / 1000
+        for _ in 0..<chunkCount {
+            await QuotaTracker.shared.waitForBudget(50)
+        }
         try await batchDelete(ids: allIDs, accountID: accountID)
     }
 

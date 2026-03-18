@@ -116,7 +116,8 @@ final class CalendarEventService {
         calendarId: String,
         event: CalendarAPIEventInput,
         accountID: String,
-        conferenceDataVersion: Int? = nil
+        conferenceDataVersion: Int? = nil,
+        sendUpdates: String? = "all"
     ) async throws(CalendarAPIError) -> CalendarAPIEvent {
         let body: Data
         do {
@@ -127,6 +128,9 @@ final class CalendarEventService {
         var queryItems = [URLQueryItem(name: "fields", value: Self.singleEventFieldMask)]
         if let version = conferenceDataVersion {
             queryItems.append(URLQueryItem(name: "conferenceDataVersion", value: "\(version)"))
+        }
+        if let sendUpdates {
+            queryItems.append(URLQueryItem(name: "sendUpdates", value: sendUpdates))
         }
         return try await client.request(
             path: "/calendars/\(Self.encodePath(calendarId))/events",
@@ -145,7 +149,9 @@ final class CalendarEventService {
         eventId: String,
         event: CalendarAPIEventInput,
         accountID: String,
-        etag: String?
+        etag: String?,
+        conferenceDataVersion: Int? = nil,
+        sendUpdates: String? = "all"
     ) async throws(CalendarAPIError) -> CalendarAPIEvent {
         let body: Data
         do {
@@ -157,7 +163,13 @@ final class CalendarEventService {
         if let etag {
             headers = ["If-Match": etag]
         }
-        let queryItems = [URLQueryItem(name: "fields", value: Self.singleEventFieldMask)]
+        var queryItems = [URLQueryItem(name: "fields", value: Self.singleEventFieldMask)]
+        if let version = conferenceDataVersion {
+            queryItems.append(URLQueryItem(name: "conferenceDataVersion", value: "\(version)"))
+        }
+        if let sendUpdates {
+            queryItems.append(URLQueryItem(name: "sendUpdates", value: sendUpdates))
+        }
         return try await client.request(
             path: "/calendars/\(Self.encodePath(calendarId))/events/\(Self.encodePath(eventId))",
             method: "PUT",
@@ -176,13 +188,17 @@ final class CalendarEventService {
         eventId: String,
         fields: Data,
         accountID: String,
-        etag: String?
+        etag: String?,
+        sendUpdates: String? = "all"
     ) async throws(CalendarAPIError) -> CalendarAPIEvent {
         var headers: [String: String]? = nil
         if let etag {
             headers = ["If-Match": etag]
         }
-        let queryItems = [URLQueryItem(name: "fields", value: Self.singleEventFieldMask)]
+        var queryItems = [URLQueryItem(name: "fields", value: Self.singleEventFieldMask)]
+        if let sendUpdates {
+            queryItems.append(URLQueryItem(name: "sendUpdates", value: sendUpdates))
+        }
         return try await client.request(
             path: "/calendars/\(Self.encodePath(calendarId))/events/\(Self.encodePath(eventId))",
             method: "PATCH",
@@ -199,11 +215,17 @@ final class CalendarEventService {
     @concurrent func deleteEvent(
         calendarId: String,
         eventId: String,
-        accountID: String
+        accountID: String,
+        sendUpdates: String? = "all"
     ) async throws(CalendarAPIError) {
+        var queryItems: [URLQueryItem] = []
+        if let sendUpdates {
+            queryItems.append(URLQueryItem(name: "sendUpdates", value: sendUpdates))
+        }
         try await client.requestVoid(
             path: "/calendars/\(Self.encodePath(calendarId))/events/\(Self.encodePath(eventId))",
             method: "DELETE",
+            queryItems: queryItems.isEmpty ? nil : queryItems,
             accountID: accountID
         )
     }
@@ -236,7 +258,8 @@ final class CalendarEventService {
         calendarId: String,
         eventId: String,
         accountID: String,
-        status: String
+        status: String,
+        sendUpdates: String? = "all"
     ) async throws(CalendarAPIError) -> CalendarAPIEvent {
         let event = try await getEvent(calendarId: calendarId, eventId: eventId, accountID: accountID)
 
@@ -269,7 +292,8 @@ final class CalendarEventService {
             eventId: eventId,
             fields: body,
             accountID: accountID,
-            etag: event.etag
+            etag: event.etag,
+            sendUpdates: sendUpdates
         )
     }
 

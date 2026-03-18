@@ -17,7 +17,7 @@ final class CalendarViewModel {
     var error: CalendarAPIError?
     var selectedEvent: CalendarEvent?
 
-    /// Set of composite IDs ("\(accountID)_\(calendarId)") for unified multi-account view.
+    /// Set of composite IDs ("\(accountID)\u{001F}\(calendarId)") using Unit Separator for unified multi-account view.
     var visibleCalendarIDs: Set<String> = []
 
     /// Called after any successful event mutation (create, update, delete, RSVP, quick-add).
@@ -67,7 +67,7 @@ final class CalendarViewModel {
                 for try await records in calendarObservation.values(in: dbPool) {
                     guard let self else { return }
                     self.calendars = records.map { $0.toCalendarInfo() }
-                    let newVisibleIDs = Set(records.map { "\($0.accountId)_\($0.calendarId)" })
+                    let newVisibleIDs = Set(records.map { "\($0.accountId)\u{001F}\($0.calendarId)" })
                     let changed = newVisibleIDs != self.visibleCalendarIDs
                     self.visibleCalendarIDs = newVisibleIDs
                     if changed {
@@ -84,11 +84,11 @@ final class CalendarViewModel {
         observationTask?.cancel()
         let dateRange = currentDateRange
         let visibleIDs = visibleCalendarIDs
-        // Decode composite "accountId_calendarId" keys into typed tuples so the
+        // Decode composite "accountId\u{001F}calendarId" keys into typed tuples so the
         // DB query can scope each calendar to its owning account — preventing
         // cross-account matches on shared calendar IDs.
         let calendarKeys: [(calendarId: String, accountId: String)] = visibleIDs.compactMap { id in
-            let parts = id.split(separator: "_", maxSplits: 1)
+            let parts = id.split(separator: "\u{001F}", maxSplits: 1)
             guard parts.count == 2 else { return nil }
             return (calendarId: String(parts[1]), accountId: String(parts[0]))
         }
@@ -431,10 +431,10 @@ final class CalendarViewModel {
         // Group attendees by composite key for O(1) lookup.
         let attendeesByKey: [String: [CalendarAttendeeRecord]] = Dictionary(
             grouping: allAttendees
-        ) { "\($0.eventId)_\($0.calendarId)_\($0.accountId)" }
+        ) { "\($0.eventId)\u{001F}\($0.calendarId)\u{001F}\($0.accountId)" }
 
         return records.compactMap { record in
-            let key = "\(record.eventId)_\(record.calendarId)_\(record.accountId)"
+            let key = "\(record.eventId)\u{001F}\(record.calendarId)\u{001F}\(record.accountId)"
             let attendees = attendeesByKey[key] ?? []
             let calendarColor = calendarColorMap[record.calendarId] ?? BrandColor.blue
             return record.toCalendarEvent(attendees: attendees, calendarColor: calendarColor)

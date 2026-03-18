@@ -12,7 +12,7 @@ final class EmailSummaryViewModel {
     @ObservationIgnored private var streamTask: Task<Void, Never>?
     @ObservationIgnored private var insightTask: Task<Void, Never>?
 
-    deinit {
+    isolated deinit {
         streamTask?.cancel()
         insightTask?.cancel()
     }

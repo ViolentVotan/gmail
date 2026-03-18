@@ -448,12 +448,12 @@ struct ComposeView: View {
         default:   isReplyOrForward = true
         }
         let preferredEmail = isReplyOrForward ? signatureForReply : signatureForNew
-        let newSig = composeVM.signatureHTMLForAlias(
+        let newSig = SignatureResolver.signatureHTMLForAlias(
             aliasEmail,
             aliases: sendAsAliases,
             fallbackPreferredEmail: preferredEmail
         )
-        let result = composeVM.replaceHTMLSignature(
+        let result = SignatureResolver.replaceHTMLSignature(
             in: bodyHTML,
             currentSignature: currentSignatureHTML,
             newSignature: newSig

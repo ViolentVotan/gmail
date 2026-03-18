@@ -67,14 +67,11 @@ enum ContentExtractor {
     // MARK: - PDF
 
     private static func extractPDF(data: Data) async -> ExtractionResult {
-        if #available(macOS 26.0, *) {
-            let result = await extractPDFWithDocumentRecognition(data: data)
-            if case .text = result { return result }
-        }
+        let result = await extractPDFWithDocumentRecognition(data: data)
+        if case .text = result { return result }
         return extractPDFWithLegacy(data: data)
     }
 
-    @available(macOS 26.0, *)
     private static func extractPDFWithDocumentRecognition(data: Data) async -> ExtractionResult {
         guard let document = PDFDocument(data: data), document.pageCount > 0 else {
             return .unsupported
@@ -130,13 +127,9 @@ enum ContentExtractor {
     // MARK: - OCR (Vision)
 
     private static func extractOCR(data: Data) async -> ExtractionResult {
-        if #available(macOS 26.0, *) {
-            return await extractWithDocumentRecognition(data: data)
-        }
-        return extractWithLegacyOCR(data: data)
+        return await extractWithDocumentRecognition(data: data)
     }
 
-    @available(macOS 26.0, *)
     private static func extractWithDocumentRecognition(data: Data) async -> ExtractionResult {
         var request = RecognizeDocumentsRequest()
         request.textRecognitionOptions.recognitionLanguages = [
@@ -163,7 +156,6 @@ enum ContentExtractor {
         }
     }
 
-    @available(macOS 26.0, *)
     private static func extractText(from container: DocumentObservation.Container) -> String {
         var sections: [String] = []
 

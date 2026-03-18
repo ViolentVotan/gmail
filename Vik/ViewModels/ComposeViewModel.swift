@@ -44,7 +44,7 @@ final class ComposeViewModel {
         self.threadID    = threadID
     }
 
-    deinit {
+    isolated deinit {
         saveDraftTask?.cancel()
     }
 
@@ -440,32 +440,6 @@ final class ComposeViewModel {
 
     func showToast(_ message: String, type: ToastType = .info) {
         ToastManager.shared.show(message: message, type: type)
-    }
-
-    // MARK: - Signature forwarding
-
-    func signatureHTMLForAlias(
-        _ aliasEmail: String,
-        aliases: [GmailSendAs],
-        fallbackPreferredEmail: String
-    ) -> String {
-        SignatureResolver.signatureHTMLForAlias(
-            aliasEmail,
-            aliases: aliases,
-            fallbackPreferredEmail: fallbackPreferredEmail
-        )
-    }
-
-    func replaceHTMLSignature(
-        in bodyHTML: String,
-        currentSignature: String,
-        newSignature: String
-    ) -> (body: String, signature: String) {
-        SignatureResolver.replaceHTMLSignature(
-            in: bodyHTML,
-            currentSignature: currentSignature,
-            newSignature: newSignature
-        )
     }
 
     // MARK: - Helpers

@@ -56,11 +56,7 @@ struct OnboardingView: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                if #available(macOS 26, *) {
-                    glassContent
-                } else {
-                    materialContent
-                }
+                glassContent
 
                 Spacer()
             }

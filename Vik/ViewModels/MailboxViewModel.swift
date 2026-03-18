@@ -136,7 +136,7 @@ final class MailboxViewModel {
         self.labelService = LabelSyncService.shared
     }
 
-    deinit {
+    isolated deinit {
         observationTask?.cancel()
         enrichmentTask?.cancel()
         observationDebounceTask?.cancel()

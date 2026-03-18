@@ -105,7 +105,7 @@ final class AttachmentStore {
         self.searchService = AttachmentSearchService(database: database)
     }
 
-    deinit {
+    isolated deinit {
         searchTask?.cancel()
         debounceTask?.cancel()
     }

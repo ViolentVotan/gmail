@@ -1,5 +1,5 @@
 import SwiftUI
-@preconcurrency import AppKit
+import AppKit
 import WebKit
 
 /// Invisible view that captures global keyboard shortcuts.

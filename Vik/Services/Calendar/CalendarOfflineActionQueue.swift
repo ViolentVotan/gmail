@@ -5,10 +5,19 @@ private import os
 /// and replays them in order when connectivity is restored.
 ///
 /// Mirrors the email `OfflineActionQueue` pattern but scoped to calendar CRUD operations.
+@Observable
 @MainActor
 final class CalendarOfflineActionQueue {
     static let shared = CalendarOfflineActionQueue()
     nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "CalendarOfflineQueue")
+
+    private let store = PerAccountFileStore<CalendarOfflineAction>(
+        fileURL: { accountID in
+            AppPaths.appSupportDirectory
+                .appendingPathComponent("calendar-offline-queue/\(accountID).json")
+        }
+    )
+
     private init() {}
 
     // MARK: - Action Model
@@ -20,10 +29,10 @@ final class CalendarOfflineActionQueue {
         let actionType: ActionType
 
         enum ActionType: Codable, Sendable {
-            case createEvent(calendarId: String, input: CalendarAPIEventInput)
-            case updateEvent(calendarId: String, eventId: String, input: CalendarAPIEventInput, etag: String)
-            case deleteEvent(calendarId: String, eventId: String)
-            case rsvpEvent(calendarId: String, eventId: String, status: String)
+            case createEvent(calendarId: String, input: CalendarAPIEventInput, sendUpdates: String? = "all")
+            case updateEvent(calendarId: String, eventId: String, input: CalendarAPIEventInput, etag: String, sendUpdates: String? = "all")
+            case deleteEvent(calendarId: String, eventId: String, sendUpdates: String? = "all")
+            case rsvpEvent(calendarId: String, eventId: String, status: String, sendUpdates: String? = "all")
 
             var isUpdate: Bool {
                 if case .updateEvent = self { return true }
@@ -34,35 +43,39 @@ final class CalendarOfflineActionQueue {
 
     // MARK: - State
 
-    /// In-memory queues keyed by accountID. Loaded lazily on first access per account.
-    private var actions: [String: [CalendarOfflineAction]] = [:]
+    /// Set of account IDs currently being processed to prevent concurrent `processQueue` calls.
+    private var processingAccounts: Set<String> = []
 
     var pendingCount: Int {
-        actions.values.reduce(0) { $0 + $1.count }
+        store.allItems.count
     }
 
     // MARK: - Public API
 
     func enqueue(_ action: CalendarOfflineAction) {
-        actions[action.accountID, default: []].append(action)
-        save(for: action.accountID)
+        store.loadMerging(accountID: action.accountID)
+        store.append(action, accountID: action.accountID)
     }
 
     func pendingActions(for accountID: String) -> [CalendarOfflineAction] {
-        loadIfNeeded(for: accountID)
-        return actions[accountID] ?? []
+        store.loadMerging(accountID: accountID)
+        return store.itemsByAccount[accountID] ?? []
     }
 
     func hasPendingActions(for accountID: String) -> Bool {
-        loadIfNeeded(for: accountID)
-        return !(actions[accountID]?.isEmpty ?? true)
+        store.loadMerging(accountID: accountID)
+        return !(store.itemsByAccount[accountID]?.isEmpty ?? true)
     }
 
     /// Processes all pending actions for the given account in order.
     /// Stops on the first failure to preserve ordering guarantees.
     func processQueue(accountID: String) async {
-        loadIfNeeded(for: accountID)
-        guard var pending = actions[accountID], !pending.isEmpty else { return }
+        guard !processingAccounts.contains(accountID) else { return }
+        processingAccounts.insert(accountID)
+        defer { processingAccounts.remove(accountID) }
+
+        store.loadMerging(accountID: accountID)
+        guard let pending = store.itemsByAccount[accountID], !pending.isEmpty else { return }
 
         var processed: [UUID] = []
         for action in pending {
@@ -89,15 +102,13 @@ final class CalendarOfflineActionQueue {
         }
 
         guard !processed.isEmpty else { return }
-        actions[accountID]?.removeAll { processed.contains($0.id) }
-        save(for: accountID)
+        let processedSet = Set(processed)
+        store.removeAll(accountID: accountID) { processedSet.contains($0.id) }
     }
 
     /// Removes all queued actions for the given account and deletes its on-disk file.
     func deleteAccount(_ accountID: String) {
-        actions.removeValue(forKey: accountID)
-        let url = fileURL(for: accountID)
-        try? FileManager.default.removeItem(at: url)
+        store.deleteAccount(accountID)
     }
 
     // MARK: - Execution
@@ -105,21 +116,44 @@ final class CalendarOfflineActionQueue {
     private func execute(_ action: CalendarOfflineAction) async throws(CalendarAPIError) {
         let service = CalendarEventService.shared
         switch action.actionType {
-        case .createEvent(let calendarId, let input):
-            _ = try await service.insertEvent(calendarId: calendarId, event: input, accountID: action.accountID)
-        case .updateEvent(let calendarId, let eventId, let input, let etag):
-            _ = try await service.updateEvent(calendarId: calendarId, eventId: eventId, event: input, accountID: action.accountID, etag: etag)
-        case .deleteEvent(let calendarId, let eventId):
-            try await service.deleteEvent(calendarId: calendarId, eventId: eventId, accountID: action.accountID)
-        case .rsvpEvent(let calendarId, let eventId, let status):
-            _ = try await service.respondToEvent(calendarId: calendarId, eventId: eventId, accountID: action.accountID, status: status)
+        case .createEvent(let calendarId, let input, let sendUpdates):
+            _ = try await service.insertEvent(
+                calendarId: calendarId,
+                event: input,
+                accountID: action.accountID,
+                sendUpdates: sendUpdates
+            )
+        case .updateEvent(let calendarId, let eventId, let input, let etag, let sendUpdates):
+            _ = try await service.updateEvent(
+                calendarId: calendarId,
+                eventId: eventId,
+                event: input,
+                accountID: action.accountID,
+                etag: etag,
+                sendUpdates: sendUpdates
+            )
+        case .deleteEvent(let calendarId, let eventId, let sendUpdates):
+            try await service.deleteEvent(
+                calendarId: calendarId,
+                eventId: eventId,
+                accountID: action.accountID,
+                sendUpdates: sendUpdates
+            )
+        case .rsvpEvent(let calendarId, let eventId, let status, let sendUpdates):
+            _ = try await service.respondToEvent(
+                calendarId: calendarId,
+                eventId: eventId,
+                accountID: action.accountID,
+                status: status,
+                sendUpdates: sendUpdates
+            )
         }
     }
 
     /// Re-fetches the event for a fresh etag, then retries the update once.
     /// Returns `true` if the retry succeeded, `false` if it failed (action is discarded either way).
     private func resolveConflict(for action: CalendarOfflineAction) async -> Bool {
-        guard case .updateEvent(let calendarId, let eventId, let input, _) = action.actionType else {
+        guard case .updateEvent(let calendarId, let eventId, let input, _, let sendUpdates) = action.actionType else {
             return false
         }
         let service = CalendarEventService.shared
@@ -138,7 +172,8 @@ final class CalendarOfflineActionQueue {
                 eventId: eventId,
                 event: input,
                 accountID: action.accountID,
-                etag: freshEtag
+                etag: freshEtag,
+                sendUpdates: sendUpdates
             )
             Self.logger.info("Conflict resolved for \(action.id) with fresh etag")
             return true
@@ -146,31 +181,5 @@ final class CalendarOfflineActionQueue {
             Self.logger.warning("Conflict resolution failed for \(action.id): \(error)")
             return false
         }
-    }
-
-    // MARK: - Persistence
-
-    private func fileURL(for accountID: String) -> URL {
-        let dir = AppPaths.appSupportDirectory
-            .appendingPathComponent("calendar-offline-queue", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir.appendingPathComponent("\(accountID).json")
-    }
-
-    private func save(for accountID: String) {
-        let url = fileURL(for: accountID)
-        let data = try? JSONEncoder().encode(actions[accountID] ?? [])
-        try? data?.write(to: url, options: .atomic)
-    }
-
-    private func loadIfNeeded(for accountID: String) {
-        guard actions[accountID] == nil else { return }
-        let url = fileURL(for: accountID)
-        guard let data = try? Data(contentsOf: url),
-              let loaded = try? JSONDecoder().decode([CalendarOfflineAction].self, from: data) else {
-            actions[accountID] = []
-            return
-        }
-        actions[accountID] = loaded
     }
 }

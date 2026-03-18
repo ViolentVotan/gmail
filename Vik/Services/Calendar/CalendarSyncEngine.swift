@@ -215,6 +215,7 @@ actor CalendarSyncEngine {
 
     private func syncIncremental() async {
         if case .initialSync = state { return }
+        guard NetworkMonitor.isReachable else { return }
         guard !isSyncingIncrementally else { return }
         isSyncingIncrementally = true
         defer { isSyncingIncrementally = false }
@@ -332,10 +333,26 @@ actor CalendarSyncEngine {
                 // Incremental sync — only changed calendars
                 do {
                     let response = try await listService.syncCalendars(accountID: accountID, syncToken: token)
-                    let records = (response.items ?? []).compactMap { Self.calendarRecord(from: $0, accountId: accountID) }
+                    let items = response.items ?? []
+
+                    // Partition: deleted entries are removed, the rest are upserted
+                    let deletedIds = items
+                        .filter { $0.deleted == true }
+                        .compactMap { entry -> (calendarId: String, accountId: String)? in
+                            guard let id = entry.id else { return nil }
+                            return (calendarId: id, accountId: accountID)
+                        }
+                    if !deletedIds.isEmpty {
+                        try await syncer.deleteCalendars(deletedIds)
+                    }
+
+                    let records = items
+                        .filter { $0.deleted != true }
+                        .compactMap { Self.calendarRecord(from: $0, accountId: accountID) }
                     if !records.isEmpty {
                         try await syncer.upsertCalendars(records)
                     }
+
                     if let newToken = response.nextSyncToken {
                         calendarListSyncToken = newToken
                     }
@@ -464,6 +481,9 @@ actor CalendarSyncEngine {
     /// Thread-safe ISO8601 strategy without fractional seconds.
     nonisolated private static let iso8601Standard = Date.ISO8601FormatStyle(includingFractionalSeconds: false)
 
+    /// Gregorian calendar for date-component parsing — Google Calendar dates always assume Gregorian.
+    nonisolated private static let gregorianCalendar = Calendar(identifier: .gregorian)
+
     /// Parses a `CalendarAPIDateTime` into a Unix timestamp.
     /// For all-day events, `calendarTimeZone` is used as the fallback when the event itself
     /// has no timezone — prevents incorrect date display in negative-UTC timezones.
@@ -495,7 +515,7 @@ actor CalendarSyncEngine {
             dc.day = day
             let tzIdentifier = dt.timeZone ?? calendarTimeZone ?? "UTC"
             dc.timeZone = TimeZone(identifier: tzIdentifier) ?? .gmt
-            return Calendar.current.date(from: dc)?.timeIntervalSince1970 ?? Date().timeIntervalSince1970
+            return gregorianCalendar.date(from: dc)?.timeIntervalSince1970 ?? Date().timeIntervalSince1970
         }
         return Date().timeIntervalSince1970
     }

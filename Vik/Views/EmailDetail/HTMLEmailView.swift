@@ -1,4 +1,4 @@
-@preconcurrency import WebKit
+import WebKit
 import SwiftUI
 
 // NOTE: Native SwiftUI WebView (macOS 26) cannot replace WKWebView here because

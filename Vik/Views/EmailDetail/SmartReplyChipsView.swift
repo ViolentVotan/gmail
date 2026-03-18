@@ -21,7 +21,7 @@ struct SmartReplyChipsView: View {
             }
             .onChange(of: suggestions) {
                 hasAppeared = false
-                DispatchQueue.main.async {
+                Task { @MainActor in
                     hasAppeared = true
                 }
             }

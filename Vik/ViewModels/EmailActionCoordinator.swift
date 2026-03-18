@@ -71,6 +71,28 @@ final class EmailActionCoordinator {
         )
     }
 
+    /// Handles the offline guard + enqueue + optimistic DB update + toast pattern.
+    /// Returns `true` if the caller should proceed with the online API call, `false` if offline handling was applied.
+    @discardableResult
+    private func performOptimisticLabelAction(
+        messageID: String,
+        addLabelIds: [String],
+        removeLabelIds: [String],
+        offlineActionType: OfflineAction.ActionType,
+        toastMessage: String
+    ) async -> Bool {
+        guard NetworkMonitor.shared.isConnected else {
+            let vm = mailboxViewModel
+            OfflineActionQueue.shared.enqueue(OfflineAction(
+                actionType: offlineActionType, messageIds: [messageID], accountID: vm.accountID
+            ))
+            _ = await vm.updateLabelsInDatabase(messageID, addLabelIds: addLabelIds, removeLabelIds: removeLabelIds)
+            ToastManager.shared.show(message: toastMessage)
+            return false
+        }
+        return true
+    }
+
     // MARK: - Single email actions
 
     func archiveEmail(_ email: Email, selectNext: (Email?) -> Void) async {
@@ -107,51 +129,40 @@ final class EmailActionCoordinator {
 
     func toggleStarEmail(_ email: Email) async {
         guard let msgID = email.gmailMessageID else { return }
-        let vm = mailboxViewModel
-        guard NetworkMonitor.shared.isConnected else {
-            let actionType: OfflineAction.ActionType = email.isStarred ? .unstar : .star
-            OfflineActionQueue.shared.enqueue(OfflineAction(
-                actionType: actionType, messageIds: [msgID], accountID: vm.accountID
-            ))
-            // Optimistic DB update so UI reflects the change immediately
-            _ = await vm.updateLabelsInDatabase(
-                msgID,
-                addLabelIds: email.isStarred ? [] : [GmailSystemLabel.starred],
-                removeLabelIds: email.isStarred ? [GmailSystemLabel.starred] : []
-            )
-            ToastManager.shared.show(message: email.isStarred ? "Unstarred (will sync when online)" : "Starred (will sync when online)")
-            return
-        }
-        await vm.toggleStar(msgID, isStarred: email.isStarred)
+        let adding = email.isStarred ? [] : [GmailSystemLabel.starred]
+        let removing = email.isStarred ? [GmailSystemLabel.starred] : [String]()
+        guard await performOptimisticLabelAction(
+            messageID: msgID,
+            addLabelIds: adding,
+            removeLabelIds: removing,
+            offlineActionType: email.isStarred ? .unstar : .star,
+            toastMessage: email.isStarred ? "Unstarred (will sync when online)" : "Starred (will sync when online)"
+        ) else { return }
+        await mailboxViewModel.toggleStar(msgID, isStarred: email.isStarred)
     }
 
     func markReadEmail(_ email: Email) async {
         guard let msgID = email.gmailMessageID else { return }
-        let vm = mailboxViewModel
-        guard NetworkMonitor.shared.isConnected else {
-            OfflineActionQueue.shared.enqueue(OfflineAction(
-                actionType: .markRead, messageIds: [msgID], accountID: vm.accountID
-            ))
-            _ = await vm.updateLabelsInDatabase(msgID, addLabelIds: [], removeLabelIds: [GmailSystemLabel.unread])
-            ToastManager.shared.show(message: "Marked read (will sync when online)")
-            return
-        }
-        await vm.markAsRead(msgID)
+        guard await performOptimisticLabelAction(
+            messageID: msgID,
+            addLabelIds: [],
+            removeLabelIds: [GmailSystemLabel.unread],
+            offlineActionType: .markRead,
+            toastMessage: "Marked read (will sync when online)"
+        ) else { return }
+        await mailboxViewModel.markAsRead(msgID)
     }
 
     func markUnreadEmail(_ email: Email) async {
         guard let msgID = email.gmailMessageID else { return }
-        let vm = mailboxViewModel
-        guard NetworkMonitor.shared.isConnected else {
-            OfflineActionQueue.shared.enqueue(OfflineAction(
-                actionType: .markUnread, messageIds: [msgID], accountID: vm.accountID
-            ))
-            // Optimistic DB update
-            _ = await vm.updateLabelsInDatabase(msgID, addLabelIds: [GmailSystemLabel.unread], removeLabelIds: [])
-            ToastManager.shared.show(message: "Marked unread (will sync when online)")
-            return
-        }
-        await vm.markAsUnread(msgID)
+        guard await performOptimisticLabelAction(
+            messageID: msgID,
+            addLabelIds: [GmailSystemLabel.unread],
+            removeLabelIds: [],
+            offlineActionType: .markUnread,
+            toastMessage: "Marked unread (will sync when online)"
+        ) else { return }
+        await mailboxViewModel.markAsUnread(msgID)
     }
 
     func markSpamEmail(_ email: Email, selectNext: @escaping (Email?) -> Void) async {
