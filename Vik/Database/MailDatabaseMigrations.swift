@@ -20,6 +20,7 @@ enum MailDatabaseMigrations {
         registerV13(&migrator)
         registerV14(&migrator)
         registerV15(&migrator)
+        registerV16(&migrator)
         return migrator
     }
 
@@ -478,6 +479,21 @@ enum MailDatabaseMigrations {
                     VALUES (NEW.gmail_id, NEW.subject, NEW.body_plain, NEW.snippet, NEW.sender_name, NEW.sender_email);
                 END
             """)
+        }
+    }
+
+    // MARK: - V16
+
+    private static func registerV16(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v16_prefetch_index") { db in
+            // Replace the prefetch index to include body_fetch_attempts,
+            // which V12 added as a filter column in messagesNeedingBodies.
+            try db.drop(index: "messages_prefetch")
+            try db.create(
+                index: "messages_prefetch",
+                on: "messages",
+                columns: ["full_body_fetched", "body_fetch_attempts", "internal_date"]
+            )
         }
     }
 }
