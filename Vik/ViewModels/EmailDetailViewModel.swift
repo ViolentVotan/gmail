@@ -209,20 +209,9 @@ final class EmailDetailViewModel {
     /// Extracts bare email addresses from a comma-separated RFC 2822 address list string.
     private static func extractEmails(from addressList: String) -> [String] {
         guard !addressList.isEmpty else { return [] }
-        return addressList.components(separatedBy: ",").compactMap { entry -> String? in
-            let trimmed = entry.trimmingCharacters(in: .whitespaces)
-            // "Display Name <email@domain.com>" format
-            if let open = trimmed.lastIndex(of: "<"), let close = trimmed.lastIndex(of: ">"),
-               open < close {
-                let email = String(trimmed[trimmed.index(after: open)..<close])
-                    .trimmingCharacters(in: .whitespaces)
-                    .lowercased()
-                return email.isEmpty ? nil : email
-            }
-            // Bare email address
-            let email = trimmed.lowercased()
-            return email.contains("@") ? email : nil
-        }
+        return addressList.components(separatedBy: ",")
+            .map { GmailDataTransformer.parseContactCore($0).email.lowercased() }
+            .filter { $0.contains("@") }
     }
 
     func sendRSVP(_ status: CalendarInvite.RSVPStatus) async {

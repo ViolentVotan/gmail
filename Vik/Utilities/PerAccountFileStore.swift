@@ -48,37 +48,32 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
 
     // MARK: - Persistence
 
+    private func decodeFromDisk(accountID: String) -> [Item]? {
+        let url = fileURL(accountID)
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        if let decoded = try? JSONDecoder().decode([Item].self, from: data) {
+            return decoded
+        } else if let decoded = legacyDecoder?(data) {
+            return decoded
+        } else {
+            Self.logger.warning("Failed to decode \(url.lastPathComponent, privacy: .public) for \(accountID, privacy: .public)")
+            return nil
+        }
+    }
+
     /// Loads items from disk, atomically replacing any in-memory data for the
     /// given account.
     func load(accountID: String) {
-        let url = fileURL(accountID)
-        guard let data = try? Data(contentsOf: url) else { return }
-        if let decoded = try? JSONDecoder().decode([Item].self, from: data) {
+        if let decoded = decodeFromDisk(accountID: accountID) {
             itemsByAccount[accountID] = decoded
-        } else if let decoded = legacyDecoder?(data) {
-            itemsByAccount[accountID] = decoded
-        } else {
-            Self.logger.warning("Failed to decode \(url.lastPathComponent, privacy: .public) for \(accountID, privacy: .public)")
         }
     }
 
     /// Loads items from disk, merging with existing in-memory items rather than
     /// replacing. Deduplicates by `Item.ID`.
     func loadMerging(accountID: String) {
-        let url = fileURL(accountID)
-        guard let data = try? Data(contentsOf: url) else { return }
-        let decoded: [Item]
-        if let primary = try? JSONDecoder().decode([Item].self, from: data) {
-            decoded = primary
-        } else if let legacy = legacyDecoder?(data) {
-            decoded = legacy
-        } else {
-            Self.logger.warning("Failed to decode \(url.lastPathComponent, privacy: .public) for \(accountID, privacy: .public)")
-            return
-        }
-        let existingIDs = Set(
-            (itemsByAccount[accountID] ?? []).map { $0.id }
-        )
+        guard let decoded = decodeFromDisk(accountID: accountID) else { return }
+        let existingIDs = Set((itemsByAccount[accountID] ?? []).map { $0.id })
         let newItems = decoded.filter { !existingIDs.contains($0.id) }
         itemsByAccount[accountID, default: []].append(contentsOf: newItems)
     }

@@ -155,40 +155,20 @@ final class GmailAPIClient {
         request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
         request.httpBody = metadataBody
 
-        for attempt in 0...RetryPolicy.maxRetries {
-            let data: Data
-            let response: URLResponse
-            do {
-                (data, response) = try await Self.sharedSession.data(for: request)
-            } catch {
-                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
-                    continue
-                }
-                throw .networkError(error)
-            }
-            guard let http = response as? HTTPURLResponse else { throw .invalidURL }
+        let (data, http) = try await Self.retryingRequest(request)
 
-            switch http.statusCode {
-            case 200...299:
-                guard let location = http.value(forHTTPHeaderField: "Location"),
-                      let uri = URL(string: location) else {
-                    throw .httpError(http.statusCode, data)
-                }
-                return uri
-            case 401:
-                throw .unauthorized
-            default:
-                if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
-                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                    continue
-                }
+        switch http.statusCode {
+        case 200...299:
+            guard let location = http.value(forHTTPHeaderField: "Location"),
+                  let uri = URL(string: location) else {
                 throw .httpError(http.statusCode, data)
             }
+            return uri
+        case 401:
+            throw .unauthorized
+        default:
+            throw .httpError(http.statusCode, data)
         }
-
-        throw .httpError(0, Data())
     }
 
     /// Uploads raw MIME data to the resumable upload URI, returning the created message.
@@ -204,40 +184,20 @@ final class GmailAPIClient {
         request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
         request.httpBody = mimeData
 
-        for attempt in 0...RetryPolicy.maxRetries {
-            let responseData: Data
-            let response: URLResponse
+        let (responseData, http) = try await Self.retryingRequest(request)
+
+        switch http.statusCode {
+        case 200...299:
             do {
-                (responseData, response) = try await Self.sharedSession.data(for: request)
+                return try JSONDecoder().decode(GmailMessage.self, from: responseData)
             } catch {
-                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
-                    continue
-                }
-                throw .networkError(error)
+                throw .decodingError(error)
             }
-            guard let http = response as? HTTPURLResponse else { throw .invalidURL }
-
-            switch http.statusCode {
-            case 200...299:
-                do {
-                    return try JSONDecoder().decode(GmailMessage.self, from: responseData)
-                } catch {
-                    throw .decodingError(error)
-                }
-            case 401:
-                throw .unauthorized
-            default:
-                if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
-                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                    continue
-                }
-                throw .httpError(http.statusCode, responseData)
-            }
+        case 401:
+            throw .unauthorized
+        default:
+            throw .httpError(http.statusCode, responseData)
         }
-
-        throw .httpError(0, Data())
     }
 
     // MARK: - ETag-aware request
@@ -282,63 +242,40 @@ final class GmailAPIClient {
         }
         guard let url = URL(string: baseURL + fullPath) else { throw .invalidURL }
 
-        for attempt in 0...RetryPolicy.maxRetries {
-            var request = URLRequest(url: url)
-            request.httpMethod = "GET"
-            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-            request.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
-            request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
-            if let etag {
-                request.setValue(etag, forHTTPHeaderField: "If-None-Match")
-            }
-
-            let data: Data
-            let response: URLResponse
-            do {
-                (data, response) = try await Self.sharedSession.data(for: request)
-            } catch {
-                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
-                    continue
-                }
-                throw .networkError(error)
-            }
-            guard let http = response as? HTTPURLResponse else { throw .invalidURL }
-
-            switch http.statusCode {
-            case 304:
-                return nil
-            case 200...299:
-                let responseETag = http.value(forHTTPHeaderField: "ETag")
-                    ?? http.value(forHTTPHeaderField: "Etag")
-                do {
-                    let decoded = try JSONDecoder().decode(T.self, from: data)
-                    return (decoded, responseETag)
-                } catch {
-                    throw .decodingError(error)
-                }
-            case 401:
-                throw .unauthorized
-            case 403 where RetryPolicy.isRateLimited403(data) && attempt < RetryPolicy.maxRetries:
-                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                continue
-            case 403:
-                if let body = String(data: data, encoding: .utf8) {
-                    if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
-                    if body.contains("domainPolicy") { throw .domainPolicy }
-                }
-                throw .httpError(http.statusCode, data)
-            default:
-                if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
-                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                    continue
-                }
-                throw .httpError(http.statusCode, data)
-            }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
+        if let etag {
+            request.setValue(etag, forHTTPHeaderField: "If-None-Match")
         }
-        throw .httpError(0, Data())
+
+        let (data, http) = try await Self.retryingRequest(request)
+
+        switch http.statusCode {
+        case 304:
+            return nil
+        case 200...299:
+            let responseETag = http.value(forHTTPHeaderField: "ETag")
+                ?? http.value(forHTTPHeaderField: "Etag")
+            do {
+                let decoded = try JSONDecoder().decode(T.self, from: data)
+                return (decoded, responseETag)
+            } catch {
+                throw .decodingError(error)
+            }
+        case 401:
+            throw .unauthorized
+        case 403:
+            if let body = String(data: data, encoding: .utf8) {
+                if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
+                if body.contains("domainPolicy") { throw .domainPolicy }
+            }
+            throw .httpError(http.statusCode, data)
+        default:
+            throw .httpError(http.statusCode, data)
+        }
     }
 
     // MARK: - Authenticated request to any Google API URL
@@ -591,55 +528,32 @@ final class GmailAPIClient {
     ) async throws(GmailAPIError) -> T {
         guard let url = URL(string: urlString) else { throw .invalidURL }
 
-        for attempt in 0...RetryPolicy.maxRetries {
-            var request = URLRequest(url: url)
-            request.httpMethod = "GET"
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-            request.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
-            request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
 
-            let data: Data
-            let response: URLResponse
+        let (data, http) = try await retryingRequest(request)
+
+        switch http.statusCode {
+        case 200...299:
             do {
-                (data, response) = try await sharedSession.data(for: request)
+                return try JSONDecoder().decode(T.self, from: data)
             } catch {
-                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
-                    continue
-                }
-                throw .networkError(error)
+                throw .decodingError(error)
             }
-            guard let http = response as? HTTPURLResponse else { throw .invalidURL }
-
-            switch http.statusCode {
-            case 200...299:
-                do {
-                    return try JSONDecoder().decode(T.self, from: data)
-                } catch {
-                    throw .decodingError(error)
-                }
-            case 401:
-                throw .unauthorized
-            case 403 where RetryPolicy.isRateLimited403(data) && attempt < RetryPolicy.maxRetries:
-                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                continue
-            case 403:
-                if let body = String(data: data, encoding: .utf8) {
-                    if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
-                    if body.contains("domainPolicy") { throw .domainPolicy }
-                }
-                throw .httpError(http.statusCode, data)
-            default:
-                if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
-                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                    continue
-                }
-                throw .httpError(http.statusCode, data)
+        case 401:
+            throw .unauthorized
+        case 403:
+            if let body = String(data: data, encoding: .utf8) {
+                if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
+                if body.contains("domainPolicy") { throw .domainPolicy }
             }
+            throw .httpError(http.statusCode, data)
+        default:
+            throw .httpError(http.statusCode, data)
         }
-        throw .httpError(0, Data())
     }
 
     // MARK: - Perform for arbitrary Google API URLs
@@ -651,51 +565,28 @@ final class GmailAPIClient {
     ) async throws(GmailAPIError) -> Data {
         guard let url = URL(string: urlString) else { throw .invalidURL }
 
-        for attempt in 0...RetryPolicy.maxRetries {
-            var request = URLRequest(url: url)
-            request.httpMethod = "GET"
-            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-            request.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
-            request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
 
-            let data: Data
-            let response: URLResponse
-            do {
-                (data, response) = try await Self.sharedSession.data(for: request)
-            } catch {
-                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
-                    continue
-                }
-                throw .networkError(error)
-            }
-            guard let http = response as? HTTPURLResponse else { throw .invalidURL }
+        let (data, http) = try await Self.retryingRequest(request)
 
-            switch http.statusCode {
-            case 200...299:
-                return data
-            case 401:
-                throw .unauthorized
-            case 403 where RetryPolicy.isRateLimited403(data) && attempt < RetryPolicy.maxRetries:
-                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                continue
-            case 403:
-                if let body = String(data: data, encoding: .utf8) {
-                    if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
-                    if body.contains("domainPolicy") { throw .domainPolicy }
-                }
-                throw .httpError(http.statusCode, data)
-            default:
-                if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
-                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                    continue
-                }
-                throw .httpError(http.statusCode, data)
+        switch http.statusCode {
+        case 200...299:
+            return data
+        case 401:
+            throw .unauthorized
+        case 403:
+            if let body = String(data: data, encoding: .utf8) {
+                if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
+                if body.contains("domainPolicy") { throw .domainPolicy }
             }
+            throw .httpError(http.statusCode, data)
+        default:
+            throw .httpError(http.statusCode, data)
         }
-        throw .httpError(0, Data())
     }
 
     /// Executes batch HTTP call off the main actor with retry logic matching `perform()`.
@@ -726,59 +617,34 @@ final class GmailAPIClient {
 
         guard let url = URL(string: "https://www.googleapis.com/batch/gmail/v1") else { throw .invalidURL }
 
-        for attempt in 0...RetryPolicy.maxRetries {
-            var urlRequest = URLRequest(url: url)
-            urlRequest.httpMethod = "POST"
-            urlRequest.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-            urlRequest.setValue("multipart/mixed; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-            urlRequest.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
-            urlRequest.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
-            urlRequest.httpBody = bodyData
+        var urlRequest = URLRequest(url: url)
+        urlRequest.httpMethod = "POST"
+        urlRequest.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        urlRequest.setValue("multipart/mixed; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        urlRequest.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+        urlRequest.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
+        urlRequest.httpBody = bodyData
 
-            let data: Data
-            let response: URLResponse
-            do {
-                (data, response) = try await Self.sharedSession.data(for: urlRequest)
-            } catch {
-                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
-                    continue
-                }
-                throw .networkError(error)
-            }
-            guard let http = response as? HTTPURLResponse else {
-                throw .invalidURL
-            }
+        let (data, http) = try await Self.retryingRequest(urlRequest)
 
-            switch http.statusCode {
-            case 200...299:
-                guard let contentType = http.value(forHTTPHeaderField: "Content-Type"),
-                      let responseBoundary = contentType.components(separatedBy: "boundary=").last?.trimmingCharacters(in: .whitespaces) else {
-                    throw .decodingError(URLError(.cannotParseResponse))
-                }
-                return try Self.parseBatchResponse(data: data, boundary: responseBoundary)
-            case 401:
-                throw .unauthorized
-            case 403 where RetryPolicy.isRateLimited403(data) && attempt < RetryPolicy.maxRetries:
-                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                continue
-            case 403:
-                if let body = String(data: data, encoding: .utf8) {
-                    if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
-                    if body.contains("domainPolicy") { throw .domainPolicy }
-                }
-                throw .httpError(http.statusCode, data)
-            default:
-                if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
-                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                    continue
-                }
-                throw .httpError(http.statusCode, data)
+        switch http.statusCode {
+        case 200...299:
+            guard let contentType = http.value(forHTTPHeaderField: "Content-Type"),
+                  let responseBoundary = contentType.components(separatedBy: "boundary=").last?.trimmingCharacters(in: .whitespaces) else {
+                throw .decodingError(URLError(.cannotParseResponse))
             }
+            return try Self.parseBatchResponse(data: data, boundary: responseBoundary)
+        case 401:
+            throw .unauthorized
+        case 403:
+            if let body = String(data: data, encoding: .utf8) {
+                if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
+                if body.contains("domainPolicy") { throw .domainPolicy }
+            }
+            throw .httpError(http.statusCode, data)
+        default:
+            throw .httpError(http.statusCode, data)
         }
-        throw .httpError(0, Data())
     }
 
     nonisolated private static func parseBatchResponse(data: Data, boundary: String) throws(GmailAPIError) -> [(id: String, statusCode: Int, data: Data)] {
@@ -965,6 +831,56 @@ final class GmailAPIClient {
 
     // MARK: - HTTP layer
 
+    /// Low-level retry loop handling network errors, retriable status codes (5xx),
+    /// 429 rate-limiting, and 403 rate-limiting. Returns the raw response — callers
+    /// handle status-specific logic (401, 304, success parsing, non-rate-limit 403s).
+    @concurrent private nonisolated static func retryingRequest(
+        _ request: URLRequest
+    ) async throws(GmailAPIError) -> (Data, HTTPURLResponse) {
+        for attempt in 0...RetryPolicy.maxRetries {
+            let data: Data
+            let response: URLResponse
+            do {
+                (data, response) = try await sharedSession.data(for: request)
+            } catch {
+                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
+                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
+                    continue
+                }
+                throw .networkError(error)
+            }
+            guard let http = response as? HTTPURLResponse else { throw .invalidURL }
+
+            // Handle 429 with backoff
+            if http.statusCode == 429, attempt < RetryPolicy.maxRetries {
+                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
+                continue
+            }
+
+            // Handle 403 rate-limiting (needs body check)
+            if http.statusCode == 403, RetryPolicy.isRateLimited403(data),
+               attempt < RetryPolicy.maxRetries {
+                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
+                continue
+            }
+
+            // Handle other retriable status codes (5xx)
+            if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
+                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                // Intentionally use try? — if task is cancelled, the next iteration's
+                // URLSession call will throw, which we convert to .networkError.
+                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
+                continue
+            }
+
+            // All other statuses: return to caller for handling
+            return (data, http)
+        }
+        throw .httpError(0, Data())
+    }
+
     /// Returns (data, httpStatusCode, responseHeaders).
     @concurrent private func perform(
         path: String,
@@ -983,63 +899,38 @@ final class GmailAPIClient {
         }
         guard let url = URL(string: baseURL + fullPath) else { throw .invalidURL }
 
-        for attempt in 0...RetryPolicy.maxRetries {
-            var request = URLRequest(url: url)
-            request.httpMethod = method
-            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-            request.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
-            request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
-            if let contentType { request.setValue(contentType, forHTTPHeaderField: "Content-Type") }
-            request.httpBody = body
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
+        if let contentType { request.setValue(contentType, forHTTPHeaderField: "Content-Type") }
+        request.httpBody = body
 
-            let data: Data
-            let response: URLResponse
-            do {
-                (data, response) = try await Self.sharedSession.data(for: request)
-            } catch {
-                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
-                    continue
-                }
-                throw .networkError(error)
-            }
-            guard let http = response as? HTTPURLResponse else { throw .invalidURL }
+        let (data, http) = try await Self.retryingRequest(request)
 
-            let headers = http.allHeaderFields.reduce(into: [String: String]()) { result, pair in
-                if let key = pair.key as? String, let val = pair.value as? String { result[key] = val }
-            }
-
-            switch http.statusCode {
-            case 200...299:
-                return (data, http.statusCode, headers)
-            case 401:
-                throw .unauthorized
-            case 403 where RetryPolicy.isRateLimited403(data) && attempt < RetryPolicy.maxRetries:
-                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                continue
-            case 403:
-                if let body = String(data: data, encoding: .utf8) {
-                    if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
-                    if body.contains("domainPolicy") { throw .domainPolicy }
-                    if body.contains("insufficientPermissions") {
-                        Task { @MainActor in self.postInsufficientPermissionsNotification(accountID: accountID) }
-                        throw .insufficientPermissions
-                    }
-                }
-                throw .httpError(http.statusCode, data)
-            default:
-                if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
-                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                    // Intentionally use try? — if task is cancelled, the next iteration's
-                    // URLSession call will throw, which we convert to .networkError.
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                    continue
-                }
-                throw .httpError(http.statusCode, data)
-            }
+        let responseHeaders = http.allHeaderFields.reduce(into: [String: String]()) { result, pair in
+            if let key = pair.key as? String, let val = pair.value as? String { result[key] = val }
         }
-        throw .httpError(0, Data())
+
+        switch http.statusCode {
+        case 200...299:
+            return (data, http.statusCode, responseHeaders)
+        case 401:
+            throw .unauthorized
+        case 403:
+            if let body = String(data: data, encoding: .utf8) {
+                if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
+                if body.contains("domainPolicy") { throw .domainPolicy }
+                if body.contains("insufficientPermissions") {
+                    Task { @MainActor in self.postInsufficientPermissionsNotification(accountID: accountID) }
+                    throw .insufficientPermissions
+                }
+            }
+            throw .httpError(http.statusCode, data)
+        default:
+            throw .httpError(http.statusCode, data)
+        }
     }
 
     // MARK: - Calendar token bridge

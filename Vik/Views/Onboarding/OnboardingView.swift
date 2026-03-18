@@ -86,7 +86,7 @@ struct OnboardingView: View {
     private var glassContent: some View {
         GlassEffectContainer(spacing: 20) {
             VStack(spacing: 0) {
-                // Viking helmet — hero icon
+                // Viking helmet — hero icon (glass-specific styling)
                 Image("VikLogo")
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -101,31 +101,7 @@ struct OnboardingView: View {
 
                 Spacer().frame(height: 20)
 
-                // App name
-                Text("Vik")
-                    .font(.system(size: 52, weight: .bold))
-                    .tracking(-1)
-                    .foregroundStyle(.white)
-                    .opacity(showName ? 1 : 0)
-                    .offset(y: showName ? 0 : 12)
-
-                Spacer().frame(height: 4)
-
-                // Tagline
-                Text("CONQUER YOUR INBOX")
-                    .font(.system(size: 15, weight: .medium))
-                    .tracking(3)
-                    .foregroundStyle(.white.opacity(OpacityToken.overlay))
-                    .opacity(showTagline ? 1 : 0)
-
-                Spacer().frame(height: 36)
-
-                // Google Sign-In button
-                glassSignInButton
-                    .opacity(showButton ? 1 : 0)
-                    .offset(y: showButton ? 0 : 24)
-
-                errorLabel
+                onboardingInnerContent { glassSignInButton }
             }
             .padding(.horizontal, 64)
             .padding(.vertical, 48)
@@ -139,7 +115,7 @@ struct OnboardingView: View {
 
     private var materialContent: some View {
         VStack(spacing: 0) {
-            // Viking helmet — hero icon
+            // Viking helmet — hero icon (material-specific styling)
             Image("VikLogo")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
@@ -154,37 +130,44 @@ struct OnboardingView: View {
 
             Spacer().frame(height: 20)
 
-            // App name
-            Text("Vik")
-                .font(.system(size: 52, weight: .bold))
-                .tracking(-1)
-                .foregroundStyle(.white)
-                .opacity(showName ? 1 : 0)
-                .offset(y: showName ? 0 : 12)
-
-            Spacer().frame(height: 4)
-
-            // Tagline
-            Text("CONQUER YOUR INBOX")
-                .font(.system(size: 15, weight: .medium))
-                .tracking(3)
-                .foregroundStyle(.white.opacity(OpacityToken.overlay))
-                .opacity(showTagline ? 1 : 0)
-
-            Spacer().frame(height: 36)
-
-            // Google Sign-In button
-            materialSignInButton
-                .opacity(showButton ? 1 : 0)
-                .offset(y: showButton ? 0 : 24)
-
-            errorLabel
+            onboardingInnerContent { materialSignInButton }
         }
         .padding(.horizontal, 64)
         .padding(.vertical, 48)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28))
         .scaleEffect(showCard ? 1 : 0.8)
         .opacity(showCard ? 1 : 0)
+    }
+
+    // MARK: - Shared Inner Content
+
+    @ViewBuilder
+    private func onboardingInnerContent<B: View>(@ViewBuilder signInButton: () -> B) -> some View {
+        // App name
+        Text("Vik")
+            .font(.system(size: 52, weight: .bold))
+            .tracking(-1)
+            .foregroundStyle(.white)
+            .opacity(showName ? 1 : 0)
+            .offset(y: showName ? 0 : 12)
+
+        Spacer().frame(height: 4)
+
+        // Tagline
+        Text("CONQUER YOUR INBOX")
+            .font(.system(size: 15, weight: .medium))
+            .tracking(3)
+            .foregroundStyle(.white.opacity(OpacityToken.overlay))
+            .opacity(showTagline ? 1 : 0)
+
+        Spacer().frame(height: 36)
+
+        // Google Sign-In button
+        signInButton()
+            .opacity(showButton ? 1 : 0)
+            .offset(y: showButton ? 0 : 24)
+
+        errorLabel
     }
 
     // MARK: - Error Label
