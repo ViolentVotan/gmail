@@ -32,6 +32,14 @@ final class AppCoordinator {
     @ObservationIgnored private var accountSwitchGeneration = 0
     private var accountSwitchTask: Task<Void, Never>?
 
+    // MARK: - Calendar State
+
+    var viewMode: AppViewMode = .mail
+    private(set) var calendarViewModel: CalendarViewModel?
+    private(set) var calendarSyncEngine: CalendarSyncEngine?
+    var selectedCalendarEvent: CalendarEvent?
+    var miniAgendaEvents: [CalendarEvent] = []
+
     // MARK: - Selection State
 
     var selectedAccountID: String?
@@ -491,13 +499,15 @@ final class AppCoordinator {
         async let labelsLoad: Void = mailboxViewModel.loadLabels()
         async let sendAsLoad: Void = mailboxViewModel.loadSendAs()
         async let categoryLoad: Void = mailboxViewModel.loadCategoryUnreadCounts()
+        async let calendarLoad: Void = startCalendarSync(for: id)
+        async let agendaLoad: Void = loadMiniAgendaEvents()
         let syncerForPhotos = self.backgroundSyncer
         async let photosLoad: Void = {
             if let syncer = syncerForPhotos {
                 await PeopleAPIService.shared.loadContactPhotos(accountID: id, syncer: syncer)
             }
         }()
-        _ = await (folderLoad, labelsLoad, sendAsLoad, categoryLoad, photosLoad)
+        _ = await (folderLoad, labelsLoad, sendAsLoad, categoryLoad, calendarLoad, agendaLoad, photosLoad)
         guard !Task.isCancelled, self.selectedAccountID == id else { return }
         await indexer.resumePending()
         await indexer.scanForAttachments()
@@ -597,10 +607,12 @@ final class AppCoordinator {
         ScheduledSendStore.shared.load(accountID: id)
         OfflineActionQueue.shared.load(accountID: id)
         loadContacts()
-        // Capture the old engine before cancelling, so stop is guaranteed
+        // Capture the old engines before cancelling, so stop is guaranteed
         // even if a third account switch cancels this task later
         let oldEngine = syncEngine
         syncEngine = nil
+        stopCalendarSync()
+        viewMode = .mail
         lifecycleTask?.cancel()
         lifecycleTask = nil
         accountSwitchTask?.cancel()
@@ -671,10 +683,12 @@ final class AppCoordinator {
             SnoozeMonitor.shared.clearAllFailureCounts()
         }
 
-        // Stop engine if current account was removed (sign-out)
+        // Stop engines if current account was removed (sign-out)
         if let id = selectedAccountID, removedIDs.contains(id) {
             let engineToStop = syncEngine
             syncEngine = nil
+            stopCalendarSync()
+            viewMode = .mail
             lifecycleTask?.cancel()
             lifecycleTask = Task {
                 // Await engine stop BEFORE deleting DB files to prevent
@@ -767,5 +781,50 @@ final class AppCoordinator {
             guard !Task.isCancelled else { return }
             await mailboxViewModel.loadCategoryUnreadCounts()
         }
+    }
+
+    // MARK: - Calendar Mode
+
+    func switchToCalendar() {
+        viewMode = .calendar
+        if calendarViewModel == nil, let db = mailDatabase {
+            calendarViewModel = CalendarViewModel(db: db)
+            calendarViewModel?.startObserving()
+        }
+    }
+
+    func switchToMail() {
+        viewMode = .mail
+    }
+
+    func loadMiniAgendaEvents() async {
+        guard let db = mailDatabase else { return }
+        let id = accountID
+        let records = (try? await db.dbPool.read { db in
+            try MailDatabaseQueries.eventsForToday(accountId: id, in: db)
+        }) ?? []
+        guard !Task.isCancelled else { return }
+        // Lightweight conversion — no attendees needed for mini-agenda
+        miniAgendaEvents = records.map { $0.toCalendarEvent(attendees: [], calendarColor: BrandColor.blue) }
+    }
+
+    func navigateToEvent(_ event: CalendarEvent) {
+        switchToCalendar()
+        calendarViewModel?.selectedDate = event.startTime
+        calendarViewModel?.selectedEvent = event
+    }
+
+    private func startCalendarSync(for id: String) async {
+        guard let db = mailDatabase else { return }
+        let engine = CalendarSyncEngine(accountID: id, db: db)
+        guard !Task.isCancelled, self.selectedAccountID == id else { return }
+        calendarSyncEngine = engine
+        await engine.start()
+    }
+
+    private func stopCalendarSync() {
+        calendarSyncEngine?.stop()
+        calendarSyncEngine = nil
+        calendarViewModel = nil
     }
 }

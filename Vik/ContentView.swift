@@ -101,8 +101,25 @@ struct ContentView: View {
                 .frame(width: sidebarWidth)
                 .background(.regularMaterial)
 
-                listDetailSplit
+                if coordinator.viewMode == .calendar, let calendarVM = coordinator.calendarViewModel {
+                    CalendarContainerView(
+                        viewModel: calendarVM,
+                        onSelectEvent: { event in
+                            coordinator.selectedCalendarEvent = event
+                            calendarVM.selectedEvent = event
+                        },
+                        onCreateEvent: { date, hour in
+                            calendarVM.selectedDate = date
+                        }
+                    )
+                    .transition(.opacity)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else {
+                    listDetailSplit
+                        .transition(.opacity)
+                }
             }
+            .animation(VikAnimation.contentSwitch, value: coordinator.viewMode)
             .environment(coordinator.syncProgressManager)
             .windowResizeAnchor(.top)
             .onChange(of: columnVisibility) { _, newValue in
