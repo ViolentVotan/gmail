@@ -102,6 +102,15 @@ private struct KeyboardEventMonitor: NSViewRepresentable {
                 }
             }
 
+            // Calendar bare-letter shortcuts — only when in calendar mode and no text field is focused
+            if modifiers.intersection([.command, .option, .control]).isEmpty,
+               coord.viewMode == .calendar,
+               !isTextInputFocused {
+                if let consumed = handleCalendarKey(chars, coord: coord), consumed {
+                    return true
+                }
+            }
+
             guard modifiers.contains(.command),
                   !modifiers.contains(.shift) else { return false }
 
@@ -123,6 +132,37 @@ private struct KeyboardEventMonitor: NSViewRepresentable {
 
             default:
                 return false
+            }
+        }
+
+        /// Handles bare-letter calendar shortcuts. Returns `true` if consumed, `false` to pass through, `nil` if not a calendar key.
+        private func handleCalendarKey(_ chars: String?, coord: AppCoordinator) -> Bool? {
+            guard let calVM = coord.calendarViewModel else { return nil }
+
+            switch chars {
+            case "d":
+                calVM.viewMode = .day
+                return true
+            case "w":
+                calVM.viewMode = .week
+                return true
+            case "a":
+                calVM.viewMode = .agenda
+                return true
+            case "e":
+                guard let event = calVM.selectedEvent, event.canEdit else { return nil }
+                coord.selectedCalendarEvent = event
+                return true
+            case "y":
+                guard let event = calVM.selectedEvent else { return nil }
+                Task { try? await calVM.respondToEvent(event, status: .accepted) }
+                return true
+            case "m":
+                guard let event = calVM.selectedEvent else { return nil }
+                Task { try? await calVM.respondToEvent(event, status: .tentative) }
+                return true
+            default:
+                return nil
             }
         }
     }

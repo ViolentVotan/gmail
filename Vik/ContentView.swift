@@ -7,6 +7,8 @@ struct ContentView: View {
     @State private var isSidebarCollapsed = false
     @State private var commandPalette = CommandPaletteViewModel()
     @State private var showSnoozePicker = false
+    @State private var showNewCalendarEvent = false
+    @State private var newCalendarEventDraft: EventEditDraft? = nil
 
     enum AppFocus: Hashable {
         case sidebar
@@ -111,6 +113,10 @@ struct ContentView: View {
                 if coordinator.viewMode == .calendar, let calendarVM = coordinator.calendarViewModel {
                     CalendarContainerView(
                         viewModel: calendarVM,
+                        onNewEvent: {
+                            newCalendarEventDraft = nil
+                            showNewCalendarEvent = true
+                        },
                         onSelectEvent: { event in
                             coordinator.selectedCalendarEvent = event
                             calendarVM.selectedEvent = event
@@ -214,6 +220,28 @@ struct ContentView: View {
                     .matchedGeometryEffect(id: "commandPalette", in: commandPaletteNamespace)
                     .zIndex(11)
                     .transition(.opacity.combined(with: .scale(scale: ScaleToken.enterFrom)))
+            }
+        }
+        .onChange(of: coordinator.calendarNewEventTrigger) { _, triggered in
+            guard triggered else { return }
+            coordinator.calendarNewEventTrigger = false
+            newCalendarEventDraft = nil
+            showNewCalendarEvent = true
+        }
+        .sheet(isPresented: $showNewCalendarEvent) {
+            if let calendarVM = coordinator.calendarViewModel {
+                CalendarEventEditorView(
+                    editDraft: $newCalendarEventDraft,
+                    calendars: calendarVM.calendars,
+                    onSave: { input, calendarId, _ in
+                        Task {
+                            let id = calendarId ?? "primary"
+                            try? await calendarVM.createEvent(input, calendarId: id, accountID: coordinator.accountID)
+                        }
+                        showNewCalendarEvent = false
+                    },
+                    onCancel: { showNewCalendarEvent = false }
+                )
             }
         }
     }

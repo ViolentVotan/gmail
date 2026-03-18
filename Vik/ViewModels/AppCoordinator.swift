@@ -39,6 +39,7 @@ final class AppCoordinator {
     private(set) var calendarSyncEngine: CalendarSyncEngine?
     var selectedCalendarEvent: CalendarEvent?
     var miniAgendaEvents: [CalendarEvent] = []
+    var calendarNewEventTrigger: Bool = false
 
     // MARK: - Selection State
 

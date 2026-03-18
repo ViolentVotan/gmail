@@ -43,6 +43,7 @@ struct VikCommands: Commands {
     var body: some Commands {
         messageMenu
         mailboxMenu
+        viewMenu
         helpMenu
     }
 
@@ -104,12 +105,19 @@ struct VikCommands: Commands {
 
     // MARK: - Mailbox
 
+    private var isCalendarMode: Bool { coordinator?.viewMode == .calendar }
+
     private var mailboxMenu: some Commands {
         CommandMenu("Mailbox") {
             Button {
-                coordinator?.composeNewEmail()
+                if isCalendarMode {
+                    coordinator?.calendarNewEventTrigger = true
+                } else {
+                    coordinator?.composeNewEmail()
+                }
             } label: {
-                Label("Compose New Message", systemImage: "square.and.pencil")
+                Label(isCalendarMode ? "New Event" : "Compose New Message",
+                      systemImage: isCalendarMode ? "calendar.badge.plus" : "square.and.pencil")
             }
             .keyboardShortcut("n", modifiers: .command)
 
@@ -139,6 +147,36 @@ struct VikCommands: Commands {
         }
     }
 
+
+    // MARK: - View
+
+    private var viewMenu: some Commands {
+        CommandMenu("View") {
+            Button {
+                coordinator?.switchToMail()
+            } label: {
+                Label("Mail", systemImage: "envelope")
+            }
+            .keyboardShortcut("1", modifiers: .command)
+
+            Button {
+                coordinator?.switchToCalendar()
+            } label: {
+                Label("Calendar", systemImage: "calendar")
+            }
+            .keyboardShortcut("2", modifiers: .command)
+
+            Divider()
+
+            Button {
+                coordinator?.calendarViewModel?.goToToday()
+            } label: {
+                Label("Go to Today", systemImage: "calendar.circle")
+            }
+            .keyboardShortcut("t", modifiers: .command)
+            .disabled(!isCalendarMode)
+        }
+    }
 
     // MARK: - Help
 
