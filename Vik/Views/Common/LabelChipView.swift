@@ -28,6 +28,7 @@ struct LabelChipView: View {
         }
         .padding(.horizontal, 7)
         .padding(.vertical, 3)
-        .background(Capsule().fill(chipColor.opacity(OpacityToken.highlight)))
+        .background(chipColor.opacity(OpacityToken.highlight), in: .capsule)
+        .glassEffect(.regular, in: .capsule)
     }
 }

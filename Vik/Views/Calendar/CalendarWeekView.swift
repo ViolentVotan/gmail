@@ -212,13 +212,13 @@ struct CalendarWeekView: View {
                                 .overlay(alignment: .top) {
                                     // Horizontal hour divider
                                     Divider()
-                                        .opacity(0.04)
+                                        .opacity(OpacityToken.highlight)
                                 }
                                 .overlay(alignment: .trailing) {
                                     // Vertical column divider
                                     if dayIndex < weekDays.count - 1 {
                                         Divider()
-                                            .opacity(0.06)
+                                            .opacity(OpacityToken.highlight)
                                     }
                                 }
                         }

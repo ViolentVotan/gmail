@@ -34,11 +34,13 @@ struct SearchBarView: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(isFocused ? Color.accentColor.opacity(0.04) : Color(.quinaryLabel))
-        .clipShape(.rect(cornerRadius: CornerRadius.sm))
+        .glassEffect(
+            isFocused ? .regular.interactive() : .regular,
+            in: .capsule
+        )
         .overlay(
-            RoundedRectangle(cornerRadius: CornerRadius.sm)
-                .strokeBorder(Color.accentColor.opacity(isFocused ? 0.5 : 0), lineWidth: 1.5)
+            Capsule()
+                .strokeBorder(Color.accentColor.opacity(isFocused ? 0.4 : 0), lineWidth: 1.5)
         )
         .animation(VikAnimation.springSnappy, value: isFocused)
         .animation(VikAnimation.springSnappy, value: text.isEmpty)

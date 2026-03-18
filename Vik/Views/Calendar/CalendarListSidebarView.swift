@@ -87,12 +87,12 @@ struct CalendarListSidebarView: View {
         Button(action: onNewEvent) {
             Label("New Event", systemImage: "plus")
                 .font(Typography.captionSemibold)
-                .foregroundStyle(.white)
+                .foregroundStyle(Color.accentColor)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.sm)
-                .background(BrandColor.blue, in: RoundedRectangle(cornerRadius: CornerRadius.md))
         }
         .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: .rect(cornerRadius: CornerRadius.md))
     }
 }
 

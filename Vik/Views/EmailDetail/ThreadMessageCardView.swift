@@ -254,7 +254,7 @@ struct ThreadMessageCardView: View {
                     .foregroundStyle(.tertiary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(Capsule().fill(.quaternary))
+                    .glassEffect(.regular.interactive(), in: .capsule)
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, Spacing.xl)
