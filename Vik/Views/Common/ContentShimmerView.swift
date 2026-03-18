@@ -1,0 +1,53 @@
+import SwiftUI
+
+/// Skeleton shimmer placeholder for content areas (email body, detail loading).
+/// Displays animated bars that simulate text layout while content loads.
+struct ContentShimmerView: View {
+    @State private var shimmerPhase: CGFloat = -1
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            shimmerRect(height: 10)
+                .padding(.trailing, 40)
+            shimmerRect(height: 10)
+            shimmerRect(height: 10)
+                .padding(.trailing, 80)
+            Spacer().frame(height: 4)
+            shimmerRect(height: 10)
+            shimmerRect(height: 10)
+                .padding(.trailing, 60)
+            shimmerRect(height: 10)
+                .padding(.trailing, 120)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(height: 120)
+        .onAppear {
+            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                shimmerPhase = 1
+            }
+        }
+    }
+
+    private func shimmerRect(height: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: 3)
+            .fill(.tertiary.opacity(OpacityToken.highlight))
+            .frame(height: height)
+            .overlay {
+                shimmerOverlay
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+            }
+    }
+
+    private var shimmerOverlay: some View {
+        GeometryReader { geo in
+            LinearGradient(
+                colors: [.clear, .white.opacity(0.08), .clear],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+            .frame(width: geo.size.width * 0.6)
+            .offset(x: shimmerPhase * geo.size.width * 1.5 - geo.size.width * 0.3)
+        }
+        .allowsHitTesting(false)
+    }
+}

@@ -83,11 +83,13 @@ struct SidebarView: View {
             Group {
                 if coordinator.viewMode == .calendar {
                     calendarSidebarContent
+                        .transition(.opacity.combined(with: .offset(y: OffsetToken.nudge)))
                 } else {
                     sidebarList
+                        .transition(.opacity.combined(with: .offset(y: -OffsetToken.nudge)))
                 }
             }
-            .animation(VikAnimation.contentSwitch, value: coordinator.viewMode)
+            .animation(VikAnimation.folderSwitch, value: coordinator.viewMode)
         }
     }
 

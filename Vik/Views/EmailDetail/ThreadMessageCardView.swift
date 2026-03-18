@@ -221,17 +221,27 @@ struct ThreadMessageCardView: View {
                 .background(Color(.separatorColor).opacity(0.5))
                 .padding(.horizontal, Spacing.xl)
 
-            HTMLEmailView(html: renderedHTML, contentHeight: $contentHeight, isContentLoaded: $isHTMLLoaded, onOpenLink: onOpenLink)
-                .frame(height: contentHeight)
-                .padding(.horizontal, Spacing.xl)
-                .padding(.top, Spacing.sm)
-                .padding(.bottom, cachedHTMLParts.quoted != nil ? Spacing.xs : Spacing.md)
-                .opacity(isHTMLLoaded ? 1 : 0)
-                .animation(VikAnimation.contentSwitch, value: isHTMLLoaded)
+            ZStack {
+                if !isHTMLLoaded {
+                    ContentShimmerView()
+                        .padding(.horizontal, Spacing.xl)
+                        .padding(.top, Spacing.sm)
+                        .padding(.bottom, Spacing.md)
+                        .transition(.opacity)
+                }
+
+                HTMLEmailView(html: renderedHTML, contentHeight: $contentHeight, isContentLoaded: $isHTMLLoaded, onOpenLink: onOpenLink)
+                    .frame(height: contentHeight)
+                    .padding(.horizontal, Spacing.xl)
+                    .padding(.top, Spacing.sm)
+                    .padding(.bottom, cachedHTMLParts.quoted != nil ? Spacing.xs : Spacing.md)
+                    .opacity(isHTMLLoaded ? 1 : 0)
+            }
+            .animation(VikAnimation.contentSwitch, value: isHTMLLoaded)
 
             if cachedHTMLParts.quoted != nil {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(VikAnimation.springSnappy) {
                         showQuoted.toggle()
                     }
                 } label: {

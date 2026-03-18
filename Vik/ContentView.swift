@@ -157,14 +157,20 @@ struct ContentView: View {
                             }
                         }
                     )
-                    .transition(.opacity)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .offset(x: OffsetToken.medium)),
+                        removal: .opacity.combined(with: .offset(x: OffsetToken.medium))
+                    ))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     listDetailSplit
-                        .transition(.opacity)
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .offset(x: -OffsetToken.medium)),
+                            removal: .opacity.combined(with: .offset(x: -OffsetToken.medium))
+                        ))
                 }
             }
-            .animation(VikAnimation.contentSwitch, value: coordinator.viewMode)
+            .animation(VikAnimation.folderSwitch, value: coordinator.viewMode)
             .environment(coordinator.syncProgressManager)
             .windowResizeAnchor(.top)
             .onChange(of: columnVisibility) { _, newValue in
