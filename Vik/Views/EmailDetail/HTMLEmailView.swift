@@ -99,7 +99,7 @@ struct HTMLEmailView: NSViewRepresentable {
         let controller = webView.configuration.userContentController
         controller.removeAllUserScripts()
         let userScript = WKUserScript(
-            source: Self.userScriptSource(textHex: textHex, bgLum: bgLum),
+            source: Self.userScriptSource(bgLum: bgLum),
             injectionTime: .atDocumentEnd,
             forMainFrameOnly: true
         )
@@ -117,27 +117,32 @@ struct HTMLEmailView: NSViewRepresentable {
             margin: 0;
             padding: 0;
             overflow: hidden;
+            background-color: transparent !important;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
             font-size: \(Int(NSFont.systemFont(ofSize: 0).pointSize))px;
             line-height: 1.65;
             color: \(textHex);
-            background-color: transparent !important;
             word-wrap: break-word;
             overflow-wrap: break-word;
         }
         img { max-width: 100% !important; height: auto !important; }
         a { color: #1a73e8; }
+        a:hover { text-decoration-thickness: 1.5px; }
         blockquote { border-left: 3px solid #dadce0; margin: 8px 0; padding: 4px 12px; color: #5f6368; }
         pre, code { font-family: 'SF Mono', 'Menlo', monospace; font-size: 12px; background: rgba(0,0,0,0.06); padding: 2px 4px; border-radius: 3px; }
+        hr { border: none; border-top: 1px solid rgba(128,128,128,0.3); margin: 16px 0; }
         table { border-collapse: collapse; }
+        ::selection { background: rgba(58,111,240,0.25); }
         * { box-sizing: border-box; max-width: 100% !important; cursor: default !important; }
 
         @media (prefers-color-scheme: dark) {
             a { color: #8ab4f8; }
             blockquote { border-left-color: #5f6368; color: #9aa0a6; }
             pre, code { background: rgba(255,255,255,0.1); color: #e8eaed; }
+            hr { border-top-color: rgba(255,255,255,0.15); }
+            ::selection { background: rgba(100,160,255,0.3); }
         }
         @media (prefers-color-scheme: light) {
             a { color: #1a73e8; }
@@ -167,9 +172,8 @@ struct HTMLEmailView: NSViewRepresentable {
     /// Posts `heightChanged` messages to the native side instead of requiring periodic
     /// `evaluateJavaScript` polling. A `ResizeObserver` on `#emailContent` fires whenever
     /// the content box changes (e.g., after an image loads and expands the layout).
-    private static func userScriptSource(textHex: String, bgLum: String) -> String {
+    private static func userScriptSource(bgLum: String) -> String {
         """
-        var THEME_TEXT = '\(textHex)';
         var PAGE_BG_LUM = \(bgLum);
 
         function fixContrastColors() {
@@ -235,7 +239,7 @@ struct HTMLEmailView: NSViewRepresentable {
                     if (contrastBetween(relativeLum(rgb[0], rgb[1], rgb[2]), bgLum) >= MIN_CR)
                         return 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')';
                 }
-                return THEME_TEXT;
+                return '#FFFFFF';
             }
 
             function darkenToContrast(r, g, b, bgLum) {
@@ -245,20 +249,17 @@ struct HTMLEmailView: NSViewRepresentable {
                     if (contrastBetween(relativeLum(rgb[0], rgb[1], rgb[2]), bgLum) >= MIN_CR)
                         return 'rgb(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ')';
                 }
-                return THEME_TEXT;
-            }
-
-            function isAchromatic(r, g, b) {
-                var mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-                return (mx - mn) < 30;
+                return '#000000';
             }
 
             function effectiveBgLum(el) {
                 var node = el;
-                while (node && node !== document.documentElement) {
-                    // Skip body — drawsBackground is false so its CSS background
-                    // is not rendered; using it would hide real contrast problems.
-                    if (node === document.body) { node = node.parentElement; continue; }
+                while (node) {
+                    // Skip html & body — both forced transparent by our CSS.
+                    if (node === document.body || node === document.documentElement) {
+                        node = node.parentElement;
+                        continue;
+                    }
                     var bg = window.getComputedStyle(node).backgroundColor;
                     var rgba = parseRgb(bg);
                     if (rgba) {
@@ -275,22 +276,19 @@ struct HTMLEmailView: NSViewRepresentable {
                 var c = window.getComputedStyle(el).color;
                 var rgb = parseRgb(c);
                 if (!rgb) return;
+                // Skip fully transparent text — don't make hidden content visible
+                var cParts = c.slice(c.indexOf('(') + 1).split(',');
+                if (cParts.length >= 4 && parseFloat(cParts[3]) < 0.1) return;
                 var bgLum = effectiveBgLum(el);
                 var textLum = relativeLum(rgb[0], rgb[1], rgb[2]);
                 var cr = contrastBetween(textLum, bgLum);
                 if (cr >= MIN_CR) return;
 
-                var replacement;
-                if (isAchromatic(rgb[0], rgb[1], rgb[2])) {
-                    replacement = THEME_TEXT;
-                } else if (bgLum > 0.5) {
-                    // Light background — darken the text
-                    replacement = darkenToContrast(rgb[0], rgb[1], rgb[2], bgLum);
+                if (bgLum > 0.5) {
+                    el.style.setProperty('color', darkenToContrast(rgb[0], rgb[1], rgb[2], bgLum), 'important');
                 } else {
-                    // Dark background — lighten the text
-                    replacement = lightenToContrast(rgb[0], rgb[1], rgb[2], bgLum);
+                    el.style.setProperty('color', lightenToContrast(rgb[0], rgb[1], rgb[2], bgLum), 'important');
                 }
-                el.style.setProperty('color', replacement, 'important');
             }
 
             document.querySelectorAll(
@@ -341,7 +339,16 @@ struct HTMLEmailView: NSViewRepresentable {
                   height > 0
             else { return }
             Task { @MainActor [weak self] in
-                self?.parent.contentHeight = height
+                guard let self else { return }
+                if self.parent.isContentLoaded {
+                    // Animate height changes after initial load (image loads, font renders)
+                    // for smooth content expansion instead of jarring layout jumps.
+                    withAnimation(.smooth(duration: 0.2)) {
+                        self.parent.contentHeight = height
+                    }
+                } else {
+                    self.parent.contentHeight = height
+                }
             }
         }
 
