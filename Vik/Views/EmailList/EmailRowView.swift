@@ -51,6 +51,18 @@ struct EmailRowView: View, Equatable {
         return daysAgo >= 3 ? "Received \(daysAgo) days ago" : nil
     }
 
+    @ViewBuilder
+    private var threadCountBadge: some View {
+        let highlighted = isHovered || isSelected
+        let badgeFill: AnyShapeStyle = highlighted ? AnyShapeStyle(.fill.secondary) : AnyShapeStyle(.fill.quaternary)
+        Text("\(email.threadMessageCount)")
+            .font(Typography.captionSmall)
+            .foregroundStyle(highlighted ? .primary : .secondary)
+            .contentTransition(.numericText())
+            .frame(minWidth: threadBadgeSize, minHeight: threadBadgeSize)
+            .background(Capsule().fill(badgeFill))
+    }
+
     private func tagColor(_ name: String) -> Color {
         switch name {
         case "blue": return .blue
@@ -136,12 +148,7 @@ struct EmailRowView: View, Equatable {
                             .lineLimit(1)
 
                         if email.threadMessageCount > 1 {
-                            Text("\(email.threadMessageCount)")
-                                .font(Typography.captionSmall)
-                                .foregroundStyle(.secondary)
-                                .contentTransition(.numericText())
-                                .frame(minWidth: threadBadgeSize, minHeight: threadBadgeSize)
-                                .background(Capsule().fill(.fill.quaternary))
+                            threadCountBadge
                         }
 
                         Spacer()
@@ -266,11 +273,11 @@ struct EmailRowView: View, Equatable {
                 }
 
                 // Apple Intelligence hover summary
-                guard !popoverHolder.isShowing, Self.isAppleIntelligenceAvailable else { return }
+                guard Self.isAppleIntelligenceAvailable else { return }
                 hoverTask?.cancel()
-                hoverTask = Task {
+                hoverTask = Task { [popoverHolder] in
                     try? await Task.sleep(for: .seconds(3))
-                    guard !Task.isCancelled else { return }
+                    guard !Task.isCancelled, !popoverHolder.isShowing else { return }
                     let content = EmailHoverSummaryView(email: email)
                         .frame(width: 340)
                     popoverHolder.show(content: content)
@@ -308,7 +315,7 @@ struct EmailRowView: View, Equatable {
 // MARK: - NSPopover wrapper
 
 @MainActor
-private class PopoverHolder {
+private final class PopoverHolder: NSObject, NSPopoverDelegate {
     private var popover: NSPopover?
     weak var anchorView: NSView?
 
@@ -321,13 +328,19 @@ private class PopoverHolder {
         popover.contentViewController = controller
         popover.behavior = .transient
         popover.animates = true
+        popover.delegate = self
         popover.show(relativeTo: anchorView.bounds, of: anchorView, preferredEdge: .maxX)
         self.popover = popover
     }
 
     func close() {
-        popover?.performClose(nil)
-        popover = nil
+        popover?.close()
+    }
+
+    nonisolated func popoverDidClose(_ notification: Notification) {
+        MainActor.assumeIsolated {
+            popover = nil
+        }
     }
 }
 
