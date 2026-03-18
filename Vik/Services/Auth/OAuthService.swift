@@ -185,7 +185,7 @@ final class OAuthService: NSObject {
                 lastError = .networkError(error)
             }
             if attempt < maxAttempts - 1 {
-                let delay = pow(2.0, Double(attempt))
+                let delay = pow(2.0, Double(attempt)) + Double.random(in: 0...1.0)
                 do {
                     try await Task.sleep(for: .seconds(delay))
                 } catch {

@@ -142,13 +142,19 @@ final class MailDatabase: Sendable {
             return cached
         }
 
-        defer { _ = migrating.withLock { $0.remove(accountID) } }
-
         // Create and migrate outside the instances lock.
-        let db = try MailDatabase(accountID: accountID, skipMigrations: true)
-        try db.migrate()
+        do {
+            let db = try MailDatabase(accountID: accountID, skipMigrations: true)
+            try db.migrate()
 
-        instances.withLock { $0[accountID] = db }
-        return db
+            // Store in instances BEFORE releasing migration lock so waiters
+            // always find the instance when their while loop exits.
+            instances.withLock { $0[accountID] = db }
+            _ = migrating.withLock { $0.remove(accountID) }
+            return db
+        } catch {
+            _ = migrating.withLock { $0.remove(accountID) }
+            throw error
+        }
     }
 }

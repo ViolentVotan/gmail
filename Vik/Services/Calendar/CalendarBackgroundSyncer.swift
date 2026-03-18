@@ -31,7 +31,7 @@ actor CalendarBackgroundSyncer {
                     if calendar.lastSyncedAt == nil { calendar.lastSyncedAt = existing.lastSyncedAt }
                     calendar.isVisible = existing.isVisible
                 }
-                try calendar.save(db, onConflict: .replace)
+                try calendar.upsert(db)
             }
         }
     }
