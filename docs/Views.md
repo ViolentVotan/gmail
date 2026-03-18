@@ -58,6 +58,27 @@ Email composer — `ComposeView` for the full compose form with rich text editor
 - `AutocompleteTextField` — Contact suggestions in To/Cc/Bcc fields.
 - `ScheduleSendButton` — Send button with schedule-send popover (date picker for deferred delivery). `ComposeView.scheduleEmail(at:)` mirrors `sendEmail()` field population before calling `scheduleSend`.
 
+### `Calendar/`
+Full calendar feature surface — week, day, and agenda views for Google Calendar. All calendar views are driven by `CalendarViewModel`.
+
+- `CalendarContainerView` — Root container. Switches between week/day/agenda sub-views based on `CalendarViewModel.viewMode` using a conditional content swap with `VikAnimation.contentSwitch`. Hosts `CalendarHeaderView` pinned at the top.
+- `CalendarWeekView` — 7-column time grid for the current week. Day headers highlight today with the brand-blue circle. A fixed 50pt time column shows hourly labels; each hour row is 48pt tall. `CalendarEventCard` components are positioned absolutely within their day column; overlapping events are laid out side-by-side. A red current-time indicator refreshes on a 60-second `Timer`. Supports click-to-create, drag-to-create, drag-to-move, and drag-to-resize. `ScrollView` auto-scrolls to the current time on appear.
+- `CalendarDayView` — Single-day time grid using the same hour-row structure as `CalendarWeekView`. Event cards are wider and show a description preview and attendee count.
+- `CalendarAgendaView` — Chronological event list with sticky date section headers. Each event is a glass card with a color bar, time, title, location, attendees, and conference icon. Past events render at reduced opacity. Uses `LazyVStack` over a 30-day window.
+- `CalendarHeaderView` — Date navigation with ‹/› arrows, a formatted date-range label, a "Today" pill button, a Day/Week/Agenda view mode picker, and a "+ New Event" button. Navigation actions dispatch to `CalendarViewModel.navigateForward`/`navigateBack`/`goToToday`.
+- `CalendarEventCard` — Reusable event block for time grids. Renders a 3px colored left border, title, and time range. Uses `.glassEffect` background; hover lifts elevation. Tap selects the event in `CalendarViewModel`.
+- `CalendarEventDetailView` — Slide-in detail panel with glass background. Shows title, time, location (Maps deep-link), "Join Meeting" button, organizer, attendees with RSVP badges, description, and reminders. Actions: RSVP (Accept/Maybe/Decline via `CalendarViewModel.respondToEvent`), Edit (opens `CalendarEventEditorView`), Delete, Email Attendees, Open in Google Calendar.
+- `CalendarEventEditorView` — Create/edit sheet. Fields: title, start/end date pickers, location, description, calendar picker, attendees (chip input via `AutocompleteTextField`), Google Meet toggle, reminders, recurrence picker, color override, visibility, and busy/free status. Recurring-event edits show a confirmation sheet scoped to `RecurringEditScope` (this / this and following / all). Guards unsaved changes on dismiss.
+- `CalendarMiniMonthView` — Compact month grid for the sidebar calendar panel. Today is marked with a blue circle; the selected week is highlighted with an accent tint band. Tapping a date calls `CalendarViewModel.selectedDate`.
+- `CalendarListSidebarView` — Calendar list grouped by account. Each row shows a color swatch, calendar name, and a visibility toggle (updates `CalendarViewModel.visibleCalendarIDs`). Includes a "New Event" CTA.
+- `CalendarQuickAddView` — Natural-language event creation text field. Submits to `CalendarViewModel.quickAddEvent`, which calls the Google Calendar quickAdd API.
+
+**Shared calendar components** (in `Common/`):
+
+| File | Role |
+|------|------|
+| `CalendarEventQuickActions` | Smart contextual actions: emailAttendees, emailOrganizer, shareEvent, scheduleWithRecipients. Used in `CalendarEventDetailView` and context menus. |
+
 ### `Attachments/`
 Attachment explorer with grid view, thumbnails, file type filtering, and search.
 
