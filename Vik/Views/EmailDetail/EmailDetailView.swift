@@ -168,6 +168,7 @@ struct EmailDetailView: View {
             showMetadata = false
             showConversation = false
             calendarContextDismissed = false
+            // mailDatabase MUST be set before any await — loadThread() reads it synchronously.
             detailVM.mailDatabase = mailDatabase
 
             withAnimation(VikAnimation.springDefault) {

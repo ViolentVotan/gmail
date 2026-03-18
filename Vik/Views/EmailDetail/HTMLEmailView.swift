@@ -354,14 +354,16 @@ struct HTMLEmailView: NSViewRepresentable {
                 // Parameter binding prevents template breakout — html is passed as a JS
                 // variable, not interpolated into the script source. CSP script-src 'none'
                 // prevents any injected scripts from executing.
-                webView.callAsyncJavaScript(
-                    """
-                    document.getElementById('emailContent').innerHTML = html;
-                    if (typeof fixContrastColors === 'function') { fixContrastColors(); }
-                    """,
-                    arguments: ["html": html],
-                    contentWorld: .page
-                ) { _ in }
+                Task {
+                    _ = try? await webView.callAsyncJavaScript(
+                        """
+                        document.getElementById('emailContent').innerHTML = html;
+                        if (typeof fixContrastColors === 'function') { fixContrastColors(); }
+                        """,
+                        arguments: ["html": html],
+                        contentWorld: .page
+                    )
+                }
                 pendingHTML = nil
             }
             Task { @MainActor [weak self] in
