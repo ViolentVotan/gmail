@@ -476,29 +476,19 @@ struct CalendarEventEditorView: View {
     private func commitSave(scope: RecurringEditScope?) {
         showRecurringSheet = false
 
-        let iso8601 = ISO8601DateFormatter()
-        iso8601.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd"
-        dateFormatter.timeZone = TimeZone.current
+        let allDayFormatter = DateFormatter()
+        allDayFormatter.dateFormat = "yyyy-MM-dd"
+        allDayFormatter.timeZone = TimeZone.current
 
         let startDTO: CalendarAPIDateTime = isAllDay
-            ? CalendarAPIDateTime(date: dateFormatter.string(from: startTime), dateTime: nil, timeZone: nil)
-            : CalendarAPIDateTime(date: nil, dateTime: iso8601.string(from: startTime), timeZone: TimeZone.current.identifier)
+            ? CalendarAPIDateTime(date: allDayFormatter.string(from: startTime), dateTime: nil, timeZone: nil)
+            : CalendarAPIDateTime(date: nil, dateTime: CalendarEventService.rfc3339(startTime), timeZone: TimeZone.current.identifier)
 
         let endDTO: CalendarAPIDateTime = isAllDay
-            ? CalendarAPIDateTime(date: dateFormatter.string(from: endTime), dateTime: nil, timeZone: nil)
-            : CalendarAPIDateTime(date: nil, dateTime: iso8601.string(from: endTime), timeZone: TimeZone.current.identifier)
+            ? CalendarAPIDateTime(date: allDayFormatter.string(from: endTime), dateTime: nil, timeZone: nil)
+            : CalendarAPIDateTime(date: nil, dateTime: CalendarEventService.rfc3339(endTime), timeZone: TimeZone.current.identifier)
 
         let attendeeInputs = attendeeEmails.map { CalendarAPIAttendeeInput(email: $0) }
-
-        // conferenceDataVersion=1 is handled by CalendarEventService.insertEvent;
-        // we signal Google Meet intent via CalendarAPIEventInput.conferenceData being non-nil.
-        // CalendarAPIConferenceData is a response-type, so we leave it nil here and rely on
-        // the service layer's conferenceDataVersion parameter for Meet creation.
-        let conferenceData: CalendarAPIConferenceData? = nil
-        _ = addGoogleMeet // Reserved: passed to service via conferenceDataVersion when called
 
         let reminderOverrides = reminders.map { r in
             CalendarAPIReminderOverride(method: r.method.rawValue, minutes: r.minutes)
@@ -512,7 +502,7 @@ struct CalendarEventEditorView: View {
             end: endDTO,
             attendees: attendeeInputs.isEmpty ? nil : attendeeInputs,
             reminders: CalendarAPIReminders(useDefault: false, overrides: reminderOverrides),
-            conferenceData: conferenceData,
+            conferenceData: nil,
             colorId: colorId,
             recurrence: recurrence.rruleStrings(for: startTime),
             transparency: showAs == .free ? "transparent" : nil,

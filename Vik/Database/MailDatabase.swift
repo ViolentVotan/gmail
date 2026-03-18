@@ -120,24 +120,24 @@ final class MailDatabase: Sendable {
     /// Avoids opening redundant `DatabasePool` connections across Intents and extensions.
     /// Uses per-account locking so that migration for one account doesn't block access
     /// to other accounts' already-cached instances.
-    static func shared(for accountID: String) throws -> MailDatabase {
+    static func shared(for accountID: String) async throws -> MailDatabase {
         // Fast path: return cached instance without migration overhead.
         if let existing = instances.withLock({ $0[accountID] }) {
             return existing
         }
 
         // Ensure only one caller migrates a given account at a time.
-        // If another thread is already migrating this account, spin until it finishes
+        // If another caller is already migrating this account, yield until it finishes
         // and then return the cached result.
         let didClaim = migrating.withLock { $0.insert(accountID).inserted }
         guard didClaim else {
-            // Another thread is migrating — wait for it to finish and cache the result.
+            // Another caller is migrating — yield cooperatively (not Thread.sleep).
             while migrating.withLock({ $0.contains(accountID) }) {
-                Thread.sleep(forTimeInterval: 0.01)
+                try? await Task.sleep(for: .milliseconds(10))
             }
             guard let cached = instances.withLock({ $0[accountID] }) else {
-                // The other thread failed; retry from scratch.
-                return try shared(for: accountID)
+                // The other caller failed; retry from scratch.
+                return try await shared(for: accountID)
             }
             return cached
         }

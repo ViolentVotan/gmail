@@ -74,6 +74,7 @@ Views never call Services directly. ViewModels are the single bridge.
 - `CalendarBackgroundSyncer` — Actor for bulk calendar DB writes (upsert events/calendars/attendees)
 - `CalendarOfflineActionQueue` — Queues calendar mutations when offline, replays on reconnect with etag conflict detection
 - `CalendarIntegrationService` — Cross-feature email↔calendar coordination (find events for invites, upcoming meetings with participants)
+- `CalendarEventService.rfc3339(_:)` — Shared RFC 3339 date formatter (used by CalendarEventEditorView, CalendarIntents)
 - `CalendarEventService` / `CalendarListService` / `CalendarFreeBusyService` — Google Calendar API v3 services
 - `LabelSyncService` — Label sync with etag-based caching
 - `OfflineActionQueue` — Queues actions when offline, replays on reconnect

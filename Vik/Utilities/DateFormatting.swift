@@ -56,6 +56,26 @@ extension Date {
         return f
     }()
 
+    // MARK: - Calendar formatters
+
+    private static let calendarTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "h:mm"
+        return f
+    }()
+
+    private static let calendarTimeAmPmFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "h:mm a"
+        return f
+    }()
+
+    private static let calendarHourFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "h a"
+        return f
+    }()
+
     // MARK: - Formatted properties
 
     /// Formats a date relative to today: time for today, "Yesterday", or "MMM d" otherwise.
@@ -100,5 +120,20 @@ extension Date {
     /// Medium date only: "Mar 1, 2025".
     var formattedDateOnly: String {
         Self.dateOnlyFormatter.string(from: self)
+    }
+
+    /// Calendar time without AM/PM: "2:30".
+    var formattedCalendarTime: String {
+        Self.calendarTimeFormatter.string(from: self)
+    }
+
+    /// Calendar time with AM/PM: "2:30 PM".
+    var formattedCalendarTimeAmPm: String {
+        Self.calendarTimeAmPmFormatter.string(from: self)
+    }
+
+    /// Calendar hour label: "2 PM".
+    var formattedCalendarHour: String {
+        Self.calendarHourFormatter.string(from: self)
     }
 }

@@ -74,8 +74,7 @@ final class CalendarOfflineActionQueue {
         }
 
         guard !processed.isEmpty else { return }
-        pending.removeAll { processed.contains($0.id) }
-        actions[accountID] = pending
+        actions[accountID]?.removeAll { processed.contains($0.id) }
         save(for: accountID)
     }
 

@@ -105,8 +105,6 @@ final class EmailDetailViewModel {
                 await detectCalendarInvite()
                 if let latest = fresh.messages?.last {
                     await detectCalendarContext(for: latest)
-                }
-                if let latest = fresh.messages?.last {
                     await resolveInlineImages(for: latest)
                 }
                 // Resolve inline images for older thread messages

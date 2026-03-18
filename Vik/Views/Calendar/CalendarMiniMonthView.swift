@@ -84,7 +84,7 @@ struct CalendarMiniMonthView: View {
                 weekRow(cachedWeeks[weekIndex], isSelectedWeek: isSelectedWeek(cachedWeeks[weekIndex]))
             }
         }
-        .onAppear {
+        .task {
             recomputeWeeksIfNeeded()
         }
         .onChange(of: viewModel.selectedDate) {

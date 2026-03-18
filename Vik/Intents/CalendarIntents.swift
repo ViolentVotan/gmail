@@ -48,15 +48,13 @@ struct CreateCalendarEventIntent: AppIntent {
         }
 
         let resolvedEnd = endDate ?? startDate.addingTimeInterval(3600)
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
 
         let event = CalendarAPIEventInput(
             summary: title,
             description: nil,
             location: location,
-            start: CalendarAPIDateTime(date: nil, dateTime: f.string(from: startDate), timeZone: TimeZone.current.identifier),
-            end: CalendarAPIDateTime(date: nil, dateTime: f.string(from: resolvedEnd), timeZone: TimeZone.current.identifier),
+            start: CalendarAPIDateTime(date: nil, dateTime: CalendarEventService.rfc3339(startDate), timeZone: TimeZone.current.identifier),
+            end: CalendarAPIDateTime(date: nil, dateTime: CalendarEventService.rfc3339(resolvedEnd), timeZone: TimeZone.current.identifier),
             attendees: nil,
             reminders: nil,
             conferenceData: nil,
@@ -192,7 +190,7 @@ private enum CalendarIntentHelpers {
     static func primaryCalendar() async -> (calendarId: String, accountID: String)? {
         let accounts = await MainActor.run { AccountStore.shared.accounts }
         for account in accounts {
-            guard let db = try? MailDatabase.shared(for: account.id) else { continue }
+            guard let db = try? await MailDatabase.shared(for: account.id) else { continue }
             let calendars = try? await db.dbPool.read { database in
                 try MailDatabaseQueries.calendars(accountId: account.id, in: database)
             }
@@ -214,7 +212,7 @@ private enum CalendarIntentHelpers {
 
         var results: [CalendarEventRecord] = []
         for account in accounts {
-            guard let db = try? MailDatabase.shared(for: account.id) else { continue }
+            guard let db = try? await MailDatabase.shared(for: account.id) else { continue }
             let events = try? await db.dbPool.read { database in
                 try CalendarEventRecord
                     .filter(Column("account_id") == account.id)
@@ -241,7 +239,7 @@ private enum CalendarIntentHelpers {
         let lowered = title.lowercased()
 
         for account in accounts {
-            guard let db = try? MailDatabase.shared(for: account.id) else { continue }
+            guard let db = try? await MailDatabase.shared(for: account.id) else { continue }
             let events = try? await db.dbPool.read { database in
                 try CalendarEventRecord
                     .filter(Column("account_id") == account.id)
@@ -271,7 +269,7 @@ private enum CalendarIntentHelpers {
 
         var results: [CalendarEventRecord] = []
         for account in accounts {
-            guard let db = try? MailDatabase.shared(for: account.id) else { continue }
+            guard let db = try? await MailDatabase.shared(for: account.id) else { continue }
             let events = try? await db.dbPool.read { database in
                 try CalendarEventRecord
                     .filter(Column("account_id") == account.id)

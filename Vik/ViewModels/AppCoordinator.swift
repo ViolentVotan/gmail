@@ -362,10 +362,10 @@ final class AppCoordinator {
 
     @concurrent
     private func openDatabase(for accountID: String) async throws -> MailDatabase {
-        let database = try MailDatabase.shared(for: accountID)
+        let database = try await MailDatabase.shared(for: accountID)
         guard try database.integrityCheck() else {
             MailDatabase.deleteDatabase(accountID: accountID)
-            return try MailDatabase.shared(for: accountID)
+            return try await MailDatabase.shared(for: accountID)
         }
         return database
     }

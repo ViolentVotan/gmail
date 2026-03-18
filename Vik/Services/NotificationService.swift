@@ -119,10 +119,6 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             .filter { $0.hasPrefix("calendar-") }
         center.removePendingNotificationRequests(withIdentifiers: staleIds)
 
-        let formatter = DateFormatter()
-        formatter.dateStyle = .none
-        formatter.timeStyle = .short
-
         for event in events {
             guard !event.reminders.isEmpty else { continue }
 
@@ -132,7 +128,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
 
                 let content = UNMutableNotificationContent()
                 content.title = event.summary
-                var bodyParts = [formatter.string(from: event.startTime)]
+                var bodyParts = [event.startTime.formattedTime]
                 if let location = event.location { bodyParts.append(location) }
                 content.body = bodyParts.joined(separator: " · ")
                 content.categoryIdentifier = "CALENDAR_REMINDER"

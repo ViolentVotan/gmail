@@ -81,10 +81,10 @@ final class GmailAPIClient {
 
         // First attempt + 401 auto-retry
         do {
-            return try await doPerform(path: path, method: method, body: body, contentType: contentType, fields: fields, accessToken: token.accessToken)
+            return try await doPerform(path: path, method: method, body: body, contentType: contentType, fields: fields, accessToken: token.accessToken, accountID: accountID)
         } catch .unauthorized {
             let fresh = try await refreshAndRetry(accountID: accountID)
-            return try await doPerform(path: path, method: method, body: body, contentType: contentType, fields: fields, accessToken: fresh.accessToken)
+            return try await doPerform(path: path, method: method, body: body, contentType: contentType, fields: fields, accessToken: fresh.accessToken, accountID: accountID)
         }
     }
 
@@ -912,7 +912,8 @@ final class GmailAPIClient {
         body: Data?,
         contentType: String?,
         fields: String?,
-        accessToken: String
+        accessToken: String,
+        accountID: String
     ) async throws(GmailAPIError) -> Data {
         #if DEBUG
         let reqHeaders: [String: String] = {
@@ -920,10 +921,14 @@ final class GmailAPIClient {
             if let ct = contentType { h["Content-Type"] = ct }
             return h
         }()
-        let reqBody: String? = body.flatMap { String(data: $0, encoding: .utf8) }
+        let reqBody: String? = if method == "POST" && (path.contains("/messages/send") || path.contains("/drafts/send")) {
+            "[email body redacted]"
+        } else {
+            body.flatMap { String(data: $0, encoding: .utf8) }
+        }
         let t0 = Date()
         do {
-            let (data, code, respHeaders) = try await perform(path: path, method: method, body: body, contentType: contentType, fields: fields, accessToken: accessToken)
+            let (data, code, respHeaders) = try await perform(path: path, method: method, body: body, contentType: contentType, fields: fields, accessToken: accessToken, accountID: accountID)
             let ms = Int(Date().timeIntervalSince(t0) * 1000)
             APILogger.shared.log(APILogEntry(
                 method: method, path: path, statusCode: code, errorMessage: nil,
@@ -953,7 +958,7 @@ final class GmailAPIClient {
             throw error
         }
         #else
-        let (data, _, _) = try await perform(path: path, method: method, body: body, contentType: contentType, fields: fields, accessToken: accessToken)
+        let (data, _, _) = try await perform(path: path, method: method, body: body, contentType: contentType, fields: fields, accessToken: accessToken, accountID: accountID)
         return data
         #endif
     }
@@ -967,7 +972,8 @@ final class GmailAPIClient {
         body: Data?,
         contentType: String?,
         fields: String?,
-        accessToken: String
+        accessToken: String,
+        accountID: String
     ) async throws(GmailAPIError) -> (Data, Int, [String: String]) {
         var fullPath = path
         if let fields {
@@ -1017,6 +1023,7 @@ final class GmailAPIClient {
                     if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
                     if body.contains("domainPolicy") { throw .domainPolicy }
                     if body.contains("insufficientPermissions") {
+                        Task { @MainActor in self.postInsufficientPermissionsNotification(accountID: accountID) }
                         throw .insufficientPermissions
                     }
                 }

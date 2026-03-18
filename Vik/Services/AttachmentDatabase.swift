@@ -47,7 +47,8 @@ actor AttachmentDatabase {
 
     // MARK: - Open
 
-    private nonisolated func openDatabase() throws {
+    /// Called only from `init()` — nonisolated because actor init is nonisolated.
+    nonisolated private func openDatabase() throws {
         let fm = FileManager.default
         let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let dir = support.appendingPathComponent(AppPaths.appSupportName, isDirectory: true)
@@ -72,7 +73,8 @@ actor AttachmentDatabase {
     // 3. FTS changes: drop/recreate FTS virtual table + triggers, then rebuild from main table
     // 4. Bump PRAGMA user_version only after successful migration
 
-    private nonisolated func createSchema() throws {
+    /// Called only from `init()` — nonisolated because actor init is nonisolated.
+    nonisolated private func createSchema() throws {
         // 1. Base table
         let createTable = """
         CREATE TABLE IF NOT EXISTS attachments (
@@ -135,7 +137,8 @@ actor AttachmentDatabase {
         migrateFTS()
     }
 
-    private nonisolated func migrateFTS() {
+    /// Called only from `createSchema()` during init — nonisolated for the same reason.
+    nonisolated private func migrateFTS() {
         // Check schema version
         var version: Int32 = 0
         var stmt: OpaquePointer?
@@ -742,7 +745,8 @@ actor AttachmentDatabase {
     ///
     /// WARNING: `table`, `column`, and `definition` are interpolated directly into SQL.
     /// All callers MUST pass compile-time literals. Never pass user-supplied input.
-    private nonisolated func addColumnIfMissing(_ table: String, column: String, definition: String) {
+    /// Init-only helper — nonisolated because called from nonisolated `createSchema()`.
+    nonisolated private func addColumnIfMissing(_ table: String, column: String, definition: String) {
         // Guard against SQL injection — identifiers must contain only alphanumeric chars or underscores.
         let identifierPattern = #/^[a-zA-Z0-9_]+$/#
         guard table.wholeMatch(of: identifierPattern) != nil,
@@ -764,7 +768,8 @@ actor AttachmentDatabase {
 
     /// Fire-and-forget exec (for PRAGMAs, etc).
     @discardableResult
-    private nonisolated func exec(_ sql: String) -> Bool {
+    /// Init-only helper — nonisolated because called from nonisolated schema setup.
+    nonisolated private func exec(_ sql: String) -> Bool {
         sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK
     }
 

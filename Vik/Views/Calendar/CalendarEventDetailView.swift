@@ -315,15 +315,8 @@ struct CalendarEventDetailView: View {
         return formatter
     }()
 
-    private static let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
-        return formatter
-    }()
-
     private var timeRangeString: String {
-        return "\(Self.timeFormatter.string(from: event.startTime)) – \(Self.timeFormatter.string(from: event.endTime))"
+        "\(event.startTime.formattedTime) – \(event.endTime.formattedTime)"
     }
 
     private func fullDateString(_ date: Date) -> String {

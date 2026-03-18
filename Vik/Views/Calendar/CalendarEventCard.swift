@@ -64,18 +64,11 @@ struct CalendarEventCard: View {
 
     // MARK: - Private
 
-    private static let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
-        return formatter
-    }()
-
     private var timeRangeText: String {
         if event.isAllDay {
             return "All day"
         }
-        return "\(Self.timeFormatter.string(from: event.startTime)) – \(Self.timeFormatter.string(from: event.endTime))"
+        return "\(event.startTime.formattedTime) – \(event.endTime.formattedTime)"
     }
 }
 

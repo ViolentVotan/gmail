@@ -7,6 +7,8 @@ struct MiniAgendaWidget: View {
     var onSelectEvent: (CalendarEvent) -> Void
     var onShowCalendar: () -> Void
 
+    @State private var cachedSortedEvents: [CalendarEvent] = []
+
     private var isEvening: Bool {
         let hour = Calendar.current.component(.hour, from: Date())
         return hour >= 18
@@ -20,16 +22,10 @@ struct MiniAgendaWidget: View {
         return "Today"
     }
 
-    private var sortedEvents: [CalendarEvent] {
-        let allDay = events.filter { $0.isAllDay }
-        let timed = events.filter { !$0.isAllDay }.sorted { $0.startTime < $1.startTime }
-        return Array((allDay + timed).prefix(CalendarLayout.miniAgendaMaxEvents))
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
             headerRow
-            if sortedEvents.isEmpty {
+            if cachedSortedEvents.isEmpty {
                 emptyState
             } else {
                 eventsList
@@ -37,6 +33,8 @@ struct MiniAgendaWidget: View {
         }
         .padding(Spacing.sm)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: CornerRadius.lg))
+        .task { recomputeSortedEvents() }
+        .onChange(of: events) { recomputeSortedEvents() }
     }
 
     // MARK: - Subviews
@@ -59,7 +57,7 @@ struct MiniAgendaWidget: View {
 
     private var eventsList: some View {
         VStack(alignment: .leading, spacing: 4) {
-            ForEach(sortedEvents) { event in
+            ForEach(cachedSortedEvents) { event in
                 eventRow(event)
             }
         }
@@ -129,22 +127,14 @@ struct MiniAgendaWidget: View {
 
     // MARK: - Helpers
 
-    private static let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm"
-        return formatter
-    }()
-
-    private static let timeAmPmFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        return formatter
-    }()
+    private func recomputeSortedEvents() {
+        let allDay = events.filter { $0.isAllDay }
+        let timed = events.filter { !$0.isAllDay }.sorted { $0.startTime < $1.startTime }
+        cachedSortedEvents = Array((allDay + timed).prefix(CalendarLayout.miniAgendaMaxEvents))
+    }
 
     private func eventTimeText(_ event: CalendarEvent) -> String {
-        let start = Self.timeFormatter.string(from: event.startTime)
-        let end = Self.timeAmPmFormatter.string(from: event.endTime)
-        return "\(start) – \(end)"
+        "\(event.startTime.formattedCalendarTime) – \(event.endTime.formattedCalendarTimeAmPm)"
     }
 
     private func isHappeningNow(_ event: CalendarEvent) -> Bool {

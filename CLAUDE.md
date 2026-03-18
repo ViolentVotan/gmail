@@ -101,5 +101,4 @@ All skills target **macOS 26+ / Swift 6.2+ exclusively** — no legacy patterns.
 
 ## Gotchas
 
-- Some computed properties re-sort on every render (performance issue — known)
 - Multi-account stores (`SnoozeStore`, `ScheduledSendStore`, `OfflineActionQueue`) use per-account file persistence — `load()` merges, not replaces

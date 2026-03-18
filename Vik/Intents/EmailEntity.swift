@@ -166,7 +166,7 @@ struct MailDraftEntity {
             var entities: [MailDraftEntity] = []
             let accounts = await MainActor.run { AccountStore.shared.accounts }
             for account in accounts {
-                guard let db = try? MailDatabase.shared(for: account.id) else { continue }
+                guard let db = try? await MailDatabase.shared(for: account.id) else { continue }
                 // Entity IDs may be either a gmail_draft_id (preferred) or gmail_id (fallback
                 // for pre-migration records). Search both columns to handle either case.
                 let records = try? await db.dbPool.read { database in
@@ -208,7 +208,7 @@ struct MailDraftEntity {
             let accounts = await MainActor.run { AccountStore.shared.accounts }
             var entities: [MailDraftEntity] = []
             for account in accounts {
-                guard let db = try? MailDatabase.shared(for: account.id) else { continue }
+                guard let db = try? await MailDatabase.shared(for: account.id) else { continue }
                 let records = try? await db.dbPool.read { database in
                     try MailDatabaseQueries.messagesForLabel(GmailSystemLabel.draft, limit: 50, in: database)
                 }
@@ -420,7 +420,7 @@ struct MailMessageEntityQuery: EntityStringQuery {
         var entities: [MailMessageEntity] = []
         let accounts = await MainActor.run { AccountStore.shared.accounts }
         for account in accounts {
-            guard let db = try? MailDatabase.shared(for: account.id) else { continue }
+            guard let db = try? await MailDatabase.shared(for: account.id) else { continue }
             let records = try? await db.dbPool.read { database in
                 try MessageRecord.filter(identifiers.contains(Column("gmail_id"))).fetchAll(database)
             }
@@ -442,7 +442,7 @@ struct MailMessageEntityQuery: EntityStringQuery {
         let accounts = await MainActor.run { AccountStore.shared.accounts }
         var entities: [MailMessageEntity] = []
         for account in accounts {
-            guard let db = try? MailDatabase.shared(for: account.id) else { continue }
+            guard let db = try? await MailDatabase.shared(for: account.id) else { continue }
             let records = try? await db.dbPool.read { database in
                 try MailDatabaseQueries.messagesForLabel(GmailSystemLabel.inbox, limit: 200, in: database)
             }

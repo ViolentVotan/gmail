@@ -78,7 +78,7 @@ final class PeopleAPIService {
         var didFullConnectionsFetch = false
         let syncStartTime = Date().timeIntervalSince1970
 
-        let mailDB = try? MailDatabase.shared(for: accountID)
+        let mailDB = try? await MailDatabase.shared(for: accountID)
 
         // 1. Fetch "My Contacts" via Connections
         do {
@@ -104,7 +104,7 @@ final class PeopleAPIService {
                             + "?personFields=metadata,names,emailAddresses,photos&syncToken=\(encoded)"
                             + "&pageSize=1000&sortOrder=LAST_MODIFIED_ASCENDING"
                             + "&fields=\(Self.connectionsFields)"
-                        if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
+                        if let pt = pageToken { urlStr += "&pageToken=\(pt.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pt)" }
                         let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
                         // Delete removed contacts from this page
@@ -165,7 +165,7 @@ final class PeopleAPIService {
                             + "?personFields=metadata,names,emailAddresses,photos&pageSize=1000"
                             + "&requestSyncToken=true&sortOrder=LAST_MODIFIED_ASCENDING"
                             + "&fields=\(Self.connectionsFields)"
-                        if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
+                        if let pt = pageToken { urlStr += "&pageToken=\(pt.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pt)" }
                         let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
                         let parsed = parseContacts(from: response.connections ?? [])
@@ -220,7 +220,7 @@ final class PeopleAPIService {
                         var urlStr = "https://people.googleapis.com/v1/otherContacts"
                             + "?readMask=metadata,names,emailAddresses&syncToken=\(encoded)"
                             + "&pageSize=1000&fields=\(Self.otherContactsFields)"
-                        if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
+                        if let pt = pageToken { urlStr += "&pageToken=\(pt.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pt)" }
                         let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
                         // Delete removed contacts from this page
@@ -276,7 +276,7 @@ final class PeopleAPIService {
                         var urlStr = "https://people.googleapis.com/v1/otherContacts"
                             + "?readMask=metadata,names,emailAddresses&pageSize=1000"
                             + "&requestSyncToken=true&fields=\(Self.otherContactsFields)"
-                        if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
+                        if let pt = pageToken { urlStr += "&pageToken=\(pt.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pt)" }
                         let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
                         let parsed = parseContacts(from: response.otherContacts ?? [])
@@ -345,7 +345,7 @@ final class PeopleAPIService {
     /// Writes each page to DB immediately. Gracefully skips if the directory.readonly
     /// scope isn't granted (403).
     private func fetchDirectoryPeople(accountID: String, syncer: BackgroundSyncer) async {
-        let mailDB = try? MailDatabase.shared(for: accountID)
+        let mailDB = try? await MailDatabase.shared(for: accountID)
         let syncStartTime = Date().timeIntervalSince1970
 
         do {
@@ -367,7 +367,7 @@ final class PeopleAPIService {
                             + "&readMask=metadata,names,emailAddresses,photos"
                             + "&syncToken=\(encoded)"
                             + "&pageSize=1000&fields=\(Self.directoryFields)"
-                        if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
+                        if let pt = pageToken { urlStr += "&pageToken=\(pt.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pt)" }
                         let response: DirectoryPeopleResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
                         let parsed = parseContacts(from: response.people ?? [], source: "directory")
@@ -406,7 +406,7 @@ final class PeopleAPIService {
                         + "&readMask=metadata,names,emailAddresses,photos"
                         + "&requestSyncToken=true&pageSize=1000"
                         + "&fields=\(Self.directoryFields)"
-                    if let pt = pageToken { urlStr += "&pageToken=\(pt)" }
+                    if let pt = pageToken { urlStr += "&pageToken=\(pt.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pt)" }
                     let response: DirectoryPeopleResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
                     let parsed = parseContacts(from: response.people ?? [], source: "directory")

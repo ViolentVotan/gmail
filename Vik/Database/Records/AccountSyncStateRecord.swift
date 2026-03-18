@@ -5,7 +5,7 @@ struct AccountSyncStateRecord: Codable, FetchableRecord, PersistableRecord, Send
     static let databaseColumnDecodingStrategy: DatabaseColumnDecodingStrategy = .convertFromSnakeCase
     static let databaseColumnEncodingStrategy: DatabaseColumnEncodingStrategy = .convertToSnakeCase
 
-    var id: Int = 1
+    let id: Int = 1
     var contactsSyncToken: String?
     var contactsSyncTokenAt: Double?
     var otherContactsSyncToken: String?

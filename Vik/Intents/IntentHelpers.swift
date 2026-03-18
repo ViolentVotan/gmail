@@ -5,7 +5,7 @@ enum IntentHelpers {
     static func findOwnerAccount(for messageId: String) async -> String? {
         let accounts = await MainActor.run { AccountStore.shared.accounts }
         for account in accounts {
-            guard let db = try? MailDatabase.shared(for: account.id) else { continue }
+            guard let db = try? await MailDatabase.shared(for: account.id) else { continue }
             let exists = try? await db.dbPool.read { database in
                 try MailDatabaseQueries.messageExists(messageId, in: database)
             }

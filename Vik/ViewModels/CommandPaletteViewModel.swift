@@ -175,10 +175,7 @@ final class CommandPaletteViewModel {
                         db: db
                     )
                     if let event {
-                        let formatter = DateFormatter()
-                        formatter.timeStyle = .short
-                        formatter.dateStyle = .none
-                        let time = formatter.string(from: event.startTime)
+                        let time = event.startTime.formattedTime
                         ToastManager.shared.show(message: "\(event.summary) at \(time)")
                         coordinator.navigateToEvent(event)
                     } else {

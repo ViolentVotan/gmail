@@ -304,11 +304,9 @@ actor BackgroundSyncer {
                 toSave.threadMessageCount = existing.threadMessageCount
                 try toSave.update(db)
 
-                // FTS is maintained by an AFTER UPDATE trigger on `messages` — no explicit call needed.
-                // For non-body content changes the trigger still fires; FTSManager is only needed on INSERT.
-                if contentChanged && !bodyChanged {
-                    try FTSManager.update(message: toSave, in: db)
-                }
+                // FTS is maintained by the AFTER UPDATE trigger (v14+) which covers
+                // subject, snippet, body_plain, sender_name, and sender_email.
+                // No explicit FTSManager call needed on updates — only on INSERTs below.
             }
 
             // Only rebuild labels if they changed

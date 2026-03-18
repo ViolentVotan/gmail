@@ -172,7 +172,7 @@ import WebKit
 
         let base64 = imageData.base64EncodedString()
         let dataURL = "data:\(mimeType);base64,\(base64)"
-        evalJS("insertImageBase64('\(dataURL)', '\(cid)')")
+        evalJS("insertImageBase64(\(dataURL.jsEscaped), \(cid.jsEscaped))")
     }
 
     // MARK: - Theme update

@@ -81,12 +81,15 @@ final class CalendarViewModel {
         observationTask?.cancel()
         let dateRange = currentDateRange
         let visibleIDs = visibleCalendarIDs
-        let calendarIds = visibleIDs.compactMap { id -> String? in
+        // Decode composite "accountId_calendarId" keys into typed tuples so the
+        // DB query can scope each calendar to its owning account — preventing
+        // cross-account matches on shared calendar IDs.
+        let calendarKeys: [(calendarId: String, accountId: String)] = visibleIDs.compactMap { id in
             let parts = id.split(separator: "_", maxSplits: 1)
             guard parts.count == 2 else { return nil }
-            return String(parts[1])
+            return (calendarId: String(parts[1]), accountId: String(parts[0]))
         }
-        guard !calendarIds.isEmpty else {
+        guard !calendarKeys.isEmpty else {
             events = []
             return
         }
@@ -94,8 +97,7 @@ final class CalendarViewModel {
         let end = dateRange.end.timeIntervalSince1970
         let observation = ValueObservation.tracking { db in
             try MailDatabaseQueries.eventsForDateRange(
-                accountId: nil,
-                calendarIds: calendarIds,
+                calendarKeys: calendarKeys,
                 start: start,
                 end: end,
                 in: db

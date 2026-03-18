@@ -167,24 +167,46 @@ enum MailDatabaseQueries {
 
     // MARK: - Calendar Events
 
-    /// Events within a date range, optionally scoped to an account.
-    /// When `accountId` is nil, returns events across all accounts (unified view).
+    /// Events within a date range scoped to a single account and a set of calendar IDs.
+    /// Used by `NotificationService` where the account is always known.
     static func eventsForDateRange(
-        accountId: String?,
+        accountId: String,
         calendarIds: [String],
         start: Double,
         end: Double,
         in db: Database
     ) throws -> [CalendarEventRecord] {
         guard !calendarIds.isEmpty else { return [] }
-        var request = CalendarEventRecord
+        return try CalendarEventRecord
             .filter(calendarIds.contains(Column("calendar_id")))
+            .filter(Column("account_id") == accountId)
             .filter(Column("start_time") < end)
             .filter(Column("end_time") > start)
-        if let accountId {
-            request = request.filter(Column("account_id") == accountId)
+            .order(Column("start_time").asc)
+            .fetchAll(db)
+    }
+
+    /// Events within a date range for a unified multi-account view.
+    /// Each key pairs a calendar ID with its owning account, preventing cross-account
+    /// collisions on shared calendar IDs (e.g. `company-all@group.calendar.google.com`).
+    static func eventsForDateRange(
+        calendarKeys: [(calendarId: String, accountId: String)],
+        start: Double,
+        end: Double,
+        in db: Database
+    ) throws -> [CalendarEventRecord] {
+        guard let first = calendarKeys.first else { return [] }
+        var keyFilter = Column("calendar_id") == first.calendarId
+            && Column("account_id") == first.accountId
+        for key in calendarKeys.dropFirst() {
+            keyFilter = keyFilter
+                || (Column("calendar_id") == key.calendarId
+                    && Column("account_id") == key.accountId)
         }
-        return try request
+        return try CalendarEventRecord
+            .filter(keyFilter)
+            .filter(Column("start_time") < end)
+            .filter(Column("end_time") > start)
             .order(Column("start_time").asc)
             .fetchAll(db)
     }

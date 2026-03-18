@@ -14,6 +14,8 @@ struct CalendarDayView: View {
 
     @State private var scrollProxy: ScrollViewProxy? = nil
     @State private var hoveredHour: Int? = nil
+    @State private var cachedAllDayEvents: [CalendarEvent] = []
+    @State private var cachedTimedEvents: [CalendarEvent] = []
 
     private let hours = Array(0..<24)
     private var calendar: Calendar { .current }
@@ -27,13 +29,24 @@ struct CalendarDayView: View {
             timeGrid
         }
         .animation(VikAnimation.contentSwitch, value: viewModel.selectedDate)
+        .task(id: viewModel.selectedDate) {
+            recomputeEvents()
+        }
+        .onChange(of: viewModel.events) {
+            recomputeEvents()
+        }
+    }
+
+    private func recomputeEvents() {
+        let allEvents = viewModel.eventsForDay(viewModel.selectedDate)
+        cachedAllDayEvents = allEvents.filter(\.isAllDay)
+        cachedTimedEvents = allEvents.filter { !$0.isAllDay }
     }
 
     // MARK: - All-day header
 
     private var allDayHeader: some View {
-        let allDayEvents = viewModel.eventsForDay(viewModel.selectedDate).filter(\.isAllDay)
-        return HStack(alignment: .top, spacing: 0) {
+        HStack(alignment: .top, spacing: 0) {
             // time-column spacer
             Text("all-day")
                 .font(Typography.captionSmallRegular)
@@ -44,10 +57,10 @@ struct CalendarDayView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Spacing.xs) {
-                    if allDayEvents.isEmpty {
+                    if cachedAllDayEvents.isEmpty {
                         Color.clear.frame(height: CalendarLayout.allDayEventHeight)
                     } else {
-                        ForEach(allDayEvents) { event in
+                        ForEach(cachedAllDayEvents) { event in
                             allDayChip(event)
                         }
                     }
@@ -79,8 +92,7 @@ struct CalendarDayView: View {
     // MARK: - Time grid
 
     private var timeGrid: some View {
-        let timedEvents = viewModel.eventsForDay(viewModel.selectedDate).filter { !$0.isAllDay }
-        return ScrollViewReader { proxy in
+        ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
                 ZStack(alignment: .topLeading) {
                     // Hour rows
@@ -92,7 +104,7 @@ struct CalendarDayView: View {
 
                     // Event cards overlaid on the grid
                     GeometryReader { geo in
-                        ForEach(timedEvents) { event in
+                        ForEach(cachedTimedEvents) { event in
                             dayEventCard(event: event, totalWidth: geo.size.width)
                         }
                     }
@@ -154,8 +166,11 @@ struct CalendarDayView: View {
 
     private func dayEventCard(event: CalendarEvent, totalWidth: CGFloat) -> some View {
         let columnWidth = totalWidth - CalendarLayout.timeColumnWidth
-        let yOffset = yPosition(for: event.startTime)
-        let height = max(CalendarLayout.eventCardMinHeight, eventHeight(for: event))
+        let yOffset = CalendarLayout.yPosition(for: event.startTime)
+        let height = max(
+            CalendarLayout.eventCardMinHeight,
+            CalendarLayout.eventHeight(start: event.startTime, end: event.endTime)
+        )
 
         return DayEventCardView(event: event, onSelect: onSelectEvent)
             .frame(width: columnWidth - Spacing.sm * 2)
@@ -167,7 +182,7 @@ struct CalendarDayView: View {
 
     private var currentTimeIndicator: some View {
         let now = Date.now
-        let yPos = yPosition(for: now)
+        let yPos = CalendarLayout.yPosition(for: now)
         return HStack(spacing: 0) {
             Spacer().frame(width: CalendarLayout.timeColumnWidth - CalendarLayout.currentTimeIndicatorDotSize / 2)
             Circle()
@@ -186,28 +201,11 @@ struct CalendarDayView: View {
 
     // MARK: - Helpers
 
-    private func yPosition(for date: Date) -> CGFloat {
-        let components = calendar.dateComponents([.hour, .minute], from: date)
-        let totalMinutes = CGFloat((components.hour ?? 0) * 60 + (components.minute ?? 0))
-        return totalMinutes / 60.0 * CalendarLayout.hourRowHeight
-    }
-
-    private func eventHeight(for event: CalendarEvent) -> CGFloat {
-        let duration = event.endTime.timeIntervalSince(event.startTime)
-        return CGFloat(duration / 3600.0) * CalendarLayout.hourRowHeight
-    }
-
-    private static let hourFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h a"
-        return formatter
-    }()
-
     private func hourLabel(_ hour: Int) -> String {
         guard hour != 0 else { return "" }
         let components = DateComponents(hour: hour)
         guard let date = calendar.date(from: components) else { return "" }
-        return Self.hourFormatter.string(from: date)
+        return date.formattedCalendarHour
     }
 
     private func scrollToCurrentTime(proxy: ScrollViewProxy) {
@@ -311,23 +309,11 @@ private struct DayEventCardView: View {
         .accessibilityAddTraits(.isButton)
     }
 
-    private static let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm"
-        return formatter
-    }()
-
-    private static let timeAmPmFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        return formatter
-    }()
-
     private var timeRangeString: String {
         if event.isAllDay {
             return "All day"
         }
-        return "\(Self.timeFormatter.string(from: event.startTime)) – \(Self.timeAmPmFormatter.string(from: event.endTime))"
+        return "\(event.startTime.formattedCalendarTime) – \(event.endTime.formattedCalendarTimeAmPm)"
     }
 }
 

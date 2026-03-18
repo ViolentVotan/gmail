@@ -453,12 +453,21 @@ final class CalendarSyncEngine {
             }
             return Date().timeIntervalSince1970
         } else if let dateStr = dt.date {
-            // All-day event: "yyyy-MM-dd" — use event timezone, then calendar timezone, then UTC
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd"
+            // All-day event: "yyyy-MM-dd" — parse via DateComponents (allocation-free, thread-safe)
+            let parts = dateStr.split(separator: "-")
+            guard parts.count == 3,
+                  let year = Int(parts[0]),
+                  let month = Int(parts[1]),
+                  let day = Int(parts[2]) else {
+                return Date().timeIntervalSince1970
+            }
+            var dc = DateComponents()
+            dc.year = year
+            dc.month = month
+            dc.day = day
             let tzIdentifier = dt.timeZone ?? calendarTimeZone ?? "UTC"
-            formatter.timeZone = TimeZone(identifier: tzIdentifier) ?? .gmt
-            return formatter.date(from: dateStr)?.timeIntervalSince1970 ?? Date().timeIntervalSince1970
+            dc.timeZone = TimeZone(identifier: tzIdentifier) ?? .gmt
+            return Calendar.current.date(from: dc)?.timeIntervalSince1970 ?? Date().timeIntervalSince1970
         }
         return Date().timeIntervalSince1970
     }
@@ -481,10 +490,12 @@ final class CalendarSyncEngine {
         data?.entryPoints?.first(where: { $0.entryPointType == "video" })?.uri
     }
 
+    nonisolated(unsafe) private static let jsonEncoder = JSONEncoder()
+
     /// Encodes an `Encodable` value to a JSON string.
     nonisolated private static func encodeJSON<T: Encodable>(_ value: T?) -> String? {
         guard let value else { return nil }
-        guard let data = try? JSONEncoder().encode(value) else { return nil }
+        guard let data = try? Self.jsonEncoder.encode(value) else { return nil }
         return String(data: data, encoding: .utf8)
     }
 }

@@ -490,6 +490,23 @@ enum CalendarLayout {
     static let miniMonthDaySize: CGFloat = 20
     /// Maximum number of events shown inline in the mini agenda before a "more" link.
     static let miniAgendaMaxEvents: Int = 5
+
+    // MARK: - Layout calculations
+
+    /// Y-position for a given time in the day/week grid.
+    static func yPosition(for date: Date) -> CGFloat {
+        let calendar = Calendar.current
+        let hour = calendar.component(.hour, from: date)
+        let minute = calendar.component(.minute, from: date)
+        return CGFloat(hour) * hourRowHeight + CGFloat(minute) / 60.0 * hourRowHeight
+    }
+
+    /// Height for an event spanning from `start` to `end`.
+    static func eventHeight(start: Date, end: Date, clampToMinHeight: Bool = false) -> CGFloat {
+        let duration = end.timeIntervalSince(start)
+        let height = CGFloat(duration / 3600.0) * hourRowHeight
+        return clampToMinHeight ? max(height, eventCardMinHeight) : height
+    }
 }
 
 // MARK: - Calendar Semantic Colors

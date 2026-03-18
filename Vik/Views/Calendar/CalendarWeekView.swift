@@ -9,14 +9,11 @@ struct CalendarWeekView: View {
 
     @State private var currentTime: Date = .now
     @State private var scrollProxy: ScrollViewProxy?
+    @State private var cachedWeekDays: [Date] = []
+    @State private var cachedTimedEventsByDay: [[CalendarEvent]] = []
+    @State private var cachedAllDayEventsByDay: [[CalendarEvent]] = []
 
     private let hours = Array(0..<24)
-
-    private static let hourFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "h a"
-        return f
-    }()
 
     private static let weekdayFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -31,18 +28,23 @@ struct CalendarWeekView: View {
     }()
 
     var body: some View {
-        let weekDays = computeWeekDays()
         GeometryReader { geo in
             let dayColumnWidth = (geo.size.width - CalendarLayout.timeColumnWidth) / 7
 
             VStack(spacing: 0) {
-                allDaySection(weekDays: weekDays, dayColumnWidth: dayColumnWidth)
+                allDaySection(dayColumnWidth: dayColumnWidth)
                 Divider()
-                dayHeaderRow(weekDays: weekDays, dayColumnWidth: dayColumnWidth)
+                dayHeaderRow(dayColumnWidth: dayColumnWidth)
                 Divider()
-                timeGrid(weekDays: weekDays, dayColumnWidth: dayColumnWidth)
+                timeGrid(dayColumnWidth: dayColumnWidth)
             }
             .clipped()
+        }
+        .task(id: viewModel.selectedDate) {
+            recomputeCaches()
+        }
+        .onChange(of: viewModel.events) {
+            recomputeCaches()
         }
         .task {
             while !Task.isCancelled {
@@ -55,11 +57,8 @@ struct CalendarWeekView: View {
     // MARK: - All-Day Section
 
     @ViewBuilder
-    private func allDaySection(weekDays: [Date], dayColumnWidth: CGFloat) -> some View {
-        let allDayByDay = weekDays.map { day in
-            viewModel.eventsForDay(day).filter { $0.isAllDay }
-        }
-        let maxCount = allDayByDay.map(\.count).max() ?? 0
+    private func allDaySection(dayColumnWidth: CGFloat) -> some View {
+        let maxCount = cachedAllDayEventsByDay.map(\.count).max() ?? 0
 
         if maxCount > 0 {
             HStack(spacing: 0) {
@@ -72,7 +71,7 @@ struct CalendarWeekView: View {
                     .accessibilityHidden(true)
 
                 // All-day chips per day
-                ForEach(Array(allDayByDay.enumerated()), id: \.offset) { _, allDayEvents in
+                ForEach(Array(zip(cachedWeekDays, cachedAllDayEventsByDay)), id: \.0) { _, allDayEvents in
                     VStack(spacing: 2) {
                         ForEach(allDayEvents) { event in
                             allDayChip(event: event, width: dayColumnWidth)
@@ -106,14 +105,14 @@ struct CalendarWeekView: View {
 
     // MARK: - Day Header Row
 
-    private func dayHeaderRow(weekDays: [Date], dayColumnWidth: CGFloat) -> some View {
+    private func dayHeaderRow(dayColumnWidth: CGFloat) -> some View {
         HStack(spacing: 0) {
             // Empty time column header
             Spacer()
                 .frame(width: CalendarLayout.timeColumnWidth)
                 .accessibilityHidden(true)
 
-            ForEach(weekDays, id: \.self) { day in
+            ForEach(cachedWeekDays, id: \.self) { day in
                 dayHeader(for: day, width: dayColumnWidth)
             }
         }
@@ -151,23 +150,18 @@ struct CalendarWeekView: View {
 
     // MARK: - Time Grid
 
-    private func timeGrid(weekDays: [Date], dayColumnWidth: CGFloat) -> some View {
-        let timedEventsByDay = buildTimedEventsByDay(weekDays: weekDays)
-        return ScrollViewReader { proxy in
+    private func timeGrid(dayColumnWidth: CGFloat) -> some View {
+        ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: false) {
                 ZStack(alignment: .topLeading) {
                     // Background grid
-                    gridBackground(weekDays: weekDays, dayColumnWidth: dayColumnWidth)
+                    gridBackground(dayColumnWidth: dayColumnWidth)
 
                     // Events overlay
-                    eventsOverlay(
-                        weekDays: weekDays,
-                        timedEventsByDay: timedEventsByDay,
-                        dayColumnWidth: dayColumnWidth
-                    )
+                    eventsOverlay(dayColumnWidth: dayColumnWidth)
 
                     // Current time indicator
-                    currentTimeIndicator(weekDays: weekDays, dayColumnWidth: dayColumnWidth)
+                    currentTimeIndicator(dayColumnWidth: dayColumnWidth)
                 }
                 .frame(height: CGFloat(hours.count) * CalendarLayout.hourRowHeight)
             }
@@ -182,7 +176,7 @@ struct CalendarWeekView: View {
 
     // MARK: - Grid Background
 
-    private func gridBackground(weekDays: [Date], dayColumnWidth: CGFloat) -> some View {
+    private func gridBackground(dayColumnWidth: CGFloat) -> some View {
         VStack(spacing: 0) {
             ForEach(hours, id: \.self) { hour in
                 HStack(spacing: 0) {
@@ -197,16 +191,15 @@ struct CalendarWeekView: View {
 
                     // Day columns with grid lines
                     HStack(spacing: 0) {
-                        ForEach(0..<weekDays.count, id: \.self) { dayIndex in
-                            let day = weekDays[dayIndex]
+                        ForEach(cachedWeekDays, id: \.self) { day in
                             let isToday = Calendar.current.isDateInToday(day)
-                            let isWeekend = isWeekend(day)
+                            let isWeekendDay = isWeekend(day)
 
                             Rectangle()
                                 .fill(
                                     isToday
                                     ? CalendarSemanticColor.todayHighlight
-                                    : isWeekend
+                                    : isWeekendDay
                                     ? Color.primary.opacity(CalendarSemanticColor.weekendColumnOpacity * 0.02)
                                     : Color.clear
                                 )
@@ -218,7 +211,7 @@ struct CalendarWeekView: View {
                                 }
                                 .overlay(alignment: .trailing) {
                                     // Vertical column divider
-                                    if dayIndex < weekDays.count - 1 {
+                                    if day != cachedWeekDays.last {
                                         Divider()
                                             .opacity(0.04)
                                     }
@@ -240,17 +233,13 @@ struct CalendarWeekView: View {
 
     // MARK: - Events Overlay
 
-    private func eventsOverlay(
-        weekDays: [Date],
-        timedEventsByDay: [Date: [CalendarEvent]],
-        dayColumnWidth: CGFloat
-    ) -> some View {
+    private func eventsOverlay(dayColumnWidth: CGFloat) -> some View {
         ZStack(alignment: .topLeading) {
-            ForEach(0..<weekDays.count, id: \.self) { dayIndex in
+            ForEach(Array(cachedWeekDays.enumerated()), id: \.element) { dayIndex, day in
                 dayEventsOverlay(
                     dayIndex: dayIndex,
-                    day: weekDays[dayIndex],
-                    timedEvents: timedEventsByDay[weekDays[dayIndex]] ?? [],
+                    day: day,
+                    timedEvents: dayIndex < cachedTimedEventsByDay.count ? cachedTimedEventsByDay[dayIndex] : [],
                     dayColumnWidth: dayColumnWidth
                 )
             }
@@ -287,8 +276,8 @@ struct CalendarWeekView: View {
         colCount: Int,
         dayColumnWidth: CGFloat
     ) -> some View {
-        let yOffset = yPosition(for: event.startTime)
-        let height = eventHeight(for: event)
+        let yOffset = CalendarLayout.yPosition(for: event.startTime)
+        let height = CalendarLayout.eventHeight(start: event.startTime, end: event.endTime, clampToMinHeight: true)
         let colWidth = (dayColumnWidth - 4) / CGFloat(colCount)
         let xOffset = CalendarLayout.timeColumnWidth
             + CGFloat(dayIndex) * dayColumnWidth
@@ -304,10 +293,10 @@ struct CalendarWeekView: View {
     // MARK: - Current Time Indicator
 
     @ViewBuilder
-    private func currentTimeIndicator(weekDays: [Date], dayColumnWidth: CGFloat) -> some View {
-        let todayIndex = weekDays.firstIndex { Calendar.current.isDateInToday($0) }
+    private func currentTimeIndicator(dayColumnWidth: CGFloat) -> some View {
+        let todayIndex = cachedWeekDays.firstIndex { Calendar.current.isDateInToday($0) }
         if let index = todayIndex {
-            let yPos = yPosition(for: currentTime)
+            let yPos = CalendarLayout.yPosition(for: currentTime)
             let xStart = CalendarLayout.timeColumnWidth + CGFloat(index) * dayColumnWidth
 
             ZStack(alignment: .leading) {
@@ -336,7 +325,7 @@ struct CalendarWeekView: View {
 
     // MARK: - Helpers
 
-    private func computeWeekDays() -> [Date] {
+    private func recomputeCaches() {
         let week = viewModel.selectedWeek
         var days: [Date] = []
         days.reserveCapacity(7)
@@ -345,16 +334,19 @@ struct CalendarWeekView: View {
             days.append(current)
             current = Calendar.current.date(byAdding: .day, value: 1, to: current) ?? current
         }
-        return days
-    }
+        cachedWeekDays = days
 
-    /// Partitions timed (non-all-day) events for each day into a lookup dictionary.
-    private func buildTimedEventsByDay(weekDays: [Date]) -> [Date: [CalendarEvent]] {
-        var result: [Date: [CalendarEvent]] = Dictionary(minimumCapacity: weekDays.count)
-        for day in weekDays {
-            result[day] = viewModel.eventsForDay(day).filter { !$0.isAllDay }
+        var timed: [[CalendarEvent]] = []
+        var allDay: [[CalendarEvent]] = []
+        timed.reserveCapacity(7)
+        allDay.reserveCapacity(7)
+        for day in days {
+            let dayEvents = viewModel.eventsForDay(day)
+            timed.append(dayEvents.filter { !$0.isAllDay })
+            allDay.append(dayEvents.filter { $0.isAllDay })
         }
-        return result
+        cachedTimedEventsByDay = timed
+        cachedAllDayEventsByDay = allDay
     }
 
     private func weekdayAbbreviation(for date: Date) -> String {
@@ -369,20 +361,7 @@ struct CalendarWeekView: View {
     private func hourLabel(for hour: Int) -> String {
         guard hour > 0 else { return "" }
         let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: .now) ?? .now
-        return Self.hourFormatter.string(from: date)
-    }
-
-    private func yPosition(for date: Date) -> CGFloat {
-        let comps = Calendar.current.dateComponents([.hour, .minute], from: date)
-        let hours = CGFloat(comps.hour ?? 0)
-        let minutes = CGFloat(comps.minute ?? 0)
-        return (hours + minutes / 60.0) * CalendarLayout.hourRowHeight
-    }
-
-    private func eventHeight(for event: CalendarEvent) -> CGFloat {
-        let durationSeconds = event.endTime.timeIntervalSince(event.startTime)
-        let durationHours = CGFloat(durationSeconds) / 3600.0
-        return max(durationHours * CalendarLayout.hourRowHeight, CalendarLayout.eventCardMinHeight)
+        return date.formattedCalendarHour
     }
 
     private func dateForTap(hour: Int) -> Date {

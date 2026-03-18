@@ -35,7 +35,7 @@ final class GmailMessageService {
         if let q = query, !q.isEmpty {
             path += "&q=\(q.addingPercentEncoding(withAllowedCharacters: GmailPathBuilder.queryAllowed) ?? q)"
         }
-        if let token = pageToken { path += "&pageToken=\(token)" }
+        if let token = pageToken { path += "&pageToken=\(token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token)" }
         return try await client.request(
             path: path,
             fields: "messages(id,threadId),nextPageToken,resultSizeEstimate",
@@ -103,7 +103,7 @@ final class GmailMessageService {
         path += "&historyTypes=messageAdded&historyTypes=messageDeleted"
         path += "&historyTypes=labelAdded&historyTypes=labelRemoved"
         if let labelId { path += "&labelId=\(labelId)" }
-        if let token = pageToken { path += "&pageToken=\(token)" }
+        if let token = pageToken { path += "&pageToken=\(token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token)" }
         return try await client.request(
             path: path,
             fields: "history(id,messagesAdded(message(id,threadId,labelIds)),messagesDeleted(message(id,threadId)),labelsAdded(message(id,threadId),labelIds),labelsRemoved(message(id,threadId),labelIds)),historyId,nextPageToken",

@@ -19,6 +19,7 @@ enum MailDatabaseMigrations {
         registerV12(&migrator)
         registerV13(&migrator)
         registerV14(&migrator)
+        registerV15(&migrator)
         return migrator
     }
 
@@ -452,6 +453,31 @@ enum MailDatabaseMigrations {
 
             // M23: Index for pruneStaleMessageContacts NOT EXISTS query.
             try db.execute(sql: "CREATE INDEX IF NOT EXISTS idx_contacts_source ON contacts(source, email)")
+        }
+    }
+
+    // MARK: - V15
+
+    private static func registerV15(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v15_fts_trigger_fix_sender_columns") { db in
+            // Fix the FTS update trigger from V14: body_html is not an FTS column,
+            // and sender_name/sender_email are FTS columns but were not watched.
+            // Drop and recreate with the correct column set.
+            try db.execute(sql: "DROP TRIGGER IF EXISTS messages_fts_update")
+            try db.execute(sql: """
+                CREATE TRIGGER IF NOT EXISTS messages_fts_update
+                AFTER UPDATE OF subject, snippet, body_plain, sender_name, sender_email ON messages
+                WHEN NEW.subject IS NOT OLD.subject
+                  OR NEW.snippet IS NOT OLD.snippet
+                  OR NEW.body_plain IS NOT OLD.body_plain
+                  OR NEW.sender_name IS NOT OLD.sender_name
+                  OR NEW.sender_email IS NOT OLD.sender_email
+                BEGIN
+                    DELETE FROM messages_fts WHERE gmail_id = OLD.gmail_id;
+                    INSERT INTO messages_fts(gmail_id, subject, body_plain, snippet, sender_name, sender_email)
+                    VALUES (NEW.gmail_id, NEW.subject, NEW.body_plain, NEW.snippet, NEW.sender_name, NEW.sender_email);
+                END
+            """)
         }
     }
 }

@@ -28,7 +28,7 @@ final class GmailDraftService {
         maxResults: Int = 50
     ) async throws(GmailAPIError) -> GmailDraftListResponse {
         var path = "/users/me/drafts?maxResults=\(maxResults)"
-        if let token = pageToken { path += "&pageToken=\(token)" }
+        if let token = pageToken { path += "&pageToken=\(token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token)" }
         return try await client.request(
             path: path,
             fields: "drafts(id,message(id,threadId)),nextPageToken,resultSizeEstimate",

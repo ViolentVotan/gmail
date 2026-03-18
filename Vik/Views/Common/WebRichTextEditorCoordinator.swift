@@ -86,7 +86,8 @@ final class WebRichTextEditorCoordinator: NSObject, WKScriptMessageHandler, WKNa
 
         // Write to temp file and use insertImage
         let tempDir = FileManager.default.temporaryDirectory
-        let tempURL = tempDir.appendingPathComponent(filename)
+        let safeName = URL(fileURLWithPath: filename).lastPathComponent
+        let tempURL = tempDir.appendingPathComponent(safeName.isEmpty ? "dropped_image" : safeName)
         do {
             try data.write(to: tempURL)
             parent.state.insertImage(from: tempURL)

@@ -215,21 +215,9 @@ private struct AgendaEventRow: View {
         .accessibilityAddTraits(.isButton)
     }
 
-    private static let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "h:mm"
-        return f
-    }()
-
-    private static let timeAmPmFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "h:mm a"
-        return f
-    }()
-
     private var timeString: String {
         if event.isAllDay { return "All day" }
-        return "\(Self.timeFormatter.string(from: event.startTime)) – \(Self.timeAmPmFormatter.string(from: event.endTime))"
+        return "\(event.startTime.formattedCalendarTime) – \(event.endTime.formattedCalendarTimeAmPm)"
     }
 }
 

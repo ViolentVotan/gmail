@@ -35,10 +35,10 @@ Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). Al
 - **No exceptions**: All classes use `@Observable` — zero remaining `ObservableObject` conformances.
 
 ## SwiftUI Patterns
-- **`@Observable`** macro on all 15 VMs (incl. `MailStore`, `SyncProgressManager`, `CalendarViewModel`, `EventDetailViewModel`), `AppearanceManager`, and services (`OfflineActionQueue`, `SubscriptionsStore`, `SnoozeMonitor`, `ToastManager`, `UndoActionManager`, `ScheduledSendStore`, `SnoozeStore`, `APILogger`, `ThumbnailCache`, `NetworkMonitor`, `PerAccountFileStore`)
+- **`@Observable`** macro on all 15 VMs (incl. `MailStore`, `SyncProgressManager`, `CalendarViewModel`, `EventDetailViewModel`), `AppearanceManager`, and services (`OfflineActionQueue`, `CalendarOfflineActionQueue`, `SubscriptionsStore`, `SnoozeMonitor`, `ToastManager`, `UndoActionManager`, `ScheduledSendStore`, `SnoozeStore`, `APILogger`, `ThumbnailCache`, `NetworkMonitor`, `PerAccountFileStore`)
 - **`@State`** for ViewModel ownership in views (not `@StateObject`)
 - **`@Bindable`** for child views needing two-way bindings to `@Observable` objects
-- **Theming**: `AppearanceManager` (`@Observable @MainActor final class`) owns light/dark preference; `DesignTokens.swift` provides static enums (`Spacing`, `ButtonSize`, `CornerRadius`, `VikAnimation`, `Typography`, `CalendarColor`, `CalendarLayout`, `CalendarSemanticColor`) and view modifiers (`elevation`, `destructiveActionStyle`, `floatingPanelStyle`, `glassOrMaterial`). Use standard `@Environment(\.colorScheme)` for light/dark — there is no custom theme environment key.
+- **Theming**: `AppearanceManager` (`@Observable @MainActor final class`) owns light/dark preference; `DesignTokens.swift` provides static enums (`Spacing`, `ButtonSize`, `CornerRadius`, `VikAnimation`, `Typography`, `CalendarColor`, `CalendarLayout`, `CalendarSemanticColor`) and view modifiers (`elevation`, `destructiveActionStyle`, `floatingPanelStyle`, `glassOrMaterial`). `CalendarLayout` includes `yPosition(for:)` and `eventHeight(start:end:clampToMinHeight:)` shared methods for calendar grid positioning. Use standard `@Environment(\.colorScheme)` for light/dark — there is no custom theme environment key.
 - No `@StateObject` or `@EnvironmentObject` anywhere — fully migrated away
 - `@State` for local view state, `@Binding` for parent-child communication
 - `.task { }` for async loading (auto-cancels on disappear)
@@ -83,6 +83,7 @@ Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). Al
 
 ### DatabasePool & Configuration
 - `MailDatabase` is a `final class: Sendable` (not `@Observable`, not an actor) owning a `DatabasePool`
+- `MailDatabase.shared(for:)` is `async throws` — all callers must use `await`
 - Per-account SQLite file: `{accountID}.sqlite` in Application Support
 - WAL mode via `PRAGMA journal_mode = WAL`, `PRAGMA synchronous = NORMAL`, `PRAGMA foreign_keys = ON`, `PRAGMA cache_size = -64000`
 

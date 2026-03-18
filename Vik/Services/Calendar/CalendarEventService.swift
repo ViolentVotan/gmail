@@ -11,7 +11,7 @@ final class CalendarEventService {
     // MARK: - Date formatting
 
     /// Formats a Date as RFC3339 with fractional seconds, safe for use from any isolation context.
-    nonisolated private static func rfc3339(_ date: Date) -> String {
+    nonisolated static func rfc3339(_ date: Date) -> String {
         let f = ISO8601DateFormatter()
         f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return f.string(from: date)
@@ -70,7 +70,10 @@ final class CalendarEventService {
         syncToken: String,
         pageToken: String? = nil
     ) async throws(CalendarAPIError) -> CalendarEventListResponse {
-        var queryItems = [URLQueryItem(name: "syncToken", value: syncToken)]
+        var queryItems = [
+            URLQueryItem(name: "syncToken", value: syncToken),
+            URLQueryItem(name: "fields", value: Self.eventFieldMask),
+        ]
         if let pageToken {
             queryItems.append(URLQueryItem(name: "pageToken", value: pageToken))
         }

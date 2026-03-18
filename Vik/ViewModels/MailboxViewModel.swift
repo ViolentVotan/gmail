@@ -424,7 +424,7 @@ final class MailboxViewModel {
         var total = 0
         for account in AccountStore.shared.accounts {
             do {
-                let db = try MailDatabase.shared(for: account.id)
+                let db = try await MailDatabase.shared(for: account.id)
                 let count = try await db.dbPool.read { database in
                     try MailDatabaseQueries.unreadCount(forLabel: GmailSystemLabel.inbox, in: database)
                 }
