@@ -213,7 +213,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
                 let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 5 * 60, repeats: false)
                 let snoozedId = requestIdentifier + "-snoozed"
                 let request = UNNotificationRequest(identifier: snoozedId, content: snoozedContent, trigger: trigger)
-                center.add(request)
+                try? await center.add(request)
             default:
                 // Default tap — no-op for calendar notifications (could open calendar view in future).
                 break
