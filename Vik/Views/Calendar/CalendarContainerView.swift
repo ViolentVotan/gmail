@@ -46,6 +46,7 @@ struct CalendarContainerView: View {
             }
             .animation(VikAnimation.contentSwitch, value: viewModel.viewMode)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
         }
         .accessibilityElement(children: .contain)
         .task {

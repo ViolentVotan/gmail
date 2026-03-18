@@ -35,7 +35,7 @@ struct CalendarHeaderView: View {
                     .frame(width: ButtonSize.md, height: ButtonSize.md)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glass)
             .help("Previous week")
             .accessibilityLabel("Previous week")
 
@@ -49,7 +49,7 @@ struct CalendarHeaderView: View {
                     .frame(width: ButtonSize.md, height: ButtonSize.md)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glass)
             .help("Next week")
             .accessibilityLabel("Next week")
         }
@@ -70,15 +70,12 @@ struct CalendarHeaderView: View {
         } label: {
             Text("Today")
                 .font(Typography.captionSemibold)
-                .foregroundStyle(BrandColor.blue)
+                .foregroundStyle(Color.accentColor)
                 .padding(.horizontal, Spacing.sm)
                 .padding(.vertical, Spacing.xs)
-                .background(
-                    BrandColor.blue.opacity(0.12),
-                    in: .capsule
-                )
         }
         .buttonStyle(.plain)
+        .glassEffect(.regular.interactive(), in: .capsule)
         .help("Go to today")
         .accessibilityLabel("Go to today")
     }
@@ -105,12 +102,11 @@ struct CalendarHeaderView: View {
                 Text("New Event")
                     .font(Typography.captionSemibold)
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(Color.accentColor)
             .padding(.horizontal, Spacing.md)
             .frame(height: ButtonSize.md)
-            .background(BrandColor.blue, in: .capsule)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.glass)
         .help("Create new event")
     }
 

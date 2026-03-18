@@ -60,7 +60,7 @@ struct DetailPaneView: View {
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
     private func softDirectionalTransition(from edge: Edge) -> AnyTransition {
-        let yOffset: CGFloat = edge == .bottom ? 8 : -8
+        let yOffset: CGFloat = edge == .bottom ? OffsetToken.small : -OffsetToken.small
         return .asymmetric(
             insertion: .opacity.combined(with: .offset(y: yOffset)),
             removal: .opacity.combined(with: .offset(y: -yOffset))

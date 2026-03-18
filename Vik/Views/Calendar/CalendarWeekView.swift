@@ -42,6 +42,7 @@ struct CalendarWeekView: View {
                 Divider()
                 timeGrid(weekDays: weekDays, dayColumnWidth: dayColumnWidth)
             }
+            .clipped()
         }
         .task {
             while !Task.isCancelled {

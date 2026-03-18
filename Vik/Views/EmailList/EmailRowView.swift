@@ -213,10 +213,7 @@ struct EmailRowView: View, Equatable {
             .padding(.horizontal, 16)
             .padding(.vertical, verticalPadding)
             .background {
-                if isSelected {
-                    RoundedRectangle(cornerRadius: CornerRadius.sm)
-                        .fill(.tint.opacity(OpacityToken.tag))
-                } else if !email.isRead {
+                if !email.isRead && !isSelected {
                     RoundedRectangle(cornerRadius: CornerRadius.sm)
                         .fill(.tint.opacity(0.03))
                 }

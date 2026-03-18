@@ -36,10 +36,14 @@ struct CalendarEventCard: View {
         }
         .frame(height: max(height, CalendarLayout.eventCardMinHeight))
         .background(
-            event.resolvedColor.opacity(CalendarSemanticColor.eventCardBackgroundOpacity)
+            event.resolvedColor.opacity(CalendarSemanticColor.eventCardBackgroundOpacity),
+            in: .rect(cornerRadius: CornerRadius.sm)
         )
-        .clipShape(.rect(cornerRadius: CornerRadius.sm))
-        .scaleEffect(isHovered ? 1.01 : 1.0)
+        .glassEffect(
+            isHovered ? .regular.interactive() : .identity,
+            in: .rect(cornerRadius: CornerRadius.sm)
+        )
+        .scaleEffect(isHovered ? ScaleToken.rowHover : 1.0)
         .shadow(
             color: isHovered ? event.resolvedColor.opacity(0.2) : .clear,
             radius: isHovered ? 4 : 0,

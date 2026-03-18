@@ -35,7 +35,7 @@ struct CalendarMiniMonthView: View {
                     .frame(width: 24, height: 24)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glass)
             .foregroundStyle(.secondary)
 
             Spacer()
@@ -57,7 +57,7 @@ struct CalendarMiniMonthView: View {
                     .frame(width: 24, height: 24)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glass)
             .foregroundStyle(.secondary)
         }
     }
@@ -103,11 +103,9 @@ struct CalendarMiniMonthView: View {
                 }
             }
         }
-        .background(
-            isSelectedWeek
-                ? BrandColor.blue.opacity(OpacityToken.tag)
-                : Color.clear,
-            in: RoundedRectangle(cornerRadius: CornerRadius.xs)
+        .glassEffect(
+            isSelectedWeek ? .regular.interactive() : .identity,
+            in: .rect(cornerRadius: CornerRadius.xs)
         )
     }
 
@@ -130,6 +128,10 @@ struct CalendarMiniMonthView: View {
                         ? CalendarSemanticColor.todayHeaderCircle
                         : Color.clear,
                     in: Circle()
+                )
+                .glassEffect(
+                    isSelected && !isToday ? .regular.interactive() : .identity,
+                    in: .circle
                 )
                 .frame(maxWidth: .infinity)
                 .contentShape(Rectangle())

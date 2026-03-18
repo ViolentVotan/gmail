@@ -363,6 +363,7 @@ struct ContentView: View {
             } label: {
                 Label("Toggle Sidebar", systemImage: "sidebar.leading")
             }
+            .buttonStyle(.glass)
             .help("Toggle Sidebar (⌘\\)")
             .keyboardShortcut("\\", modifiers: .command)
         }
@@ -372,6 +373,7 @@ struct ContentView: View {
                 Button { coordinator.composeNewEmail() } label: {
                     Label("Compose", systemImage: "square.and.pencil")
                 }
+                .buttonStyle(.glass)
                 .help("Compose (\u{2318}N)")
             }
 
@@ -384,6 +386,7 @@ struct ContentView: View {
                     } label: {
                         Label("Reply", systemImage: "arrowshape.turn.up.left")
                     }
+                    .buttonStyle(.glass)
                     .help("Reply")
 
                     if coordinator.selectedFolder != .archive {
@@ -392,6 +395,7 @@ struct ContentView: View {
                         } label: {
                             Label("Archive", systemImage: "archivebox")
                         }
+                        .buttonStyle(.glass)
                         .help("Archive (\u{2318}E)")
                     }
 
@@ -401,6 +405,7 @@ struct ContentView: View {
                         } label: {
                             Label("Delete", systemImage: "trash")
                         }
+                        .buttonStyle(.glass)
                         .help("Delete (\u{2318}\u{232B})")
                     }
 
@@ -409,6 +414,7 @@ struct ContentView: View {
                     } label: {
                         Label("Snooze", systemImage: "clock")
                     }
+                    .buttonStyle(.glass)
                     .help("Snooze")
                     .popover(isPresented: $showSnoozePicker) {
                         SnoozePickerView { date in

@@ -127,17 +127,15 @@ struct SidebarView: View {
                 Text(label)
                     .font(Typography.captionSemibold)
             }
-            .foregroundStyle(isActive ? BrandColor.blue : Color.secondary)
+            .foregroundStyle(isActive ? Color.accentColor : Color.secondary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, Spacing.xs)
-            .background(
-                isActive
-                    ? BrandColor.blue.opacity(OpacityToken.tag)
-                    : Color.clear,
-                in: RoundedRectangle(cornerRadius: CornerRadius.sm)
-            )
         }
         .buttonStyle(.plain)
+        .glassEffect(
+            isActive ? .regular.interactive() : .identity,
+            in: .rect(cornerRadius: CornerRadius.sm)
+        )
         .animation(VikAnimation.springSnappy, value: isActive)
     }
 
