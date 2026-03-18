@@ -44,6 +44,7 @@ actor CalendarSyncEngine {
     private var syncTask: Task<Void, Never>?
     private var calendarListSyncTask: Task<Void, Never>?
     private var postEditRevertTask: Task<Void, Never>?
+    private var triggeredSyncTask: Task<Void, Never>?
 
     /// Sync token for incremental calendar list sync via `CalendarListService.syncCalendars`.
     private var calendarListSyncToken: String?
@@ -75,7 +76,7 @@ actor CalendarSyncEngine {
                 .filter(Column("account_id") == accountID)
                 .filter(Column("sync_token") != nil)
                 .fetchCount(db) > 0
-        }) ?? false
+        }) ?? true  // Default to "already synced" on DB read failure — prevents spurious full resync
 
         if !hasTokens {
             await performInitialSync()
@@ -91,18 +92,25 @@ actor CalendarSyncEngine {
         syncTask?.cancel()
         calendarListSyncTask?.cancel()
         postEditRevertTask?.cancel()
+        triggeredSyncTask?.cancel()
         // Wait for in-flight tasks to actually finish before clearing refs
         await syncTask?.value
         await calendarListSyncTask?.value
         await postEditRevertTask?.value
+        await triggeredSyncTask?.value
         syncTask = nil
         calendarListSyncTask = nil
         postEditRevertTask = nil
+        triggeredSyncTask = nil
     }
 
     /// Triggers an immediate incremental sync (e.g., after an event edit).
-    func triggerSync() async {
-        await syncIncremental()
+    func triggerSync() {
+        triggeredSyncTask?.cancel()
+        triggeredSyncTask = Task {
+            guard !Task.isCancelled else { return }
+            await syncIncremental()
+        }
     }
 
     /// Adjusts polling interval based on app state.
@@ -360,10 +368,9 @@ actor CalendarSyncEngine {
                         calendarListSyncToken = newToken
                     }
                 } catch CalendarAPIError.gone {
-                    // Sync token expired — fall back to full fetch
-                    Self.logger.warning("Calendar list sync token expired, performing full fetch")
                     calendarListSyncToken = nil
-                    await syncCalendarList()
+                    // Don't recurse — let the next scheduled poll handle the full fetch.
+                    Self.logger.info("Calendar list sync token expired, cleared for next poll")
                 }
             } else {
                 // Full fetch — no sync token available yet
