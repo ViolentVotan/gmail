@@ -15,6 +15,10 @@ final class EmailDetailViewModel {
     var resolvedMessageHTML: [String: String] = [:]
     var calendarInvite:  CalendarInvite?
     var rsvpInProgress   = false
+    /// Matched real calendar event for an email invite (iCalUID lookup).
+    var matchedCalendarEvent: CalendarEvent?
+    /// Upcoming event context: a meeting with the email sender/recipients within 48h.
+    var calendarContextEvent: CalendarEvent?
 
     /// Tracker-sanitized HTML for the latest message, or nil if no tracker analysis ran.
     var trackerSanitizedHTML: String? {
@@ -67,7 +71,10 @@ final class EmailDetailViewModel {
                 let gmailMessages = records.map { $0.toGmailMessage() }
                 thread = GmailThread(id: id, historyId: nil, messages: gmailMessages)
                 await analyzeTrackers()
-                detectCalendarInvite()
+                await detectCalendarInvite()
+                if let latest = gmailMessages.last {
+                    await detectCalendarContext(for: latest)
+                }
                 if allHaveBodies {
                     // Notify that unread messages were displayed so the list can update read state
                     let unreadIDs = gmailMessages.filter(\.isUnread).map(\.id)
@@ -92,7 +99,10 @@ final class EmailDetailViewModel {
             thread = fresh
             if changed {
                 await analyzeTrackers()
-                detectCalendarInvite()
+                await detectCalendarInvite()
+                if let latest = fresh.messages?.last {
+                    await detectCalendarContext(for: latest)
+                }
                 if let latest = fresh.messages?.last {
                     await resolveInlineImages(for: latest)
                 }
@@ -147,7 +157,7 @@ final class EmailDetailViewModel {
 
     // MARK: - Calendar invite detection
 
-    private func detectCalendarInvite() {
+    private func detectCalendarInvite() async {
         guard let msg = latestMessage,
               let html = msg.htmlBody, !html.isEmpty
         else { calendarInvite = nil; return }
@@ -164,6 +174,54 @@ final class EmailDetailViewModel {
             invite.rsvpStatus = status
         }
         calendarInvite = invite
+
+        // Layer 1: match invite to a real calendar event via iCalUID from email header
+        if let db = mailDatabase,
+           let uid = msg.header(named: "X-Google-ICSUID") ?? msg.header(named: "X-Google-Calendar-ICS-UID") {
+            matchedCalendarEvent = await CalendarIntegrationService.shared.findEventForInvite(
+                iCalUID: uid,
+                accountID: accountID,
+                db: db
+            )
+        }
+    }
+
+    /// Layer 2: find upcoming meetings with email participants and set `calendarContextEvent`.
+    private func detectCalendarContext(for message: GmailMessage) async {
+        guard let db = mailDatabase else { return }
+        // Collect sender + all recipient emails (parse raw RFC 2822 address strings)
+        var participantEmails: [String] = []
+        for addressField in [message.from, message.to, message.cc] {
+            for email in Self.extractEmails(from: addressField) {
+                participantEmails.append(email)
+            }
+        }
+        guard !participantEmails.isEmpty else { return }
+        let events = await CalendarIntegrationService.shared.findUpcomingEventsWithParticipants(
+            emails: participantEmails,
+            accountID: accountID,
+            db: db
+        )
+        calendarContextEvent = events.first
+    }
+
+    /// Extracts bare email addresses from a comma-separated RFC 2822 address list string.
+    private static func extractEmails(from addressList: String) -> [String] {
+        guard !addressList.isEmpty else { return [] }
+        return addressList.components(separatedBy: ",").compactMap { entry -> String? in
+            let trimmed = entry.trimmingCharacters(in: .whitespaces)
+            // "Display Name <email@domain.com>" format
+            if let open = trimmed.lastIndex(of: "<"), let close = trimmed.lastIndex(of: ">"),
+               open < close {
+                let email = String(trimmed[trimmed.index(after: open)..<close])
+                    .trimmingCharacters(in: .whitespaces)
+                    .lowercased()
+                return email.isEmpty ? nil : email
+            }
+            // Bare email address
+            let email = trimmed.lowercased()
+            return email.contains("@") ? email : nil
+        }
     }
 
     func sendRSVP(_ status: CalendarInvite.RSVPStatus) async {

@@ -282,7 +282,8 @@ struct ContentView: View {
                     discardDraft: { coordinator.discardDraft(id: $0) },
                     selectionDirection: coordinator.selectionDirection,
                     navigatePrevious: { coordinator.selectPrevious() },
-                    navigateNext: { coordinator.selectNextEmail() }
+                    navigateNext: { coordinator.selectNextEmail() },
+                    switchToCalendar: { coordinator.switchToCalendar() }
                 )
                 .focused($appFocus, equals: .detail)
             }

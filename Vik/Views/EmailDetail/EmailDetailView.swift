@@ -21,6 +21,7 @@ struct EmailDetailView: View {
     @State private var showTranslation = false
     @State private var showMetadata = false
     @State private var showConversation = false
+    @State private var calendarContextDismissed = false
     @AppStorage("aiLabelSuggestions") private var aiLabelSuggestionsEnabled = true
 
     /// Best available unsubscribe URL: header-based (from full thread) or body-scanned.
@@ -143,6 +144,7 @@ struct EmailDetailView: View {
         .task(id: email.id) {
             showMetadata = false
             showConversation = false
+            calendarContextDismissed = false
             detailVM.mailDatabase = mailDatabase
 
             withAnimation(VikAnimation.springDefault) {
@@ -286,11 +288,30 @@ struct EmailDetailView: View {
                 .padding(.bottom, Spacing.md)
             }
 
+            if let contextEvent = detailVM.calendarContextEvent, !calendarContextDismissed {
+                CalendarContextCard(
+                    event: contextEvent,
+                    onNavigate: {
+                        actions.onNavigateToCalendar?()
+                        calendarContextDismissed = true
+                    },
+                    onDismiss: {
+                        withAnimation(VikAnimation.springSnappy) {
+                            calendarContextDismissed = true
+                        }
+                    }
+                )
+                .padding(.horizontal, Spacing.xl)
+                .padding(.bottom, Spacing.md)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
             if let invite = detailVM.calendarInvite {
                 CalendarInviteCardView(
                     invite: invite,
                     isLoading: detailVM.rsvpInProgress,
                     showOriginalEmail: $showOriginalInviteEmail,
+                    calendarEvent: detailVM.matchedCalendarEvent,
                     onAccept:  { Task { await detailVM.sendRSVP(.accepted) } },
                     onDecline: { Task { await detailVM.sendRSVP(.declined) } },
                     onMaybe:   { Task { await detailVM.sendRSVP(.maybe) } }

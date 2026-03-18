@@ -39,6 +39,11 @@ struct EmailDetailActions {
 
     var checkUnsubscribed: ((String) -> Bool)?
     var extractBodyUnsubscribeURL: ((String) -> URL?)?
+
+    // MARK: - Calendar
+
+    /// Called when the user taps the calendar context card to switch to Calendar mode.
+    var onNavigateToCalendar: (() -> Void)?
 }
 
 // MARK: - Factory

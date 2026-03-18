@@ -4,9 +4,52 @@ struct CalendarInviteCardView: View {
     let invite: CalendarInvite
     let isLoading: Bool
     @Binding var showOriginalEmail: Bool
+    var calendarEvent: CalendarEvent?
     var onAccept:  () -> Void
     var onDecline: () -> Void
     var onMaybe:   () -> Void
+
+    // MARK: - Derived
+
+    /// Display title: prefer real event data when available.
+    private var displaySummary: String {
+        calendarEvent?.summary ?? invite.summary
+    }
+
+    /// Display organizer: prefer organizer display name from calendar event.
+    private var displayOrganizer: String? {
+        if let event = calendarEvent {
+            return event.organizer?.displayName ?? event.organizer?.email
+        }
+        return invite.organizer
+    }
+
+    /// Display location: prefer event location.
+    private var displayLocation: String? {
+        calendarEvent?.location ?? invite.location
+    }
+
+    /// Attendee count from real event data.
+    private var attendeeCount: Int? {
+        guard let event = calendarEvent, !event.attendees.isEmpty else { return nil }
+        return event.attendees.count
+    }
+
+    /// Conference link from real event data.
+    private var conferenceURL: URL? {
+        calendarEvent?.conferenceLink
+    }
+
+    /// Current RSVP status, preferring real event data.
+    private var currentStatus: CalendarInvite.RSVPStatus {
+        invite.rsvpStatus
+    }
+
+    private var hasResponded: Bool {
+        currentStatus != .pending
+    }
+
+    // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -15,14 +58,24 @@ struct CalendarInviteCardView: View {
                 Image(systemName: "calendar")
                     .font(Typography.subheadSemibold)
                     .foregroundStyle(.tint)
-                Text(invite.summary)
+                Text(displaySummary)
                     .font(Typography.subheadSemibold)
                     .foregroundStyle(.primary)
                     .lineLimit(2)
             }
 
-            // Date & time
-            if !invite.dateText.isEmpty {
+            // Date & time (from invite HTML parse; real event uses startTime/endTime)
+            if let event = calendarEvent {
+                HStack(spacing: 8) {
+                    Image(systemName: "clock")
+                        .font(Typography.subheadRegular)
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 16)
+                    Text(event.startTime.formatted(date: .abbreviated, time: .shortened))
+                        .font(Typography.body)
+                        .foregroundStyle(.secondary)
+                }
+            } else if !invite.dateText.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "clock")
                         .font(Typography.subheadRegular)
@@ -35,7 +88,7 @@ struct CalendarInviteCardView: View {
             }
 
             // Location
-            if let location = invite.location, !location.isEmpty {
+            if let location = displayLocation, !location.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "mappin.and.ellipse")
                         .font(Typography.subheadRegular)
@@ -48,17 +101,39 @@ struct CalendarInviteCardView: View {
                 }
             }
 
-            // Organizer
-            if let organizer = invite.organizer, !organizer.isEmpty {
-                HStack(spacing: 8) {
-                    Image(systemName: "person")
-                        .font(Typography.subheadRegular)
-                        .foregroundStyle(.tertiary)
-                        .frame(width: 16)
+            // Conference link (only when real event data available)
+            if let url = conferenceURL, let name = calendarEvent?.conferenceName {
+                Link(destination: url) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "video")
+                            .font(Typography.subheadRegular)
+                            .foregroundStyle(.tertiary)
+                            .frame(width: 16)
+                        Text(name)
+                            .font(Typography.body)
+                            .foregroundStyle(.tint)
+                            .lineLimit(1)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Organizer + attendee count
+            HStack(spacing: 8) {
+                Image(systemName: "person")
+                    .font(Typography.subheadRegular)
+                    .foregroundStyle(.tertiary)
+                    .frame(width: 16)
+                if let organizer = displayOrganizer, !organizer.isEmpty {
                     Text(organizer)
                         .font(Typography.body)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                }
+                if let count = attendeeCount {
+                    Text("· \(count) attendee\(count == 1 ? "" : "s")")
+                        .font(Typography.body)
+                        .foregroundStyle(.tertiary)
                 }
             }
 
@@ -95,18 +170,14 @@ struct CalendarInviteCardView: View {
         }
         .cardStyle()
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("Calendar invite: \(invite.summary)")
+        .accessibilityLabel("Calendar invite: \(displaySummary)")
     }
 
     // MARK: - Helpers
 
-    private var hasResponded: Bool {
-        invite.rsvpStatus != .pending
-    }
-
     @ViewBuilder
     private func rsvpButton(_ label: String, icon: String, status: CalendarInvite.RSVPStatus, action: @escaping () -> Void) -> some View {
-        let isSelected = invite.rsvpStatus == status
+        let isSelected = currentStatus == status
 
         Button(action: action) {
             HStack(spacing: 5) {

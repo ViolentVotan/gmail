@@ -14,6 +14,17 @@ struct CalendarInvite: Equatable, Sendable {
     var rsvpStatus: RSVPStatus = .pending
 
     enum RSVPStatus: String, Equatable, Sendable { case accepted, declined, maybe, pending }
+
+    /// Converts to the canonical `CalendarRSVPStatus` used by the calendar domain model.
+    /// `maybe` maps to `tentative`; `pending` maps to `needsAction`.
+    var calendarRSVPStatus: CalendarRSVPStatus {
+        switch rsvpStatus {
+        case .accepted: .accepted
+        case .declined: .declined
+        case .maybe:    .tentative
+        case .pending:  .needsAction
+        }
+    }
 }
 
 // MARK: - Parser
