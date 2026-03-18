@@ -265,7 +265,7 @@ final class EventDetailViewModel {
 
 // MARK: - Event Edit Draft
 
-struct EventEditDraft {
+struct EventEditDraft: Equatable {
     var summary: String
     var description: String?
     var location: String?
