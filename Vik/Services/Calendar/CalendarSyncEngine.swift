@@ -1,0 +1,436 @@
+import Foundation
+internal import GRDB
+private import os
+
+/// Orchestrates calendar sync for a single Google account.
+/// Owns the sync lifecycle: initial full fetch, incremental delta sync via syncTokens,
+/// and periodic calendar list refresh. Heavy I/O is delegated to `CalendarBackgroundSyncer`.
+///
+/// Adaptive polling: interval adjusts based on whether the calendar view is active,
+/// the app is focused, or a recent edit was made (post-edit tightening).
+@MainActor
+final class CalendarSyncEngine {
+
+    // MARK: - State
+
+    enum State: Sendable {
+        case idle
+        case initialSync
+        case syncing
+        case error(CalendarAPIError)
+    }
+
+    private(set) var state: State = .idle
+    let accountID: String
+
+    // MARK: - Dependencies
+
+    private let db: MailDatabase
+    private let syncer: CalendarBackgroundSyncer
+    private let eventService: CalendarEventService
+    private let listService: CalendarListService
+
+    nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "CalendarSyncEngine")
+
+    // MARK: - Adaptive Polling
+
+    private var pollingInterval: TimeInterval = 60
+    static let calendarActiveInterval: TimeInterval = 30
+    static let postEditInterval: TimeInterval = 15
+    static let mailActiveInterval: TimeInterval = 60
+    static let backgroundInterval: TimeInterval = 300
+
+    // MARK: - Tasks
+
+    private var syncTask: Task<Void, Never>?
+    private var calendarListSyncTask: Task<Void, Never>?
+    private var postEditRevertTask: Task<Void, Never>?
+
+    // MARK: - Init
+
+    init(accountID: String, db: MailDatabase) {
+        self.accountID = accountID
+        self.db = db
+        self.syncer = CalendarBackgroundSyncer(db: db)
+        self.eventService = .shared
+        self.listService = .shared
+    }
+
+    // MARK: - Lifecycle
+
+    /// Starts the calendar sync lifecycle.
+    /// Performs initial sync if no sync tokens exist, then starts incremental polling.
+    func start() async {
+        let hasTokens = (try? await db.dbPool.read { db in
+            try CalendarRecord
+                .filter(Column("account_id") == accountID)
+                .filter(Column("sync_token") != nil)
+                .fetchCount(db) > 0
+        }) ?? false
+
+        if !hasTokens {
+            await performInitialSync()
+        }
+
+        startIncrementalLoop()
+        startCalendarListSyncLoop()
+    }
+
+    /// Stops all sync tasks.
+    func stop() {
+        syncTask?.cancel()
+        calendarListSyncTask?.cancel()
+        postEditRevertTask?.cancel()
+        syncTask = nil
+        calendarListSyncTask = nil
+    }
+
+    /// Triggers an immediate incremental sync (e.g., after an event edit).
+    func triggerSync() async {
+        await syncIncremental()
+    }
+
+    /// Adjusts polling interval based on app state.
+    func updatePollingInterval(calendarActive: Bool, appFocused: Bool) {
+        if !appFocused {
+            pollingInterval = Self.backgroundInterval
+        } else if calendarActive {
+            pollingInterval = Self.calendarActiveInterval
+        } else {
+            pollingInterval = Self.mailActiveInterval
+        }
+    }
+
+    /// Temporarily tightens polling after a local edit (RSVP, create, delete).
+    /// Reverts to calendar-active interval after 120 seconds.
+    func temporarilyTightenPolling() {
+        pollingInterval = Self.postEditInterval
+        postEditRevertTask?.cancel()
+        postEditRevertTask = Task {
+            try? await Task.sleep(for: .seconds(120))
+            guard !Task.isCancelled else { return }
+            pollingInterval = Self.calendarActiveInterval
+        }
+    }
+
+    // MARK: - Initial Sync
+
+    private func performInitialSync() async {
+        state = .initialSync
+
+        do {
+            // 1. Fetch calendar list
+            let calendars = try await listService.listCalendars(accountID: accountID)
+            let records = calendars.compactMap { Self.calendarRecord(from: $0, accountId: accountID) }
+            try await syncer.upsertCalendars(records)
+
+            // 2. For each visible calendar: fetch events (-30d to +90d)
+            let now = Date()
+            let timeMin = now.addingTimeInterval(-30 * 86400)
+            let timeMax = now.addingTimeInterval(90 * 86400)
+
+            for calendar in records where calendar.isVisible {
+                do {
+                    try await syncFullEvents(
+                        calendarId: calendar.calendarId,
+                        timeMin: timeMin,
+                        timeMax: timeMax
+                    )
+                } catch {
+                    Self.logger.warning("Initial sync failed for calendar \(calendar.calendarId): \(String(describing: error))")
+                    // Continue with other calendars
+                }
+            }
+
+            state = .idle
+        } catch let error as CalendarAPIError {
+            state = .error(error)
+            Self.logger.error("Initial calendar sync failed: \(String(describing: error))")
+        } catch {
+            state = .error(.networkError(error))
+            Self.logger.error("Initial calendar sync failed: \(String(describing: error))")
+        }
+    }
+
+    /// Full event fetch for a single calendar with pagination, storing the sync token.
+    private func syncFullEvents(calendarId: String, timeMin: Date, timeMax: Date) async throws {
+        var allEvents: [CalendarAPIEvent] = []
+        var pageToken: String? = nil
+        var syncToken: String? = nil
+
+        repeat {
+            let response = try await eventService.listEvents(
+                calendarId: calendarId,
+                accountID: accountID,
+                timeMin: timeMin,
+                timeMax: timeMax,
+                singleEvents: true,
+                maxResults: 250,
+                pageToken: pageToken
+            )
+            allEvents.append(contentsOf: response.items ?? [])
+            pageToken = response.nextPageToken
+            if response.nextSyncToken != nil { syncToken = response.nextSyncToken }
+        } while pageToken != nil
+
+        let (eventRecords, attendeeRecords) = Self.convertToRecords(
+            events: allEvents, calendarId: calendarId, accountId: accountID
+        )
+        try await syncer.upsertEvents(eventRecords, attendees: attendeeRecords)
+
+        if let syncToken {
+            try await syncer.updateSyncToken(
+                calendarId: calendarId, accountId: accountID, token: syncToken
+            )
+        }
+    }
+
+    // MARK: - Incremental Sync
+
+    private func syncIncremental() async {
+        if case .initialSync = state { return }
+        state = .syncing
+
+        do {
+            let calendars = try await db.dbPool.read { db in
+                try MailDatabaseQueries.visibleCalendars(accountId: accountID, in: db)
+            }
+
+            for calendar in calendars {
+                guard let syncToken = calendar.syncToken, !syncToken.isEmpty else { continue }
+
+                do {
+                    let response = try await eventService.syncEvents(
+                        calendarId: calendar.calendarId,
+                        accountID: accountID,
+                        syncToken: syncToken
+                    )
+
+                    let cancelledEvents = (response.items ?? []).filter { $0.status == "cancelled" }
+                    let activeEvents = (response.items ?? []).filter { $0.status != "cancelled" }
+
+                    if !cancelledEvents.isEmpty {
+                        let deleteIds = cancelledEvents.compactMap { event -> (eventId: String, calendarId: String, accountId: String)? in
+                            guard let id = event.id else { return nil }
+                            return (eventId: id, calendarId: calendar.calendarId, accountId: accountID)
+                        }
+                        try await syncer.deleteEvents(deleteIds)
+                    }
+
+                    if !activeEvents.isEmpty {
+                        let (eventRecords, attendeeRecords) = Self.convertToRecords(
+                            events: activeEvents, calendarId: calendar.calendarId, accountId: accountID
+                        )
+                        try await syncer.upsertEvents(eventRecords, attendees: attendeeRecords)
+                    }
+
+                    if let newToken = response.nextSyncToken {
+                        try await syncer.updateSyncToken(
+                            calendarId: calendar.calendarId, accountId: accountID, token: newToken
+                        )
+                    }
+                } catch CalendarAPIError.gone {
+                    // SyncToken expired — clear token and trigger full resync for this calendar
+                    Self.logger.warning("SyncToken expired for calendar \(calendar.calendarId), performing full resync")
+                    let now = Date()
+                    let timeMin = now.addingTimeInterval(-30 * 86400)
+                    let timeMax = now.addingTimeInterval(90 * 86400)
+                    do {
+                        try await syncFullEvents(
+                            calendarId: calendar.calendarId,
+                            timeMin: timeMin,
+                            timeMax: timeMax
+                        )
+                    } catch {
+                        Self.logger.error("Full resync failed for calendar \(calendar.calendarId): \(String(describing: error))")
+                    }
+                } catch {
+                    Self.logger.error("Incremental sync failed for calendar \(calendar.calendarId): \(String(describing: error))")
+                }
+            }
+
+            state = .idle
+        } catch {
+            state = .error(CalendarAPIError.wrap(error))
+            Self.logger.error("Incremental calendar sync failed: \(String(describing: error))")
+        }
+    }
+
+    private func startIncrementalLoop() {
+        syncTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(pollingInterval))
+                guard !Task.isCancelled else { break }
+                await syncIncremental()
+            }
+        }
+    }
+
+    // MARK: - Calendar List Refresh
+
+    private func startCalendarListSyncLoop() {
+        calendarListSyncTask = Task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(300))
+                guard !Task.isCancelled else { break }
+                await syncCalendarList()
+            }
+        }
+    }
+
+    private func syncCalendarList() async {
+        do {
+            let calendars = try await listService.listCalendars(accountID: accountID)
+            let records = calendars.compactMap { Self.calendarRecord(from: $0, accountId: accountID) }
+            try await syncer.upsertCalendars(records)
+        } catch {
+            Self.logger.error("Calendar list sync failed: \(String(describing: error))")
+        }
+    }
+
+    // MARK: - Conversion Helpers
+
+    /// Converts a `CalendarAPICalendarListEntry` to a `CalendarRecord`.
+    /// Returns nil if the entry has no ID.
+    nonisolated private static func calendarRecord(
+        from entry: CalendarAPICalendarListEntry,
+        accountId: String
+    ) -> CalendarRecord? {
+        guard let calendarId = entry.id else { return nil }
+        return CalendarRecord(
+            calendarId: calendarId,
+            accountId: accountId,
+            summary: entry.summary ?? calendarId,
+            description: entry.description,
+            timeZone: entry.timeZone,
+            backgroundColor: entry.backgroundColor ?? "#3A6FF0",
+            foregroundColor: entry.foregroundColor ?? "#FFFFFF",
+            isPrimary: entry.primary ?? false,
+            accessRole: entry.accessRole ?? "reader",
+            isVisible: !(entry.hidden ?? false),
+            summaryOverride: entry.summaryOverride,
+            syncToken: nil,
+            lastSyncedAt: nil
+        )
+    }
+
+    /// Converts API events into database records for events and attendees.
+    nonisolated static func convertToRecords(
+        events: [CalendarAPIEvent],
+        calendarId: String,
+        accountId: String
+    ) -> ([CalendarEventRecord], [CalendarAttendeeRecord]) {
+        var eventRecords: [CalendarEventRecord] = []
+        var attendeeRecords: [CalendarAttendeeRecord] = []
+
+        for event in events {
+            guard let eventId = event.id else { continue }
+            let startTime = event.start.map { parseDateTime($0) } ?? Date().timeIntervalSince1970
+            let endTime = event.end.map { parseDateTime($0) } ?? Date().timeIntervalSince1970
+            let isAllDay = event.start?.date != nil
+
+            let record = CalendarEventRecord(
+                eventId: eventId,
+                calendarId: calendarId,
+                accountId: accountId,
+                summary: event.summary,
+                description: event.description,
+                location: event.location,
+                startTime: startTime,
+                endTime: endTime,
+                isAllDay: isAllDay,
+                timeZone: event.start?.timeZone ?? event.end?.timeZone,
+                status: event.status ?? "confirmed",
+                organizerEmail: event.organizer?.email,
+                organizerName: event.organizer?.displayName,
+                organizerIsSelf: event.organizer?.isSelf ?? false,
+                creatorEmail: event.creator?.email,
+                selfResponseStatus: findSelfAttendeeStatus(event.attendees),
+                colorId: event.colorId,
+                isRecurring: event.recurringEventId != nil || event.recurrence != nil,
+                recurringEventId: event.recurringEventId,
+                conferenceLink: findConferenceLink(event.conferenceData),
+                conferenceName: event.conferenceData?.conferenceSolution?.name,
+                eventType: event.eventType ?? "default",
+                etag: event.etag ?? "",
+                htmlLink: event.htmlLink,
+                canEdit: (event.organizer?.isSelf ?? false) || (event.guestsCanModify ?? false),
+                iCalUid: event.iCalUID,
+                sequence: event.sequence,
+                remindersJson: encodeJSON(event.reminders),
+                attachmentsJson: encodeJSON(event.attachments),
+                extendedPropertiesJson: encodeJSON(event.extendedProperties),
+                updatedAt: parseRFC3339(event.updated) ?? Date().timeIntervalSince1970
+            )
+            eventRecords.append(record)
+
+            for attendee in event.attendees ?? [] {
+                guard let email = attendee.email else { continue }
+                let attendeeRecord = CalendarAttendeeRecord(
+                    eventId: eventId,
+                    calendarId: calendarId,
+                    accountId: accountId,
+                    email: email,
+                    displayName: attendee.displayName,
+                    responseStatus: attendee.responseStatus ?? "needsAction",
+                    isOrganizer: attendee.organizer ?? false,
+                    isResource: attendee.resource ?? false,
+                    isOptional: attendee.optional ?? false
+                )
+                attendeeRecords.append(attendeeRecord)
+            }
+        }
+
+        return (eventRecords, attendeeRecords)
+    }
+
+    // MARK: - Date Parsing
+
+    /// Parses a `CalendarAPIDateTime` into a Unix timestamp.
+    nonisolated private static func parseDateTime(_ dt: CalendarAPIDateTime) -> Double {
+        if let dateTime = dt.dateTime {
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = formatter.date(from: dateTime) {
+                return date.timeIntervalSince1970
+            }
+            // Retry without fractional seconds
+            formatter.formatOptions = [.withInternetDateTime]
+            return formatter.date(from: dateTime)?.timeIntervalSince1970 ?? Date().timeIntervalSince1970
+        } else if let dateStr = dt.date {
+            // All-day event: "yyyy-MM-dd"
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            formatter.timeZone = TimeZone(identifier: dt.timeZone ?? "UTC")
+            return formatter.date(from: dateStr)?.timeIntervalSince1970 ?? Date().timeIntervalSince1970
+        }
+        return Date().timeIntervalSince1970
+    }
+
+    /// Parses an RFC3339 string into a Unix timestamp.
+    nonisolated private static func parseRFC3339(_ str: String?) -> Double? {
+        guard let str else { return nil }
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: str) { return date.timeIntervalSince1970 }
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: str)?.timeIntervalSince1970
+    }
+
+    /// Finds the response status for the self attendee.
+    nonisolated private static func findSelfAttendeeStatus(_ attendees: [CalendarAPIAttendee]?) -> String? {
+        attendees?.first(where: { $0.isSelf == true })?.responseStatus
+    }
+
+    /// Extracts the video conference link from conference data.
+    nonisolated private static func findConferenceLink(_ data: CalendarAPIConferenceData?) -> String? {
+        data?.entryPoints?.first(where: { $0.entryPointType == "video" })?.uri
+    }
+
+    /// Encodes an `Encodable` value to a JSON string.
+    nonisolated private static func encodeJSON<T: Encodable>(_ value: T?) -> String? {
+        guard let value else { return nil }
+        guard let data = try? JSONEncoder().encode(value) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+}

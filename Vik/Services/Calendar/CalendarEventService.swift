@@ -25,13 +25,15 @@ final class CalendarEventService {
     // MARK: - List
 
     /// Lists events in a calendar for the given date range, expanding recurring instances.
+    /// Pass `pageToken` to fetch subsequent pages of a paginated response.
     @concurrent func listEvents(
         calendarId: String,
         accountID: String,
         timeMin: Date,
         timeMax: Date,
         singleEvents: Bool = true,
-        maxResults: Int = 250
+        maxResults: Int = 250,
+        pageToken: String? = nil
     ) async throws(CalendarAPIError) -> CalendarEventListResponse {
         var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "timeMin", value: Self.rfc3339(timeMin)),
@@ -42,6 +44,9 @@ final class CalendarEventService {
         ]
         if singleEvents {
             queryItems.append(URLQueryItem(name: "orderBy", value: "startTime"))
+        }
+        if let pageToken {
+            queryItems.append(URLQueryItem(name: "pageToken", value: pageToken))
         }
         return try await client.request(
             path: "/calendars/\(calendarId)/events",
