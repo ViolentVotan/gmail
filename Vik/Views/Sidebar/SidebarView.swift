@@ -143,7 +143,7 @@ struct SidebarView: View {
         .background {
             Capsule()
                 .fill(Color.accentColor.opacity(OpacityToken.highlight))
-                .matchedGeometryEffect(id: "modeIndicator", in: modeNamespace)
+                .matchedGeometryEffect(id: "modeIndicator", in: modeNamespace, isSource: isActive)
                 .opacity(isActive ? 1 : 0)
         }
         .glassEffect(
