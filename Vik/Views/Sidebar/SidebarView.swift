@@ -36,10 +36,10 @@ struct SidebarView: View {
         Group {
             if isCollapsed {
                 collapsedSidebar
-                    .transition(.opacity)
+                    .transition(.opacity.animation(.smooth(duration: DurationToken.quick)))
             } else {
                 expandedSidebar
-                    .transition(.opacity)
+                    .transition(.opacity.animation(.smooth(duration: DurationToken.deliberate).delay(DurationToken.micro)))
             }
         }
         .animation(VikAnimation.springDefault, value: isCollapsed)

@@ -42,6 +42,7 @@ struct CategoryTabBar: View {
                     Text("\(count)")
                         .font(Typography.captionSmall)
                         .foregroundStyle(isSelected ? .primary : .tertiary)
+                        .contentTransition(.numericText())
                         .padding(.horizontal, 5)
                         .padding(.vertical, 1)
                         .background(Capsule().fill(.fill.quaternary))

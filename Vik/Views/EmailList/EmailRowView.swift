@@ -138,6 +138,7 @@ struct EmailRowView: View, Equatable {
                             Text("\(email.threadMessageCount)")
                                 .font(Typography.captionSmall)
                                 .foregroundStyle(.secondary)
+                                .contentTransition(.numericText())
                                 .frame(minWidth: threadBadgeSize, minHeight: threadBadgeSize)
                                 .background(Capsule().fill(.fill.quaternary))
                         }

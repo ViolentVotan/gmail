@@ -326,6 +326,7 @@ struct CalendarWeekView: View {
                     .offset(x: xStart)
             }
             .offset(y: yPos - CalendarLayout.currentTimeIndicatorDotSize / 2)
+            .animation(VikAnimation.springGentle, value: currentTime)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
         }
