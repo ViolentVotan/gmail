@@ -128,13 +128,13 @@ Shared styled components:
 
 | File | Role |
 |------|------|
-| `EmailEntity.swift` | `MailMessageEntity` (`@AppEntity(schema: .mail.message)` + `IndexedEntity`), `MailAccountEntity`, `MailboxEntity`, `MailMessageEntityQuery`, `MailDraftEntity` + `MailDraftEntityQuery` (queries GRDB for drafts by ID, subject/recipient search, or recent suggestions). `typealias EmailEntity = MailMessageEntity` for backward compat. |
+| `EmailEntity.swift` | `MailMessageEntity` (`@AppEntity(schema: .mail.message)` + `IndexedEntity`), `MailAccountEntity`, `MailboxEntity`, `MailMessageEntityQuery`, `MailDraftEntity` + `MailDraftEntityQuery` (queries GRDB for drafts by ID, subject/recipient search, or recent suggestions). |
 | `ComposeEmailIntent.swift` | `@AppIntent(schema: .mail.createDraft)` — creates a draft with recipients, subject, body |
 | `SendDraftIntent.swift` | Sends an existing draft, with optional `sendLaterDate` for schedule-send |
 | `ReplyMailIntent.swift` | Replies to an email with recipients, subject, body, attachments. Supports `isReplyAll` flag. |
 | `ForwardMailIntent.swift` | Forwards an email to new recipients with optional body and attachments |
 | `DeleteDraftIntent.swift` | Deletes one or more drafts |
-| `MarkAsReadIntent.swift` | `UpdateMailIntent` (`@AppIntent(schema: .mail.updateMail)`) — handles isRead, isFlagged, mailbox changes. Shared `IntentError` enum. |
+| `UpdateMailIntent.swift` | `UpdateMailIntent` (`@AppIntent(schema: .mail.updateMail)`) — handles isRead, isFlagged, mailbox changes. Shared `IntentError` enum. |
 | `ArchiveEmailIntent.swift` | `@AppIntent(schema: .mail.archiveMail)` — archives emails |
 | `TrashEmailIntent.swift` | `@AppIntent(schema: .mail.deleteMail)` — moves emails to trash |
 | `FlagEmailIntent.swift` | Toggles star/flag on emails (plain `AppIntent` — no schema for flag-only) |
