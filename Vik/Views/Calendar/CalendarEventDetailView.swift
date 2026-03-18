@@ -303,13 +303,17 @@ struct CalendarEventDetailView: View {
     }
 
     private var dateRangeString: String {
+        let start = Self.fullDateFormatter.string(from: event.startTime)
+        let end = Self.fullDateFormatter.string(from: event.endTime)
+        return start == end ? start : "\(start) – \(end)"
+    }
+
+    private static let fullDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .full
         formatter.timeStyle = .none
-        let start = formatter.string(from: event.startTime)
-        let end = formatter.string(from: event.endTime)
-        return start == end ? start : "\(start) – \(end)"
-    }
+        return formatter
+    }()
 
     private static let timeFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -323,10 +327,7 @@ struct CalendarEventDetailView: View {
     }
 
     private func fullDateString(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        formatter.timeStyle = .none
-        return formatter.string(from: date)
+        Self.fullDateFormatter.string(from: date)
     }
 
     private func reminderLabel(_ reminder: EventReminder) -> String {

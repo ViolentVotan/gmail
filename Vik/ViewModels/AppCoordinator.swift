@@ -454,8 +454,8 @@ final class AppCoordinator {
             SummaryService.shared.accountID = account.id
             attachmentStore.accountID = account.id
             loadSignatures(for: account.id)
-            loadContacts()
             await setupAccount(account.id)
+            loadContacts()
             updateDisplayedEmails()
         } else {
             selectedEmail = mailStore.emails(for: .inbox).first
@@ -619,7 +619,6 @@ final class AppCoordinator {
         SnoozeStore.shared.load(accountID: id)
         ScheduledSendStore.shared.load(accountID: id)
         OfflineActionQueue.shared.load(accountID: id)
-        loadContacts()
         // Capture the old engines before cancelling, so stop is guaranteed
         // even if a third account switch cancels this task later
         let oldEngine = syncEngine
@@ -650,6 +649,7 @@ final class AppCoordinator {
             await mailboxViewModel.switchAccount(id)
             guard !Task.isCancelled, self.accountSwitchGeneration == generation else { return }
             await setupAccount(id)
+            loadContacts()
             updateDisplayedEmails()
         }
         accountSwitchTask = task

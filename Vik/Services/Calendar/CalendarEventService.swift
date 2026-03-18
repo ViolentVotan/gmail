@@ -17,6 +17,13 @@ final class CalendarEventService {
         return f.string(from: date)
     }
 
+    /// Percent-encodes a calendar or event ID for safe interpolation into a URL path segment.
+    /// Calendar IDs for shared/secondary calendars may contain `#`, which would truncate the URL
+    /// at the fragment boundary if not encoded.
+    nonisolated private static func encodePath(_ value: String) -> String {
+        value.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? value
+    }
+
     // MARK: - Field mask
 
     nonisolated private static let eventFieldMask =
@@ -49,7 +56,7 @@ final class CalendarEventService {
             queryItems.append(URLQueryItem(name: "pageToken", value: pageToken))
         }
         return try await client.request(
-            path: "/calendars/\(calendarId)/events",
+            path: "/calendars/\(Self.encodePath(calendarId))/events",
             queryItems: queryItems,
             accountID: accountID
         )
@@ -68,7 +75,7 @@ final class CalendarEventService {
             queryItems.append(URLQueryItem(name: "pageToken", value: pageToken))
         }
         return try await client.request(
-            path: "/calendars/\(calendarId)/events",
+            path: "/calendars/\(Self.encodePath(calendarId))/events",
             queryItems: queryItems,
             accountID: accountID
         )
@@ -83,7 +90,7 @@ final class CalendarEventService {
         accountID: String
     ) async throws(CalendarAPIError) -> CalendarAPIEvent {
         try await client.request(
-            path: "/calendars/\(calendarId)/events/\(eventId)",
+            path: "/calendars/\(Self.encodePath(calendarId))/events/\(Self.encodePath(eventId))",
             accountID: accountID
         )
     }
@@ -108,7 +115,7 @@ final class CalendarEventService {
             queryItems.append(URLQueryItem(name: "conferenceDataVersion", value: "\(version)"))
         }
         return try await client.request(
-            path: "/calendars/\(calendarId)/events",
+            path: "/calendars/\(Self.encodePath(calendarId))/events",
             method: "POST",
             body: body,
             queryItems: queryItems.isEmpty ? nil : queryItems,
@@ -137,7 +144,7 @@ final class CalendarEventService {
             headers = ["If-Match": etag]
         }
         return try await client.request(
-            path: "/calendars/\(calendarId)/events/\(eventId)",
+            path: "/calendars/\(Self.encodePath(calendarId))/events/\(Self.encodePath(eventId))",
             method: "PUT",
             body: body,
             extraHeaders: headers,
@@ -160,7 +167,7 @@ final class CalendarEventService {
             headers = ["If-Match": etag]
         }
         return try await client.request(
-            path: "/calendars/\(calendarId)/events/\(eventId)",
+            path: "/calendars/\(Self.encodePath(calendarId))/events/\(Self.encodePath(eventId))",
             method: "PATCH",
             body: fields,
             extraHeaders: headers,
@@ -177,7 +184,7 @@ final class CalendarEventService {
         accountID: String
     ) async throws(CalendarAPIError) {
         try await client.requestVoid(
-            path: "/calendars/\(calendarId)/events/\(eventId)",
+            path: "/calendars/\(Self.encodePath(calendarId))/events/\(Self.encodePath(eventId))",
             method: "DELETE",
             accountID: accountID
         )
@@ -193,7 +200,7 @@ final class CalendarEventService {
     ) async throws(CalendarAPIError) -> CalendarAPIEvent {
         let queryItems = [URLQueryItem(name: "text", value: text)]
         return try await client.request(
-            path: "/calendars/\(calendarId)/events/quickAdd",
+            path: "/calendars/\(Self.encodePath(calendarId))/events/quickAdd",
             method: "POST",
             queryItems: queryItems,
             accountID: accountID
@@ -256,7 +263,7 @@ final class CalendarEventService {
     ) async throws(CalendarAPIError) -> CalendarAPIEvent {
         let queryItems = [URLQueryItem(name: "destination", value: destinationCalendarId)]
         return try await client.request(
-            path: "/calendars/\(calendarId)/events/\(eventId)/move",
+            path: "/calendars/\(Self.encodePath(calendarId))/events/\(Self.encodePath(eventId))/move",
             method: "POST",
             queryItems: queryItems,
             accountID: accountID

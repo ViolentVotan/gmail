@@ -2,6 +2,14 @@ import Foundation
 import os.log
 import Synchronization
 
+// MARK: - Notifications
+
+extension Notification.Name {
+    /// Posted when the Gmail API returns 403 `insufficientPermissions`.
+    /// `userInfo` contains `[GmailAPIClient.accountIDKey: String]`.
+    static let gmailScopesInsufficient = Notification.Name("GmailAPIClient.gmailScopesInsufficient")
+}
+
 /// Result of a batch fetch containing successfully decoded items and IDs that failed.
 /// Failed IDs can be retried on a subsequent sync cycle by the caller.
 struct BatchFetchResult<T: Sendable>: Sendable {
@@ -15,6 +23,9 @@ struct BatchFetchResult<T: Sendable>: Sendable {
 final class GmailAPIClient {
     static let shared = GmailAPIClient()
     private init() {}
+
+    /// Key for the account ID in `gmailScopesInsufficient` notification's userInfo.
+    static let accountIDKey = "accountID"
 
     private let baseURL = "https://gmail.googleapis.com/gmail/v1"
     nonisolated private static let logger = Logger(subsystem: "com.vikingz.vik", category: "GmailAPI")
@@ -1005,6 +1016,9 @@ final class GmailAPIClient {
                 if let body = String(data: data, encoding: .utf8) {
                     if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
                     if body.contains("domainPolicy") { throw .domainPolicy }
+                    if body.contains("insufficientPermissions") {
+                        throw .insufficientPermissions
+                    }
                 }
                 throw .httpError(http.statusCode, data)
             default:
@@ -1033,6 +1047,17 @@ final class GmailAPIClient {
     func refreshCalendarToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
         try await refreshAndRetry(accountID: accountID)
     }
+
+    // MARK: - Scope reauthorization
+
+    /// Posts a notification so the UI can prompt the user to reauthorize with Gmail scopes.
+    private func postInsufficientPermissionsNotification(accountID: String) {
+        NotificationCenter.default.post(
+            name: .gmailScopesInsufficient,
+            object: self,
+            userInfo: [Self.accountIDKey: accountID]
+        )
+    }
 }
 
 // MARK: - Errors
@@ -1050,6 +1075,7 @@ enum GmailAPIError: Error, LocalizedError {
     case attachmentReadFailed([String])
     case dailyLimitExceeded
     case domainPolicy
+    case insufficientPermissions
 
     var errorDescription: String? {
         switch self {
@@ -1065,6 +1091,7 @@ enum GmailAPIError: Error, LocalizedError {
         case .attachmentReadFailed(let names): return "Could not read attachments: \(names.joined(separator: ", "))"
         case .dailyLimitExceeded:              return "Gmail daily API limit exceeded — try again tomorrow"
         case .domainPolicy:                    return "Blocked by domain policy — contact your administrator"
+        case .insufficientPermissions:         return "Insufficient permissions — please reauthorize Gmail access"
         }
     }
 

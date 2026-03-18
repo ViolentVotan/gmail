@@ -6,6 +6,8 @@ struct SettingsView: View {
     var onReauthorize: ((String, NSWindow?) async throws -> Void)?
     var loadSendAs: ((String) async throws -> [GmailSendAs])?
     var updateSignature: ((String, String, String) async throws -> GmailSendAs)?
+    var accounts: [GmailAccount] = []
+    var onDeleteDatabase: ((String) -> Void)?
 
     // Use the same @AppStorage keys as AppCoordinator and UndoActionManager
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
@@ -21,14 +23,14 @@ struct SettingsView: View {
     private var accountID: String {
         let id = selectedAccountID
         if !id.isEmpty { return id }
-        return AccountStore.shared.accounts.first?.id ?? ""
+        return accounts.first?.id ?? ""
     }
 
     var body: some View {
         TabView {
             Tab("Accounts", systemImage: "person.2") {
                 AccountsSettingsView(
-                    fetchAccounts: { AccountStore.shared.accounts },
+                    fetchAccounts: { accounts },
                     onSetAsDefault: { id in AccountStore.shared.setAsDefault(id: id) },
                     onSetAccentColor: { id, hex in AccountStore.shared.setAccentColor(id: id, hex: hex) },
                     onMoveUp: { id in AccountStore.shared.moveUp(id: id) },
@@ -142,7 +144,7 @@ struct SettingsView: View {
                 Button("Delete", role: .destructive) {
                     let id = accountID
                     guard !id.isEmpty else { return }
-                    MailDatabase.deleteDatabase(accountID: id)
+                    onDeleteDatabase?(id)
                 }
             } message: {
                 Text("This will permanently delete all cached emails for this account. The app will perform a full resync on next launch.")

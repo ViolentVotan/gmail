@@ -151,7 +151,8 @@ final class CalendarSyncEngine {
                     try await syncFullEvents(
                         calendarId: calendar.calendarId,
                         timeMin: timeMin,
-                        timeMax: timeMax
+                        timeMax: timeMax,
+                        calendarTimeZone: calendar.timeZone
                     )
                 } catch {
                     Self.logger.warning("Initial sync failed for calendar \(calendar.calendarId): \(String(describing: error))")
@@ -170,7 +171,7 @@ final class CalendarSyncEngine {
     }
 
     /// Full event fetch for a single calendar with pagination, storing the sync token.
-    private func syncFullEvents(calendarId: String, timeMin: Date, timeMax: Date) async throws {
+    private func syncFullEvents(calendarId: String, timeMin: Date, timeMax: Date, calendarTimeZone: String? = nil) async throws {
         var allEvents: [CalendarAPIEvent] = []
         var pageToken: String? = nil
         var syncToken: String? = nil
@@ -191,7 +192,8 @@ final class CalendarSyncEngine {
         } while pageToken != nil
 
         let (eventRecords, attendeeRecords) = Self.convertToRecords(
-            events: allEvents, calendarId: calendarId, accountId: accountID
+            events: allEvents, calendarId: calendarId, accountId: accountID,
+            calendarTimeZone: calendarTimeZone
         )
         try await syncer.upsertEvents(eventRecords, attendees: attendeeRecords)
 
@@ -251,7 +253,8 @@ final class CalendarSyncEngine {
 
                     if !allActive.isEmpty {
                         let (eventRecords, attendeeRecords) = Self.convertToRecords(
-                            events: allActive, calendarId: calendar.calendarId, accountId: accountID
+                            events: allActive, calendarId: calendar.calendarId, accountId: accountID,
+                            calendarTimeZone: calendar.timeZone
                         )
                         try await syncer.upsertEvents(eventRecords, attendees: attendeeRecords)
                     }
@@ -262,8 +265,13 @@ final class CalendarSyncEngine {
                         )
                     }
                 } catch CalendarAPIError.gone {
-                    // SyncToken expired — clear token and trigger full resync for this calendar
+                    // SyncToken expired — clear stale events and trigger full resync for this calendar
+                    // Per Google Calendar API 410 spec: wipe local store before full resync
+                    // to remove server-side deletions that won't appear in the new full fetch.
                     Self.logger.warning("SyncToken expired for calendar \(calendar.calendarId), performing full resync")
+                    try? await syncer.deleteEventsForCalendar(
+                        calendarId: calendar.calendarId, accountId: accountID
+                    )
                     let now = Date()
                     let timeMin = now.addingTimeInterval(-30 * 86400)
                     let timeMax = now.addingTimeInterval(90 * 86400)
@@ -271,7 +279,8 @@ final class CalendarSyncEngine {
                         try await syncFullEvents(
                             calendarId: calendar.calendarId,
                             timeMin: timeMin,
-                            timeMax: timeMax
+                            timeMax: timeMax,
+                            calendarTimeZone: calendar.timeZone
                         )
                     } catch {
                         Self.logger.error("Full resync failed for calendar \(calendar.calendarId): \(String(describing: error))")
@@ -347,18 +356,20 @@ final class CalendarSyncEngine {
     }
 
     /// Converts API events into database records for events and attendees.
+    /// `calendarTimeZone` is forwarded to `parseDateTime` for correct all-day event handling.
     nonisolated static func convertToRecords(
         events: [CalendarAPIEvent],
         calendarId: String,
-        accountId: String
+        accountId: String,
+        calendarTimeZone: String? = nil
     ) -> ([CalendarEventRecord], [CalendarAttendeeRecord]) {
         var eventRecords: [CalendarEventRecord] = []
         var attendeeRecords: [CalendarAttendeeRecord] = []
 
         for event in events {
             guard let eventId = event.id else { continue }
-            let startTime = event.start.map { parseDateTime($0) } ?? Date().timeIntervalSince1970
-            let endTime = event.end.map { parseDateTime($0) } ?? Date().timeIntervalSince1970
+            let startTime = event.start.map { parseDateTime($0, calendarTimeZone: calendarTimeZone) } ?? Date().timeIntervalSince1970
+            let endTime = event.end.map { parseDateTime($0, calendarTimeZone: calendarTimeZone) } ?? Date().timeIntervalSince1970
             let isAllDay = event.start?.date != nil
 
             let record = CalendarEventRecord(
@@ -426,7 +437,12 @@ final class CalendarSyncEngine {
     nonisolated private static let iso8601Standard = Date.ISO8601FormatStyle(includingFractionalSeconds: false)
 
     /// Parses a `CalendarAPIDateTime` into a Unix timestamp.
-    nonisolated private static func parseDateTime(_ dt: CalendarAPIDateTime) -> Double {
+    /// For all-day events, `calendarTimeZone` is used as the fallback when the event itself
+    /// has no timezone — prevents incorrect date display in negative-UTC timezones.
+    nonisolated private static func parseDateTime(
+        _ dt: CalendarAPIDateTime,
+        calendarTimeZone: String? = nil
+    ) -> Double {
         if let dateTime = dt.dateTime {
             if let date = try? iso8601WithFractional.parse(dateTime) {
                 return date.timeIntervalSince1970
@@ -437,10 +453,11 @@ final class CalendarSyncEngine {
             }
             return Date().timeIntervalSince1970
         } else if let dateStr = dt.date {
-            // All-day event: "yyyy-MM-dd" — timezone varies per event, so use a local formatter
+            // All-day event: "yyyy-MM-dd" — use event timezone, then calendar timezone, then UTC
             let formatter = DateFormatter()
             formatter.dateFormat = "yyyy-MM-dd"
-            formatter.timeZone = TimeZone(identifier: dt.timeZone ?? "UTC")
+            let tzIdentifier = dt.timeZone ?? calendarTimeZone ?? "UTC"
+            formatter.timeZone = TimeZone(identifier: tzIdentifier) ?? .gmt
             return formatter.date(from: dateStr)?.timeIntervalSince1970 ?? Date().timeIntervalSince1970
         }
         return Date().timeIntervalSince1970

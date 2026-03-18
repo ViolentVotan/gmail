@@ -49,6 +49,7 @@ struct SnoozePickerView: View {
     let onSelect: (Date) -> Void
     @State private var showCustomPicker = false
     @State private var customDate = Date()
+    @State private var presets = SnoozePreset.defaults()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -58,7 +59,7 @@ struct SnoozePickerView: View {
                 .padding(.horizontal, 8)
                 .padding(.top, 4)
 
-            ForEach(SnoozePreset.defaults()) { preset in
+            ForEach(presets) { preset in
                 Button {
                     onSelect(preset.date)
                 } label: {

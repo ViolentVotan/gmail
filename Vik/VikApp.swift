@@ -68,7 +68,9 @@ struct VikApp: App {
                     try await GmailProfileService.shared.updateSignature(
                         sendAsEmail: sendAsEmail, signature: signature, accountID: accountID
                     )
-                }
+                },
+                accounts: AccountStore.shared.accounts,
+                onDeleteDatabase: { id in MailDatabase.deleteDatabase(accountID: id) }
             )
         }
     }

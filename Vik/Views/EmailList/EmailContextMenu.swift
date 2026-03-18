@@ -20,6 +20,8 @@ struct EmailContextMenu: View {
     var onReplyAll: ((Email) -> Void)? = nil
     var onForward: ((Email) -> Void)? = nil
 
+    @State private var presets = SnoozePreset.defaults()
+
     var body: some View {
         Button { onReply?(email) } label: { Label("Reply",     systemImage: "arrowshape.turn.up.left") }
         Button { onReplyAll?(email) } label: { Label("Reply All", systemImage: "arrowshape.turn.up.left.2") }
@@ -48,7 +50,7 @@ struct EmailContextMenu: View {
 
         if onSnooze != nil {
             Menu {
-                ForEach(SnoozePreset.defaults()) { preset in
+                ForEach(presets) { preset in
                     Button(preset.title) {
                         onSnooze?(email, preset.date)
                     }

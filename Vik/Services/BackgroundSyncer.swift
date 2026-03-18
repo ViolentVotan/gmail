@@ -88,10 +88,7 @@ actor BackgroundSyncer {
                     sql: "UPDATE messages SET body_html = ?, body_plain = ?, full_body_fetched = 1, fetched_at = ? WHERE gmail_id = ?",
                     arguments: [update.html, update.plain, now, update.gmailId]
                 )
-                // FTS needs the full record for indexing — read once after the update.
-                if let record = try MessageRecord.fetchOne(db, key: update.gmailId) {
-                    try FTSManager.update(message: record, in: db)
-                }
+                // The AFTER UPDATE trigger on `messages` handles FTS maintenance when body columns change.
             }
         }
     }
@@ -301,10 +298,15 @@ actor BackgroundSyncer {
                 toSave.fetchedAt = existing.fetchedAt
                 // Preserve draft ID — it's backfilled from the Drafts API, not the Messages API.
                 toSave.gmailDraftId = existing.gmailDraftId
+                // Preserve retry counter — resetting causes infinite retries for unfetchable messages.
+                toSave.bodyFetchAttempts = existing.bodyFetchAttempts
+                // Preserve thread count — updateThreadCounts only runs for newly-inserted messages.
+                toSave.threadMessageCount = existing.threadMessageCount
                 try toSave.update(db)
 
-                // Only update FTS if searchable fields changed
-                if contentChanged || bodyChanged {
+                // FTS is maintained by an AFTER UPDATE trigger on `messages` — no explicit call needed.
+                // For non-body content changes the trigger still fires; FTSManager is only needed on INSERT.
+                if contentChanged && !bodyChanged {
                     try FTSManager.update(message: toSave, in: db)
                 }
             }

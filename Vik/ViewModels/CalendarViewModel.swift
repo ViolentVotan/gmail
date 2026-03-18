@@ -64,7 +64,12 @@ final class CalendarViewModel {
                 for try await records in calendarObservation.values(in: dbPool) {
                     guard let self else { return }
                     self.calendars = records.map { $0.toCalendarInfo() }
-                    self.visibleCalendarIDs = Set(records.map { "\($0.accountId)_\($0.calendarId)" })
+                    let newVisibleIDs = Set(records.map { "\($0.accountId)_\($0.calendarId)" })
+                    let changed = newVisibleIDs != self.visibleCalendarIDs
+                    self.visibleCalendarIDs = newVisibleIDs
+                    if changed {
+                        self.refreshObservation()
+                    }
                 }
             } catch {
                 Self.logger.error("Calendar observation failed: \(error.localizedDescription)")
@@ -105,7 +110,7 @@ final class CalendarViewModel {
                     self.debounceTask = Task { @MainActor [weak self] in
                         try? await Task.sleep(for: .milliseconds(50))
                         guard !Task.isCancelled, let self else { return }
-                        self.events = self.enrichRecords(records)
+                        self.events = await self.enrichRecords(records)
                     }
                 }
             } catch {
@@ -235,6 +240,21 @@ final class CalendarViewModel {
         error = nil
         isLoading = true
         defer { isLoading = false }
+        // Snapshot for rollback before optimistic delete.
+        let snapshot: (CalendarEventRecord, [CalendarAttendeeRecord])? = try? await db.dbPool.read { db in
+            guard let eventRecord = try CalendarEventRecord
+                .filter(Column("event_id") == event.googleEventId
+                    && Column("calendar_id") == event.calendarId
+                    && Column("account_id") == event.accountID)
+                .fetchOne(db)
+            else { return nil }
+            let attendees = try CalendarAttendeeRecord
+                .filter(Column("event_id") == event.googleEventId
+                    && Column("calendar_id") == event.calendarId
+                    && Column("account_id") == event.accountID)
+                .fetchAll(db)
+            return (eventRecord, attendees)
+        }
         // Optimistic local removal regardless of connectivity.
         try? await db.dbPool.write { db in
             try db.execute(
@@ -260,6 +280,13 @@ final class CalendarViewModel {
                 actionType: .deleteEvent(calendarId: event.calendarId, eventId: event.googleEventId)
             ))
         } catch {
+            // Rollback: re-insert the deleted records.
+            if let (eventRecord, attendees) = snapshot {
+                try? await db.dbPool.write { db in
+                    try eventRecord.insert(db)
+                    for attendee in attendees { try attendee.insert(db) }
+                }
+            }
             self.error = error
             throw error
         }
@@ -269,6 +296,8 @@ final class CalendarViewModel {
         error = nil
         isLoading = true
         defer { isLoading = false }
+        // Save original status for rollback.
+        let previousStatus = event.selfResponseStatus
         // Optimistic local update regardless of connectivity.
         try? await db.dbPool.write { db in
             try db.execute(
@@ -294,6 +323,16 @@ final class CalendarViewModel {
                 actionType: .rsvpEvent(calendarId: event.calendarId, eventId: event.googleEventId, status: status.rawValue)
             ))
         } catch {
+            // Rollback: restore previous RSVP status.
+            try? await db.dbPool.write { db in
+                try db.execute(
+                    sql: """
+                        UPDATE calendar_events SET self_response_status = ?
+                        WHERE event_id = ? AND calendar_id = ? AND account_id = ?
+                        """,
+                    arguments: [previousStatus.rawValue, event.googleEventId, event.calendarId, event.accountID]
+                )
+            }
             self.error = error
             throw error
         }
@@ -332,17 +371,6 @@ final class CalendarViewModel {
         return events.filter { $0.startTime < end && $0.endTime > start }
     }
 
-    func eventsForTimeSlot(_ date: Date, hour: Int) -> [CalendarEvent] {
-        let calendar = Calendar.current
-        guard let slotStart = calendar.date(bySettingHour: hour, minute: 0, second: 0, of: date),
-              let slotEnd = calendar.date(bySettingHour: hour + 1, minute: 0, second: 0, of: date) else { return [] }
-        return events.filter { $0.startTime < slotEnd && $0.endTime > slotStart }
-    }
-
-    func hasConflict(start: Date, end: Date) -> Bool {
-        events.contains { $0.startTime < end && $0.endTime > start && $0.status != .cancelled }
-    }
-
     // MARK: - Private
 
     /// The date range for the current view mode, used to scope the DB query.
@@ -364,7 +392,7 @@ final class CalendarViewModel {
     }
 
     /// Enriches event records with attendee data and resolved colors.
-    private func enrichRecords(_ records: [CalendarEventRecord]) -> [CalendarEvent] {
+    private func enrichRecords(_ records: [CalendarEventRecord]) async -> [CalendarEvent] {
         guard !records.isEmpty else { return [] }
 
         // Build a lookup of calendar colors by calendarId.
@@ -372,9 +400,9 @@ final class CalendarViewModel {
             map[cal.calendarId] = Color(hex: cal.backgroundColor)
         }
 
-        // Batch-fetch all attendees for all event records in a single DB read.
+        // Batch-fetch all attendees for all event records in a single async DB read.
         let compositeKeys = records.map { ($0.eventId, $0.calendarId, $0.accountId) }
-        let allAttendees: [CalendarAttendeeRecord] = (try? db.dbPool.read { db in
+        let allAttendees: [CalendarAttendeeRecord] = (try? await db.dbPool.read { db in
             // Build OR-chained filter: (event_id = ? AND calendar_id = ? AND account_id = ?) OR ...
             guard let first = compositeKeys.first else { return [] }
             var filter = Column("event_id") == first.0

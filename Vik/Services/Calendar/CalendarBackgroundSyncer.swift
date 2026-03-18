@@ -29,6 +29,7 @@ actor CalendarBackgroundSyncer {
                     .fetchOne(db) {
                     if calendar.syncToken == nil { calendar.syncToken = existing.syncToken }
                     if calendar.lastSyncedAt == nil { calendar.lastSyncedAt = existing.lastSyncedAt }
+                    calendar.isVisible = existing.isVisible
                 }
                 try calendar.save(db, onConflict: .replace)
             }
@@ -95,6 +96,19 @@ actor CalendarBackgroundSyncer {
                     .filter(Column("account_id") == id.accountId)
                     .deleteAll(db)
             }
+        }
+    }
+
+    // MARK: - Bulk Event Deletion
+
+    /// Deletes all events for a calendar (cascading FKs handle attendees).
+    /// Used before full resync after a 410 (sync token expired).
+    func deleteEventsForCalendar(calendarId: String, accountId: String) async throws {
+        _ = try await db.dbPool.write { db in
+            try CalendarEventRecord
+                .filter(Column("calendar_id") == calendarId)
+                .filter(Column("account_id") == accountId)
+                .deleteAll(db)
         }
     }
 

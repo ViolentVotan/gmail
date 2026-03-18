@@ -68,8 +68,12 @@ struct CalendarContextCard: View {
 private extension Date {
     /// Returns a relative time string like "in 3 hours", "tomorrow", "in 2 days".
     var relativeFormatted: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        return formatter.localizedString(for: self, relativeTo: Date())
+        Self.relativeFormatter.localizedString(for: self, relativeTo: Date())
     }
+
+    nonisolated(unsafe) private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .full
+        return f
+    }()
 }
