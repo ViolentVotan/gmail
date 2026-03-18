@@ -20,7 +20,7 @@ struct ContentShimmerView: View {
                 .padding(.trailing, 120)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .frame(height: 120)
+        .fixedSize(horizontal: false, vertical: true)
         .onAppear {
             withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
                 shimmerPhase = 1
