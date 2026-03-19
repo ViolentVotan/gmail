@@ -34,6 +34,8 @@ struct ReplyBarView: View {
     @State private var replyBcc = ""
     @State private var showCc = false
     @State private var showBcc = false
+    @State private var showSubject = false
+    @State private var subjectOverride: String?
     @State private var cachedStrippedText = ""
     @State private var isEditorFocused = false
     @State private var sendHapticTrigger = false
@@ -283,6 +285,45 @@ struct ReplyBarView: View {
                 .padding(.vertical, Spacing.sm)
 
                 Divider().padding(.horizontal, Spacing.lg)
+
+                HStack(spacing: 8) {
+                    Text("Subject")
+                        .font(Typography.captionRegular)
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 50, alignment: .leading)
+
+                    if showSubject {
+                        TextField("Subject", text: Binding(
+                            get: { subjectOverride ?? email.subject.withReplyPrefix },
+                            set: { subjectOverride = $0 }
+                        ))
+                        .textFieldStyle(.plain)
+                        .font(Typography.captionRegular)
+                        .foregroundStyle(.primary)
+                    } else {
+                        Text(subjectOverride ?? email.subject.withReplyPrefix)
+                            .font(Typography.captionRegular)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+
+                    Spacer()
+
+                    Button {
+                        withAnimation(VikAnimation.springSnappy) { showSubject.toggle() }
+                    } label: {
+                        Image(systemName: showSubject ? "chevron.up" : "chevron.down")
+                            .font(Typography.captionSmall)
+                            .foregroundStyle(.tertiary)
+                            .frame(width: 20, height: 20)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.xs)
+
+                Divider().padding(.horizontal, Spacing.lg)
             }
             .zIndex(10)
 
@@ -414,7 +455,7 @@ struct ReplyBarView: View {
             to: replyTo,
             cc: replyCc,
             bcc: replyBcc,
-            emailSubject: email.subject,
+            emailSubject: subjectOverride ?? email.subject,
             replyToMessageID: email.gmailMessageID,
             parentMessageID: email.messageIDHeader,
             parentReferences: email.referencesHeader,
@@ -432,7 +473,7 @@ struct ReplyBarView: View {
         composeVM.to = replyTo
         composeVM.cc = replyCc
         composeVM.bcc = replyBcc
-        composeVM.subject = email.subject.withReplyPrefix
+        composeVM.subject = (subjectOverride ?? email.subject).withReplyPrefix
         composeVM.body = processedHTML
         composeVM.isHTML = true
         composeVM.inlineImages = images + editorState.pendingInlineImages
@@ -508,7 +549,7 @@ struct ReplyBarView: View {
             to: replyTo,
             cc: replyCc,
             bcc: replyBcc,
-            emailSubject: email.subject,
+            emailSubject: subjectOverride ?? email.subject,
             replyToMessageID: email.gmailMessageID,
             mailStore: mailStore,
             previousTask: saveTask
@@ -541,6 +582,8 @@ struct ReplyBarView: View {
             showBcc = false
             attachments = []
             sendError = nil
+            subjectOverride = nil
+            showSubject = false
         }
     }
 }

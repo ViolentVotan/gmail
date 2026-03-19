@@ -280,7 +280,8 @@ struct FormattingToolbar: View {
                             showLinkPopover = false
                         }
                         .font(Typography.captionRegular)
-                        .buttonStyle(.plain)
+                        .buttonStyle(.glass)
+                        .controlSize(.small)
 
                         Button("Insert") {
                             let text = linkText.isEmpty ? nil : linkText
@@ -295,7 +296,7 @@ struct FormattingToolbar: View {
                     }
                 }
                 .padding(12)
-                .frame(width: 280)
+                .frame(minWidth: 260, idealWidth: 280, maxWidth: 340)
             }
 
         }

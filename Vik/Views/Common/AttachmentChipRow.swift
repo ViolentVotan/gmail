@@ -16,6 +16,8 @@ struct AttachmentChipRow: View {
                                 .lineLimit(1)
                             Button { attachments.removeAll { $0 == url } } label: {
                                 Image(systemName: "xmark").font(.caption2.weight(.bold))
+                                    .frame(width: 20, height: 20)
+                                    .contentShape(Circle())
                             }
                             .buttonStyle(.plain)
                         }
