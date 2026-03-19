@@ -51,75 +51,85 @@ struct FormattingToolbar: View {
                     state.redo()
                 }
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("History")
 
             separator
 
-            // Font family
-            Menu {
-                ForEach(fontFamilies, id: \.css) { font in
-                    Button {
-                        state.setFontFamily(font.css)
-                    } label: {
-                        HStack {
-                            Text(font.display)
-                            if displayNameForFont(state.fontFamily) == font.display {
-                                Image(systemName: "checkmark")
+            // Font family + Remove formatting
+            Group {
+                Menu {
+                    ForEach(fontFamilies, id: \.css) { font in
+                        Button {
+                            state.setFontFamily(font.css)
+                        } label: {
+                            HStack {
+                                Text(font.display)
+                                if displayNameForFont(state.fontFamily) == font.display {
+                                    Image(systemName: "checkmark")
+                                }
                             }
                         }
                     }
+                } label: {
+                    HStack(spacing: 3) {
+                        Text(displayNameForFont(state.fontFamily))
+                            .font(Typography.captionRegular)
+                            .lineLimit(1)
+                        Image(systemName: "chevron.down")
+                            .font(Typography.captionSmallRegular)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
                 }
-            } label: {
-                HStack(spacing: 3) {
-                    Text(displayNameForFont(state.fontFamily))
-                        .font(Typography.captionRegular)
-                        .lineLimit(1)
-                    Image(systemName: "chevron.down")
-                        .font(Typography.captionSmallRegular)
+                .buttonStyle(.plain)
+                .frame(maxWidth: 110)
+
+                separator
+
+                // Remove formatting
+                toolbarButton(icon: "textformat", tooltip: "Remove formatting") {
+                    state.removeFormat()
                 }
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 4)
-                .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
             }
-            .buttonStyle(.plain)
-            .frame(maxWidth: 110)
-
-            separator
-
-            // Remove formatting
-            toolbarButton(icon: "textformat", tooltip: "Remove formatting") {
-                state.removeFormat()
-            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Font")
 
             separator
 
             // Font size
-            Menu {
-                ForEach(fontSizes, id: \.self) { size in
-                    Button {
-                        state.setFontSize(size)
-                    } label: {
-                        HStack {
-                            Text("\(Int(size))")
-                            if state.fontSize == size {
-                                Image(systemName: "checkmark")
+            Group {
+                Menu {
+                    ForEach(fontSizes, id: \.self) { size in
+                        Button {
+                            state.setFontSize(size)
+                        } label: {
+                            HStack {
+                                Text("\(Int(size))")
+                                if state.fontSize == size {
+                                    Image(systemName: "checkmark")
+                                }
                             }
                         }
                     }
+                } label: {
+                    HStack(spacing: 3) {
+                        Text("\(Int(state.fontSize))")
+                            .font(Typography.captionRegular)
+                        Image(systemName: "chevron.down")
+                            .font(Typography.captionSmallRegular)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
+                    .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
                 }
-            } label: {
-                HStack(spacing: 3) {
-                    Text("\(Int(state.fontSize))")
-                        .font(Typography.captionRegular)
-                    Image(systemName: "chevron.down")
-                        .font(Typography.captionSmallRegular)
-                }
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 4)
-                .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Font size")
 
             separator
 
@@ -138,61 +148,68 @@ struct FormattingToolbar: View {
                     state.toggleStrikethrough()
                 }
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Text style")
 
             separator
 
-            // Text color - popover with color grid
-            Button {
-                showColorPopover.toggle()
-            } label: {
-                VStack(spacing: 1) {
-                    Text("A")
-                        .font(.body.bold())
-                        .foregroundStyle(Color(nsColor: state.textColor))
-                    RoundedRectangle(cornerRadius: 1)
-                        .fill(Color(nsColor: state.textColor))
-                        .frame(width: 12, height: 2)
+            // Text color + Highlight color
+            Group {
+                // Text color - popover with color grid
+                Button {
+                    showColorPopover.toggle()
+                } label: {
+                    VStack(spacing: 1) {
+                        Text("A")
+                            .font(.body.bold())
+                            .foregroundStyle(Color(nsColor: state.textColor))
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(Color(nsColor: state.textColor))
+                            .frame(width: 12, height: 2)
+                    }
+                    .frame(width: ButtonSize.sm, height: ButtonSize.sm)
                 }
-                .frame(width: ButtonSize.sm, height: ButtonSize.sm)
-            }
-            .buttonStyle(.plain)
-            .help("Text color")
-            .popover(isPresented: $showColorPopover, arrowEdge: .bottom) {
-                ColorPickerPopover(
-                    selectedColor: state.textColor,
-                    colorGrid: colorGrid,
-                    allowRemove: false,
-                    onSelect: { state.setTextColor($0) },
-                    isPresented: $showColorPopover
-                )
-            }
+                .buttonStyle(.plain)
+                .help("Text color")
+                .popover(isPresented: $showColorPopover, arrowEdge: .bottom) {
+                    ColorPickerPopover(
+                        selectedColor: state.textColor,
+                        colorGrid: colorGrid,
+                        allowRemove: false,
+                        onSelect: { state.setTextColor($0) },
+                        isPresented: $showColorPopover
+                    )
+                }
 
-            // Highlight color
-            Button {
-                showHighlightPopover.toggle()
-            } label: {
-                VStack(spacing: 1) {
-                    Image(systemName: "highlighter")
-                        .font(Typography.subheadRegular)
-                        .foregroundStyle(.secondary)
-                    RoundedRectangle(cornerRadius: 1)
-                        .fill(state.highlightColor.map { Color(nsColor: $0) } ?? Color.clear)
-                        .frame(width: 12, height: 2)
+                // Highlight color
+                Button {
+                    showHighlightPopover.toggle()
+                } label: {
+                    VStack(spacing: 1) {
+                        Image(systemName: "highlighter")
+                            .font(Typography.subheadRegular)
+                            .foregroundStyle(.secondary)
+                        RoundedRectangle(cornerRadius: 1)
+                            .fill(state.highlightColor.map { Color(nsColor: $0) } ?? Color.clear)
+                            .frame(width: 12, height: 2)
+                    }
+                    .frame(width: ButtonSize.sm, height: ButtonSize.sm)
                 }
-                .frame(width: ButtonSize.sm, height: ButtonSize.sm)
+                .buttonStyle(.plain)
+                .help("Highlight color")
+                .popover(isPresented: $showHighlightPopover, arrowEdge: .bottom) {
+                    ColorPickerPopover(
+                        selectedColor: state.highlightColor,
+                        colorGrid: colorGrid,
+                        allowRemove: true,
+                        onSelect: { state.setHighlightColor($0) },
+                        onRemove: { state.removeHighlightColor() },
+                        isPresented: $showHighlightPopover
+                    )
+                }
             }
-            .buttonStyle(.plain)
-            .help("Highlight color")
-            .popover(isPresented: $showHighlightPopover, arrowEdge: .bottom) {
-                ColorPickerPopover(
-                    selectedColor: state.highlightColor,
-                    colorGrid: colorGrid,
-                    allowRemove: true,
-                    onSelect: { state.setHighlightColor($0) },
-                    onRemove: { state.removeHighlightColor() },
-                    isPresented: $showHighlightPopover
-                )
-            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Color")
 
             separator
 
@@ -203,6 +220,8 @@ struct FormattingToolbar: View {
                 alignmentButton(icon: "text.alignright", alignment: .right, tooltip: "Align right")
                 alignmentButton(icon: "text.justify", alignment: .justified, tooltip: "Justify")
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Alignment")
 
             separator
 
@@ -218,10 +237,12 @@ struct FormattingToolbar: View {
                     state.toggleBlockquote()
                 }
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Lists")
 
             separator
 
-            // Indentation
+            // Indentation and insert
             Group {
                 toolbarButton(icon: "decrease.indent", tooltip: "Decrease indent") {
                     state.decreaseIndent()
@@ -229,75 +250,77 @@ struct FormattingToolbar: View {
                 toolbarButton(icon: "increase.indent", tooltip: "Increase indent") {
                     state.increaseIndent()
                 }
-            }
 
-            separator
+                separator
 
-            // Translate
-            toolbarButton(icon: "globe", tooltip: "Translate") {
-                state.translationRequested = true
-            }
-
-            separator
-
-            // Link
-            Button {
-                linkURL = "https://"
-                linkText = state.selectedText
-                showLinkPopover.toggle()
-            } label: {
-                Image(systemName: "link")
-                    .font(Typography.subheadRegular)
-                    .foregroundStyle(.secondary)
-                    .frame(width: ButtonSize.sm, height: ButtonSize.sm)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .help("Insert link (Cmd+K)")
-            .popover(isPresented: $showLinkPopover, arrowEdge: .bottom) {
-                VStack(spacing: 10) {
-                    HStack(spacing: 6) {
-                        Text("URL")
-                            .font(Typography.captionRegular)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 30, alignment: .leading)
-                        TextField("https://", text: $linkURL)
-                            .textFieldStyle(.roundedBorder)
-                            .font(Typography.subheadRegular)
-                    }
-                    HStack(spacing: 6) {
-                        Text("Text")
-                            .font(Typography.captionRegular)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 30, alignment: .leading)
-                        TextField("Display text (optional)", text: $linkText)
-                            .textFieldStyle(.roundedBorder)
-                            .font(Typography.subheadRegular)
-                    }
-                    HStack {
-                        Spacer()
-                        Button("Cancel") {
-                            showLinkPopover = false
-                        }
-                        .font(Typography.captionRegular)
-                        .buttonStyle(.glass)
-                        .controlSize(.small)
-
-                        Button("Insert") {
-                            let text = linkText.isEmpty ? nil : linkText
-                            state.insertLink(url: linkURL, text: text)
-                            showLinkPopover = false
-                        }
-                        .font(Typography.caption)
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                        .disabled(linkURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-                                  linkURL == "https://")
-                    }
+                // Translate
+                toolbarButton(icon: "globe", tooltip: "Translate") {
+                    state.translationRequested = true
                 }
-                .padding(12)
-                .frame(minWidth: 260, idealWidth: 280, maxWidth: 340)
+
+                separator
+
+                // Link
+                Button {
+                    linkURL = "https://"
+                    linkText = state.selectedText
+                    showLinkPopover.toggle()
+                } label: {
+                    Image(systemName: "link")
+                        .font(Typography.subheadRegular)
+                        .foregroundStyle(.secondary)
+                        .frame(width: ButtonSize.sm, height: ButtonSize.sm)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("Insert link (Cmd+K)")
+                .popover(isPresented: $showLinkPopover, arrowEdge: .bottom) {
+                    VStack(spacing: 10) {
+                        HStack(spacing: 6) {
+                            Text("URL")
+                                .font(Typography.captionRegular)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 30, alignment: .leading)
+                            TextField("https://", text: $linkURL)
+                                .textFieldStyle(.roundedBorder)
+                                .font(Typography.subheadRegular)
+                        }
+                        HStack(spacing: 6) {
+                            Text("Text")
+                                .font(Typography.captionRegular)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 30, alignment: .leading)
+                            TextField("Display text (optional)", text: $linkText)
+                                .textFieldStyle(.roundedBorder)
+                                .font(Typography.subheadRegular)
+                        }
+                        HStack {
+                            Spacer()
+                            Button("Cancel") {
+                                showLinkPopover = false
+                            }
+                            .font(Typography.captionRegular)
+                            .buttonStyle(.glass)
+                            .controlSize(.small)
+
+                            Button("Insert") {
+                                let text = linkText.isEmpty ? nil : linkText
+                                state.insertLink(url: linkURL, text: text)
+                                showLinkPopover = false
+                            }
+                            .font(Typography.caption)
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                            .disabled(linkURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+                                      linkURL == "https://")
+                        }
+                    }
+                    .padding(12)
+                    .frame(minWidth: 260, idealWidth: 280, maxWidth: 340)
+                }
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Indentation and insert")
 
         }
         .padding(.horizontal, 12)
