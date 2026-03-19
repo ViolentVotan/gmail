@@ -48,6 +48,11 @@ struct CalendarMonthEventChip: View {
             isHovered ? .regular.interactive() : .identity,
             in: .rect(cornerRadius: CornerRadius.sm)
         )
+        .shadow(
+            color: isHovered ? event.resolvedColor.opacity(0.2) : .clear,
+            radius: isHovered ? 4 : 0,
+            y: isHovered ? 2 : 0
+        )
         .scaleEffect(reduceMotion ? 1.0 : (isPressed ? ScaleToken.press : (isHovered ? ScaleToken.rowHover : 1.0)))
         .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isPressed)
         .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHovered)
@@ -111,6 +116,11 @@ struct CalendarMonthSpanningBar: View {
                     bottomTrailingRadius: trailingRadius,
                     topTrailingRadius: trailingRadius
                 )
+            )
+            .shadow(
+                color: isHovered ? event.resolvedColor.opacity(0.2) : .clear,
+                radius: isHovered ? 4 : 0,
+                y: isHovered ? 2 : 0
             )
             .scaleEffect(reduceMotion ? 1.0 : (isPressed ? ScaleToken.press : (isHovered ? ScaleToken.rowHover : 1.0)))
             .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isPressed)

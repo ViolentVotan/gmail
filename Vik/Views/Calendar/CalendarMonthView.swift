@@ -110,6 +110,8 @@ struct CalendarMonthView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    @State private var hoveredDate: Date?
+
     private let calendar = Calendar.current
 
     var body: some View {
@@ -158,6 +160,7 @@ struct CalendarMonthView: View {
             }
         }
         .padding(.horizontal, 1)
+        .background(.bar)
     }
 
     // MARK: - Week Row
@@ -240,12 +243,22 @@ struct CalendarMonthView: View {
         .padding(.horizontal, 2)
         .padding(.vertical, 2)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(isToday ? CalendarSemanticColor.todayHighlight : Color.clear)
+        .background(
+            hoveredDate == content.date ? CalendarSemanticColor.monthCellHover : Color.clear,
+            in: .rect(cornerRadius: 0)
+        )
         .opacity(
             !content.isInCurrentMonth ? CalendarSemanticColor.monthOverflowDayOpacity
             : isWeekend ? CalendarSemanticColor.weekendColumnOpacity
             : 1.0
         )
         .contentShape(Rectangle())
+        .onHover { hovering in
+            withAnimation(reduceMotion ? nil : VikAnimation.springDefault) {
+                hoveredDate = hovering ? content.date : nil
+            }
+        }
         .onTapGesture {
             onCreateEvent(content.date, 9)
         }
@@ -275,10 +288,13 @@ struct CalendarMonthView: View {
                     if isToday {
                         Circle()
                             .fill(CalendarSemanticColor.todayHeaderCircle)
+                            .glassEffect(.regular, in: .circle)
                     }
                 }
         }
         .buttonStyle(.plain)
+        .frame(width: 32, height: 32)
+        .contentShape(Circle())
         .accessibilityLabel("\(date.formatted(date: .complete, time: .omitted))")
         .accessibilityHint("Switch to day view")
         .accessibilityAddTraits(isToday ? [.isButton, .isSelected] : .isButton)
@@ -286,21 +302,11 @@ struct CalendarMonthView: View {
 
     // MARK: - Overflow Button
 
-    @ViewBuilder
     private func overflowButton(count: Int, date: Date) -> some View {
-        Button {
+        MonthOverflowButton(count: count) {
             viewModel.selectDate(date)
             viewModel.viewMode = .day
-        } label: {
-            Text("+\(count) more")
-                .font(Typography.calendarEventTime)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, Spacing.xs)
-                .frame(height: CalendarLayout.monthEventChipHeight)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel("\(count) more events")
-        .accessibilityAddTraits(.isButton)
     }
 
     // MARK: - Helpers
@@ -341,6 +347,43 @@ struct CalendarMonthView: View {
                 isInCurrentMonth: calendar.component(.month, from: date) == currentMonth
             )
         }
+    }
+}
+
+// MARK: - MonthOverflowButton
+
+/// Overflow button with hover/press feedback matching the chip interaction pattern.
+struct MonthOverflowButton: View {
+    let count: Int
+    var action: () -> Void = {}
+
+    @State private var isHovered = false
+    @GestureState private var isPressed = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        Text("+\(count) more")
+            .font(Typography.calendarEventTime)
+            .foregroundStyle(isHovered ? .primary : .secondary)
+            .padding(.horizontal, Spacing.xs)
+            .frame(height: CalendarLayout.monthEventChipHeight)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassEffect(
+                isHovered ? .regular.interactive() : .identity,
+                in: .rect(cornerRadius: CornerRadius.sm)
+            )
+            .scaleEffect(reduceMotion ? 1.0 : (isPressed ? ScaleToken.press : (isHovered ? ScaleToken.rowHover : 1.0)))
+            .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isPressed)
+            .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHovered)
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .updating($isPressed) { _, state, _ in state = true }
+                    .onEnded { _ in action() }
+            )
+            .onHover { isHovered = $0 }
+            .contentShape(Rectangle())
+            .accessibilityLabel("\(count) more events")
+            .accessibilityAddTraits(.isButton)
     }
 }
 
