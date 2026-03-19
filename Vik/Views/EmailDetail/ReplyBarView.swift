@@ -70,7 +70,21 @@ struct ReplyBarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if !quickReplies.isEmpty {
+            if isLoadingReplies && quickReplies.isEmpty && smartReplySuggestions.isEmpty {
+                HStack(spacing: 8) {
+                    Image(systemName: "apple.intelligence")
+                        .font(Typography.subheadRegular)
+                        .foregroundStyle(.quaternary)
+                    ForEach(0..<3, id: \.self) { _ in
+                        RoundedRectangle(cornerRadius: CornerRadius.md)
+                            .fill(.quaternary)
+                            .frame(width: 80, height: 28)
+                    }
+                }
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.md)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            } else if !quickReplies.isEmpty {
                 quickReplyChips
                     .transition(.opacity.combined(with: .move(edge: .top)))
             } else if !isExpanded && !smartReplySuggestions.isEmpty {
@@ -264,6 +278,14 @@ struct ReplyBarView: View {
                 RoundedRectangle(cornerRadius: CornerRadius.sm)
                     .strokeBorder(Color.accentColor.opacity(isEditorFocused ? 0.3 : 0), lineWidth: 1)
             )
+            .overlay {
+                if isLoadingDraft {
+                    ContentShimmerView()
+                        .padding(Spacing.lg)
+                        .transition(.opacity)
+                }
+            }
+            .animation(VikAnimation.contentSwitch, value: isLoadingDraft)
             .animation(VikAnimation.springSnappy, value: isEditorFocused)
             .padding(.horizontal, Spacing.lg)
             .padding(.top, Spacing.lg)
