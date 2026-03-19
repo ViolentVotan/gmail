@@ -218,10 +218,10 @@ enum Typography {
     static let microTag: Font = .system(size: 10, weight: .medium)
 
     // Calendar-specific
-    /// Event card title — compact semibold label inside timed event chips.
-    static let calendarEventTitle: Font = .system(size: 11, weight: .semibold)
-    /// Event card time — small regular label inside compact timed event chips.
-    static let calendarEventTime: Font = .system(size: 9, weight: .regular)
+    /// Event card title — semibold label inside timed event chips.
+    static let calendarEventTitle: Font = .system(size: 13, weight: .semibold)
+    /// Event card time — regular label inside timed event chips.
+    static let calendarEventTime: Font = .system(size: 11, weight: .regular)
     /// Detail popover title — prominent semibold heading in CalendarEventDetailView.
     static let calendarDetailTitle: Font = .system(size: 18, weight: .semibold)
     /// Agenda event title — semibold label for event rows in the agenda list.

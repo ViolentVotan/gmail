@@ -23,7 +23,6 @@ struct CategoryTabBar: View {
         }
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.sm)
-        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: selectedCategory)
     }
 
     private func categoryTab(_ category: InboxCategory) -> some View {
@@ -31,7 +30,9 @@ struct CategoryTabBar: View {
         let isHovered = hoveredCategory == category
 
         return Button {
-            selectedCategory = category
+            withAnimation(.smooth) {
+                selectedCategory = category
+            }
         } label: {
             HStack(spacing: 4) {
                 Text(category.displayName)
@@ -52,18 +53,12 @@ struct CategoryTabBar: View {
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
         }
-        .background {
-            if isSelected {
-                Capsule()
-                    .fill(Color.accentColor.opacity(OpacityToken.highlight))
-                    .matchedGeometryEffect(id: "activeTab", in: tabNamespace)
-            }
-        }
         .buttonStyle(.plain)
         .glassEffect(
-            isSelected || isHovered ? .regular.interactive() : .identity,
+            .regular.interactive(),
             in: .capsule
         )
+        .glassEffectID(isSelected ? "selectedTab" : category.rawValue, in: tabNamespace)
         .scaleEffect(reduceMotion ? 1.0 : (isHovered && !isSelected ? ScaleToken.rowHover : 1.0))
         .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isSelected)
         .sensoryFeedback(.selection, trigger: isSelected)

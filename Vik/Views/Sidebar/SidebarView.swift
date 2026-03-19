@@ -111,6 +111,7 @@ struct SidebarView: View {
                 modeSwitcherButton(
                     icon: "envelope.fill",
                     label: "Mail",
+                    glassID: "mail",
                     isActive: coordinator.viewMode == .mail
                 ) {
                     coordinator.switchToMail()
@@ -118,6 +119,7 @@ struct SidebarView: View {
                 modeSwitcherButton(
                     icon: "calendar",
                     label: "Calendar",
+                    glassID: "calendar",
                     isActive: coordinator.viewMode == .calendar
                 ) {
                     coordinator.switchToCalendar()
@@ -126,16 +128,18 @@ struct SidebarView: View {
         }
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.sm)
-        .animation(VikAnimation.springSnappy, value: coordinator.viewMode)
     }
 
     private func modeSwitcherButton(
         icon: String,
         label: String,
+        glassID: String,
         isActive: Bool,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        Button {
+            withAnimation(.smooth) { action() }
+        } label: {
             HStack(spacing: Spacing.xs) {
                 Image(systemName: icon)
                     .font(.system(size: 12, weight: .medium))
@@ -147,16 +151,11 @@ struct SidebarView: View {
             .padding(.vertical, Spacing.xs)
         }
         .buttonStyle(.plain)
-        .background {
-            Capsule()
-                .fill(Color.accentColor.opacity(OpacityToken.highlight))
-                .matchedGeometryEffect(id: "modeIndicator", in: modeNamespace, isSource: isActive)
-                .opacity(isActive ? 1 : 0)
-        }
         .glassEffect(
-            isActive ? .regular.interactive() : .identity,
+            .regular.interactive(),
             in: .capsule
         )
+        .glassEffectID(isActive ? "selectedMode" : glassID, in: modeNamespace)
         .sensoryFeedback(.impact(flexibility: .solid, intensity: 0.5), trigger: isActive)
         .accessibilityLabel(label)
         .accessibilityAddTraits(isActive ? [.isButton, .isSelected] : .isButton)
@@ -252,7 +251,7 @@ struct SidebarView: View {
         }
         .buttonStyle(.plain)
         .glassEffect(
-            isSelected || isHovered ? .regular.interactive() : .identity,
+            .regular.interactive(),
             in: .rect(cornerRadius: CornerRadius.sm)
         )
         .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
@@ -284,7 +283,7 @@ struct SidebarView: View {
         }
         .buttonStyle(.plain)
         .glassEffect(
-            selectedFolder == .labels ? .regular.interactive() : .identity,
+            .regular.interactive(),
             in: .rect(cornerRadius: CornerRadius.sm)
         )
         .onHover { hovering in

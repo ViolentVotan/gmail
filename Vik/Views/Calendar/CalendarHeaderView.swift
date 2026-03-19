@@ -87,8 +87,7 @@ struct CalendarHeaderView: View {
                 .padding(.horizontal, Spacing.sm)
                 .padding(.vertical, Spacing.xs)
         }
-        .buttonStyle(.plain)
-        .glassEffect(.regular.interactive(), in: .capsule)
+        .buttonStyle(.glass)
         .help("Go to today")
         .accessibilityLabel("Go to today")
     }
@@ -99,7 +98,7 @@ struct CalendarHeaderView: View {
                 ForEach([CalendarViewMode.month, .week, .day, .agenda], id: \.self) { mode in
                     let isSelected = viewModel.viewMode == mode
                     Button {
-                        withAnimation(VikAnimation.springSnappy) {
+                        withAnimation(.smooth) {
                             viewModel.viewMode = mode
                         }
                     } label: {
@@ -110,23 +109,18 @@ struct CalendarHeaderView: View {
                             .padding(.vertical, Spacing.xs)
                     }
                     .buttonStyle(.plain)
-                    .background {
-                        Capsule()
-                            .fill(Color.accentColor.opacity(OpacityToken.highlight))
-                            .matchedGeometryEffect(id: "viewModeIndicator", in: viewModeNamespace)
-                            .opacity(isSelected ? 1 : 0)
-                    }
                     .glassEffect(
-                        isSelected ? .regular.interactive() : .identity,
+                        .regular.interactive(),
                         in: .capsule
                     )
+                    .glassEffectID(isSelected ? "selectedViewMode" : mode.rawValue, in: viewModeNamespace)
+                    .sensoryFeedback(.selection, trigger: isSelected)
                     .help("\(mode.label) view")
                     .accessibilityLabel("\(mode.label) view")
                     .accessibilityAddTraits(isSelected ? .isSelected : [])
                 }
             }
         }
-        .animation(VikAnimation.springSnappy, value: viewModel.viewMode)
         .accessibilityLabel("Calendar view mode")
     }
 

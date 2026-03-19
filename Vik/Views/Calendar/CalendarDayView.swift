@@ -312,19 +312,19 @@ private struct DayEventCardView: View {
             VStack(alignment: .leading, spacing: 2) {
                 // Title
                 Text(event.summary)
-                    .font(Typography.captionSemibold)
+                    .font(Typography.calendarEventTitle)
                     .foregroundStyle(.primary)
                     .lineLimit(2)
 
                 // Time range
                 Text(timeRangeString)
-                    .font(Typography.captionSmallRegular)
+                    .font(Typography.calendarEventTime)
                     .foregroundStyle(.secondary)
 
                 // Description preview
                 if let description = event.description, !description.isEmpty {
                     Text(description)
-                        .font(Typography.captionSmallRegular)
+                        .font(Typography.calendarEventTime)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                 }
@@ -334,12 +334,12 @@ private struct DayEventCardView: View {
                     HStack(spacing: Spacing.sm) {
                         if event.attendees.count > 0 {
                             Label("\(event.attendees.count)", systemImage: "person.2")
-                                .font(Typography.captionSmallRegular)
+                                .font(Typography.calendarEventTime)
                                 .foregroundStyle(.secondary)
                         }
                         if event.conferenceLink != nil {
                             Image(systemName: "video")
-                                .font(Typography.captionSmallRegular)
+                                .font(Typography.calendarEventTime)
                                 .foregroundStyle(.secondary)
                         }
                     }
