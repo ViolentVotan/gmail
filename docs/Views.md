@@ -55,9 +55,9 @@ Right column — thread view, HTML rendering (`HTMLEmailView` via WKWebView, use
 - `OriginalMessageView` — Email source viewer (headers, message ID, delivery delay, copy-to-clipboard). Uses cached static `DateFormatter`s and `FileUtils.saveWithPanel` for saving the raw source.
 
 ### `Compose/`
-Email composer — `ComposeView` for the full compose form with rich text editor, send-as alias picker, signature management, attachment list, and discard confirmation. Custom `init` for proper `@State` initialization.
-- `AutocompleteTextField` — Contact suggestions in To/Cc/Bcc fields.
-- `ScheduleSendButton` — Send button with schedule-send popover (date picker for deferred delivery). `ComposeView.scheduleEmail(at:)` mirrors `sendEmail()` field population before calling `scheduleSend`.
+Email composer — `ComposeView` for the full compose form with rich text editor, send-as alias picker, signature management, attachment list, and discard confirmation. Custom `init` for proper `@State` initialization. Uses shared `.composeTranslation()` modifier and `ComposeFileDropHelper` for DRY compose logic.
+- `AutocompleteTextField` — Contact suggestions in To/Cc/Bcc fields. Supports Tab key navigation via `onTab` callback.
+- `ScheduleSendButton` — Unified glass container with Send button + schedule-send dropdown popover. Dropdown meets 44pt minimum touch target. Accessibility: `.accessibilityLabel("Schedule send options")` on dropdown.
 
 ### `Calendar/`
 Full calendar feature surface — month, week, day, and agenda views for Google Calendar. All calendar views are driven by `CalendarViewModel`. Month view is the default.
@@ -121,7 +121,11 @@ Shared reusable components:
 | `ShortcutsHelpView` | Keyboard shortcuts reference |
 | `VikCommands` | macOS menu bar commands (Message, Mailbox, View, Help). Message menu: Reply (`⌘R`), Reply All (`⌘⇧R`), Forward (`⌘⇧F`), Archive (`⌘E`), Delete (`⌘⌫`), Star (`⌘L`), Read/Unread (`⌘⇧U`). `⌘1`/`⌘2` switch Mail/Calendar. `⌘N` is context-aware: compose in mail mode, new event in calendar mode. |
 | `SuggestionChipRow` | Unified chip row for reply suggestions. Two styles: `.standard` (smart replies — plain glass capsules, `Typography.captionRegular`) and `.aiGradient` (AI quick replies — Apple Intelligence icon with gradient border, `Typography.subheadRegular`). Shared: horizontal scroll, `GlassEffectContainer`, staggered entrance (`DurationToken.stagger`, max 10), hover scale, `reduceMotion` support, `.accessibilityHint`. Replaces deleted `SmartReplyChipsView`. |
-| `AttachmentChipRow` | Reusable horizontal attachment chip list (used in ComposeView and ReplyBarView) |
+| `AttachmentChipRow` | Reusable horizontal attachment chip list (used in ComposeView and ReplyBarView). Accessibility: `.accessibilityLabel("Attachment: {filename}")` on each chip, `.accessibilityLabel("Remove {filename}")` on remove button. |
+| `ComposeRecipientFields` | Shared To/Cc/Bcc fields with glass Cc/Bcc toggle buttons. `@Bindable var composeVM: ComposeViewModel`, `compact: Bool` (controls divider padding: `Spacing.lg` vs `Spacing.xl`). Used by `ReplyBarView`. |
+| `ComposeActionBar` | Shared send/schedule/discard/attach action bar. Optional `onMinimize` (nil for standalone compose). Shows Discard + `ScheduleSendButton` when `hasUserContent` or standalone mode. Escape shortcut on minimize. |
+| `ComposeTranslationModifier` | `ViewModifier` for the compose translation flow — handles `editorState.translationRequested` → `.translationPresentation`. Applied via `.composeTranslation(html:editorState:)` extension. Used by both `ReplyBarView` and `ComposeView`. |
+| `ComposeFileDropHelper` | `@MainActor` static helper enum routing file drops through `ComposeViewModel.handleFileDrop()` to image insertion, attachment append, or error toast. Used by `ComposeView`. |
 | `SlidePanelsOverlay` | Overlay container for slide panels (help, debug, original message, attachment preview, email preview, web browser). Receives `mailDatabase` and `attachmentIndexer` for detail views. Preview actions (`onToggleStar`, `onMarkUnread`, `onMessagesRead`) are closures routed through `AppCoordinator` → `EmailActionCoordinator`/`MailboxViewModel` for optimistic UI + offline support. Uses `EmailDetailActions.contentActions` factory and `FileUtils.saveWithPanel` for content-level actions. |
 
 ### `Components/`
