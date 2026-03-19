@@ -1,11 +1,13 @@
 import AppIntents
 internal import GRDB
 
+private let recipientDecoder = JSONDecoder()
+
 /// Shared helper — decodes a JSON array of email addresses into IntentPerson values.
 private func parseRecipientPersons(_ jsonString: String?) -> [IntentPerson] {
     guard let jsonString, !jsonString.isEmpty,
           let data = jsonString.data(using: .utf8),
-          let addresses = try? JSONDecoder().decode([String].self, from: data) else {
+          let addresses = try? recipientDecoder.decode([String].self, from: data) else {
         return []
     }
     return addresses.map { raw in

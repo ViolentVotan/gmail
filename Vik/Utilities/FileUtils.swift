@@ -20,6 +20,27 @@ enum FileUtils {
 
 // MARK: - URL Extensions
 
+private let emailCompatibleExtensions: Set<String> = [
+    // Images
+    "jpg", "jpeg", "png", "gif", "webp", "heic", "tiff", "bmp", "svg", "ico",
+    // Documents
+    "pdf", "doc", "docx", "pages", "txt", "rtf", "odt",
+    // Spreadsheets
+    "xls", "xlsx", "csv", "numbers", "ods",
+    // Presentations
+    "ppt", "pptx", "key", "odp",
+    // Archives
+    "zip", "gz", "tar", "rar", "7z",
+    // Audio
+    "mp3", "m4a", "wav", "aiff", "flac", "ogg", "aac",
+    // Video
+    "mp4", "mov", "avi", "mkv", "webm",
+    // Code / text
+    "json", "xml", "html", "htm", "css", "js", "ts", "py", "swift", "sh", "md", "yaml", "yml",
+    // Other
+    "ics", "vcf", "eml"
+]
+
 extension URL {
     /// SF Symbols icon name for this file's extension.
     var sfSymbolIcon: String {
@@ -54,27 +75,7 @@ extension URL {
 
     /// Whether this file type is safe to send as email attachment.
     var isEmailCompatible: Bool {
-        let allowed: Set<String> = [
-            // Images
-            "jpg", "jpeg", "png", "gif", "webp", "heic", "tiff", "bmp", "svg", "ico",
-            // Documents
-            "pdf", "doc", "docx", "pages", "txt", "rtf", "odt",
-            // Spreadsheets
-            "xls", "xlsx", "csv", "numbers", "ods",
-            // Presentations
-            "ppt", "pptx", "key", "odp",
-            // Archives
-            "zip", "gz", "tar", "rar", "7z",
-            // Audio
-            "mp3", "m4a", "wav", "aiff", "flac", "ogg", "aac",
-            // Video
-            "mp4", "mov", "avi", "mkv", "webm",
-            // Code / text
-            "json", "xml", "html", "htm", "css", "js", "ts", "py", "swift", "sh", "md", "yaml", "yml",
-            // Other
-            "ics", "vcf", "eml"
-        ]
-        return allowed.contains(pathExtension.lowercased())
+        emailCompatibleExtensions.contains(pathExtension.lowercased())
     }
 
     /// MIME type string for this file's extension.

@@ -64,6 +64,9 @@ struct Email: Identifiable, Sendable {
         self.cc = cc
         self.subject = subject
         self.body = body
+        // Gmail API provides message.snippet as plain-text preview (passed via GmailDataTransformer).
+        // The strippingHTML fallback (7 pre-compiled regex passes) is only reached when snippet is absent,
+        // which is rare in practice. strippingHTML already uses static compiled regexes in StringExtensions.
         self.preview = preview.isEmpty ? String(body.strippingHTML.prefix(120)) : preview.decodingHTMLEntities()
         self.date = date
         self.isRead = isRead

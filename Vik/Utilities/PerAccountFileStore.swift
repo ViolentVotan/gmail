@@ -22,6 +22,15 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
         itemsByAccount.values.flatMap { $0 }
     }
 
+    /// Total count of items across all accounts without flattening the dictionary.
+    /// Prefer this over `allItems.count` for badge/count-only reads.
+    /// Note: ContentView uses `SnoozeStore.shared.items.count` and
+    /// `ScheduledSendStore.shared.items.count` — update those call sites to
+    /// `store.totalCount` if the SnoozeStore/ScheduledSendStore wrappers expose it.
+    var totalCount: Int {
+        itemsByAccount.values.reduce(0) { $0 + $1.count }
+    }
+
     private let fileURL: @Sendable (String) -> URL
     /// Optional fallback decoder for migrating from legacy wrapper formats
     /// (e.g. `SnoozeFileContents`, `OfflineQueueFileContents`).
@@ -48,10 +57,12 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
 
     // MARK: - Persistence
 
+    @ObservationIgnored private let decoder = JSONDecoder()
+
     private func decodeFromDisk(accountID: String) -> [Item]? {
         let url = fileURL(accountID)
         guard let data = try? Data(contentsOf: url) else { return nil }
-        if let decoded = try? JSONDecoder().decode([Item].self, from: data) {
+        if let decoded = try? decoder.decode([Item].self, from: data) {
             return decoded
         } else if let decoded = legacyDecoder?(data) {
             return decoded

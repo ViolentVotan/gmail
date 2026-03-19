@@ -120,101 +120,46 @@ enum HTMLTemplate {
         return String(value.unicodeScalars.filter { allowed.contains($0) })
     }
 
-    // MARK: - HTML Sanitization
+    // MARK: - HTML Sanitization (pre-compiled regexes)
+
+    private static let scriptTagRegex      = try! NSRegularExpression(pattern: "<script[^>]*>[\\s\\S]*?</script>",   options: .caseInsensitive)
+    private static let styleTagRegex       = try! NSRegularExpression(pattern: "<style[^>]*>[\\s\\S]*?</style>",    options: .caseInsensitive)
+    private static let iframeTagRegex      = try! NSRegularExpression(pattern: "<iframe[^>]*>[\\s\\S]*?</iframe>",  options: .caseInsensitive)
+    private static let iframeSelfRegex     = try! NSRegularExpression(pattern: "<iframe[^>]*/>",                    options: .caseInsensitive)
+    private static let objectTagRegex      = try! NSRegularExpression(pattern: "<object[^>]*>[\\s\\S]*?</object>",  options: .caseInsensitive)
+    private static let embedTagRegex       = try! NSRegularExpression(pattern: "<embed[^>]*>",                      options: .caseInsensitive)
+    private static let formTagRegex        = try! NSRegularExpression(pattern: "<form[^>]*>[\\s\\S]*?</form>",      options: .caseInsensitive)
+    private static let linkTagRegex        = try! NSRegularExpression(pattern: "<link[^>]*>",                       options: .caseInsensitive)
+    private static let baseTagRegex        = try! NSRegularExpression(pattern: "<base[^>]*>",                       options: .caseInsensitive)
+    private static let metaRefreshRegex    = try! NSRegularExpression(pattern: "<meta[^>]*http-equiv[^>]*>",        options: .caseInsensitive)
+    private static let javascriptURLRegex  = try! NSRegularExpression(pattern: "javascript\\s*:",                   options: .caseInsensitive)
+    private static let vbscriptURLRegex    = try! NSRegularExpression(pattern: "vbscript\\s*:",                     options: .caseInsensitive)
+    private static let dataTextHTMLRegex   = try! NSRegularExpression(pattern: "data\\s*:\\s*text/html",            options: .caseInsensitive)
+    private static let onEventQuotedRegex  = try! NSRegularExpression(pattern: "\\bon\\w+\\s*=\\s*([\"'])[\\s\\S]*?\\1", options: .caseInsensitive)
+    private static let onEventUnquotedRegex = try! NSRegularExpression(pattern: "\\bon\\w+\\s*=\\s*[^\\s>]+",      options: .caseInsensitive)
 
     /// Strips dangerous HTML constructs from email content before embedding in the editor.
     private static func sanitizeHTML(_ html: String) -> String {
         guard !html.isEmpty else { return html }
         var result = html
-        // Remove <script> tags and their content
-        result = result.replacingOccurrences(
-            of: "<script[^>]*>[\\s\\S]*?</script>",
-            with: "",
-            options: [.regularExpression, .caseInsensitive]
-        )
-        // Remove <style> tags and their content
-        result = result.replacingOccurrences(
-            of: "<style[^>]*>[\\s\\S]*?</style>",
-            with: "",
-            options: [.regularExpression, .caseInsensitive]
-        )
-        // Remove <iframe> tags
-        result = result.replacingOccurrences(
-            of: "<iframe[^>]*>[\\s\\S]*?</iframe>",
-            with: "",
-            options: [.regularExpression, .caseInsensitive]
-        )
-        result = result.replacingOccurrences(
-            of: "<iframe[^>]*/>",
-            with: "",
-            options: [.regularExpression, .caseInsensitive]
-        )
-        // Remove <object> tags and their content
-        result = result.replacingOccurrences(
-            of: "<object[^>]*>[\\s\\S]*?</object>",
-            with: "",
-            options: [.regularExpression, .caseInsensitive]
-        )
-        // Remove <embed> tags (self-closing)
-        result = result.replacingOccurrences(
-            of: "<embed[^>]*>",
-            with: "",
-            options: [.regularExpression, .caseInsensitive]
-        )
-        // Remove <form> tags and their content
-        result = result.replacingOccurrences(
-            of: "<form[^>]*>[\\s\\S]*?</form>",
-            with: "",
-            options: [.regularExpression, .caseInsensitive]
-        )
-        // Remove <link> tags (can load external resources)
-        result = result.replacingOccurrences(
-            of: "<link[^>]*>",
-            with: "",
-            options: [.regularExpression, .caseInsensitive]
-        )
-        // Remove <base> tags (can hijack relative URLs)
-        result = result.replacingOccurrences(
-            of: "<base[^>]*>",
-            with: "",
-            options: [.regularExpression, .caseInsensitive]
-        )
-        // Remove <meta http-equiv="refresh"> tags (can redirect)
-        result = result.replacingOccurrences(
-            of: "<meta[^>]*http-equiv[^>]*>",
-            with: "",
-            options: [.regularExpression, .caseInsensitive]
-        )
-        // Remove javascript: URLs from attributes
-        result = result.replacingOccurrences(
-            of: "javascript\\s*:",
-            with: "blocked:",
-            options: [.regularExpression, .caseInsensitive]
-        )
-        // Remove vbscript: URLs from attributes
-        result = result.replacingOccurrences(
-            of: "vbscript\\s*:",
-            with: "blocked:",
-            options: [.regularExpression, .caseInsensitive]
-        )
-        // Remove data:text/html URIs which can execute scripts
-        result = result.replacingOccurrences(
-            of: "data\\s*:\\s*text/html",
-            with: "blocked:",
-            options: [.regularExpression, .caseInsensitive]
-        )
-        // Remove event handler attributes (on*=)
-        // Use [\\s\\S]*? instead of .*? so newlines inside quoted values are matched.
-        result = result.replacingOccurrences(
-            of: "\\bon\\w+\\s*=\\s*([\"'])[\\s\\S]*?\\1",
-            with: "",
-            options: [.regularExpression, .caseInsensitive]
-        )
-        result = result.replacingOccurrences(
-            of: "\\bon\\w+\\s*=\\s*[^\\s>]+",
-            with: "",
-            options: [.regularExpression, .caseInsensitive]
-        )
+        let range = { NSRange(result.startIndex..., in: result) }
+
+        result = scriptTagRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
+        result = styleTagRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
+        result = iframeTagRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
+        result = iframeSelfRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
+        result = objectTagRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
+        result = embedTagRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
+        result = formTagRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
+        result = linkTagRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
+        result = baseTagRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
+        result = metaRefreshRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
+        result = javascriptURLRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "blocked:")
+        result = vbscriptURLRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "blocked:")
+        result = dataTextHTMLRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "blocked:")
+        // Remove event handler attributes (on*=); quoted variant first, then unquoted
+        result = onEventQuotedRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
+        result = onEventUnquotedRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
         return result
     }
 }
