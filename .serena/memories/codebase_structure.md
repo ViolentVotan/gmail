@@ -22,7 +22,7 @@ Vik/                      # Main app
 ├── ViewModels/              # @Observable state management
 │   ├── AppCoordinator       # App-level state coordination (mail + calendar modes)
 │   ├── MailboxViewModel     # Email list for account+folder
-│   ├── CalendarViewModel    # Calendar UI state + CRUD + reactive DB observation
+│   ├── CalendarViewModel    # Calendar UI state + CRUD + reactive DB observation (default: month view)
 
 │   ├── EmailDetailViewModel # Single email display + calendar context detection
 │   ├── EmailSummaryViewModel # AI email summaries
@@ -40,7 +40,7 @@ Vik/                      # Main app
 │   ├── Sidebar/             # Left panel (mode switcher, mini-agenda widget)
 │   ├── EmailList/           # Middle panel
 │   ├── EmailDetail/         # Right panel (calendar context card, enhanced invite RSVP)
-│   ├── Calendar/            # Calendar UI (week/day/agenda grids, event detail/editor, mini-month)
+│   ├── Calendar/            # Calendar UI (month/week/day/agenda grids, event detail/editor, mini-month)
 │   ├── Common/              # Reusable components (command palette, keyboard shortcuts, quick actions)
 │   ├── Components/          # UI building blocks
 │   ├── Compose/             # Email composer
