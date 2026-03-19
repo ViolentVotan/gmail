@@ -13,34 +13,16 @@ struct ReplyBarView: View {
     var onSmartReplySelect: ((String) -> Void)?
     var contacts: [StoredContact] = []
 
-    @State private var replyHTML = ""
+    @State private var manager: ReplyBarManager
     @State private var isExpanded = false
-    @State private var sendError: String?
+    @State private var showDiscardAlert = false
     @State private var showTranslation = false
     @State private var translationSourceText = ""
-    @State private var attachments: [URL] = []
-    @State private var saveTask: Task<Void, Never>?
-    @State private var loadDraftTask: Task<Void, Never>?
-    @State private var loadGeneration = 0
-    @State private var isInitialLoad = true
-    @State private var isLoadingDraft = false
-    @State private var showDiscardAlert = false
-    @State private var editorState = WebRichTextEditorState()
-    @State private var composeVM: ComposeViewModel
-    @State private var quickReplies: [String] = []
-    @State private var isLoadingReplies = false
-    @State private var replyTo = ""
-    @State private var replyCc = ""
-    @State private var replyBcc = ""
-    @State private var showCc = false
-    @State private var showBcc = false
-    @State private var showSubject = false
-    @State private var subjectOverride: String?
-    @State private var cachedStrippedText = ""
     @State private var isEditorFocused = false
     @State private var sendHapticTrigger = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var editorState = WebRichTextEditorState()
     @Namespace private var replyBarNamespace
+
     init(
         email: Email,
         accountID: String,
@@ -63,16 +45,16 @@ struct ReplyBarView: View {
         self.smartReplySuggestions = smartReplySuggestions
         self.onSmartReplySelect = onSmartReplySelect
         self.contacts = contacts
-        self._composeVM = State(initialValue: ComposeViewModel(
+        self._manager = State(initialValue: ReplyBarManager(
             accountID: accountID,
             fromAddress: fromAddress,
-            threadID: email.gmailThreadID
+            email: email
         ))
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            if isLoadingReplies && quickReplies.isEmpty && smartReplySuggestions.isEmpty {
+            if manager.isLoadingReplies && manager.quickReplies.isEmpty && smartReplySuggestions.isEmpty {
                 HStack(spacing: 8) {
                     Image(systemName: "apple.intelligence")
                         .font(Typography.subheadRegular)
@@ -86,29 +68,29 @@ struct ReplyBarView: View {
                 .padding(.horizontal, Spacing.lg)
                 .padding(.vertical, Spacing.md)
                 .transition(.opacity.combined(with: .move(edge: .top)))
-            } else if !quickReplies.isEmpty {
+            } else if !manager.quickReplies.isEmpty {
                 SuggestionChipRow(
-                    suggestions: quickReplies,
+                    suggestions: manager.quickReplies,
                     icon: .appleIntelligence,
                     style: .aiGradient
                 ) { suggestion in
                     let escapedHTML = "<p>\(suggestion.htmlEscaped)</p>"
                     editorState.setHTML(escapedHTML)
-                    replyHTML = escapedHTML
+                    manager.replyHTML = escapedHTML
                     if !isExpanded {
-                        if replyTo.isEmpty { replyTo = email.sender.email }
-                        loadExistingDraft()
+                        if manager.replyTo.isEmpty { manager.replyTo = email.sender.email }
+                        manager.loadExistingDraft(email: email, mailStore: mailStore, loader: onLoadDraft, editorState: editorState)
                         withAnimation(VikAnimation.springSnappy) { isExpanded = true }
                     }
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             } else if !isExpanded && !smartReplySuggestions.isEmpty {
                 SuggestionChipRow(suggestions: smartReplySuggestions) { suggestion in
-                    if replyTo.isEmpty { replyTo = email.sender.email }
+                    if manager.replyTo.isEmpty { manager.replyTo = email.sender.email }
                     let html = "<p>\(suggestion.htmlEscaped)</p>"
-                    replyHTML = html
+                    manager.replyHTML = html
                     editorState.setHTML(html)
-                    loadExistingDraft()
+                    manager.loadExistingDraft(email: email, mailStore: mailStore, loader: onLoadDraft, editorState: editorState)
                     withAnimation(VikAnimation.springSnappy) { isExpanded = true }
                     onSmartReplySelect?(suggestion)
                 }
@@ -126,35 +108,23 @@ struct ReplyBarView: View {
                 .strokeBorder(Color(.separatorColor), lineWidth: 0.5)
         )
         .background(ClickOutsideDetector(isExpanded: isExpanded, onClickOutside: { minimize() }))
-        .onChange(of: replyHTML) { _, _ in
-            cachedStrippedText = replyHTML.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines)
-            scheduleAutoSave()
+        .onChange(of: manager.replyHTML) { _, _ in
+            manager.updateCachedText()
+            manager.scheduleAutoSave(email: email, mailStore: mailStore)
         }
-        .animation(VikAnimation.springSnappy, value: hasUserContent)
+        .animation(VikAnimation.springSnappy, value: manager.hasUserContent)
         .animation(VikAnimation.springSnappy, value: smartReplySuggestions.isEmpty)
         .task {
-            try? await Task.sleep(for: .seconds(0.5))
-            isInitialLoad = false
+            try? await Task.sleep(for: ReplyBarManager.autoSaveGuardDelay)
+            manager.isInitialLoad = false
         }
         .task(id: email.id) {
-            saveTask?.cancel()
-            saveTask = nil
-            loadDraftTask?.cancel()
-            loadDraftTask = nil
-            loadGeneration += 1
-            composeVM = ComposeViewModel(
-                accountID: accountID,
-                fromAddress: fromAddress,
-                threadID: email.gmailThreadID
-            )
-            isLoadingReplies = true
-            quickReplies = await onGenerateQuickReplies?(email) ?? []
-            isLoadingReplies = false
+            await manager.resetEmail(email: email, onGenerateQuickReplies: onGenerateQuickReplies)
         }
-        .onChange(of: composeVM.isSent) { _, isSent in
+        .onChange(of: manager.composeVM.isSent) { _, isSent in
             guard isSent else { return }
-            if !composeVM.wasScheduled {
-                composeVM.showToast("Reply sent", type: .success)
+            if !manager.composeVM.wasScheduled {
+                manager.composeVM.showToast("Reply sent", type: .success)
             }
             collapse()
         }
@@ -167,7 +137,7 @@ struct ReplyBarView: View {
         .onChange(of: editorState.translationRequested) { _, requested in
             guard requested else { return }
             editorState.translationRequested = false
-            translationSourceText = replyHTML.strippingHTML
+            translationSourceText = manager.replyHTML.strippingHTML
             showTranslation = true
         }
         .translationPresentation(isPresented: $showTranslation, text: translationSourceText) { translated in
@@ -176,58 +146,30 @@ struct ReplyBarView: View {
                 .map { "<p>\($0)</p>" }
                 .joined()
             editorState.setHTML(html)
-            replyHTML = html
+            manager.replyHTML = html
         }
-        .onDisappear { saveTask?.cancel(); loadDraftTask?.cancel() }
-    }
-
-    private var replyBodyIsEmpty: Bool {
-        cachedStrippedText.isEmpty
-    }
-
-    private var hasUserContent: Bool {
-        !replyBodyIsEmpty || !attachments.isEmpty ||
-        !replyCc.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
-        !replyBcc.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-
-    private var hasSavedDraft: Bool {
-        guard let threadID = email.gmailThreadID else { return false }
-        return mailStore.replyDrafts[threadID] != nil
-    }
-
-    private var collapsedPlaceholder: String {
-        if !cachedStrippedText.isEmpty {
-            let preview = String(cachedStrippedText.prefix(50))
-            return "\(preview)\(cachedStrippedText.count > 50 ? "…" : "")"
-        }
-        if let threadID = email.gmailThreadID,
-           let saved = mailStore.replyDrafts[threadID] {
-            let preview = saved.preview
-            return "\(preview)\(preview.count >= 50 ? "…" : "")"
-        }
-        return "Write a reply..."
+        .onDisappear { manager.cancelTasks() }
     }
 
     // MARK: - Collapsed
 
     private var collapsedContent: some View {
         Button {
-            if replyTo.isEmpty {
-                replyTo = email.sender.email
+            if manager.replyTo.isEmpty {
+                manager.replyTo = email.sender.email
             }
-            loadExistingDraft()
+            manager.loadExistingDraft(email: email, mailStore: mailStore, loader: onLoadDraft, editorState: editorState)
             withAnimation(VikAnimation.springSnappy) {
                 isExpanded = true
             }
         } label: {
             HStack(spacing: 10) {
-                Text(collapsedPlaceholder)
+                Text(manager.collapsedPlaceholder(for: email, in: mailStore))
                     .font(Typography.body)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
                 Spacer()
-                Image(systemName: hasSavedDraft ? "arrow.uturn.forward" : "square.and.pencil")
+                Image(systemName: manager.hasSavedDraft(for: email, in: mailStore) ? "arrow.uturn.forward" : "square.and.pencil")
                     .font(Typography.body)
                     .foregroundStyle(.tertiary)
             }
@@ -237,6 +179,8 @@ struct ReplyBarView: View {
             .matchedGeometryEffect(id: "replyBar", in: replyBarNamespace)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Reply to \(email.sender.name)")
+        .accessibilityHint("Activate to expand reply editor")
     }
 
     // MARK: - Expanded
@@ -245,39 +189,39 @@ struct ReplyBarView: View {
         VStack(spacing: 0) {
             // Recipient fields
             VStack(spacing: 0) {
-                AutocompleteTextField(label: "To", placeholder: "Recipients", text: $replyTo, contacts: contacts)
+                AutocompleteTextField(label: "To", placeholder: "Recipients", text: $manager.replyTo, contacts: contacts)
                 Divider().padding(.horizontal, Spacing.lg)
 
-                if showCc {
-                    AutocompleteTextField(label: "Cc", placeholder: "Cc recipients", text: $replyCc, contacts: contacts)
+                if manager.showCc {
+                    AutocompleteTextField(label: "Cc", placeholder: "Cc recipients", text: $manager.replyCc, contacts: contacts)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     Divider().padding(.horizontal, Spacing.lg)
                 }
 
-                if showBcc {
-                    AutocompleteTextField(label: "Bcc", placeholder: "Bcc recipients", text: $replyBcc, contacts: contacts)
+                if manager.showBcc {
+                    AutocompleteTextField(label: "Bcc", placeholder: "Bcc recipients", text: $manager.replyBcc, contacts: contacts)
                         .transition(.opacity.combined(with: .move(edge: .top)))
                     Divider().padding(.horizontal, Spacing.lg)
                 }
 
                 HStack(spacing: 8) {
                     Spacer()
-                    Button { withAnimation(VikAnimation.springSnappy) { showCc.toggle() } } label: {
+                    Button { withAnimation(VikAnimation.springSnappy) { manager.showCc.toggle() } } label: {
                         Text("Cc")
                             .font(Typography.caption)
-                            .foregroundStyle(showCc ? .primary : .tertiary)
+                            .foregroundStyle(manager.showCc ? .primary : .tertiary)
                             .padding(.horizontal, Spacing.sm)
                             .padding(.vertical, Spacing.xs)
-                            .glassEffect(showCc ? .regular.interactive() : .identity, in: .capsule)
+                            .glassEffect(manager.showCc ? .regular.interactive() : .identity, in: .capsule)
                     }
                     .buttonStyle(.plain)
-                    Button { withAnimation(VikAnimation.springSnappy) { showBcc.toggle() } } label: {
+                    Button { withAnimation(VikAnimation.springSnappy) { manager.showBcc.toggle() } } label: {
                         Text("Bcc")
                             .font(Typography.caption)
-                            .foregroundStyle(showBcc ? .primary : .tertiary)
+                            .foregroundStyle(manager.showBcc ? .primary : .tertiary)
                             .padding(.horizontal, Spacing.sm)
                             .padding(.vertical, Spacing.xs)
-                            .glassEffect(showBcc ? .regular.interactive() : .identity, in: .capsule)
+                            .glassEffect(manager.showBcc ? .regular.interactive() : .identity, in: .capsule)
                     }
                     .buttonStyle(.plain)
                 }
@@ -292,16 +236,16 @@ struct ReplyBarView: View {
                         .foregroundStyle(.tertiary)
                         .frame(width: 50, alignment: .leading)
 
-                    if showSubject {
+                    if manager.showSubject {
                         TextField("Subject", text: Binding(
-                            get: { subjectOverride ?? email.subject.withReplyPrefix },
-                            set: { subjectOverride = $0 }
+                            get: { manager.subjectOverride ?? email.subject.withReplyPrefix },
+                            set: { manager.subjectOverride = $0 }
                         ))
                         .textFieldStyle(.plain)
                         .font(Typography.captionRegular)
                         .foregroundStyle(.primary)
                     } else {
-                        Text(subjectOverride ?? email.subject.withReplyPrefix)
+                        Text(manager.subjectOverride ?? email.subject.withReplyPrefix)
                             .font(Typography.captionRegular)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
@@ -310,9 +254,9 @@ struct ReplyBarView: View {
                     Spacer()
 
                     Button {
-                        withAnimation(VikAnimation.springSnappy) { showSubject.toggle() }
+                        withAnimation(VikAnimation.springSnappy) { manager.showSubject.toggle() }
                     } label: {
-                        Image(systemName: showSubject ? "chevron.up" : "chevron.down")
+                        Image(systemName: manager.showSubject ? "chevron.up" : "chevron.down")
                             .font(Typography.captionSmall)
                             .foregroundStyle(.tertiary)
                             .frame(width: 20, height: 20)
@@ -329,10 +273,10 @@ struct ReplyBarView: View {
 
             WebRichTextEditor(
                 state: editorState,
-                htmlContent: $replyHTML,
+                htmlContent: $manager.replyHTML,
                 placeholder: "Write a reply...",
                 autoFocus: true,
-                onFileDrop: { url in handleFileDrop(url) },
+                onFileDrop: { url in manager.handleFileDrop(url, editorState: editorState) },
                 onOpenLink: onOpenLink
             )
             .frame(minHeight: 120, maxHeight: 400)
@@ -341,13 +285,13 @@ struct ReplyBarView: View {
                     .strokeBorder(Color.accentColor.opacity(isEditorFocused ? 0.3 : 0), lineWidth: 1)
             )
             .overlay {
-                if isLoadingDraft {
+                if manager.isLoadingDraft {
                     ContentShimmerView()
                         .padding(Spacing.lg)
                         .transition(.opacity)
                 }
             }
-            .animation(VikAnimation.contentSwitch, value: isLoadingDraft)
+            .animation(VikAnimation.contentSwitch, value: manager.isLoadingDraft)
             .animation(VikAnimation.springSnappy, value: isEditorFocused)
             .padding(.horizontal, Spacing.lg)
             .padding(.top, Spacing.lg)
@@ -355,7 +299,7 @@ struct ReplyBarView: View {
             .onAppear { isEditorFocused = true }
             .onDisappear { isEditorFocused = false }
 
-            AttachmentChipRow(attachments: $attachments)
+            AttachmentChipRow(attachments: $manager.attachments)
 
             Divider().background(Color(.separatorColor))
 
@@ -364,7 +308,7 @@ struct ReplyBarView: View {
             Divider().background(Color(.separatorColor))
 
             // Error banner
-            if let err = sendError {
+            if let err = manager.sendError {
                 HStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(Typography.captionRegular)
@@ -372,7 +316,7 @@ struct ReplyBarView: View {
                         .font(Typography.captionRegular)
                     Spacer()
                     Button {
-                        sendError = nil
+                        manager.sendError = nil
                     } label: {
                         Image(systemName: "xmark")
                             .font(Typography.captionSmall)
@@ -398,7 +342,12 @@ struct ReplyBarView: View {
                 .help("Minimize")
                 .keyboardShortcut(.escape, modifiers: [])
 
-                Button { attachFiles() } label: {
+                Button {
+                    Task {
+                        let urls = await manager.attachFiles()
+                        manager.attachments += urls
+                    }
+                } label: {
                     Image(systemName: "paperclip")
                         .font(Typography.subheadRegular)
                         .foregroundStyle(.secondary)
@@ -409,7 +358,7 @@ struct ReplyBarView: View {
 
                 Spacer()
 
-                if hasUserContent {
+                if manager.hasUserContent {
                     Button { discardAction() } label: {
                         Text("Discard")
                     }
@@ -419,11 +368,11 @@ struct ReplyBarView: View {
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
 
                     ScheduleSendButton(
-                        onSend: { Task { await sendReply() } },
-                        onSchedule: { date in Task { await scheduleReply(at: date) } },
-                        isSending: composeVM.isSending
+                        onSend: { Task { sendHapticTrigger.toggle(); await manager.sendReply(email: email, editorInlineImages: editorState.pendingInlineImages, mailStore: mailStore) } },
+                        onSchedule: { date in Task { await manager.scheduleReply(at: date, email: email, editorInlineImages: editorState.pendingInlineImages, mailStore: mailStore) } },
+                        isSending: manager.composeVM.isSending
                     )
-                    .disabled(composeVM.isSending)
+                    .disabled(manager.composeVM.isSending)
                     .keyboardShortcut(.return, modifiers: .command)
                     .sensoryFeedback(.success, trigger: sendHapticTrigger)
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
@@ -438,124 +387,12 @@ struct ReplyBarView: View {
     // MARK: - Actions
 
     private func discardAction() {
-        if hasSavedDraft || composeVM.gmailDraftID != nil {
+        if manager.shouldShowDiscardAlert(email: email, mailStore: mailStore) {
             showDiscardAlert = true
         } else {
             collapse()
         }
     }
-
-    private func sendReply() async {
-        sendError = nil
-        saveTask?.cancel()
-        sendHapticTrigger.toggle()
-
-        await composeVM.sendReplyMessage(
-            replyHTML: replyHTML,
-            to: replyTo,
-            cc: replyCc,
-            bcc: replyBcc,
-            emailSubject: subjectOverride ?? email.subject,
-            replyToMessageID: email.gmailMessageID,
-            parentMessageID: email.messageIDHeader,
-            parentReferences: email.referencesHeader,
-            attachmentURLs: attachments,
-            editorInlineImages: editorState.pendingInlineImages,
-            mailStore: mailStore
-        )
-
-        if let error = composeVM.error {
-            sendError = error
-        }
-    }
-
-    private func syncFieldsToComposeVM(processedHTML: String, images: [InlineImageAttachment]) {
-        composeVM.to = replyTo
-        composeVM.cc = replyCc
-        composeVM.bcc = replyBcc
-        composeVM.subject = (subjectOverride ?? email.subject).withReplyPrefix
-        composeVM.body = processedHTML
-        composeVM.isHTML = true
-        composeVM.inlineImages = images + editorState.pendingInlineImages
-        composeVM.replyToMessageID = email.gmailMessageID
-        composeVM.parentMessageID = email.messageIDHeader
-        composeVM.parentReferences = email.referencesHeader
-        composeVM.attachmentURLs = attachments
-    }
-
-    private func scheduleReply(at date: Date) async {
-        sendError = nil
-        saveTask?.cancel()
-
-        let (processedHTML, images) = InlineImageProcessor.extractInlineImages(from: replyHTML)
-        syncFieldsToComposeVM(processedHTML: processedHTML, images: images)
-
-        composeVM.setReplyCleanupContext(mailStore: mailStore)
-        await composeVM.scheduleSend(at: date)
-
-        if let error = composeVM.error {
-            sendError = error
-        }
-    }
-
-    private func handleFileDrop(_ url: URL) {
-        switch composeVM.handleFileDrop(url) {
-        case .image:
-            editorState.insertImage(from: url)
-        case .attachment:
-            attachments.append(url)
-        case .unsupported(let message):
-            composeVM.showToast(message, type: .error)
-        }
-    }
-
-    private func attachFiles() {
-        Task {
-            let urls = await composeVM.openAttachmentPicker()
-            attachments += urls
-        }
-    }
-
-    private func loadExistingDraft() {
-        guard let threadID = email.gmailThreadID,
-              mailStore.replyDrafts[threadID] != nil else { return }
-        isLoadingDraft = true
-        loadDraftTask?.cancel()
-        let currentGen = loadGeneration
-        loadDraftTask = Task {
-            let result = await composeVM.loadExistingDraft(
-                mailStore: mailStore,
-                loader: onLoadDraft
-            )
-            guard !Task.isCancelled, currentGen == loadGeneration else { return }
-            if let body = result, !body.isEmpty {
-                isInitialLoad = true
-                replyHTML = body
-                editorState.setHTML(body)
-                isLoadingDraft = false
-                try? await Task.sleep(for: .seconds(0.5))
-                guard !Task.isCancelled, currentGen == loadGeneration else { return }
-                isInitialLoad = false
-            } else {
-                isLoadingDraft = false
-            }
-        }
-    }
-
-    private func scheduleAutoSave() {
-        guard !isInitialLoad, !isLoadingDraft else { return }
-        saveTask = composeVM.scheduleReplyAutoSave(
-            replyHTML: replyHTML,
-            to: replyTo,
-            cc: replyCc,
-            bcc: replyBcc,
-            emailSubject: subjectOverride ?? email.subject,
-            replyToMessageID: email.gmailMessageID,
-            mailStore: mailStore,
-            previousTask: saveTask
-        )
-    }
-
 
     private func minimize() {
         withAnimation(VikAnimation.springSnappy) {
@@ -564,26 +401,9 @@ struct ReplyBarView: View {
     }
 
     private func collapse() {
-        saveTask?.cancel()
-        if let threadID = email.gmailThreadID {
-            mailStore.replyDrafts.removeValue(forKey: threadID)
-            mailStore.saveReplyDrafts()
-        }
-        if composeVM.gmailDraftID != nil {
-            Task { await composeVM.discardDraft() }
-        }
+        manager.collapse(email: email, mailStore: mailStore)
         withAnimation(VikAnimation.springSnappy) {
             isExpanded = false
-            replyHTML = ""
-            replyTo = ""
-            replyCc = ""
-            replyBcc = ""
-            showCc = false
-            showBcc = false
-            attachments = []
-            sendError = nil
-            subjectOverride = nil
-            showSubject = false
         }
     }
 }
@@ -628,7 +448,6 @@ private struct ClickOutsideDetector: NSViewRepresentable {
 
         func install() {
             monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
-                // NSEvent local monitors fire on the main thread
                 MainActor.assumeIsolated { self?.handleClick(event) }
                 return event
             }
@@ -643,13 +462,9 @@ private struct ClickOutsideDetector: NSViewRepresentable {
 
         private func handleClick(_ event: NSEvent) {
             guard isExpanded, let anchor = anchorView, let anchorWindow = anchor.window else { return }
-            // Ignore clicks in popover windows (color picker, link popover, alerts, etc.)
             if let eventWindow = event.window, eventWindow !== anchorWindow {
                 return
             }
-            // The anchor is a zero-size PassthroughView. Walk up the view
-            // hierarchy to find the actual container (the SwiftUI host view
-            // that has a meaningful frame encompassing the reply bar).
             let container = anchor.superview ?? anchor
             let clickInContainer = container.convert(event.locationInWindow, from: nil)
             if !container.bounds.contains(clickInContainer) {
