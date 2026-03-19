@@ -23,7 +23,21 @@ final class MailStore {
     /// Only stores the link — content is always fetched fresh from Gmail.
     struct ReplyDraftInfo: Codable {
         let gmailDraftID: String
-        let preview: String  // short plain text for collapsed placeholder
+        let preview: String
+        let lastModified: Date
+
+        init(gmailDraftID: String, preview: String, lastModified: Date = .now) {
+            self.gmailDraftID = gmailDraftID
+            self.preview = preview
+            self.lastModified = lastModified
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            gmailDraftID = try container.decode(String.self, forKey: .gmailDraftID)
+            preview = try container.decode(String.self, forKey: .preview)
+            lastModified = try container.decodeIfPresent(Date.self, forKey: .lastModified) ?? .distantPast
+        }
     }
     var replyDrafts: [String: ReplyDraftInfo] = [:]
 

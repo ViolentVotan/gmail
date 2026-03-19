@@ -218,15 +218,31 @@ import SwiftUI
 
     func scheduleAutoSave(email: Email, mailStore: MailStore) {
         guard !isInitialLoad, !isLoadingDraft else { return }
+
+        let isEmpty = replyHTML.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if !isEmpty && Date.now.timeIntervalSince(lastDraftSaveDate) < Self.minSaveInterval {
+            let remaining = Self.minSaveInterval - Date.now.timeIntervalSince(lastDraftSaveDate)
+            saveTask?.cancel()
+            saveTask = Task {
+                try? await Task.sleep(for: .seconds(remaining))
+                guard !Task.isCancelled else { return }
+                lastDraftSaveDate = .now
+                saveTask = composeVM.scheduleReplyAutoSave(
+                    replyHTML: replyHTML, to: replyTo, cc: replyCc, bcc: replyBcc,
+                    emailSubject: subjectOverride ?? email.subject,
+                    replyToMessageID: email.gmailMessageID,
+                    mailStore: mailStore, previousTask: nil
+                )
+            }
+            return
+        }
+
+        if !isEmpty { lastDraftSaveDate = .now }
         saveTask = composeVM.scheduleReplyAutoSave(
-            replyHTML: replyHTML,
-            to: replyTo,
-            cc: replyCc,
-            bcc: replyBcc,
+            replyHTML: replyHTML, to: replyTo, cc: replyCc, bcc: replyBcc,
             emailSubject: subjectOverride ?? email.subject,
             replyToMessageID: email.gmailMessageID,
-            mailStore: mailStore,
-            previousTask: saveTask
+            mailStore: mailStore, previousTask: saveTask
         )
     }
 

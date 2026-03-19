@@ -473,6 +473,16 @@ import Foundation
                 "Discarded draft should be removed from replyDrafts")
     }
 
+    @Test func replyDraftInfoDecodesWithoutLastModified() throws {
+        let json = """
+        {"gmailDraftID":"draft_123","preview":"Hello world"}
+        """.data(using: .utf8)!
+        let info = try JSONDecoder().decode(MailStore.ReplyDraftInfo.self, from: json)
+        #expect(info.gmailDraftID == "draft_123")
+        #expect(info.preview == "Hello world")
+        #expect(info.lastModified == .distantPast)
+    }
+
     // MARK: - GmailModels: contentID and inline parts
 
     @Test func contentIDExtraction() {
