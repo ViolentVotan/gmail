@@ -327,7 +327,7 @@ final class PeopleAPIService {
         // When both Connections and Other Contacts completed a full fetch, all live
         // contacts were upserted above — anything with updated_at < syncStartTime
         // no longer exists upstream and can be safely pruned.
-        if didFullConnectionsFetch || didFullOtherContactsFetch {
+        if didFullConnectionsFetch && didFullOtherContactsFetch {
             let pruned = try? await mailDB?.dbPool.write { db -> Int in
                 try ContactRecord
                     .filter(Column("source") == "people_api")

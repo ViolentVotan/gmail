@@ -71,6 +71,8 @@ actor CalendarSyncEngine {
     /// Starts the calendar sync lifecycle.
     /// Performs initial sync if no sync tokens exist, then starts incremental polling.
     func start() async {
+        guard syncTask == nil else { return }
+
         let hasTokens = (try? await db.dbPool.read { db in
             try CalendarRecord
                 .filter(Column("account_id") == accountID)

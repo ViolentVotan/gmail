@@ -47,8 +47,8 @@ struct EmailDetailActions {
 
     // MARK: - Calendar
 
-    /// Called when the user taps the calendar context card to switch to Calendar mode.
-    var onNavigateToCalendar: (() -> Void)?
+    /// Called when the user taps the calendar context card to navigate to the specific event in Calendar mode.
+    var onNavigateToCalendar: ((CalendarEvent) -> Void)?
 }
 
 // MARK: - Factory

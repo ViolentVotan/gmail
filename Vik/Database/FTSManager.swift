@@ -33,23 +33,4 @@ enum FTSManager {
         )
     }
 
-    /// Search messages by query string. Returns matching MessageRecords ordered by date.
-    /// Uses the same subquery form as MailboxViewModel.localSearch for consistency.
-    static func search(query: String, in db: Database, limit: Int = 100) throws -> [MessageRecord] {
-        guard !query.trimmingCharacters(in: .whitespaces).isEmpty else { return [] }
-
-        // Build FTS5 query — match all tokens
-        guard let pattern = FTS5Pattern(matchingAllTokensIn: query) else { return [] }
-
-        return try MessageRecord.fetchAll(db, sql: """
-            SELECT m.* FROM messages m
-            WHERE m.gmail_id IN (
-                SELECT gmail_id FROM messages_fts WHERE messages_fts MATCH ?
-            )
-            -- Ordered by date (most recent first) rather than FTS5 rank,
-            -- matching user expectations for email search results
-            ORDER BY m.internal_date DESC
-            LIMIT ?
-        """, arguments: [pattern, limit])
-    }
 }

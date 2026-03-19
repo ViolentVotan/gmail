@@ -129,7 +129,13 @@ struct MessageRecordTests {
 
         let email = try db.dbPool.read { db in
             let msg = try MessageRecord.fetchOne(db, key: "m1")!
-            let labels = try MailDatabaseQueries.labels(forMessage: "m1", in: db)
+            let labelIds = try MessageLabelRecord
+                .filter(Column("message_id") == "m1")
+                .fetchAll(db)
+                .map(\.labelId)
+            let labels = try LabelRecord
+                .filter(labelIds.contains(Column("gmail_id")))
+                .fetchAll(db)
             return msg.toEmail(labels: labels, tags: nil)
         }
 

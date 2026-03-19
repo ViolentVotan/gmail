@@ -20,7 +20,9 @@ struct FTSManagerTests {
         }
 
         let results = try db.dbPool.read { db in
-            try FTSManager.search(query: "invoice", in: db)
+            try MessageRecord
+                .filter(sql: "gmail_id IN (SELECT gmail_id FROM messages_fts WHERE messages_fts MATCH ?)", arguments: ["invoice"])
+                .fetchAll(db)
         }
         #expect(results.count == 1)
         #expect(results[0].gmailId == "m1")
@@ -47,12 +49,16 @@ struct FTSManagerTests {
         }
 
         let oldResults = try db.dbPool.read { db in
-            try FTSManager.search(query: "old", in: db)
+            try MessageRecord
+                .filter(sql: "gmail_id IN (SELECT gmail_id FROM messages_fts WHERE messages_fts MATCH ?)", arguments: ["old"])
+                .fetchAll(db)
         }
         #expect(oldResults.isEmpty)
 
         let newResults = try db.dbPool.read { db in
-            try FTSManager.search(query: "new", in: db)
+            try MessageRecord
+                .filter(sql: "gmail_id IN (SELECT gmail_id FROM messages_fts WHERE messages_fts MATCH ?)", arguments: ["new"])
+                .fetchAll(db)
         }
         #expect(newResults.count == 1)
     }
@@ -72,7 +78,9 @@ struct FTSManagerTests {
         }
 
         let results = try db.dbPool.read { db in
-            try FTSManager.search(query: "Searchable", in: db)
+            try MessageRecord
+                .filter(sql: "gmail_id IN (SELECT gmail_id FROM messages_fts WHERE messages_fts MATCH ?)", arguments: ["Searchable"])
+                .fetchAll(db)
         }
         #expect(results.isEmpty)
     }

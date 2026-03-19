@@ -64,22 +64,6 @@ struct MailDatabaseQueriesTests {
         #expect(count == 2)
     }
 
-    @Test("labels for message")
-    func labelsForMessage() throws {
-        let db = try makeTestDatabase()
-        try db.dbPool.write { db in
-            try LabelRecord(gmailId: "INBOX", name: "Inbox", type: "system", bgColor: nil, textColor: nil).insert(db)
-            try LabelRecord(gmailId: "STARRED", name: "Starred", type: "system", bgColor: nil, textColor: nil).insert(db)
-            try MessageRecord.fixture(gmailId: "m1").insert(db)
-            try MessageLabelRecord(messageId: "m1", labelId: "INBOX").insert(db)
-            try MessageLabelRecord(messageId: "m1", labelId: "STARRED").insert(db)
-        }
-
-        let labels = try db.dbPool.read { db in
-            try MailDatabaseQueries.labels(forMessage: "m1", in: db)
-        }
-        #expect(labels.count == 2)
-    }
 
     private func makeTestDatabase() throws -> MailDatabase {
         let tempDir = FileManager.default.temporaryDirectory

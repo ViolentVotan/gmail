@@ -111,34 +111,6 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: - Material Content (pre-macOS 26 fallback)
-
-    private var materialContent: some View {
-        VStack(spacing: 0) {
-            // Viking helmet — hero icon (material-specific styling)
-            Image("VikLogo")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 72, height: 72)
-                .foregroundStyle(.white)
-                .frame(width: 120, height: 120)
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 32))
-                .opacity(showIcon ? 1 : 0)
-                .scaleEffect(iconScale)
-                .rotationEffect(.degrees(iconRotation))
-                .offset(y: iconDrop)
-
-            Spacer().frame(height: 20)
-
-            onboardingInnerContent { materialSignInButton }
-        }
-        .padding(.horizontal, 64)
-        .padding(.vertical, 48)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 28))
-        .scaleEffect(showCard ? 1 : 0.8)
-        .opacity(showCard ? 1 : 0)
-    }
-
     // MARK: - Shared Inner Content
 
     @ViewBuilder

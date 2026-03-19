@@ -320,7 +320,7 @@ struct EmailDetailView: View {
                 CalendarContextCard(
                     event: contextEvent,
                     onNavigate: {
-                        actions.onNavigateToCalendar?()
+                        actions.onNavigateToCalendar?(contextEvent)
                         calendarContextDismissed = true
                     },
                     onDismiss: {

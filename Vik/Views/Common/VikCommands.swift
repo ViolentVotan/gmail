@@ -165,7 +165,6 @@ struct VikCommands: Commands {
             } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")
             }
-            .keyboardShortcut("r", modifiers: [.command, .shift])
 
             Button {
                 coordinator?.searchFocusTrigger = true

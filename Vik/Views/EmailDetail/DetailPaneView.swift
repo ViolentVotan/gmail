@@ -28,7 +28,7 @@ struct DetailPaneView: View {
     let selectionDirection: Edge
     let navigatePrevious: () -> Void
     let navigateNext: () -> Void
-    var switchToCalendar: (() -> Void)?
+    var switchToCalendar: ((CalendarEvent) -> Void)?
 
     /// Resolves the best send-as alias for the given email, falling back to the primary account address.
     /// For outgoing folders (Sent), recipients are outbound contacts — no alias will match, so this
@@ -223,7 +223,7 @@ struct DetailPaneView: View {
         actions.onMessagesRead = { messageIDs in Task { await mailboxViewModel.applyReadLocally(messageIDs) } }
 
         // Calendar context navigation
-        actions.onNavigateToCalendar = switchToCalendar
+        actions.onNavigateToCalendar = { event in switchToCalendar?(event) }
 
         return actions
     }

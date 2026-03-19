@@ -89,7 +89,7 @@ struct CalendarListSidebarView: View {
                 )
             }
 
-            if let link = URL(string: "https://calendar.google.com/calendar/r?cid=\(calendar.id)") {
+            if let link = URL(string: "https://calendar.google.com/calendar/r?cid=\(calendar.calendarId)") {
                 Button {
                     NSWorkspace.shared.open(link)
                 } label: {

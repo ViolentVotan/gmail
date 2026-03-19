@@ -106,6 +106,23 @@ final class AppCoordinator {
         }
     }
 
+    isolated deinit {
+        lifecycleTask?.cancel()
+        markReadTask?.cancel()
+        navigationTask?.cancel()
+        contactsTask?.cancel()
+        cleanupTask?.cancel()
+        accountSwitchTask?.cancel()
+        let engine = syncEngine
+        let calEngine = calendarSyncEngine
+        if engine != nil || calEngine != nil {
+            Task {
+                await engine?.stop()
+                await calEngine?.stop()
+            }
+        }
+    }
+
     // MARK: - Computed Properties
 
     var accountID: String {

@@ -16,10 +16,12 @@ struct CalendarDayView: View {
 
     // MARK: - Private state
 
+    @State private var currentTime: Date = .now
     @State private var scrollProxy: ScrollViewProxy? = nil
     @State private var hoveredHour: Int? = nil
     @State private var cachedAllDayEvents: [CalendarEvent] = []
     @State private var cachedTimedEvents: [CalendarEvent] = []
+    @State private var cachedOverlapGroups: [[CalendarEvent]] = []
 
     private let hours = Array(0..<24)
     private var calendar: Calendar { .current }
@@ -39,6 +41,12 @@ struct CalendarDayView: View {
         .onChange(of: viewModel.events) {
             recomputeEvents()
         }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                currentTime = .now
+            }
+        }
     }
 
     private func recomputeEvents() {
@@ -46,6 +54,7 @@ struct CalendarDayView: View {
         let (allDay, timed) = allEvents.partitioned()
         cachedAllDayEvents = allDay
         cachedTimedEvents = timed
+        cachedOverlapGroups = overlapGroups(for: timed)
     }
 
     // MARK: - All-day header
@@ -118,8 +127,16 @@ struct CalendarDayView: View {
 
                     // Event cards overlaid on the grid
                     GeometryReader { geo in
-                        ForEach(cachedTimedEvents) { event in
-                            dayEventCard(event: event, totalWidth: geo.size.width)
+                        ForEach(0..<cachedOverlapGroups.count, id: \.self) { groupIndex in
+                            let group = cachedOverlapGroups[groupIndex]
+                            ForEach(Array(group.enumerated()), id: \.element.id) { colIndex, event in
+                                dayEventCard(
+                                    event: event,
+                                    colIndex: colIndex,
+                                    colCount: group.count,
+                                    totalWidth: geo.size.width
+                                )
+                            }
                         }
                     }
 
@@ -178,13 +195,17 @@ struct CalendarDayView: View {
 
     // MARK: - Day event card
 
-    private func dayEventCard(event: CalendarEvent, totalWidth: CGFloat) -> some View {
+    private func dayEventCard(
+        event: CalendarEvent,
+        colIndex: Int,
+        colCount: Int,
+        totalWidth: CGFloat
+    ) -> some View {
         let columnWidth = totalWidth - CalendarLayout.timeColumnWidth
         let yOffset = CalendarLayout.yPosition(for: event.startTime)
-        let height = max(
-            CalendarLayout.eventCardMinHeight,
-            CalendarLayout.eventHeight(start: event.startTime, end: event.endTime)
-        )
+        let height = CalendarLayout.eventHeight(start: event.startTime, end: event.endTime, clampToMinHeight: true)
+        let colWidth = (columnWidth - 4) / CGFloat(colCount)
+        let xOffset = CalendarLayout.timeColumnWidth + CGFloat(colIndex) * colWidth + 2
 
         return DayEventCardView(event: event, onSelect: onSelectEvent)
             .contextMenu {
@@ -196,16 +217,15 @@ struct CalendarDayView: View {
                     onEmailAttendees: onEmailAttendees
                 )
             }
-            .frame(width: columnWidth - Spacing.sm * 2)
+            .frame(width: colWidth - 1)
             .frame(height: height)
-            .offset(x: CalendarLayout.timeColumnWidth + Spacing.sm, y: yOffset)
+            .offset(x: xOffset, y: yOffset)
     }
 
     // MARK: - Current time indicator
 
     private var currentTimeIndicator: some View {
-        let now = Date.now
-        let yPos = CalendarLayout.yPosition(for: now)
+        let yPos = CalendarLayout.yPosition(for: currentTime)
         return HStack(spacing: 0) {
             Spacer().frame(width: CalendarLayout.timeColumnWidth - CalendarLayout.currentTimeIndicatorDotSize / 2)
             Circle()
@@ -219,7 +239,9 @@ struct CalendarDayView: View {
                 .frame(height: CalendarLayout.currentTimeIndicatorHeight)
         }
         .offset(y: yPos)
+        .animation(VikAnimation.springGentle, value: currentTime)
         .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
     // MARK: - Helpers
@@ -238,6 +260,29 @@ struct CalendarDayView: View {
         withAnimation(VikAnimation.springGentle) {
             proxy.scrollTo("hour-\(scrollHour)", anchor: .top)
         }
+    }
+
+    /// Groups overlapping timed events into columns for side-by-side layout.
+    private func overlapGroups(for events: [CalendarEvent]) -> [[CalendarEvent]] {
+        let sorted = events.sorted { $0.startTime < $1.startTime }
+        var groups: [[CalendarEvent]] = []
+        var currentGroup: [CalendarEvent] = []
+        var groupEnd: Date = .distantPast
+
+        for event in sorted {
+            if event.startTime < groupEnd {
+                // Overlaps with existing group
+                currentGroup.append(event)
+                if event.endTime > groupEnd { groupEnd = event.endTime }
+            } else {
+                // New non-overlapping group
+                if !currentGroup.isEmpty { groups.append(currentGroup) }
+                currentGroup = [event]
+                groupEnd = event.endTime
+            }
+        }
+        if !currentGroup.isEmpty { groups.append(currentGroup) }
+        return groups
     }
 }
 

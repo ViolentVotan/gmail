@@ -372,7 +372,7 @@ struct ContentView: View {
                     selectionDirection: coordinator.selectionDirection,
                     navigatePrevious: { coordinator.selectPrevious() },
                     navigateNext: { coordinator.selectNextEmail() },
-                    switchToCalendar: { coordinator.switchToCalendar() }
+                    switchToCalendar: { coordinator.navigateToEvent($0) }
                 )
                 .focused($appFocus, equals: .detail)
             }

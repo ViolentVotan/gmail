@@ -100,7 +100,7 @@ struct CalendarEventEditorView: View {
         }
         .background(.regularMaterial)
         .clipShape(.rect(cornerRadius: CornerRadius.lg))
-        .onAppear { populateFromDraft() }
+        .task { populateFromDraft() }
         .interactiveDismissDisabled(hasChanges)
         .confirmationDialog(
             "Discard Changes?",

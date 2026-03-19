@@ -33,15 +33,6 @@ enum MailDatabaseQueries {
         """, arguments: [labelId]) ?? 0
     }
 
-    /// All labels for a message.
-    static func labels(forMessage gmailId: String, in db: Database) throws -> [LabelRecord] {
-        try LabelRecord.fetchAll(db, sql: """
-            SELECT l.* FROM labels l
-            JOIN message_labels ml ON ml.label_id = l.gmail_id
-            WHERE ml.message_id = ?
-        """, arguments: [gmailId])
-    }
-
     /// Messages needing body pre-fetch, newest first.
     /// Excludes messages in Spam or Trash to avoid unnecessary API calls.
     static func messagesNeedingBodies(limit: Int = 50, in db: Database) throws -> [MessageRecord] {
@@ -213,7 +204,7 @@ enum MailDatabaseQueries {
             .fetchAll(db)
     }
 
-    /// Events for today (midnight to midnight UTC), optionally scoped to an account.
+    /// Events for today (midnight to midnight in the system's local time zone), optionally scoped to an account.
     /// Only returns events from visible/selected calendars.
     static func eventsForToday(accountId: String?, in db: Database) throws -> [CalendarEventRecord] {
         let calendar = Calendar(identifier: .gregorian)
@@ -269,19 +260,6 @@ enum MailDatabaseQueries {
         try db.execute(
             sql: "UPDATE calendars SET is_visible = ? WHERE calendar_id = ? AND account_id = ?",
             arguments: [isVisible, calendarId, accountId]
-        )
-    }
-
-    /// Read the sync token for a calendar.
-    static func calendarSyncToken(
-        calendarId: String,
-        accountId: String,
-        in db: Database
-    ) throws -> String? {
-        try String.fetchOne(
-            db,
-            sql: "SELECT sync_token FROM calendars WHERE calendar_id = ? AND account_id = ?",
-            arguments: [calendarId, accountId]
         )
     }
 
