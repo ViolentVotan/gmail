@@ -85,20 +85,29 @@ struct ReplyBarView: View {
                 .padding(.vertical, Spacing.md)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             } else if !quickReplies.isEmpty {
-                quickReplyChips
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            } else if !isExpanded && !smartReplySuggestions.isEmpty {
-                SmartReplyChipsView(suggestions: smartReplySuggestions) { suggestion in
-                    if replyTo.isEmpty {
-                        replyTo = email.sender.email
+                SuggestionChipRow(
+                    suggestions: quickReplies,
+                    icon: .appleIntelligence,
+                    style: .aiGradient
+                ) { suggestion in
+                    let escapedHTML = "<p>\(suggestion.htmlEscaped)</p>"
+                    editorState.setHTML(escapedHTML)
+                    replyHTML = escapedHTML
+                    if !isExpanded {
+                        if replyTo.isEmpty { replyTo = email.sender.email }
+                        loadExistingDraft()
+                        withAnimation(VikAnimation.springSnappy) { isExpanded = true }
                     }
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            } else if !isExpanded && !smartReplySuggestions.isEmpty {
+                SuggestionChipRow(suggestions: smartReplySuggestions) { suggestion in
+                    if replyTo.isEmpty { replyTo = email.sender.email }
                     let html = "<p>\(suggestion.htmlEscaped)</p>"
                     replyHTML = html
                     editorState.setHTML(html)
                     loadExistingDraft()
-                    withAnimation(VikAnimation.springSnappy) {
-                        isExpanded = true
-                    }
+                    withAnimation(VikAnimation.springSnappy) { isExpanded = true }
                     onSmartReplySelect?(suggestion)
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -354,95 +363,6 @@ struct ReplyBarView: View {
             .padding(.vertical, Spacing.md)
         }
         .matchedGeometryEffect(id: "replyBar", in: replyBarNamespace)
-    }
-
-    // MARK: - Apple Intelligence Colors
-
-    private enum AppleIntelligenceColors {
-        static let purple = Color(hex: "#6E6CE8")
-        static let blue = Color(hex: "#54C0F0")
-        static let orange = Color(hex: "#E8754A")
-    }
-
-    // MARK: - Quick Reply Chips
-
-    private var appleIntelligenceGradient: LinearGradient {
-        LinearGradient(
-            colors: [AppleIntelligenceColors.purple, AppleIntelligenceColors.blue, AppleIntelligenceColors.orange],
-            startPoint: .leading,
-            endPoint: .trailing
-        )
-    }
-
-    @State private var visibleChipCount = 0
-    @State private var hoveredChipIndex: Int?
-
-    private var quickReplyChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            GlassEffectContainer {
-                quickReplyChipContent
-            }
-        }
-        .onAppear { animateChips() }
-        .onChange(of: quickReplies) { _, _ in animateChips() }
-    }
-
-    private var quickReplyChipContent: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "apple.intelligence")
-                .font(Typography.subheadRegular)
-                .foregroundStyle(appleIntelligenceGradient)
-                .opacity(visibleChipCount > 0 ? 1 : 0)
-                .scaleEffect(visibleChipCount > 0 ? 1 : 0.5)
-
-            ForEach(Array(quickReplies.enumerated()), id: \.offset) { index, suggestion in
-                Button {
-                    let escapedHTML = "<p>\(suggestion.htmlEscaped)</p>"
-                    editorState.setHTML(escapedHTML)
-                    replyHTML = escapedHTML
-                    if !isExpanded {
-                        if replyTo.isEmpty { replyTo = email.sender.email }
-                        loadExistingDraft()
-                        withAnimation(VikAnimation.springSnappy) { isExpanded = true }
-                    }
-                } label: {
-                    Text(suggestion)
-                        .font(Typography.subheadRegular)
-                        .foregroundStyle(.primary)
-                        .padding(.horizontal, Spacing.md)
-                        .padding(.vertical, Spacing.sm)
-                        .glassEffect(.regular.interactive(), in: .capsule)
-                        .overlay(
-                            Capsule()
-                                .strokeBorder(appleIntelligenceGradient, lineWidth: 1.5)
-                        )
-                }
-                .buttonStyle(.plain)
-                .scaleEffect(reduceMotion ? 1.0 : (hoveredChipIndex == index ? ScaleToken.rowHover : 1.0))
-                .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: hoveredChipIndex)
-                .onHover { hovering in
-                    hoveredChipIndex = hovering ? index : nil
-                }
-                .opacity(index < visibleChipCount ? 1 : 0)
-                .offset(x: index < visibleChipCount ? 0 : 15)
-            }
-        }
-        .padding(.horizontal, Spacing.lg)
-        .padding(.vertical, Spacing.md)
-    }
-
-    private func animateChips() {
-        visibleChipCount = 0
-        guard !quickReplies.isEmpty else { return }
-        if reduceMotion {
-            visibleChipCount = quickReplies.count
-        } else {
-            for i in 0..<quickReplies.count {
-                withAnimation(VikAnimation.springGentle.delay(Double(i) * 0.1)) {
-                    visibleChipCount = i + 1
-                }
-            }
-        }
     }
 
     // MARK: - Actions
