@@ -60,7 +60,9 @@ Vik/
 
 **Patterns:** MVVM with coordinators (`AppCoordinator`, `EmailActionCoordinator`). Dual-mode app: Mail (⌘1) and Calendar (⌘2), switchable via sidebar segmented control. `AppCoordinator` owns both `FullSyncEngine` (email) and `CalendarSyncEngine` (calendar) with adaptive polling. `CalendarBackgroundSyncer` actor handles calendar DB writes (peer to email's `BackgroundSyncer`). `SyncProgressManager` (@Observable, environment-injected) drives an always-visible interactive liquid glass bubble at the sidebar bottom — tappable to trigger manual sync, with linger timers for success/error states, reset on account switch.
 
-**Path-scoped rules** (`.claude/rules/`): `_code-style.md` (Swift conventions, auto-synced from Serena `code_style` memory), `database.md` (Database layer), `testing.md` (tests), `safety.md` (CI/config safety).
+**Path-scoped rules** (`.claude/rules/`): `_code-style.md` (Swift conventions, auto-synced from Serena `code_style` memory), `database.md` (Database layer), `design.md` (UI design), `testing.md` (tests), `safety.md` (CI/config safety).
+
+**Project agent** (`.claude/agents/`): `swift-builder` — background Haiku agent for build/test verification. Dispatch after code changes to confirm compilation and test results without blocking your main context.
 
 ## LSP Tool Routing
 

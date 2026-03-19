@@ -1,5 +1,7 @@
 .DS_STORE
-.claude/*
+.claude/worktrees/
+.claude/.DS_Store
+.claude/settings.local.json
 .xcodebuildmcp/*
 .sourcekit-lsp/
 buildServer.json
