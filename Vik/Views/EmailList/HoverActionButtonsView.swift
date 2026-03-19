@@ -110,6 +110,30 @@ struct HoverActionButtonsView: View {
         role: ButtonRole? = nil,
         action: @escaping () -> Void
     ) -> some View {
+        HoverActionButton(
+            icon: icon,
+            help: help,
+            role: role,
+            actionTrigger: $actionTrigger,
+            action: action
+        )
+    }
+}
+
+// MARK: - Single Hover Button
+
+/// Extracted so each button owns its own `@State` hover tracking.
+private struct HoverActionButton: View {
+    let icon: String
+    let help: String
+    var role: ButtonRole?
+    @Binding var actionTrigger: Bool
+    let action: () -> Void
+
+    @State private var isButtonHovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
         Button(role: role) {
             actionTrigger.toggle()
             action()
@@ -120,6 +144,13 @@ struct HoverActionButtonsView: View {
                 .contentShape(.rect)
         }
         .buttonStyle(.borderless)
+        .background(
+            .primary.opacity(isButtonHovered ? OpacityToken.highlight : 0),
+            in: .rect(cornerRadius: CornerRadius.xs)
+        )
+        .scaleEffect(isButtonHovered ? ScaleToken.hover : 1)
+        .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isButtonHovered)
+        .onHover { isButtonHovered = $0 }
         .help(help)
     }
 }
