@@ -5,6 +5,7 @@ struct AutocompleteTextField: View {
     let placeholder: String
     @Binding var text: String
     let contacts: [StoredContact]
+    var onTab: (() -> Void)? = nil
 
     @State private var isFocused = false
     @State private var highlightedIndex = 0
@@ -56,6 +57,13 @@ struct AutocompleteTextField: View {
             .onKeyPress(.upArrow) {
                 guard showDropdown else { return .ignored }
                 highlightedIndex = max(highlightedIndex - 1, 0)
+                return .handled
+            }
+            .onKeyPress(.tab) {
+                if showDropdown, highlightedIndex < suggestions.count {
+                    selectContact(suggestions[highlightedIndex])
+                }
+                onTab?()
                 return .handled
             }
             .onGeometryChange(for: CGFloat.self) { proxy in

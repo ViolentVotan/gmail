@@ -1,5 +1,4 @@
 import SwiftUI
-import Translation
 
 struct ComposeView: View {
     var mailStore: MailStore
@@ -29,8 +28,6 @@ struct ComposeView: View {
     @State private var selectedAliasEmail: String
     @State private var currentSignatureHTML: String = ""
     @State private var showDiscardAlert = false
-    @State private var showTranslation = false
-    @State private var translationSourceText = ""
     @State private var editorState = WebRichTextEditorState()
     @State private var composeVM: ComposeViewModel
     @State private var sendHapticTrigger = false
@@ -175,20 +172,7 @@ struct ComposeView: View {
         } message: {
             Text("This draft will be permanently deleted.")
         }
-        .onChange(of: editorState.translationRequested) { _, requested in
-            guard requested else { return }
-            editorState.translationRequested = false
-            translationSourceText = bodyHTML.strippingHTML
-            showTranslation = true
-        }
-        .translationPresentation(isPresented: $showTranslation, text: translationSourceText) { translated in
-            guard !translated.isEmpty else { return }
-            let html = translated.split(separator: "\n", omittingEmptySubsequences: false)
-                .map { "<p>\($0)</p>" }
-                .joined()
-            editorState.setHTML(html)
-            bodyHTML = html
-        }
+        .composeTranslation(html: $bodyHTML, editorState: editorState)
         .onDisappear { saveTask?.cancel() }
     }
 
@@ -294,7 +278,7 @@ struct ComposeView: View {
         composeVM.body           = processedHTML
         composeVM.isHTML         = true
         composeVM.inlineImages   = images + editorState.pendingInlineImages
-        composeVM.attachmentURLs = attachments
+        composeVM.attachments = attachments
         return true
     }
 
@@ -315,14 +299,7 @@ struct ComposeView: View {
     // MARK: - File Drop & Attachments
 
     private func handleFileDrop(_ url: URL) {
-        switch composeVM.handleFileDrop(url) {
-        case .image:
-            editorState.insertImage(from: url)
-        case .attachment:
-            attachments.append(url)
-        case .unsupported(let message):
-            composeVM.showToast(message, type: .error)
-        }
+        ComposeFileDropHelper.handle(url: url, composeVM: composeVM, editorState: editorState, attachments: &attachments)
     }
 
     private func attachFiles() {

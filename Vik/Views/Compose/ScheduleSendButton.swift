@@ -18,8 +18,6 @@ struct ScheduleSendButton: View {
                     Text("Send")
                 }
             }
-            .buttonStyle(.glassProminent)
-            .controlSize(.large)
             .help("Send")
             .disabled(isSending)
 
@@ -27,18 +25,15 @@ struct ScheduleSendButton: View {
                 .frame(height: 20)
                 .padding(.horizontal, 2)
 
-            Menu {
-                Button {
-                    showSchedulePicker = true
-                } label: {
-                    Label("Schedule Send", systemImage: "calendar.badge.clock")
-                }
+            Button {
+                showSchedulePicker = true
             } label: {
                 Image(systemName: "chevron.down")
                     .font(Typography.captionSmallRegular)
             }
-            .menuStyle(.borderlessButton)
-            .frame(width: 24)
+            .frame(minWidth: 28, minHeight: 28)
+            .accessibilityLabel("Schedule send options")
+            .accessibilityHint("Opens a picker to schedule when this email will be sent")
             .popover(isPresented: $showSchedulePicker) {
                 SnoozePickerView(title: "Schedule for...") { date in
                     showSchedulePicker = false
@@ -46,5 +41,7 @@ struct ScheduleSendButton: View {
                 }
             }
         }
+        .buttonStyle(.glassProminent)
+        .controlSize(.large)
     }
 }
