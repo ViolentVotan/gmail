@@ -394,6 +394,8 @@ struct EmailListView: View {
             email: email,
             isSelected: selectedEmailIDs.contains(email.id.uuidString),
             accountID: accountID,
+            selectedFolder: selectedFolder,
+            isMultiSelect: selectedEmailIDs.count > 1,
             action: { handleTap(email: email) },
             entranceIndex: entranceIndex
         )
@@ -500,6 +502,13 @@ struct EmailListView: View {
             }
         }
         .listStyle(.plain)
+        .environment(\.emailHoverActions, EmailHoverActions(
+            onArchive: actions.onArchive,
+            onDelete: actions.onDelete,
+            onSnooze: actions.onSnooze,
+            onMarkRead: actions.onMarkRead,
+            onMarkUnread: actions.onMarkUnread
+        ))
         .scrollPosition($scrollPosition)
         .id(selectedFolder)
         .onChange(of: selectedFolder) {

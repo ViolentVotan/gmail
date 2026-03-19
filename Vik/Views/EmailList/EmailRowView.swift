@@ -4,6 +4,8 @@ struct EmailRowView: View, Equatable {
     let email: Email
     let isSelected: Bool
     let accountID: String
+    let selectedFolder: Folder
+    var isMultiSelect = false
     let action: () -> Void
     var entranceIndex: Int = 0
     @State private var isHovered = false
@@ -27,13 +29,27 @@ struct EmailRowView: View, Equatable {
     /// Equatable conformance compares only the data that affects visual output.
     /// Closures are excluded — they capture the same email context when equal.
     static func == (lhs: EmailRowView, rhs: EmailRowView) -> Bool {
-        lhs.email == rhs.email && lhs.isSelected == rhs.isSelected && lhs.accountID == rhs.accountID
+        lhs.email == rhs.email
+            && lhs.isSelected == rhs.isSelected
+            && lhs.accountID == rhs.accountID
+            && lhs.selectedFolder == rhs.selectedFolder
+            && lhs.isMultiSelect == rhs.isMultiSelect
     }
 
-    init(email: Email, isSelected: Bool, accountID: String, action: @escaping () -> Void, entranceIndex: Int = 0) {
+    init(
+        email: Email,
+        isSelected: Bool,
+        accountID: String,
+        selectedFolder: Folder,
+        isMultiSelect: Bool = false,
+        action: @escaping () -> Void,
+        entranceIndex: Int = 0
+    ) {
         self.email = email
         self.isSelected = isSelected
         self.accountID = accountID
+        self.selectedFolder = selectedFolder
+        self.isMultiSelect = isMultiSelect
         self.action = action
         self.entranceIndex = entranceIndex
 
@@ -233,6 +249,15 @@ struct EmailRowView: View, Equatable {
             .contentShape(Rectangle())
         }
         .buttonStyle(PressTrackingStyle(isPressed: $isPressed))
+        .overlay(alignment: .trailing) {
+            if !isMultiSelect {
+                HoverActionButtonsView(
+                    email: email,
+                    isHovered: isHovered,
+                    selectedFolder: selectedFolder
+                )
+            }
+        }
         .glassEffect(
             isSelected || isHovered ? .regular.interactive() : .identity,
             in: .rect(cornerRadius: CornerRadius.sm)
