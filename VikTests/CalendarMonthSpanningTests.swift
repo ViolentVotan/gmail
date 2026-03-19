@@ -16,6 +16,7 @@ struct CalendarMonthSpanningTests {
         color: Color = .blue
     ) -> CalendarEvent {
         CalendarEvent(
+            id: "a_c_\(id)",
             googleEventId: id,
             calendarId: "c",
             accountID: "a",

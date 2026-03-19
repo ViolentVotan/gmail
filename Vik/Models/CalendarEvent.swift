@@ -12,7 +12,7 @@ enum CalendarRSVPStatus: String, Sendable, Codable {
 
 struct CalendarEvent: Identifiable, Sendable, Equatable {
     /// Synthetic unique ID: "\(accountID)_\(calendarId)_\(googleEventId)"
-    var id: String { "\(accountID)_\(calendarId)_\(googleEventId)" }
+    let id: String
     let googleEventId: String
     let calendarId: String
     let accountID: String
@@ -43,6 +43,20 @@ struct CalendarEvent: Identifiable, Sendable, Equatable {
 
     enum EventStatus: String, Sendable { case confirmed, tentative, cancelled }
     enum EventType: String, Sendable { case `default`, birthday, focusTime, fromGmail, outOfOffice, workingLocation }
+
+    static func == (lhs: CalendarEvent, rhs: CalendarEvent) -> Bool {
+        lhs.googleEventId == rhs.googleEventId &&
+        lhs.calendarId == rhs.calendarId &&
+        lhs.accountID == rhs.accountID &&
+        lhs.summary == rhs.summary &&
+        lhs.startTime == rhs.startTime &&
+        lhs.endTime == rhs.endTime &&
+        lhs.isAllDay == rhs.isAllDay &&
+        lhs.status == rhs.status &&
+        lhs.selfResponseStatus == rhs.selfResponseStatus &&
+        lhs.colorId == rhs.colorId &&
+        lhs.etag == rhs.etag
+    }
 }
 
 // MARK: - Supporting Types
@@ -80,7 +94,7 @@ struct EventAttachment: Sendable, Equatable {
 // MARK: - Calendar Info
 
 struct CalendarInfo: Identifiable, Sendable, Equatable {
-    var id: String { "\(accountID)_\(calendarId)" }
+    let id: String
     let calendarId: String
     let accountID: String
     let summary: String
@@ -116,6 +130,8 @@ enum AppViewMode: String, Sendable { case mail, calendar }
 // MARK: - Record → Domain Conversions
 
 extension CalendarEventRecord {
+    private static let jsonDecoder = JSONDecoder()
+
     /// Converts a database record + attendee records into a domain `CalendarEvent`.
     /// The `calendarColor` is used as fallback when the event has no `colorId`.
     func toCalendarEvent(attendees: [CalendarAttendeeRecord], calendarColor: Color) -> CalendarEvent {
@@ -127,7 +143,7 @@ extension CalendarEventRecord {
 
         let reminders: [EventReminder] = if let remindersJson,
             let data = remindersJson.data(using: .utf8),
-            let parsed = try? JSONDecoder().decode([ReminderJSON].self, from: data) {
+            let parsed = try? Self.jsonDecoder.decode([ReminderJSON].self, from: data) {
             parsed.map { EventReminder(
                 method: EventReminder.ReminderMethod(rawValue: $0.method) ?? .popup,
                 minutes: $0.minutes
@@ -138,7 +154,7 @@ extension CalendarEventRecord {
 
         let attachments: [EventAttachment] = if let attachmentsJson,
             let data = attachmentsJson.data(using: .utf8),
-            let parsed = try? JSONDecoder().decode([AttachmentJSON].self, from: data) {
+            let parsed = try? Self.jsonDecoder.decode([AttachmentJSON].self, from: data) {
             parsed.map { EventAttachment(
                 title: $0.title ?? "",
                 fileURL: $0.fileUrl.flatMap { URL(string: $0) },
@@ -164,6 +180,7 @@ extension CalendarEventRecord {
         }
 
         return CalendarEvent(
+            id: "\(accountId)_\(calendarId)_\(eventId)",
             googleEventId: eventId,
             calendarId: calendarId,
             accountID: accountId,
@@ -211,6 +228,7 @@ extension CalendarAttendeeRecord {
 extension CalendarRecord {
     func toCalendarInfo() -> CalendarInfo {
         CalendarInfo(
+            id: "\(accountId)_\(calendarId)",
             calendarId: calendarId,
             accountID: accountId,
             summary: summary,

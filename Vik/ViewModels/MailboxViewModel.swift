@@ -77,7 +77,7 @@ private func mutateLabels(
 final class MailboxViewModel {
     var isLoading      = false
     var labels:        [GmailLabel] = []
-    var userLabels: [GmailLabel] { labels.filter { !$0.isSystemLabel } }
+    private(set) var userLabels: [GmailLabel] = []
     var sendAsAliases:         [GmailSendAs] = []
     var categoryUnreadCounts:  [InboxCategory: Int] = [:]
     /// Set by `restoreLabelsInDatabase` so the UI can re-select the restored email.
@@ -335,6 +335,7 @@ final class MailboxViewModel {
     func loadLabels() async {
         let result = await labelService.loadLabels(accountID: accountID, currentLabels: labels)
         labels = result.labels
+        userLabels = labels.filter { !$0.isSystemLabel }
         if result.error != nil {
             ToastManager.shared.show(message: "Failed to load labels", type: .error)
         }
@@ -356,12 +357,19 @@ final class MailboxViewModel {
                                       labelListVisibility: label.labelListVisibility,
                                       messageListVisibility: label.messageListVisibility)
             labels[idx] = updated
+            userLabels = labels.filter { !$0.isSystemLabel }
         }
         do {
             let fresh = try await GmailLabelService.shared.updateLabel(id: label.id, newName: newName, accountID: accountID)
-            if let idx = labels.firstIndex(where: { $0.id == fresh.id }) { labels[idx] = fresh }
+            if let idx = labels.firstIndex(where: { $0.id == fresh.id }) {
+                labels[idx] = fresh
+                userLabels = labels.filter { !$0.isSystemLabel }
+            }
         } catch {
-            if let idx = labels.firstIndex(where: { $0.id == label.id }) { labels[idx] = label }
+            if let idx = labels.firstIndex(where: { $0.id == label.id }) {
+                labels[idx] = label
+                userLabels = labels.filter { !$0.isSystemLabel }
+            }
             ToastManager.shared.show(message: "Failed to rename label", type: .error)
         }
     }
@@ -369,6 +377,7 @@ final class MailboxViewModel {
     func deleteLabel(_ label: GmailLabel) async {
         let backup = labels
         labels.removeAll { $0.id == label.id }
+        userLabels = labels.filter { !$0.isSystemLabel }
         do {
             try await GmailLabelService.shared.deleteLabel(id: label.id, accountID: accountID)
             _ = try? await mailDatabase?.dbPool.write { db in
@@ -376,6 +385,7 @@ final class MailboxViewModel {
             }
         } catch {
             labels = backup
+            userLabels = labels.filter { !$0.isSystemLabel }
             ToastManager.shared.show(message: "Failed to delete label", type: .error)
         }
     }

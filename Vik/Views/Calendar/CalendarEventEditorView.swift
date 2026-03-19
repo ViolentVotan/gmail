@@ -766,6 +766,7 @@ private struct RecurringScopeButton: View {
     @Previewable @State var draft: EventEditDraft? = nil
     let calendars = [
         CalendarInfo(
+            id: "user@example.com_primary",
             calendarId: "primary",
             accountID: "user@example.com",
             summary: "My Calendar",
@@ -791,6 +792,7 @@ private struct RecurringScopeButton: View {
 #Preview("Edit Event") {
     @Previewable @State var draft: EventEditDraft? = {
         let event = CalendarEvent(
+            id: "user@example.com_primary_edit-1",
             googleEventId: "edit-1",
             calendarId: "primary",
             accountID: "user@example.com",
@@ -823,6 +825,7 @@ private struct RecurringScopeButton: View {
     }()
     let previewCalendars = [
         CalendarInfo(
+            id: "user@example.com_primary",
             calendarId: "primary",
             accountID: "user@example.com",
             summary: "My Calendar",

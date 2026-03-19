@@ -77,6 +77,7 @@ struct CalendarEventCard: View {
 
 #Preview {
     let event = CalendarEvent(
+        id: "test_primary_1",
         googleEventId: "1",
         calendarId: "primary",
         accountID: "test",

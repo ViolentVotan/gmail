@@ -147,6 +147,7 @@ struct MiniAgendaWidget: View {
     let now = Date()
     let events: [CalendarEvent] = [
         CalendarEvent(
+            id: "test_primary_1",
             googleEventId: "1",
             calendarId: "primary",
             accountID: "test",
@@ -176,6 +177,7 @@ struct MiniAgendaWidget: View {
             attachments: []
         ),
         CalendarEvent(
+            id: "test_primary_2",
             googleEventId: "2",
             calendarId: "primary",
             accountID: "test",

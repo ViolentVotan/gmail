@@ -20,6 +20,20 @@ final class CalendarViewModel {
     /// Set of composite IDs ("\(accountID)\u{001F}\(calendarId)") using Unit Separator for unified multi-account view.
     var visibleCalendarIDs: Set<String> = []
 
+    /// Cached week interval for the current `selectedDate`. Updated whenever `selectedDate` changes.
+    private(set) var selectedWeek: DateInterval = {
+        let cal = Calendar.current
+        let now = Date.now
+        return cal.dateInterval(of: .weekOfYear, for: now)
+            ?? DateInterval(start: cal.startOfDay(for: now), end: cal.startOfDay(for: now).addingTimeInterval(7 * 86400))
+    }()
+
+    /// Events grouped by start-of-day key. Updated whenever `events` changes.
+    private(set) var eventsByDay: [Date: [CalendarEvent]] = [:]
+
+    /// Events spanning more than one calendar day (multi-day or all-day). Updated whenever `events` changes.
+    private(set) var multiDayEvents: [CalendarEvent] = []
+
     /// Called after any successful event mutation (create, update, delete, RSVP, quick-add).
     @ObservationIgnored var onEventMutated: (() async -> Void)?
 
@@ -96,6 +110,7 @@ final class CalendarViewModel {
         }
         guard !calendarKeys.isEmpty else {
             events = []
+            recomputeEventCaches()
             return
         }
         let start = dateRange.start.timeIntervalSince1970
@@ -118,6 +133,7 @@ final class CalendarViewModel {
                         try? await Task.sleep(for: .milliseconds(50))
                         guard !Task.isCancelled, let self else { return }
                         self.events = await self.enrichRecords(records)
+                        self.recomputeEventCaches()
                     }
                 }
             } catch {
@@ -145,6 +161,7 @@ final class CalendarViewModel {
         case .agenda:
             selectedDate = calendar.date(byAdding: .weekOfYear, value: 1, to: selectedDate) ?? selectedDate
         }
+        recomputeSelectedWeek()
         refreshObservation()
     }
 
@@ -160,16 +177,19 @@ final class CalendarViewModel {
         case .agenda:
             selectedDate = calendar.date(byAdding: .weekOfYear, value: -1, to: selectedDate) ?? selectedDate
         }
+        recomputeSelectedWeek()
         refreshObservation()
     }
 
     func goToToday() {
         selectedDate = .now
+        recomputeSelectedWeek()
         refreshObservation()
     }
 
     func selectDate(_ date: Date) {
         selectedDate = date
+        recomputeSelectedWeek()
         refreshObservation()
     }
 
@@ -378,48 +398,37 @@ final class CalendarViewModel {
 
     // MARK: - Helpers
 
-    var selectedWeek: DateInterval {
-        let calendar = Calendar.current
-        guard let interval = calendar.dateInterval(of: .weekOfYear, for: selectedDate) else {
-            let start = calendar.startOfDay(for: selectedDate)
-            return DateInterval(start: start, end: start.addingTimeInterval(7 * 86400))
-        }
-        return interval
-    }
-
     func eventsForDay(_ date: Date) -> [CalendarEvent] {
-        let calendar = Calendar.current
-        let start = calendar.startOfDay(for: date)
-        let end = calendar.date(byAdding: .day, value: 1, to: start)!
-        return events.filter { $0.startTime < end && $0.endTime > start }
+        let start = Calendar.current.startOfDay(for: date)
+        return eventsByDay[start] ?? []
     }
 
-    /// Pre-grouped events by day (start-of-day key) for efficient month view rendering.
-    /// Avoids calling eventsForDay(_:) 42 times with O(n) filter each.
-    var eventsByDay: [Date: [CalendarEvent]] {
+    // MARK: - Private
+
+    private func recomputeSelectedWeek() {
+        let cal = Calendar.current
+        selectedWeek = cal.dateInterval(of: .weekOfYear, for: selectedDate)
+            ?? DateInterval(start: cal.startOfDay(for: selectedDate), end: cal.startOfDay(for: selectedDate).addingTimeInterval(7 * 86400))
+    }
+
+    private func recomputeEventCaches() {
         let cal = Calendar.current
         var dict: [Date: [CalendarEvent]] = [:]
+        var multiDay: [CalendarEvent] = []
         for event in events {
-            // For multi-day events, add to each day they span.
             var day = cal.startOfDay(for: event.startTime)
             let endDay = cal.startOfDay(for: event.endTime)
             while day <= endDay {
                 dict[day, default: []].append(event)
                 day = cal.date(byAdding: .day, value: 1, to: day)!
             }
+            if event.isAllDay || cal.startOfDay(for: event.startTime) != cal.startOfDay(for: event.endTime) {
+                multiDay.append(event)
+            }
         }
-        return dict
+        eventsByDay = dict
+        multiDayEvents = multiDay
     }
-
-    /// Events spanning more than one calendar day (multi-day or all-day spanning).
-    var multiDayEvents: [CalendarEvent] {
-        let cal = Calendar.current
-        return events.filter { event in
-            event.isAllDay || cal.startOfDay(for: event.startTime) != cal.startOfDay(for: event.endTime)
-        }
-    }
-
-    // MARK: - Private
 
     /// The date range for the current view mode, used to scope the DB query.
     private var currentDateRange: DateInterval {

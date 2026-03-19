@@ -495,6 +495,7 @@ private struct ActionBarButton: View {
 
 #Preview {
     let event = CalendarEvent(
+        id: "user@example.com_primary_preview-1",
         googleEventId: "preview-1",
         calendarId: "primary",
         accountID: "user@example.com",
