@@ -8,6 +8,14 @@ struct SnoozePreset: Identifiable {
     let icon: String
     let date: Date
 
+    /// Tomorrow at 8:00 AM — default snooze target for hover quick-action.
+    static var tomorrowMorning: Date {
+        let calendar = Calendar.current
+        let now = Date()
+        guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) else { return now }
+        return calendar.date(bySettingHour: 8, minute: 0, second: 0, of: tomorrow) ?? tomorrow
+    }
+
     static func defaults() -> [SnoozePreset] {
         let calendar = Calendar.current
         let now = Date()
@@ -19,11 +27,6 @@ struct SnoozePreset: Identifiable {
             } else {
                 return calendar.date(bySettingHour: 18, minute: 0, second: 0, of: now) ?? now
             }
-        }()
-
-        let tomorrowMorning: Date = {
-            guard let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) else { return now }
-            return calendar.date(bySettingHour: 8, minute: 0, second: 0, of: tomorrow) ?? tomorrow
         }()
 
         let nextMonday: Date = {
