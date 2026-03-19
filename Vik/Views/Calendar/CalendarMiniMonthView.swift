@@ -146,7 +146,7 @@ struct CalendarMiniMonthView: View {
         .onHover { hovering in
             hoveredDate = hovering ? date : nil
         }
-        .animation(.snappy(duration: 0.2), value: isHovered)
+        .animation(VikAnimation.hoverFeedback, value: isHovered)
         .accessibilityLabel(date.formatted(date: .complete, time: .omitted))
         .accessibilityAddTraits(isToday ? [.isButton, .isSelected] : .isButton)
         .accessibilityHidden(!isInCurrentMonth)

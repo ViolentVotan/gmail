@@ -268,7 +268,7 @@ struct EmailDetailView: View {
                 .zIndex(1)
 
                 if !labelSuggestions.isEmpty {
-                    ForEach(labelSuggestions, id: \.name) { suggestion in
+                    ForEach(Array(labelSuggestions.enumerated()), id: \.element.name) { index, suggestion in
                         Button {
                             applyLabelSuggestion(suggestion)
                         } label: {
@@ -285,7 +285,10 @@ struct EmailDetailView: View {
                             .clipShape(Capsule())
                         }
                         .buttonStyle(.plain)
-                        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                        .transition(
+                            .opacity.combined(with: .scale(scale: 0.9))
+                                .animation(VikAnimation.springSnappy.delay(Double(min(index, 8)) * DurationToken.stagger))
+                        )
                     }
                     .animation(VikAnimation.springSnappy, value: labelSuggestions.map(\.name))
                 }

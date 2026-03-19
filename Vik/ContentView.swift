@@ -22,6 +22,7 @@ struct ContentView: View {
 
     @FocusState private var appFocus: AppFocus?
     @Namespace private var commandPaletteNamespace
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var sidebarWidth: CGFloat { isSidebarCollapsed ? 64 : 240 }
 
@@ -192,7 +193,7 @@ struct ContentView: View {
                         ))
                 }
             }
-            .animation(VikAnimation.folderSwitch, value: coordinator.viewMode)
+            .animation(reduceMotion ? nil : VikAnimation.folderSwitch, value: coordinator.viewMode)
             .environment(coordinator.syncProgressManager)
             .windowResizeAnchor(.top)
             .onChange(of: columnVisibility) { _, newValue in
@@ -394,6 +395,7 @@ struct ContentView: View {
             .buttonStyle(.glass)
             .help("Toggle Sidebar (⌘\\)")
             .keyboardShortcut("\\", modifiers: .command)
+            .sensoryFeedback(.impact(flexibility: .soft), trigger: isSidebarCollapsed)
         }
 
         if !coordinator.panelCoordinator.isAnyOpen {

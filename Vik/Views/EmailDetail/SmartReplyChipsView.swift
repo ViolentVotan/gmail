@@ -5,6 +5,7 @@ struct SmartReplyChipsView: View {
     let onSelect: (String) -> Void
 
     @State private var hasAppeared = false
+    @State private var hoveredChipIndex: Int?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -45,6 +46,11 @@ struct SmartReplyChipsView: View {
                         .foregroundStyle(.primary)
                 }
                 .buttonStyle(.plain)
+                .scaleEffect(reduceMotion ? 1.0 : (hoveredChipIndex == index ? ScaleToken.rowHover : 1.0))
+                .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: hoveredChipIndex)
+                .onHover { hovering in
+                    hoveredChipIndex = hovering ? index : nil
+                }
                 .help(suggestion)
                 .modifier(StaggeredChipEntrance(index: index, hasAppeared: hasAppeared, reduceMotion: reduceMotion))
             }

@@ -36,6 +36,7 @@ struct ReplyBarView: View {
     @State private var showBcc = false
     @State private var cachedStrippedText = ""
     @State private var isEditorFocused = false
+    @State private var sendHapticTrigger = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var replyBarNamespace
     init(
@@ -313,6 +314,7 @@ struct ReplyBarView: View {
                     }
                     .buttonStyle(.glass)
                     .controlSize(.large)
+                    .help("Discard")
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
 
                     ScheduleSendButton(
@@ -322,6 +324,7 @@ struct ReplyBarView: View {
                     )
                     .disabled(composeVM.isSending)
                     .keyboardShortcut(.return, modifiers: .command)
+                    .sensoryFeedback(.success, trigger: sendHapticTrigger)
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
                 }
             }
@@ -350,6 +353,7 @@ struct ReplyBarView: View {
     }
 
     @State private var visibleChipCount = 0
+    @State private var hoveredChipIndex: Int?
 
     private var quickReplyChips: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -392,6 +396,11 @@ struct ReplyBarView: View {
                         )
                 }
                 .buttonStyle(.plain)
+                .scaleEffect(reduceMotion ? 1.0 : (hoveredChipIndex == index ? ScaleToken.rowHover : 1.0))
+                .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: hoveredChipIndex)
+                .onHover { hovering in
+                    hoveredChipIndex = hovering ? index : nil
+                }
                 .opacity(index < visibleChipCount ? 1 : 0)
                 .offset(x: index < visibleChipCount ? 0 : 15)
             }
@@ -445,6 +454,7 @@ struct ReplyBarView: View {
     private func sendReply() async {
         sendError = nil
         saveTask?.cancel()
+        sendHapticTrigger.toggle()
 
         await composeVM.sendReplyMessage(
             replyHTML: replyHTML,

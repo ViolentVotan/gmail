@@ -24,6 +24,7 @@ struct SidebarView: View {
     var onNewEvent: (() -> Void)?
 
     @Environment(SyncProgressManager.self) private var syncProgress
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("showDebugMenu") private var showDebugMenu = false
 
     @State private var labelToRename: GmailLabel?
@@ -45,7 +46,7 @@ struct SidebarView: View {
                     .transition(.opacity.animation(.smooth(duration: DurationToken.deliberate).delay(DurationToken.micro)))
             }
         }
-        .animation(VikAnimation.springDefault, value: isCollapsed)
+        .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isCollapsed)
         .alert("Rename Label", isPresented: Binding(
             get: { labelToRename != nil },
             set: { if !$0 { labelToRename = nil } }
@@ -86,13 +87,19 @@ struct SidebarView: View {
             Group {
                 if coordinator.viewMode == .calendar {
                     calendarSidebarContent
-                        .transition(.opacity.combined(with: .offset(y: OffsetToken.nudge)))
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .offset(y: OffsetToken.nudge)),
+                            removal: .opacity.combined(with: .offset(y: -OffsetToken.nudge))
+                        ))
                 } else {
                     sidebarList
-                        .transition(.opacity.combined(with: .offset(y: -OffsetToken.nudge)))
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .offset(y: -OffsetToken.nudge)),
+                            removal: .opacity.combined(with: .offset(y: OffsetToken.nudge))
+                        ))
                 }
             }
-            .animation(VikAnimation.folderSwitch, value: coordinator.viewMode)
+            .animation(reduceMotion ? nil : VikAnimation.folderSwitch, value: coordinator.viewMode)
         }
     }
 
@@ -150,6 +157,7 @@ struct SidebarView: View {
             isActive ? .regular.interactive() : .identity,
             in: .capsule
         )
+        .sensoryFeedback(.impact(flexibility: .solid, intensity: 0.5), trigger: isActive)
         .accessibilityLabel(label)
         .accessibilityAddTraits(isActive ? [.isButton, .isSelected] : .isButton)
     }
@@ -247,8 +255,9 @@ struct SidebarView: View {
             isSelected || isHovered ? .regular.interactive() : .identity,
             in: .rect(cornerRadius: CornerRadius.sm)
         )
-        .animation(.snappy(duration: 0.2), value: isHovered)
-        .animation(.snappy(duration: 0.2), value: isSelected)
+        .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
+        .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isSelected)
+        .sensoryFeedback(.selection, trigger: isSelected)
         .onHover { hovering in
             if hovering {
                 hoveredFolder = folder

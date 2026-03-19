@@ -20,6 +20,7 @@ struct ScheduleSendButton: View {
             }
             .buttonStyle(.glassProminent)
             .controlSize(.large)
+            .help("Send")
             .disabled(isSending)
 
             Divider()

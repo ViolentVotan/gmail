@@ -5,6 +5,7 @@ struct CategoryTabBar: View {
     let unreadCounts: [InboxCategory: Int]
     @State private var hoveredCategory: InboxCategory?
     @Namespace private var tabNamespace
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         tabBarContent
@@ -22,7 +23,7 @@ struct CategoryTabBar: View {
         }
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.sm)
-        .animation(VikAnimation.springSnappy, value: selectedCategory)
+        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: selectedCategory)
     }
 
     private func categoryTab(_ category: InboxCategory) -> some View {
@@ -63,14 +64,17 @@ struct CategoryTabBar: View {
             isSelected || isHovered ? .regular.interactive() : .identity,
             in: .capsule
         )
-        .animation(.snappy(duration: 0.2), value: isSelected)
-        .animation(.snappy(duration: 0.2), value: isHovered)
+        .scaleEffect(reduceMotion ? 1.0 : (isHovered && !isSelected ? ScaleToken.rowHover : 1.0))
+        .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isSelected)
+        .sensoryFeedback(.selection, trigger: isSelected)
+        .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
         .onHover { hovering in
             hoveredCategory = hovering ? category : nil
         }
         .foregroundStyle(isSelected ? Color.accentColor : .secondary)
         .accessibilityLabel(category.displayName)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .help(category.displayName)
     }
 }
 

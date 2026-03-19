@@ -19,6 +19,7 @@ struct ThreadMessageCardView: View {
     @State private var contentHeight: CGFloat = 60
     @State private var isHTMLLoaded = false
     @State private var isHovering = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let sender: Contact
     private let isSentByMe: Bool
@@ -129,7 +130,7 @@ struct ThreadMessageCardView: View {
             isExpanded || isHovering ? .regular.interactive() : .identity,
             in: .rect(cornerRadius: CornerRadius.sm)
         )
-        .animation(.snappy(duration: 0.2), value: isHovering)
+        .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovering)
         .overlay(alignment: .leading) {
             if isSentByMe {
                 Rectangle()

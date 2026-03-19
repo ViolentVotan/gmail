@@ -57,9 +57,12 @@ struct DetailPaneView: View {
         }
     }
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
     private func softDirectionalTransition(from edge: Edge) -> AnyTransition {
+        guard !reduceMotion else { return .opacity }
         let yOffset: CGFloat = edge == .bottom ? OffsetToken.small : -OffsetToken.small
         return .asymmetric(
             insertion: .opacity.combined(with: .offset(y: yOffset)),
@@ -93,8 +96,8 @@ struct DetailPaneView: View {
                     .transition(.opacity.combined(with: .scale(scale: ScaleToken.enterFrom)))
             }
         }
-        .animation(VikAnimation.contentSwitch, value: selectedEmail?.id)
-        .animation(VikAnimation.contentSwitch, value: isMultiSelect)
+        .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: selectedEmail?.id)
+        .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: isMultiSelect)
         .navigationSplitViewColumnWidth(min: 500, ideal: 700)
     }
 

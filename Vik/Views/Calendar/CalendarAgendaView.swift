@@ -8,6 +8,7 @@ struct CalendarAgendaView: View {
 
     @Bindable var viewModel: CalendarViewModel
     let onSelectEvent: (CalendarEvent) -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var groupedDays: [(date: Date, events: [CalendarEvent])] = []
 
@@ -34,12 +35,17 @@ struct CalendarAgendaView: View {
             }
             .padding(.bottom, Spacing.xxl)
         }
-        .animation(VikAnimation.contentSwitch, value: viewModel.selectedDate)
+        .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: viewModel.selectedDate)
         .task(id: viewModel.selectedDate) {
             recomputeGroupedDays()
         }
         .onChange(of: viewModel.events) {
             recomputeGroupedDays()
+        }
+        .accessibilityRotor("Today's Events") {
+            ForEach(viewModel.events.filter { Calendar.current.isDateInToday($0.startTime) }) { event in
+                AccessibilityRotorEntry(event.summary, id: event.id)
+            }
         }
     }
 
@@ -140,6 +146,7 @@ private struct AgendaEventRow: View {
     let onSelect: (CalendarEvent) -> Void
 
     @State private var isHovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var isPast: Bool {
         event.endTime < .now && !Calendar.current.isDateInToday(event.startTime)
@@ -206,8 +213,8 @@ private struct AgendaEventRow: View {
                     )
             )
             .opacity(isPast ? OpacityToken.secondary : 1.0)
-            .scaleEffect(isHovered ? ScaleToken.hover : 1.0)
-            .animation(VikAnimation.springSnappy, value: isHovered)
+            .scaleEffect(reduceMotion ? 1.0 : (isHovered ? ScaleToken.hover : 1.0))
+            .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isHovered)
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }

@@ -104,6 +104,8 @@ enum VikAnimation {
     static let folderSwitch = Animation.smooth(duration: 0.3)
     /// Micro-interaction — quick spring bounce for toggles (star, read).
     static let microBounce = Animation.spring(duration: 0.25, bounce: 0.35)
+    /// Hover/selection feedback — ultra-responsive spring for interactive state changes.
+    static let hoverFeedback = Animation.snappy(duration: 0.2)
 }
 
 // MARK: - Opacity Tokens

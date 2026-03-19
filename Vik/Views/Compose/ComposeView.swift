@@ -33,6 +33,7 @@ struct ComposeView: View {
     @State private var translationSourceText = ""
     @State private var editorState = WebRichTextEditorState()
     @State private var composeVM: ComposeViewModel
+    @State private var sendHapticTrigger = false
 
     init(
         mailStore: MailStore,
@@ -299,6 +300,7 @@ struct ComposeView: View {
 
     private func sendEmail() async {
         guard prepareForSend() else { return }
+        sendHapticTrigger.toggle()
         await composeVM.send()
         // send() returns immediately after scheduling the undo action.
         // Dismissal and error handling are driven by onChange(of: composeVM.isSent)
@@ -402,6 +404,7 @@ struct ComposeView: View {
             .keyboardShortcut(.return, modifiers: .command)
             .accessibilityLabel("Send")
             .accessibilityHint("Sends the email. Use the dropdown to schedule.")
+            .sensoryFeedback(.success, trigger: sendHapticTrigger)
         }
         .padding(.horizontal, Spacing.xl)
         .padding(.vertical, Spacing.md)

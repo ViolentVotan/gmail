@@ -109,6 +109,7 @@ struct CalendarHeaderView: View {
                         isSelected ? .regular.interactive() : .identity,
                         in: .capsule
                     )
+                    .help("\(mode.label) view")
                     .accessibilityLabel("\(mode.label) view")
                     .accessibilityAddTraits(isSelected ? .isSelected : [])
                 }

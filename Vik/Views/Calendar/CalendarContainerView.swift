@@ -15,6 +15,7 @@ struct CalendarContainerView: View {
     var composeTo: ((String) -> Void)?
     var searchSender: ((String) -> Void)?
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var previousViewMode: CalendarViewMode = .week
 
     var body: some View {
@@ -48,7 +49,7 @@ struct CalendarContainerView: View {
                     .transition(directionalTransition(for: .agenda))
                 }
             }
-            .animation(VikAnimation.contentSwitch, value: viewModel.viewMode)
+            .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: viewModel.viewMode)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
             .onChange(of: viewModel.viewMode) { old, _ in
@@ -85,6 +86,7 @@ struct CalendarContainerView: View {
     /// Returns an asymmetric slide+fade transition based on the navigation direction.
     /// Moving forward (week→day, day→agenda) slides left; backward slides right.
     private func directionalTransition(for mode: CalendarViewMode) -> AnyTransition {
+        guard !reduceMotion else { return .opacity }
         let isForward = modeIndex(mode) > modeIndex(previousViewMode)
         let insertOffset: CGFloat = isForward ? OffsetToken.small : -OffsetToken.small
         let removeOffset: CGFloat = isForward ? -OffsetToken.small : OffsetToken.small

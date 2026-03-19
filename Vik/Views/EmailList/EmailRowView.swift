@@ -7,6 +7,7 @@ struct EmailRowView: View, Equatable {
     let action: () -> Void
     var entranceIndex: Int = 0
     @State private var isHovered = false
+    @State private var isPressed = false
     @State private var hasAppeared = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("emailDensity") private var density = "comfortable"
@@ -160,7 +161,7 @@ struct EmailRowView: View, Equatable {
                     }
 
                     Text(email.subject)
-                        .font(Typography.subheadRegular)
+                        .font(Typography.callout)
                         .foregroundStyle(email.isRead ? .secondary : .primary)
                         .lineLimit(1)
 
@@ -218,6 +219,7 @@ struct EmailRowView: View, Equatable {
                             .foregroundStyle(.tertiary)
                     }
                 }
+                .sensoryFeedback(.impact(flexibility: .soft), trigger: email.isStarred)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, verticalPadding)
@@ -230,14 +232,15 @@ struct EmailRowView: View, Equatable {
             .padding(.horizontal, 8)
             .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressTrackingStyle(isPressed: $isPressed))
         .glassEffect(
             isSelected || isHovered ? .regular.interactive() : .identity,
             in: .rect(cornerRadius: CornerRadius.sm)
         )
-        .scaleEffect(isHovered && !isSelected ? ScaleToken.rowHover : 1.0, anchor: .center)
-        .animation(.snappy(duration: 0.2), value: isHovered)
-        .animation(.snappy(duration: 0.2), value: isSelected)
+        .sensoryFeedback(.selection, trigger: isSelected)
+        .scaleEffect(isPressed ? ScaleToken.press : (isHovered && !isSelected ? ScaleToken.rowHover : 1.0), anchor: .center)
+        .animation(VikAnimation.hoverFeedback, value: isHovered)
+        .animation(VikAnimation.hoverFeedback, value: isSelected)
         .draggable(EmailDragItem(
             messageIds: [email.gmailMessageID ?? ""],
             accountID: accountID
@@ -309,6 +312,17 @@ struct EmailRowView: View, Equatable {
             hoverTask = nil
             popoverHolder.close()
         }
+    }
+}
+
+private struct PressTrackingStyle: ButtonStyle {
+    @Binding var isPressed: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .onChange(of: configuration.isPressed) { _, newValue in
+                isPressed = newValue
+            }
     }
 }
 

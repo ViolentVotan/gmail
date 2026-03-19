@@ -9,6 +9,7 @@ struct UnifiedToastLayer: View {
     private var network = NetworkMonitor.shared
     private var undoMgr = UndoActionManager.shared
     private var toastMgr = ToastManager.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack {
@@ -18,26 +19,27 @@ struct UnifiedToastLayer: View {
             if let action = undoMgr.currentAction {
                 UndoToastCard(action: action)
                     .id(action.id)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .transition(.move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: ScaleToken.enterFrom)))
                     .padding(.bottom, Spacing.xxl)
             }
             // Priority 2: Offline indicator (persistent status)
             else if !network.isConnected {
                 OfflineToastCard()
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .transition(.move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: ScaleToken.enterFrom)))
                     .padding(.bottom, Spacing.xxl)
             }
             // Priority 3: General toasts (ephemeral)
             else if let toast = toastMgr.currentToast {
                 GeneralToastCard(toast: toast)
                     .id(toast.id)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .transition(.move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: ScaleToken.enterFrom)))
                     .padding(.bottom, Spacing.xxl)
             }
         }
-        .animation(VikAnimation.springDefault, value: undoMgr.currentAction?.id)
-        .animation(VikAnimation.springDefault, value: network.isConnected)
-        .animation(VikAnimation.springDefault, value: toastMgr.currentToast?.id)
+        .animation(reduceMotion ? nil : VikAnimation.springDefault, value: undoMgr.currentAction?.id)
+        .animation(reduceMotion ? nil : VikAnimation.springDefault, value: network.isConnected)
+        .animation(reduceMotion ? nil : VikAnimation.springDefault, value: toastMgr.currentToast?.id)
+        .sensoryFeedback(.warning, trigger: undoMgr.currentAction != nil)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
