@@ -157,7 +157,13 @@ struct FormattingToolbar: View {
             .buttonStyle(.plain)
             .help("Text color")
             .popover(isPresented: $showColorPopover, arrowEdge: .bottom) {
-                ColorGridPopover(state: state, showPopover: $showColorPopover, colorGrid: colorGrid)
+                ColorPickerPopover(
+                    selectedColor: state.textColor,
+                    colorGrid: colorGrid,
+                    allowRemove: false,
+                    onSelect: { state.setTextColor($0) },
+                    isPresented: $showColorPopover
+                )
             }
 
             // Highlight color
@@ -177,7 +183,14 @@ struct FormattingToolbar: View {
             .buttonStyle(.plain)
             .help("Highlight color")
             .popover(isPresented: $showHighlightPopover, arrowEdge: .bottom) {
-                HighlightColorPopover(state: state, showPopover: $showHighlightPopover, colorGrid: colorGrid)
+                ColorPickerPopover(
+                    selectedColor: state.highlightColor,
+                    colorGrid: colorGrid,
+                    allowRemove: true,
+                    onSelect: { state.setHighlightColor($0) },
+                    onRemove: { state.removeHighlightColor() },
+                    isPresented: $showHighlightPopover
+                )
             }
 
             separator
@@ -362,100 +375,37 @@ private struct ToggleHighlight: ViewModifier {
     }
 }
 
-// MARK: - Color Grid Popover
+// MARK: - Color Picker Popover
 
-struct ColorGridPopover: View {
-    var state: WebRichTextEditorState
-    @Binding var showPopover: Bool
+struct ColorPickerPopover: View {
+    let selectedColor: NSColor?
     let colorGrid: [[NSColor]]
+    let allowRemove: Bool
+    let onSelect: (NSColor) -> Void
+    var onRemove: (() -> Void)? = nil
+    @Binding var isPresented: Bool
     @State private var customColor: Color = .white
 
     var body: some View {
         VStack(spacing: 12) {
-            // Preset color grid
             VStack(spacing: 6) {
                 ForEach(0..<colorGrid.count, id: \.self) { row in
                     HStack(spacing: 6) {
                         ForEach(0..<colorGrid[row].count, id: \.self) { col in
                             let color = colorGrid[row][col]
                             Button {
-                                state.setTextColor(color)
-                                showPopover = false
+                                onSelect(color)
+                                isPresented = false
                             } label: {
                                 RoundedRectangle(cornerRadius: CornerRadius.xs)
                                     .fill(Color(nsColor: color))
                                     .frame(width: 22, height: 22)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: CornerRadius.xs)
-                                            .stroke(isSelected(color) ? Color.white : Color.white.opacity(0.15), lineWidth: isSelected(color) ? 2 : 1)
-                                    )
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
-            }
-
-            Divider()
-
-            // Custom color picker
-            HStack(spacing: 8) {
-                ColorPicker("", selection: $customColor, supportsOpacity: false)
-                    .labelsHidden()
-                    .frame(width: 24, height: 24)
-
-                Text("Custom")
-                    .font(Typography.captionRegular)
-                    .foregroundStyle(.secondary)
-
-                Spacer()
-
-                Button("Apply") {
-                    state.setTextColor(NSColor(customColor))
-                    showPopover = false
-                }
-                .font(Typography.caption)
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(12)
-        .frame(width: 170)
-    }
-
-    private func isSelected(_ color: NSColor) -> Bool {
-        let c1 = color.usingColorSpace(.deviceRGB) ?? color
-        let c2 = state.textColor.usingColorSpace(.deviceRGB) ?? state.textColor
-        return abs(c1.redComponent - c2.redComponent) < 0.05
-            && abs(c1.greenComponent - c2.greenComponent) < 0.05
-            && abs(c1.blueComponent - c2.blueComponent) < 0.05
-    }
-}
-
-// MARK: - Highlight Color Popover
-
-struct HighlightColorPopover: View {
-    var state: WebRichTextEditorState
-    @Binding var showPopover: Bool
-    let colorGrid: [[NSColor]]
-    @State private var customColor: Color = .yellow
-
-    var body: some View {
-        VStack(spacing: 12) {
-            VStack(spacing: 6) {
-                ForEach(0..<colorGrid.count, id: \.self) { row in
-                    HStack(spacing: 6) {
-                        ForEach(0..<colorGrid[row].count, id: \.self) { col in
-                            let color = colorGrid[row][col]
-                            Button {
-                                state.setHighlightColor(color)
-                                showPopover = false
-                            } label: {
-                                RoundedRectangle(cornerRadius: CornerRadius.xs)
-                                    .fill(Color(nsColor: color))
-                                    .frame(width: 22, height: 22)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: CornerRadius.xs)
-                                            .stroke(isSelected(color) ? Color.white : Color.white.opacity(0.15), lineWidth: isSelected(color) ? 2 : 1)
+                                            .stroke(
+                                                isSelected(color) ? Color.white : Color.white.opacity(0.15),
+                                                lineWidth: isSelected(color) ? 2 : 1
+                                            )
                                     )
                             }
                             .buttonStyle(.plain)
@@ -477,29 +427,31 @@ struct HighlightColorPopover: View {
 
                 Spacer()
 
-                Button("Remove") {
-                    state.removeHighlightColor()
-                    showPopover = false
+                if allowRemove {
+                    Button("Remove") {
+                        onRemove?()
+                        isPresented = false
+                    }
+                    .font(Typography.captionRegular)
+                    .buttonStyle(.plain)
                 }
-                .font(Typography.captionRegular)
-                .buttonStyle(.plain)
 
                 Button("Apply") {
-                    state.setHighlightColor(NSColor(customColor))
-                    showPopover = false
+                    onSelect(NSColor(customColor))
+                    isPresented = false
                 }
                 .font(Typography.caption)
                 .buttonStyle(.plain)
             }
         }
         .padding(12)
-        .frame(width: 170)
+        .frame(minWidth: 160, idealWidth: 170, maxWidth: 220)
     }
 
     private func isSelected(_ color: NSColor) -> Bool {
-        guard let highlight = state.highlightColor else { return false }
+        guard let selected = selectedColor else { return false }
         let c1 = color.usingColorSpace(.deviceRGB) ?? color
-        let c2 = highlight.usingColorSpace(.deviceRGB) ?? highlight
+        let c2 = selected.usingColorSpace(.deviceRGB) ?? selected
         return abs(c1.redComponent - c2.redComponent) < 0.05
             && abs(c1.greenComponent - c2.greenComponent) < 0.05
             && abs(c1.blueComponent - c2.blueComponent) < 0.05
