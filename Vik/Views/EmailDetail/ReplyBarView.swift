@@ -118,9 +118,9 @@ struct ReplyBarView: View {
                 collapsedContent
             }
         }
-        .floatingPanelStyle(cornerRadius: CornerRadius.lg)
+        .floatingPanelStyle(cornerRadius: CornerRadius.md)
         .overlay(
-            RoundedRectangle(cornerRadius: CornerRadius.lg)
+            RoundedRectangle(cornerRadius: CornerRadius.md)
                 .strokeBorder(Color(.separatorColor), lineWidth: 0.5)
         )
         .background(ClickOutsideDetector(isExpanded: isExpanded, onClickOutside: { minimize() }))
@@ -128,7 +128,7 @@ struct ReplyBarView: View {
             cachedStrippedText = replyHTML.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines)
             scheduleAutoSave()
         }
-        .animation(VikAnimation.springSnappy, value: replyBodyIsEmpty)
+        .animation(VikAnimation.springSnappy, value: hasUserContent)
         .animation(VikAnimation.springSnappy, value: smartReplySuggestions.isEmpty)
         .task {
             try? await Task.sleep(for: .seconds(0.5))
@@ -181,6 +181,12 @@ struct ReplyBarView: View {
 
     private var replyBodyIsEmpty: Bool {
         cachedStrippedText.isEmpty
+    }
+
+    private var hasUserContent: Bool {
+        !replyBodyIsEmpty || !attachments.isEmpty ||
+        !replyCc.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+        !replyBcc.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private var hasSavedDraft: Bool {
@@ -257,13 +263,19 @@ struct ReplyBarView: View {
                     Button { withAnimation(VikAnimation.springSnappy) { showCc.toggle() } } label: {
                         Text("Cc")
                             .font(Typography.caption)
-                            .foregroundStyle(showCc ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
+                            .foregroundStyle(showCc ? .primary : .tertiary)
+                            .padding(.horizontal, Spacing.sm)
+                            .padding(.vertical, Spacing.xs)
+                            .glassEffect(showCc ? .regular.interactive() : .identity, in: .capsule)
                     }
                     .buttonStyle(.plain)
                     Button { withAnimation(VikAnimation.springSnappy) { showBcc.toggle() } } label: {
                         Text("Bcc")
                             .font(Typography.caption)
-                            .foregroundStyle(showBcc ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
+                            .foregroundStyle(showBcc ? .primary : .tertiary)
+                            .padding(.horizontal, Spacing.sm)
+                            .padding(.vertical, Spacing.xs)
+                            .glassEffect(showBcc ? .regular.interactive() : .identity, in: .capsule)
                     }
                     .buttonStyle(.plain)
                 }
@@ -356,7 +368,7 @@ struct ReplyBarView: View {
 
                 Spacer()
 
-                if !replyBodyIsEmpty {
+                if hasUserContent {
                     Button { discardAction() } label: {
                         Text("Discard")
                     }
