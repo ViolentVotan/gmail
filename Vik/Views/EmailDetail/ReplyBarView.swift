@@ -282,7 +282,7 @@ struct ReplyBarView: View {
                 onFileDrop: { url in handleFileDrop(url) },
                 onOpenLink: onOpenLink
             )
-            .frame(minHeight: 120, maxHeight: 200)
+            .frame(minHeight: 120, maxHeight: 400)
             .overlay(
                 RoundedRectangle(cornerRadius: CornerRadius.sm)
                     .strokeBorder(Color.accentColor.opacity(isEditorFocused ? 0.3 : 0), lineWidth: 1)
@@ -310,6 +310,30 @@ struct ReplyBarView: View {
 
             Divider().background(Color(.separatorColor))
 
+            // Error banner
+            if let err = sendError {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(Typography.captionRegular)
+                    Text(err)
+                        .font(Typography.captionRegular)
+                    Spacer()
+                    Button {
+                        sendError = nil
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(Typography.captionSmall)
+                            .frame(width: 20, height: 20)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.plain)
+                }
+                .foregroundStyle(SemanticColor.error)
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.sm)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+
             HStack(spacing: 12) {
                 Button { minimize() } label: {
                     Image(systemName: "chevron.down")
@@ -329,13 +353,6 @@ struct ReplyBarView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Attach file")
-
-                if let err = sendError {
-                    Text(err)
-                        .font(Typography.captionRegular)
-                        .foregroundStyle(SemanticColor.error)
-                        .lineLimit(1)
-                }
 
                 Spacer()
 

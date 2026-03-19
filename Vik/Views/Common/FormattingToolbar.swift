@@ -40,6 +40,7 @@ struct FormattingToolbar: View {
     }
 
     var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
         HStack(spacing: 0) {
             // Undo / Redo
             Group {
@@ -297,10 +298,10 @@ struct FormattingToolbar: View {
                 .frame(width: 280)
             }
 
-            Spacer()
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
+        }
         .onChange(of: state.linkPopoverRequest?.text) { _, _ in
             if let request = state.linkPopoverRequest {
                 linkURL = request.url.isEmpty ? "https://" : request.url
