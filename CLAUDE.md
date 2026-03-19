@@ -1,6 +1,6 @@
 # Vik — Native macOS Gmail Client
 
-Swift 6.2 / SwiftUI / macOS 26+ — a premium, native Gmail client with threading, tracker blocking, multi-account, Apple Intelligence (summaries, classification, smart replies, translation, notification priority, onscreen awareness, tool calling), snooze, schedule-send, offline queue, App Intents (AssistantSchemas mail domain), command palette, Gmail filters, local notifications, and **full Google Calendar integration** (week/day/agenda views, deep email↔calendar integration, offline queue with etag conflict resolution).
+Swift 6.2 / SwiftUI / macOS 26+ — a premium, native Gmail client with threading, tracker blocking, multi-account, Apple Intelligence (summaries, classification, smart replies, translation, notification priority, onscreen awareness, tool calling), snooze, schedule-send, offline queue, App Intents (AssistantSchemas mail domain), command palette, Gmail filters, local notifications, and **full Google Calendar integration** (month/week/day/agenda views, deep email↔calendar integration, offline queue with etag conflict resolution).
 
 ## Fork & Upstream
 
