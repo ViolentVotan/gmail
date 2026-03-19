@@ -172,20 +172,6 @@ struct OnboardingView: View {
         .onHover { isButtonHovered = $0 }
     }
 
-    private var materialSignInButton: some View {
-        Button {
-            Task { await handleSignIn() }
-        } label: {
-            signInLabel
-                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: CornerRadius.xl))
-        }
-        .buttonStyle(.plain)
-        .disabled(isSigningIn)
-        .scaleEffect(isButtonHovered ? ScaleToken.emphasis : 1.0)
-        .animation(VikAnimation.springSnappy, value: isButtonHovered)
-        .onHover { isButtonHovered = $0 }
-    }
-
     private var signInLabel: some View {
         HStack(spacing: 12) {
             Group {
