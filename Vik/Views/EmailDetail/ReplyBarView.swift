@@ -399,12 +399,7 @@ struct ReplyBarView: View {
         }
     }
 
-    private func scheduleReply(at date: Date) async {
-        sendError = nil
-        saveTask?.cancel()
-
-        // Sync reply fields to the VM before scheduleSend calls saveDraft
-        let (processedHTML, images) = InlineImageProcessor.extractInlineImages(from: replyHTML)
+    private func syncFieldsToComposeVM(processedHTML: String, images: [InlineImageAttachment]) {
         composeVM.to = replyTo
         composeVM.cc = replyCc
         composeVM.bcc = replyBcc
@@ -416,10 +411,16 @@ struct ReplyBarView: View {
         composeVM.parentMessageID = email.messageIDHeader
         composeVM.parentReferences = email.referencesHeader
         composeVM.attachmentURLs = attachments
+    }
 
-        // Set cleanup context so scheduleSend can clean up reply drafts
+    private func scheduleReply(at date: Date) async {
+        sendError = nil
+        saveTask?.cancel()
+
+        let (processedHTML, images) = InlineImageProcessor.extractInlineImages(from: replyHTML)
+        syncFieldsToComposeVM(processedHTML: processedHTML, images: images)
+
         composeVM.setReplyCleanupContext(mailStore: mailStore)
-
         await composeVM.scheduleSend(at: date)
 
         if let error = composeVM.error {
