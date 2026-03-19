@@ -38,8 +38,8 @@ struct CalendarHeaderView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.glass)
-            .help("Previous week")
-            .accessibilityLabel("Previous week")
+            .help("Previous \(viewModel.viewMode.label.lowercased())")
+            .accessibilityLabel("Previous \(viewModel.viewMode.label.lowercased())")
 
             Button {
                 withAnimation(VikAnimation.springSnappy) {
@@ -52,16 +52,27 @@ struct CalendarHeaderView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.glass)
-            .help("Next week")
-            .accessibilityLabel("Next week")
+            .help("Next \(viewModel.viewMode.label.lowercased())")
+            .accessibilityLabel("Next \(viewModel.viewMode.label.lowercased())")
         }
     }
 
     private var dateRangeLabel: some View {
-        Text(weekRangeText)
+        Text(dateRangeText)
             .font(Typography.subheadSemibold)
             .foregroundStyle(.primary)
             .monospacedDigit()
+    }
+
+    private var dateRangeText: String {
+        switch viewModel.viewMode {
+        case .month:
+            return viewModel.selectedDate.formatted(.dateTime.month(.wide).year())
+        case .day:
+            return viewModel.selectedDate.formatted(date: .abbreviated, time: .omitted)
+        case .week, .agenda:
+            return weekRangeText
+        }
     }
 
     private var todayButton: some View {
@@ -85,7 +96,7 @@ struct CalendarHeaderView: View {
     private var viewModePicker: some View {
         GlassEffectContainer(spacing: 2) {
             HStack(spacing: 2) {
-                ForEach([CalendarViewMode.day, .week, .agenda], id: \.self) { mode in
+                ForEach([CalendarViewMode.month, .week, .day, .agenda], id: \.self) { mode in
                     let isSelected = viewModel.viewMode == mode
                     Button {
                         withAnimation(VikAnimation.springSnappy) {
