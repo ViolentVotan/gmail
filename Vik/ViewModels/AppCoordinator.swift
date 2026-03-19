@@ -7,6 +7,15 @@ final class AppCoordinator {
 
     nonisolated private static let logger = Logger(category: "AppCoordinator")
 
+    // MARK: - Sub-Coordinators
+
+    let navigation: NavigationCoordinator
+    let selection: SelectionCoordinator
+    let compose: ComposeCoordinator
+    let calendar: CalendarCoordinator
+    let dialogs: DialogCoordinator
+    let sync: SyncCoordinator
+
     // MARK: - Child ViewModels
 
     let mailStore: MailStore
@@ -17,104 +26,46 @@ final class AppCoordinator {
     let syncProgressManager = SyncProgressManager()
     let attachmentStore: AttachmentStore
 
-    private(set) var mailDatabase: MailDatabase?
-    private(set) var backgroundSyncer: BackgroundSyncer?
-    private(set) var syncEngine: FullSyncEngine?
-    private var pendingDraftSelection: Email?
-    private var pendingFolderChange: Folder?
-    private var lifecycleTask: Task<Void, Never>?
-    private var markReadTask: Task<Void, Never>?
-    private var navigationTask: Task<Void, Never>?
-    private var contactsTask: Task<Void, Never>?
-    private var cleanupTask: Task<Void, Never>?
-    private var cachedSnoozedEmails: [Email] = []
-    private var cachedScheduledEmails: [Email] = []
-    @ObservationIgnored private var accountSwitchGeneration = 0
-    private var accountSwitchTask: Task<Void, Never>?
-
-    // MARK: - Calendar State
-
-    var viewMode: AppViewMode = .mail
-    private(set) var calendarViewModel: CalendarViewModel?
-    private(set) var calendarSyncEngine: CalendarSyncEngine?
-    var miniAgendaEvents: [CalendarEvent] = []
-    var calendarNewEventTrigger: Bool = false
-
-    // MARK: - Selection State
-
-    var selectedAccountID: String?
-    var selectedFolder: Folder = .inbox
-    var selectedInboxCategory: InboxCategory? = .all
-    var selectedLabel: GmailLabel?
-    var selectedEmail: Email?
-    var selectedEmailIDs: Set<String> = []
-    /// Direction of the last email selection for directional detail pane transitions.
-    var selectionDirection: Edge = .bottom
-
-    // MARK: - Contacts
-
-    private(set) var contacts: [StoredContact] = []
-
-    func loadContacts() {
-        guard !accountID.isEmpty else { return }
-        guard let db = mailDatabase else { return }
-        let id = accountID
-        contactsTask?.cancel()
-        contactsTask = Task { [weak self] in
-            let result = (try? await db.dbPool.read { db in
-                try MailDatabaseQueries.allContacts(in: db).map {
-                    StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
-                }
-            }) ?? []
-            guard !Task.isCancelled else { return }
-            guard let self, self.accountID == id else { return }
-            contacts = result
-        }
-    }
-
-    // MARK: - UI State
-
-    var searchResetTrigger = 0
-    var searchFocusTrigger = false
-    var composeMode: ComposeMode = .new
-    var signatureForNew: String = ""
-    var signatureForReply: String = ""
-    var showEmptyTrashConfirm = false
-    var trashTotalCount = 0
-    var showEmptySpamConfirm = false
-    var spamTotalCount = 0
-    var attachmentIndexer: AttachmentIndexer?
-
-    // MARK: - AppStorage
-
-    var undoDuration: Int = { let v = UserDefaults.standard.integer(forKey: UserDefaultsKey.undoDuration); return v != 0 ? v : 5 }() {
-        didSet { UserDefaults.standard.set(undoDuration, forKey: UserDefaultsKey.undoDuration) }
-    }
+    @ObservationIgnored private var navigationTask: Task<Void, Never>?
 
     // MARK: - Init
 
     init() {
         let store = MailStore()
         let vm = MailboxViewModel(accountID: "")
+        let auth = AuthViewModel()
         self.mailStore = store
         self.mailboxViewModel = vm
-        self.authViewModel = AuthViewModel()
+        self.authViewModel = auth
         self.actionCoordinator = EmailActionCoordinator(mailboxViewModel: vm, mailStore: store)
         self.attachmentStore = AttachmentStore(database: .shared)
+
+        let nav = NavigationCoordinator(authViewModel: auth)
+        let sel = SelectionCoordinator(mailboxViewModel: vm)
+        let comp = ComposeCoordinator()
+        let cal = CalendarCoordinator()
+        let dlg = DialogCoordinator()
+        let snc = SyncCoordinator()
+        self.navigation = nav
+        self.selection = sel
+        self.compose = comp
+        self.calendar = cal
+        self.dialogs = dlg
+        self.sync = snc
+
         vm.onEmailsChanged = { [weak self] in
+            self?.updateDisplayedEmails()
+        }
+        snc.onCacheRefreshed = { [weak self] in
             self?.updateDisplayedEmails()
         }
     }
 
     isolated deinit {
-        lifecycleTask?.cancel()
-        markReadTask?.cancel()
         navigationTask?.cancel()
-        contactsTask?.cancel()
-        cleanupTask?.cancel()
-        accountSwitchTask?.cancel()
-        let engine = syncEngine
-        let calEngine = calendarSyncEngine
+        sync.cancelAllTasks()
+        let engine = sync.syncEngine
+        let calEngine = calendar.calendarSyncEngine
         if engine != nil || calEngine != nil {
             Task {
                 await engine?.stop()
@@ -123,36 +74,117 @@ final class AppCoordinator {
         }
     }
 
-    // MARK: - Computed Properties
+    // MARK: - Forwarding Properties (Phase 1 — backward compatible)
 
-    var accountID: String {
-        selectedAccountID ?? authViewModel.primaryAccount?.id ?? ""
+    // Navigation
+    var selectedAccountID: String? {
+        get { navigation.selectedAccountID }
+        set { navigation.selectedAccountID = newValue }
+    }
+    var selectedFolder: Folder {
+        get { navigation.selectedFolder }
+        set { navigation.selectedFolder = newValue }
+    }
+    var selectedInboxCategory: InboxCategory? {
+        get { navigation.selectedInboxCategory }
+        set { navigation.selectedInboxCategory = newValue }
+    }
+    var selectedLabel: GmailLabel? {
+        get { navigation.selectedLabel }
+        set { navigation.selectedLabel = newValue }
+    }
+    var searchResetTrigger: Int {
+        get { navigation.searchResetTrigger }
+        set { navigation.searchResetTrigger = newValue }
+    }
+    var searchFocusTrigger: Bool {
+        get { navigation.searchFocusTrigger }
+        set { navigation.searchFocusTrigger = newValue }
+    }
+    var accountID: String { navigation.accountID }
+    var fromAddress: String { navigation.fromAddress }
+
+    // Selection
+    var selectedEmail: Email? {
+        get { selection.selectedEmail }
+        set { selection.selectedEmail = newValue }
+    }
+    var selectedEmailIDs: Set<String> {
+        get { selection.selectedEmailIDs }
+        set { selection.selectedEmailIDs = newValue }
+    }
+    var selectionDirection: Edge {
+        get { selection.selectionDirection }
+        set { selection.selectionDirection = newValue }
+    }
+    var displayedEmails: [Email] { selection.displayedEmails }
+
+    // Compose
+    var composeMode: ComposeMode {
+        get { compose.composeMode }
+        set { compose.composeMode = newValue }
+    }
+    var signatureForNew: String {
+        get { compose.signatureForNew }
+        set { compose.signatureForNew = newValue }
+    }
+    var signatureForReply: String {
+        get { compose.signatureForReply }
+        set { compose.signatureForReply = newValue }
     }
 
-    private(set) var displayedEmails: [Email] = []
-
-    private func updateDisplayedEmails() {
-        switch selectedFolder {
-        case .drafts:        displayedEmails = mailStore.emails(for: .drafts)
-        case .subscriptions: displayedEmails = SubscriptionsStore.shared.entries
-        case .snoozed:       displayedEmails = cachedSnoozedEmails
-        case .scheduled:     displayedEmails = cachedScheduledEmails
-        default:
-            displayedEmails = mailboxViewModel.priorityFilterEnabled
-                ? mailboxViewModel.emails.filter { $0.gmailLabelIDs.contains(GmailSystemLabel.important) }
-                : mailboxViewModel.emails
-        }
-        // Keep selectedEmail fresh: replace with the updated version from the
-        // new list so the detail pane reflects property changes (read, star, labels).
-        if let selected = selectedEmail,
-           let fresh = displayedEmails.first(where: { $0.id == selected.id }),
-           fresh != selected {
-            selectedEmail = fresh
-        }
+    // Calendar
+    var viewMode: AppViewMode {
+        get { calendar.viewMode }
+        set { calendar.viewMode = newValue }
     }
+    var calendarViewModel: CalendarViewModel? { calendar.calendarViewModel }
+    var calendarSyncEngine: CalendarSyncEngine? { calendar.calendarSyncEngine }
+    var miniAgendaEvents: [CalendarEvent] {
+        get { calendar.miniAgendaEvents }
+        set { calendar.miniAgendaEvents = newValue }
+    }
+    var calendarNewEventTrigger: Bool {
+        get { calendar.calendarNewEventTrigger }
+        set { calendar.calendarNewEventTrigger = newValue }
+    }
+
+    // Dialogs
+    var showEmptyTrashConfirm: Bool {
+        get { dialogs.showEmptyTrashConfirm }
+        set { dialogs.showEmptyTrashConfirm = newValue }
+    }
+    var trashTotalCount: Int {
+        get { dialogs.trashTotalCount }
+        set { dialogs.trashTotalCount = newValue }
+    }
+    var showEmptySpamConfirm: Bool {
+        get { dialogs.showEmptySpamConfirm }
+        set { dialogs.showEmptySpamConfirm = newValue }
+    }
+    var spamTotalCount: Int {
+        get { dialogs.spamTotalCount }
+        set { dialogs.spamTotalCount = newValue }
+    }
+
+    // Sync
+    var mailDatabase: MailDatabase? { sync.mailDatabase }
+    var backgroundSyncer: BackgroundSyncer? { sync.backgroundSyncer }
+    var syncEngine: FullSyncEngine? { sync.syncEngine }
+    var attachmentIndexer: AttachmentIndexer? {
+        get { sync.attachmentIndexer }
+        set { sync.attachmentIndexer = newValue }
+    }
+    var contacts: [StoredContact] { sync.contacts }
+    var undoDuration: Int {
+        get { sync.undoDuration }
+        set { sync.undoDuration = newValue }
+    }
+
+    // MARK: - Cross-Domain Computed Properties
 
     var listIsLoading: Bool {
-        switch selectedFolder {
+        switch navigation.selectedFolder {
         case .subscriptions: SubscriptionsStore.shared.isAnalyzing
         case .drafts:        mailStore.isLoadingGmailDrafts
         default:             mailboxViewModel.isLoading
@@ -160,132 +192,73 @@ final class AppCoordinator {
     }
 
     var isComposeActive: Bool {
-        selectedFolder == .drafts && selectedEmail != nil
+        navigation.selectedFolder == .drafts && selection.selectedEmail != nil
     }
 
-    var fromAddress: String {
-        authViewModel.accounts.first(where: { $0.id == selectedAccountID })?.email
-            ?? authViewModel.primaryAccount?.email
-            ?? ""
+    // MARK: - Displayed Emails
+
+    private func updateDisplayedEmails() {
+        selection.updateDisplayedEmails(
+            folder: navigation.selectedFolder,
+            mailStore: mailStore,
+            mailboxViewModel: mailboxViewModel,
+            cachedSnoozedEmails: sync.snoozedEmails,
+            cachedScheduledEmails: sync.scheduledEmails
+        )
     }
 
-    private func refreshSnoozedCache() {
-        cachedSnoozedEmails = SnoozeStore.shared.items.map { item in
-            Email(
-                id: GmailDataTransformer.deterministicUUID(from: "snoozed-\(item.messageId)"),
-                sender: Contact(name: item.senderName, email: ""),
-                subject: item.subject,
-                body: "",
-                date: item.snoozeUntil,
-                isRead: true,
-                folder: .snoozed,
-                gmailMessageID: item.messageId,
-                gmailThreadID: item.threadId,
-                gmailLabelIDs: item.originalLabelIds
-            )
-        }
-        updateDisplayedEmails()
-    }
+    // MARK: - Forwarding Actions
 
-    /// Called by ContentView's `.onChange` when `SnoozeStore.shared.items` changes.
-    /// Only refreshes the cache if the snoozed folder is currently visible.
+    func selectNext(_ email: Email?) { selection.selectNext(email) }
+    func selectPrevious() { selection.selectPrevious() }
+    func selectNextEmail() { selection.selectNextEmail() }
+    func clearSelection() { selection.clearSelection() }
+    func deselectAll() { selection.deselectAll() }
+    func selectAllEmails() { selection.selectAllEmails() }
+
+    func emptyTrashRequested(count: Int) { dialogs.emptyTrashRequested(count: count) }
+    func emptySpamRequested(count: Int) { dialogs.emptySpamRequested(count: count) }
+
+    func handleSelectedEmailChange(_ email: Email?) { selection.handleSelectedEmailChange(email) }
+
+    func loadSignatures(for id: String) { compose.loadSignatures(for: id) }
+    func saveSignatures(for id: String) { compose.saveSignatures(for: id) }
+
+    func switchToCalendar() { calendar.switchToCalendar(db: sync.mailDatabase) }
+    func switchToMail() { calendar.switchToMail() }
+    func loadMiniAgendaEvents() async { await calendar.loadMiniAgendaEvents(db: sync.mailDatabase, accountID: navigation.accountID) }
+    func navigateToEvent(_ event: CalendarEvent) { calendar.navigateToEvent(event, db: sync.mailDatabase) }
+
+    func loadContacts() { sync.loadContacts(accountID: navigation.accountID) }
+
     func refreshSnoozedCacheIfNeeded() {
-        guard selectedFolder == .snoozed else { return }
-        refreshSnoozedCache()
+        sync.refreshSnoozedCacheIfNeeded(folder: navigation.selectedFolder, fromAddress: navigation.fromAddress)
     }
 
-    /// Called by ContentView's `.onChange` when `ScheduledSendStore.shared.items` changes.
-    /// Only refreshes the cache if the scheduled folder is currently visible.
     func refreshScheduledCacheIfNeeded() {
-        guard selectedFolder == .scheduled else { return }
-        refreshScheduledCache()
+        sync.refreshScheduledCacheIfNeeded(folder: navigation.selectedFolder, fromAddress: navigation.fromAddress)
     }
 
-    private func refreshScheduledCache() {
-        cachedScheduledEmails = ScheduledSendStore.shared.items.map { item in
-            Email(
-                id: item.id,
-                sender: Contact(name: fromAddress, email: fromAddress),
-                recipients: item.recipients.map { Contact(name: $0, email: $0) },
-                subject: item.subject,
-                body: "",
-                date: item.scheduledTime,
-                isRead: true,
-                folder: .scheduled,
-                isDraft: true
-            )
-        }
-        updateDisplayedEmails()
-    }
-
-    // MARK: - Actions
-
-    func selectNext(_ email: Email?) {
-        selectedEmail = email
-    }
-
-    /// Navigate to the previous email in the displayed list.
-    func selectPrevious() {
-        guard let current = selectedEmail,
-              let idx = displayedEmails.firstIndex(where: { $0.id == current.id }),
-              idx > 0 else { return }
-        selectionDirection = .top
-        let prev = displayedEmails[idx - 1]
-        selectedEmail = prev
-        selectedEmailIDs = [prev.id.uuidString]
-    }
-
-    /// Navigate to the next email in the displayed list.
-    func selectNextEmail() {
-        guard let current = selectedEmail,
-              let idx = displayedEmails.firstIndex(where: { $0.id == current.id }),
-              idx < displayedEmails.count - 1 else { return }
-        selectionDirection = .bottom
-        let next = displayedEmails[idx + 1]
-        selectedEmail = next
-        selectedEmailIDs = [next.id.uuidString]
-    }
-
-    func clearSelection() {
-        selectedEmail = nil
-        selectedEmailIDs = []
-    }
-
-    func deselectAll() {
-        selectedEmailIDs = []
-    }
-
-    func emptyTrashRequested(count: Int) {
-        trashTotalCount = count
-        showEmptyTrashConfirm = true
-    }
-
-    func emptySpamRequested(count: Int) {
-        spamTotalCount = count
-        showEmptySpamConfirm = true
-    }
+    // MARK: - Label Management
 
     func renameLabel(_ label: GmailLabel, to newName: String) async {
         await mailboxViewModel.renameLabel(label, to: newName)
-        if selectedLabel?.id == label.id {
-            selectedLabel = mailboxViewModel.labels.first { $0.id == label.id }
+        if navigation.selectedLabel?.id == label.id {
+            navigation.selectedLabel = mailboxViewModel.labels.first { $0.id == label.id }
         }
     }
 
     func deleteLabel(_ label: GmailLabel) async {
         await mailboxViewModel.deleteLabel(label)
-        if selectedLabel?.id == label.id {
-            selectedLabel = nil
-            if selectedFolder == .labels {
-                selectedLabel = mailboxViewModel.labels.filter { !$0.isSystemLabel }.first
+        if navigation.selectedLabel?.id == label.id {
+            navigation.selectedLabel = nil
+            if navigation.selectedFolder == .labels {
+                navigation.selectedLabel = mailboxViewModel.labels.filter { !$0.isSystemLabel }.first
             }
         }
     }
 
-    func selectAllEmails() {
-        selectedEmailIDs = Set(displayedEmails.map { $0.id.uuidString })
-        selectedEmail = nil
-    }
+    // MARK: - Navigation Actions
 
     func navigateToMessage(gmailMessageID: String) {
         navigationTask?.cancel()
@@ -294,7 +267,6 @@ final class AppCoordinator {
         }
     }
 
-    /// Navigates to a message and opens the reply compose sheet (from intent).
     func navigateAndReply(gmailMessageID: String, replyAll: Bool) {
         navigationTask?.cancel()
         navigationTask = Task {
@@ -308,7 +280,6 @@ final class AppCoordinator {
         }
     }
 
-    /// Navigates to a message and opens the forward compose sheet (from intent).
     func navigateAndForward(gmailMessageID: String, recipient: String?) {
         navigationTask?.cancel()
         navigationTask = Task {
@@ -318,100 +289,57 @@ final class AppCoordinator {
         }
     }
 
-    /// Fetches a Gmail message, converts it to an `Email`, and shows it in the preview panel.
-    /// Returns `nil` if the fetch fails, the task is cancelled, or the account changed mid-flight.
     private func fetchAndShowMessage(gmailMessageID: String) async -> (Email, String)? {
-        let expectedAccountID = accountID
+        let expectedAccountID = navigation.accountID
         guard let msg = try? await GmailMessageService.shared.getMessage(
             id: gmailMessageID, accountID: expectedAccountID, format: "full"
         ) else { return nil }
-        guard !Task.isCancelled, accountID == expectedAccountID else { return nil }
+        guard !Task.isCancelled, navigation.accountID == expectedAccountID else { return nil }
         let email = mailboxViewModel.makeEmail(from: msg)
         panelCoordinator.showEmail(email, accountID: expectedAccountID)
         return (email, expectedAccountID)
     }
 
+    // MARK: - Compose Actions
+
     func composeNewEmail(recipient: String? = nil) {
-        composeMode = .new
+        compose.composeMode = .new
         let draft = mailStore.createDraft()
         if let recipient, !recipient.isEmpty {
             mailStore.updateDraft(id: draft.id, subject: "", body: "", to: recipient, cc: "")
         }
-        if selectedFolder == .drafts {
-            selectedEmail = draft
+        if navigation.selectedFolder == .drafts {
+            selection.selectedEmail = draft
         } else {
-            pendingDraftSelection = draft
-            selectedFolder = .drafts
+            compose.setPendingDraftSelection(draft)
+            navigation.selectedFolder = .drafts
         }
     }
 
     func startCompose(mode: ComposeMode) {
-        composeMode = mode
+        compose.composeMode = mode
         let draft = mailStore.createDraft()
-        if selectedFolder == .drafts {
-            selectedEmail = draft
+        if navigation.selectedFolder == .drafts {
+            selection.selectedEmail = draft
         } else {
-            pendingDraftSelection = draft
-            selectedFolder = .drafts
+            compose.setPendingDraftSelection(draft)
+            navigation.selectedFolder = .drafts
         }
     }
 
     func discardDraft(id: UUID) {
-        composeMode = .new
-        mailStore.deleteDraft(id: id, accountID: accountID)
-        selectedEmail = nil
-    }
-
-    // MARK: - Per-Account Signatures
-
-    func loadSignatures(for id: String) {
-        signatureForNew = UserDefaults.standard.string(forKey: UserDefaultsKey.signatureForNew(id)) ?? ""
-        signatureForReply = UserDefaults.standard.string(forKey: UserDefaultsKey.signatureForReply(id)) ?? ""
-    }
-
-    func saveSignatures(for id: String) {
-        UserDefaults.standard.set(signatureForNew, forKey: UserDefaultsKey.signatureForNew(id))
-        UserDefaults.standard.set(signatureForReply, forKey: UserDefaultsKey.signatureForReply(id))
-    }
-
-    // MARK: - Database Lifecycle
-
-    @concurrent
-    private func openDatabase(for accountID: String) async throws -> MailDatabase {
-        let database = try await MailDatabase.shared(for: accountID)
-        guard try database.integrityCheck() else {
-            MailDatabase.deleteDatabase(accountID: accountID)
-            return try await MailDatabase.shared(for: accountID)
-        }
-        return database
-    }
-
-    private func setupDatabase(for accountID: String) async {
-        do {
-            let db = try await openDatabase(for: accountID)
-            // Guard against account switching race
-            guard self.selectedAccountID == accountID else { return }
-            self.mailDatabase = db
-            self.backgroundSyncer = BackgroundSyncer(db: db)
-            if CacheMigration.needsMigration(accountID: accountID) {
-                try? await CacheMigration.migrateIfNeeded(db: db, accountID: accountID)
-                CacheMigration.cleanupOldCache()
-            }
-        } catch {
-            Self.logger.error("Failed to create database for \(accountID): \(error)")
-            self.mailDatabase = nil
-            self.backgroundSyncer = nil
-            syncProgressManager.syncFailed("Database error — restart app")
-        }
+        compose.composeMode = .new
+        mailStore.deleteDraft(id: id, accountID: navigation.accountID)
+        selection.selectedEmail = nil
     }
 
     // MARK: - Folder Loading
 
     func loadCurrentFolder() async {
         guard !mailboxViewModel.accountID.isEmpty else { return }
-        switch selectedFolder {
+        switch navigation.selectedFolder {
         case .inbox:
-            if let category = selectedInboxCategory {
+            if let category = navigation.selectedInboxCategory {
                 if category == .all {
                     await mailboxViewModel.refreshCurrentFolder(labelIDs: [GmailSystemLabel.inbox])
                 } else {
@@ -421,60 +349,55 @@ final class AppCoordinator {
                 await mailboxViewModel.refreshCurrentFolder(labelIDs: [GmailSystemLabel.inbox])
             }
         case .labels:
-            if let label = selectedLabel {
+            if let label = navigation.selectedLabel {
                 await mailboxViewModel.refreshCurrentFolder(labelIDs: [label.id])
             }
         case .drafts:
-            await mailStore.syncGmailDrafts(accountID: accountID)
+            await mailStore.syncGmailDrafts(accountID: navigation.accountID)
         case .snoozed:
-            refreshSnoozedCache()
+            sync.refreshSnoozedCache(fromAddress: navigation.fromAddress)
         case .scheduled:
-            refreshScheduledCache()
+            sync.refreshScheduledCache(fromAddress: navigation.fromAddress)
         case .subscriptions:
             SubscriptionsStore.shared.analyze(mailboxViewModel.emails)
         case .attachments:
             await mailboxViewModel.loadFolder(labelIDs: [], query: "has:attachment")
         default:
-            if let labelID = selectedFolder.gmailLabelID {
-                // Lazy-load folders excluded from initial sync (spam, trash, etc.)
-                await syncEngine?.syncFolderIfEmpty(labelId: labelID)
+            if let labelID = navigation.selectedFolder.gmailLabelID {
+                await sync.syncEngine?.syncFolderIfEmpty(labelId: labelID)
                 await mailboxViewModel.refreshCurrentFolder(labelIDs: [labelID])
-            } else if let query = selectedFolder.gmailQuery {
+            } else if let query = navigation.selectedFolder.gmailQuery {
                 await mailboxViewModel.loadFolder(labelIDs: [], query: query)
             }
         }
         updateDisplayedEmails()
-        // Only show "synced just now" if initial sync has completed.
-        // Otherwise the sync engine will report its own progress phases.
-        let hasSynced = try? await mailDatabase?.dbPool.read { db in
+        let hasSynced = try? await sync.mailDatabase?.dbPool.read { db in
             try MailDatabaseQueries.syncState(in: db)?.initialSyncComplete ?? false
         }
         if hasSynced == true {
             syncProgressManager.updateLastSynced()
         }
-        // Trigger sync engine to check for new messages immediately
-        await syncEngine?.triggerIncrementalSync()
-        // Classify visible emails with Apple Intelligence (deduped via tagCache + DB)
-        await EmailClassifier.shared.classifyBatch(mailboxViewModel.emails, db: mailDatabase)
+        await sync.syncEngine?.triggerIncrementalSync()
+        await EmailClassifier.shared.classifyBatch(mailboxViewModel.emails, db: sync.mailDatabase)
     }
 
     // MARK: - Lifecycle Handlers
 
     func handleAppear() async {
         if let account = authViewModel.primaryAccount {
-            selectedAccountID = account.id
+            navigation.selectedAccountID = account.id
             AccountStore.shared.selectedAccountID = account.id
             mailboxViewModel.accountID = account.id
             mailStore.accountID = account.id
             SubscriptionsStore.shared.accountID = account.id
             SummaryService.shared.accountID = account.id
             attachmentStore.accountID = account.id
-            loadSignatures(for: account.id)
+            compose.loadSignatures(for: account.id)
             await setupAccount(account.id)
-            loadContacts()
+            sync.loadContacts(accountID: account.id)
             updateDisplayedEmails()
         } else {
-            selectedEmail = mailStore.emails(for: .inbox).first
+            selection.selectedEmail = mailStore.emails(for: .inbox).first
         }
     }
 
@@ -486,21 +409,16 @@ final class AppCoordinator {
             messageService: GmailMessageService.shared,
             accountID: id
         )
-        attachmentIndexer = indexer
-        await setupDatabase(for: id)
-        guard !Task.isCancelled, self.selectedAccountID == id else { return }
-        guard self.mailDatabase != nil else {
-            // setupDatabase already reported the error to syncProgressManager
-            return
-        }
-        mailboxViewModel.setMailDatabase(self.mailDatabase)
-        mailboxViewModel.setBackgroundSyncer(self.backgroundSyncer)
-        mailboxViewModel.setSyncProgressManager(self.syncProgressManager)
-        // Stop any zombie engine left from a previous window (red X → reopen)
+        sync.attachmentIndexer = indexer
+        await sync.setupDatabase(for: id, selectedAccountID: navigation.selectedAccountID, syncProgressManager: syncProgressManager)
+        guard !Task.isCancelled, navigation.selectedAccountID == id else { return }
+        guard sync.mailDatabase != nil else { return }
+        mailboxViewModel.setMailDatabase(sync.mailDatabase)
+        mailboxViewModel.setBackgroundSyncer(sync.backgroundSyncer)
+        mailboxViewModel.setSyncProgressManager(syncProgressManager)
         await FullSyncEngine.stopActive(for: id)
-        // Start sync engine
-        if let db = self.mailDatabase, let syncer = self.backgroundSyncer {
-            let progressManager = self.syncProgressManager
+        if let db = sync.mailDatabase, let syncer = sync.backgroundSyncer {
+            let progressManager = syncProgressManager
             let engine = FullSyncEngine(
                 accountID: id, db: db, syncer: syncer,
                 api: GmailMessageService.shared
@@ -514,13 +432,11 @@ final class AppCoordinator {
                 case .failed(let message): progressManager.syncFailed(message)
                 }
             }
-            // Guard AFTER engine creation but BEFORE assignment to avoid orphaning
-            // a running engine if the account switched during setup.
-            guard !Task.isCancelled, self.selectedAccountID == id else { return }
-            self.syncEngine = engine
+            guard !Task.isCancelled, navigation.selectedAccountID == id else { return }
+            sync.setSyncEngine(engine)
             await engine.start()
         }
-        guard !Task.isCancelled, self.selectedAccountID == id else { return }
+        guard !Task.isCancelled, navigation.selectedAccountID == id else { return }
         await indexer.setProgressUpdate { [weak attachmentStore] in
             Task { await attachmentStore?.refresh() }
         }
@@ -528,102 +444,103 @@ final class AppCoordinator {
         async let labelsLoad: Void = mailboxViewModel.loadLabels()
         async let sendAsLoad: Void = mailboxViewModel.loadSendAs()
         async let categoryLoad: Void = mailboxViewModel.loadCategoryUnreadCounts()
-        async let calendarLoad: Void = startCalendarSync(for: id)
-        async let agendaLoad: Void = loadMiniAgendaEvents()
-        let syncerForPhotos = self.backgroundSyncer
+        async let calendarLoad: Void = calendar.startCalendarSync(for: id, db: sync.mailDatabase)
+        async let agendaLoad: Void = calendar.loadMiniAgendaEvents(db: sync.mailDatabase, accountID: id)
+        let syncerForPhotos = sync.backgroundSyncer
         async let photosLoad: Void = {
             if let syncer = syncerForPhotos {
                 await PeopleAPIService.shared.loadContactPhotos(accountID: id, syncer: syncer)
             }
         }()
         _ = await (folderLoad, labelsLoad, sendAsLoad, categoryLoad, calendarLoad, agendaLoad, photosLoad)
-        guard !Task.isCancelled, self.selectedAccountID == id else { return }
+        guard !Task.isCancelled, navigation.selectedAccountID == id else { return }
         await indexer.resumePending()
         await indexer.scanForAttachments()
     }
 
     func handleFolderChange(_ folder: Folder) {
-        if accountSwitchTask != nil {
-            pendingFolderChange = folder
+        if sync.accountSwitchTask != nil {
+            sync.pendingFolderChange = folder
             return
         }
-        pendingFolderChange = nil
-        if let pending = pendingDraftSelection {
-            pendingDraftSelection = nil
-            selectedEmail = pending
+        sync.pendingFolderChange = nil
+        if let pending = compose.consumePendingDraftSelection() {
+            selection.selectedEmail = pending
         } else {
-            selectedEmail = nil
+            selection.selectedEmail = nil
         }
-        selectedEmailIDs = []
-        searchResetTrigger += 1
-        if folder != .labels { selectedLabel = nil }
-        lifecycleTask?.cancel()
+        selection.selectedEmailIDs = []
+        navigation.searchResetTrigger += 1
+        if folder != .labels { navigation.selectedLabel = nil }
+        sync.lifecycleTask?.cancel()
         if folder == .subscriptions {
             SubscriptionsStore.shared.analyze(mailboxViewModel.emails)
         } else if folder == .snoozed {
-            refreshSnoozedCache()
+            sync.refreshSnoozedCache(fromAddress: navigation.fromAddress)
         } else if folder == .scheduled {
-            refreshScheduledCache()
+            sync.refreshScheduledCache(fromAddress: navigation.fromAddress)
         } else if folder == .attachments {
-            lifecycleTask = Task {
+            sync.lifecycleTask = Task { [weak self] in
+                guard let self else { return }
                 await attachmentStore.refresh()
-                if let indexer = attachmentIndexer {
+                if let indexer = sync.attachmentIndexer {
                     await indexer.scanForAttachments()
                 }
             }
         } else if folder == .drafts {
-            lifecycleTask = Task {
-                await mailStore.syncGmailDrafts(accountID: accountID)
-                updateDisplayedEmails()
+            sync.lifecycleTask = Task { [weak self] in
+                guard let self else { return }
+                await mailStore.syncGmailDrafts(accountID: navigation.accountID)
+                self.updateDisplayedEmails()
             }
         } else {
-            lifecycleTask = Task { await loadCurrentFolder() }
+            sync.lifecycleTask = Task { [weak self] in
+                await self?.loadCurrentFolder()
+            }
         }
         updateDisplayedEmails()
     }
 
     func handleLabelChange() {
-        guard selectedFolder == .labels, selectedLabel != nil else { return }
-        selectedEmail = nil
-        selectedEmailIDs = []
-        searchResetTrigger += 1
-        lifecycleTask?.cancel()
-        lifecycleTask = Task { await loadCurrentFolder() }
+        guard navigation.selectedFolder == .labels, navigation.selectedLabel != nil else { return }
+        selection.selectedEmail = nil
+        selection.selectedEmailIDs = []
+        navigation.searchResetTrigger += 1
+        sync.lifecycleTask?.cancel()
+        sync.lifecycleTask = Task { [weak self] in
+            await self?.loadCurrentFolder()
+        }
         updateDisplayedEmails()
     }
 
     func handleCategoryChange(_ category: InboxCategory?) {
-        selectedEmail = nil
-        selectedEmailIDs = []
-        searchResetTrigger += 1
-        lifecycleTask?.cancel()
-        lifecycleTask = Task { await loadCurrentFolder() }
+        selection.selectedEmail = nil
+        selection.selectedEmailIDs = []
+        navigation.searchResetTrigger += 1
+        sync.lifecycleTask?.cancel()
+        sync.lifecycleTask = Task { [weak self] in
+            await self?.loadCurrentFolder()
+        }
         updateDisplayedEmails()
     }
 
     func handleAccountChange(_ newID: String?) {
         guard let id = newID else { return }
-        // Skip if handleAppear already set up this account
         guard mailboxViewModel.accountID != id else { return }
-        accountSwitchGeneration += 1
-        let generation = accountSwitchGeneration
-        // Confirm any pending undo actions for the old account before switching
+        let generation = sync.incrementAccountSwitchGeneration()
         UndoActionManager.shared.confirmAll()
-        // Save old account's signatures before switching
         let oldID = mailboxViewModel.accountID
-        if !oldID.isEmpty { saveSignatures(for: oldID) }
-        // Set immediately so any racing reads see the correct account
+        if !oldID.isEmpty { compose.saveSignatures(for: oldID) }
         mailboxViewModel.accountID = id
-        // Keep AccountStore in sync so Settings scene can read the selected account
         AccountStore.shared.selectedAccountID = id
-        loadSignatures(for: id)
+        compose.loadSignatures(for: id)
         withAnimation(VikAnimation.folderSwitch) {
-            selectedFolder = .inbox
-            selectedInboxCategory = .all
-            selectedLabel = nil
-            selectedEmail = nil
-            selectedEmailIDs = []
-            searchResetTrigger += 1
+            navigation.selectedFolder = .inbox
+            navigation.selectedInboxCategory = .all
+            navigation.selectedLabel = nil
+            selection.selectedEmail = nil
+            selection.selectedEmailIDs = []
+            navigation.searchResetTrigger += 1
         }
         navigationTask?.cancel()
         ThumbnailCache.shared.clearAll()
@@ -631,64 +548,56 @@ final class AppCoordinator {
         SubscriptionsStore.shared.accountID = id
         attachmentStore.accountID = id
         SummaryService.shared.accountID = id
-        // Reload per-account stores for the new account
         SnoozeStore.shared.load(accountID: id)
         ScheduledSendStore.shared.load(accountID: id)
         OfflineActionQueue.shared.load(accountID: id)
-        // Capture the old engines before cancelling, so stop is guaranteed
-        // even if a third account switch cancels this task later
-        let oldEngine = syncEngine
-        let oldCalendarEngine = calendarSyncEngine
-        syncEngine = nil
-        calendarSyncEngine = nil
-        calendarViewModel = nil
-        viewMode = .mail
-        lifecycleTask?.cancel()
-        lifecycleTask = nil
-        accountSwitchTask?.cancel()
+        let oldEngine = sync.syncEngine
+        let oldCalendarEngine = calendar.calendarSyncEngine
+        sync.clearSyncEngines()
+        calendar.clearState()
+        calendar.viewMode = .mail
+        sync.cancelLifecycleTasks()
+        sync.accountSwitchTask?.cancel()
         let task = Task {
             defer {
-                if self.accountSwitchGeneration == generation {
-                    accountSwitchTask = nil
-                    if let folder = pendingFolderChange {
-                        pendingFolderChange = nil
-                        selectedFolder = folder
-                        handleFolderChange(folder)
+                if self.sync.currentAccountSwitchGeneration == generation {
+                    self.sync.accountSwitchTask = nil
+                    if let folder = self.sync.pendingFolderChange {
+                        self.sync.pendingFolderChange = nil
+                        self.navigation.selectedFolder = folder
+                        self.handleFolderChange(folder)
                     }
                 }
             }
             await oldEngine?.stop()
             await oldCalendarEngine?.stop()
-            await attachmentStore.refresh()
-            guard !Task.isCancelled, self.accountSwitchGeneration == generation else { return }
-            syncProgressManager.reset()
-            await mailboxViewModel.switchAccount(id)
-            guard !Task.isCancelled, self.accountSwitchGeneration == generation else { return }
-            await setupAccount(id)
-            loadContacts()
-            updateDisplayedEmails()
+            await self.attachmentStore.refresh()
+            guard !Task.isCancelled, self.sync.currentAccountSwitchGeneration == generation else { return }
+            self.syncProgressManager.reset()
+            await self.mailboxViewModel.switchAccount(id)
+            guard !Task.isCancelled, self.sync.currentAccountSwitchGeneration == generation else { return }
+            await self.setupAccount(id)
+            self.sync.loadContacts(accountID: id)
+            self.updateDisplayedEmails()
         }
-        accountSwitchTask = task
+        sync.accountSwitchTask = task
     }
 
     func handleAccountsChange(old: [GmailAccount], new accounts: [GmailAccount]) {
-        if selectedAccountID == nil, let first = accounts.first {
-            selectedAccountID = first.id
+        if navigation.selectedAccountID == nil, let first = accounts.first {
+            navigation.selectedAccountID = first.id
         }
-        // Detect removed and added accounts
         let previousIDs = Set(old.map(\.id))
         let currentIDs = Set(accounts.map(\.id))
         let removedIDs = previousIDs.subtracting(currentIDs)
         let addedIDs = currentIDs.subtracting(previousIDs)
 
-        // Load per-account stores for newly added accounts (mid-session sign-in)
         for addedID in addedIDs {
             SnoozeStore.shared.load(accountID: addedID)
             ScheduledSendStore.shared.load(accountID: addedID)
             OfflineActionQueue.shared.load(accountID: addedID)
         }
 
-        // Clean up per-account state for all removed accounts
         for removedID in removedIDs {
             TokenStore.shared.delete(for: removedID)
             UnsubscribeService.shared.clearAccount(removedID)
@@ -706,9 +615,6 @@ final class AppCoordinator {
             UserDefaults.standard.removeObject(forKey: "replyDrafts.\(removedID)")
             UserDefaults.standard.removeObject(forKey: "com.vikingz.vik.dbMigrationCompleted.\(removedID)")
         }
-        // Only wipe Spotlight if ALL accounts are being removed.
-        // deleteAllItems() calls CSSearchableIndex.deleteAllSearchableItems()
-        // which is global — it would destroy entries for accounts still signed in.
         if removedIDs == previousIDs, !removedIDs.isEmpty {
             Task { await SpotlightIndexer.shared.deleteAllItems() }
         }
@@ -716,36 +622,27 @@ final class AppCoordinator {
             SnoozeMonitor.shared.clearAllFailureCounts()
         }
 
-        // Stop engines if current account was removed (sign-out)
-        if let id = selectedAccountID, removedIDs.contains(id) {
-            let engineToStop = syncEngine
-            let calendarEngineToStop = calendarSyncEngine
-            syncEngine = nil
-            calendarSyncEngine = nil
-            calendarViewModel = nil
-            viewMode = .mail
-            lifecycleTask?.cancel()
-            lifecycleTask = Task {
-                // Await engine stop BEFORE deleting DB files to prevent
-                // writes to a deleted database.
+        if let id = navigation.selectedAccountID, removedIDs.contains(id) {
+            let engineToStop = sync.syncEngine
+            let calendarEngineToStop = calendar.calendarSyncEngine
+            sync.clearSyncEngines()
+            calendar.clearState()
+            calendar.viewMode = .mail
+            sync.lifecycleTask?.cancel()
+            sync.lifecycleTask = Task { [weak self] in
                 await engineToStop?.stop()
                 await calendarEngineToStop?.stop()
-                self.mailDatabase = nil
-                self.backgroundSyncer = nil
+                self?.sync.setMailDatabase(nil)
+                self?.sync.setBackgroundSyncer(nil)
             }
             SummaryService.shared.accountID = ""
-            selectedAccountID = accounts.first?.id
+            navigation.selectedAccountID = accounts.first?.id
         }
 
-        // Stop sync engines and delete database/attachment files for all removed accounts.
-        // The selected account's engine is stopped above via the syncEngine property;
-        // non-selected accounts may still have active engines in FullSyncEngine.activeEngines.
         let idsToDelete = removedIDs
-        let engineTask = lifecycleTask
-        cleanupTask = Task {
-            // Wait for selected-account engine stop (no-op if lifecycleTask is nil / different account)
+        let engineTask = sync.lifecycleTask
+        sync.setCleanupTask(Task {
             await engineTask?.value
-            // Stop any remaining active engines for non-selected removed accounts
             for removedID in idsToDelete {
                 await FullSyncEngine.stopActive(for: removedID)
             }
@@ -753,7 +650,7 @@ final class AppCoordinator {
                 MailDatabase.deleteDatabase(accountID: removedID)
                 await AttachmentDatabase.shared.deleteByAccountID(removedID)
             }
-        }
+        })
     }
 
     // MARK: - Service Routing
@@ -798,82 +695,13 @@ final class AppCoordinator {
 
     // MARK: - Preview Panel Actions
 
-    /// Toggles star on a message (used by SlidePanelsOverlay preview panel).
-    /// Routes through actionCoordinator for optimistic DB update + offline support.
     func previewToggleStar(messageID: String, isCurrentlyStarred: Bool, accountID: String) {
         guard let email = mailboxViewModel.emails.first(where: { $0.gmailMessageID == messageID }) else { return }
         Task { await actionCoordinator.toggleStarEmail(email) }
     }
 
-    /// Marks a message as unread (used by SlidePanelsOverlay preview panel).
-    /// Routes through actionCoordinator for optimistic DB update + offline support.
     func previewMarkUnread(messageID: String, accountID: String) {
         guard let email = mailboxViewModel.emails.first(where: { $0.gmailMessageID == messageID }) else { return }
         Task { await actionCoordinator.markUnreadEmail(email) }
     }
-
-    func handleSelectedEmailChange(_ email: Email?) {
-        guard let email else { return }
-        Task { await SpotlightIndexer.shared.indexEmail(email) }
-        guard let msgID = email.gmailMessageID, !email.isRead else { return }
-        markReadTask?.cancel()
-        markReadTask = Task {
-            await mailboxViewModel.markAsRead(msgID)
-            guard !Task.isCancelled else { return }
-            await mailboxViewModel.loadCategoryUnreadCounts()
-        }
-    }
-
-    // MARK: - Calendar Mode
-
-    func switchToCalendar() {
-        viewMode = .calendar
-        if calendarViewModel == nil, let db = mailDatabase {
-            calendarViewModel = CalendarViewModel(db: db)
-            calendarViewModel?.onEventMutated = { [weak self] in
-                await self?.calendarSyncEngine?.temporarilyTightenPolling()
-            }
-            calendarViewModel?.startObserving()
-        }
-        Task { await calendarSyncEngine?.updatePollingInterval(calendarActive: true, appFocused: true) }
-    }
-
-    func switchToMail() {
-        viewMode = .mail
-        Task { await calendarSyncEngine?.updatePollingInterval(calendarActive: false, appFocused: true) }
-    }
-
-    func loadMiniAgendaEvents() async {
-        guard let db = mailDatabase else { return }
-        let id = accountID
-        let records = (try? await db.dbPool.read { db in
-            try MailDatabaseQueries.eventsForToday(accountId: id, in: db)
-        }) ?? []
-        guard !Task.isCancelled else { return }
-        // Lightweight conversion — no attendees needed for mini-agenda
-        miniAgendaEvents = records.map { $0.toCalendarEvent(attendees: [], calendarColor: BrandColor.blue) }
-    }
-
-    func navigateToEvent(_ event: CalendarEvent) {
-        switchToCalendar()
-        calendarViewModel?.selectedDate = event.startTime
-        calendarViewModel?.selectedEvent = event
-    }
-
-    private func startCalendarSync(for id: String) async {
-        guard let db = mailDatabase else { return }
-        // Drain any calendar actions queued while offline before starting sync
-        await CalendarOfflineActionQueue.shared.processQueue(accountID: id)
-        let engine = CalendarSyncEngine(accountID: id, db: db)
-        guard !Task.isCancelled, self.selectedAccountID == id else { return }
-        calendarSyncEngine = engine
-        await engine.start()
-    }
-
-    private func stopCalendarSync() async {
-        await calendarSyncEngine?.stop()
-        calendarSyncEngine = nil
-        calendarViewModel = nil
-    }
-
 }
