@@ -45,20 +45,16 @@ final class AvatarCache {
 
         let fileURL = cacheDir.appendingPathComponent(key as String)
 
-        // 2. Serve from disk if still fresh
-        if let attrs = try? FileManager.default.attributesOfItem(atPath: fileURL.path),
-           let modified = attrs[.modificationDate] as? Date,
-           Date().timeIntervalSince(modified) < ttl {
-            // Empty file = cached negative (404 / no image)
-            guard let size = attrs[.size] as? Int, size > 0 else {
-                negativeCacheKeys.setObject(NSNull(), forKey: key)
-                return nil
-            }
-            if let img = NSImage(contentsOfFile: fileURL.path) {
-                memoryCache.setObject(img, forKey: key)
-                return img
-            }
+        // 2. Serve from disk if still fresh (read performed off the main actor)
+        switch await Self.readFromDisk(fileURL: fileURL, ttl: ttl) {
+        case .fresh(let img):
+            memoryCache.setObject(img, forKey: key)
+            return img
+        case .negative:
+            negativeCacheKeys.setObject(NSNull(), forKey: key)
             return nil
+        case .miss:
+            break
         }
 
         // 3. Coalesce with in-flight request if one exists
@@ -122,6 +118,21 @@ final class AvatarCache {
         Task {
             _ = await performFetch(keyString: next.key, url: next.url, fileURL: next.fileURL)
         }
+    }
+
+    private enum DiskReadResult {
+        case fresh(NSImage)
+        case negative   // file exists but is empty (cached 404)
+        case miss       // file absent or stale
+    }
+
+    @concurrent private static func readFromDisk(fileURL: URL, ttl: TimeInterval) async -> DiskReadResult {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: fileURL.path),
+              let modified = attrs[.modificationDate] as? Date,
+              Date().timeIntervalSince(modified) < ttl else { return .miss }
+        guard let size = attrs[.size] as? Int, size > 0 else { return .negative }
+        guard let img = NSImage(contentsOfFile: fileURL.path) else { return .miss }
+        return .fresh(img)
     }
 
     @concurrent private func fetchAndCache(url: URL, fileURL: URL) async -> NSImage? {

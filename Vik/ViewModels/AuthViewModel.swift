@@ -29,7 +29,7 @@ final class AuthViewModel {
             let userInfo = try await GmailProfileService.shared.getUserInfo(accessToken: token.accessToken)
 
             // 3. Save token to Keychain
-            try TokenStore.shared.save(token, for: userInfo.email)
+            try await TokenStore.shared.save(token, for: userInfo.email)
 
             // 4. Fetch Gmail profile (message counts)
             let profile = try await GmailProfileService.shared.getProfile(accountID: userInfo.email)

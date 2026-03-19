@@ -742,7 +742,7 @@ final class GmailAPIClient {
             }
             guard let token else { throw GmailAPIError.unauthorized }
             let fresh = try await OAuthService.shared.refreshToken(token)
-            try TokenStore.shared.save(fresh, for: accountID)
+            try await TokenStore.shared.save(fresh, for: accountID)
             return fresh
         }
         refreshTasks[accountID] = task

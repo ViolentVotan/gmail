@@ -10,7 +10,7 @@ final class PeopleAPIService {
     private init() {}
 
     /// Sync tokens expire after 7 days per Google docs. Proactively refresh at 6 days.
-    private static let syncTokenMaxAge: TimeInterval = 6 * 24 * 3600
+    nonisolated private static let syncTokenMaxAge: TimeInterval = 6 * 24 * 3600
 
     /// Loads contacts: uses local cache if available, otherwise fetches from network.
     /// The caller must supply the `BackgroundSyncer` for the account so contact
@@ -45,7 +45,7 @@ final class PeopleAPIService {
 
     /// Extracts contact tuples from a PersonResource array, updating the photo cache.
     /// Returns tuples ready for `BackgroundSyncer.upsertContacts`.
-    private func parseContacts(
+    nonisolated private func parseContacts(
         from persons: [PersonResource],
         source: String = "people_api"
     ) -> [(email: String, name: String?, photoUrl: String?, source: String, resourceName: String?)] {
@@ -71,7 +71,7 @@ final class PeopleAPIService {
     /// the sync token (forcing a full re-fetch on restart) but contacts fetched so
     /// far are already persisted. The sync token is only saved after all pages
     /// complete, matching the pattern used by `performInitialSync` for messages.
-    private func fetchAndStoreContacts(accountID: String, syncer: BackgroundSyncer) async {
+    @concurrent private func fetchAndStoreContacts(accountID: String, syncer: BackgroundSyncer) async {
         var newContactsSyncToken: String?
         var newOtherSyncToken: String?
         var contactsFetchSucceeded = false
@@ -347,7 +347,7 @@ final class PeopleAPIService {
     /// Fetches Google Workspace directory contacts (domain profiles + contacts).
     /// Writes each page to DB immediately. Gracefully skips if the directory.readonly
     /// scope isn't granted (403).
-    private func fetchDirectoryPeople(accountID: String, syncer: BackgroundSyncer) async {
+    @concurrent private func fetchDirectoryPeople(accountID: String, syncer: BackgroundSyncer) async {
         let mailDB = try? await MailDatabase.shared(for: accountID)
         let syncStartTime = Date().timeIntervalSince1970
 
@@ -492,21 +492,21 @@ final class PeopleAPIService {
 
     /// Partial-response `fields` filter for connections.list — limits the response
     /// envelope to only the fields we decode, avoiding unnecessary metadata transfer.
-    private static let connectionsFields = [
+    nonisolated private static let connectionsFields = [
         "connections(emailAddresses/value,names/displayName,photos(url,default),metadata/deleted)",
         "nextPageToken",
         "nextSyncToken",
     ].joined(separator: ",")
 
     /// Partial-response `fields` filter for otherContacts.list.
-    private static let otherContactsFields = [
+    nonisolated private static let otherContactsFields = [
         "otherContacts(emailAddresses/value,names/displayName,metadata/deleted)",
         "nextPageToken",
         "nextSyncToken",
     ].joined(separator: ",")
 
     /// Partial-response `fields` filter for people:listDirectoryPeople.
-    private static let directoryFields = [
+    nonisolated private static let directoryFields = [
         "people(emailAddresses/value,names/displayName,photos(url,default),metadata/deleted)",
         "nextPageToken",
         "nextSyncToken",

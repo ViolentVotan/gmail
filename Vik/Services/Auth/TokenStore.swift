@@ -56,7 +56,7 @@ final class TokenStore {
         return result as? Data
     }
 
-    private func saveKeychainItem(service: String, account: String, data: Data) {
+    nonisolated private func saveKeychainItem(service: String, account: String, data: Data) {
         let query: [String: Any] = [
             kSecClass as String:            kSecClassGenericPassword,
             kSecAttrService as String:      service,
@@ -75,7 +75,7 @@ final class TokenStore {
         }
     }
 
-    private func saveKeyToKeychain(_ data: Data) {
+    nonisolated private func saveKeyToKeychain(_ data: Data) {
         saveKeychainItem(service: keychainService, account: keychainAccount, data: data)
     }
 
@@ -91,7 +91,7 @@ final class TokenStore {
 
     // MARK: - Token data (Keychain)
 
-    private func tokenKeychainAccount(for accountID: String) -> String {
+    nonisolated private func tokenKeychainAccount(for accountID: String) -> String {
         "token-\(accountID)"
     }
 
@@ -109,7 +109,7 @@ final class TokenStore {
         return result as? Data
     }
 
-    private func saveTokenData(_ data: Data, for accountID: String) {
+    nonisolated private func saveTokenData(_ data: Data, for accountID: String) {
         saveKeychainItem(service: keychainService, account: tokenKeychainAccount(for: accountID), data: data)
     }
 
@@ -137,16 +137,20 @@ final class TokenStore {
 
     // MARK: - CRUD
 
-    func save(_ token: AuthToken, for accountID: String) throws {
+    @concurrent func save(_ token: AuthToken, for accountID: String) async throws {
+        // Capture MainActor state before hopping off the main thread.
+        let key = await MainActor.run { symmetricKey }
         let plaintext = try JSONEncoder().encode(token)
-        let sealed    = try AES.GCM.seal(plaintext, using: symmetricKey)
+        let sealed    = try AES.GCM.seal(plaintext, using: key)
         guard let combined = sealed.combined else { throw TokenStoreError.encryptionFailed }
         saveTokenData(combined, for: accountID)
 
-        var ids = allAccountIDs()
-        if !ids.contains(accountID) {
-            ids.append(accountID)
-            defaults.set(ids, forKey: accountsKey)
+        await MainActor.run {
+            var ids = allAccountIDs()
+            if !ids.contains(accountID) {
+                ids.append(accountID)
+                defaults.set(ids, forKey: accountsKey)
+            }
         }
     }
 

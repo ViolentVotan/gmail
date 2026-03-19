@@ -104,7 +104,7 @@ final class OAuthService: NSObject {
     /// Needed when new scopes are added after the user already signed in.
     func reauthorize(accountID: String, presentingWindow: NSWindow?) async throws {
         let token = try await authorize(presentingWindow: presentingWindow, forceConsent: true)
-        try TokenStore.shared.save(token, for: accountID)
+        try await TokenStore.shared.save(token, for: accountID)
     }
 
     /// Uses the stored refresh token to obtain a new access token.

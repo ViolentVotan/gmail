@@ -18,14 +18,17 @@ final class EmailClassifier {
         tagCache[messageId]
     }
 
-    func classifyBatch(_ emails: [Email], db: MailDatabase? = nil) async {
+    @concurrent func classifyBatch(_ emails: [Email], db: MailDatabase? = nil) async {
         #if canImport(FoundationModels)
         guard SystemLanguageModel.default.availability == .available else { return }
         let model = SystemLanguageModel(useCase: .contentTagging)
         let instructions = Instructions("Classify this email with boolean tags.")
         for email in emails.prefix(10) {
             guard !Task.isCancelled else { return }
-            guard let msgId = email.gmailMessageID, tagCache[msgId] == nil else { continue }
+            guard let msgId = email.gmailMessageID else { continue }
+            // Check in-memory cache on MainActor before doing any I/O
+            let cached = await MainActor.run { tagCache[msgId] }
+            guard cached == nil else { continue }
             do {
                 // Check DB for persisted tags before invoking the model
                 if let db {
@@ -33,10 +36,11 @@ final class EmailClassifier {
                         try EmailTagRecord.fetchOne(database, key: msgId)
                     }
                     if let persisted {
-                        tagCache[msgId] = EmailTags(
+                        let tags = EmailTags(
                             needsReply: persisted.needsReply, fyiOnly: persisted.fyiOnly,
                             hasDeadline: persisted.hasDeadline, financial: persisted.financial
                         )
+                        await MainActor.run { tagCache[msgId] = tags }
                         continue
                     }
                 }
@@ -49,7 +53,7 @@ final class EmailClassifier {
                     needsReply: result.content.needsReply, fyiOnly: result.content.fyiOnly,
                     hasDeadline: result.content.hasDeadline, financial: result.content.financial
                 )
-                tagCache[msgId] = tags
+                await MainActor.run { tagCache[msgId] = tags }
                 // Write to DB
                 if let db {
                     try? await db.dbPool.write { database in

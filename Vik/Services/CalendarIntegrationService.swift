@@ -2,8 +2,7 @@ import Foundation
 private import GRDB
 private import os
 
-@MainActor
-final class CalendarIntegrationService {
+final class CalendarIntegrationService: Sendable {
     static let shared = CalendarIntegrationService()
     nonisolated private static let logger = Logger(category: "CalendarIntegration")
     private init() {}
@@ -11,7 +10,7 @@ final class CalendarIntegrationService {
     // MARK: - Invite Matching
 
     /// Finds the calendar event matching an email invite by iCalUID.
-    func findEventForInvite(iCalUID: String, accountID: String, db: MailDatabase) async -> CalendarEvent? {
+    @concurrent func findEventForInvite(iCalUID: String, accountID: String, db: MailDatabase) async -> CalendarEvent? {
         do {
             let result = try await db.dbPool.read { dbConnection in
                 let record = try CalendarEventRecord
@@ -37,7 +36,7 @@ final class CalendarIntegrationService {
     // MARK: - Participant Matching
 
     /// Finds upcoming events (within 48h) that include any of the given participant emails.
-    func findUpcomingEventsWithParticipants(
+    @concurrent func findUpcomingEventsWithParticipants(
         emails: [String],
         accountID: String,
         db: MailDatabase,
@@ -86,7 +85,7 @@ final class CalendarIntegrationService {
     // MARK: - Next Meeting
 
     /// Finds the next upcoming meeting with a specific person.
-    func nextMeetingWith(email: String, accountID: String, db: MailDatabase) async -> CalendarEvent? {
+    @concurrent func nextMeetingWith(email: String, accountID: String, db: MailDatabase) async -> CalendarEvent? {
         await findUpcomingEventsWithParticipants(emails: [email], accountID: accountID, db: db, limit: 1).first
     }
 }

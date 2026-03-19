@@ -82,19 +82,29 @@ final class ThumbnailCache {
         let fileType = Attachment.FileType(rawValue: attachment.fileType) ?? .document
         guard fileType == .image || fileType == .pdf else { return }
 
-        // Try disk cache first
-        if let diskImage = loadFromDisk(id: id) {
-            thumbnails[id] = diskImage
-            return
-        }
-
         loading.insert(id)
 
-        if activeFetches < maxConcurrentFetches {
-            startFetch(id: id, attachment: attachment, accountID: accountID)
-        } else {
-            pendingQueue.append((id: id, attachment: attachment, accountID: accountID))
+        // Check disk cache off the main actor, then fall through to network if needed.
+        let cacheDir = cacheDirectory
+        let task = Task {
+            if let diskImage = await Self.loadFromDisk(id: id, cacheDir: cacheDir) {
+                guard !Task.isCancelled else { return }
+                self.loading.remove(id)
+                self.thumbnails[id] = diskImage
+                return
+            }
+            // Disk miss — hand off to the throttled network fetch.
+            guard !Task.isCancelled, self.thumbnails[id] == nil else {
+                self.loading.remove(id)
+                return
+            }
+            if self.activeFetches < self.maxConcurrentFetches {
+                self.startFetch(id: id, attachment: attachment, accountID: accountID)
+            } else {
+                self.pendingQueue.append((id: id, attachment: attachment, accountID: accountID))
+            }
         }
+        fetchTasks[id] = task
     }
 
     // MARK: - Fetch
@@ -145,13 +155,9 @@ final class ThumbnailCache {
 
     // MARK: - Disk Cache
 
-    private func cacheFileURL(for id: String) -> URL {
+    @concurrent private static func loadFromDisk(id: String, cacheDir: URL) async -> NSImage? {
         let safeName = id.replacingOccurrences(of: "/", with: "_")
-        return cacheDirectory.appendingPathComponent(safeName + ".jpg")
-    }
-
-    private func loadFromDisk(id: String) -> NSImage? {
-        let url = cacheFileURL(for: id)
+        let url = cacheDir.appendingPathComponent(safeName + ".jpg")
         guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
               let modified = attrs[.modificationDate] as? Date,
               Date().timeIntervalSince(modified) < 90 * 24 * 3600 else {
