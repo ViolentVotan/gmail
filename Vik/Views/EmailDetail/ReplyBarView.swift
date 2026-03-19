@@ -113,6 +113,7 @@ struct ReplyBarView: View {
             manager.scheduleAutoSave(email: email, mailStore: mailStore)
         }
         .animation(VikAnimation.springSnappy, value: manager.hasUserContent)
+        .animation(VikAnimation.springSnappy, value: NetworkMonitor.shared.isConnected)
         .animation(VikAnimation.springSnappy, value: smartReplySuggestions.isEmpty)
         .task {
             try? await Task.sleep(for: ReplyBarManager.autoSaveGuardDelay)
@@ -300,6 +301,19 @@ struct ReplyBarView: View {
             .onDisappear { isEditorFocused = false }
 
             AttachmentChipRow(attachments: $manager.attachments)
+
+            if !NetworkMonitor.shared.isConnected {
+                HStack(spacing: 6) {
+                    Image(systemName: "wifi.slash")
+                        .font(Typography.captionRegular)
+                    Text("You're offline — replies will be queued")
+                        .font(Typography.captionRegular)
+                }
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.xs)
+                .transition(.opacity)
+            }
 
             Divider().background(Color(.separatorColor))
 
