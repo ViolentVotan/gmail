@@ -9,6 +9,7 @@ struct AutocompleteTextField: View {
     @State private var isFocused = false
     @State private var highlightedIndex = 0
     @State private var suggestions: [StoredContact] = []
+    @State private var fieldHeight: CGFloat = 34
 
     private var currentSegment: String {
         let parts = text.components(separatedBy: ",")
@@ -57,15 +58,20 @@ struct AutocompleteTextField: View {
                 highlightedIndex = max(highlightedIndex - 1, 0)
                 return .handled
             }
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.height
+            } action: { newHeight in
+                fieldHeight = newHeight
+            }
+            .overlay(alignment: .topLeading) {
+                if showDropdown {
+                    autocompleteDropdown
+                        .offset(y: fieldHeight)
+                }
+            }
         }
         .padding(.horizontal, Spacing.xl)
         .padding(.vertical, 10)
-        .overlay(alignment: .topLeading) {
-            if showDropdown {
-                autocompleteDropdown
-                    .offset(x: 74, y: 38)
-            }
-        }
         .zIndex(10)
         .onAppear { recomputeSuggestions() }
     }
