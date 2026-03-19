@@ -21,7 +21,7 @@ struct ContentShimmerView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .fixedSize(horizontal: false, vertical: true)
-        .onAppear {
+        .task {
             withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
                 shimmerPhase = 1
             }

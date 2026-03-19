@@ -125,7 +125,7 @@ struct EmailDetailView: View {
                         if let latestID = detailVM.latestMessage?.id {
                             expandedMessageIDs = [latestID]
                             try? await Task.sleep(for: .milliseconds(100))
-                            withAnimation { proxy.scrollTo(latestID, anchor: .bottom) }
+                            withAnimation(VikAnimation.springDefault) { proxy.scrollTo(latestID, anchor: .bottom) }
                         }
                     }
                     .animation(VikAnimation.contentSwitch, value: email.id)
@@ -355,7 +355,7 @@ struct EmailDetailView: View {
                 for: email,
                 existingLabels: allLabels
             )
-            withAnimation { labelSuggestions = suggestions }
+            withAnimation(VikAnimation.contentSwitch) { labelSuggestions = suggestions }
         }
     }
 
@@ -508,7 +508,7 @@ struct EmailDetailView: View {
     }
 
     private func applyLabelSuggestion(_ suggestion: LabelSuggestion) {
-        withAnimation { labelSuggestions.removeAll { $0.name == suggestion.name } }
+        withAnimation(VikAnimation.contentSwitch) { labelSuggestions.removeAll { $0.name == suggestion.name } }
         detailVM.applyLabelSuggestion(
             suggestion,
             allLabels: allLabels,

@@ -32,25 +32,25 @@ final class AttachmentStore {
     var searchQuery = "" {
         didSet {
             debouncedSearch()
-            recomputeDisplayedAttachments()
+            scheduleRecompute()
         }
     }
     var searchResults: [AttachmentSearchResult] = [] {
-        didSet { recomputeDisplayedAttachments() }
+        didSet { scheduleRecompute() }
     }
     var allAttachments: [IndexedAttachment] = [] {
-        didSet { recomputeDisplayedAttachments() }
+        didSet { scheduleRecompute() }
     }
     var stats = IndexingStats()
     var isSearching = false
     var filterFileType: Attachment.FileType? {
-        didSet { recomputeDisplayedAttachments() }
+        didSet { scheduleRecompute() }
     }
     var filterDirection: IndexedAttachment.Direction? {
-        didSet { recomputeDisplayedAttachments() }
+        didSet { scheduleRecompute() }
     }
     var exclusionRules: [String] = [] {
-        didSet { recomputeDisplayedAttachments() }
+        didSet { scheduleRecompute() }
     }
 
     /// Cached result of filtering, exclusion, and deduplication. Updated only when inputs change.
@@ -62,11 +62,21 @@ final class AttachmentStore {
     @ObservationIgnored private let searchService: AttachmentSearchService
     @ObservationIgnored private var searchTask: Task<Void, Never>?
     @ObservationIgnored private var debounceTask: Task<Void, Never>?
+    @ObservationIgnored private var recomputeTask: Task<Void, Never>?
     @ObservationIgnored var accountID: String = ""
 
     var isIndexing: Bool { stats.pending > 0 }
 
     // MARK: - Cache Recomputation
+
+    private func scheduleRecompute() {
+        recomputeTask?.cancel()
+        recomputeTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(1))
+            guard !Task.isCancelled else { return }
+            self?.recomputeDisplayedAttachments()
+        }
+    }
 
     private func recomputeDisplayedAttachments() {
         var results = searchQuery.isEmpty
@@ -108,6 +118,7 @@ final class AttachmentStore {
     isolated deinit {
         searchTask?.cancel()
         debounceTask?.cancel()
+        recomputeTask?.cancel()
     }
 
     // MARK: - Search Debounce

@@ -1,3 +1,4 @@
+import CoreSpotlight
 import SwiftUI
 
 struct ContentView: View {
@@ -228,13 +229,22 @@ struct ContentView: View {
             }
             .userActivity(UserActivityManager.viewEmailActivityType, isActive: coordinator.selectedEmail != nil) { activity in
                 guard let email = coordinator.selectedEmail else { return }
-                let source = UserActivityManager.activity(for: email, accountID: coordinator.accountID)
-                activity.title = source.title
+                activity.title = email.subject
                 activity.isEligibleForSearch = true
                 activity.isEligibleForHandoff = false
-                activity.targetContentIdentifier = source.targetContentIdentifier
-                activity.contentAttributeSet = source.contentAttributeSet
-                activity.userInfo = source.userInfo
+                activity.targetContentIdentifier = email.gmailMessageID
+                let attributes = CSSearchableItemAttributeSet(contentType: .emailMessage)
+                attributes.subject = email.subject
+                attributes.authorNames = [email.sender.name]
+                attributes.authorEmailAddresses = [email.sender.email]
+                attributes.contentDescription = String(email.preview.prefix(300))
+                attributes.contentCreationDate = email.date
+                if !email.recipients.isEmpty {
+                    attributes.recipientNames = email.recipients.map(\.name)
+                    attributes.recipientEmailAddresses = email.recipients.map(\.email)
+                }
+                activity.contentAttributeSet = attributes
+                activity.userInfo = ["messageId": email.gmailMessageID ?? "", "accountID": coordinator.accountID]
             }
             .onContinueUserActivity("com.vikingz.vik.viewEmail") { activity in
                 if let accountID = activity.userInfo?["accountID"] as? String,

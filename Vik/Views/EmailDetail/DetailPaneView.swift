@@ -77,8 +77,10 @@ struct DetailPaneView: View {
 
     // MARK: - Derived Selection (M2)
 
-    private var selectedEmails: [Email] {
-        displayedEmails.filter { selectedEmailIDs.contains($0.id.uuidString) }
+    @State private var selectedEmails: [Email] = []
+
+    private func recomputeSelectedEmails() {
+        selectedEmails = displayedEmails.filter { selectedEmailIDs.contains($0.id.uuidString) }
     }
 
     var body: some View {
@@ -99,6 +101,8 @@ struct DetailPaneView: View {
         .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: selectedEmail?.id)
         .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: isMultiSelect)
         .navigationSplitViewColumnWidth(min: 500, ideal: 700)
+        .onChange(of: selectedEmailIDs) { _, _ in recomputeSelectedEmails() }
+        .onChange(of: displayedEmails) { _, _ in recomputeSelectedEmails() }
     }
 
     // MARK: - Bulk Actions
