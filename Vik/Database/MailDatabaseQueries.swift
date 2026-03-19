@@ -150,6 +150,13 @@ enum MailDatabaseQueries {
             .fetchAll(db)
     }
 
+    /// All calendars across every account (for sidebar display — includes hidden ones).
+    static func allCalendars(in db: Database) throws -> [CalendarRecord] {
+        try CalendarRecord
+            .order(Column("is_primary").desc, Column("summary").asc)
+            .fetchAll(db)
+    }
+
     /// All visible calendars across every account (for unified calendar view).
     static func allVisibleCalendars(in db: Database) throws -> [CalendarRecord] {
         try CalendarRecord

@@ -60,14 +60,16 @@ final class CalendarViewModel {
         calendarObservationTask?.cancel()
         let dbPool = db.dbPool
         let calendarObservation = ValueObservation.tracking { db in
-            try MailDatabaseQueries.allVisibleCalendars(in: db)
+            try MailDatabaseQueries.allCalendars(in: db)
         }
         calendarObservationTask = Task { @MainActor [weak self] in
             do {
                 for try await records in calendarObservation.values(in: dbPool) {
                     guard let self else { return }
                     self.calendars = records.map { $0.toCalendarInfo() }
-                    let newVisibleIDs = Set(records.map { "\($0.accountId)\u{001F}\($0.calendarId)" })
+                    let newVisibleIDs = Set(
+                        records.filter(\.isVisible).map { "\($0.accountId)\u{001F}\($0.calendarId)" }
+                    )
                     let changed = newVisibleIDs != self.visibleCalendarIDs
                     self.visibleCalendarIDs = newVisibleIDs
                     if changed {
