@@ -111,10 +111,13 @@ struct CalendarMonthView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var hoveredDate: Date?
+    @State private var spanningBarColumnWidth: CGFloat = 0
     @State private var cachedWeeks: [[Date]] = []
     @State private var cachedCurrentMonth: Int = 0
     @State private var cachedSpanningLayouts: [MonthSpanningLayout] = []
     @State private var cachedCellContents: [[MonthDayCellContent]] = []
+    @State private var orderedShortSymbols: [String] = []
+    @State private var orderedFullSymbols: [String] = []
 
     private let calendar = Calendar.current
 
@@ -142,8 +145,14 @@ struct CalendarMonthView: View {
                 }
             }
         }
+        .task {
+            recomputeWeekdaySymbols()
+        }
         .task(id: viewModel.selectedDate) { recomputeMonthLayout() }
         .onChange(of: viewModel.events) { recomputeMonthLayout() }
+        .onReceive(NotificationCenter.default.publisher(for: NSLocale.currentLocaleDidChangeNotification)) { _ in
+            recomputeWeekdaySymbols()
+        }
     }
 
     private func recomputeMonthLayout() {
@@ -176,24 +185,26 @@ struct CalendarMonthView: View {
     // MARK: - Day of Week Header
 
     private var dayOfWeekHeader: some View {
-        let firstWeekday = calendar.firstWeekday
-        let shortSymbols = calendar.shortWeekdaySymbols
-        let fullSymbols = calendar.weekdaySymbols
-        let ordered = Array(shortSymbols[(firstWeekday - 1)...]) + Array(shortSymbols[..<(firstWeekday - 1)])
-        let fullOrdered = Array(fullSymbols[(firstWeekday - 1)...]) + Array(fullSymbols[..<(firstWeekday - 1)])
-
-        return HStack(spacing: 0) {
-            ForEach(Array(ordered.enumerated()), id: \.offset) { index, symbol in
+        HStack(spacing: 0) {
+            ForEach(Array(orderedShortSymbols.enumerated()), id: \.offset) { index, symbol in
                 Text(symbol.uppercased())
                     .font(Typography.caption)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Spacing.xs)
-                    .accessibilityLabel(fullOrdered[index])
+                    .accessibilityLabel(index < orderedFullSymbols.count ? orderedFullSymbols[index] : symbol)
             }
         }
         .padding(.horizontal, 1)
         .background(.bar)
+    }
+
+    private func recomputeWeekdaySymbols() {
+        let firstWeekday = calendar.firstWeekday
+        let shortSymbols = calendar.shortWeekdaySymbols
+        let fullSymbols = calendar.weekdaySymbols
+        orderedShortSymbols = Array(shortSymbols[(firstWeekday - 1)...]) + Array(shortSymbols[..<(firstWeekday - 1)])
+        orderedFullSymbols = Array(fullSymbols[(firstWeekday - 1)...]) + Array(fullSymbols[..<(firstWeekday - 1)])
     }
 
     // MARK: - Week Row
@@ -224,27 +235,29 @@ struct CalendarMonthView: View {
     // MARK: - Spanning Bar Area
 
     private func spanningBarArea(layout: MonthSpanningLayout) -> some View {
-        GeometryReader { geometry in
-            let columnWidth = geometry.size.width / 7
-
-            ZStack(alignment: .topLeading) {
-                ForEach(Array(layout.rows.enumerated()), id: \.offset) { _, placement in
-                    CalendarMonthSpanningBar(
-                        event: placement.event,
-                        startColumn: placement.startColumn,
-                        endColumn: placement.endColumn,
-                        columnWidth: columnWidth,
-                        isClippedAtStart: placement.isClippedAtStart,
-                        isClippedAtEnd: placement.isClippedAtEnd,
-                        onSelect: { onSelectEvent($0) }
-                    )
-                    .offset(y: CGFloat(placement.rowIndex) * CalendarLayout.monthSpanningBarHeight)
-                }
+        ZStack(alignment: .topLeading) {
+            ForEach(Array(layout.rows.enumerated()), id: \.offset) { _, placement in
+                CalendarMonthSpanningBar(
+                    event: placement.event,
+                    startColumn: placement.startColumn,
+                    endColumn: placement.endColumn,
+                    columnWidth: spanningBarColumnWidth,
+                    isClippedAtStart: placement.isClippedAtStart,
+                    isClippedAtEnd: placement.isClippedAtEnd,
+                    onSelect: { onSelectEvent($0) }
+                )
+                .offset(y: CGFloat(placement.rowIndex) * CalendarLayout.monthSpanningBarHeight)
             }
         }
         .frame(height: CGFloat(
             min(layout.rows.map(\.rowIndex).max().map { $0 + 1 } ?? 0, CalendarLayout.monthMaxSpanningRows)
         ) * CalendarLayout.monthSpanningBarHeight)
+        .frame(maxWidth: .infinity)
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.width / 7
+        } action: { newWidth in
+            spanningBarColumnWidth = newWidth
+        }
     }
 
     // MARK: - Day Cell
@@ -299,10 +312,11 @@ struct CalendarMonthView: View {
 
     // MARK: - Day Number
 
+    @ViewBuilder
     private func dayNumber(date: Date, isToday: Bool, isInMonth: Bool) -> some View {
         let dayText = "\(calendar.component(.day, from: date))"
 
-        return Button {
+        Button {
             withAnimation(VikAnimation.springSnappy) {
                 viewModel.selectDate(date)
                 viewModel.viewMode = .day
@@ -311,7 +325,7 @@ struct CalendarMonthView: View {
             Text(dayText)
                 .font(Typography.caption)
                 .fontWeight(isToday ? .bold : .regular)
-                .foregroundStyle(isToday ? AnyShapeStyle(.white) : isInMonth ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
+                .foregroundStyle(dayNumberForeground(isToday: isToday, isInMonth: isInMonth))
                 .frame(width: 22, height: 22)
                 .background {
                     if isToday {
@@ -376,6 +390,12 @@ struct CalendarMonthView: View {
                 isInCurrentMonth: calendar.component(.month, from: date) == currentMonth
             )
         }
+    }
+
+    private func dayNumberForeground(isToday: Bool, isInMonth: Bool) -> Color {
+        if isToday { return .white }
+        if !isInMonth { return Color(nsColor: .tertiaryLabelColor) }
+        return Color(nsColor: .labelColor)
     }
 }
 

@@ -15,6 +15,7 @@ struct CalendarAgendaView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var groupedDays: [(date: Date, events: [CalendarEvent])] = []
+    @State private var cachedTodayEvents: [CalendarEvent] = []
 
     // MARK: - Body
 
@@ -56,7 +57,7 @@ struct CalendarAgendaView: View {
             recomputeGroupedDays()
         }
         .accessibilityRotor("Today's Events") {
-            ForEach(viewModel.events.filter { Calendar.current.isDateInToday($0.startTime) }) { event in
+            ForEach(cachedTodayEvents) { event in
                 AccessibilityRotorEntry(event.summary, id: event.id)
             }
         }
@@ -112,7 +113,7 @@ struct CalendarAgendaView: View {
 
     // MARK: - Helpers
 
-    /// Recomputes the 30-day grouped event list from the ViewModel.
+    /// Recomputes the 30-day grouped event list and today's events cache from the ViewModel.
     private func recomputeGroupedDays() {
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: viewModel.selectedDate)
@@ -126,6 +127,7 @@ struct CalendarAgendaView: View {
             guard !dayEvents.isEmpty else { return nil }
             return (day, dayEvents)
         }
+        cachedTodayEvents = viewModel.events.filter { calendar.isDateInToday($0.startTime) }
     }
 
     private static let dayOfWeekFormatter: DateFormatter = {

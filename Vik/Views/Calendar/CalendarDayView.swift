@@ -34,7 +34,6 @@ struct CalendarDayView: View {
             Divider()
             timeGrid
         }
-        .animation(VikAnimation.contentSwitch, value: viewModel.selectedDate)
         .task(id: viewModel.selectedDate) {
             recomputeEvents()
         }
@@ -126,8 +125,7 @@ struct CalendarDayView: View {
                     }
 
                     // Event cards overlaid on the grid
-                    ForEach(0..<cachedOverlapGroups.count, id: \.self) { groupIndex in
-                        let group = cachedOverlapGroups[groupIndex]
+                    ForEach(Array(cachedOverlapGroups.enumerated()), id: \.element.first?.id) { groupIndex, group in
                         ForEach(Array(group.enumerated()), id: \.element.id) { colIndex, event in
                             dayEventCard(
                                 event: event,

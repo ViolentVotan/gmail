@@ -158,10 +158,10 @@ struct CalendarMiniMonthView: View {
         viewModel.selectedDate.formattedMonthYear
     }
 
-    private func dayTextColor(isToday: Bool, isSelected: Bool, isInMonth: Bool) -> some ShapeStyle {
-        if isToday { return AnyShapeStyle(.white) }
-        if !isInMonth { return AnyShapeStyle(.tertiary) }
-        return AnyShapeStyle(.primary)
+    private func dayTextColor(isToday: Bool, isSelected: Bool, isInMonth: Bool) -> Color {
+        if isToday { return .white }
+        if !isInMonth { return Color(nsColor: .tertiaryLabelColor) }
+        return Color(nsColor: .labelColor)
     }
 
     private func isSelectedWeek(_ days: [Date?]) -> Bool {

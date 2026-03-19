@@ -84,7 +84,8 @@ struct CalendarWeekView: View {
                     .accessibilityHidden(true)
 
                 // All-day chips per day
-                ForEach(Array(zip(cachedWeekDays, cachedAllDayEventsByDay)), id: \.0) { _, allDayEvents in
+                ForEach(Array(zip(cachedWeekDays, cachedAllDayEventsByDay).enumerated()), id: \.offset) { _, pair in
+                    let allDayEvents = pair.1
                     VStack(spacing: 2) {
                         ForEach(allDayEvents) { event in
                             allDayChip(event: event, width: dayColumnWidth)
@@ -134,7 +135,7 @@ struct CalendarWeekView: View {
                 .frame(width: CalendarLayout.timeColumnWidth)
                 .accessibilityHidden(true)
 
-            ForEach(cachedWeekDays, id: \.self) { day in
+            ForEach(Array(cachedWeekDays.enumerated()), id: \.offset) { index, day in
                 dayHeader(for: day, width: dayColumnWidth)
             }
         }
@@ -213,7 +214,7 @@ struct CalendarWeekView: View {
 
                     // Day columns with grid lines
                     HStack(spacing: 0) {
-                        ForEach(Array(cachedWeekDays.enumerated()), id: \.element) { dayIndex, day in
+                        ForEach(Array(cachedWeekDays.enumerated()), id: \.offset) { dayIndex, day in
                             let isToday = dayIndex == cachedTodayIndex
                             let isWeekendDay = cachedWeekendIndices.contains(dayIndex)
 
@@ -257,7 +258,7 @@ struct CalendarWeekView: View {
 
     private func eventsOverlay(dayColumnWidth: CGFloat) -> some View {
         ZStack(alignment: .topLeading) {
-            ForEach(Array(cachedWeekDays.enumerated()), id: \.element) { dayIndex, day in
+            ForEach(Array(cachedWeekDays.enumerated()), id: \.offset) { dayIndex, day in
                 dayEventsOverlay(
                     dayIndex: dayIndex,
                     day: day,
@@ -276,8 +277,7 @@ struct CalendarWeekView: View {
         dayColumnWidth: CGFloat
     ) -> some View {
         let groups = dayIndex < cachedOverlapGroupsByDay.count ? cachedOverlapGroupsByDay[dayIndex] : []
-        ForEach(0..<groups.count, id: \.self) { groupIndex in
-            let group = groups[groupIndex]
+        ForEach(Array(groups.enumerated()), id: \.element.first?.id) { groupIndex, group in
             ForEach(Array(group.enumerated()), id: \.element.id) { colIndex, event in
                 eventCard(
                     event: event,
