@@ -423,24 +423,6 @@ struct ReplyBarView: View {
         }
     }
 
-    // MARK: - Recipient Field
-
-    private func recipientField(label: String, text: Binding<String>) -> some View {
-        HStack(spacing: 8) {
-            Text(label)
-                .font(Typography.subhead)
-                .foregroundStyle(.tertiary)
-                .frame(width: 28, alignment: .leading)
-
-            TextField("", text: text)
-                .textFieldStyle(.plain)
-                .font(Typography.subheadRegular)
-                .foregroundStyle(.primary)
-        }
-        .padding(.horizontal, Spacing.lg)
-        .padding(.vertical, Spacing.sm)
-    }
-
     // MARK: - Actions
 
     private func discardAction() {

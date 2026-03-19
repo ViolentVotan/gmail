@@ -155,11 +155,6 @@ struct AutocompleteTextField: View {
         .dropdownPanelStyle()
     }
 
-    private func confirmHighlighted() {
-        guard showDropdown, highlightedIndex < suggestions.count else { return }
-        selectContact(suggestions[highlightedIndex])
-    }
-
     private func selectContact(_ contact: StoredContact) {
         var parts = text.components(separatedBy: ",")
         if !parts.isEmpty { parts.removeLast() }
