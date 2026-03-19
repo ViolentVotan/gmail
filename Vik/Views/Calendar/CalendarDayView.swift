@@ -17,8 +17,8 @@ struct CalendarDayView: View {
     // MARK: - Private state
 
     @State private var currentTime: Date = .now
-    @State private var scrollProxy: ScrollViewProxy? = nil
     @State private var hoveredHour: Int? = nil
+    @State private var gridWidth: CGFloat = 300
     @State private var cachedAllDayEvents: [CalendarEvent] = []
     @State private var cachedTimedEvents: [CalendarEvent] = []
     @State private var cachedOverlapGroups: [[CalendarEvent]] = []
@@ -126,17 +126,15 @@ struct CalendarDayView: View {
                     }
 
                     // Event cards overlaid on the grid
-                    GeometryReader { geo in
-                        ForEach(0..<cachedOverlapGroups.count, id: \.self) { groupIndex in
-                            let group = cachedOverlapGroups[groupIndex]
-                            ForEach(Array(group.enumerated()), id: \.element.id) { colIndex, event in
-                                dayEventCard(
-                                    event: event,
-                                    colIndex: colIndex,
-                                    colCount: group.count,
-                                    totalWidth: geo.size.width
-                                )
-                            }
+                    ForEach(0..<cachedOverlapGroups.count, id: \.self) { groupIndex in
+                        let group = cachedOverlapGroups[groupIndex]
+                        ForEach(Array(group.enumerated()), id: \.element.id) { colIndex, event in
+                            dayEventCard(
+                                event: event,
+                                colIndex: colIndex,
+                                colCount: group.count,
+                                totalWidth: gridWidth
+                            )
                         }
                     }
 
@@ -145,10 +143,14 @@ struct CalendarDayView: View {
                         currentTimeIndicator
                     }
                 }
+                .onGeometryChange(for: CGFloat.self) { proxy in
+                    proxy.size.width
+                } action: { newWidth in
+                    gridWidth = newWidth
+                }
                 .id("grid")
             }
-            .onAppear {
-                scrollProxy = proxy
+            .task {
                 scrollToCurrentTime(proxy: proxy)
             }
             .onChange(of: viewModel.selectedDate) { _, _ in
@@ -246,11 +248,15 @@ struct CalendarDayView: View {
 
     // MARK: - Helpers
 
-    private func hourLabel(_ hour: Int) -> String {
+    private static let hourLabels: [String] = (0..<24).map { hour in
         guard hour != 0 else { return "" }
         let components = DateComponents(hour: hour)
-        guard let date = calendar.date(from: components) else { return "" }
+        let date = Calendar.current.date(from: components) ?? Date()
         return date.formattedCalendarHour
+    }
+
+    private func hourLabel(_ hour: Int) -> String {
+        Self.hourLabels[hour]
     }
 
     private func scrollToCurrentTime(proxy: ScrollViewProxy) {

@@ -111,13 +111,14 @@ struct CalendarMonthView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var hoveredDate: Date?
+    @State private var cachedWeeks: [[Date]] = []
+    @State private var cachedCurrentMonth: Int = 0
+    @State private var cachedSpanningLayouts: [MonthSpanningLayout] = []
+    @State private var cachedCellContents: [[MonthDayCellContent]] = []
 
     private let calendar = Calendar.current
 
     var body: some View {
-        let weeks = calendar.weeksInMonth(for: viewModel.selectedDate)
-        let currentMonth = calendar.component(.month, from: viewModel.selectedDate)
-
         VStack(spacing: 0) {
             dayOfWeekHeader
 
@@ -125,29 +126,61 @@ struct CalendarMonthView: View {
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 0) {
-                    ForEach(Array(weeks.enumerated()), id: \.offset) { weekIndex, weekDays in
+                    ForEach(Array(cachedWeeks.enumerated()), id: \.offset) { weekIndex, weekDays in
                         if weekIndex > 0 {
                             Divider()
                         }
                         weekRow(
                             weekDays: weekDays,
-                            currentMonth: currentMonth,
-                            weekIndex: weekIndex
+                            currentMonth: cachedCurrentMonth,
+                            weekIndex: weekIndex,
+                            spanningLayout: weekIndex < cachedSpanningLayouts.count ? cachedSpanningLayouts[weekIndex] : MonthSpanningLayout(rows: [], overflowPerDay: Array(repeating: 0, count: 7)),
+                            cellContents: weekIndex < cachedCellContents.count ? cachedCellContents[weekIndex] : []
                         )
                         .containerRelativeFrame(.vertical, count: 6, span: 1, spacing: 0)
                     }
                 }
             }
         }
+        .task(id: viewModel.selectedDate) { recomputeMonthLayout() }
+        .onChange(of: viewModel.events) { recomputeMonthLayout() }
+    }
+
+    private func recomputeMonthLayout() {
+        let weeks = calendar.weeksInMonth(for: viewModel.selectedDate)
+        let currentMonth = calendar.component(.month, from: viewModel.selectedDate)
+
+        var layouts: [MonthSpanningLayout] = []
+        var contents: [[MonthDayCellContent]] = []
+
+        for weekDays in weeks {
+            let layout = MonthSpanningLayout.compute(
+                events: viewModel.multiDayEvents,
+                weekDays: weekDays
+            )
+            let cells = computeCellContents(
+                weekDays: weekDays,
+                currentMonth: currentMonth,
+                spanningLayout: layout
+            )
+            layouts.append(layout)
+            contents.append(cells)
+        }
+
+        cachedWeeks = weeks
+        cachedCurrentMonth = currentMonth
+        cachedSpanningLayouts = layouts
+        cachedCellContents = contents
     }
 
     // MARK: - Day of Week Header
 
     private var dayOfWeekHeader: some View {
-        let ordered = {
-            let symbols = calendar.shortWeekdaySymbols
-            return Array(symbols[1...]) + [symbols[0]]
-        }()
+        let firstWeekday = calendar.firstWeekday
+        let shortSymbols = calendar.shortWeekdaySymbols
+        let fullSymbols = calendar.weekdaySymbols
+        let ordered = Array(shortSymbols[(firstWeekday - 1)...]) + Array(shortSymbols[..<(firstWeekday - 1)])
+        let fullOrdered = Array(fullSymbols[(firstWeekday - 1)...]) + Array(fullSymbols[..<(firstWeekday - 1)])
 
         return HStack(spacing: 0) {
             ForEach(Array(ordered.enumerated()), id: \.offset) { index, symbol in
@@ -156,7 +189,7 @@ struct CalendarMonthView: View {
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Spacing.xs)
-                    .accessibilityLabel(calendar.weekdaySymbols[(index + 1) % 7])
+                    .accessibilityLabel(fullOrdered[index])
             }
         }
         .padding(.horizontal, 1)
@@ -165,18 +198,14 @@ struct CalendarMonthView: View {
 
     // MARK: - Week Row
 
-    private func weekRow(weekDays: [Date], currentMonth: Int, weekIndex: Int) -> some View {
-        let spanningLayout = MonthSpanningLayout.compute(
-            events: viewModel.multiDayEvents,
-            weekDays: weekDays
-        )
-        let cellContents = computeCellContents(
-            weekDays: weekDays,
-            currentMonth: currentMonth,
-            spanningLayout: spanningLayout
-        )
-
-        return VStack(spacing: 0) {
+    private func weekRow(
+        weekDays: [Date],
+        currentMonth: Int,
+        weekIndex: Int,
+        spanningLayout: MonthSpanningLayout,
+        cellContents: [MonthDayCellContent]
+    ) -> some View {
+        VStack(spacing: 0) {
             if !spanningLayout.rows.isEmpty {
                 spanningBarArea(layout: spanningLayout)
             }

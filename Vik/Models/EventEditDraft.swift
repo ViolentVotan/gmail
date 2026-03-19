@@ -11,6 +11,11 @@ struct EventEditDraft: Equatable {
     var isAllDay: Bool
     var attendeeEmails: [String]
     var colorId: String?
+    var calendarId: String
+    var isRecurring: Bool
+    var googleEventId: String
+    var accountID: String
+    var etag: String?
 
     init(from event: CalendarEvent) {
         summary = event.summary
@@ -21,5 +26,10 @@ struct EventEditDraft: Equatable {
         isAllDay = event.isAllDay
         attendeeEmails = event.attendees.map(\.email)
         colorId = event.colorId
+        calendarId = event.calendarId
+        isRecurring = event.isRecurring
+        googleEventId = event.googleEventId
+        accountID = event.accountID
+        etag = event.etag
     }
 }

@@ -7,6 +7,7 @@ struct EmailContextMenu: View {
     let onArchive: ((Email) -> Void)?
     let onDelete: ((Email) -> Void)?
     let onToggleStar: ((Email) -> Void)?
+    let onMarkRead: ((Email) -> Void)?
     let onMarkUnread: ((Email) -> Void)?
     let onMarkSpam: ((Email) -> Void)?
     let onUnsubscribe: ((Email) -> Void)?
@@ -72,7 +73,11 @@ struct EmailContextMenu: View {
             Label(email.isStarred ? "Remove Star" : "Add Star",
                   systemImage: email.isStarred ? "star.slash" : "star")
         }
-        Button { onMarkUnread?(email) } label: { Label("Mark as Unread", systemImage: "envelope.badge") }
+        if email.isRead {
+            Button { onMarkUnread?(email) } label: { Label("Mark as Unread", systemImage: "envelope.badge") }
+        } else {
+            Button { onMarkRead?(email) } label: { Label("Mark as Read", systemImage: "envelope.open") }
+        }
 
         if email.isFromMailingList && email.unsubscribeURL != nil {
             Divider()

@@ -429,6 +429,7 @@ struct EmailListView: View {
                 onArchive: actions.onArchive,
                 onDelete: actions.onDelete,
                 onToggleStar: actions.onToggleStar,
+                onMarkRead: actions.onMarkRead,
                 onMarkUnread: actions.onMarkUnread,
                 onMarkSpam: actions.onMarkSpam,
                 onUnsubscribe: actions.onUnsubscribe,
@@ -437,6 +438,7 @@ struct EmailListView: View {
                 onMarkNotSpam: actions.onMarkNotSpam,
                 onSnooze: actions.onSnooze,
                 onCreateFilter: actions.onCreateFilter,
+                onUnsnooze: actions.onUnsnooze,
                 onReply: actions.onReply,
                 onReplyAll: actions.onReplyAll,
                 onForward: actions.onForward

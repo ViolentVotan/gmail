@@ -458,9 +458,32 @@ struct EmailDetailView: View {
             onReplyAll: { msg in
                 let sub = msg.subject.withReplyPrefix
                 let body = msg.htmlBody ?? msg.snippet ?? ""
-                let toField = [msg.from, msg.to].filter { !$0.isEmpty }.joined(separator: ", ")
+                let selfEmail = fromAddress.lowercased()
+
+                /// Splits a comma-separated RFC 2822 address string into individual tokens,
+                /// strips self, deduplicates by bare email (case-insensitive), and returns
+                /// a clean comma-separated string.
+                func buildField(from addressLists: [String], excluding seen: inout Set<String>) -> String {
+                    addressLists
+                        .filter { !$0.isEmpty }
+                        .flatMap { $0.components(separatedBy: ",") }
+                        .compactMap { token -> String? in
+                            let trimmed = token.trimmingCharacters(in: .whitespaces)
+                            guard !trimmed.isEmpty else { return nil }
+                            let bare = GmailDataTransformer.parseContactCore(trimmed).email.lowercased()
+                            guard bare != selfEmail, !seen.contains(bare) else { return nil }
+                            seen.insert(bare)
+                            return trimmed
+                        }
+                        .joined(separator: ", ")
+                }
+
+                var seen = Set<String>()
+                let toField = buildField(from: [msg.from, msg.to], excluding: &seen)
+                let ccField = buildField(from: [msg.cc], excluding: &seen)
+
                 actions.onReplyAll?(.replyAll(
-                    to: toField, cc: msg.cc,
+                    to: toField, cc: ccField,
                     subject: sub, quotedBody: body,
                     replyToMessageID: msg.id, threadID: msg.threadId,
                     parentMessageID: msg.messageID, parentReferences: msg.header(named: "References")

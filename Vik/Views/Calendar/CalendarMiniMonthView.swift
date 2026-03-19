@@ -12,11 +12,11 @@ struct CalendarMiniMonthView: View {
 
     private let calendar = Calendar.current
     private let dayColumns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
-    private var daySymbols: [String] {
+    private static let daySymbols: [String] = {
         let symbols = Calendar.current.veryShortWeekdaySymbols
         let firstWeekday = Calendar.current.firstWeekday
         return Array(symbols[(firstWeekday - 1)...]) + Array(symbols[..<(firstWeekday - 1)])
-    }
+    }()
 
     var body: some View {
         VStack(spacing: Spacing.xs) {
@@ -71,8 +71,8 @@ struct CalendarMiniMonthView: View {
 
     private var dayOfWeekHeader: some View {
         HStack(spacing: 0) {
-            ForEach(daySymbols.indices, id: \.self) { index in
-                Text(daySymbols[index])
+            ForEach(Self.daySymbols.indices, id: \.self) { index in
+                Text(Self.daySymbols[index])
                     .font(Typography.calendarMiniWeekday)
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity)

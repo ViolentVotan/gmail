@@ -9,6 +9,7 @@ struct ContentView: View {
     @State private var showSnoozePicker = false
     @State private var showNewCalendarEvent = false
     @State private var newCalendarEventDraft: EventEditDraft? = nil
+    @State private var newEventStartTime: Date? = nil
     @State private var showCalendarScopesAlert = false
     @State private var calendarScopesAccountID: String?
     @State private var showGmailScopesAlert = false
@@ -148,6 +149,7 @@ struct ContentView: View {
                         viewModel: calendarVM,
                         onNewEvent: {
                             newCalendarEventDraft = nil
+                            newEventStartTime = nil
                             showNewCalendarEvent = true
                         },
                         onSelectEvent: { event in
@@ -155,6 +157,11 @@ struct ContentView: View {
                         },
                         onCreateEvent: { date, hour in
                             calendarVM.selectedDate = date
+                            newCalendarEventDraft = nil
+                            var comps = Calendar.current.dateComponents([.year, .month, .day], from: date)
+                            comps.hour = hour
+                            newEventStartTime = Calendar.current.date(from: comps)
+                            showNewCalendarEvent = true
                         },
                         onEdit: { event in
                             calendarVM.selectedEvent = nil
@@ -294,10 +301,21 @@ struct ContentView: View {
                 CalendarEventEditorView(
                     editDraft: $newCalendarEventDraft,
                     calendars: calendarVM.calendars,
-                    onSave: { input, calendarId, _ in
+                    defaultStartTime: newEventStartTime,
+                    onSave: { input, calendarId, scope in
                         Task {
-                            let id = calendarId ?? "primary"
-                            try? await calendarVM.createEvent(input, calendarId: id, accountID: coordinator.accountID)
+                            if let draft = newCalendarEventDraft {
+                                try? await calendarVM.updateEvent(
+                                    calendarId: draft.calendarId,
+                                    eventId: draft.googleEventId,
+                                    accountID: draft.accountID,
+                                    etag: draft.etag,
+                                    input: input
+                                )
+                            } else {
+                                let id = calendarId ?? "primary"
+                                try? await calendarVM.createEvent(input, calendarId: id, accountID: coordinator.accountID)
+                            }
                         }
                         showNewCalendarEvent = false
                     },

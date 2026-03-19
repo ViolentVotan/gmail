@@ -13,6 +13,7 @@ enum RecurringEditScope {
 struct CalendarEventEditorView: View {
     @Binding var editDraft: EventEditDraft?
     let calendars: [CalendarInfo]
+    var defaultStartTime: Date? = nil
     let onSave: (CalendarAPIEventInput, String?, RecurringEditScope?) -> Void
     let onCancel: () -> Void
 
@@ -460,14 +461,9 @@ struct CalendarEventEditorView: View {
     private func handleSave() {
         guard !summary.trimmingCharacters(in: .whitespaces).isEmpty else { return }
 
-        // For recurring edits, show the scope picker first
-        if isEditing, let draft = editDraft, draft.isAllDay == isAllDay {
-            // Check if the original event was recurring by comparing attendeeEmails presence
-            // We use the recurrence picker state as a signal
-            if recurrence != .none {
-                showRecurringSheet = true
-                return
-            }
+        if isEditing, let draft = editDraft, draft.isRecurring {
+            showRecurringSheet = true
+            return
         }
 
         commitSave(scope: nil)
@@ -535,7 +531,11 @@ struct CalendarEventEditorView: View {
             } else if let first = writableCalendars.first {
                 selectedCalendarID = first.calendarId
             }
-            startTime = roundToNextHour(Date())
+            if let defaultStartTime {
+                startTime = defaultStartTime
+            } else {
+                startTime = roundToNextHour(Date())
+            }
             endTime = startTime.addingTimeInterval(3600)
             return
         }
@@ -551,6 +551,7 @@ struct CalendarEventEditorView: View {
         isAllDay = draft.isAllDay
         attendeeEmails = draft.attendeeEmails
         colorId = draft.colorId
+        selectedCalendarID = draft.calendarId
     }
 
     private func roundToNextHour(_ date: Date) -> Date {

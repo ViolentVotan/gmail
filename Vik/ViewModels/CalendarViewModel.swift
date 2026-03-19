@@ -217,27 +217,37 @@ final class CalendarViewModel {
     }
 
     func updateEvent(_ event: CalendarEvent, input: CalendarAPIEventInput) async throws {
+        try await updateEvent(
+            calendarId: event.calendarId,
+            eventId: event.googleEventId,
+            accountID: event.accountID,
+            etag: event.etag,
+            input: input
+        )
+    }
+
+    func updateEvent(calendarId: String, eventId: String, accountID: String, etag: String?, input: CalendarAPIEventInput) async throws {
         error = nil
         isLoading = true
         defer { isLoading = false }
         do {
             _ = try await eventService.updateEvent(
-                calendarId: event.calendarId,
-                eventId: event.googleEventId,
+                calendarId: calendarId,
+                eventId: eventId,
                 event: input,
-                accountID: event.accountID,
-                etag: event.etag
+                accountID: accountID,
+                etag: etag
             )
         } catch CalendarAPIError.offline {
             CalendarOfflineActionQueue.shared.enqueue(.init(
                 id: UUID(),
-                accountID: event.accountID,
+                accountID: accountID,
                 createdAt: .now,
                 actionType: .updateEvent(
-                    calendarId: event.calendarId,
-                    eventId: event.googleEventId,
+                    calendarId: calendarId,
+                    eventId: eventId,
                     input: input,
-                    etag: event.etag
+                    etag: etag ?? ""
                 )
             ))
         } catch {
@@ -416,8 +426,8 @@ final class CalendarViewModel {
         case .month:
             let firstOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedDate))!
             let weekday = calendar.component(.weekday, from: firstOfMonth)
-            let mondayOffset = (weekday - 2 + 7) % 7
-            let gridStart = calendar.date(byAdding: .day, value: -mondayOffset, to: firstOfMonth)!
+            let firstWeekdayOffset = (weekday - calendar.firstWeekday + 7) % 7
+            let gridStart = calendar.date(byAdding: .day, value: -firstWeekdayOffset, to: firstOfMonth)!
             let gridEnd = calendar.date(byAdding: .day, value: 42, to: gridStart)!
             return DateInterval(start: gridStart, end: gridEnd)
         case .week:
@@ -427,9 +437,8 @@ final class CalendarViewModel {
             let end = calendar.date(byAdding: .day, value: 1, to: start)!
             return DateInterval(start: start, end: end)
         case .agenda:
-            // Agenda shows 2 weeks of upcoming events.
             let start = calendar.startOfDay(for: selectedDate)
-            let end = calendar.date(byAdding: .day, value: 14, to: start)!
+            let end = calendar.date(byAdding: .day, value: 30, to: start)!
             return DateInterval(start: start, end: end)
         }
     }

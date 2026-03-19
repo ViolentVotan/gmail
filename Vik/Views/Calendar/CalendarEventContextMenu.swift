@@ -44,10 +44,12 @@ struct CalendarEventContextMenu: View {
             }
         }
 
-        Button(role: .destructive) {
-            onDelete?(event)
-        } label: {
-            Label("Delete", systemImage: "trash")
+        if event.canEdit {
+            Button(role: .destructive) {
+                onDelete?(event)
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
         }
 
         Divider()

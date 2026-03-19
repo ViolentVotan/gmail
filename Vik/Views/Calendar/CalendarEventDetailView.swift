@@ -298,7 +298,9 @@ struct CalendarEventDetailView: View {
 
                 ActionBarButton(icon: "trash", label: "Delete", isDestructive: true, action: onDelete)
 
-                ActionBarButton(icon: "envelope", label: "Email Attendees", action: onEmailAttendees)
+                if !event.attendees.isEmpty {
+                    ActionBarButton(icon: "envelope", label: "Email Attendees", action: onEmailAttendees)
+                }
 
                 if let htmlLink = event.htmlLink {
                     ActionBarButton(icon: "safari", label: "Open in Calendar") {

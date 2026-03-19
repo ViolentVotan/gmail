@@ -39,15 +39,14 @@ struct ContentShimmerView: View {
     }
 
     private var shimmerOverlay: some View {
-        GeometryReader { geo in
-            LinearGradient(
-                colors: [.clear, .white.opacity(0.08), .clear],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-            .frame(width: geo.size.width * 0.6)
-            .offset(x: shimmerPhase * geo.size.width * 1.5 - geo.size.width * 0.3)
-        }
+        LinearGradient(
+            colors: [.clear, .white.opacity(0.08), .clear],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+        .frame(width: 120)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .offset(x: shimmerPhase * 600)
         .allowsHitTesting(false)
     }
 }

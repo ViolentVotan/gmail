@@ -42,7 +42,13 @@ struct CalendarInviteCardView: View {
 
     /// Current RSVP status, preferring real event data.
     private var currentStatus: CalendarInvite.RSVPStatus {
-        invite.rsvpStatus
+        guard let event = calendarEvent else { return invite.rsvpStatus }
+        return switch event.selfResponseStatus {
+        case .accepted:    .accepted
+        case .declined:    .declined
+        case .tentative:   .maybe
+        case .needsAction: .pending
+        }
     }
 
     private var hasResponded: Bool {
