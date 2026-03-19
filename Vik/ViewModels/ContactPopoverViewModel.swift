@@ -31,6 +31,7 @@ final class ContactPopoverViewModel: Identifiable {
 
     private static var cache: [String: CacheEntry] = [:]
     private static let cacheTTL: TimeInterval = 300 // 5 minutes
+    private static let maxCacheSize = 200
 
     private struct CacheEntry {
         let details: PersonDetails
@@ -49,6 +50,16 @@ final class ContactPopoverViewModel: Identifiable {
 
     static func cachePersonDetails(_ details: PersonDetails, forEmail email: String, accountID: String = "") {
         let key = "\(accountID):\(email.lowercased())"
+        if cache.count >= maxCacheSize {
+            let now = Date()
+            cache = cache.filter { now.timeIntervalSince($0.value.timestamp) < cacheTTL }
+            if cache.count >= maxCacheSize {
+                let toRemove = cache.sorted { $0.value.timestamp < $1.value.timestamp }
+                    .prefix(cache.count - maxCacheSize + 1)
+                    .map(\.key)
+                for k in toRemove { cache.removeValue(forKey: k) }
+            }
+        }
         cache[key] = CacheEntry(details: details, timestamp: Date())
     }
 

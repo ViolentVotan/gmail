@@ -28,7 +28,7 @@ struct AccountAvatarBubble: View {
         Button(action: action) {
             ZStack {
                 // Base circle
-                Circle().fill(isSelected ? AnyShapeStyle(Color.secondary) : AnyShapeStyle(.quaternary))
+                Circle().fill(isSelected ? .secondary : .quaternary)
                 if !isSelected && loader.image == nil && account.profilePictureURL == nil {
                     Circle().strokeBorder(.separator, lineWidth: 1)
                 }
@@ -41,7 +41,7 @@ struct AccountAvatarBubble: View {
                 } else {
                     Text(initial)
                         .font(.system(size: size * 0.38, weight: .semibold))
-                        .foregroundStyle(isSelected ? AnyShapeStyle(.white) : AnyShapeStyle(.secondary))
+                        .foregroundStyle(isSelected ? .white : .secondary)
                 }
 
                 // Accent color ring when selected

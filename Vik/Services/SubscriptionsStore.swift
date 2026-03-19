@@ -142,13 +142,19 @@ final class SubscriptionsStore {
 
             var newValidated = false
             await withTaskGroup(of: (Email, Bool).self) { [urlCache] group in
-                for email in candidates {
+                var iterator = candidates.makeIterator()
+                let maxConcurrent = 15
+
+                // Seed initial batch
+                for _ in 0..<min(maxConcurrent, candidates.count) {
+                    guard let email = iterator.next() else { break }
                     group.addTask {
                         guard let url = email.unsubscribeURL else { return (email, false) }
                         let valid = await urlCache.check(url)
                         return (email, valid)
                     }
                 }
+
                 for await (email, valid) in group {
                     guard !Task.isCancelled else { return }
                     guard accountID == expectedAccountID else { break }
@@ -157,13 +163,22 @@ final class SubscriptionsStore {
                     if let id = email.gmailMessageID {
                         processedIDs.insert(id)
                     }
-                    guard valid else { continue }
-                    if !entries.contains(where: { $0.id == email.id }) {
-                        entries.append(email)
+                    if valid {
+                        if !entries.contains(where: { $0.id == email.id }) {
+                            entries.append(email)
+                        }
+                        if let id = email.gmailMessageID {
+                            validatedIDs.insert(id)
+                            newValidated = true
+                        }
                     }
-                    if let id = email.gmailMessageID {
-                        validatedIDs.insert(id)
-                        newValidated = true
+                    // Slide the window: add the next candidate as a slot frees up
+                    if let nextEmail = iterator.next() {
+                        group.addTask {
+                            guard let url = nextEmail.unsubscribeURL else { return (nextEmail, false) }
+                            let valid = await urlCache.check(url)
+                            return (nextEmail, valid)
+                        }
                     }
                 }
             }

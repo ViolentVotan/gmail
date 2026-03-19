@@ -71,13 +71,18 @@ struct EmailRowView: View, Equatable {
     @ViewBuilder
     private var threadCountBadge: some View {
         let highlighted = isHovered || isSelected
-        let badgeFill: AnyShapeStyle = highlighted ? AnyShapeStyle(.fill.secondary) : AnyShapeStyle(.fill.quaternary)
         Text("\(email.threadMessageCount)")
             .font(Typography.captionSmall)
             .foregroundStyle(highlighted ? .primary : .secondary)
             .contentTransition(.numericText())
             .frame(minWidth: threadBadgeSize, minHeight: threadBadgeSize)
-            .background(Capsule().fill(badgeFill))
+            .background {
+                if highlighted {
+                    Capsule().fill(.fill.secondary)
+                } else {
+                    Capsule().fill(.fill.quaternary)
+                }
+            }
     }
 
     private func tagColor(_ name: String) -> Color {
