@@ -9,7 +9,7 @@ final class CalendarViewModel {
 
     // MARK: - State
 
-    var viewMode: CalendarViewMode = .week
+    var viewMode: CalendarViewMode = .month
     var selectedDate: Date = .now
     var events: [CalendarEvent] = []
     var calendars: [CalendarInfo] = []
@@ -380,6 +380,31 @@ final class CalendarViewModel {
         let start = calendar.startOfDay(for: date)
         let end = calendar.date(byAdding: .day, value: 1, to: start)!
         return events.filter { $0.startTime < end && $0.endTime > start }
+    }
+
+    /// Pre-grouped events by day (start-of-day key) for efficient month view rendering.
+    /// Avoids calling eventsForDay(_:) 42 times with O(n) filter each.
+    var eventsByDay: [Date: [CalendarEvent]] {
+        let cal = Calendar.current
+        var dict: [Date: [CalendarEvent]] = [:]
+        for event in events {
+            // For multi-day events, add to each day they span.
+            var day = cal.startOfDay(for: event.startTime)
+            let endDay = cal.startOfDay(for: event.endTime)
+            while day <= endDay {
+                dict[day, default: []].append(event)
+                day = cal.date(byAdding: .day, value: 1, to: day)!
+            }
+        }
+        return dict
+    }
+
+    /// Events spanning more than one calendar day (multi-day or all-day spanning).
+    var multiDayEvents: [CalendarEvent] {
+        let cal = Calendar.current
+        return events.filter { event in
+            event.isAllDay || cal.startOfDay(for: event.startTime) != cal.startOfDay(for: event.endTime)
+        }
     }
 
     // MARK: - Private
