@@ -46,7 +46,7 @@ import Foundation
 
     @Test func handleCategoryChangeResetsSelection() {
         let coordinator = AppCoordinator()
-        coordinator.selectedEmail = Email(
+        coordinator.selection.selectedEmail = Email(
             sender: Contact(name: "Test", email: "test@test.com"),
             subject: "Test",
             body: "Body",
@@ -54,23 +54,23 @@ import Foundation
             date: Date(),
             folder: .inbox
         )
-        coordinator.selectedEmailIDs = ["abc", "def"]
-        let prevTrigger = coordinator.searchResetTrigger
+        coordinator.selection.selectedEmailIDs = ["abc", "def"]
+        let prevTrigger = coordinator.navigation.searchResetTrigger
 
         coordinator.handleCategoryChange(.all)
 
-        #expect(coordinator.selectedEmail == nil, "Category change should clear selectedEmail")
-        #expect(coordinator.selectedEmailIDs.isEmpty, "Category change should clear selectedEmailIDs")
-        #expect(coordinator.searchResetTrigger == prevTrigger + 1, "Category change should increment searchResetTrigger")
+        #expect(coordinator.selection.selectedEmail == nil, "Category change should clear selectedEmail")
+        #expect(coordinator.selection.selectedEmailIDs.isEmpty, "Category change should clear selectedEmailIDs")
+        #expect(coordinator.navigation.searchResetTrigger == prevTrigger + 1, "Category change should increment searchResetTrigger")
     }
 
     // MARK: - displayedEmails reflects mailboxViewModel
 
     @Test func displayedEmailsReflectsMailboxEmails() {
         let coordinator = AppCoordinator()
-        coordinator.selectedFolder = .inbox
+        coordinator.navigation.selectedFolder = .inbox
 
         // With no messages, displayedEmails should be empty
-        #expect(coordinator.displayedEmails.isEmpty)
+        #expect(coordinator.selection.displayedEmails.isEmpty)
     }
 }

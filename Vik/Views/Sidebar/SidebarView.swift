@@ -85,7 +85,7 @@ struct SidebarView: View {
             Divider()
                 .padding(.horizontal, Spacing.sm)
             Group {
-                if coordinator.viewMode == .calendar {
+                if coordinator.calendar.viewMode == .calendar {
                     calendarSidebarContent
                         .transition(.asymmetric(
                             insertion: .opacity.combined(with: .offset(y: OffsetToken.nudge)),
@@ -99,7 +99,7 @@ struct SidebarView: View {
                         ))
                 }
             }
-            .animation(reduceMotion ? nil : VikAnimation.folderSwitch, value: coordinator.viewMode)
+            .animation(reduceMotion ? nil : VikAnimation.folderSwitch, value: coordinator.calendar.viewMode)
         }
     }
 
@@ -112,17 +112,17 @@ struct SidebarView: View {
                     icon: "envelope.fill",
                     label: "Mail",
                     glassID: "mail",
-                    isActive: coordinator.viewMode == .mail
+                    isActive: coordinator.calendar.viewMode == .mail
                 ) {
-                    coordinator.switchToMail()
+                    coordinator.calendar.switchToMail()
                 }
                 modeSwitcherButton(
                     icon: "calendar",
                     label: "Calendar",
                     glassID: "calendar",
-                    isActive: coordinator.viewMode == .calendar
+                    isActive: coordinator.calendar.viewMode == .calendar
                 ) {
-                    coordinator.switchToCalendar()
+                    coordinator.calendar.switchToCalendar(db: coordinator.sync.mailDatabase)
                 }
             }
         }
@@ -165,7 +165,7 @@ struct SidebarView: View {
 
     @ViewBuilder
     private var calendarSidebarContent: some View {
-        if let calendarVM = coordinator.calendarViewModel {
+        if let calendarVM = coordinator.calendar.calendarViewModel {
             ScrollView {
                 VStack(spacing: Spacing.md) {
                     CalendarMiniMonthView(viewModel: calendarVM)
@@ -383,11 +383,11 @@ struct SidebarView: View {
         .listStyle(.sidebar)
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: Spacing.xs) {
-                if coordinator.viewMode == .mail && !coordinator.miniAgendaEvents.isEmpty {
+                if coordinator.calendar.viewMode == .mail && !coordinator.calendar.miniAgendaEvents.isEmpty {
                     MiniAgendaWidget(
-                        events: coordinator.miniAgendaEvents,
-                        onSelectEvent: { event in coordinator.navigateToEvent(event) },
-                        onShowCalendar: { coordinator.switchToCalendar() }
+                        events: coordinator.calendar.miniAgendaEvents,
+                        onSelectEvent: { event in coordinator.calendar.navigateToEvent(event, db: coordinator.sync.mailDatabase) },
+                        onShowCalendar: { coordinator.calendar.switchToCalendar(db: coordinator.sync.mailDatabase) }
                     )
                     .padding(.horizontal, Spacing.sm)
                 }

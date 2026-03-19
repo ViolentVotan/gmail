@@ -104,7 +104,7 @@ private struct KeyboardEventMonitor: NSViewRepresentable {
 
             // Calendar bare-letter shortcuts — only when in calendar mode and no text field is focused
             if modifiers.intersection([.command, .option, .control]).isEmpty,
-               coord.viewMode == .calendar,
+               coord.calendar.viewMode == .calendar,
                !isTextInputFocused {
                 if let consumed = handleCalendarKey(chars, coord: coord), consumed {
                     return true
@@ -117,7 +117,7 @@ private struct KeyboardEventMonitor: NSViewRepresentable {
             switch chars {
             case "a":
                 if isTextInputFocused { return false } // let native select-all handle it
-                coord.selectAllEmails()
+                coord.selection.selectAllEmails()
                 return true
 
             case "z":
@@ -127,7 +127,7 @@ private struct KeyboardEventMonitor: NSViewRepresentable {
 
             case "f":
                 if isTextInputFocused { return false } // let native find handle it
-                coord.searchFocusTrigger = true
+                coord.navigation.searchFocusTrigger = true
                 return true
 
             default:
@@ -137,7 +137,7 @@ private struct KeyboardEventMonitor: NSViewRepresentable {
 
         /// Handles bare-letter calendar shortcuts. Returns `true` if consumed, `false` to pass through, `nil` if not a calendar key.
         private func handleCalendarKey(_ chars: String?, coord: AppCoordinator) -> Bool? {
-            guard let calVM = coord.calendarViewModel else { return nil }
+            guard let calVM = coord.calendar.calendarViewModel else { return nil }
 
             switch chars {
             case "d":

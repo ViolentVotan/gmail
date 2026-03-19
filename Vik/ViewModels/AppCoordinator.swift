@@ -74,113 +74,6 @@ final class AppCoordinator {
         }
     }
 
-    // MARK: - Forwarding Properties (Phase 1 — backward compatible)
-
-    // Navigation
-    var selectedAccountID: String? {
-        get { navigation.selectedAccountID }
-        set { navigation.selectedAccountID = newValue }
-    }
-    var selectedFolder: Folder {
-        get { navigation.selectedFolder }
-        set { navigation.selectedFolder = newValue }
-    }
-    var selectedInboxCategory: InboxCategory? {
-        get { navigation.selectedInboxCategory }
-        set { navigation.selectedInboxCategory = newValue }
-    }
-    var selectedLabel: GmailLabel? {
-        get { navigation.selectedLabel }
-        set { navigation.selectedLabel = newValue }
-    }
-    var searchResetTrigger: Int {
-        get { navigation.searchResetTrigger }
-        set { navigation.searchResetTrigger = newValue }
-    }
-    var searchFocusTrigger: Bool {
-        get { navigation.searchFocusTrigger }
-        set { navigation.searchFocusTrigger = newValue }
-    }
-    var accountID: String { navigation.accountID }
-    var fromAddress: String { navigation.fromAddress }
-
-    // Selection
-    var selectedEmail: Email? {
-        get { selection.selectedEmail }
-        set { selection.selectedEmail = newValue }
-    }
-    var selectedEmailIDs: Set<String> {
-        get { selection.selectedEmailIDs }
-        set { selection.selectedEmailIDs = newValue }
-    }
-    var selectionDirection: Edge {
-        get { selection.selectionDirection }
-        set { selection.selectionDirection = newValue }
-    }
-    var displayedEmails: [Email] { selection.displayedEmails }
-
-    // Compose
-    var composeMode: ComposeMode {
-        get { compose.composeMode }
-        set { compose.composeMode = newValue }
-    }
-    var signatureForNew: String {
-        get { compose.signatureForNew }
-        set { compose.signatureForNew = newValue }
-    }
-    var signatureForReply: String {
-        get { compose.signatureForReply }
-        set { compose.signatureForReply = newValue }
-    }
-
-    // Calendar
-    var viewMode: AppViewMode {
-        get { calendar.viewMode }
-        set { calendar.viewMode = newValue }
-    }
-    var calendarViewModel: CalendarViewModel? { calendar.calendarViewModel }
-    var calendarSyncEngine: CalendarSyncEngine? { calendar.calendarSyncEngine }
-    var miniAgendaEvents: [CalendarEvent] {
-        get { calendar.miniAgendaEvents }
-        set { calendar.miniAgendaEvents = newValue }
-    }
-    var calendarNewEventTrigger: Bool {
-        get { calendar.calendarNewEventTrigger }
-        set { calendar.calendarNewEventTrigger = newValue }
-    }
-
-    // Dialogs
-    var showEmptyTrashConfirm: Bool {
-        get { dialogs.showEmptyTrashConfirm }
-        set { dialogs.showEmptyTrashConfirm = newValue }
-    }
-    var trashTotalCount: Int {
-        get { dialogs.trashTotalCount }
-        set { dialogs.trashTotalCount = newValue }
-    }
-    var showEmptySpamConfirm: Bool {
-        get { dialogs.showEmptySpamConfirm }
-        set { dialogs.showEmptySpamConfirm = newValue }
-    }
-    var spamTotalCount: Int {
-        get { dialogs.spamTotalCount }
-        set { dialogs.spamTotalCount = newValue }
-    }
-
-    // Sync
-    var mailDatabase: MailDatabase? { sync.mailDatabase }
-    var backgroundSyncer: BackgroundSyncer? { sync.backgroundSyncer }
-    var syncEngine: FullSyncEngine? { sync.syncEngine }
-    var attachmentIndexer: AttachmentIndexer? {
-        get { sync.attachmentIndexer }
-        set { sync.attachmentIndexer = newValue }
-    }
-    var contacts: [StoredContact] { sync.contacts }
-    var undoDuration: Int {
-        get { sync.undoDuration }
-        set { sync.undoDuration = newValue }
-    }
-
     // MARK: - Cross-Domain Computed Properties
 
     var listIsLoading: Bool {
@@ -207,22 +100,9 @@ final class AppCoordinator {
         )
     }
 
-    // MARK: - Forwarding Actions
-
-    func selectNext(_ email: Email?) { selection.selectNext(email) }
-    func selectPrevious() { selection.selectPrevious() }
-    func selectNextEmail() { selection.selectNextEmail() }
-    func clearSelection() { selection.clearSelection() }
-    func deselectAll() { selection.deselectAll() }
-    func selectAllEmails() { selection.selectAllEmails() }
-
-    func emptyTrashRequested(count: Int) { dialogs.emptyTrashRequested(count: count) }
-    func emptySpamRequested(count: Int) { dialogs.emptySpamRequested(count: count) }
+    // MARK: - Convenience Actions (cross-coordinator parameter passing)
 
     func handleSelectedEmailChange(_ email: Email?) { selection.handleSelectedEmailChange(email) }
-
-    func loadSignatures(for id: String) { compose.loadSignatures(for: id) }
-    func saveSignatures(for id: String) { compose.saveSignatures(for: id) }
 
     func switchToCalendar() { calendar.switchToCalendar(db: sync.mailDatabase) }
     func switchToMail() { calendar.switchToMail() }

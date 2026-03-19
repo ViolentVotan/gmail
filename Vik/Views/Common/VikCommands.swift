@@ -28,9 +28,9 @@ struct VikCommands: Commands {
     @FocusedValue(\.appCoordinator) private var coordinator
     @FocusedValue(\.commandPalette) private var commandPalette
 
-    private var selectedEmail: Email? { coordinator?.selectedEmail }
+    private var selectedEmail: Email? { coordinator?.selection.selectedEmail }
     private var hasSelection: Bool { selectedEmail != nil }
-    private var isInbox: Bool { coordinator?.selectedFolder == .inbox }
+    private var isInbox: Bool { coordinator?.navigation.selectedFolder == .inbox }
 
     /// Live state from the `emails` array driven by DB observation.
     private var liveEmail: Email? {
@@ -53,7 +53,7 @@ struct VikCommands: Commands {
         CommandMenu("Message") {
             Button {
                 guard let coordinator, let email = selectedEmail else { return }
-                Task { await coordinator.actionCoordinator.archiveEmail(email, selectNext: { coordinator.selectNext($0) }) }
+                Task { await coordinator.actionCoordinator.archiveEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
             } label: {
                 Label("Archive", systemImage: "archivebox")
             }
@@ -62,7 +62,7 @@ struct VikCommands: Commands {
 
             Button {
                 guard let coordinator, let email = selectedEmail else { return }
-                Task { await coordinator.actionCoordinator.deleteEmail(email, selectNext: { coordinator.selectNext($0) }) }
+                Task { await coordinator.actionCoordinator.deleteEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
             } label: {
                 Label("Delete", systemImage: "trash")
             }
@@ -71,11 +71,11 @@ struct VikCommands: Commands {
 
             Button {
                 guard let coordinator, let email = selectedEmail else { return }
-                Task { await coordinator.actionCoordinator.moveToInboxEmail(email, selectedFolder: coordinator.selectedFolder, selectNext: { coordinator.selectNext($0) }) }
+                Task { await coordinator.actionCoordinator.moveToInboxEmail(email, selectedFolder: coordinator.navigation.selectedFolder, selectNext: { coordinator.selection.selectNext($0) }) }
             } label: {
                 Label("Move to Inbox", systemImage: "tray.and.arrow.down")
             }
-            .disabled(!hasSelection || coordinator?.selectedFolder == .inbox)
+            .disabled(!hasSelection || coordinator?.navigation.selectedFolder == .inbox)
 
             Divider()
 
@@ -134,13 +134,13 @@ struct VikCommands: Commands {
 
     // MARK: - Mailbox
 
-    private var isCalendarMode: Bool { coordinator?.viewMode == .calendar }
+    private var isCalendarMode: Bool { coordinator?.calendar.viewMode == .calendar }
 
     private var mailboxMenu: some Commands {
         CommandMenu("Mailbox") {
             Button {
                 if isCalendarMode {
-                    coordinator?.calendarNewEventTrigger = true
+                    coordinator?.calendar.calendarNewEventTrigger = true
                 } else {
                     coordinator?.composeNewEmail()
                 }
@@ -167,7 +167,7 @@ struct VikCommands: Commands {
             }
 
             Button {
-                coordinator?.searchFocusTrigger = true
+                coordinator?.navigation.searchFocusTrigger = true
             } label: {
                 Label("Search", systemImage: "magnifyingglass")
             }
@@ -181,14 +181,14 @@ struct VikCommands: Commands {
     private var viewMenu: some Commands {
         CommandMenu("View") {
             Button {
-                coordinator?.switchToMail()
+                coordinator?.calendar.switchToMail()
             } label: {
                 Label("Mail", systemImage: "envelope")
             }
             .keyboardShortcut("1", modifiers: .command)
 
             Button {
-                coordinator?.switchToCalendar()
+                coordinator?.calendar.switchToCalendar(db: coordinator?.sync.mailDatabase)
             } label: {
                 Label("Calendar", systemImage: "calendar")
             }
@@ -197,7 +197,7 @@ struct VikCommands: Commands {
             Divider()
 
             Button {
-                coordinator?.calendarViewModel?.goToToday()
+                coordinator?.calendar.calendarViewModel?.goToToday()
             } label: {
                 Label("Go to Today", systemImage: "calendar.circle")
             }

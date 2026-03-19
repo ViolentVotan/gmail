@@ -29,8 +29,8 @@ final class CommandPaletteViewModel {
                 icon: "calendar.badge.plus"
             ) { [weak self] in
                 guard let coordinator = self?.coordinator else { return }
-                guard let calendarVM = coordinator.calendarViewModel else {
-                    coordinator.switchToCalendar()
+                guard let calendarVM = coordinator.calendar.calendarViewModel else {
+                    coordinator.calendar.switchToCalendar(db: coordinator.sync.mailDatabase)
                     return
                 }
                 Task {
@@ -38,7 +38,7 @@ final class CommandPaletteViewModel {
                         try await calendarVM.quickAddEvent(
                             text: text,
                             calendarId: "primary",
-                            accountID: coordinator.accountID
+                            accountID: coordinator.navigation.accountID
                         )
                         ToastManager.shared.show(message: "Event created")
                     } catch {
@@ -105,59 +105,59 @@ final class CommandPaletteViewModel {
             // MARK: Folders
             Command(id: "folder.inbox", title: "Go to Inbox", icon: "tray") { [weak coordinator] in
                 guard let coordinator else { return }
-                coordinator.selectedFolder = .inbox
+                coordinator.navigation.selectedFolder = .inbox
             },
             Command(id: "folder.sent", title: "Go to Sent", icon: "paperplane") { [weak coordinator] in
                 guard let coordinator else { return }
-                coordinator.selectedFolder = .sent
+                coordinator.navigation.selectedFolder = .sent
             },
             Command(id: "folder.drafts", title: "Go to Drafts", icon: "doc") { [weak coordinator] in
                 guard let coordinator else { return }
-                coordinator.selectedFolder = .drafts
+                coordinator.navigation.selectedFolder = .drafts
             },
             Command(id: "folder.archive", title: "Go to Archive", icon: "archivebox") { [weak coordinator] in
                 guard let coordinator else { return }
-                coordinator.selectedFolder = .archive
+                coordinator.navigation.selectedFolder = .archive
             },
             Command(id: "folder.trash", title: "Go to Trash", icon: "trash") { [weak coordinator] in
                 guard let coordinator else { return }
-                coordinator.selectedFolder = .trash
+                coordinator.navigation.selectedFolder = .trash
             },
             Command(id: "folder.starred", title: "Go to Starred", icon: "star") { [weak coordinator] in
                 guard let coordinator else { return }
-                coordinator.selectedFolder = .starred
+                coordinator.navigation.selectedFolder = .starred
             },
             Command(id: "folder.snoozed", title: "Go to Snoozed", icon: "clock.fill") { [weak coordinator] in
                 guard let coordinator else { return }
-                coordinator.selectedFolder = .snoozed
+                coordinator.navigation.selectedFolder = .snoozed
             },
 
             // MARK: Calendar — mode & navigation
             Command(id: "calendar.show", title: "Show Calendar", icon: "calendar") { [weak coordinator] in
-                coordinator?.switchToCalendar()
+                coordinator?.calendar.switchToCalendar(db: coordinator?.sync.mailDatabase)
             },
             Command(id: "calendar.create", title: "Create Event", icon: "calendar.badge.plus") { [weak coordinator] in
                 guard let coordinator else { return }
-                coordinator.switchToCalendar()
+                coordinator.calendar.switchToCalendar(db: coordinator.sync.mailDatabase)
                 // calendarViewModel receives a new-event signal via selectedDate reset to now.
-                coordinator.calendarViewModel?.selectedDate = .now
-                coordinator.calendarViewModel?.selectedEvent = nil
+                coordinator.calendar.calendarViewModel?.selectedDate = .now
+                coordinator.calendar.calendarViewModel?.selectedEvent = nil
                 ToastManager.shared.show(message: "Use the + button to create an event")
             },
             Command(id: "calendar.today", title: "Go to Today", icon: "calendar.day.timeline.left") { [weak coordinator] in
                 guard let coordinator else { return }
-                coordinator.switchToCalendar()
-                coordinator.calendarViewModel?.goToToday()
+                coordinator.calendar.switchToCalendar(db: coordinator.sync.mailDatabase)
+                coordinator.calendar.calendarViewModel?.goToToday()
             },
             Command(id: "calendar.next_week", title: "Next Week", icon: "chevron.right") { [weak coordinator] in
                 guard let coordinator else { return }
-                coordinator.switchToCalendar()
-                coordinator.calendarViewModel?.navigateForward()
+                coordinator.calendar.switchToCalendar(db: coordinator.sync.mailDatabase)
+                coordinator.calendar.calendarViewModel?.navigateForward()
             },
             Command(id: "calendar.prev_week", title: "Previous Week", icon: "chevron.left") { [weak coordinator] in
                 guard let coordinator else { return }
-                coordinator.switchToCalendar()
-                coordinator.calendarViewModel?.navigateBackward()
+                coordinator.calendar.switchToCalendar(db: coordinator.sync.mailDatabase)
+                coordinator.calendar.calendarViewModel?.navigateBackward()
             },
 
             // MARK: Calendar — smart queries
@@ -166,8 +166,8 @@ final class CommandPaletteViewModel {
                 title: "What's my next meeting?",
                 icon: "clock.arrow.circlepath"
             ) { [weak coordinator] in
-                guard let coordinator, let db = coordinator.mailDatabase else { return }
-                let accountID = coordinator.accountID
+                guard let coordinator, let db = coordinator.sync.mailDatabase else { return }
+                let accountID = coordinator.navigation.accountID
                 Task {
                     let event = await CalendarIntegrationService.shared.nextMeetingWith(
                         email: accountID,
@@ -177,11 +177,11 @@ final class CommandPaletteViewModel {
                     if let event {
                         let time = event.startTime.formattedTime
                         ToastManager.shared.show(message: "\(event.summary) at \(time)")
-                        coordinator.navigateToEvent(event)
+                        coordinator.calendar.navigateToEvent(event, db: coordinator.sync.mailDatabase)
                     } else {
                         // Fall back to showing today in calendar
-                        coordinator.switchToCalendar()
-                        coordinator.calendarViewModel?.goToToday()
+                        coordinator.calendar.switchToCalendar(db: coordinator.sync.mailDatabase)
+                        coordinator.calendar.calendarViewModel?.goToToday()
                         ToastManager.shared.show(message: "No upcoming meetings found")
                     }
                 }

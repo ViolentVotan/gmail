@@ -52,21 +52,21 @@ import Testing
         let coordinator = AppCoordinator()
         let label = makeLabel()
         coordinator.mailboxViewModel.labels = [label]
-        coordinator.selectedFolder = .labels
-        coordinator.selectedLabel = label
+        coordinator.navigation.selectedFolder = .labels
+        coordinator.navigation.selectedLabel = label
 
         // Simulate what coordinator.deleteLabel does after the VM call:
         // 1. Label removed from VM
         coordinator.mailboxViewModel.labels.removeAll { $0.id == label.id }
         // 2. Coordinator clears selection
-        if coordinator.selectedLabel?.id == label.id {
-            coordinator.selectedLabel = nil
-            if coordinator.selectedFolder == .labels {
-                coordinator.selectedLabel = coordinator.mailboxViewModel.labels.filter { !$0.isSystemLabel }.first
+        if coordinator.navigation.selectedLabel?.id == label.id {
+            coordinator.navigation.selectedLabel = nil
+            if coordinator.navigation.selectedFolder == .labels {
+                coordinator.navigation.selectedLabel = coordinator.mailboxViewModel.labels.filter { !$0.isSystemLabel }.first
             }
         }
 
-        #expect(coordinator.selectedLabel == nil, "Selected label should be nil after deleting it (no remaining user labels)")
+        #expect(coordinator.navigation.selectedLabel == nil, "Selected label should be nil after deleting it (no remaining user labels)")
     }
 
     @Test func deleteNonSelectedLabelKeepsSelection() {
@@ -74,13 +74,13 @@ import Testing
         let label1 = makeLabel(id: "Label_1", name: "Work")
         let label2 = makeLabel(id: "Label_2", name: "Personal")
         coordinator.mailboxViewModel.labels = [label1, label2]
-        coordinator.selectedFolder = .labels
-        coordinator.selectedLabel = label1
+        coordinator.navigation.selectedFolder = .labels
+        coordinator.navigation.selectedLabel = label1
 
         // Delete label2 (not selected)
         coordinator.mailboxViewModel.labels.removeAll { $0.id == label2.id }
 
         // Selection should not change
-        #expect(coordinator.selectedLabel?.id == "Label_1", "Selected label should remain unchanged")
+        #expect(coordinator.navigation.selectedLabel?.id == "Label_1", "Selected label should remain unchanged")
     }
 }
