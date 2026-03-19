@@ -20,11 +20,15 @@ struct AttachmentChipRow: View {
                                     .contentShape(Circle())
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Remove \(url.lastPathComponent)")
+                            .accessibilityHint("Removes this attachment from the email")
                         }
                         .padding(.horizontal, Spacing.sm)
                         .padding(.vertical, Spacing.xs)
                         .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
                         .foregroundStyle(.secondary)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Attachment: \(url.lastPathComponent)")
                     }
                 }
                 .padding(.horizontal, Spacing.xl)

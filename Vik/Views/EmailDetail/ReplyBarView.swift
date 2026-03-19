@@ -369,7 +369,7 @@ private struct ClickOutsideDetector: NSViewRepresentable {
         weak var anchorView: NSView?
         var isExpanded = false
         var onClickOutside: (() -> Void)?
-        nonisolated(unsafe) private var monitor: Any?
+        private var monitor: Any?
 
         func install() {
             monitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) { [weak self] event in
@@ -398,8 +398,12 @@ private struct ClickOutsideDetector: NSViewRepresentable {
         }
 
         deinit {
-            if let monitor {
-                NSEvent.removeMonitor(monitor)
+            // dismantleNSView handles cleanup; this is a safety net for unexpected teardown paths.
+            // NSViewRepresentable coordinators are always torn down on the main thread by SwiftUI.
+            MainActor.assumeIsolated {
+                if let monitor {
+                    NSEvent.removeMonitor(monitor)
+                }
             }
         }
     }
