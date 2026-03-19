@@ -16,7 +16,7 @@ struct CalendarContainerView: View {
     var searchSender: ((String) -> Void)?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var previousViewMode: CalendarViewMode = .week
+    @State private var previousViewMode: CalendarViewMode = .month
 
     var body: some View {
         VStack(spacing: 0) {
@@ -26,9 +26,16 @@ struct CalendarContainerView: View {
             ZStack {
                 switch viewModel.viewMode {
                 case .month:
-                    Text("Month view coming soon")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .transition(directionalTransition(for: .month))
+                    CalendarMonthView(
+                        viewModel: viewModel,
+                        onSelectEvent: onSelectEvent,
+                        onCreateEvent: onCreateEvent,
+                        onEdit: onEdit,
+                        onDelete: onDelete,
+                        onRSVP: onRSVP,
+                        onEmailAttendees: onEmailAttendees
+                    )
+                    .transition(directionalTransition(for: .month))
 
                 case .week:
                     CalendarWeekView(
