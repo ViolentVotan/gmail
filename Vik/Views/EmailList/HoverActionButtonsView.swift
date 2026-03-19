@@ -58,76 +58,68 @@ struct HoverActionButtonsView: View {
 
     var body: some View {
         if hasVisibleButtons {
-            HStack(spacing: Spacing.xs) {
+            HStack(spacing: 2) {
                 if showArchive {
-                    Button {
-                        actionTrigger.toggle()
+                    hoverButton("archivebox", help: "Archive") {
                         actions.onArchive?(email)
-                    } label: {
-                        Image(systemName: "archivebox")
                     }
-                    .help("Archive")
                 }
 
                 if showDelete {
-                    Button {
-                        actionTrigger.toggle()
+                    hoverButton("trash", help: "Move to Trash", role: .destructive) {
                         actions.onDelete?(email)
-                    } label: {
-                        Image(systemName: "trash")
                     }
-                    .tint(SemanticColor.error)
-                    .help("Move to Trash")
                 }
 
                 if showSnooze {
-                    Button {
-                        actionTrigger.toggle()
+                    hoverButton("clock", help: "Snooze until tomorrow 8:00 AM") {
                         actions.onSnooze?(email, SnoozePreset.tomorrowMorning)
-                    } label: {
-                        Image(systemName: "clock")
                     }
-                    .help("Snooze until tomorrow 8:00 AM")
                 }
 
                 if showReadUnread {
                     if email.isRead {
-                        Button {
-                            actionTrigger.toggle()
+                        hoverButton("envelope.badge", help: "Mark as Unread") {
                             actions.onMarkUnread?(email)
-                        } label: {
-                            Image(systemName: "envelope.badge")
                         }
-                        .help("Mark as Unread")
                     } else {
-                        Button {
-                            actionTrigger.toggle()
+                        hoverButton("envelope.open", help: "Mark as Read") {
                             actions.onMarkRead?(email)
-                        } label: {
-                            Image(systemName: "envelope.open")
                         }
-                        .help("Mark as Read")
                     }
                 }
             }
-            .buttonStyle(.glass)
-            .font(Typography.captionRegular)
-            .frame(height: ButtonSize.sm)
+            .padding(.horizontal, Spacing.sm)
+            .padding(.vertical, Spacing.xs)
+            .glassEffect(.regular, in: .capsule)
             .symbolEffect(.bounce, value: actionTrigger)
             .sensoryFeedback(.impact(flexibility: .soft), trigger: actionTrigger)
-            .padding(.trailing, Spacing.xl)
-            .padding(.leading, Spacing.xxl)
-            .background {
-                LinearGradient(
-                    colors: [.clear, .clear, Color(nsColor: .controlBackgroundColor).opacity(0.9)],
-                    startPoint: .leading,
-                    endPoint: .trailing
-                )
-            }
+            .padding(.trailing, Spacing.lg)
             .opacity(isHovered ? 1 : 0)
+            .scaleEffect(isHovered ? 1 : 0.9, anchor: .trailing)
             .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
             .allowsHitTesting(isHovered)
             .accessibilityHidden(true)
         }
+    }
+
+    @ViewBuilder
+    private func hoverButton(
+        _ icon: String,
+        help: String,
+        role: ButtonRole? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(role: role) {
+            actionTrigger.toggle()
+            action()
+        } label: {
+            Image(systemName: icon)
+                .font(.system(size: 11, weight: .medium))
+                .frame(width: 26, height: 24)
+                .contentShape(.rect)
+        }
+        .buttonStyle(.borderless)
+        .help(help)
     }
 }
