@@ -24,11 +24,32 @@ final class ComposeViewModel {
     @ObservationIgnored var replyToMessageID: String?   // for In-Reply-To / References headers
     @ObservationIgnored var parentMessageID:  String?   // parent's RFC 2822 Message-ID (for References chain)
     @ObservationIgnored var parentReferences: String?   // parent's RFC 2822 References (for References chain)
-    @ObservationIgnored var attachmentURLs:   [URL] = []
+    var attachments: [URL] = []
 
     // Reply draft cleanup context — set by sendReplyMessage/setReplyCleanupContext, consumed by send()/scheduleSend()
     @ObservationIgnored private(set) var replyCleanupMailStore: MailStore?
     @ObservationIgnored private var replyCleanupDraftID: String?
+
+    // MARK: - Reply Bar State
+
+    var showCc = false
+    var showBcc = false
+    var subjectOverride: String?
+    var sendError: String?
+    var isLoadingDraft = false
+    var isInitialLoad = true
+    var isLoadingReplies = false
+    var quickReplies: [String] = []
+
+    @ObservationIgnored private var cachedStrippedText = ""
+    @ObservationIgnored private var lastDraftSaveDate: Date = .distantPast
+    @ObservationIgnored private var saveTask: Task<Void, Never>?
+    @ObservationIgnored private var loadDraftTask: Task<Void, Never>?
+    @ObservationIgnored private var loadGeneration = 0
+    @ObservationIgnored private var stripTask: Task<Void, Never>?
+
+    static let autoSaveGuardDelay: Duration = .seconds(0.5)
+    private static let minSaveInterval: TimeInterval = 10
 
     func setReplyCleanupContext(mailStore: MailStore) {
         replyCleanupMailStore = mailStore
@@ -46,6 +67,9 @@ final class ComposeViewModel {
 
     isolated deinit {
         saveDraftTask?.cancel()
+        saveTask?.cancel()
+        loadDraftTask?.cancel()
+        stripTask?.cancel()
     }
 
     // MARK: - Send
@@ -70,7 +94,7 @@ final class ComposeViewModel {
         let capturedParentMessageID = parentMessageID
         let capturedParentReferences = parentReferences
         let capturedInlineImages = inlineImages
-        let capturedAttachments = attachmentURLs.isEmpty ? nil : attachmentURLs
+        let capturedAttachments = attachments.isEmpty ? nil : attachments
         let capturedAccountID = accountID
         let capturedDraftID = gmailDraftID
         let capturedReplyCleanupMailStore = replyCleanupMailStore
@@ -287,7 +311,7 @@ final class ComposeViewModel {
         replyToMessageID: String?,
         parentMessageID: String? = nil,
         parentReferences: String? = nil,
-        attachmentURLs: [URL],
+        fileAttachments: [URL],
         editorInlineImages: [InlineImageAttachment],
         mailStore: MailStore
     ) async {
@@ -314,7 +338,7 @@ final class ComposeViewModel {
         self.replyToMessageID = replyToMessageID
         self.parentMessageID = parentMessageID
         self.parentReferences = parentReferences
-        self.attachmentURLs = attachmentURLs
+        self.attachments = fileAttachments
 
         await send()
     }
@@ -385,14 +409,6 @@ final class ComposeViewModel {
             self.isHTML = true
             self.replyToMessageID = replyToMessageID
             await self.saveDraft()
-            if let threadID = self.threadID, let draftID = self.gmailDraftID {
-                let plain = replyHTML.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines)
-                mailStore.replyDrafts[threadID] = .init(
-                    gmailDraftID: draftID,
-                    preview: String(plain.prefix(50))
-                )
-                mailStore.saveReplyDrafts()
-            }
         }
         return task
     }
@@ -425,6 +441,311 @@ final class ComposeViewModel {
         panel.canChooseDirectories = false
         let response = await panel.begin()
         return response == .OK ? panel.urls : []
+    }
+
+    // MARK: - Reply Bar Computed
+
+    var replyBodyIsEmpty: Bool {
+        cachedStrippedText.isEmpty
+    }
+
+    var hasUserContent: Bool {
+        !replyBodyIsEmpty || !attachments.isEmpty ||
+        !cc.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+        !bcc.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    func hasSavedDraft(for email: Email, in mailStore: MailStore) -> Bool {
+        guard let threadID = email.gmailThreadID else { return false }
+        return mailStore.replyDrafts[threadID] != nil
+    }
+
+    private(set) var collapsedPlaceholderText = "Write a reply..."
+
+    func updateCollapsedPlaceholder(for email: Email, in mailStore: MailStore) {
+        if !cachedStrippedText.isEmpty {
+            let preview = String(cachedStrippedText.prefix(50))
+            let ellipsis = cachedStrippedText.count > 50 ? "\u{2026}" : ""
+            if !to.isEmpty {
+                let recipientCount = splitAddresses(to).count + splitAddresses(cc).count
+                if recipientCount > 1 {
+                    collapsedPlaceholderText = "Reply All (\(recipientCount)) \u{00B7} \(preview)\(ellipsis)"
+                } else {
+                    let recipient = splitAddresses(to).first ?? ""
+                    collapsedPlaceholderText = "Reply to \(recipient) \u{00B7} \(preview)\(ellipsis)"
+                }
+            } else {
+                collapsedPlaceholderText = "\(preview)\(ellipsis)"
+            }
+            return
+        }
+        if let threadID = email.gmailThreadID,
+           let saved = mailStore.replyDrafts[threadID] {
+            let preview = saved.preview
+            let ellipsis = preview.count >= 50 ? "\u{2026}" : ""
+            collapsedPlaceholderText = "Draft: \(preview)\(ellipsis)"
+            return
+        }
+        let senderName = email.sender.name.isEmpty ? email.sender.email : email.sender.name
+        collapsedPlaceholderText = "Reply to \(senderName)\u{2026}"
+    }
+
+    // MARK: - Reply Bar Content
+
+    /// Debounced update of the cached stripped text for `replyBodyIsEmpty` / `hasUserContent`.
+    func updateCachedText(html: String) {
+        stripTask?.cancel()
+        stripTask = Task {
+            try? await Task.sleep(for: .milliseconds(150))
+            guard !Task.isCancelled else { return }
+            cachedStrippedText = html.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+    }
+
+    // MARK: - Reply Bar Lifecycle
+
+    /// Resets all reply-bar state for a new email and optionally loads quick replies.
+    func resetForEmail(
+        _ email: Email,
+        onGenerateQuickReplies: ((Email) async -> [String])?
+    ) async {
+        saveTask?.cancel()
+        saveTask = nil
+        loadDraftTask?.cancel()
+        loadDraftTask = nil
+        stripTask?.cancel()
+        stripTask = nil
+        loadGeneration += 1
+
+        to = ""
+        cc = ""
+        bcc = ""
+        body = ""
+        attachments = []
+        showCc = false
+        showBcc = false
+        sendError = nil
+        subjectOverride = nil
+        quickReplies = []
+        cachedStrippedText = ""
+        collapsedPlaceholderText = "Write a reply..."
+        isSent = false
+        isSending = false
+        gmailDraftID = nil
+        isInitialLoad = true
+        isLoadingDraft = false
+
+        threadID = email.gmailThreadID
+
+        isLoadingReplies = true
+        quickReplies = await onGenerateQuickReplies?(email) ?? []
+        isLoadingReplies = false
+    }
+
+    /// Collapses the reply bar, discarding local and remote draft state.
+    /// Does NOT touch `isExpanded` — that is view-local `@State`.
+    func collapse(email: Email, mailStore: MailStore) {
+        saveTask?.cancel()
+        if let threadID = email.gmailThreadID {
+            mailStore.replyDrafts.removeValue(forKey: threadID)
+            mailStore.saveReplyDrafts()
+        }
+        if gmailDraftID != nil {
+            Task { await discardDraft() }
+        }
+        to = ""
+        cc = ""
+        bcc = ""
+        body = ""
+        attachments = []
+        showCc = false
+        showBcc = false
+        sendError = nil
+        subjectOverride = nil
+        cachedStrippedText = ""
+        collapsedPlaceholderText = "Write a reply..."
+    }
+
+    /// Whether the user should be warned before discarding the reply bar.
+    func shouldShowDiscardAlert(email: Email, mailStore: MailStore) -> Bool {
+        hasSavedDraft(for: email, in: mailStore) || gmailDraftID != nil
+    }
+
+    // MARK: - Reply Bar Draft Loading
+
+    /// Loads an existing reply draft into the editor, guarded by `loadGeneration` for staleness.
+    func loadExistingDraftForReply(
+        email: Email,
+        mailStore: MailStore,
+        loader: ((String, String) async throws -> GmailDraft?)?,
+        editorState: WebRichTextEditorState
+    ) {
+        guard let threadID = email.gmailThreadID,
+              mailStore.replyDrafts[threadID] != nil else { return }
+        isLoadingDraft = true
+        loadDraftTask?.cancel()
+        let currentGen = loadGeneration
+        loadDraftTask = Task {
+            let result = await loadExistingDraft(
+                mailStore: mailStore,
+                loader: loader
+            )
+            guard !Task.isCancelled, currentGen == loadGeneration else { return }
+            if let draftBody = result, !draftBody.isEmpty {
+                isInitialLoad = true
+                body = draftBody
+                editorState.setHTML(draftBody)
+                isLoadingDraft = false
+                try? await Task.sleep(for: Self.autoSaveGuardDelay)
+                guard !Task.isCancelled, currentGen == loadGeneration else { return }
+                isInitialLoad = false
+            } else {
+                isLoadingDraft = false
+            }
+        }
+    }
+
+    // MARK: - Reply Bar Send / Schedule
+
+    /// Sends a reply from the inline reply bar.
+    func sendReplyFromBar(
+        email: Email,
+        editorInlineImages: [InlineImageAttachment],
+        mailStore: MailStore
+    ) async {
+        sendError = nil
+        saveTask?.cancel()
+
+        await sendReplyMessage(
+            replyHTML: body,
+            to: to,
+            cc: cc,
+            bcc: bcc,
+            emailSubject: subjectOverride ?? email.subject,
+            replyToMessageID: email.gmailMessageID,
+            parentMessageID: email.messageIDHeader,
+            parentReferences: email.referencesHeader,
+            fileAttachments: attachments,
+            editorInlineImages: editorInlineImages,
+            mailStore: mailStore
+        )
+
+        if let err = error {
+            sendError = err
+        }
+    }
+
+    /// Schedules a reply from the inline reply bar.
+    func scheduleReplyFromBar(
+        at date: Date,
+        email: Email,
+        editorInlineImages: [InlineImageAttachment],
+        mailStore: MailStore
+    ) async {
+        sendError = nil
+        saveTask?.cancel()
+
+        let (processedHTML, images) = InlineImageProcessor.extractInlineImages(from: body)
+
+        self.subject = (subjectOverride ?? email.subject).withReplyPrefix
+        self.body = processedHTML
+        self.isHTML = true
+        self.inlineImages = images + editorInlineImages
+        self.replyToMessageID = email.gmailMessageID
+        self.parentMessageID = email.messageIDHeader
+        self.parentReferences = email.referencesHeader
+
+        setReplyCleanupContext(mailStore: mailStore)
+        await scheduleSend(at: date)
+
+        if let err = error {
+            sendError = err
+        }
+    }
+
+    // MARK: - Reply Bar Auto-Save
+
+    /// Unified auto-save with local-first persistence: writes to `mailStore.replyDrafts`
+    /// immediately, then rate-limits the remote API save.
+    func scheduleReplyAutoSaveUnified(email: Email, mailStore: MailStore) {
+        guard !isInitialLoad, !isLoadingDraft else { return }
+
+        let isEmpty = body.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if isEmpty {
+            saveTask?.cancel()
+            if let threadID = email.gmailThreadID, mailStore.replyDrafts[threadID] != nil {
+                mailStore.replyDrafts.removeValue(forKey: threadID)
+                mailStore.saveReplyDrafts()
+                if gmailDraftID != nil {
+                    Task { [weak self] in await self?.discardDraft() }
+                }
+            }
+            return
+        }
+
+        // Local-first: persist draft preview immediately
+        if let threadID = email.gmailThreadID {
+            let plain = body.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines)
+            let draftID = gmailDraftID ?? mailStore.replyDrafts[threadID]?.gmailDraftID ?? ""
+            mailStore.replyDrafts[threadID] = .init(
+                gmailDraftID: draftID,
+                preview: String(plain.prefix(50))
+            )
+            mailStore.saveReplyDrafts()
+        }
+
+        // Rate-limit remote API saves
+        if Date.now.timeIntervalSince(lastDraftSaveDate) < Self.minSaveInterval {
+            let remaining = Self.minSaveInterval - Date.now.timeIntervalSince(lastDraftSaveDate)
+            saveTask?.cancel()
+            saveTask = Task {
+                try? await Task.sleep(for: .seconds(remaining))
+                guard !Task.isCancelled else { return }
+                lastDraftSaveDate = .now
+                saveTask = scheduleReplyAutoSave(
+                    replyHTML: body, to: to, cc: cc, bcc: bcc,
+                    emailSubject: subjectOverride ?? email.subject,
+                    replyToMessageID: email.gmailMessageID,
+                    mailStore: mailStore, previousTask: nil
+                )
+            }
+            return
+        }
+
+        lastDraftSaveDate = .now
+        saveTask = scheduleReplyAutoSave(
+            replyHTML: body, to: to, cc: cc, bcc: bcc,
+            emailSubject: subjectOverride ?? email.subject,
+            replyToMessageID: email.gmailMessageID,
+            mailStore: mailStore, previousTask: saveTask
+        )
+    }
+
+    // MARK: - Reply Bar File Helpers
+
+    /// Routes a file drop through `handleFileDrop`, inserting images inline or appending attachments.
+    func handleFileDropForReply(_ url: URL, editorState: WebRichTextEditorState) {
+        switch handleFileDrop(url) {
+        case .image:
+            editorState.insertImage(from: url)
+        case .attachment:
+            attachments.append(url)
+        case .unsupported(let message):
+            showToast(message, type: .error)
+        }
+    }
+
+    /// Opens a file picker and appends the selected files to `attachments`.
+    func attachFilesForReply() async {
+        let urls = await openAttachmentPicker()
+        attachments.append(contentsOf: urls)
+    }
+
+    /// Cancels all reply-bar background tasks.
+    func cancelReplyTasks() {
+        saveTask?.cancel()
+        loadDraftTask?.cancel()
+        stripTask?.cancel()
     }
 
     // MARK: - Undo forwarding

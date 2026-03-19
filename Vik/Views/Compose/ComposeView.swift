@@ -294,7 +294,7 @@ struct ComposeView: View {
         composeVM.body           = processedHTML
         composeVM.isHTML         = true
         composeVM.inlineImages   = images + editorState.pendingInlineImages
-        composeVM.attachmentURLs = attachments
+        composeVM.attachments = attachments
         return true
     }
 

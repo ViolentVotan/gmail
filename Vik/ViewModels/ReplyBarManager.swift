@@ -131,7 +131,7 @@ import SwiftUI
             replyToMessageID: email.gmailMessageID,
             parentMessageID: email.messageIDHeader,
             parentReferences: email.referencesHeader,
-            attachmentURLs: attachments,
+            fileAttachments: attachments,
             editorInlineImages: editorInlineImages,
             mailStore: mailStore
         )
@@ -279,6 +279,6 @@ import SwiftUI
         composeVM.replyToMessageID = email.gmailMessageID
         composeVM.parentMessageID = email.messageIDHeader
         composeVM.parentReferences = email.referencesHeader
-        composeVM.attachmentURLs = attachments
+        composeVM.attachments = attachments
     }
 }
