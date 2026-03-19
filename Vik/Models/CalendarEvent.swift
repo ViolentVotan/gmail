@@ -99,10 +99,11 @@ struct CalendarInfo: Identifiable, Sendable, Equatable {
 // MARK: - View Mode Enums
 
 enum CalendarViewMode: String, Sendable {
-    case week, day, agenda
+    case month, week, day, agenda
 
     var label: String {
         switch self {
+        case .month: "Month"
         case .day: "Day"
         case .week: "Week"
         case .agenda: "Agenda"

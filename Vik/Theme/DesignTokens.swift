@@ -493,6 +493,17 @@ enum CalendarLayout {
     /// Maximum number of events shown inline in the mini agenda before a "more" link.
     static let miniAgendaMaxEvents: Int = 5
 
+    // MARK: - Month View
+
+    /// Maximum number of event chips shown per day cell in month view before "+N more".
+    static let monthViewMaxEventsPerCell: Int = 3
+    /// Height of compact event chips in month view.
+    static let monthEventChipHeight: CGFloat = 18
+    /// Height reserved for multi-day spanning bars per stacking row.
+    static let monthSpanningBarHeight: CGFloat = 20
+    /// Maximum spanning bar rows per week row.
+    static let monthMaxSpanningRows: Int = 3
+
     // MARK: - Layout calculations
 
     /// Y-position for a given time in the day/week grid.
@@ -525,6 +536,13 @@ enum CalendarSemanticColor {
     static let eventCardBackgroundOpacity: CGFloat = 0.15
     /// Weekend column dimming opacity — subtle desaturation of Saturday/Sunday columns.
     static let weekendColumnOpacity: CGFloat = 0.55
+
+    // MARK: - Month View
+
+    /// Month view day cell hover — subtle glass tint.
+    static let monthCellHover = BrandColor.blue.opacity(0.10)
+    /// Month view overflow days (prev/next month) — reduced opacity for day numbers.
+    static let monthOverflowDayOpacity: CGFloat = 0.35
 }
 
 // MARK: - Haptic Feedback

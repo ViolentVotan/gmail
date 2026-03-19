@@ -134,6 +134,8 @@ final class CalendarViewModel {
     func navigateForward() {
         let calendar = Calendar.current
         switch viewMode {
+        case .month:
+            selectedDate = calendar.date(byAdding: .month, value: 1, to: selectedDate) ?? selectedDate
         case .week:
             selectedDate = calendar.date(byAdding: .weekOfYear, value: 1, to: selectedDate) ?? selectedDate
         case .day:
@@ -147,6 +149,8 @@ final class CalendarViewModel {
     func navigateBackward() {
         let calendar = Calendar.current
         switch viewMode {
+        case .month:
+            selectedDate = calendar.date(byAdding: .month, value: -1, to: selectedDate) ?? selectedDate
         case .week:
             selectedDate = calendar.date(byAdding: .weekOfYear, value: -1, to: selectedDate) ?? selectedDate
         case .day:
@@ -384,6 +388,13 @@ final class CalendarViewModel {
     private var currentDateRange: DateInterval {
         let calendar = Calendar.current
         switch viewMode {
+        case .month:
+            let firstOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedDate))!
+            let weekday = calendar.component(.weekday, from: firstOfMonth)
+            let mondayOffset = (weekday - 2 + 7) % 7
+            let gridStart = calendar.date(byAdding: .day, value: -mondayOffset, to: firstOfMonth)!
+            let gridEnd = calendar.date(byAdding: .day, value: 42, to: gridStart)!
+            return DateInterval(start: gridStart, end: gridEnd)
         case .week:
             return selectedWeek
         case .day:

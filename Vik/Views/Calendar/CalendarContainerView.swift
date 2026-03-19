@@ -25,6 +25,11 @@ struct CalendarContainerView: View {
 
             ZStack {
                 switch viewModel.viewMode {
+                case .month:
+                    Text("Month view coming soon")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .transition(directionalTransition(for: .month))
+
                 case .week:
                     CalendarWeekView(
                         viewModel: viewModel,
@@ -89,9 +94,10 @@ struct CalendarContainerView: View {
     /// Maps each view mode to a positional index for directional comparison.
     private func modeIndex(_ mode: CalendarViewMode) -> Int {
         switch mode {
-        case .week:   0
-        case .day:    1
-        case .agenda: 2
+        case .month:  0
+        case .week:   1
+        case .day:    2
+        case .agenda: 3
         }
     }
 
