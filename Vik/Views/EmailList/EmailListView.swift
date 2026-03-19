@@ -454,7 +454,15 @@ struct EmailListView: View {
             actions.onToggleStar?(email)
         }
         .accessibilityAction(named: email.isRead ? "Mark Unread" : "Mark Read") {
-            actions.onMarkUnread?(email)
+            if email.isRead {
+                actions.onMarkUnread?(email)
+            } else {
+                actions.onMarkRead?(email)
+            }
+        }
+        .accessibilityAction(named: "Snooze until Tomorrow") {
+            guard ![Folder.snoozed, .trash, .sent, .drafts, .spam, .scheduled].contains(selectedFolder) else { return }
+            actions.onSnooze?(email, SnoozePreset.tomorrowMorning)
         }
     }
 

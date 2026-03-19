@@ -14,7 +14,7 @@ struct EmailHoverActions {
 }
 
 @MainActor
-private struct EmailHoverActionsKey: EnvironmentKey {
+struct EmailHoverActionsKey: EnvironmentKey {
     static let defaultValue = EmailHoverActions()
 }
 
@@ -115,7 +115,7 @@ struct HoverActionButtonsView: View {
             .frame(height: ButtonSize.sm)
             .symbolEffect(.bounce, value: actionTrigger)
             .sensoryFeedback(.impact(flexibility: .soft), trigger: actionTrigger)
-            .padding(.trailing, Spacing.lg + Spacing.sm)
+            .padding(.trailing, Spacing.xl)
             .padding(.leading, Spacing.xxl)
             .background {
                 LinearGradient(
