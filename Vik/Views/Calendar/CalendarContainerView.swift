@@ -29,7 +29,11 @@ struct CalendarContainerView: View {
                     CalendarWeekView(
                         viewModel: viewModel,
                         onSelectEvent: onSelectEvent,
-                        onCreateEvent: onCreateEvent
+                        onCreateEvent: onCreateEvent,
+                        onEdit: onEdit,
+                        onDelete: onDelete,
+                        onRSVP: onRSVP,
+                        onEmailAttendees: onEmailAttendees
                     )
                     .transition(directionalTransition(for: .week))
 
@@ -37,14 +41,22 @@ struct CalendarContainerView: View {
                     CalendarDayView(
                         viewModel: viewModel,
                         onSelectEvent: onSelectEvent,
-                        onCreateEvent: onCreateEvent
+                        onCreateEvent: onCreateEvent,
+                        onEdit: onEdit,
+                        onDelete: onDelete,
+                        onRSVP: onRSVP,
+                        onEmailAttendees: onEmailAttendees
                     )
                     .transition(directionalTransition(for: .day))
 
                 case .agenda:
                     CalendarAgendaView(
                         viewModel: viewModel,
-                        onSelectEvent: onSelectEvent
+                        onSelectEvent: onSelectEvent,
+                        onEdit: onEdit,
+                        onDelete: onDelete,
+                        onRSVP: onRSVP,
+                        onEmailAttendees: onEmailAttendees
                     )
                     .transition(directionalTransition(for: .agenda))
                 }

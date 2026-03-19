@@ -23,6 +23,7 @@ struct ListPaneView: View {
     let loadCurrentFolder: () async -> Void
 
     @State private var selectedCategory: InboxCategory = .all
+    @State private var filterEmail: Email?
 
     private var navigationTitleText: String {
         if selectedFolder == .labels {
@@ -83,6 +84,13 @@ struct ListPaneView: View {
         .safeAreaPadding(.leading, isSidebarCollapsed ? 8 : 0)
         .safeAreaPadding(.top, isSidebarCollapsed ? 6 : 0)
         .animation(VikAnimation.springDefault, value: isSidebarCollapsed)
+        .sheet(item: $filterEmail) { email in
+            FilterEditorView(
+                viewModel: FiltersViewModel(accountID: mailboxViewModel.accountID),
+                onSave: { _ in },
+                prefillFrom: email.sender.email
+            )
+        }
         .onChange(of: selectedCategory) { _, newCategory in
             selectedInboxCategory = newCategory
         }
@@ -118,6 +126,7 @@ struct ListPaneView: View {
                 onForward: { email in
                     startCompose(EmailDetailViewModel.forwardMode(for: email))
                 },
+                onCreateFilter: { email in filterEmail = email },
                 onBulkArchive:    { Task { await actionCoordinator.bulkArchive(selectedEmails, onClear: clearSelection) } },
                 onBulkDelete:     { Task { await actionCoordinator.bulkDelete(selectedEmails, onClear: clearSelection) } },
                 onBulkMarkUnread: { Task { await actionCoordinator.bulkMarkUnread(selectedEmails) { selectedEmailIDs = [] } } },

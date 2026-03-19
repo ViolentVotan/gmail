@@ -3,6 +3,7 @@ import SwiftUI
 struct FilterEditorView: View {
     let viewModel: FiltersViewModel
     let onSave: (GmailFilter) -> Void
+    var prefillFrom: String = ""
 
     @Environment(\.dismiss) private var dismiss
     @State private var from = ""
@@ -34,6 +35,7 @@ struct FilterEditorView: View {
         }
         .formStyle(.grouped)
         .frame(width: 400, height: 350)
+        .task { if !prefillFrom.isEmpty { from = prefillFrom } }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }

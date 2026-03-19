@@ -67,5 +67,29 @@ struct AttachmentChipView: View {
             .padding(.trailing, 4)
         }
         .onHover { isHovered = $0 }
+        .contextMenu {
+            if attachment.fileType.isPreviewable {
+                Button {
+                    onPreview?()
+                } label: {
+                    Label("Quick Look", systemImage: "eye")
+                }
+            }
+
+            Button {
+                onDownload?()
+            } label: {
+                Label("Download", systemImage: "arrow.down.circle")
+            }
+
+            Divider()
+
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(attachment.name, forType: .string)
+            } label: {
+                Label("Copy Filename", systemImage: "doc.on.doc")
+            }
+        }
     }
 }

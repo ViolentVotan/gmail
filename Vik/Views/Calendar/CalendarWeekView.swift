@@ -6,6 +6,10 @@ struct CalendarWeekView: View {
     @Bindable var viewModel: CalendarViewModel
     var onSelectEvent: (CalendarEvent) -> Void
     var onCreateEvent: (Date, Int) -> Void
+    var onEdit: (CalendarEvent) -> Void = { _ in }
+    var onDelete: (CalendarEvent) -> Void = { _ in }
+    var onRSVP: (CalendarEvent, CalendarRSVPStatus) -> Void = { _, _ in }
+    var onEmailAttendees: (CalendarEvent) -> Void = { _ in }
 
     @State private var currentTime: Date = .now
     @State private var scrollProxy: ScrollViewProxy?
@@ -109,6 +113,15 @@ struct CalendarWeekView: View {
                 .glassEffect(.regular.interactive(), in: .rect(cornerRadius: CornerRadius.xs))
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            CalendarEventContextMenu(
+                event: event,
+                onEdit: onEdit,
+                onDelete: onDelete,
+                onRSVP: onRSVP,
+                onEmailAttendees: onEmailAttendees
+            )
+        }
         .accessibilityLabel("\(event.summary), all day")
     }
 
@@ -294,6 +307,15 @@ struct CalendarWeekView: View {
             + 2
         CalendarEventCard(event: event, height: height) { ev in
             onSelectEvent(ev)
+        }
+        .contextMenu {
+            CalendarEventContextMenu(
+                event: event,
+                onEdit: onEdit,
+                onDelete: onDelete,
+                onRSVP: onRSVP,
+                onEmailAttendees: onEmailAttendees
+            )
         }
         .frame(width: colWidth - 1)
         .offset(x: xOffset, y: yOffset)

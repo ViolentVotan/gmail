@@ -181,30 +181,12 @@ struct AccountsSettingsView: View {
 
     @ViewBuilder
     private func contextMenu(for account: GmailAccount, index: Int) -> some View {
-        if index != 0 {
-            Button("Set as Default") {
-                onSetAsDefault?(account.id)
-                refresh()
-            }
-            Divider()
-        }
-
-        Menu("Accent Color") {
-            ForEach(AccountStore.accentPalette, id: \.self) { hex in
-                Button {
-                    onSetAccentColor?(account.id, hex)
-                    refresh()
-                } label: {
-                    HStack {
-                        Image(systemName: "circle.fill")
-                            .foregroundStyle(Color(hex: hex))
-                        if account.accentColor == hex {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                }
-            }
-        }
+        AccountContextMenu(
+            account: account,
+            isDefault: index == 0,
+            onSetAsDefault: { id in onSetAsDefault?(id); refresh() },
+            onSetAccentColor: { id, hex in onSetAccentColor?(id, hex); refresh() }
+        )
     }
 
     // MARK: - Actions

@@ -459,6 +459,13 @@ struct SidebarView: View {
         } isTargeted: { targeted in
             dropTargetFolder = targeted ? folder : nil
         }
+        .contextMenu {
+            Button {
+                onRefresh?()
+            } label: {
+                Label("Refresh", systemImage: "arrow.clockwise")
+            }
+        }
     }
 
     // MARK: - Labels Section
@@ -519,12 +526,16 @@ struct SidebarView: View {
             dropTargetLabel = targeted ? label.id : nil
         }
         .contextMenu {
-            Button("Rename...") {
+            Button {
                 labelToRename = label
                 renameText = label.name
+            } label: {
+                Label("Rename...", systemImage: "pencil")
             }
-            Button("Delete", role: .destructive) {
+            Button(role: .destructive) {
                 labelToDelete = label
+            } label: {
+                Label("Delete", systemImage: "trash")
             }
         }
     }

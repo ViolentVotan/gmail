@@ -79,6 +79,24 @@ struct CalendarListSidebarView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button {
+                Task { await viewModel.toggleCalendarVisibility(calendar) }
+            } label: {
+                Label(
+                    calendar.isVisible ? "Hide Calendar" : "Show Calendar",
+                    systemImage: calendar.isVisible ? "eye.slash" : "eye"
+                )
+            }
+
+            if let link = URL(string: "https://calendar.google.com/calendar/r?cid=\(calendar.id)") {
+                Button {
+                    NSWorkspace.shared.open(link)
+                } label: {
+                    Label("Open in Google Calendar", systemImage: "safari")
+                }
+            }
+        }
     }
 
     // MARK: - New Event Button

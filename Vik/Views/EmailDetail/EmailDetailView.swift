@@ -394,53 +394,85 @@ struct EmailDetailView: View {
             GlassEffectContainer(spacing: 1) {
                 LazyVStack(spacing: 1) {
                 ForEach(Array(allMessages.enumerated()), id: \.element.id) { index, message in
-                    let isLastCard = message.id == allMessages.last?.id
-                    ThreadMessageCardView(
-                        message: message,
-                        isExpanded: expandedMessageIDs.contains(message.id),
-                        fromAddress: fromAddress,
-                        isLast: isLastCard,
-                        resolvedHTML: detailVM.resolvedMessageHTML[message.id],
-                        onToggle: {
-                            withAnimation(VikAnimation.springSnappy.delay(Double(index) * DurationToken.stagger)) {
-                                if expandedMessageIDs.contains(message.id) {
-                                    expandedMessageIDs.remove(message.id)
-                                } else {
-                                    expandedMessageIDs.insert(message.id)
-                                }
-                            }
-                        },
-                        onOpenLink: actions.onOpenLink,
-                        attachmentPairs: detailVM.attachmentPairsForMessage(message),
-                        onPreviewAttachment: { attachment, part in
-                            Task {
-                                await detailVM.loadAndPreview(
-                                    attachment: attachment,
-                                    part: part,
-                                    messageID: message.id,
-                                    onPreviewAttachment: actions.onPreviewAttachment
-                                )
-                            }
-                        },
-                        onDownloadAttachment: { attachment, part in
-                            Task {
-                                guard let data = await detailVM.downloadAndSave(
-                                    attachment: attachment,
-                                    part: part,
-                                    messageID: message.id
-                                ) else { return }
-                                saveAttachmentData(data, named: attachment.name)
-                            }
-                        },
-                        accountID: accountID,
-                        composeTo: { actions.onComposeTo?($0) },
-                        searchSender: { actions.onSearchSender?($0) }
-                    )
-                    .id(message.id)
+                    threadCard(for: message, at: index)
+                        .id(message.id)
                 }
                 }
             }
         }
+    }
+
+    // MARK: - Thread Card
+
+    private func threadCard(for message: GmailMessage, at index: Int) -> some View {
+        let isLastCard = message.id == detailVM.messages.last?.id
+        return ThreadMessageCardView(
+            message: message,
+            isExpanded: expandedMessageIDs.contains(message.id),
+            fromAddress: fromAddress,
+            isLast: isLastCard,
+            resolvedHTML: detailVM.resolvedMessageHTML[message.id],
+            onToggle: {
+                withAnimation(VikAnimation.springSnappy.delay(Double(index) * DurationToken.stagger)) {
+                    if expandedMessageIDs.contains(message.id) {
+                        expandedMessageIDs.remove(message.id)
+                    } else {
+                        expandedMessageIDs.insert(message.id)
+                    }
+                }
+            },
+            onOpenLink: actions.onOpenLink,
+            attachmentPairs: detailVM.attachmentPairsForMessage(message),
+            onPreviewAttachment: { attachment, part in
+                Task {
+                    await detailVM.loadAndPreview(
+                        attachment: attachment,
+                        part: part,
+                        messageID: message.id,
+                        onPreviewAttachment: actions.onPreviewAttachment
+                    )
+                }
+            },
+            onDownloadAttachment: { attachment, part in
+                Task {
+                    guard let data = await detailVM.downloadAndSave(
+                        attachment: attachment,
+                        part: part,
+                        messageID: message.id
+                    ) else { return }
+                    saveAttachmentData(data, named: attachment.name)
+                }
+            },
+            accountID: accountID,
+            composeTo: { actions.onComposeTo?($0) },
+            searchSender: { actions.onSearchSender?($0) },
+            onReply: { msg in
+                let sub = msg.subject.withReplyPrefix
+                let body = msg.htmlBody ?? msg.snippet ?? ""
+                actions.onReply?(.reply(
+                    to: msg.from, subject: sub, quotedBody: body,
+                    replyToMessageID: msg.id, threadID: msg.threadId,
+                    parentMessageID: msg.messageID, parentReferences: msg.header(named: "References")
+                ))
+            },
+            onReplyAll: { msg in
+                let sub = msg.subject.withReplyPrefix
+                let body = msg.htmlBody ?? msg.snippet ?? ""
+                let toField = [msg.from, msg.to].filter { !$0.isEmpty }.joined(separator: ", ")
+                actions.onReplyAll?(.replyAll(
+                    to: toField, cc: msg.cc,
+                    subject: sub, quotedBody: body,
+                    replyToMessageID: msg.id, threadID: msg.threadId,
+                    parentMessageID: msg.messageID, parentReferences: msg.header(named: "References")
+                ))
+            },
+            onForward: { msg in
+                let sub = msg.subject.withForwardPrefix
+                let body = msg.htmlBody ?? msg.snippet ?? ""
+                actions.onForward?(.forward(subject: sub, quotedBody: body))
+            },
+            onMarkUnread: { _ in actions.onMarkUnread?() }
+        )
     }
 
     // MARK: - Load

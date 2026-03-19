@@ -19,6 +19,7 @@ struct EmailListActions {
     var onReply: ((Email) -> Void)?
     var onReplyAll: ((Email) -> Void)?
     var onForward: ((Email) -> Void)?
+    var onCreateFilter: ((Email) -> Void)?
 
     // MARK: - Bulk actions
 

@@ -8,6 +8,10 @@ struct CalendarAgendaView: View {
 
     @Bindable var viewModel: CalendarViewModel
     let onSelectEvent: (CalendarEvent) -> Void
+    var onEdit: (CalendarEvent) -> Void = { _ in }
+    var onDelete: (CalendarEvent) -> Void = { _ in }
+    var onRSVP: (CalendarEvent, CalendarRSVPStatus) -> Void = { _, _ in }
+    var onEmailAttendees: (CalendarEvent) -> Void = { _ in }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var groupedDays: [(date: Date, events: [CalendarEvent])] = []
@@ -24,6 +28,15 @@ struct CalendarAgendaView: View {
                         Section {
                             ForEach(group.events) { event in
                                 AgendaEventRow(event: event, onSelect: onSelectEvent)
+                                    .contextMenu {
+                                        CalendarEventContextMenu(
+                                            event: event,
+                                            onEdit: onEdit,
+                                            onDelete: onDelete,
+                                            onRSVP: onRSVP,
+                                            onEmailAttendees: onEmailAttendees
+                                        )
+                                    }
                                     .padding(.horizontal, Spacing.md)
                                     .padding(.bottom, Spacing.xs)
                             }

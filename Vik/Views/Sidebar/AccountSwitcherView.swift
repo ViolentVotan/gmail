@@ -37,32 +37,13 @@ struct AccountSwitcherView: View {
                     }
                 }
                 .contextMenu {
-                    Text(account.email)
-                    Divider()
-                    if index != 0 {
-                        Button("Set as Default") {
-                            onSetAsDefault?(account.id)
-                        }
-                    }
-                    Menu("Accent Color") {
-                        ForEach(AccountStore.accentPalette, id: \.self) { hex in
-                            Button {
-                                onSetAccentColor?(account.id, hex)
-                            } label: {
-                                HStack {
-                                    Image(systemName: "circle.fill")
-                                        .foregroundStyle(Color(hex: hex))
-                                    if account.accentColor == hex {
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Divider()
-                    Button("Sign Out", role: .destructive) {
-                        onSignOut?(account)
-                    }
+                    AccountContextMenu(
+                        account: account,
+                        isDefault: index == 0,
+                        onSetAsDefault: onSetAsDefault,
+                        onSetAccentColor: onSetAccentColor,
+                        onSignOut: onSignOut
+                    )
                 }
                 .frame(width: visible ? avatarSize : 0, height: avatarSize)
                 .opacity(visible ? 1 : 0)

@@ -434,7 +434,7 @@ struct EmailListView: View {
                 onDeletePermanently: actions.onDeletePermanently,
                 onMarkNotSpam: actions.onMarkNotSpam,
                 onSnooze: actions.onSnooze,
-                onCreateFilter: nil,
+                onCreateFilter: actions.onCreateFilter,
                 onReply: actions.onReply,
                 onReplyAll: actions.onReplyAll,
                 onForward: actions.onForward

@@ -59,7 +59,11 @@ struct FiltersSettingsView: View {
             Text(actionSummary(filter)).font(Typography.captionRegular).foregroundStyle(.secondary)
         }
         .contextMenu {
-            Button("Delete", role: .destructive) { filterToDelete = filter }
+            Button(role: .destructive) {
+                filterToDelete = filter
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
         }
     }
 

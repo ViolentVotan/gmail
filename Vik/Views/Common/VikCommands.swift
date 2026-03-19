@@ -81,6 +81,35 @@ struct VikCommands: Commands {
 
             Button {
                 guard let coordinator, let email = selectedEmail else { return }
+                coordinator.startCompose(mode: EmailDetailViewModel.replyMode(for: email))
+            } label: {
+                Label("Reply", systemImage: "arrowshape.turn.up.left")
+            }
+            .keyboardShortcut("r", modifiers: .command)
+            .disabled(!hasSelection)
+
+            Button {
+                guard let coordinator, let email = selectedEmail else { return }
+                coordinator.startCompose(mode: EmailDetailViewModel.replyAllMode(for: email))
+            } label: {
+                Label("Reply All", systemImage: "arrowshape.turn.up.left.2")
+            }
+            .keyboardShortcut("r", modifiers: [.command, .shift])
+            .disabled(!hasSelection)
+
+            Button {
+                guard let coordinator, let email = selectedEmail else { return }
+                coordinator.startCompose(mode: EmailDetailViewModel.forwardMode(for: email))
+            } label: {
+                Label("Forward", systemImage: "arrowshape.turn.up.right")
+            }
+            .keyboardShortcut("f", modifiers: [.command, .shift])
+            .disabled(!hasSelection)
+
+            Divider()
+
+            Button {
+                guard let coordinator, let email = selectedEmail else { return }
                 Task { await coordinator.actionCoordinator.toggleStarEmail(email) }
             } label: {
                 Label(isStarred ? "Remove Star" : "Add Star", systemImage: isStarred ? "star.slash" : "star")

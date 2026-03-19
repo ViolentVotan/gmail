@@ -14,6 +14,10 @@ struct ThreadMessageCardView: View {
     var accountID: String = ""
     var composeTo: ((String) -> Void)?
     var searchSender: ((String) -> Void)?
+    var onReply: ((GmailMessage) -> Void)?
+    var onReplyAll: ((GmailMessage) -> Void)?
+    var onForward: ((GmailMessage) -> Void)?
+    var onMarkUnread: ((GmailMessage) -> Void)?
 
     @State private var showQuoted = false
     @State private var contentHeight: CGFloat = 60
@@ -40,7 +44,11 @@ struct ThreadMessageCardView: View {
         onDownloadAttachment: ((Attachment, GmailMessagePart) -> Void)? = nil,
         accountID: String = "",
         composeTo: ((String) -> Void)? = nil,
-        searchSender: ((String) -> Void)? = nil
+        searchSender: ((String) -> Void)? = nil,
+        onReply: ((GmailMessage) -> Void)? = nil,
+        onReplyAll: ((GmailMessage) -> Void)? = nil,
+        onForward: ((GmailMessage) -> Void)? = nil,
+        onMarkUnread: ((GmailMessage) -> Void)? = nil
     ) {
         self.message = message
         self.isExpanded = isExpanded
@@ -55,6 +63,10 @@ struct ThreadMessageCardView: View {
         self.accountID = accountID
         self.composeTo = composeTo
         self.searchSender = searchSender
+        self.onReply = onReply
+        self.onReplyAll = onReplyAll
+        self.onForward = onForward
+        self.onMarkUnread = onMarkUnread
 
         let parsedSender = GmailDataTransformer.parseContact(message.from)
         self.sender = parsedSender
@@ -136,6 +148,40 @@ struct ThreadMessageCardView: View {
                 Rectangle()
                     .frame(width: 2)
                     .foregroundStyle(Color.accentColor)
+            }
+        }
+        .contextMenu {
+            Button {
+                onReply?(message)
+            } label: {
+                Label("Reply", systemImage: "arrowshape.turn.up.left")
+            }
+            Button {
+                onReplyAll?(message)
+            } label: {
+                Label("Reply All", systemImage: "arrowshape.turn.up.left.2")
+            }
+            Button {
+                onForward?(message)
+            } label: {
+                Label("Forward", systemImage: "arrowshape.turn.up.right")
+            }
+
+            Divider()
+
+            Button {
+                onMarkUnread?(message)
+            } label: {
+                Label("Mark as Unread", systemImage: "envelope.badge")
+            }
+
+            Divider()
+
+            Button {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(message.snippet ?? "", forType: .string)
+            } label: {
+                Label("Copy Message Text", systemImage: "doc.on.doc")
             }
         }
         .animation(VikAnimation.springDefault, value: isExpanded)
