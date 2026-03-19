@@ -43,7 +43,11 @@ struct CalendarWeekView: View {
         .onGeometryChange(for: CGFloat.self) { proxy in
             proxy.size.width
         } action: { newWidth in
-            dayColumnWidth = (newWidth - CalendarLayout.timeColumnWidth) / 7
+            // Subtract the full time-gutter width (frame + trailing padding) to
+            // reach a fixed point: content width = (timeColumnWidth + Spacing.xs) +
+            // 7 * dayColumnWidth, so (content - timeColumnWidth - Spacing.xs) / 7
+            // == dayColumnWidth — no growth per cycle.
+            dayColumnWidth = (newWidth - CalendarLayout.timeColumnWidth - Spacing.xs) / 7
         }
         .task(id: viewModel.selectedDate) {
             recomputeCaches()
