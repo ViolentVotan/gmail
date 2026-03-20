@@ -47,7 +47,7 @@ struct SuggestionChipRow: View {
                     .scaleEffect(visibleCount > 0 ? 1 : 0.5)
             }
 
-            ForEach(Array(suggestions.enumerated()), id: \.offset) { index, suggestion in
+            ForEach(Array(suggestions.enumerated()), id: \.element) { index, suggestion in
                 chipButton(suggestion: suggestion, index: index)
             }
         }
