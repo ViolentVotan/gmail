@@ -49,6 +49,8 @@ final class CalendarViewModel {
     @ObservationIgnored private var observationTask: Task<Void, Never>?
     @ObservationIgnored private var calendarObservationTask: Task<Void, Never>?
     @ObservationIgnored private var debounceTask: Task<Void, Never>?
+    @ObservationIgnored private var lastObservedRange: DateInterval?
+    @ObservationIgnored private var lastObservedCalendarKeys: Set<String>?
 
     // MARK: - Init
 
@@ -66,6 +68,8 @@ final class CalendarViewModel {
 
     /// Starts observing both calendars and events tables. Call once from `.task { }` in the view.
     func startObserving() {
+        lastObservedRange = nil
+        lastObservedCalendarKeys = nil
         observeCalendars()
         observeEvents()
     }
@@ -97,9 +101,17 @@ final class CalendarViewModel {
     }
 
     private func observeEvents() {
-        observationTask?.cancel()
         let dateRange = currentDateRange
         let visibleIDs = visibleCalendarIDs
+
+        // Skip re-observation if parameters haven't changed
+        if dateRange == lastObservedRange, visibleIDs == lastObservedCalendarKeys {
+            return
+        }
+        lastObservedRange = dateRange
+        lastObservedCalendarKeys = visibleIDs
+
+        observationTask?.cancel()
         // Decode composite "accountId\u{001F}calendarId" keys into typed tuples so the
         // DB query can scope each calendar to its owning account — preventing
         // cross-account matches on shared calendar IDs.
@@ -424,6 +436,13 @@ final class CalendarViewModel {
             }
             if event.isAllDay || cal.startOfDay(for: event.startTime) != cal.startOfDay(for: event.endTime) {
                 multiDay.append(event)
+            }
+        }
+        // Pre-sort each day's events so views don't need to sort on render
+        for key in dict.keys {
+            dict[key]?.sort { lhs, rhs in
+                if lhs.isAllDay != rhs.isAllDay { return lhs.isAllDay }
+                return lhs.startTime < rhs.startTime
             }
         }
         eventsByDay = dict

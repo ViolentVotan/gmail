@@ -120,10 +120,6 @@ struct CalendarAgendaView: View {
         groupedDays = (0..<30).compactMap { offset -> (Date, [CalendarEvent])? in
             guard let day = calendar.date(byAdding: .day, value: offset, to: start) else { return nil }
             let dayEvents = viewModel.eventsForDay(day)
-                .sorted { lhs, rhs in
-                    if lhs.isAllDay != rhs.isAllDay { return lhs.isAllDay }
-                    return lhs.startTime < rhs.startTime
-                }
             guard !dayEvents.isEmpty else { return nil }
             return (day, dayEvents)
         }
