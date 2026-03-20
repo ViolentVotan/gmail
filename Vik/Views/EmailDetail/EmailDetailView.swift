@@ -180,6 +180,13 @@ struct EmailDetailView: View {
 
             await loadThread()
 
+            // Expand latest card BEFORE making conversation visible to avoid
+            // a flash of all-collapsed cards (the inner .task(id:) that also
+            // sets this fires asynchronously and may run after showConversation).
+            if let latestID = detailVM.latestMessage?.id {
+                expandedMessageIDs = [latestID]
+            }
+
             withAnimation(VikAnimation.springDefault.delay(0.08)) {
                 showConversation = true
             }
