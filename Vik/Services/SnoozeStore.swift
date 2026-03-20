@@ -82,6 +82,6 @@ final class SnoozeStore {
 
     func expiredItems() -> [SnoozedItem] {
         let now = Date()
-        return store.allItems.filter { $0.snoozeUntil <= now }
+        return store.filteredItems { $0.snoozeUntil <= now }
     }
 }

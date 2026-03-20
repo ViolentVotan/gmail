@@ -124,6 +124,27 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
         }
     }
 
+    // MARK: - Targeted Accessors
+
+    /// Find first item matching predicate without materializing the full flattened array.
+    func firstItem(where predicate: (Item) -> Bool) -> Item? {
+        for items in itemsByAccount.values {
+            if let match = items.first(where: predicate) {
+                return match
+            }
+        }
+        return nil
+    }
+
+    /// Filter items matching predicate, iterating per-account without flattening.
+    func filteredItems(where predicate: (Item) -> Bool) -> [Item] {
+        var result: [Item] = []
+        for items in itemsByAccount.values {
+            result.append(contentsOf: items.filter(predicate))
+        }
+        return result
+    }
+
     // MARK: - In-Memory Mutations
 
     func append(_ item: Item, accountID: String) {

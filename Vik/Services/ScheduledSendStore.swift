@@ -73,7 +73,7 @@ final class ScheduledSendStore {
     }
 
     func markFailed(draftId: String, accountID: String) {
-        guard var item = store.allItems.first(where: { $0.draftId == draftId && $0.accountID == accountID }) else { return }
+        guard var item = store.firstItem(where: { $0.draftId == draftId && $0.accountID == accountID }) else { return }
         store.removeAll(accountID: accountID) { $0.draftId == draftId }
         item.failedPermanently = true
         store.append(item, accountID: accountID)
@@ -86,6 +86,6 @@ final class ScheduledSendStore {
 
     func dueItems() -> [ScheduledSendItem] {
         let now = Date()
-        return store.allItems.filter { $0.scheduledTime <= now && !$0.failedPermanently }
+        return store.filteredItems { $0.scheduledTime <= now && !$0.failedPermanently }
     }
 }

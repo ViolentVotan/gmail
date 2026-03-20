@@ -38,7 +38,7 @@ final class OfflineActionQueue {
         store.allItems
     }
 
-    var pendingCount: Int { pendingActions.count }
+    var pendingCount: Int { store.totalCount }
 
     func enqueue(_ action: OfflineAction) {
         store.append(action, accountID: action.accountID)
