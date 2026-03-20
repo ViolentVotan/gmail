@@ -33,10 +33,27 @@ actor BackgroundSyncer {
                 try label.insert(db, onConflict: .ignore)
             }
 
+            // Batch-prefetch existing label sets for all messages in a single query
+            // instead of N per-message queries inside upsertSingleMessage.
+            let gmailIds = gmailMessages.map(\.id)
+            var existingLabelSets: [String: Set<String>] = [:]
+            if !gmailIds.isEmpty {
+                let placeholders = gmailIds.map { _ in "?" }.joined(separator: ",")
+                let rows = try Row.fetchAll(db, sql:
+                    "SELECT message_id, label_id FROM message_labels WHERE message_id IN (\(placeholders))",
+                    arguments: StatementArguments(gmailIds)
+                )
+                for row in rows {
+                    let messageId: String = row["message_id"]
+                    let labelId: String = row["label_id"]
+                    existingLabelSets[messageId, default: []].insert(labelId)
+                }
+            }
+
             var affectedThreadIds = Set<String>()
 
             for gmail in gmailMessages {
-                try Self.upsertSingleMessage(gmail, in: db, affectedThreadIds: &affectedThreadIds)
+                try Self.upsertSingleMessage(gmail, in: db, affectedThreadIds: &affectedThreadIds, existingLabelSets: existingLabelSets)
             }
 
             try MailDatabaseQueries.updateThreadCounts(for: affectedThreadIds, in: db)
@@ -264,10 +281,13 @@ actor BackgroundSyncer {
     /// Upsert a single message: record, labels, attachments, FTS.
     /// Checks whether the message already exists and skips unchanged writes to reduce
     /// write amplification (avoids CASCADE deletes of labels/attachments on every sync).
+    /// - Parameter existingLabelSets: Pre-fetched label sets keyed by gmail_id. When provided,
+    ///   avoids a per-message DB query for label comparison. Pass `nil` to query per-message (fallback).
     private static func upsertSingleMessage(
         _ gmail: GmailMessage,
         in db: Database,
-        affectedThreadIds: inout Set<String>
+        affectedThreadIds: inout Set<String>,
+        existingLabelSets: [String: Set<String>]? = nil
     ) throws {
         let record = MessageRecord(from: gmail)
         let existing = try MessageRecord.fetchOne(db, key: record.gmailId)
@@ -298,10 +318,15 @@ actor BackgroundSyncer {
 
             // Compare full label set (not just denormalized is_read/is_starred)
             // to catch category changes, custom label adds, archive, etc.
-            let existingLabelIds = try Set(String.fetchAll(db, sql:
-                "SELECT label_id FROM message_labels WHERE message_id = ?",
-                arguments: [existing.gmailId]
-            ))
+            let existingLabelIds: Set<String>
+            if let prefetched = existingLabelSets?[existing.gmailId] {
+                existingLabelIds = prefetched
+            } else {
+                existingLabelIds = try Set(String.fetchAll(db, sql:
+                    "SELECT label_id FROM message_labels WHERE message_id = ?",
+                    arguments: [existing.gmailId]
+                ))
+            }
             let newLabelIds = Set(gmail.labelIds ?? [])
             let labelsChanged: Bool = existingLabelIds != newLabelIds
 

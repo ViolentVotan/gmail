@@ -235,8 +235,16 @@ final class MailboxViewModel {
         }
         let grouped = Dictionary(grouping: emails) { $0.gmailThreadID ?? $0.gmailMessageID ?? $0.id.uuidString }
         return grouped.values.compactMap { threadEmails -> Email? in
-            var latest = threadEmails.max(by: { $0.date < $1.date })
-            latest?.threadMessageCount = threadEmails.map(\.threadMessageCount).max() ?? threadEmails.count
+            // Single pass: find latest email by date and max thread count simultaneously
+            var latest: Email?
+            var maxThreadCount = 0
+            for email in threadEmails {
+                if latest == nil || email.date > latest!.date {
+                    latest = email
+                }
+                maxThreadCount = max(maxThreadCount, email.threadMessageCount)
+            }
+            latest?.threadMessageCount = max(maxThreadCount, threadEmails.count)
             return latest
         }.sorted { $0.date > $1.date }
     }

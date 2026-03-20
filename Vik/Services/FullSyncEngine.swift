@@ -578,6 +578,7 @@ actor FullSyncEngine {
                 }
 
             var newMessages: [GmailMessage] = []
+            newMessages.reserveCapacity(trulyNewIDs.count)
             if !trulyNewIDs.isEmpty {
                 // Fetch with "full" format directly to get headers + body in one call.
                 // This avoids a redundant re-fetch that doubles API quota for new messages.
@@ -603,6 +604,7 @@ actor FullSyncEngine {
             // "minimal" format is sufficient — we only need id and labelIds.
             let toRefetch = labelChanges.subtracting(allDeleted).subtracting(Set(candidateIDs))
             var labelUpdates: [(gmailId: String, labelIds: [String])] = historyLabelUpdates
+            labelUpdates.reserveCapacity(historyLabelUpdates.count + toRefetch.count)
             if !toRefetch.isEmpty {
                 let refetchIDs = Array(toRefetch)
                 let quotaChunkSize = 50
