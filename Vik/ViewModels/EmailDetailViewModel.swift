@@ -120,17 +120,14 @@ final class EmailDetailViewModel {
                     backgroundTasks.withLock { $0.append(t) }
                 }
             }
-            // Mark all unread messages in the thread as read (concurrently)
+            // Mark all unread messages in the thread as read (single batch API call)
             let unreadMessages = (fresh.messages ?? []).filter(\.isUnread)
             if !unreadMessages.isEmpty {
-                await withTaskGroup(of: Void.self) { group in
-                    for message in unreadMessages {
-                        group.addTask { [accountID, api] in
-                            try? await api.markAsRead(id: message.id, accountID: accountID)
-                        }
-                    }
-                }
-                onMessagesRead?(unreadMessages.map(\.id))
+                let unreadIds = unreadMessages.map(\.id)
+                try? await api.batchModifyLabels(
+                    ids: unreadIds, add: [], remove: [GmailSystemLabel.unread], accountID: accountID
+                )
+                onMessagesRead?(unreadIds)
             }
         } catch {
             // Keep cached thread if API fails (offline mode)

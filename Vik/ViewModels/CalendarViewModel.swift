@@ -51,6 +51,8 @@ final class CalendarViewModel {
     @ObservationIgnored private var debounceTask: Task<Void, Never>?
     @ObservationIgnored private var lastObservedRange: DateInterval?
     @ObservationIgnored private var lastObservedCalendarKeys: Set<String>?
+    /// Cached calendar ID → color map, rebuilt only when `calendars` changes.
+    @ObservationIgnored private var calendarColorMap: [String: Color] = [:]
 
     // MARK: - Init
 
@@ -85,6 +87,9 @@ final class CalendarViewModel {
                 for try await records in calendarObservation.values(in: dbPool) {
                     guard let self else { return }
                     self.calendars = records.map { $0.toCalendarInfo() }
+                    self.calendarColorMap = self.calendars.reduce(into: [:]) { map, cal in
+                        map[cal.calendarId] = Color(hex: cal.backgroundColor)
+                    }
                     let newVisibleIDs = Set(
                         records.filter(\.isVisible).map { "\($0.accountId)\u{001F}\($0.calendarId)" }
                     )
@@ -477,10 +482,8 @@ final class CalendarViewModel {
     private func enrichRecords(_ records: [CalendarEventRecord]) async -> [CalendarEvent] {
         guard !records.isEmpty else { return [] }
 
-        // Build a lookup of calendar colors by calendarId.
-        let calendarColorMap: [String: Color] = calendars.reduce(into: [:]) { map, cal in
-            map[cal.calendarId] = Color(hex: cal.backgroundColor)
-        }
+        // Use cached color map (rebuilt when calendars change, not per-enrichment).
+        let colorMap = calendarColorMap
 
         // Batch-fetch all attendees for all event records in a single async DB read.
         let compositeKeys = records.map { ($0.eventId, $0.calendarId, $0.accountId) }
@@ -504,7 +507,7 @@ final class CalendarViewModel {
         return records.compactMap { record in
             let key = "\(record.eventId)\u{001F}\(record.calendarId)\u{001F}\(record.accountId)"
             let attendees = attendeesByKey[key] ?? []
-            let calendarColor = calendarColorMap[record.calendarId] ?? BrandColor.blue
+            let calendarColor = colorMap[record.calendarId] ?? BrandColor.blue
             return record.toCalendarEvent(attendees: attendees, calendarColor: calendarColor)
         }
     }
