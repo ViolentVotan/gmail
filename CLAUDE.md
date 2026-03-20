@@ -49,6 +49,7 @@ Vik/
 │   ├── Auth/           # OAuth & token management
 │   ├── Gmail/          # Gmail REST API clients (one per domain)
 │   ├── Calendar/       # Google Calendar API v3 — client, services, sync engine, offline queue
+│   ├── Protocols/      # Service protocol abstractions
 │   ├── CalendarIntegrationService.swift  # Cross-feature email↔calendar coordination
 │   └── BackgroundSyncer.swift      # Actor for bulk API sync → DB writes
 ├── Intents/            # App Intents with AssistantSchemas mail domain (Shortcuts, Spotlight, Siri)
@@ -58,7 +59,7 @@ Vik/
 └── Utilities/          # Helpers
 ```
 
-**Patterns:** MVVM with coordinators (`AppCoordinator`, `EmailActionCoordinator`). `AppCoordinator` is a thin orchestrator owning 6 domain sub-coordinators: `NavigationCoordinator` (folder/account/label/category selection), `SelectionCoordinator` (email selection + displayedEmails cache), `ComposeCoordinator` (compose mode + signatures), `CalendarCoordinator` (viewMode + CalendarViewModel + CalendarSyncEngine), `DialogCoordinator` (confirmation dialogs), `SyncCoordinator` (mailDatabase + syncEngine + backgroundSyncer + contacts + caches). Views access sub-coordinators directly (e.g., `coordinator.selection.selectedEmail`). Cross-domain operations go through AppCoordinator orchestration methods. Dual-mode app: Mail (⌘1) and Calendar (⌘2), switchable via sidebar segmented control. `CalendarBackgroundSyncer` actor handles calendar DB writes (peer to email's `BackgroundSyncer`). `SyncProgressManager` (@Observable, environment-injected) drives an always-visible interactive liquid glass bubble at the sidebar bottom — tappable to trigger manual sync, with linger timers for success/error states, reset on account switch.
+**Patterns:** MVVM with coordinators (`AppCoordinator`, `EmailActionCoordinator`). `AppCoordinator` is a thin orchestrator owning 7 domain sub-coordinators: `NavigationCoordinator` (folder/account/label/category selection), `SelectionCoordinator` (email selection + displayedEmails cache), `ComposeCoordinator` (compose mode + signatures), `CalendarCoordinator` (viewMode + CalendarViewModel + CalendarSyncEngine), `DialogCoordinator` (confirmation dialogs), `SyncCoordinator` (mailDatabase + syncEngine + backgroundSyncer + contacts + caches), `PanelCoordinator` (help panel, email detail panel visibility). Views access sub-coordinators directly (e.g., `coordinator.selection.selectedEmail`). Cross-domain operations go through AppCoordinator orchestration methods. Dual-mode app: Mail (⌘1) and Calendar (⌘2), switchable via sidebar segmented control. `CalendarBackgroundSyncer` actor handles calendar DB writes (peer to email's `BackgroundSyncer`). `SyncProgressManager` (@Observable, environment-injected) drives an always-visible interactive liquid glass bubble at the sidebar bottom — tappable to trigger manual sync, with linger timers for success/error states, reset on account switch.
 
 **Path-scoped rules** (`.claude/rules/`): `_code-style.md` (Swift conventions, auto-synced from Serena `code_style` memory), `database.md` (Database layer), `design.md` (UI design), `testing.md` (tests), `safety.md` (CI/config safety).
 
