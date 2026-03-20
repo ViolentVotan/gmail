@@ -17,6 +17,8 @@ struct MonthSpanningLayout: Sendable {
     let rows: [SpanningBarPlacement]
     /// Number of spanning events that overflowed (beyond monthMaxSpanningRows) per day column (0-6).
     let overflowPerDay: [Int]
+    /// Number of occupied spanning rows (clamped to monthMaxSpanningRows), precomputed for frame sizing.
+    let rowCount: Int
 
     static func compute(events: [CalendarEvent], weekDays: [Date]) -> MonthSpanningLayout {
         let cal = Calendar.current
@@ -81,7 +83,12 @@ struct MonthSpanningLayout: Sendable {
             }
         }
 
-        return MonthSpanningLayout(rows: placements, overflowPerDay: overflow)
+        let maxRow = placements.lazy.map(\.rowIndex).max().map { $0 + 1 } ?? 0
+        return MonthSpanningLayout(
+            rows: placements,
+            overflowPerDay: overflow,
+            rowCount: min(maxRow, maxRows)
+        )
     }
 }
 
@@ -137,7 +144,7 @@ struct CalendarMonthView: View {
                             weekDays: weekDays,
                             currentMonth: cachedCurrentMonth,
                             weekIndex: weekIndex,
-                            spanningLayout: weekIndex < cachedSpanningLayouts.count ? cachedSpanningLayouts[weekIndex] : MonthSpanningLayout(rows: [], overflowPerDay: Array(repeating: 0, count: 7)),
+                            spanningLayout: weekIndex < cachedSpanningLayouts.count ? cachedSpanningLayouts[weekIndex] : MonthSpanningLayout(rows: [], overflowPerDay: Array(repeating: 0, count: 7), rowCount: 0),
                             cellContents: weekIndex < cachedCellContents.count ? cachedCellContents[weekIndex] : []
                         )
                         .containerRelativeFrame(.vertical, count: 6, span: 1, spacing: 0)
@@ -249,9 +256,7 @@ struct CalendarMonthView: View {
                 .offset(y: CGFloat(placement.rowIndex) * CalendarLayout.monthSpanningBarHeight)
             }
         }
-        .frame(height: CGFloat(
-            min(layout.rows.map(\.rowIndex).max().map { $0 + 1 } ?? 0, CalendarLayout.monthMaxSpanningRows)
-        ) * CalendarLayout.monthSpanningBarHeight)
+        .frame(height: CGFloat(layout.rowCount) * CalendarLayout.monthSpanningBarHeight)
         .frame(maxWidth: .infinity)
         .onGeometryChange(for: CGFloat.self) { proxy in
             proxy.size.width / 7

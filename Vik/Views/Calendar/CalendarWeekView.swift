@@ -77,7 +77,7 @@ struct CalendarWeekView: View {
 
     @ViewBuilder
     private func allDaySection(dayColumnWidth: CGFloat) -> some View {
-        let maxCount = weekCache.allDayEventsByDay.map(\.count).max() ?? 0
+        let maxCount = weekCache.allDayEventsByDay.lazy.map(\.count).max() ?? 0
 
         if maxCount > 0 {
             HStack(spacing: 0) {
@@ -90,8 +90,8 @@ struct CalendarWeekView: View {
                     .accessibilityHidden(true)
 
                 // All-day chips per day
-                ForEach(Array(zip(weekCache.weekDays, weekCache.allDayEventsByDay).enumerated()), id: \.offset) { _, pair in
-                    let allDayEvents = pair.1
+                ForEach(weekCache.weekDays.indices, id: \.self) { index in
+                    let allDayEvents = weekCache.allDayEventsByDay[index]
                     VStack(spacing: 2) {
                         ForEach(allDayEvents) { event in
                             allDayChip(event: event, width: dayColumnWidth)
@@ -141,8 +141,8 @@ struct CalendarWeekView: View {
                 .frame(width: CalendarLayout.timeColumnWidth)
                 .accessibilityHidden(true)
 
-            ForEach(Array(weekCache.weekDays.enumerated()), id: \.offset) { index, day in
-                dayHeader(for: day, width: dayColumnWidth)
+            ForEach(weekCache.weekDays.indices, id: \.self) { index in
+                dayHeader(for: weekCache.weekDays[index], width: dayColumnWidth)
             }
         }
         .padding(.vertical, Spacing.xs)
@@ -220,9 +220,10 @@ struct CalendarWeekView: View {
 
                     // Day columns with grid lines
                     HStack(spacing: 0) {
-                        ForEach(Array(weekCache.weekDays.enumerated()), id: \.offset) { dayIndex, day in
+                        ForEach(weekCache.weekDays.indices, id: \.self) { dayIndex in
                             let isToday = dayIndex == weekCache.todayIndex
                             let isWeekendDay = weekCache.weekendIndices.contains(dayIndex)
+                            let isLastDay = dayIndex == weekCache.weekDays.count - 1
 
                             Rectangle()
                                 .fill(
@@ -240,7 +241,7 @@ struct CalendarWeekView: View {
                                 }
                                 .overlay(alignment: .trailing) {
                                     // Vertical column divider
-                                    if day != weekCache.weekDays.last {
+                                    if !isLastDay {
                                         Divider()
                                             .opacity(0.04)
                                     }
@@ -264,10 +265,10 @@ struct CalendarWeekView: View {
 
     private func eventsOverlay(dayColumnWidth: CGFloat) -> some View {
         ZStack(alignment: .topLeading) {
-            ForEach(Array(weekCache.weekDays.enumerated()), id: \.offset) { dayIndex, day in
+            ForEach(weekCache.weekDays.indices, id: \.self) { dayIndex in
                 dayEventsOverlay(
                     dayIndex: dayIndex,
-                    day: day,
+                    day: weekCache.weekDays[dayIndex],
                     timedEvents: dayIndex < weekCache.timedEventsByDay.count ? weekCache.timedEventsByDay[dayIndex] : [],
                     dayColumnWidth: dayColumnWidth
                 )

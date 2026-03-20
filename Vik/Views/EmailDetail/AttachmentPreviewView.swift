@@ -25,7 +25,8 @@ struct AttachmentPreviewView: View {
             previewContent
         }
         .task(id: data) {
-            decodedImage = NSImage(data: data)
+            let decoded = await Task.detached { NSImage(data: data) }.value
+            decodedImage = decoded
         }
     }
 

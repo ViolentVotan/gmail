@@ -26,7 +26,8 @@ struct CalendarHeaderView: View {
     // MARK: - Subviews
 
     private var navigationButtons: some View {
-        HStack(spacing: Spacing.xs) {
+        let modeLabel = viewModel.viewMode.label.lowercased()
+        return HStack(spacing: Spacing.xs) {
             Button {
                 withAnimation(VikAnimation.springSnappy) {
                     viewModel.navigateBackward()
@@ -38,8 +39,8 @@ struct CalendarHeaderView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.glass)
-            .help("Previous \(viewModel.viewMode.label.lowercased())")
-            .accessibilityLabel("Previous \(viewModel.viewMode.label.lowercased())")
+            .help("Previous \(modeLabel)")
+            .accessibilityLabel("Previous \(modeLabel)")
 
             Button {
                 withAnimation(VikAnimation.springSnappy) {
@@ -52,8 +53,8 @@ struct CalendarHeaderView: View {
                     .contentShape(Rectangle())
             }
             .buttonStyle(.glass)
-            .help("Next \(viewModel.viewMode.label.lowercased())")
-            .accessibilityLabel("Next \(viewModel.viewMode.label.lowercased())")
+            .help("Next \(modeLabel)")
+            .accessibilityLabel("Next \(modeLabel)")
         }
     }
 
