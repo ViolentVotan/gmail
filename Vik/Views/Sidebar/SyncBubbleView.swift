@@ -27,6 +27,7 @@ struct SyncBubbleView: View {
             icon
                 .font(Typography.captionRegular)
                 .frame(width: 32, height: 32)
+                .contentShape(.circle)
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .circle)
@@ -46,6 +47,7 @@ struct SyncBubbleView: View {
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
             .frame(maxWidth: .infinity)
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .capsule)

@@ -52,6 +52,7 @@ struct CategoryTabBar: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .glassEffect(

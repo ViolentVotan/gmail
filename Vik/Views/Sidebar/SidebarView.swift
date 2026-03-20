@@ -149,6 +149,7 @@ struct SidebarView: View {
             .foregroundStyle(isActive ? Color.accentColor : Color.secondary)
             .frame(maxWidth: .infinity)
             .padding(.vertical, Spacing.xs)
+            .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .glassEffect(
@@ -248,6 +249,7 @@ struct SidebarView: View {
                 .font(.system(size: 15))
                 .frame(width: 34, height: 34)
                 .foregroundStyle(isSelected ? .primary : isHovered ? .primary : .secondary)
+                .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .glassEffect(
@@ -280,6 +282,7 @@ struct SidebarView: View {
                 .font(.system(size: 15))
                 .frame(width: 34, height: 34)
                 .foregroundStyle(selectedFolder == .labels ? .primary : .secondary)
+                .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .glassEffect(

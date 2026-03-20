@@ -107,6 +107,7 @@ struct CalendarHeaderView: View {
                             .foregroundStyle(isSelected ? Color.accentColor : .secondary)
                             .padding(.horizontal, Spacing.md)
                             .padding(.vertical, Spacing.xs)
+                            .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
                     .glassEffect(

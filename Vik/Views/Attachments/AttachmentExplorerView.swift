@@ -264,6 +264,7 @@ struct AttachmentExplorerView: View {
             .foregroundStyle(isSelected ? Color.primary : Color.secondary)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
+            .contentShape(.rect)
             .modifier(FilterChipBackground(isSelected: isSelected))
         }
         .buttonStyle(.plain)

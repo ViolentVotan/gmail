@@ -108,6 +108,7 @@ struct CalendarListSidebarView: View {
                 .foregroundStyle(Color.accentColor)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, Spacing.sm)
+                .contentShape(.rect)
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: CornerRadius.md))

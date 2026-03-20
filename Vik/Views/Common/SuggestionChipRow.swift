@@ -67,6 +67,7 @@ struct SuggestionChipRow: View {
                 .foregroundStyle(.primary)
                 .padding(.horizontal, Spacing.md)
                 .padding(.vertical, Spacing.sm)
+                .contentShape(.rect)
                 .glassEffect(.regular.interactive(), in: .capsule)
                 .overlay {
                     if style == .aiGradient {

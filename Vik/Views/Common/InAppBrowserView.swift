@@ -17,6 +17,7 @@ struct InAppBrowserView: View {
                         .font(Typography.subhead)
                         .foregroundStyle(.secondary)
                         .frame(width: 28, height: 28)
+                        .contentShape(.rect)
                         .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
                 }
                 .buttonStyle(.plain)
@@ -33,6 +34,7 @@ struct InAppBrowserView: View {
                         .font(Typography.subhead)
                         .foregroundStyle(!page.backForwardList.backList.isEmpty ? .secondary : .tertiary)
                         .frame(width: 28, height: 28)
+                        .contentShape(.rect)
                         .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
                 }
                 .buttonStyle(.plain)
@@ -48,6 +50,7 @@ struct InAppBrowserView: View {
                         .font(Typography.subhead)
                         .foregroundStyle(!page.backForwardList.forwardList.isEmpty ? .secondary : .tertiary)
                         .frame(width: 28, height: 28)
+                        .contentShape(.rect)
                         .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
                 }
                 .buttonStyle(.plain)
@@ -94,6 +97,7 @@ struct InAppBrowserView: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
+                    .contentShape(.rect)
                     .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
                     .overlay(
                         RoundedRectangle(cornerRadius: CornerRadius.sm)

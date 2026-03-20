@@ -40,6 +40,7 @@ struct BulkActionBarView: View {
                     .foregroundStyle(.secondary)
                     .padding(.horizontal, Spacing.lg)
                     .padding(.vertical, Spacing.sm)
+                    .contentShape(.rect)
                     .glassEffect(.regular.interactive(), in: .rect(cornerRadius: CornerRadius.sm))
             }
             .buttonStyle(.plain)
@@ -85,6 +86,7 @@ struct BulkActionBarView: View {
             }
             .foregroundStyle(destructive ? SemanticColor.error : .secondary)
             .frame(width: tileWidth, height: tileHeight)
+            .contentShape(.rect)
             .glassEffect(.regular.interactive(), in: .rect(cornerRadius: CornerRadius.md))
         }
         .buttonStyle(.plain)

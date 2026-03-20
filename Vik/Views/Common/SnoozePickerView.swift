@@ -77,6 +77,7 @@ struct SnoozePickerView: View {
                     }
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
+                    .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
                 .glassEffect(hoveredPresetID == preset.id ? .regular.interactive() : .identity, in: .rect(cornerRadius: CornerRadius.sm))
@@ -104,6 +105,7 @@ struct SnoozePickerView: View {
                     Label("Pick Date & Time", systemImage: "calendar")
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
+                        .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
                 .glassEffect(isPickDateHovered ? .regular.interactive() : .identity, in: .rect(cornerRadius: CornerRadius.sm))
