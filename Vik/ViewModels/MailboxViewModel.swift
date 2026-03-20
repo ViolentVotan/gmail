@@ -349,6 +349,10 @@ final class MailboxViewModel {
         }
     }
 
+    private func recomputeUserLabels() {
+        userLabels = labels.filter { !$0.isSystemLabel }
+    }
+
     func renameLabel(_ label: GmailLabel, to newName: String) async {
         if let idx = labels.firstIndex(where: { $0.id == label.id }) {
             let updated = GmailLabel(id: label.id, name: newName, type: label.type,
@@ -357,27 +361,24 @@ final class MailboxViewModel {
                                       labelListVisibility: label.labelListVisibility,
                                       messageListVisibility: label.messageListVisibility)
             labels[idx] = updated
-            userLabels = labels.filter { !$0.isSystemLabel }
         }
         do {
             let fresh = try await GmailLabelService.shared.updateLabel(id: label.id, newName: newName, accountID: accountID)
             if let idx = labels.firstIndex(where: { $0.id == fresh.id }) {
                 labels[idx] = fresh
-                userLabels = labels.filter { !$0.isSystemLabel }
             }
         } catch {
             if let idx = labels.firstIndex(where: { $0.id == label.id }) {
                 labels[idx] = label
-                userLabels = labels.filter { !$0.isSystemLabel }
             }
             ToastManager.shared.show(message: "Failed to rename label", type: .error)
         }
+        recomputeUserLabels()
     }
 
     func deleteLabel(_ label: GmailLabel) async {
         let backup = labels
         labels.removeAll { $0.id == label.id }
-        userLabels = labels.filter { !$0.isSystemLabel }
         do {
             try await GmailLabelService.shared.deleteLabel(id: label.id, accountID: accountID)
             _ = try? await mailDatabase?.dbPool.write { db in
@@ -385,9 +386,9 @@ final class MailboxViewModel {
             }
         } catch {
             labels = backup
-            userLabels = labels.filter { !$0.isSystemLabel }
             ToastManager.shared.show(message: "Failed to delete label", type: .error)
         }
+        recomputeUserLabels()
     }
 
     func loadCategoryUnreadCounts() async {

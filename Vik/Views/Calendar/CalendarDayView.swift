@@ -40,7 +40,8 @@ struct CalendarDayView: View {
         .onChange(of: viewModel.events) {
             recomputeEvents()
         }
-        .task {
+        .task(id: calendar.isDateInToday(viewModel.selectedDate)) {
+            guard calendar.isDateInToday(viewModel.selectedDate) else { return }
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(60))
                 currentTime = .now
