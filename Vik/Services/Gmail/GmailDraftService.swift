@@ -7,6 +7,7 @@ final class GmailDraftService {
     private init() {}
 
     private let client = GmailAPIClient.shared
+    nonisolated private static let encoder = JSONEncoder()
 
     /// Field masks for draft formats, avoiding repetition across getDraft/getDrafts.
     private enum DraftFields {
@@ -54,7 +55,7 @@ final class GmailDraftService {
         struct SendDraftRequest: Encodable { let id: String }
         let body: Data
         do {
-            body = try JSONEncoder().encode(SendDraftRequest(id: draftId))
+            body = try Self.encoder.encode(SendDraftRequest(id: draftId))
         } catch {
             throw .encodingError(error)
         }

@@ -4,6 +4,7 @@ import Foundation
 final class GmailLabelService {
     static let shared = GmailLabelService()
     private let client = GmailAPIClient.shared
+    nonisolated private static let encoder = JSONEncoder()
     private init() {}
 
     @concurrent func listLabels(accountID: String) async throws(GmailAPIError) -> [GmailLabel] {
@@ -41,7 +42,7 @@ final class GmailLabelService {
         struct UpdateRequest: Encodable { let name: String }
         let body: Data
         do {
-            body = try JSONEncoder().encode(UpdateRequest(name: newName))
+            body = try Self.encoder.encode(UpdateRequest(name: newName))
         } catch {
             throw .encodingError(error)
         }
@@ -69,7 +70,7 @@ final class GmailLabelService {
         }
         let body: Data
         do {
-            body = try JSONEncoder().encode(
+            body = try Self.encoder.encode(
                 CreateRequest(name: name, labelListVisibility: "labelShow", messageListVisibility: "show")
             )
         } catch {

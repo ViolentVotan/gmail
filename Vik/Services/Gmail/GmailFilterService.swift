@@ -33,6 +33,7 @@ final class GmailFilterService {
     static let shared = GmailFilterService()
     private init() {}
     private let client = GmailAPIClient.shared
+    nonisolated private static let encoder = JSONEncoder()
 
     @concurrent func listFilters(accountID: String) async throws(GmailAPIError) -> [GmailFilter] {
         let response: GmailFilterListResponse = try await client.request(
@@ -50,7 +51,7 @@ final class GmailFilterService {
         }
         let body: Data
         do {
-            body = try JSONEncoder().encode(CreateRequest(criteria: criteria, action: action))
+            body = try Self.encoder.encode(CreateRequest(criteria: criteria, action: action))
         } catch {
             throw .encodingError(error)
         }

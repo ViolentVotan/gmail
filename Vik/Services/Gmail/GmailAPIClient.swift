@@ -27,6 +27,8 @@ final class GmailAPIClient {
     /// Key for the account ID in `gmailScopesInsufficient` notification's userInfo.
     static let accountIDKey = "accountID"
 
+    nonisolated private static let jsonDecoder = JSONDecoder()
+
     private let baseURL = "https://gmail.googleapis.com/gmail/v1"
     nonisolated private static let logger = Logger(category: "GmailAPI")
     private var refreshTasks: [String: Task<AuthToken, Error>] = [:]
@@ -61,7 +63,7 @@ final class GmailAPIClient {
     ) async throws(GmailAPIError) -> T {
         let data = try await rawRequest(path: path, method: method, body: body, contentType: contentType, fields: fields, accountID: accountID)
         do {
-            return try JSONDecoder().decode(T.self, from: data)
+            return try Self.jsonDecoder.decode(T.self, from: data)
         } catch {
             throw .decodingError(error)
         }
@@ -189,7 +191,7 @@ final class GmailAPIClient {
         switch http.statusCode {
         case 200...299:
             do {
-                return try JSONDecoder().decode(GmailMessage.self, from: responseData)
+                return try Self.jsonDecoder.decode(GmailMessage.self, from: responseData)
             } catch {
                 throw .decodingError(error)
             }
@@ -260,7 +262,7 @@ final class GmailAPIClient {
             let responseETag = http.value(forHTTPHeaderField: "ETag")
                 ?? http.value(forHTTPHeaderField: "Etag")
             do {
-                let decoded = try JSONDecoder().decode(T.self, from: data)
+                let decoded = try Self.jsonDecoder.decode(T.self, from: data)
                 return (decoded, responseETag)
             } catch {
                 throw .decodingError(error)
@@ -288,7 +290,7 @@ final class GmailAPIClient {
         let doRequest = { (accessToken: String) async throws(GmailAPIError) -> T in
             let data = try await self.performURL(urlString, accessToken: accessToken)
             do {
-                return try JSONDecoder().decode(T.self, from: data)
+                return try Self.jsonDecoder.decode(T.self, from: data)
             } catch {
                 throw GmailAPIError.decodingError(error)
             }
@@ -497,7 +499,6 @@ final class GmailAPIClient {
             (id: id, method: "GET", path: pathBuilder(id), body: nil as Data?)
         }
         let results = try await batchRequest(requests: requests, accountID: accountID)
-        let decoder = JSONDecoder()
         var items: [T] = []
         var failedIDs: [String] = []
         for result in results {
@@ -507,7 +508,7 @@ final class GmailAPIClient {
                 continue
             }
             do {
-                let item = try decoder.decode(T.self, from: result.data)
+                let item = try Self.jsonDecoder.decode(T.self, from: result.data)
                 items.append(item)
             } catch {
                 Self.logger.error("Batch decode failed for \(result.id): \(error.localizedDescription)")
@@ -539,7 +540,7 @@ final class GmailAPIClient {
         switch http.statusCode {
         case 200...299:
             do {
-                return try JSONDecoder().decode(T.self, from: data)
+                return try Self.jsonDecoder.decode(T.self, from: data)
             } catch {
                 throw .decodingError(error)
             }
