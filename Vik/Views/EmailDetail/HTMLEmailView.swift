@@ -351,10 +351,13 @@ struct HTMLEmailView: NSViewRepresentable {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             isLoadingContent = false
             if let html = pendingHTML {
+                pendingHTML = nil
                 // Parameter binding prevents template breakout — html is passed as a JS
                 // variable, not interpolated into the script source. CSP script-src 'none'
                 // prevents any injected scripts from executing.
-                Task {
+                // isContentLoaded is set AFTER injection so the shimmer stays until the
+                // content is actually rendered and the ResizeObserver can measure it.
+                Task { @MainActor [weak self] in
                     _ = try? await webView.callAsyncJavaScript(
                         """
                         document.getElementById('emailContent').innerHTML = html;
@@ -363,11 +366,12 @@ struct HTMLEmailView: NSViewRepresentable {
                         arguments: ["html": html],
                         contentWorld: .page
                     )
+                    self?.parent.isContentLoaded = true
                 }
-                pendingHTML = nil
-            }
-            Task { @MainActor [weak self] in
-                self?.parent.isContentLoaded = true
+            } else {
+                Task { @MainActor [weak self] in
+                    self?.parent.isContentLoaded = true
+                }
             }
         }
 
