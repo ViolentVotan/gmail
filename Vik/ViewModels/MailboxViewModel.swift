@@ -810,6 +810,7 @@ final class MailboxViewModel {
         do {
             let newLabel = try await GmailLabelService.shared.createLabel(name: name, accountID: accountID)
             labels.append(newLabel)
+            userLabels = labels.filter { !$0.isSystemLabel }
             await addLabel(newLabel.id, to: messageID)
             return newLabel.id
         } catch {
