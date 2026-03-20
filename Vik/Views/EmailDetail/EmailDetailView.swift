@@ -136,7 +136,7 @@ struct EmailDetailView: View {
                         if let latestID = detailVM.latestMessage?.id {
                             userToggledMessageIDs = []
                             try? await Task.sleep(for: .milliseconds(100))
-                            withAnimation(VikAnimation.springDefault) { proxy.scrollTo(latestID, anchor: .bottom) }
+                            withAnimation(VikAnimation.springDefault) { proxy.scrollTo(latestID, anchor: .top) }
                         }
                     }
                     .animation(VikAnimation.contentSwitch, value: email.id)
