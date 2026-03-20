@@ -365,13 +365,19 @@ struct CalendarMonthView: View {
             let dayStart = calendar.startOfDay(for: date)
             let allEvents = eventsByDay[dayStart] ?? []
 
-            let singleDayEvents = allEvents.filter { event in
-                !event.isAllDay && calendar.startOfDay(for: event.startTime) == calendar.startOfDay(for: event.endTime)
+            // Partition once instead of two separate filter passes
+            var singleDayTimed: [CalendarEvent] = []
+            var singleDayAllDay: [CalendarEvent] = []
+            for event in allEvents {
+                let isSingleDay = calendar.startOfDay(for: event.startTime) == calendar.startOfDay(for: event.endTime)
+                guard isSingleDay else { continue }
+                if event.isAllDay {
+                    singleDayAllDay.append(event)
+                } else {
+                    singleDayTimed.append(event)
+                }
             }
-            let singleDayAllDay = allEvents.filter { event in
-                event.isAllDay && calendar.startOfDay(for: event.startTime) == calendar.startOfDay(for: event.endTime)
-            }
-            let chipCandidates = singleDayAllDay + singleDayEvents.sorted { $0.startTime < $1.startTime }
+            let chipCandidates = singleDayAllDay + singleDayTimed
 
             let visibleSpanCount = spanningLayout.rows.filter {
                 $0.startColumn <= colIndex && $0.endColumn >= colIndex
