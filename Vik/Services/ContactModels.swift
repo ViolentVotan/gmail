@@ -28,18 +28,34 @@ final class ContactStore {
 // MARK: - Contact Photo Cache
 
 /// In-memory cache of email → Google profile photo URL, populated from People API at login.
+/// Bounded to 500 entries with LRU eviction (matching BIMIService cache size).
 final class ContactPhotoCache: Sendable {
     static let shared = ContactPhotoCache()
     private init() {}
 
-    private let storage = Mutex<[String: String]>([:])
+    private let maxSize = 500
+
+    /// Storage: [lowercased email: (url, lastAccess)] — LRU eviction by oldest access.
+    private let storage = Mutex<[String: (url: String, lastAccess: Date)]>([:])
 
     func set(_ url: String, for email: String) {
-        storage.withLock { $0[email.lowercased()] = url }
+        storage.withLock { dict in
+            dict[email.lowercased()] = (url: url, lastAccess: Date())
+            if dict.count > maxSize {
+                // Evict oldest entry
+                if let oldest = dict.min(by: { $0.value.lastAccess < $1.value.lastAccess }) {
+                    dict.removeValue(forKey: oldest.key)
+                }
+            }
+        }
     }
 
     func get(_ email: String) -> String? {
-        storage.withLock { $0[email.lowercased()] }
+        storage.withLock { dict in
+            guard let entry = dict[email.lowercased()] else { return nil }
+            dict[email.lowercased()] = (url: entry.url, lastAccess: Date())
+            return entry.url
+        }
     }
 
     func remove(_ email: String) {
