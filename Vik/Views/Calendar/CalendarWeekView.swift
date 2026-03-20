@@ -13,13 +13,18 @@ struct CalendarWeekView: View {
 
     @State private var currentTime: Date = .now
     @State private var scrollProxy: ScrollViewProxy?
-    @State private var cachedWeekDays: [Date] = []
-    @State private var cachedTimedEventsByDay: [[CalendarEvent]] = []
-    @State private var cachedAllDayEventsByDay: [[CalendarEvent]] = []
-    @State private var cachedTodayIndex: Int? = nil
-    @State private var cachedWeekendIndices: Set<Int> = []
-    @State private var cachedOverlapGroupsByDay: [[[CalendarEvent]]] = []
     @State private var dayColumnWidth: CGFloat = 100
+
+    private struct WeekLayoutCache {
+        var weekDays: [Date] = []
+        var timedEventsByDay: [[CalendarEvent]] = []
+        var allDayEventsByDay: [[CalendarEvent]] = []
+        var overlapGroupsByDay: [[[CalendarEvent]]] = []
+        var todayIndex: Int? = nil
+        var weekendIndices: Set<Int> = []
+    }
+
+    @State private var weekCache = WeekLayoutCache()
 
     private let hours = Array(0..<24)
 
@@ -59,7 +64,8 @@ struct CalendarWeekView: View {
         .onChange(of: viewModel.events) {
             recomputeCaches()
         }
-        .task {
+        .task(id: weekCache.todayIndex != nil) {
+            guard weekCache.todayIndex != nil else { return }
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(60))
                 currentTime = .now
@@ -71,7 +77,7 @@ struct CalendarWeekView: View {
 
     @ViewBuilder
     private func allDaySection(dayColumnWidth: CGFloat) -> some View {
-        let maxCount = cachedAllDayEventsByDay.map(\.count).max() ?? 0
+        let maxCount = weekCache.allDayEventsByDay.map(\.count).max() ?? 0
 
         if maxCount > 0 {
             HStack(spacing: 0) {
@@ -84,7 +90,7 @@ struct CalendarWeekView: View {
                     .accessibilityHidden(true)
 
                 // All-day chips per day
-                ForEach(Array(zip(cachedWeekDays, cachedAllDayEventsByDay).enumerated()), id: \.offset) { _, pair in
+                ForEach(Array(zip(weekCache.weekDays, weekCache.allDayEventsByDay).enumerated()), id: \.offset) { _, pair in
                     let allDayEvents = pair.1
                     VStack(spacing: 2) {
                         ForEach(allDayEvents) { event in
@@ -135,7 +141,7 @@ struct CalendarWeekView: View {
                 .frame(width: CalendarLayout.timeColumnWidth)
                 .accessibilityHidden(true)
 
-            ForEach(Array(cachedWeekDays.enumerated()), id: \.offset) { index, day in
+            ForEach(Array(weekCache.weekDays.enumerated()), id: \.offset) { index, day in
                 dayHeader(for: day, width: dayColumnWidth)
             }
         }
@@ -144,7 +150,7 @@ struct CalendarWeekView: View {
     }
 
     private func dayHeader(for date: Date, width: CGFloat) -> some View {
-        let isToday = cachedWeekDays.firstIndex(of: date) == cachedTodayIndex
+        let isToday = weekCache.weekDays.firstIndex(of: date) == weekCache.todayIndex
         let weekdayAbbrev = weekdayAbbreviation(for: date)
         let dayNumber = Calendar.current.component(.day, from: date)
         let accessibilityLabel = Self.accessibilityDayFormatter.string(from: date)
@@ -200,7 +206,7 @@ struct CalendarWeekView: View {
     // MARK: - Grid Background
 
     private func gridBackground(dayColumnWidth: CGFloat) -> some View {
-        VStack(spacing: 0) {
+        LazyVStack(spacing: 0) {
             ForEach(hours, id: \.self) { hour in
                 HStack(spacing: 0) {
                     // Hour label
@@ -214,9 +220,9 @@ struct CalendarWeekView: View {
 
                     // Day columns with grid lines
                     HStack(spacing: 0) {
-                        ForEach(Array(cachedWeekDays.enumerated()), id: \.offset) { dayIndex, day in
-                            let isToday = dayIndex == cachedTodayIndex
-                            let isWeekendDay = cachedWeekendIndices.contains(dayIndex)
+                        ForEach(Array(weekCache.weekDays.enumerated()), id: \.offset) { dayIndex, day in
+                            let isToday = dayIndex == weekCache.todayIndex
+                            let isWeekendDay = weekCache.weekendIndices.contains(dayIndex)
 
                             Rectangle()
                                 .fill(
@@ -234,7 +240,7 @@ struct CalendarWeekView: View {
                                 }
                                 .overlay(alignment: .trailing) {
                                     // Vertical column divider
-                                    if day != cachedWeekDays.last {
+                                    if day != weekCache.weekDays.last {
                                         Divider()
                                             .opacity(0.04)
                                     }
@@ -258,11 +264,11 @@ struct CalendarWeekView: View {
 
     private func eventsOverlay(dayColumnWidth: CGFloat) -> some View {
         ZStack(alignment: .topLeading) {
-            ForEach(Array(cachedWeekDays.enumerated()), id: \.offset) { dayIndex, day in
+            ForEach(Array(weekCache.weekDays.enumerated()), id: \.offset) { dayIndex, day in
                 dayEventsOverlay(
                     dayIndex: dayIndex,
                     day: day,
-                    timedEvents: dayIndex < cachedTimedEventsByDay.count ? cachedTimedEventsByDay[dayIndex] : [],
+                    timedEvents: dayIndex < weekCache.timedEventsByDay.count ? weekCache.timedEventsByDay[dayIndex] : [],
                     dayColumnWidth: dayColumnWidth
                 )
             }
@@ -276,7 +282,7 @@ struct CalendarWeekView: View {
         timedEvents: [CalendarEvent],
         dayColumnWidth: CGFloat
     ) -> some View {
-        let groups = dayIndex < cachedOverlapGroupsByDay.count ? cachedOverlapGroupsByDay[dayIndex] : []
+        let groups = dayIndex < weekCache.overlapGroupsByDay.count ? weekCache.overlapGroupsByDay[dayIndex] : []
         ForEach(Array(groups.enumerated()), id: \.element.first?.id) { groupIndex, group in
             ForEach(Array(group.enumerated()), id: \.element.id) { colIndex, event in
                 eventCard(
@@ -325,7 +331,7 @@ struct CalendarWeekView: View {
 
     @ViewBuilder
     private func currentTimeIndicator(dayColumnWidth: CGFloat) -> some View {
-        if let index = cachedTodayIndex {
+        if let index = weekCache.todayIndex {
             let yPos = CalendarLayout.yPosition(for: currentTime)
             let xStart = CalendarLayout.timeColumnWidth + CGFloat(index) * dayColumnWidth
 
@@ -364,7 +370,6 @@ struct CalendarWeekView: View {
             days.append(current)
             current = Calendar.current.date(byAdding: .day, value: 1, to: current) ?? current
         }
-        cachedWeekDays = days
 
         var timed: [[CalendarEvent]] = []
         var allDay: [[CalendarEvent]] = []
@@ -375,11 +380,15 @@ struct CalendarWeekView: View {
             timed.append(dayTimed)
             allDay.append(dayAllDay)
         }
-        cachedTimedEventsByDay = timed
-        cachedAllDayEventsByDay = allDay
-        cachedOverlapGroupsByDay = timed.map { overlapGroups(for: $0) }
-        cachedTodayIndex = cachedWeekDays.firstIndex(where: { Calendar.current.isDateInToday($0) })
-        cachedWeekendIndices = Set(cachedWeekDays.indices.filter { isWeekend(cachedWeekDays[$0]) })
+
+        var cache = WeekLayoutCache()
+        cache.weekDays = days
+        cache.timedEventsByDay = timed
+        cache.allDayEventsByDay = allDay
+        cache.overlapGroupsByDay = timed.map { overlapGroups(for: $0) }
+        cache.todayIndex = days.firstIndex(where: { Calendar.current.isDateInToday($0) })
+        cache.weekendIndices = Set(days.indices.filter { isWeekend(days[$0]) })
+        weekCache = cache
     }
 
     private func weekdayAbbreviation(for date: Date) -> String {

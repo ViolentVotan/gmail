@@ -29,11 +29,15 @@ struct EmailListView: View {
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
-    @State private var unreadEmails: [Email] = []
-    @State private var starredEmails: [Email] = []
-    @State private var emailsWithAttachments: [Email] = []
-    @State private var cachedHasFolderAction = false
-    @State private var cachedUnsubscribableEmails: [Email] = []
+    private struct AccessibilityCache {
+        var unreadEmails: [Email] = []
+        var starredEmails: [Email] = []
+        var emailsWithAttachments: [Email] = []
+        var hasFolderAction = false
+        var unsubscribableEmails: [Email] = []
+    }
+
+    @State private var accessibilityCache = AccessibilityCache()
 
     private func recomputeSortedEmails() {
         switch sortOrder {
@@ -53,33 +57,26 @@ struct EmailListView: View {
         }
 
         // Recompute accessibility rotor caches alongside the sorted emails.
-        var newUnread: [Email] = []
-        var newStarred: [Email] = []
-        var newAttachments: [Email] = []
+        var newCache = AccessibilityCache()
         for email in emails {
-            if !email.isRead { newUnread.append(email) }
-            if email.isStarred { newStarred.append(email) }
-            if email.hasAttachments { newAttachments.append(email) }
+            if !email.isRead { newCache.unreadEmails.append(email) }
+            if email.isStarred { newCache.starredEmails.append(email) }
+            if email.hasAttachments { newCache.emailsWithAttachments.append(email) }
         }
-        unreadEmails = newUnread
-        starredEmails = newStarred
-        emailsWithAttachments = newAttachments
 
         // Recompute folder action caches.
         switch selectedFolder {
         case .subscriptions:
-            cachedUnsubscribableEmails = emails.filter { $0.isFromMailingList && $0.unsubscribeURL != nil }
-            cachedHasFolderAction = !emails.isEmpty && actions.onUnsubscribe != nil && !cachedUnsubscribableEmails.isEmpty
+            newCache.unsubscribableEmails = emails.filter { $0.isFromMailingList && $0.unsubscribeURL != nil }
+            newCache.hasFolderAction = !emails.isEmpty && actions.onUnsubscribe != nil && !newCache.unsubscribableEmails.isEmpty
         case .trash:
-            cachedUnsubscribableEmails = []
-            cachedHasFolderAction = !emails.isEmpty && actions.onEmptyTrash != nil
+            newCache.hasFolderAction = !emails.isEmpty && actions.onEmptyTrash != nil
         case .spam:
-            cachedUnsubscribableEmails = []
-            cachedHasFolderAction = !emails.isEmpty && actions.onEmptySpam != nil
+            newCache.hasFolderAction = !emails.isEmpty && actions.onEmptySpam != nil
         default:
-            cachedUnsubscribableEmails = []
-            cachedHasFolderAction = false
+            break
         }
+        accessibilityCache = newCache
     }
 
     var body: some View {
@@ -139,7 +136,7 @@ struct EmailListView: View {
 
     // MARK: - Header
 
-    private var hasFolderAction: Bool { cachedHasFolderAction }
+    private var hasFolderAction: Bool { accessibilityCache.hasFolderAction }
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -174,11 +171,11 @@ struct EmailListView: View {
 
     @ViewBuilder
     private var folderActionButton: some View {
-        if selectedFolder == .subscriptions, !cachedUnsubscribableEmails.isEmpty, let onUnsubscribe = actions.onUnsubscribe {
+        if selectedFolder == .subscriptions, !accessibilityCache.unsubscribableEmails.isEmpty, let onUnsubscribe = actions.onUnsubscribe {
             Button {
-                cachedUnsubscribableEmails.forEach { onUnsubscribe($0) }
+                accessibilityCache.unsubscribableEmails.forEach { onUnsubscribe($0) }
             } label: {
-                Text("Unsubscribe All (\(cachedUnsubscribableEmails.count))")
+                Text("Unsubscribe All (\(accessibilityCache.unsubscribableEmails.count))")
                     .destructiveActionStyle()
             }
             .buttonStyle(.plain)
@@ -540,17 +537,17 @@ struct EmailListView: View {
         .scrollEdgeEffectStyle(.soft, for: .top)
         .animation(VikAnimation.springDefault, value: density)
         .accessibilityRotor("Unread Emails") {
-            ForEach(unreadEmails) { email in
+            ForEach(accessibilityCache.unreadEmails) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)
             }
         }
         .accessibilityRotor("Starred") {
-            ForEach(starredEmails) { email in
+            ForEach(accessibilityCache.starredEmails) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)
             }
         }
         .accessibilityRotor("Has Attachments") {
-            ForEach(emailsWithAttachments) { email in
+            ForEach(accessibilityCache.emailsWithAttachments) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)
             }
         }
