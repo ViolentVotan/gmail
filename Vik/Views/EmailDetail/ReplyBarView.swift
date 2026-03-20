@@ -6,10 +6,7 @@ struct ReplyBarView: View {
     let fromAddress: String
     let mailStore: MailStore
     var onOpenLink: ((URL) -> Void)?
-    var onGenerateQuickReplies: ((Email) async -> [String])?
     var onLoadDraft: ((String, String) async throws -> GmailDraft?)?
-    var smartReplySuggestions: [String] = []
-    var onSmartReplySelect: ((String) -> Void)?
     var contacts: [StoredContact] = []
 
     @State private var composeVM: ComposeViewModel
@@ -26,10 +23,7 @@ struct ReplyBarView: View {
         fromAddress: String,
         mailStore: MailStore,
         onOpenLink: ((URL) -> Void)? = nil,
-        onGenerateQuickReplies: ((Email) async -> [String])? = nil,
         onLoadDraft: ((String, String) async throws -> GmailDraft?)? = nil,
-        smartReplySuggestions: [String] = [],
-        onSmartReplySelect: ((String) -> Void)? = nil,
         contacts: [StoredContact] = []
     ) {
         self.email = email
@@ -37,10 +31,7 @@ struct ReplyBarView: View {
         self.fromAddress = fromAddress
         self.mailStore = mailStore
         self.onOpenLink = onOpenLink
-        self.onGenerateQuickReplies = onGenerateQuickReplies
         self.onLoadDraft = onLoadDraft
-        self.smartReplySuggestions = smartReplySuggestions
-        self.onSmartReplySelect = onSmartReplySelect
         self.contacts = contacts
         self._composeVM = State(initialValue: ComposeViewModel(
             accountID: accountID,
@@ -51,50 +42,6 @@ struct ReplyBarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Smart reply / AI suggestion chips
-            if composeVM.isLoadingReplies && composeVM.quickReplies.isEmpty && smartReplySuggestions.isEmpty {
-                HStack(spacing: 8) {
-                    Image(systemName: "apple.intelligence")
-                        .font(Typography.subheadRegular)
-                        .foregroundStyle(.quaternary)
-                    ForEach(0..<3, id: \.self) { _ in
-                        RoundedRectangle(cornerRadius: CornerRadius.md)
-                            .fill(.quaternary)
-                            .frame(width: 80, height: 28)
-                    }
-                }
-                .padding(.horizontal, Spacing.lg)
-                .padding(.vertical, Spacing.md)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            } else if !composeVM.quickReplies.isEmpty {
-                SuggestionChipRow(
-                    suggestions: composeVM.quickReplies,
-                    icon: .appleIntelligence,
-                    style: .aiGradient
-                ) { suggestion in
-                    let escapedHTML = "<p>\(suggestion.htmlEscaped)</p>"
-                    editorState.setHTML(escapedHTML)
-                    composeVM.body = escapedHTML
-                    if !isExpanded {
-                        if composeVM.to.isEmpty { composeVM.to = email.sender.email }
-                        composeVM.loadExistingDraftForReply(email: email, mailStore: mailStore, loader: onLoadDraft, editorState: editorState)
-                        withAnimation(VikAnimation.springSnappy) { isExpanded = true }
-                    }
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            } else if !isExpanded && !smartReplySuggestions.isEmpty {
-                SuggestionChipRow(suggestions: smartReplySuggestions) { suggestion in
-                    if composeVM.to.isEmpty { composeVM.to = email.sender.email }
-                    let html = "<p>\(suggestion.htmlEscaped)</p>"
-                    composeVM.body = html
-                    editorState.setHTML(html)
-                    composeVM.loadExistingDraftForReply(email: email, mailStore: mailStore, loader: onLoadDraft, editorState: editorState)
-                    withAnimation(VikAnimation.springSnappy) { isExpanded = true }
-                    onSmartReplySelect?(suggestion)
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-
             if isExpanded {
                 expandedContent
             } else {
@@ -114,13 +61,12 @@ struct ReplyBarView: View {
         }
         .animation(VikAnimation.springSnappy, value: composeVM.hasUserContent)
         .animation(VikAnimation.springSnappy, value: NetworkMonitor.shared.isConnected)
-        .animation(VikAnimation.springSnappy, value: smartReplySuggestions.isEmpty)
         .task {
             try? await Task.sleep(for: ComposeViewModel.autoSaveGuardDelay)
             composeVM.isInitialLoad = false
         }
         .task(id: email.id) {
-            await composeVM.resetForEmail(email, onGenerateQuickReplies: onGenerateQuickReplies)
+            composeVM.resetForEmail(email)
         }
         .onChange(of: composeVM.isSent) { _, isSent in
             guard isSent else { return }

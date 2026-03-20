@@ -70,7 +70,6 @@ final class EmailDetailViewModel {
         isLoading = true
         error     = nil
         allowTrackers = false
-        smartReplySuggestions = []
         matchedCalendarEvent = nil
         calendarContextEvent = nil
         defer { isLoading = false }
@@ -356,42 +355,6 @@ final class EmailDetailViewModel {
             labelIDs.append(GmailSystemLabel.starred)
         }
         updateLabelIDs(labelIDs)
-    }
-
-    // MARK: - Quick Replies
-
-    func generateQuickReplies(for email: Email) async -> [String] {
-        guard let threadId = email.gmailThreadID else { return [] }
-        return await SmartReplyService.shared.generateReplies(
-            subject: email.subject,
-            senderName: email.sender.name,
-            body: email.body,
-            threadId: threadId,
-            style: .brief
-        )
-    }
-
-    // MARK: - Smart Reply Suggestions
-
-    var smartReplySuggestions: [String] = []
-
-    func loadSmartReplies(for email: Email) async {
-        smartReplySuggestions = []
-        guard let threadId = email.gmailThreadID else { return }
-        if let cached = SmartReplyService.shared.cachedReplies(for: threadId, style: .full) {
-            smartReplySuggestions = cached
-            return
-        }
-        guard !Task.isCancelled else { return }
-        let replies = await SmartReplyService.shared.generateReplies(
-            subject: email.subject,
-            senderName: email.sender.name,
-            body: email.body,
-            threadId: threadId,
-            style: .full
-        )
-        guard !Task.isCancelled else { return }
-        smartReplySuggestions = replies
     }
 
     // MARK: - Label Suggestions

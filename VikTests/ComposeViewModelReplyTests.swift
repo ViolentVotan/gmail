@@ -144,7 +144,7 @@ struct ComposeViewModelReplyTests {
         vm.isInitialLoad = false
         vm.isLoadingDraft = true
         let email = makeEmail()
-        await vm.resetForEmail(email, onGenerateQuickReplies: nil)
+        vm.resetForEmail(email)
         #expect(vm.isInitialLoad == true)
         #expect(vm.isLoadingDraft == false)
     }

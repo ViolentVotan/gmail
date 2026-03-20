@@ -81,7 +81,7 @@ Views never call Services directly. ViewModels are the single bridge.
 - `NetworkMonitor` — Observes network reachability
 - `SnoozeStore` / `ScheduledSendStore` — Per-account snooze & schedule-send persistence
 - `EmailClassifier` — Apple Intelligence email classification (tags)
-- `SummaryService` / `SmartReplyService` — AI-powered features
+- `SummaryService` — AI-powered email summaries
 - `NotificationService` — Push notification handling
 - `SpotlightIndexer` / `AttachmentIndexer` — Spotlight & attachment text indexing
 - `PerAccountFileStore` — Generic per-account JSON persistence (used by SnoozeStore, ScheduledSendStore, OfflineActionQueue)

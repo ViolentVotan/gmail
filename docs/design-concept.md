@@ -44,7 +44,6 @@ Three planes define every surface in the app:
 | Category tab (selected or hovered) | Yes | Yes | `.capsule` |
 | Email list row (selected) | Yes | Yes | `.rect(cornerRadius: CornerRadius.sm)` |
 | Toolbar buttons | Yes | — | `.buttonStyle(.glass)` |
-| Smart reply / quick reply chips | Yes | Yes | `.capsule` |
 | Search bar | Yes | Yes | `.capsule` |
 | Sync bubble | Yes | Yes | `.circle` (compact) / `.capsule` (expanded) |
 | Calendar event cards | Yes | Yes | `.rect(cornerRadius: CornerRadius.sm)` |
@@ -103,7 +102,7 @@ When the user moves forward/deeper, content enters from below. When moving backw
 **Offset distance:** `OffsetToken.small` (12pt) for email navigation within a list, `OffsetToken.medium` (24pt) for major context switches (folder, mode).
 
 #### Staggered Entrance
-When a list of items appears (email rows after folder switch, label suggestions, smart reply chips):
+When a list of items appears (email rows after folder switch, label suggestions):
 - Each item delays by `DurationToken.stagger` (40ms)
 - Maximum 10 items stagger; the rest appear with the 10th
 - Animation: opacity 0→1 + y-offset `OffsetToken.nudge` (4pt) → 0
@@ -151,8 +150,7 @@ All animations must be interruptible. If the user clicks rapidly through emails 
 4. New email detail fades in with directional y-offset (`OffsetToken.small`, based on whether navigating up or down the list)
 5. Scroll position resets to top with animation
 6. HTML body shows skeleton shimmer while loading, then crossfades to rendered content (`VikAnimation.contentSwitch`)
-7. Smart reply chips stagger in from bottom (40ms per chip)
-8. Label suggestions stagger in (40ms per label)
+7. Label suggestions stagger in (40ms per label)
 
 ### Folder / Category Switch
 
