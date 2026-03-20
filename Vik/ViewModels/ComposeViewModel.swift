@@ -38,8 +38,6 @@ final class ComposeViewModel {
     var sendError: String?
     var isLoadingDraft = false
     var isInitialLoad = true
-    var isLoadingReplies = false
-    var quickReplies: [String] = []
 
     @ObservationIgnored private var cachedStrippedText = ""
     @ObservationIgnored private var lastDraftSaveDate: Date = .distantPast
@@ -504,11 +502,8 @@ final class ComposeViewModel {
 
     // MARK: - Reply Bar Lifecycle
 
-    /// Resets all reply-bar state for a new email and optionally loads quick replies.
-    func resetForEmail(
-        _ email: Email,
-        onGenerateQuickReplies: ((Email) async -> [String])?
-    ) async {
+    /// Resets all reply-bar state for a new email.
+    func resetForEmail(_ email: Email) {
         saveTask?.cancel()
         saveTask = nil
         loadDraftTask?.cancel()
@@ -526,7 +521,6 @@ final class ComposeViewModel {
         showBcc = false
         sendError = nil
         subjectOverride = nil
-        quickReplies = []
         cachedStrippedText = ""
         collapsedPlaceholderText = "Write a reply..."
         isSent = false
@@ -536,10 +530,6 @@ final class ComposeViewModel {
         isLoadingDraft = false
 
         threadID = email.gmailThreadID
-
-        isLoadingReplies = true
-        quickReplies = await onGenerateQuickReplies?(email) ?? []
-        isLoadingReplies = false
     }
 
     /// Collapses the reply bar, discarding local and remote draft state.

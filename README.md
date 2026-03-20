@@ -39,7 +39,7 @@ A native macOS Gmail client. No Electron. No web wrapper. Just Swift, SwiftUI, a
 | 💬 **Conversation threads** | Collapsible message cards, quote stripping, and thread grouping |
 | 🔒 **Tracker blocking** | Spy pixels, tracking links, and CSS trackers — 200+ domains stripped automatically |
 | 🔍 **Smart search** | Gmail query syntax + FTS5 local full-text search across your entire mailbox |
-| 🤖 **Apple Intelligence** | On-device email summaries, classification, and smart reply suggestions (macOS 26+) |
+| 🤖 **Apple Intelligence** | On-device email summaries, classification, and label suggestions (macOS 26+) |
 | ⏰ **Snooze** | Snooze emails to reappear at a time that works for you |
 | 📤 **Schedule send** | Write now, send later — schedule messages for the perfect moment |
 | 📴 **Offline queue** | Archive, trash, star, label, and more — actions sync when connectivity returns |

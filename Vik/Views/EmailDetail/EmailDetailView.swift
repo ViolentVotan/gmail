@@ -147,30 +147,11 @@ struct EmailDetailView: View {
                             fromAddress: fromAddress,
                             mailStore: mailStore,
                             onOpenLink: actions.onOpenLink,
-                            onGenerateQuickReplies: { [detailVM] email in
-                                await detailVM.generateQuickReplies(for: email)
-                            },
                             onLoadDraft: actions.onLoadDraft,
-                            smartReplySuggestions: detailVM.smartReplySuggestions,
-                            onSmartReplySelect: { suggestion in
-                                let sub = email.subject.withReplyPrefix
-                                let body = "<p>\(suggestion.htmlEscaped)</p>"
-                                let mode = ComposeMode.reply(
-                                    to: email.sender.email,
-                                    subject: sub,
-                                    quotedBody: body,
-                                    replyToMessageID: email.gmailMessageID ?? "",
-                                    threadID: email.gmailThreadID ?? ""
-                                )
-                                actions.onReply?(mode)
-                            },
                             contacts: contacts
                         )
                         .padding(.horizontal, Spacing.lg)
                         .padding(.bottom, Spacing.lg)
-                        .task(id: email.id) {
-                            await detailVM.loadSmartReplies(for: email)
-                        }
                     }
                 }
             }

@@ -18,7 +18,7 @@ The UI follows a three-plane model (see `docs/design-concept.md` for the full gl
 | Plane | Material | Use |
 |-------|----------|-----|
 | **Base** | Solid/opaque (`.quinary` + `.separator` stroke) | Content cards, email body, settings cards |
-| **Navigation** | `.glassEffect(.regular.interactive())` | Toolbar buttons, category tabs, sidebar items (selected/hovered), email row selection, search bar, calendar event cards, mini calendar, avatars, smart reply chips, label pills, bulk action bars, thread message cards |
+| **Navigation** | `.glassEffect(.regular.interactive())` | Toolbar buttons, category tabs, sidebar items (selected/hovered), email row selection, search bar, calendar event cards, mini calendar, avatars, label pills, bulk action bars, thread message cards |
 | **Transient** | `.glassEffect(.regular)` + `.elevation(.transient)` via `floatingPanelStyle()` | Toasts, popovers, slide panels |
 
 ## Files
