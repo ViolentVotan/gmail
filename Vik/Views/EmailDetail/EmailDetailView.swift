@@ -1,5 +1,8 @@
+import AppKit
+import QuickLook
 import SwiftUI
 import Translation
+import UniformTypeIdentifiers
 
 struct EmailDetailView: View {
     let email: Email
@@ -190,6 +193,7 @@ struct EmailDetailView: View {
             activity.contentAttributeSet = source.contentAttributeSet
             activity.userInfo = source.userInfo
         }
+        .quickLookPreview($detailVM.quickLookSelection, in: detailVM.quickLookURLs)
         .translationPresentation(
             isPresented: $showTranslation,
             text: detailVM.latestMessage?.plainBody ?? email.body
@@ -428,8 +432,7 @@ struct EmailDetailView: View {
                     await detailVM.loadAndPreview(
                         attachment: attachment,
                         part: part,
-                        messageID: message.id,
-                        onPreviewAttachment: actions.onPreviewAttachment
+                        message: message
                     )
                 }
             },
@@ -443,6 +446,62 @@ struct EmailDetailView: View {
                     saveAttachmentData(data, named: attachment.name)
                 }
             },
+            onOpenAttachment: { attachment, part in
+                Task {
+                    await detailVM.openAttachmentInDefaultApp(attachment, part: part, messageID: message.id)
+                }
+            },
+            onSaveAllAttachments: {
+                Task {
+                    await detailVM.saveAllAttachments(for: message)
+                }
+            },
+            onShareAttachment: { attachment, part, anchorView in
+                Task {
+                    guard let url = await detailVM.prepareAttachmentTempFile(attachment, part: part, messageID: message.id) else { return }
+                    let picker = NSSharingServicePicker(items: [url])
+                    picker.show(relativeTo: anchorView.bounds, of: anchorView, preferredEdge: .minY)
+                }
+            },
+            onDragAttachment: { attachment, part in
+                let api = detailVM.api
+                let acctID = detailVM.accountID
+                let msgID = message.id
+                let filename = attachment.name
+                let attachID = attachment.gmailAttachmentId ?? attachment.id.uuidString
+                let ext = (filename as NSString).pathExtension
+                let typeID = UTType(filenameExtension: ext)?.identifier ?? UTType.data.identifier
+                let item = NSItemProvider()
+                item.suggestedName = filename
+                item.registerFileRepresentation(
+                    forTypeIdentifier: typeID,
+                    fileOptions: [],
+                    visibility: .all
+                ) { completion in
+                    Task {
+                        do {
+                            guard let gmailAttachmentID = part.body?.attachmentId else {
+                                completion(nil, false, URLError(.badServerResponse))
+                                return
+                            }
+                            let data = try await api.getAttachment(
+                                messageID: msgID, attachmentID: gmailAttachmentID, accountID: acctID
+                            )
+                            let url = try await TemporaryFileManager.shared.tempFile(
+                                for: attachID, messageID: msgID, filename: filename, data: data
+                            )
+                            FileUtils.setQuarantine(on: url)
+                            completion(url, false, nil)
+                        } catch {
+                            completion(nil, false, error)
+                        }
+                    }
+                    return Progress()
+                }
+                return item
+            },
+            downloadingAttachmentIDs: detailVM.downloadingAttachmentIDs,
+            batchProgress: detailVM.batchDownloadProgress,
             accountID: accountID,
             composeTo: { actions.onComposeTo?($0) },
             searchSender: { actions.onSearchSender?($0) },

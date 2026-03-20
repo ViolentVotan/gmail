@@ -16,6 +16,13 @@ struct VikApp: App {
         NotificationService.shared.setup()
         VikShortcuts.updateAppShortcutParameters()
         NSApplication.shared.activate()
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            Task { await TemporaryFileManager.shared.cleanupStale() }
+        }
     }
 
     var body: some Scene {
@@ -43,6 +50,14 @@ struct VikApp: App {
 
                 // Drain any pending offline actions if already online at launch
                 OfflineActionQueue.shared.startDraining()
+
+                // Periodically clean up stale temporary files (every 10 minutes)
+                Task {
+                    while !Task.isCancelled {
+                        try? await Task.sleep(for: .seconds(600))
+                        await TemporaryFileManager.shared.cleanupStale()
+                    }
+                }
             }
         }
         .defaultSize(width: 1200, height: 750)

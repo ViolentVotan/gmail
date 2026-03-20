@@ -21,6 +21,7 @@ enum MailDatabaseMigrations {
         registerV14(&migrator)
         registerV15(&migrator)
         registerV16(&migrator)
+        registerV17(&migrator)
         return migrator
     }
 
@@ -494,6 +495,21 @@ enum MailDatabaseMigrations {
                 on: "messages",
                 columns: ["full_body_fetched", "body_fetch_attempts", "internal_date"]
             )
+        }
+    }
+
+    private static func registerV17(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v17_attachment_count") { db in
+            try db.alter(table: "messages") { t in
+                t.add(column: "attachment_count", .integer).notNull().defaults(to: 0)
+            }
+            // Backfill from attachments table for existing rows
+            try db.execute(sql: """
+                UPDATE messages SET attachment_count = (
+                    SELECT COUNT(*) FROM attachments
+                    WHERE attachments.message_id = messages.gmail_id
+                ) WHERE has_attachments = 1
+            """)
         }
     }
 }

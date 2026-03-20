@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct ThreadMessageCardView: View {
     let message: GmailMessage
@@ -11,6 +12,12 @@ struct ThreadMessageCardView: View {
     var attachmentPairs: [(Attachment, GmailMessagePart?)] = []
     var onPreviewAttachment: ((Attachment, GmailMessagePart) -> Void)?
     var onDownloadAttachment: ((Attachment, GmailMessagePart) -> Void)?
+    var onOpenAttachment: ((Attachment, GmailMessagePart) -> Void)?
+    var onSaveAllAttachments: (() -> Void)?
+    var onShareAttachment: ((Attachment, GmailMessagePart, NSView) -> Void)?
+    var onDragAttachment: ((Attachment, GmailMessagePart) -> NSItemProvider)?
+    var downloadingAttachmentIDs: Set<String> = []
+    var batchProgress: EmailDetailViewModel.BatchProgress?
     var accountID: String = ""
     var composeTo: ((String) -> Void)?
     var searchSender: ((String) -> Void)?
@@ -42,6 +49,12 @@ struct ThreadMessageCardView: View {
         attachmentPairs: [(Attachment, GmailMessagePart?)] = [],
         onPreviewAttachment: ((Attachment, GmailMessagePart) -> Void)? = nil,
         onDownloadAttachment: ((Attachment, GmailMessagePart) -> Void)? = nil,
+        onOpenAttachment: ((Attachment, GmailMessagePart) -> Void)? = nil,
+        onSaveAllAttachments: (() -> Void)? = nil,
+        onShareAttachment: ((Attachment, GmailMessagePart, NSView) -> Void)? = nil,
+        onDragAttachment: ((Attachment, GmailMessagePart) -> NSItemProvider)? = nil,
+        downloadingAttachmentIDs: Set<String> = [],
+        batchProgress: EmailDetailViewModel.BatchProgress? = nil,
         accountID: String = "",
         composeTo: ((String) -> Void)? = nil,
         searchSender: ((String) -> Void)? = nil,
@@ -60,6 +73,12 @@ struct ThreadMessageCardView: View {
         self.attachmentPairs = attachmentPairs
         self.onPreviewAttachment = onPreviewAttachment
         self.onDownloadAttachment = onDownloadAttachment
+        self.onOpenAttachment = onOpenAttachment
+        self.onSaveAllAttachments = onSaveAllAttachments
+        self.onShareAttachment = onShareAttachment
+        self.onDragAttachment = onDragAttachment
+        self.downloadingAttachmentIDs = downloadingAttachmentIDs
+        self.batchProgress = batchProgress
         self.accountID = accountID
         self.composeTo = composeTo
         self.searchSender = searchSender
@@ -118,6 +137,20 @@ struct ThreadMessageCardView: View {
         return cachedHTMLParts.original
     }
 
+    // MARK: - Collapsed Attachment Summary
+
+    private var collapsedAttachmentSummary: String {
+        let names = attachmentPairs.prefix(2).map { pair in
+            let name = pair.0.name
+            return name.count > 20 ? String(name.prefix(17)) + "..." : name
+        }
+        let remaining = attachmentPairs.count - names.count
+        if remaining > 0 {
+            return names.joined(separator: ", ") + ", and \(remaining) more"
+        }
+        return names.joined(separator: ", ")
+    }
+
     // MARK: - Body
 
     var body: some View {
@@ -126,6 +159,19 @@ struct ThreadMessageCardView: View {
                 .contentShape(Rectangle())
                 .onTapGesture { onToggle() }
                 .onHover { isHovering = $0 }
+
+            if !isExpanded && !attachmentPairs.isEmpty {
+                HStack(spacing: 4) {
+                    Image(systemName: "paperclip")
+                        .font(Typography.captionSmallRegular)
+                    Text(collapsedAttachmentSummary)
+                        .font(Typography.captionSmallRegular)
+                        .lineLimit(1)
+                }
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, Spacing.xl)
+                .padding(.bottom, Spacing.sm)
+            }
 
             if isExpanded {
                 expandedContent
@@ -341,16 +387,54 @@ struct ThreadMessageCardView: View {
                             .font(Typography.subheadRegular)
                         Text("\(attachmentPairs.count) Attachment\(attachmentPairs.count > 1 ? "s" : "")")
                             .font(Typography.subhead)
+
+                        Spacer()
+
+                        if attachmentPairs.count > 1 {
+                            Button {
+                                onSaveAllAttachments?()
+                            } label: {
+                                Label("Save All", systemImage: "arrow.down.doc")
+                                    .font(Typography.captionRegular)
+                            }
+                            .buttonStyle(.glass)
+                            .opacity(isHovering ? 1 : 0)
+                            .animation(VikAnimation.springSnappy, value: isHovering)
+                        }
                     }
                     .foregroundStyle(.secondary)
 
-                    HStack(spacing: 8) {
-                        ForEach(attachmentPairs, id: \.0.id) { (attachment, part) in
-                            AttachmentChipView(
-                                attachment: attachment,
-                                onPreview: part.map { p in { onPreviewAttachment?(attachment, p) } },
-                                onDownload: part.map { p in { onDownloadAttachment?(attachment, p) } }
+                    if let progress = batchProgress {
+                        HStack(spacing: 8) {
+                            ProgressView(
+                                value: Double(progress.completed),
+                                total: Double(progress.total)
                             )
+                            .tint(.accentColor)
+
+                            Text("Saving \(progress.completed) of \(progress.total)...")
+                                .font(Typography.captionSmallRegular)
+                                .foregroundStyle(.secondary)
+                        }
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        .animation(VikAnimation.springSnappy, value: progress)
+                    }
+
+                    GlassEffectContainer(spacing: 8) {
+                        HStack(spacing: 8) {
+                            ForEach(attachmentPairs, id: \.0.id) { (attachment, part) in
+                                AttachmentChipView(
+                                    attachment: attachment,
+                                    isDownloading: downloadingAttachmentIDs.contains(attachment.gmailAttachmentId ?? ""),
+                                    siblingCount: attachmentPairs.count,
+                                    onPreview: part.map { p in { onPreviewAttachment?(attachment, p) } },
+                                    onDownload: part.map { p in { onDownloadAttachment?(attachment, p) } },
+                                    onOpen: part.map { p in { onOpenAttachment?(attachment, p) } },
+                                    onSaveAll: { onSaveAllAttachments?() },
+                                    onShare: part.map { p in { view in onShareAttachment?(attachment, p, view) } },
+                                    onDragProvider: part.map { p in { onDragAttachment?(attachment, p) ?? NSItemProvider() } }
+                                )
+                            }
                         }
                     }
                 }
@@ -368,6 +452,7 @@ extension ThreadMessageCardView: Equatable {
         lhs.resolvedHTML == rhs.resolvedHTML &&
         lhs.isExpanded == rhs.isExpanded &&
         lhs.isLast == rhs.isLast &&
-        lhs.accountID == rhs.accountID
+        lhs.accountID == rhs.accountID &&
+        lhs.downloadingAttachmentIDs == rhs.downloadingAttachmentIDs
     }
 }

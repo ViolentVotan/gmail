@@ -42,6 +42,7 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord,
     /// Distinct from `gmailId` which is the message ID. The Gmail `drafts/send` endpoint
     /// requires this draft ID, not the message ID.
     var gmailDraftId: String?
+    var attachmentCount: Int
 
     var id: String { gmailId }
 
@@ -88,6 +89,7 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord,
         self.threadMessageCount = 1
         self.fetchedAt = Date().timeIntervalSince1970
         self.gmailDraftId = nil
+        self.attachmentCount = gmail.attachmentParts.count
     }
 
     // MARK: - Test fixture
@@ -113,6 +115,7 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord,
         r.snippet = "Test snippet"
         r.sizeEstimate = 1024
         r.fetchedAt = nil
+        r.attachmentCount = 0
         return r
     }
     #endif
@@ -231,6 +234,7 @@ extension MessageRecord {
             isRead: isRead,
             isStarred: isStarred,
             hasAttachments: hasAttachments,
+            attachmentCount: attachmentCount,
             attachments: attachmentModels,
             folder: folder,
             labels: userLabels,

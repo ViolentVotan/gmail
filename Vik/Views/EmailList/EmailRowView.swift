@@ -235,9 +235,14 @@ struct EmailRowView: View, Equatable {
                             .symbolEffect(.bounce, value: email.isStarred)
                     }
                     if email.hasAttachments {
-                        Image(systemName: "paperclip")
-                            .font(Typography.captionSmallRegular)
-                            .foregroundStyle(.tertiary)
+                        HStack(spacing: 2) {
+                            Image(systemName: "paperclip")
+                            if email.attachmentCount > 1 {
+                                Text("\(email.attachmentCount)")
+                            }
+                        }
+                        .font(Typography.captionSmallRegular)
+                        .foregroundStyle(.tertiary)
                     }
                 }
                 .sensoryFeedback(.impact(flexibility: .soft), trigger: email.isStarred)

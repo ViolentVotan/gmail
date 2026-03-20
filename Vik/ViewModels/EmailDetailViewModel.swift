@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 internal import GRDB
 import Synchronization
@@ -30,11 +31,23 @@ final class EmailDetailViewModel {
     var hasBlockedTrackers: Bool { !allowTrackers && (trackerResult?.hasTrackers ?? false) }
 
     @ObservationIgnored let accountID: String
-    @ObservationIgnored private let api: any MessageFetching
+    @ObservationIgnored let api: any MessageFetching
     @ObservationIgnored var attachmentIndexer: AttachmentIndexer?
     @ObservationIgnored var onMessagesRead: (([String]) -> Void)?
     @ObservationIgnored var mailDatabase: MailDatabase?
     @ObservationIgnored private let backgroundTasks: Mutex<[Task<Void, Never>]> = Mutex([])
+
+    // MARK: - Attachment state
+
+    var quickLookURLs: [URL] = []
+    var quickLookSelection: URL?
+    var downloadingAttachmentIDs: Set<String> = []
+
+    struct BatchProgress: Equatable {
+        var completed: Int
+        var total: Int
+    }
+    var batchDownloadProgress: BatchProgress?
 
     init(accountID: String, api: any MessageFetching = GmailMessageService.shared) {
         self.accountID = accountID
@@ -494,6 +507,149 @@ final class EmailDetailViewModel {
         message.attachmentParts.map { part in
             (GmailDataTransformer.makeAttachment(from: part, messageId: message.id), part)
         }
+    }
+
+    // MARK: - Attachment temp file operations
+
+    /// Downloads attachment data, writes to temp file, returns URL.
+    /// Checks TemporaryFileManager cache first; checks NetworkMonitor if cache miss.
+    func prepareAttachmentTempFile(
+        _ attachment: Attachment,
+        part: GmailMessagePart,
+        messageID: String
+    ) async -> URL? {
+        let attachmentID = attachment.gmailAttachmentId ?? attachment.id.uuidString
+
+        // Check cache first
+        if let cached = await TemporaryFileManager.shared.cachedURL(for: attachmentID) {
+            return cached
+        }
+
+        // Check connectivity
+        guard NetworkMonitor.isReachable else {
+            ToastManager.shared.show(message: "You're offline — attachment not available", type: .error)
+            return nil
+        }
+
+        downloadingAttachmentIDs.insert(attachmentID)
+        defer { downloadingAttachmentIDs.remove(attachmentID) }
+
+        do {
+            let data = try await downloadAttachment(messageID: messageID, part: part)
+            return try await TemporaryFileManager.shared.tempFile(
+                for: attachmentID,
+                messageID: messageID,
+                filename: attachment.name,
+                data: data
+            )
+        } catch {
+            ToastManager.shared.show(message: "Download failed: \(error.localizedDescription)", type: .error)
+            return nil
+        }
+    }
+
+    /// Opens Quick Look for a specific attachment, preparing all sibling URLs for gallery nav.
+    func quickLookAttachment(
+        _ attachment: Attachment,
+        part: GmailMessagePart,
+        message: GmailMessage
+    ) async {
+        guard let url = await prepareAttachmentTempFile(attachment, part: part, messageID: message.id) else { return }
+
+        // Prepare all sibling attachment URLs for gallery navigation
+        var urls: [URL] = []
+        for siblingPart in message.attachmentParts {
+            let siblingAttachment = GmailDataTransformer.makeAttachment(from: siblingPart, messageId: message.id)
+            let siblingID = siblingAttachment.gmailAttachmentId ?? siblingAttachment.id.uuidString
+            if let cached = await TemporaryFileManager.shared.cachedURL(for: siblingID) {
+                urls.append(cached)
+            }
+        }
+
+        // Ensure the selected URL is in the list
+        if !urls.contains(url) { urls.insert(url, at: 0) }
+
+        quickLookURLs = urls
+        quickLookSelection = url
+    }
+
+    /// Downloads and opens attachment in its default app via NSWorkspace.
+    func openAttachmentInDefaultApp(
+        _ attachment: Attachment,
+        part: GmailMessagePart,
+        messageID: String
+    ) async {
+        guard let url = await prepareAttachmentTempFile(attachment, part: part, messageID: messageID) else { return }
+        FileUtils.setQuarantine(on: url)
+        NSWorkspace.shared.open(url)
+    }
+
+    /// Downloads all attachments for a message and saves to a user-selected directory.
+    func saveAllAttachments(for message: GmailMessage) async {
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.prompt = "Save All"
+        guard panel.runModal() == .OK, let directory = panel.url else { return }
+
+        let pairs = attachmentPairsForMessage(message)
+        let total = pairs.count
+        batchDownloadProgress = BatchProgress(completed: 0, total: total)
+
+        // Capture Sendable values before entering TaskGroup to avoid
+        // capturing @MainActor-isolated self inside concurrent tasks.
+        let api = self.api
+        let acctID = self.accountID
+        let msgID = message.id
+
+        var succeeded = 0
+        var completed = 0
+        await withTaskGroup(of: Bool.self) { group in
+            for (attachment, part) in pairs {
+                guard let part, let attachmentID = part.body?.attachmentId else { continue }
+                let filename = attachment.name
+                group.addTask {
+                    do {
+                        let data = try await api.getAttachment(
+                            messageID: msgID, attachmentID: attachmentID, accountID: acctID
+                        )
+                        let uniqueName = FileUtils.uniqueFilename(for: filename, in: directory)
+                        let fileURL = directory.appendingPathComponent(uniqueName)
+                        try data.write(to: fileURL)
+                        FileUtils.setQuarantine(on: fileURL)
+                        return true
+                    } catch {
+                        return false
+                    }
+                }
+            }
+            for await success in group {
+                if success { succeeded += 1 }
+                completed += 1
+                batchDownloadProgress = BatchProgress(completed: completed, total: total)
+            }
+        }
+
+        batchDownloadProgress = nil
+
+        if succeeded == total {
+            ToastManager.shared.show(message: "Saved \(total) attachments", type: .success)
+        } else {
+            ToastManager.shared.show(
+                message: "Saved \(succeeded) of \(total) attachments. \(total - succeeded) failed.",
+                type: .error
+            )
+        }
+    }
+
+    /// Quick Look version — used by email detail view.
+    func loadAndPreview(
+        attachment: Attachment,
+        part: GmailMessagePart,
+        message: GmailMessage
+    ) async {
+        await quickLookAttachment(attachment, part: part, message: message)
     }
 
     // MARK: - Convenience

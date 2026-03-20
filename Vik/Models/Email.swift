@@ -12,6 +12,7 @@ struct Email: Identifiable, Sendable {
     var isRead: Bool
     var isStarred: Bool
     var hasAttachments: Bool
+    var attachmentCount: Int
     var attachments: [Attachment]
     var folder: Folder
     var labels: [EmailLabel]
@@ -43,6 +44,7 @@ struct Email: Identifiable, Sendable {
         isRead: Bool = false,
         isStarred: Bool = false,
         hasAttachments: Bool = false,
+        attachmentCount: Int = 0,
         attachments: [Attachment] = [],
         folder: Folder = .inbox,
         labels: [EmailLabel] = [],
@@ -72,6 +74,7 @@ struct Email: Identifiable, Sendable {
         self.isRead = isRead
         self.isStarred = isStarred
         self.hasAttachments = hasAttachments
+        self.attachmentCount = attachmentCount
         self.attachments = attachments
         self.folder = folder
         self.labels = labels
@@ -99,6 +102,7 @@ extension Email: Equatable {
         lhs.isRead == rhs.isRead &&
         lhs.isStarred == rhs.isStarred &&
         lhs.hasAttachments == rhs.hasAttachments &&
+        lhs.attachmentCount == rhs.attachmentCount &&
         lhs.labels == rhs.labels &&
         lhs.gmailLabelIDs == rhs.gmailLabelIDs &&
         lhs.preview == rhs.preview &&

@@ -15,6 +15,32 @@ enum FileUtils {
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let url = panel.url else { return }
         try? data.write(to: url)
+        setQuarantine(on: url)
+    }
+
+    /// Sets com.apple.quarantine xattr on a file so Gatekeeper checks apply when opened.
+    static func setQuarantine(on url: URL) {
+        let timestamp = Int(Date().timeIntervalSince1970)
+        let quarantineValue = "0083;\(timestamp);Vik;"
+        url.withUnsafeFileSystemRepresentation { path in
+            guard let path else { return }
+            quarantineValue.withCString { value in
+                _ = setxattr(path, "com.apple.quarantine", value, strlen(value), 0, 0)
+            }
+        }
+    }
+
+    /// Returns a unique filename in the given directory, appending " (2)", " (3)", etc. if needed.
+    static func uniqueFilename(for filename: String, in directory: URL) -> String {
+        let base = (filename as NSString).deletingPathExtension
+        let ext = (filename as NSString).pathExtension
+        var candidate = filename
+        var counter = 2
+        while FileManager.default.fileExists(atPath: directory.appendingPathComponent(candidate).path) {
+            candidate = ext.isEmpty ? "\(base) (\(counter))" : "\(base) (\(counter)).\(ext)"
+            counter += 1
+        }
+        return candidate
     }
 }
 
