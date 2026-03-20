@@ -19,7 +19,7 @@ struct EmailDetailView: View {
     @State private var summaryVM = EmailSummaryViewModel()
     @State private var didUnsubscribe = false
     @State private var showOriginalInviteEmail = false
-    @State private var expandedMessageIDs: Set<String> = []
+    @State private var userToggledMessageIDs: Set<String> = []
     @State private var labelSuggestions: [LabelSuggestion] = []
     @State private var showTranslation = false
     @State private var showMetadata = false
@@ -79,6 +79,14 @@ struct EmailDetailView: View {
         detailVM.currentLabelIDs(fallback: email.gmailLabelIDs)
     }
 
+    /// Expansion state derived from latest message — no explicit timing needed.
+    /// Latest message is expanded by default; user toggle inverts the default.
+    private func isMessageExpanded(_ message: GmailMessage) -> Bool {
+        let isLatest = message.id == detailVM.latestMessage?.id
+        let wasToggled = userToggledMessageIDs.contains(message.id)
+        return isLatest != wasToggled
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             if detailVM.isLoading && detailVM.thread == nil {
@@ -126,7 +134,7 @@ struct EmailDetailView: View {
                     .scrollEdgeEffectStyle(.soft, for: .top)
                     .task(id: detailVM.latestMessage?.id) {
                         if let latestID = detailVM.latestMessage?.id {
-                            expandedMessageIDs = [latestID]
+                            userToggledMessageIDs = []
                             try? await Task.sleep(for: .milliseconds(100))
                             withAnimation(VikAnimation.springDefault) { proxy.scrollTo(latestID, anchor: .bottom) }
                         }
@@ -179,13 +187,6 @@ struct EmailDetailView: View {
             }
 
             await loadThread()
-
-            // Expand latest card BEFORE making conversation visible to avoid
-            // a flash of all-collapsed cards (the inner .task(id:) that also
-            // sets this fires asynchronously and may run after showConversation).
-            if let latestID = detailVM.latestMessage?.id {
-                expandedMessageIDs = [latestID]
-            }
 
             withAnimation(VikAnimation.springDefault.delay(0.08)) {
                 showConversation = true
@@ -382,12 +383,10 @@ struct EmailDetailView: View {
                         .foregroundStyle(.tertiary)
                         .accessibilityLabel("\(allMessages.count) messages in thread")
                     Spacer()
-                    if expandedMessageIDs.count > 1 {
+                    if allMessages.count(where: { isMessageExpanded($0) }) > 1 {
                         Button {
                             withAnimation(VikAnimation.springSnappy) {
-                                if let latestID = detailVM.latestMessage?.id {
-                                    expandedMessageIDs = [latestID]
-                                }
+                                userToggledMessageIDs = []
                             }
                         } label: {
                             Text("Collapse Others")
@@ -419,16 +418,16 @@ struct EmailDetailView: View {
         let isLastCard = message.id == detailVM.messages.last?.id
         return ThreadMessageCardView(
             message: message,
-            isExpanded: expandedMessageIDs.contains(message.id),
+            isExpanded: isMessageExpanded(message),
             fromAddress: fromAddress,
             isLast: isLastCard,
             resolvedHTML: detailVM.resolvedMessageHTML[message.id],
             onToggle: {
                 withAnimation(VikAnimation.springSnappy.delay(Double(index) * DurationToken.stagger)) {
-                    if expandedMessageIDs.contains(message.id) {
-                        expandedMessageIDs.remove(message.id)
+                    if userToggledMessageIDs.contains(message.id) {
+                        userToggledMessageIDs.remove(message.id)
                     } else {
-                        expandedMessageIDs.insert(message.id)
+                        userToggledMessageIDs.insert(message.id)
                     }
                 }
             },
