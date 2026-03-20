@@ -13,20 +13,20 @@ final class ThumbnailCache {
     private(set) var thumbnails: [String: NSImage] = [:]
 
     /// IDs currently being fetched (to avoid duplicate requests).
-    private var loading: Set<String> = []
+    @ObservationIgnored private var loading: Set<String> = []
 
     /// Pending thumbnail requests queued when at capacity.
-    private var pendingQueue: [(id: String, attachment: IndexedAttachment, accountID: String)] = []
+    @ObservationIgnored private var pendingQueue: [(id: String, attachment: IndexedAttachment, accountID: String)] = []
 
     /// Number of active concurrent fetches.
-    private var activeFetches = 0
+    @ObservationIgnored private var activeFetches = 0
     private let maxConcurrentFetches = 4
 
     /// Tracks in-flight fetch tasks so they can be cancelled on clearAll().
-    private var fetchTasks: [String: Task<Void, Never>] = [:]
+    @ObservationIgnored private var fetchTasks: [String: Task<Void, Never>] = [:]
 
     /// Tracks saveToDisk tasks so they can be cancelled on clearAll() to prevent stale thumbnails.
-    private var saveTasks: [String: Task<Void, Never>] = [:]
+    @ObservationIgnored private var saveTasks: [String: Task<Void, Never>] = [:]
 
     private let maxSize = CGSize(width: 300, height: 200)
 

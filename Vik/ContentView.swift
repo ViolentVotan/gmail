@@ -103,7 +103,12 @@ struct ContentView: View {
                     authViewModel: coordinator.authViewModel,
                     isCollapsed: isSidebarCollapsed,
                     userLabels: coordinator.mailboxViewModel.userLabels,
-                    coordinator: coordinator,
+                    viewMode: coordinator.calendar.viewMode,
+                    calendarViewModel: coordinator.calendar.calendarViewModel,
+                    miniAgendaEvents: coordinator.calendar.miniAgendaEvents,
+                    onSwitchToMail: { coordinator.calendar.switchToMail() },
+                    onSwitchToCalendar: { coordinator.calendar.switchToCalendar(db: coordinator.sync.mailDatabase) },
+                    onNavigateToEvent: { event in coordinator.calendar.navigateToEvent(event, db: coordinator.sync.mailDatabase) },
                     onRenameLabel: { label, newName in Task { await coordinator.renameLabel(label, to: newName) } },
                     onDeleteLabel: { label in Task { await coordinator.deleteLabel(label) } },
                     onDropToTrash: { msgId, accountID in

@@ -11,7 +11,7 @@ final class SyncCoordinator {
 
     private(set) var mailDatabase: MailDatabase?
     private(set) var backgroundSyncer: BackgroundSyncer?
-    private(set) var syncEngine: FullSyncEngine?
+    @ObservationIgnored private(set) var syncEngine: FullSyncEngine?
     var attachmentIndexer: AttachmentIndexer?
     private(set) var contacts: [StoredContact] = []
 
@@ -33,7 +33,7 @@ final class SyncCoordinator {
     // MARK: - Callbacks
 
     /// Called after cache refresh so AppCoordinator can trigger selection.updateDisplayedEmails().
-    var onCacheRefreshed: (() -> Void)?
+    @ObservationIgnored var onCacheRefreshed: (() -> Void)?
 
     // MARK: - Database Lifecycle
 
