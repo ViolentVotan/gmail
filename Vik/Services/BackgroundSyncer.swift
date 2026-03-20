@@ -6,6 +6,15 @@ internal import GRDB
 /// Lightweight writes (star, read, archive) go directly through dbPool.write.
 actor BackgroundSyncer {
     let db: MailDatabase
+    private nonisolated(unsafe) static let htmlTagRegex = try! Regex("<[^>]+>")
+    private nonisolated(unsafe) static let whitespaceRegex = try! Regex("\\s+")
+
+    /// Strip HTML tags and collapse whitespace using pre-compiled regexes.
+    nonisolated private static func stripHTML(_ html: String) -> String {
+        html.replacing(Self.htmlTagRegex, with: " ")
+            .replacing(Self.whitespaceRegex, with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
     init(db: MailDatabase) {
         self.db = db
@@ -80,28 +89,24 @@ actor BackgroundSyncer {
     /// Update message bodies after background pre-fetch.
     func updateBodies(_ updates: [(gmailId: String, html: String?, plain: String?)]) async throws {
         guard !updates.isEmpty else { return }
+        let prepared = updates.map { update -> (gmailId: String, html: String?, plainText: String?) in
+            let plainText: String?
+            if let plain = update.plain {
+                plainText = plain
+            } else if let html = update.html {
+                plainText = Self.stripHTML(html)
+            } else {
+                plainText = nil
+            }
+            return (gmailId: update.gmailId, html: update.html, plainText: plainText)
+        }
         try await db.dbPool.write { db in
             let now = Date().timeIntervalSince1970
-            for update in updates {
-                // When only HTML is available (the majority of real-world emails),
-                // strip tags and store as body_plain so FTS can index the content.
-                let plainText: String?
-                if let plain = update.plain {
-                    plainText = plain
-                } else if let html = update.html {
-                    plainText = html
-                        .replacingOccurrences(of: "<[^>]+>", with: " ", options: .regularExpression)
-                        .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                } else {
-                    plainText = nil
-                }
-                // Direct SQL UPDATE avoids reading the full record just to write back.
+            for item in prepared {
                 try db.execute(
                     sql: "UPDATE messages SET body_html = ?, body_plain = ?, full_body_fetched = 1, fetched_at = ? WHERE gmail_id = ?",
-                    arguments: [update.html, plainText, now, update.gmailId]
+                    arguments: [item.html, item.plainText, now, item.gmailId]
                 )
-                // The AFTER UPDATE trigger on `messages` handles FTS maintenance when body columns change.
             }
         }
     }

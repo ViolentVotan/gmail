@@ -32,7 +32,6 @@ final class AttachmentStore {
     var searchQuery = "" {
         didSet {
             debouncedSearch()
-            scheduleRecompute()
         }
     }
     var searchResults: [AttachmentSearchResult] = [] {
@@ -70,42 +69,60 @@ final class AttachmentStore {
     // MARK: - Cache Recomputation
 
     private func scheduleRecompute() {
-        recomputeTask?.cancel()
-        recomputeTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(1))
-            guard !Task.isCancelled else { return }
-            self?.recomputeDisplayedAttachments()
-        }
+        recomputeDisplayedAttachments()
     }
 
     private func recomputeDisplayedAttachments() {
-        var results = searchQuery.isEmpty
+        let query = searchQuery
+        let all = allAttachments
+        let results = searchResults
+        let fileType = filterFileType
+        let direction = filterDirection
+        let rules = exclusionRules
+
+        recomputeTask?.cancel()
+        recomputeTask = Task {
+            let filtered = Self.filterAttachments(
+                query: query, allAttachments: all, searchResults: results,
+                fileType: fileType, direction: direction, exclusionRules: rules
+            )
+            guard !Task.isCancelled else { return }
+            displayedAttachments = filtered
+        }
+    }
+
+    /// Pure filtering — nonisolated so it doesn't block the main actor.
+    nonisolated private static func filterAttachments(
+        query: String,
+        allAttachments: [IndexedAttachment],
+        searchResults: [AttachmentSearchResult],
+        fileType: Attachment.FileType?,
+        direction: IndexedAttachment.Direction?,
+        exclusionRules: [String]
+    ) -> [AttachmentSearchResult] {
+        var results = query.isEmpty
             ? allAttachments.map {
                 AttachmentSearchResult(id: $0.id, attachment: $0, score: 1.0, matchSource: .fts)
             }
             : searchResults
 
-        if let fileType = filterFileType {
+        if let fileType {
             results = results.filter { $0.attachment.fileType == fileType.rawValue }
         }
-        if let direction = filterDirection {
+        if let direction {
             results = results.filter { $0.attachment.direction == direction }
         }
-
-        // Apply exclusion rules
         if !exclusionRules.isEmpty {
             results = results.filter { r in
                 !exclusionRules.contains(where: { r.attachment.filename.matchesGlob($0) })
             }
         }
-
-        // Deduplicate by filename + size (same file attached to multiple emails)
         var seen = Set<String>()
         results = results.filter { r in
             let key = "\(r.attachment.filename)_\(r.attachment.size)"
             return seen.insert(key).inserted
         }
-        displayedAttachments = results
+        return results
     }
 
     // MARK: - Init

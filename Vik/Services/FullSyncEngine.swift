@@ -815,18 +815,28 @@ actor FullSyncEngine {
 
     // MARK: - Notifications
 
-    @MainActor
-    private func fireNotifications(for messages: [GmailMessage]) {
-        let inboxMessages = messages
+    /// Filter for inbox messages and parse sender contacts — pure computation, no actor state needed.
+    nonisolated private static func prepareNotifications(
+        from messages: [GmailMessage]
+    ) -> [(msg: GmailMessage, senderName: String)] {
+        messages
             .filter { $0.labelIds?.contains(GmailSystemLabel.inbox) == true }
             .prefix(5)
-        for msg in inboxMessages {
-            let sender = GmailDataTransformer.parseContactCore(msg.from)
+            .map { msg in
+                let sender = GmailDataTransformer.parseContactCore(msg.from)
+                return (msg: msg, senderName: sender.name)
+            }
+    }
+
+    @MainActor
+    private func fireNotifications(for messages: [GmailMessage]) {
+        let prepared = Self.prepareNotifications(from: messages)
+        for (msg, senderName) in prepared {
             let priority = notificationPriority(for: msg)
             NotificationService.shared.notifyNewEmail(
                 messageId: msg.id,
                 threadId: msg.threadId,
-                senderName: sender.name,
+                senderName: senderName,
                 subject: msg.subject,
                 snippet: msg.snippet ?? "",
                 accountID: accountID,

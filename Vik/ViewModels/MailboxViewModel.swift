@@ -91,18 +91,18 @@ final class MailboxViewModel {
     @ObservationIgnored var onEmailsChanged: (() -> Void)?
 
     var priorityFilterEnabled: Bool = false
-    private var displayLimit: Int = 200
+    @ObservationIgnored private var displayLimit: Int = 200
     private(set) var hasMoreEmails: Bool = false
     private(set) var isLoadingMore: Bool = false
 
     var accountID: String
-    private var currentLabelIDs: [String] = [GmailSystemLabel.inbox]
-    private var currentQuery:    String?
+    @ObservationIgnored private var currentLabelIDs: [String] = [GmailSystemLabel.inbox]
+    @ObservationIgnored private var currentQuery:    String?
 
     // MARK: - Services
 
-    private(set) var mailDatabase: MailDatabase?
-    private(set) var backgroundSyncer: BackgroundSyncer?
+    @ObservationIgnored private(set) var mailDatabase: MailDatabase?
+    @ObservationIgnored private(set) var backgroundSyncer: BackgroundSyncer?
 
     /// Update the mail database for this view model.
     func setMailDatabase(_ db: MailDatabase?) {
@@ -114,7 +114,7 @@ final class MailboxViewModel {
         self.backgroundSyncer = syncer
     }
 
-    private(set) var syncProgressManager: SyncProgressManager?
+    @ObservationIgnored private(set) var syncProgressManager: SyncProgressManager?
 
     func setSyncProgressManager(_ manager: SyncProgressManager) {
         self.syncProgressManager = manager
@@ -229,7 +229,7 @@ final class MailboxViewModel {
 
     /// Convert association-prefetched records into threaded Email models.
     /// Pure computation — no database access needed.
-    private static func threadedEmails(from records: [MessageWithAssociations]) -> [Email] {
+    nonisolated private static func threadedEmails(from records: [MessageWithAssociations]) -> [Email] {
         let emails = records.map { row in
             row.message.toEmail(labels: row.labels, tags: row.tags, attachments: row.attachments)
         }
