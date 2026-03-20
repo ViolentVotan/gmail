@@ -126,8 +126,8 @@ final class ThumbnailCache {
                 let data = try await self.fetchAttachment(msgId, attId, accountID)
                 guard !Task.isCancelled else { return }
                 let thumb: NSImage? = switch fileType {
-                case .image: Self.imageThumb(from: data, maxSize: maxSize)
-                case .pdf:   Self.pdfThumb(from: data, maxSize: maxSize)
+                case .image: await Self.imageThumb(from: data, maxSize: maxSize)
+                case .pdf:   await Self.pdfThumb(from: data, maxSize: maxSize)
                 default:     nil
                 }
                 if let thumb {
@@ -193,7 +193,7 @@ final class ThumbnailCache {
 
     // MARK: - Generators
 
-    private static func imageThumb(from data: Data, maxSize: CGSize) -> NSImage? {
+    @concurrent private static func imageThumb(from data: Data, maxSize: CGSize) async -> NSImage? {
         guard let image = NSImage(data: data) else { return nil }
         let size = image.size
         guard size.width > 0, size.height > 0 else { return nil }
@@ -207,7 +207,7 @@ final class ThumbnailCache {
         return thumb
     }
 
-    private static func pdfThumb(from data: Data, maxSize: CGSize) -> NSImage? {
+    @concurrent private static func pdfThumb(from data: Data, maxSize: CGSize) async -> NSImage? {
         guard let doc = PDFDocument(data: data),
               let page = doc.page(at: 0) else { return nil }
         let bounds = page.bounds(for: .mediaBox)
