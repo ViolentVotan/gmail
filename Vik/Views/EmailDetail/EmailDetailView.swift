@@ -402,11 +402,11 @@ struct EmailDetailView: View {
             }
 
             GlassEffectContainer(spacing: 1) {
-                LazyVStack(spacing: 1) {
-                ForEach(Array(allMessages.enumerated()), id: \.element.id) { index, message in
-                    threadCard(for: message, at: index)
-                        .id(message.id)
-                }
+                VStack(spacing: 1) {
+                    ForEach(Array(allMessages.enumerated()), id: \.element.id) { index, message in
+                        threadCard(for: message, at: index)
+                            .id(message.id)
+                    }
                 }
             }
         }

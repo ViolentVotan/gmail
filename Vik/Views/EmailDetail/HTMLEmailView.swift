@@ -291,22 +291,45 @@ struct HTMLEmailView: NSViewRepresentable {
 
         fixContrastColors();
 
-        // Observe content size changes via ResizeObserver — fires when images load,
-        // fonts render, or any layout shift occurs.
+        // Robust content height measurement — layered approach:
+        // 1. ResizeObserver for layout-driven changes (reflow, font render)
+        // 2. Image load/error listeners for async image loading
+        // 3. MutationObserver to re-attach image listeners after innerHTML injection
+        // Uses scrollHeight (includes padding, overflow) instead of contentRect.height.
         var content = document.getElementById('emailContent');
         if (content) {
             var lastH = 0;
-            new ResizeObserver(function(entries) {
-                var h = Math.ceil(entries[0].contentRect.height);
-                if (h > 0 && h !== lastH) {
-                    lastH = h;
-                    window.webkit.messageHandlers.heightChanged.postMessage(h);
-                }
-            }).observe(content);
-            var initH = content.offsetHeight;
-            if (initH > 0) {
-                window.webkit.messageHandlers.heightChanged.postMessage(initH);
+            var heightTimer = null;
+            function reportHeight() {
+                clearTimeout(heightTimer);
+                heightTimer = setTimeout(function() {
+                    var h = Math.ceil(content.scrollHeight);
+                    if (h > 0 && h !== lastH) {
+                        lastH = h;
+                        window.webkit.messageHandlers.heightChanged.postMessage(h);
+                    }
+                }, 16);
             }
+
+            new ResizeObserver(function() {
+                reportHeight();
+            }).observe(content);
+
+            function observeImages() {
+                content.querySelectorAll('img').forEach(function(img) {
+                    if (img.complete) return;
+                    img.addEventListener('load', reportHeight);
+                    img.addEventListener('error', reportHeight);
+                });
+            }
+            observeImages();
+
+            new MutationObserver(function() {
+                observeImages();
+                requestAnimationFrame(reportHeight);
+            }).observe(content, { childList: true, subtree: true });
+
+            reportHeight();
         }
         """
     }
@@ -362,6 +385,13 @@ struct HTMLEmailView: NSViewRepresentable {
                         """
                         document.getElementById('emailContent').innerHTML = html;
                         if (typeof fixContrastColors === 'function') { fixContrastColors(); }
+                        // Explicit post-injection measurement after layout settles —
+                        // MutationObserver + ResizeObserver handle ongoing updates,
+                        // but requestAnimationFrame ensures the first measurement
+                        // happens after WebKit completes layout for the new DOM.
+                        if (typeof reportHeight === 'function') {
+                            requestAnimationFrame(function() { reportHeight(); });
+                        }
                         """,
                         arguments: ["html": html],
                         contentWorld: .page
