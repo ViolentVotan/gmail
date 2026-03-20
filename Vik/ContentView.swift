@@ -92,115 +92,23 @@ struct ContentView: View {
 
     private var mainLayout: some View {
         @Bindable var navigation = coordinator.navigation
-        @Bindable var selection = coordinator.selection
         return ZStack {
             HStack(spacing: 0) {
-                SidebarView(
-                    selectedFolder: $navigation.selectedFolder,
-                    selectedInboxCategory: $navigation.selectedInboxCategory,
-                    selectedLabel: $navigation.selectedLabel,
-                    selectedAccountID: $navigation.selectedAccountID,
-                    authViewModel: coordinator.authViewModel,
-                    isCollapsed: isSidebarCollapsed,
-                    userLabels: coordinator.mailboxViewModel.userLabels,
-                    viewMode: coordinator.calendar.viewMode,
-                    calendarViewModel: coordinator.calendar.calendarViewModel,
-                    miniAgendaEvents: coordinator.calendar.miniAgendaEvents,
-                    onSwitchToMail: { coordinator.calendar.switchToMail() },
-                    onSwitchToCalendar: { coordinator.calendar.switchToCalendar(db: coordinator.sync.mailDatabase) },
-                    onNavigateToEvent: { event in coordinator.calendar.navigateToEvent(event, db: coordinator.sync.mailDatabase) },
-                    onRenameLabel: { label, newName in Task { await coordinator.renameLabel(label, to: newName) } },
-                    onDeleteLabel: { label in Task { await coordinator.deleteLabel(label) } },
-                    onDropToTrash: { msgId, accountID in
-                        guard let email = coordinator.mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgId }) else { return }
-                        Task { await coordinator.actionCoordinator.deleteEmail(email, selectNext: { _ in }) }
-                    },
-                    onDropToArchive: { msgId, accountID in
-                        guard let email = coordinator.mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgId }) else { return }
-                        Task { await coordinator.actionCoordinator.archiveEmail(email, selectNext: { _ in }) }
-                    },
-                    onDropToSpam: { msgId, accountID in
-                        guard let email = coordinator.mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgId }) else { return }
-                        Task { await coordinator.actionCoordinator.markSpamEmail(email, selectNext: { _ in }) }
-                    },
-                    onDropToLabel: { msgId, labelId, accountID in
-                        Task { await coordinator.mailboxViewModel.addLabel(labelId, to: msgId) }
-                    },
-                    onSignOut: { account in
-                        coordinator.authViewModel.signOut(account)
-                    },
-                    onSetAsDefault: { id in AccountStore.shared.setAsDefault(id: id) },
-                    onSetAccentColor: { id, hex in AccountStore.shared.setAccentColor(id: id, hex: hex) },
-                    onToggleSidebar: {
-                        withAnimation(VikAnimation.springDefault) {
-                            isSidebarCollapsed.toggle()
-                        }
-                    },
-                    onShowDebug: {
-                        coordinator.panelCoordinator.showDebug = true
-                    },
-                    onRefresh: {
-                        Task { await coordinator.sync.syncEngine?.triggerIncrementalSync() }
-                    },
-                    onNewEvent: {
-                        if let calendarVM = coordinator.calendar.calendarViewModel {
-                            calendarVM.selectedDate = Date()
-                        }
-                        coordinator.switchToCalendar()
-                    }
+                SidebarContainer(
+                    coordinator: coordinator,
+                    isSidebarCollapsed: $isSidebarCollapsed,
+                    appFocus: $appFocus,
+                    sidebarWidth: sidebarWidth
                 )
-                .focused($appFocus, equals: .sidebar)
-                .frame(width: sidebarWidth)
-                .background(.regularMaterial)
 
                 if coordinator.calendar.viewMode == .calendar, let calendarVM = coordinator.calendar.calendarViewModel {
-                    CalendarContainerView(
-                        viewModel: calendarVM,
-                        onNewEvent: {
-                            newCalendarEventDraft = nil
-                            newEventStartTime = nil
-                            showNewCalendarEvent = true
-                        },
-                        onSelectEvent: { event in
-                            calendarVM.selectedEvent = event
-                        },
-                        onCreateEvent: { date, hour in
-                            calendarVM.selectedDate = date
-                            newCalendarEventDraft = nil
-                            var comps = Calendar.current.dateComponents([.year, .month, .day], from: date)
-                            comps.hour = hour
-                            newEventStartTime = Calendar.current.date(from: comps)
-                            showNewCalendarEvent = true
-                        },
-                        onEdit: { event in
-                            calendarVM.selectedEvent = nil
-                            newCalendarEventDraft = EventEditDraft(from: event)
-                            showNewCalendarEvent = true
-                        },
-                        onDelete: { event in
-                            calendarVM.selectedEvent = nil
-                            Task { try? await calendarVM.deleteEvent(event) }
-                        },
-                        onRSVP: { event, status in
-                            Task { try? await calendarVM.respondToEvent(event, status: status) }
-                        },
-                        onEmailAttendees: { event in
-                            CalendarEventQuickActions.emailAttendees(event: event) { mode in
-                                coordinator.startCompose(mode: mode)
-                            }
-                        },
-                        composeTo: { email in
-                            coordinator.startCompose(mode: .newTo(to: email))
-                        },
-                        searchSender: { email in
-                            Task { await coordinator.mailboxViewModel.search(query: "from:\(email)") }
-                        }
+                    CalendarContainer(
+                        coordinator: coordinator,
+                        calendarVM: calendarVM,
+                        showNewCalendarEvent: $showNewCalendarEvent,
+                        newCalendarEventDraft: $newCalendarEventDraft,
+                        newEventStartTime: $newEventStartTime
                     )
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .offset(x: OffsetToken.medium)),
-                        removal: .opacity.combined(with: .offset(x: OffsetToken.medium))
-                    ))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else {
                     listDetailSplit
                         .transition(.asymmetric(
@@ -745,6 +653,136 @@ struct ContentView: View {
                         }
                     }
                 }
+        }
+    }
+
+    // MARK: - Sidebar Container
+
+    private struct SidebarContainer: View {
+        let coordinator: AppCoordinator
+        @Binding var isSidebarCollapsed: Bool
+        var appFocus: FocusState<AppFocus?>.Binding
+        let sidebarWidth: CGFloat
+
+        var body: some View {
+            @Bindable var navigation = coordinator.navigation
+            SidebarView(
+                selectedFolder: $navigation.selectedFolder,
+                selectedInboxCategory: $navigation.selectedInboxCategory,
+                selectedLabel: $navigation.selectedLabel,
+                selectedAccountID: $navigation.selectedAccountID,
+                authViewModel: coordinator.authViewModel,
+                isCollapsed: isSidebarCollapsed,
+                userLabels: coordinator.mailboxViewModel.userLabels,
+                viewMode: coordinator.calendar.viewMode,
+                calendarViewModel: coordinator.calendar.calendarViewModel,
+                miniAgendaEvents: coordinator.calendar.miniAgendaEvents,
+                onSwitchToMail: { coordinator.calendar.switchToMail() },
+                onSwitchToCalendar: { coordinator.calendar.switchToCalendar(db: coordinator.sync.mailDatabase) },
+                onNavigateToEvent: { event in coordinator.calendar.navigateToEvent(event, db: coordinator.sync.mailDatabase) },
+                onRenameLabel: { label, newName in Task { await coordinator.renameLabel(label, to: newName) } },
+                onDeleteLabel: { label in Task { await coordinator.deleteLabel(label) } },
+                onDropToTrash: { msgId, accountID in
+                    guard let email = coordinator.mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgId }) else { return }
+                    Task { await coordinator.actionCoordinator.deleteEmail(email, selectNext: { _ in }) }
+                },
+                onDropToArchive: { msgId, accountID in
+                    guard let email = coordinator.mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgId }) else { return }
+                    Task { await coordinator.actionCoordinator.archiveEmail(email, selectNext: { _ in }) }
+                },
+                onDropToSpam: { msgId, accountID in
+                    guard let email = coordinator.mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgId }) else { return }
+                    Task { await coordinator.actionCoordinator.markSpamEmail(email, selectNext: { _ in }) }
+                },
+                onDropToLabel: { msgId, labelId, accountID in
+                    Task { await coordinator.mailboxViewModel.addLabel(labelId, to: msgId) }
+                },
+                onSignOut: { account in
+                    coordinator.authViewModel.signOut(account)
+                },
+                onSetAsDefault: { id in AccountStore.shared.setAsDefault(id: id) },
+                onSetAccentColor: { id, hex in AccountStore.shared.setAccentColor(id: id, hex: hex) },
+                onToggleSidebar: {
+                    withAnimation(VikAnimation.springDefault) {
+                        isSidebarCollapsed.toggle()
+                    }
+                },
+                onShowDebug: {
+                    coordinator.panelCoordinator.showDebug = true
+                },
+                onRefresh: {
+                    Task { await coordinator.sync.syncEngine?.triggerIncrementalSync() }
+                },
+                onNewEvent: {
+                    if let calendarVM = coordinator.calendar.calendarViewModel {
+                        calendarVM.selectedDate = Date()
+                    }
+                    coordinator.switchToCalendar()
+                }
+            )
+            .focused(appFocus, equals: .sidebar)
+            .frame(width: sidebarWidth)
+            .background(.regularMaterial)
+        }
+    }
+
+    // MARK: - Calendar Container
+
+    private struct CalendarContainer: View {
+        let coordinator: AppCoordinator
+        let calendarVM: CalendarViewModel
+        @Binding var showNewCalendarEvent: Bool
+        @Binding var newCalendarEventDraft: EventEditDraft?
+        @Binding var newEventStartTime: Date?
+
+        var body: some View {
+            CalendarContainerView(
+                viewModel: calendarVM,
+                onNewEvent: {
+                    newCalendarEventDraft = nil
+                    newEventStartTime = nil
+                    showNewCalendarEvent = true
+                },
+                onSelectEvent: { event in
+                    calendarVM.selectedEvent = event
+                },
+                onCreateEvent: { date, hour in
+                    calendarVM.selectedDate = date
+                    newCalendarEventDraft = nil
+                    var comps = Calendar.current.dateComponents([.year, .month, .day], from: date)
+                    comps.hour = hour
+                    newEventStartTime = Calendar.current.date(from: comps)
+                    showNewCalendarEvent = true
+                },
+                onEdit: { event in
+                    calendarVM.selectedEvent = nil
+                    newCalendarEventDraft = EventEditDraft(from: event)
+                    showNewCalendarEvent = true
+                },
+                onDelete: { event in
+                    calendarVM.selectedEvent = nil
+                    Task { try? await calendarVM.deleteEvent(event) }
+                },
+                onRSVP: { event, status in
+                    Task { try? await calendarVM.respondToEvent(event, status: status) }
+                },
+                onEmailAttendees: { event in
+                    CalendarEventQuickActions.emailAttendees(event: event) { mode in
+                        coordinator.startCompose(mode: mode)
+                    }
+                },
+                composeTo: { email in
+                    coordinator.startCompose(mode: .newTo(to: email))
+                },
+                searchSender: { email in
+                    Task { await coordinator.mailboxViewModel.search(query: "from:\(email)") }
+                }
+            )
+            .transition(.asymmetric(
+                insertion: .opacity.combined(with: .offset(x: OffsetToken.medium)),
+                removal: .opacity.combined(with: .offset(x: OffsetToken.medium))
+            ))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
