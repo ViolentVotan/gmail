@@ -54,7 +54,7 @@ New queries in `MailDatabaseQueries`: `calendars`, `visibleCalendars`, `allVisib
 ### `Services/BackgroundSyncer.swift`
 
 Actor that centralizes all bulk DB writes. All methods are `async throws` using GRDB's async write API (does not block the actor executor). Shared helpers: `upsertSingleMessage` (DRY extraction used by both upsert and delta paths). Thread count updates use `MailDatabaseQueries.updateThreadCounts(for:in:)` (CTE-based — computes counts once per thread via `GROUP BY`, then batch-updates all affected messages; shared across BackgroundSyncer and MailboxViewModel). FTS always uses unconditional `FTSManager.update` (DELETE + INSERT — safe for new and existing rows):
-- `upsertMessages(_:ensureLabels:)` — delegates per-message work to `upsertSingleMessage`; `thread_message_count` via `MailDatabaseQueries.updateThreadCounts`
+- `upsertMessages(_:ensureLabels:)` — batch-prefetches existing label sets in a single query, then delegates per-message work to `upsertSingleMessage`; `thread_message_count` via `MailDatabaseQueries.updateThreadCounts`
 - `updateDraftIds(_:)` — populates `gmail_draft_id` on existing message records (mapping from Gmail Drafts API)
 - `deleteMessages(gmailIds:)` — removes messages (FTS cleanup handled by v6 trigger); also calls `AttachmentDatabase.shared.deleteMessages()` for attachment cleanup (separate SQLite connection — documented atomicity gap); `thread_message_count` via `MailDatabaseQueries.updateThreadCounts`
 - `updateBodies(_:)` — writes pre-fetched full bodies + updates FTS
