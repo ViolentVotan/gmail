@@ -101,20 +101,20 @@ struct ContentView: View {
                     sidebarWidth: sidebarWidth
                 )
 
-                if coordinator.calendar.viewMode == .calendar, let calendarVM = coordinator.calendar.calendarViewModel {
-                    CalendarContainer(
-                        coordinator: coordinator,
-                        calendarVM: calendarVM,
-                        showNewCalendarEvent: $showNewCalendarEvent,
-                        newCalendarEventDraft: $newCalendarEventDraft,
-                        newEventStartTime: $newEventStartTime
-                    )
-                } else {
+                ZStack {
                     listDetailSplit
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .offset(x: -OffsetToken.medium)),
-                            removal: .opacity.combined(with: .offset(x: -OffsetToken.medium))
-                        ))
+                        .opacity(coordinator.calendar.viewMode == .mail ? 1 : 0)
+
+                    if let calendarVM = coordinator.calendar.calendarViewModel {
+                        CalendarContainer(
+                            coordinator: coordinator,
+                            calendarVM: calendarVM,
+                            showNewCalendarEvent: $showNewCalendarEvent,
+                            newCalendarEventDraft: $newCalendarEventDraft,
+                            newEventStartTime: $newEventStartTime
+                        )
+                        .opacity(coordinator.calendar.viewMode == .calendar ? 1 : 0)
+                    }
                 }
             }
             .animation(reduceMotion ? nil : VikAnimation.folderSwitch, value: coordinator.calendar.viewMode)
@@ -778,10 +778,6 @@ struct ContentView: View {
                     Task { await coordinator.mailboxViewModel.search(query: "from:\(email)") }
                 }
             )
-            .transition(.asymmetric(
-                insertion: .opacity.combined(with: .offset(x: OffsetToken.medium)),
-                removal: .opacity.combined(with: .offset(x: OffsetToken.medium))
-            ))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
