@@ -135,40 +135,40 @@ struct HTMLEmailView: NSViewRepresentable {
     // MARK: - NSViewRepresentable
 
     func makeNSView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.userContentController.add(
+        // Dequeue a pre-warmed web view from the pool (template already loaded),
+        // or get a fresh one if the pool is empty.
+        let webView = WebViewPool.shared.dequeue()
+
+        // Add coordinator-specific handlers (pool creates bare web views without these).
+        webView.configuration.userContentController.add(
             WeakScriptMessageHandler(context.coordinator), name: "heightChanged"
         )
-        config.defaultWebpagePreferences.allowsContentJavaScript = false
-        // Disable automatic Live Text / Image Analysis to prevent a use-after-free
-        // crash in Apple's Vision -> TextRecognition -> ImageAnalyzerMultiDetectorRecipient
-        // when the email view changes while analysis is in-flight (FB: macOS 26.3.1).
-        let disableTextExtraction = NSSelectorFromString("_setTextExtractionEnabled:")
-        if config.preferences.responds(to: disableTextExtraction) {
-            config.preferences.perform(disableTextExtraction, with: false as NSNumber)
-        }
-        #if DEBUG
-        config.preferences.setValue(true, forKey: "developerExtrasEnabled")
-        #endif
-
         let bgLum = colorScheme == .dark ? "0.015" : "0.96"
-        config.userContentController.addUserScript(WKUserScript(
+        webView.configuration.userContentController.addUserScript(WKUserScript(
             source: Self.userScriptSource(bgLum: bgLum),
             injectionTime: .atDocumentEnd,
             forMainFrameOnly: true
         ))
 
-        let webView = PassthroughWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
-        webView.setValue(false, forKey: "drawsBackground")
         context.coordinator.webView = webView
         context.coordinator.lastColorScheme = colorScheme
         context.coordinator.pendingCSSUpdate = (
             textHex: Self.currentTextHex(), bgLum: bgLum
         )
 
-        // Load template once -- all subsequent content goes through JS injection.
-        webView.loadHTMLString(Self.templateHTML(), baseURL: nil)
+        // If pool provided a pre-loaded template, it's already ready.
+        // The user script (added via addUserScript) only runs on navigation,
+        // so we must manually execute it for pre-loaded views to define
+        // fixContrastColorsAsync, reportHeight, ResizeObserver, etc.
+        if !webView.isLoading {
+            context.coordinator.templateReady = true
+            let scriptSource = Self.userScriptSource(bgLum: bgLum)
+            Task { @MainActor in
+                _ = try? await webView.evaluateJavaScript(scriptSource)
+            }
+        }
+        // Otherwise didFinish will fire, user script runs automatically via atDocumentEnd.
 
         return webView
     }

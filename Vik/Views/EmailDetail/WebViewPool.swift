@@ -17,6 +17,7 @@ final class WebViewPool {
     }
 
     /// Returns a pre-warmed WKWebView, or creates one on demand.
+    /// Returned views always have the template loaded (or loading).
     func dequeue() -> WKWebView {
         if let wv = available.popLast() {
             Task { @MainActor [weak self] in
@@ -24,7 +25,11 @@ final class WebViewPool {
             }
             return wv
         }
-        return createWebView()
+        // Fallback: create on demand and start loading the template.
+        // didFinish will fire once the template is ready.
+        let wv = createWebView()
+        wv.loadHTMLString(HTMLEmailView.templateHTML(), baseURL: nil)
+        return wv
     }
 
     /// Recycles a WKWebView back to the pool after use.
