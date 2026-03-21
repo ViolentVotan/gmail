@@ -171,17 +171,13 @@ final class EmailDetailViewModel {
 
     func allowBlockedContent() {
         allowTrackers = true
+        // Re-resolve latest message HTML with original (unblocked) content.
+        guard let latest = latestMessage else { return }
+        let t = Task { await resolveInlineImages(for: latest) }
+        backgroundTasks.withLock { $0.append(t) }
     }
 
     // MARK: - Tracker analysis
-
-    private func analyzeTrackers() async {
-        guard let html = latestMessage?.htmlBody, !html.isEmpty else {
-            trackerResult = nil
-            return
-        }
-        trackerResult = await sanitizeOffMainActor(html: html)
-    }
 
     @concurrent private func sanitizeOffMainActor(html: String) async -> TrackerResult {
         TrackerBlockerService.shared.sanitize(html: html)
