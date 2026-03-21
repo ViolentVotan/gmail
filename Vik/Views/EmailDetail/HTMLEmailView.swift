@@ -453,10 +453,11 @@ struct HTMLEmailView: NSViewRepresentable {
         /// CSP `script-src 'none'` prevents any scripts in the injected HTML from executing.
         func injectContent(_ html: String) {
             guard let webView else { return }
+            let isDarkMode = lastColorScheme == .dark
             Task { @MainActor [weak self] in
+                // Phase 1: inject HTML and measure height — show content immediately
                 _ = try? await webView.callAsyncJavaScript(
                     "document.getElementById('emailContent').innerHTML = html;"
-                    + "if (typeof fixContrastColorsAsync === 'function') { fixContrastColorsAsync(); }"
                     + "if (typeof reportHeight === 'function') {"
                     + "  requestAnimationFrame(function() { reportHeight(); });"
                     + "}",
@@ -464,17 +465,29 @@ struct HTMLEmailView: NSViewRepresentable {
                     contentWorld: .page
                 )
                 self?.parent.isContentLoaded = true
+
+                // Phase 2: fix contrast asynchronously (only in dark mode)
+                guard isDarkMode else { return }
+                _ = try? await webView.callAsyncJavaScript(
+                    "if (typeof fixContrastColorsAsync === 'function') { fixContrastColorsAsync(); }",
+                    arguments: [:],
+                    contentWorld: .page
+                )
             }
         }
 
         /// Updates CSS custom properties and re-runs contrast fix for color scheme changes.
         func updateColorScheme(textHex: String, bgLum: String) {
             guard let webView else { return }
+            let isDarkMode = lastColorScheme == .dark
             Task { @MainActor in
+                let contrastFix = isDarkMode
+                    ? "if (typeof fixContrastColorsAsync === 'function') { fixContrastColorsAsync(); }"
+                    : ""
                 _ = try? await webView.callAsyncJavaScript(
                     "document.documentElement.style.setProperty('--text-color', textHex);"
                     + "PAGE_BG_LUM = parseFloat(bgLum);"
-                    + "if (typeof fixContrastColorsAsync === 'function') { fixContrastColorsAsync(); }",
+                    + contrastFix,
                     arguments: ["textHex": textHex, "bgLum": bgLum],
                     contentWorld: .page
                 )
