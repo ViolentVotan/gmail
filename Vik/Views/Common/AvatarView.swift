@@ -30,10 +30,15 @@ struct AvatarView: View {
 
     @State private var loader = AvatarLoader()
 
+    private static var textColorCache: [String: Color] = [:]
+
     private var avatarTextColor: Color {
+        if let cached = Self.textColorCache[color] { return cached }
         let bgColor = NSColor(Color(hex: color)).usingColorSpace(.sRGB)
         let luminance = bgColor?.relativeLuminance() ?? 0
-        return luminance > 0.7 ? .primary : .white
+        let result: Color = luminance > 0.7 ? .primary : .white
+        Self.textColorCache[color] = result
+        return result
     }
 
     var body: some View {

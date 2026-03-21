@@ -132,7 +132,6 @@ enum CacheMigration {
               !tags.isEmpty
         else { return }
 
-        let now = Date().timeIntervalSince1970
         try await db.dbPool.write { grdb in
             for (messageId, tag) in tags {
                 // Foreign key constraint on email_tags.message_id will reject inserts
@@ -142,9 +141,7 @@ enum CacheMigration {
                     needsReply: tag.needsReply,
                     fyiOnly: tag.fyiOnly,
                     hasDeadline: tag.hasDeadline,
-                    financial: tag.financial,
-                    classifiedAt: now,
-                    classifierVersion: nil
+                    financial: tag.financial
                 )
                 do {
                     try record.upsert(grdb)

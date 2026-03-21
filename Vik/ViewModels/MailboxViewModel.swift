@@ -57,14 +57,6 @@ private func mutateLabels(
         arguments: [isRead, isStarred, messageID]
     )
 
-    // 6. Recompute thread_message_count for all messages in the same thread.
-    if let threadID = try String.fetchOne(database, sql:
-        "SELECT thread_id FROM messages WHERE gmail_id = ?",
-        arguments: [messageID]
-    ) {
-        try MailDatabaseQueries.updateThreadCounts(for: [threadID], in: database)
-    }
-
     return currentLabels
 }
 
@@ -175,6 +167,7 @@ final class MailboxViewModel {
                 """, arguments: StatementArguments(labelIDs))
         }
         let request = base
+            .select(MessageRecord.listColumns)
             .including(all: MessageRecord.labels)
             .including(optional: MessageRecord.tags)
             .including(all: MessageRecord.attachments)
@@ -298,6 +291,7 @@ final class MailboxViewModel {
 
                 // Use association prefetching: 1 query for messages + 3 batch queries for associations
                 let request = MessageRecord
+                    .select(MessageRecord.listColumns)
                     .filter(sql: """
                         gmail_id IN (
                             SELECT gmail_id FROM messages_fts WHERE messages_fts MATCH ?

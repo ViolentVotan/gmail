@@ -46,9 +46,9 @@ final class CalendarIntegrationService: Sendable {
         let cutoff = Date().addingTimeInterval(48 * 3600).timeIntervalSince1970
 
         do {
-            let merged = try await db.dbPool.read { dbConnection -> [(CalendarEventRecord, [CalendarAttendeeRecord])] in
+            let events = try await db.dbPool.read { dbConnection -> [CalendarEventRecord] in
                 var seen = Set<String>()
-                var result: [(CalendarEventRecord, [CalendarAttendeeRecord])] = []
+                var result: [CalendarEventRecord] = []
                 for email in emails {
                     let records = try MailDatabaseQueries.upcomingEventsWithParticipant(
                         email: email,
@@ -60,19 +60,35 @@ final class CalendarIntegrationService: Sendable {
                         guard record.startTime <= cutoff else { continue }
                         guard !seen.contains(record.eventId) else { continue }
                         seen.insert(record.eventId)
-                        let attendees = try CalendarAttendeeRecord
-                            .filter(Column("event_id") == record.eventId)
-                            .filter(Column("calendar_id") == record.calendarId)
-                            .filter(Column("account_id") == record.accountId)
-                            .fetchAll(dbConnection)
-                        result.append((record, attendees))
+                        result.append(record)
                     }
                 }
                 return result
             }
 
-            return merged
-                .map { $0.toCalendarEvent(attendees: $1, calendarColor: .accentColor) }
+            guard !events.isEmpty else { return [] }
+
+            // Batch-fetch all attendees for collected events in a single query.
+            let compositeKeys = events.map { ($0.eventId, $0.calendarId, $0.accountId) }
+            let allAttendees: [CalendarAttendeeRecord] = (try? await db.dbPool.read { dbConnection in
+                let placeholders = compositeKeys.map { _ in "(?, ?, ?)" }.joined(separator: ", ")
+                let args = compositeKeys.flatMap { [$0.0 as (any DatabaseValueConvertible), $0.1, $0.2] }
+                return try CalendarAttendeeRecord.filter(
+                    sql: "(event_id, calendar_id, account_id) IN (\(placeholders))",
+                    arguments: StatementArguments(args)
+                ).fetchAll(dbConnection)
+            }) ?? []
+
+            // Group attendees by composite key for O(1) lookup.
+            let attendeesByKey = Dictionary(grouping: allAttendees) {
+                "\($0.eventId)\u{001F}\($0.calendarId)\u{001F}\($0.accountId)"
+            }
+
+            return events
+                .map { record in
+                    let key = "\(record.eventId)\u{001F}\(record.calendarId)\u{001F}\(record.accountId)"
+                    return record.toCalendarEvent(attendees: attendeesByKey[key] ?? [], calendarColor: .accentColor)
+                }
                 .sorted { $0.startTime < $1.startTime }
                 .prefix(limit)
                 .map { $0 }

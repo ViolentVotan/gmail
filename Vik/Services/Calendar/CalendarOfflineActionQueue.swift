@@ -60,10 +60,6 @@ final class CalendarOfflineActionQueue {
         return store.itemsByAccount[accountID] ?? []
     }
 
-    func hasPendingActions(for accountID: String) -> Bool {
-        return !(store.itemsByAccount[accountID]?.isEmpty ?? true)
-    }
-
     /// Processes all pending actions for the given account in order.
     /// Stops on the first failure to preserve ordering guarantees.
     func processQueue(accountID: String) async {

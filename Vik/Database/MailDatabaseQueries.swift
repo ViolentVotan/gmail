@@ -6,14 +6,15 @@ internal import GRDB
 enum MailDatabaseQueries {
 
     /// Messages for a given label, newest first.
+    /// Selects only list-display columns — excludes heavy body/header blobs.
     static func messagesForLabel(_ labelId: String, limit: Int = 50, offset: Int = 0, in db: Database) throws -> [MessageRecord] {
-        try MessageRecord.fetchAll(db, sql: """
-            SELECT m.* FROM messages m
-            JOIN message_labels ml ON ml.message_id = m.gmail_id
-            WHERE ml.label_id = ?
-            ORDER BY m.internal_date DESC
-            LIMIT ? OFFSET ?
-        """, arguments: [labelId, limit, offset])
+        try MessageRecord
+            .select(MessageRecord.listColumns)
+            .joining(required: MessageRecord.messageLabels
+                .filter(Column("label_id") == labelId))
+            .order(Column("internal_date").desc)
+            .limit(limit, offset: offset)
+            .fetchAll(db)
     }
 
     /// All messages in a thread, oldest first (for conversation display).
@@ -153,14 +154,6 @@ enum MailDatabaseQueries {
     /// All calendars across every account (for sidebar display — includes hidden ones).
     static func allCalendars(in db: Database) throws -> [CalendarRecord] {
         try CalendarRecord
-            .order(Column("is_primary").desc, Column("summary").asc)
-            .fetchAll(db)
-    }
-
-    /// All visible calendars across every account (for unified calendar view).
-    static func allVisibleCalendars(in db: Database) throws -> [CalendarRecord] {
-        try CalendarRecord
-            .filter(Column("is_visible") == true)
             .order(Column("is_primary").desc, Column("summary").asc)
             .fetchAll(db)
     }

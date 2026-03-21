@@ -25,7 +25,6 @@ enum CornerRadius {
     static let sm: CGFloat = 6
     static let md: CGFloat = 12
     static let lg: CGFloat = 16
-    static let xl: CGFloat = 24
 }
 
 // MARK: - Brand Colors
@@ -133,8 +132,6 @@ enum VikAnimation {
 enum OpacityToken {
     /// Disabled controls, inactive elements
     static let disabled: CGFloat = 0.5
-    /// Tertiary text, inactive icons
-    static let subtle: CGFloat = 0.6
     /// Secondary foregrounds, muted icons
     static let secondary: CGFloat = 0.7
     /// Subtle background tints, hover highlights
@@ -158,8 +155,6 @@ enum ScaleToken {
     static let press: CGFloat = 0.97
     /// Emphasized interaction (onboarding buttons)
     static let emphasis: CGFloat = 1.04
-    /// Collapsed/hidden state
-    static let minimize: CGFloat = 0.5
     /// Content entering view (scale-up from)
     static let enterFrom: CGFloat = 0.95
     /// Subtle hover lift on email rows (gentler than cards)
@@ -173,10 +168,6 @@ enum OffsetToken {
     static let nudge: CGFloat = 4
     /// Pop-in animations, small reveals
     static let small: CGFloat = 12
-    /// Panel/card transitions
-    static let medium: CGFloat = 24
-    /// Full slide animations, large content moves
-    static let large: CGFloat = 40
 }
 
 // MARK: - Duration Tokens
@@ -186,14 +177,10 @@ enum DurationToken {
     static let micro: CGFloat = 0.12
     /// Quick interaction (tab switch, badge)
     static let quick: CGFloat = 0.2
-    /// Standard content swap
-    static let standard: CGFloat = 0.25
     /// Deliberate transitions (folder switch)
     static let deliberate: CGFloat = 0.3
     /// Stagger delay per item in lists
     static let stagger: CGFloat = 0.04
-    /// Auth/onboarding transitions
-    static let slow: CGFloat = 0.5
 }
 
 // MARK: - Typography

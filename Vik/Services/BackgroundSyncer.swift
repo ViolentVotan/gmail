@@ -91,13 +91,16 @@ actor BackgroundSyncer {
     /// The regular messages API does not include draft IDs.
     func updateDraftIds(_ mappings: [(messageGmailId: String, draftId: String)]) async throws {
         guard !mappings.isEmpty else { return }
+        // Single CASE-based UPDATE replaces N individual statements.
+        let caseClauses = mappings.map { _ in "WHEN ? THEN ?" }.joined(separator: " ")
+        let inPlaceholders = mappings.map { _ in "?" }.joined(separator: ", ")
+        let sql = "UPDATE messages SET gmail_draft_id = CASE gmail_id \(caseClauses) END WHERE gmail_id IN (\(inPlaceholders))"
+        var args: [String] = []
+        for m in mappings { args += [m.messageGmailId, m.draftId] }
+        for m in mappings { args.append(m.messageGmailId) }
+        let stmtArgs = StatementArguments(args)
         try await db.dbPool.write { db in
-            for mapping in mappings {
-                try db.execute(
-                    sql: "UPDATE messages SET gmail_draft_id = ? WHERE gmail_id = ?",
-                    arguments: [mapping.draftId, mapping.messageGmailId]
-                )
-            }
+            try db.execute(sql: sql, arguments: stmtArgs)
         }
     }
 
@@ -117,6 +120,10 @@ actor BackgroundSyncer {
             }
             return (gmailId: update.gmailId, html: update.html, plainText: plainText)
         }
+        // Loop kept intentionally: each row updates multiple columns with distinct values
+        // (body_html, body_plain, fetched_at), making a single CASE expression per column
+        // unwieldy and fragile. The wrapping write transaction already amortises the
+        // per-statement overhead, so N individual UPDATEs inside one transaction is fine.
         try await db.dbPool.write { db in
             let now = Date().timeIntervalSince1970
             for item in prepared {

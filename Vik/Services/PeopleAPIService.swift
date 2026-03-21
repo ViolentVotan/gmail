@@ -11,6 +11,7 @@ final class PeopleAPIService {
 
     /// Sync tokens expire after 7 days per Google docs. Proactively refresh at 6 days.
     nonisolated private static let syncTokenMaxAge: TimeInterval = 6 * 24 * 3600
+    nonisolated private static let baseURL = "https://people.googleapis.com/v1"
 
     /// Loads contacts: uses local cache if available, otherwise fetches from network.
     /// The caller must supply the `BackgroundSyncer` for the account so contact
@@ -101,7 +102,7 @@ final class PeopleAPIService {
                     var pageToken: String? = nil
                     repeat {
                         let encoded = syncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? syncToken
-                        var urlStr = "https://people.googleapis.com/v1/people/me/connections"
+                        var urlStr = "\(Self.baseURL)/people/me/connections"
                             + "?personFields=metadata,names,emailAddresses,photos&syncToken=\(encoded)"
                             + "&pageSize=1000&sortOrder=LAST_MODIFIED_ASCENDING"
                             + "&fields=\(Self.connectionsFields)"
@@ -162,7 +163,7 @@ final class PeopleAPIService {
                 var pageToken: String? = nil
                 do {
                     repeat {
-                        var urlStr = "https://people.googleapis.com/v1/people/me/connections"
+                        var urlStr = "\(Self.baseURL)/people/me/connections"
                             + "?personFields=metadata,names,emailAddresses,photos&pageSize=1000"
                             + "&requestSyncToken=true&sortOrder=LAST_MODIFIED_ASCENDING"
                             + "&fields=\(Self.connectionsFields)"
@@ -218,7 +219,7 @@ final class PeopleAPIService {
                     var pageToken: String? = nil
                     repeat {
                         let encoded = otherSyncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? otherSyncToken
-                        var urlStr = "https://people.googleapis.com/v1/otherContacts"
+                        var urlStr = "\(Self.baseURL)/otherContacts"
                             + "?readMask=metadata,names,emailAddresses&syncToken=\(encoded)"
                             + "&pageSize=1000&fields=\(Self.otherContactsFields)"
                         if let pt = pageToken { urlStr += "&pageToken=\(pt.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pt)" }
@@ -274,7 +275,7 @@ final class PeopleAPIService {
                 var pageToken: String? = nil
                 do {
                     repeat {
-                        var urlStr = "https://people.googleapis.com/v1/otherContacts"
+                        var urlStr = "\(Self.baseURL)/otherContacts"
                             + "?readMask=metadata,names,emailAddresses&pageSize=1000"
                             + "&requestSyncToken=true&fields=\(Self.otherContactsFields)"
                         if let pt = pageToken { urlStr += "&pageToken=\(pt.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pt)" }
@@ -364,7 +365,7 @@ final class PeopleAPIService {
                     var pageToken: String? = nil
                     repeat {
                         let encoded = dirSyncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? dirSyncToken
-                        var urlStr = "https://people.googleapis.com/v1/people:listDirectoryPeople"
+                        var urlStr = "\(Self.baseURL)/people:listDirectoryPeople"
                             + "?sources=DIRECTORY_SOURCE_TYPE_DOMAIN_CONTACT"
                             + "&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE"
                             + "&readMask=metadata,names,emailAddresses,photos"
@@ -403,7 +404,7 @@ final class PeopleAPIService {
                 // Full fetch — write per-page
                 var pageToken: String? = nil
                 repeat {
-                    var urlStr = "https://people.googleapis.com/v1/people:listDirectoryPeople"
+                    var urlStr = "\(Self.baseURL)/people:listDirectoryPeople"
                         + "?sources=DIRECTORY_SOURCE_TYPE_DOMAIN_CONTACT"
                         + "&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE"
                         + "&readMask=metadata,names,emailAddresses,photos"
@@ -463,7 +464,7 @@ final class PeopleAPIService {
         let segments = resourceName.split(separator: "/", omittingEmptySubsequences: false)
             .map { String($0).addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? String($0) }
             .joined(separator: "/")
-        let urlStr = "https://people.googleapis.com/v1/\(segments)?personFields=\(Self.personDetailFields)"
+        let urlStr = "\(Self.baseURL)/\(segments)?personFields=\(Self.personDetailFields)"
         do {
             let person: PersonResource = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
             let org = person.organizations?.first

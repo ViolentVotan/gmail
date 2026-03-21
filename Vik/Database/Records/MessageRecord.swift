@@ -6,6 +6,39 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord,
     static let databaseColumnDecodingStrategy: DatabaseColumnDecodingStrategy = .convertFromSnakeCase
     static let databaseColumnEncodingStrategy: DatabaseColumnEncodingStrategy = .convertToSnakeCase
 
+    /// Columns needed for list display — excludes heavy body/header blobs
+    /// (`body_html`, `body_plain`, `raw_headers`) that can be tens of KB each.
+    /// The primary key (`gmail_id`) is included so association prefetching works.
+    static let listColumns: [Column] = [
+        Column("gmail_id"),
+        Column("thread_id"),
+        Column("history_id"),
+        Column("internal_date"),
+        Column("snippet"),
+        Column("size_estimate"),
+        Column("subject"),
+        Column("sender_email"),
+        Column("sender_name"),
+        Column("to_recipients"),
+        Column("cc_recipients"),
+        Column("bcc_recipients"),
+        Column("reply_to"),
+        Column("message_id_header"),
+        Column("in_reply_to"),
+        Column("references_header"),
+        Column("has_attachments"),
+        Column("is_read"),
+        Column("is_starred"),
+        Column("is_from_mailing_list"),
+        Column("unsubscribe_url"),
+        Column("full_body_fetched"),
+        Column("body_fetch_attempts"),
+        Column("thread_message_count"),
+        Column("fetched_at"),
+        Column("gmail_draft_id"),
+        Column("attachment_count"),
+    ]
+
     // Primary key
     var gmailId: String
 

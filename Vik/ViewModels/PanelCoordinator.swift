@@ -83,7 +83,8 @@ final class PanelCoordinator {
             showOriginal = true
         }
         originalMessageTask?.cancel()
-        originalMessageTask = Task {
+        originalMessageTask = Task { [weak self] in
+            guard let self else { return }
             do {
                 let raw = try await fetchRaw(msg.id, accountID)
                 self.originalRawSource = raw.rawSource
@@ -123,7 +124,8 @@ final class PanelCoordinator {
         }
     ) {
         downloadTask?.cancel()
-        downloadTask = Task {
+        downloadTask = Task { [weak self] in
+            guard let self else { return }
             do {
                 let raw = try await fetchRaw(msg.id, accountID)
                 if let source = raw.rawSource, let data = source.data(using: .utf8) {

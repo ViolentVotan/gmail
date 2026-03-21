@@ -439,7 +439,8 @@ final class AppCoordinator {
         calendar.viewMode = .mail
         sync.cancelLifecycleTasks()
         sync.accountSwitchTask?.cancel()
-        let task = Task {
+        let task = Task { [weak self] in
+            guard let self else { return }
             defer {
                 if self.sync.currentAccountSwitchGeneration == generation {
                     self.sync.accountSwitchTask = nil

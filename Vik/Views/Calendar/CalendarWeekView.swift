@@ -401,10 +401,15 @@ struct CalendarWeekView: View {
         return weekday == 1 || weekday == 7
     }
 
-    private func hourLabel(for hour: Int) -> String {
-        guard hour > 0 else { return "" }
-        let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: .now) ?? .now
+    private static let hourLabels: [String] = (0..<24).map { hour in
+        guard hour != 0 else { return "" }
+        let components = DateComponents(hour: hour)
+        let date = Calendar.current.date(from: components) ?? Date()
         return date.formattedCalendarHour
+    }
+
+    private func hourLabel(for hour: Int) -> String {
+        Self.hourLabels[hour]
     }
 
     private func dateForTap(hour: Int) -> Date {

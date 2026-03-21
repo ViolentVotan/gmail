@@ -62,9 +62,7 @@ final class EmailClassifier {
                             needsReply: tags.needsReply,
                             fyiOnly: tags.fyiOnly,
                             hasDeadline: tags.hasDeadline,
-                            financial: tags.financial,
-                            classifiedAt: Date().timeIntervalSince1970,
-                            classifierVersion: nil
+                            financial: tags.financial
                         ).upsert(database)
                     }
                 }

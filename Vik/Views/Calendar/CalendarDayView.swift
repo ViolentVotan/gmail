@@ -119,7 +119,7 @@ struct CalendarDayView: View {
             ScrollView(.vertical, showsIndicators: false) {
                 ZStack(alignment: .topLeading) {
                     // Hour rows
-                    VStack(spacing: 0) {
+                    LazyVStack(spacing: 0, pinnedViews: []) {
                         ForEach(hours, id: \.self) { hour in
                             hourRow(hour: hour)
                         }

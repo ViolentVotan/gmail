@@ -16,7 +16,6 @@ struct AccountSyncStateRecord: Codable, FetchableRecord, PersistableRecord, Send
     var totalMessagesEstimate: Int?
     var syncedMessageCount: Int = 0
     var lastSyncAt: Double?
-    var lastBodyPrefetchAt: Double?
     var directorySyncToken: String?
     var labelsEtag: String?
 }

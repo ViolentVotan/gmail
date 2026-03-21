@@ -9,8 +9,14 @@ final class ThumbnailCache {
     static let shared = ThumbnailCache()
     private init() {}
 
-    /// Cached thumbnails keyed by attachment ID.
-    private(set) var thumbnails: [String: NSImage] = [:]
+    /// Tracks which attachment IDs have a cached thumbnail; observed by SwiftUI to trigger re-renders.
+    private(set) var cachedIDs: Set<String> = []
+
+    @ObservationIgnored private let thumbnailCache: NSCache<NSString, NSImage> = {
+        let cache = NSCache<NSString, NSImage>()
+        cache.countLimit = 200
+        return cache
+    }()
 
     /// IDs currently being fetched (to avoid duplicate requests).
     @ObservationIgnored private var loading: Set<String> = []
@@ -57,7 +63,8 @@ final class ThumbnailCache {
         fetchTasks.removeAll()
         saveTasks.values.forEach { $0.cancel() }
         saveTasks.removeAll()
-        thumbnails.removeAll()
+        thumbnailCache.removeAllObjects()
+        cachedIDs.removeAll()
         loading.removeAll()
         pendingQueue.removeAll()
         activeFetches = 0
@@ -66,7 +73,8 @@ final class ThumbnailCache {
     }
 
     func thumbnail(for id: String) -> NSImage? {
-        thumbnails[id]
+        guard cachedIDs.contains(id) else { return nil }
+        return thumbnailCache.object(forKey: id as NSString)
     }
 
     /// Cancel a pending thumbnail load if the card scrolled offscreen before the fetch started.
@@ -77,7 +85,7 @@ final class ThumbnailCache {
     /// Request a thumbnail for an attachment. Loads from disk cache first, then network.
     func loadIfNeeded(attachment: IndexedAttachment, accountID: String) {
         let id = attachment.id
-        guard thumbnails[id] == nil, !loading.contains(id) else { return }
+        guard thumbnailCache.object(forKey: id as NSString) == nil, !loading.contains(id) else { return }
 
         let fileType = Attachment.FileType(rawValue: attachment.fileType) ?? .document
         guard fileType == .image || fileType == .pdf else { return }
@@ -90,11 +98,12 @@ final class ThumbnailCache {
             if let diskImage = await Self.loadFromDisk(id: id, cacheDir: cacheDir) {
                 guard !Task.isCancelled else { return }
                 self.loading.remove(id)
-                self.thumbnails[id] = diskImage
+                self.thumbnailCache.setObject(diskImage, forKey: id as NSString)
+                self.cachedIDs.insert(id)
                 return
             }
             // Disk miss — hand off to the throttled network fetch.
-            guard !Task.isCancelled, self.thumbnails[id] == nil else {
+            guard !Task.isCancelled, self.thumbnailCache.object(forKey: id as NSString) == nil else {
                 self.loading.remove(id)
                 return
             }
@@ -131,7 +140,8 @@ final class ThumbnailCache {
                 default:     nil
                 }
                 if let thumb {
-                    thumbnails[id] = thumb
+                    thumbnailCache.setObject(thumb, forKey: id as NSString)
+                    cachedIDs.insert(id)
                     saveToDisk(image: thumb, id: id)
                 }
             } catch {
@@ -145,7 +155,7 @@ final class ThumbnailCache {
         guard activeFetches < maxConcurrentFetches, !pendingQueue.isEmpty else { return }
         let next = pendingQueue.removeFirst()
         // Skip if cancelled (removed from loading) or already cached
-        guard loading.contains(next.id), thumbnails[next.id] == nil else {
+        guard loading.contains(next.id), thumbnailCache.object(forKey: next.id as NSString) == nil else {
             loading.remove(next.id)
             dequeueNext()
             return

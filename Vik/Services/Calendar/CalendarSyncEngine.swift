@@ -466,7 +466,6 @@ actor CalendarSyncEngine {
                 sequence: event.sequence,
                 remindersJson: encodeJSON(event.reminders),
                 attachmentsJson: encodeJSON(event.attachments),
-                extendedPropertiesJson: encodeJSON(event.extendedProperties),
                 updatedAt: parseRFC3339(event.updated) ?? Date().timeIntervalSince1970
             )
             eventRecords.append(record)
