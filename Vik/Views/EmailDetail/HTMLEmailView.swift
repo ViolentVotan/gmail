@@ -16,7 +16,7 @@ import SwiftUI
 
 /// Forwards scroll events to the parent responder so the SwiftUI
 /// ScrollView (not the WebView) handles vertical scrolling.
-private final class PassthroughWebView: WKWebView {
+final class PassthroughWebView: WKWebView {
     override func scrollWheel(with event: NSEvent) {
         nextResponder?.scrollWheel(with: event)
     }
@@ -49,55 +49,18 @@ struct HTMLEmailView: NSViewRepresentable {
     var onOpenLink: ((URL) -> Void)?
     @Environment(\.colorScheme) private var colorScheme
 
+    // Note: WKProcessPool was deprecated in macOS 12 — all web views
+    // automatically share a single WebContent process now.
+
     func makeCoordinator() -> Coordinator { Coordinator(self) }
 
-    func makeNSView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.userContentController.add(WeakScriptMessageHandler(context.coordinator), name: "heightChanged")
-        config.defaultWebpagePreferences.allowsContentJavaScript = false
-        // Disable automatic Live Text / Image Analysis to prevent a use-after-free
-        // crash in Apple's Vision → TextRecognition → ImageAnalyzerMultiDetectorRecipient
-        // when the email view changes while analysis is in-flight (FB: macOS 26.3.1).
-        let disableTextExtraction = NSSelectorFromString("_setTextExtractionEnabled:")
-        if config.preferences.responds(to: disableTextExtraction) {
-            config.preferences.perform(disableTextExtraction, with: false as NSNumber)
-        }
-        #if DEBUG
-        config.preferences.setValue(true, forKey: "developerExtrasEnabled")
-        #endif
-        let webView = PassthroughWebView(frame: .zero, configuration: config)
-        webView.navigationDelegate = context.coordinator
-        webView.setValue(false, forKey: "drawsBackground")
-        context.coordinator.webView = webView
-        return webView
-    }
+    // MARK: - Template HTML
 
-    func updateNSView(_ webView: WKWebView, context: Context) {
-        let cacheKey = "\(html)|\(colorScheme)"
-        guard context.coordinator.lastCacheKey != cacheKey else { return }
-        let textHex = NSColor.textColor.usingColorSpace(.sRGB).map {
-            String(format: "#%02X%02X%02X",
-                Int($0.redComponent * 255),
-                Int($0.greenComponent * 255),
-                Int($0.blueComponent * 255))
-        } ?? "#FFFFFF"
-        let bgLum = colorScheme == .dark ? "0.015" : "0.96"
-        context.coordinator.lastCacheKey = cacheKey
-        context.coordinator.isLoadingContent = true
-        context.coordinator.parent = self
-        context.coordinator.parent.isContentLoaded = false
-        // Cancel any in-flight page load / Vision analysis before switching content.
-        webView.stopLoading()
-        let controller = webView.configuration.userContentController
-        controller.removeAllUserScripts()
-        let userScript = WKUserScript(
-            source: Self.userScriptSource(bgLum: bgLum),
-            injectionTime: .atDocumentEnd,
-            forMainFrameOnly: true
-        )
-        controller.addUserScript(userScript)
-
-        let fullHTML = """
+    /// Static HTML shell loaded once per WKWebView lifetime. Uses CSS custom
+    /// properties (`--text-color`) so color scheme changes update via JS
+    /// instead of triggering a full `loadHTMLString` navigation cycle.
+    static func templateHTML() -> String {
+        """
         <!DOCTYPE html>
         <html>
         <head>
@@ -105,6 +68,9 @@ struct HTMLEmailView: NSViewRepresentable {
         <meta name='color-scheme' content='light dark'>
         <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: cid: https:; style-src 'unsafe-inline'; font-src https:; frame-src 'none'; connect-src 'none'; script-src 'none';">
         <style>
+        :root {
+            --text-color: #FFFFFF;
+        }
         html, body {
             margin: 0;
             padding: 0;
@@ -115,7 +81,7 @@ struct HTMLEmailView: NSViewRepresentable {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
             font-size: \(Int(NSFont.systemFont(ofSize: 0).pointSize))px;
             line-height: 1.65;
-            color: \(textHex);
+            color: var(--text-color);
             word-wrap: break-word;
             overflow-wrap: break-word;
         }
@@ -135,6 +101,24 @@ struct HTMLEmailView: NSViewRepresentable {
             pre, code { background: rgba(255,255,255,0.1); color: #e8eaed; }
             hr { border-top-color: rgba(255,255,255,0.15); }
             ::selection { background: rgba(100,160,255,0.3); }
+            /* CSS-first dark mode: fix common hard-coded light-mode colors
+               without JS DOM walking. Handles ~80% of email dark mode issues. */
+            [style*="color: #000"], [style*="color:#000"],
+            [style*="color: black"], [style*="color:black"],
+            [style*="color: rgb(0, 0, 0)"], [style*="color:rgb(0,0,0)"],
+            [style*="color:#333"], [style*="color: #333"],
+            [style*="color:#222"], [style*="color: #222"] {
+                color: var(--text-color) !important;
+            }
+            [style*="background-color: #fff"], [style*="background-color:#fff"],
+            [style*="background-color: white"], [style*="background-color:white"],
+            [style*="background: #fff"], [style*="background:#fff"],
+            [style*="background-color: #FFF"], [style*="background-color:#FFF"],
+            [style*="background: white"], [style*="background:white"],
+            [style*="background-color: #ffffff"], [style*="background-color:#ffffff"],
+            [style*="background-color: #FFFFFF"], [style*="background-color:#FFFFFF"] {
+                background-color: transparent !important;
+            }
         }
         @media (prefers-color-scheme: light) {
             a { color: #1a73e8; }
@@ -146,30 +130,114 @@ struct HTMLEmailView: NSViewRepresentable {
         <body><div id="emailContent" style="padding-bottom:16px"></div></body>
         </html>
         """
-        webView.loadHTMLString(fullHTML, baseURL: nil)
-        context.coordinator.pendingHTML = html
+    }
+
+    // MARK: - NSViewRepresentable
+
+    func makeNSView(context: Context) -> WKWebView {
+        let config = WKWebViewConfiguration()
+        config.userContentController.add(
+            WeakScriptMessageHandler(context.coordinator), name: "heightChanged"
+        )
+        config.defaultWebpagePreferences.allowsContentJavaScript = false
+        // Disable automatic Live Text / Image Analysis to prevent a use-after-free
+        // crash in Apple's Vision -> TextRecognition -> ImageAnalyzerMultiDetectorRecipient
+        // when the email view changes while analysis is in-flight (FB: macOS 26.3.1).
+        let disableTextExtraction = NSSelectorFromString("_setTextExtractionEnabled:")
+        if config.preferences.responds(to: disableTextExtraction) {
+            config.preferences.perform(disableTextExtraction, with: false as NSNumber)
+        }
+        #if DEBUG
+        config.preferences.setValue(true, forKey: "developerExtrasEnabled")
+        #endif
+
+        let bgLum = colorScheme == .dark ? "0.015" : "0.96"
+        config.userContentController.addUserScript(WKUserScript(
+            source: Self.userScriptSource(bgLum: bgLum),
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        ))
+
+        let webView = PassthroughWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = context.coordinator
+        webView.setValue(false, forKey: "drawsBackground")
+        context.coordinator.webView = webView
+        context.coordinator.lastColorScheme = colorScheme
+        context.coordinator.pendingCSSUpdate = (
+            textHex: Self.currentTextHex(), bgLum: bgLum
+        )
+
+        // Load template once -- all subsequent content goes through JS injection.
+        webView.loadHTMLString(Self.templateHTML(), baseURL: nil)
+
+        return webView
+    }
+
+    func updateNSView(_ webView: WKWebView, context: Context) {
+        let coordinator = context.coordinator
+        coordinator.parent = self
+
+        // Handle color scheme changes -- update CSS vars + re-run contrast fix.
+        if coordinator.lastColorScheme != colorScheme {
+            coordinator.lastColorScheme = colorScheme
+            let textHex = Self.currentTextHex()
+            let bgLum = colorScheme == .dark ? "0.015" : "0.96"
+            if coordinator.templateReady {
+                coordinator.updateColorScheme(textHex: textHex, bgLum: bgLum)
+            } else {
+                coordinator.pendingCSSUpdate = (textHex: textHex, bgLum: bgLum)
+            }
+        }
+
+        // Handle content changes -- inject via JS (no loadHTMLString).
+        guard coordinator.lastContentKey != html else { return }
+        coordinator.lastContentKey = html
+        coordinator.parent.isContentLoaded = false
+
+        if coordinator.templateReady {
+            coordinator.injectContent(html)
+        } else {
+            coordinator.pendingHTML = html
+        }
     }
 
     static func dismantleNSView(_ webView: WKWebView, coordinator: Coordinator) {
-        // Cancel any in-flight Vision/Live Text analysis by clearing content
-        // before tearing down the web view.
         webView.stopLoading()
-        webView.loadHTMLString("", baseURL: nil)
-        webView.configuration.userContentController.removeScriptMessageHandler(forName: "heightChanged")
+        coordinator.templateReady = false
+        webView.configuration.userContentController
+            .removeScriptMessageHandler(forName: "heightChanged")
+        webView.configuration.userContentController.removeAllUserScripts()
+        webView.navigationDelegate = nil
+        WebViewPool.shared.recycle(webView)
+    }
+
+    // MARK: - Helpers
+
+    private static func currentTextHex() -> String {
+        NSColor.textColor.usingColorSpace(.sRGB).map {
+            String(format: "#%02X%02X%02X",
+                Int($0.redComponent * 255),
+                Int($0.greenComponent * 255),
+                Int($0.blueComponent * 255))
+        } ?? "#FFFFFF"
     }
 
     // MARK: - User Script
 
-    /// JavaScript injected at document-end to fix contrast in both light and dark mode, and observe image loads.
+    /// JavaScript injected at document-end to fix contrast and observe content height.
+    ///
+    /// `fixContrastColorsAsync()` processes elements in chunks of 50 per
+    /// `requestAnimationFrame` so content is visible immediately while colors
+    /// fix progressively over 2-3 frames.
     ///
     /// Posts `heightChanged` messages to the native side instead of requiring periodic
     /// `evaluateJavaScript` polling. A `ResizeObserver` on `#emailContent` fires whenever
     /// the content box changes (e.g., after an image loads and expands the layout).
-    private static func userScriptSource(bgLum: String) -> String {
+    static func userScriptSource(bgLum: String) -> String {
         """
         var PAGE_BG_LUM = \(bgLum);
 
-        function fixContrastColors() {
+        function fixContrastColorsAsync() {
             var MIN_CR = 4.5;
 
             function linearize(c) {
@@ -246,7 +314,6 @@ struct HTMLEmailView: NSViewRepresentable {
             }
 
             // Cache background luminance per element to avoid redundant ancestor walks.
-            // Siblings sharing the same ancestor chain hit the cache immediately.
             var bgCache = new WeakMap();
 
             function effectiveBgLum(el) {
@@ -279,38 +346,50 @@ struct HTMLEmailView: NSViewRepresentable {
                 return result;
             }
 
-            var els = document.querySelectorAll(
+            var els = Array.from(document.querySelectorAll(
                 'p,div,span,td,th,li,a,font,b,strong,em,i,h1,h2,h3,h4,h5,h6,small,label,cite,blockquote'
-            );
+            ));
 
-            // Phase 1: Batch read — identify elements needing color adjustment.
-            var fixes = [];
-            for (var i = 0; i < els.length; i++) {
-                var el = els[i];
-                var style = window.getComputedStyle(el);
-                if (style.display === 'none' || style.visibility === 'hidden') continue;
-                var c = style.color;
-                var rgb = parseRgb(c);
-                if (!rgb) continue;
-                var cParts = c.slice(c.indexOf('(') + 1).split(',');
-                if (cParts.length >= 4 && parseFloat(cParts[3]) < 0.1) continue;
-                var bgLum = effectiveBgLum(el);
-                var textLum = relativeLum(rgb[0], rgb[1], rgb[2]);
-                if (contrastBetween(textLum, bgLum) >= MIN_CR) continue;
-                fixes.push([el, bgLum > 0.5
-                    ? darkenToContrast(rgb[0], rgb[1], rgb[2], bgLum)
-                    : lightenToContrast(rgb[0], rgb[1], rgb[2], bgLum)]);
+            // Process in chunks of 50 per rAF frame so content is visible immediately.
+            // Colors fix progressively over 2-3 frames instead of blocking.
+            var CHUNK = 50;
+            var idx = 0;
+
+            function processChunk() {
+                var fixes = [];
+                var end = Math.min(idx + CHUNK, els.length);
+                for (var i = idx; i < end; i++) {
+                    var el = els[i];
+                    var style = window.getComputedStyle(el);
+                    if (style.display === 'none' || style.visibility === 'hidden') continue;
+                    var c = style.color;
+                    var rgb = parseRgb(c);
+                    if (!rgb) continue;
+                    var cParts = c.slice(c.indexOf('(') + 1).split(',');
+                    if (cParts.length >= 4 && parseFloat(cParts[3]) < 0.1) continue;
+                    var bgLum = effectiveBgLum(el);
+                    var textLum = relativeLum(rgb[0], rgb[1], rgb[2]);
+                    if (contrastBetween(textLum, bgLum) >= MIN_CR) continue;
+                    fixes.push([el, bgLum > 0.5
+                        ? darkenToContrast(rgb[0], rgb[1], rgb[2], bgLum)
+                        : lightenToContrast(rgb[0], rgb[1], rgb[2], bgLum)]);
+                }
+                for (var j = 0; j < fixes.length; j++) {
+                    fixes[j][0].style.setProperty('color', fixes[j][1], 'important');
+                }
+                idx = end;
+                if (idx < els.length) {
+                    requestAnimationFrame(processChunk);
+                }
             }
-
-            // Phase 2: Batch write — apply all fixes to avoid read/write layout thrashing.
-            for (var j = 0; j < fixes.length; j++) {
-                fixes[j][0].style.setProperty('color', fixes[j][1], 'important');
+            if (els.length > 0) {
+                requestAnimationFrame(processChunk);
             }
         }
 
-        fixContrastColors();
+        fixContrastColorsAsync();
 
-        // Robust content height measurement — layered approach:
+        // Robust content height measurement -- layered approach:
         // 1. ResizeObserver for layout-driven changes (reflow, font render)
         // 2. Image load/error listeners for async image loading
         // 3. MutationObserver to re-attach image listeners after innerHTML injection
@@ -357,12 +436,50 @@ struct HTMLEmailView: NSViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
         var parent: HTMLEmailView
-        var lastCacheKey = ""
-        var isLoadingContent = false
+        /// Whether the template shell has finished loading (didFinish fired).
+        var templateReady = false
+        var lastColorScheme: ColorScheme?
+        /// Tracks the last injected HTML to skip redundant updates.
+        var lastContentKey = ""
         var pendingHTML: String?
+        var pendingCSSUpdate: (textHex: String, bgLum: String)?
         weak var webView: WKWebView?
 
         init(_ parent: HTMLEmailView) { self.parent = parent }
+
+        // MARK: Content Injection
+
+        /// Injects email HTML into the pre-loaded template via parameterized JS.
+        /// CSP `script-src 'none'` prevents any scripts in the injected HTML from executing.
+        func injectContent(_ html: String) {
+            guard let webView else { return }
+            Task { @MainActor [weak self] in
+                _ = try? await webView.callAsyncJavaScript(
+                    "document.getElementById('emailContent').innerHTML = html;"
+                    + "if (typeof fixContrastColorsAsync === 'function') { fixContrastColorsAsync(); }"
+                    + "if (typeof reportHeight === 'function') {"
+                    + "  requestAnimationFrame(function() { reportHeight(); });"
+                    + "}",
+                    arguments: ["html": html],
+                    contentWorld: .page
+                )
+                self?.parent.isContentLoaded = true
+            }
+        }
+
+        /// Updates CSS custom properties and re-runs contrast fix for color scheme changes.
+        func updateColorScheme(textHex: String, bgLum: String) {
+            guard let webView else { return }
+            Task { @MainActor in
+                _ = try? await webView.callAsyncJavaScript(
+                    "document.documentElement.style.setProperty('--text-color', textHex);"
+                    + "PAGE_BG_LUM = parseFloat(bgLum);"
+                    + "if (typeof fixContrastColorsAsync === 'function') { fixContrastColorsAsync(); }",
+                    arguments: ["textHex": textHex, "bgLum": bgLum],
+                    contentWorld: .page
+                )
+            }
+        }
 
         // MARK: WKScriptMessageHandler
 
@@ -377,8 +494,6 @@ struct HTMLEmailView: NSViewRepresentable {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 if self.parent.isContentLoaded {
-                    // Animate height changes after initial load (image loads, font renders)
-                    // for smooth content expansion instead of jarring layout jumps.
                     withAnimation(.smooth(duration: 0.2)) {
                         self.parent.contentHeight = height
                     }
@@ -391,32 +506,18 @@ struct HTMLEmailView: NSViewRepresentable {
         // MARK: WKNavigationDelegate
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            isLoadingContent = false
+            templateReady = true
+
+            // Apply pending CSS variable update from makeNSView.
+            if let css = pendingCSSUpdate {
+                pendingCSSUpdate = nil
+                updateColorScheme(textHex: css.textHex, bgLum: css.bgLum)
+            }
+
+            // Inject first email content if it arrived before template was ready.
             if let html = pendingHTML {
                 pendingHTML = nil
-                // Parameter binding prevents template breakout — html is passed as a JS
-                // variable, not interpolated into the script source. CSP script-src 'none'
-                // prevents any injected scripts from executing.
-                // isContentLoaded is set AFTER injection so the shimmer stays until the
-                // content is actually rendered and the ResizeObserver can measure it.
-                Task { @MainActor [weak self] in
-                    _ = try? await webView.callAsyncJavaScript(
-                        """
-                        document.getElementById('emailContent').innerHTML = html;
-                        if (typeof fixContrastColors === 'function') { fixContrastColors(); }
-                        // Explicit post-injection measurement after layout settles —
-                        // MutationObserver + ResizeObserver handle ongoing updates,
-                        // but requestAnimationFrame ensures the first measurement
-                        // happens after WebKit completes layout for the new DOM.
-                        if (typeof reportHeight === 'function') {
-                            requestAnimationFrame(function() { reportHeight(); });
-                        }
-                        """,
-                        arguments: ["html": html],
-                        contentWorld: .page
-                    )
-                    self?.parent.isContentLoaded = true
-                }
+                injectContent(html)
             } else {
                 Task { @MainActor [weak self] in
                     self?.parent.isContentLoaded = true
@@ -428,7 +529,6 @@ struct HTMLEmailView: NSViewRepresentable {
             _ webView: WKWebView,
             decidePolicyFor navigationAction: WKNavigationAction
         ) async -> WKNavigationActionPolicy {
-            // Open clicked links externally (or via the provided callback)
             if navigationAction.navigationType == .linkActivated,
                let url = navigationAction.request.url {
                 if let onOpenLink = parent.onOpenLink {
@@ -438,12 +538,9 @@ struct HTMLEmailView: NSViewRepresentable {
                 }
                 return .cancel
             }
-
-            // Only allow the initial HTML load (about:blank from loadHTMLString)
-            guard isLoadingContent,
-                  navigationAction.navigationType == .other,
-                  navigationAction.request.url?.scheme == "about"
-                      || navigationAction.request.url?.absoluteString == "about:blank"
+            // Only allow the initial template load (before templateReady).
+            guard !templateReady,
+                  navigationAction.navigationType == .other
             else {
                 return .cancel
             }

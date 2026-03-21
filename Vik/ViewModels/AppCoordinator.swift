@@ -59,6 +59,7 @@ final class AppCoordinator {
         snc.onCacheRefreshed = { [weak self] in
             self?.updateDisplayedEmails()
         }
+        WebViewPool.shared.warmUp()
     }
 
     isolated deinit {

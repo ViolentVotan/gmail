@@ -180,7 +180,8 @@ final class EmailDetailViewModel {
     // MARK: - Tracker analysis
 
     @concurrent private func sanitizeOffMainActor(html: String) async -> TrackerResult {
-        TrackerBlockerService.shared.sanitize(html: html)
+        let stripped = HTMLPreprocessor.strip(html)
+        return TrackerBlockerService.shared.sanitize(html: stripped)
     }
 
     // MARK: - Calendar invite detection
@@ -288,7 +289,10 @@ final class EmailDetailViewModel {
 
     /// Downloads inline CID images and replaces cid: references with data: URIs in the HTML.
     private func resolveInlineImages(for message: GmailMessage) async {
-        let baseHTML = trackerSanitizedHTML ?? message.htmlBody ?? ""
+        let raw = trackerSanitizedHTML ?? message.htmlBody ?? ""
+        // trackerSanitizedHTML is already preprocessed via sanitizeOffMainActor.
+        // Raw htmlBody needs explicit preprocessing.
+        let baseHTML = trackerSanitizedHTML != nil ? raw : HTMLPreprocessor.strip(raw)
         guard !baseHTML.isEmpty else { return }
         guard !message.inlineParts.isEmpty else {
             if resolvedMessageHTML[message.id] != baseHTML {
