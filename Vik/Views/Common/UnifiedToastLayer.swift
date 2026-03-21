@@ -7,7 +7,6 @@ import SwiftUI
 /// "no service singletons in views" rule per architecture guidelines.
 struct UnifiedToastLayer: View {
     private var network = NetworkMonitor.shared
-    private var undoMgr = UndoActionManager.shared
     private var toastMgr = ToastManager.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -16,14 +15,10 @@ struct UnifiedToastLayer: View {
             Spacer()
 
             // Priority 1: Undo toast (actionable, time-sensitive)
-            if let action = undoMgr.currentAction {
-                UndoToastCard(action: action)
-                    .id(action.id)
-                    .transition(.move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: ScaleToken.enterFrom)))
-                    .padding(.bottom, Spacing.xxl)
-            }
+            UndoPresenceView(reduceMotion: reduceMotion)
+
             // Priority 2: Offline indicator (persistent status)
-            else if !network.isConnected {
+            if network.isConnected == false {
                 OfflineToastCard()
                     .transition(.move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: ScaleToken.enterFrom)))
                     .padding(.bottom, Spacing.xxl)
@@ -36,11 +31,36 @@ struct UnifiedToastLayer: View {
                     .padding(.bottom, Spacing.xxl)
             }
         }
-        .animation(reduceMotion ? nil : VikAnimation.springDefault, value: undoMgr.currentAction?.id)
         .animation(reduceMotion ? nil : VikAnimation.springDefault, value: network.isConnected)
         .animation(reduceMotion ? nil : VikAnimation.springDefault, value: toastMgr.currentToast?.id)
-        .sensoryFeedback(.warning, trigger: undoMgr.currentAction != nil)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Undo Presence View
+
+/// Isolates all `UndoActionManager` observation to this subtree.
+/// `UnifiedToastLayer` does not observe `undoMgr` directly, so its body
+/// is not re-evaluated on every 250ms progress tick.
+fileprivate struct UndoPresenceView: View {
+    let reduceMotion: Bool
+    private var undoMgr = UndoActionManager.shared
+
+    fileprivate init(reduceMotion: Bool) {
+        self.reduceMotion = reduceMotion
+    }
+
+    var body: some View {
+        Group {
+            if let action = undoMgr.currentAction {
+                UndoToastCard(action: action)
+                    .id(action.id)
+                    .transition(.move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: ScaleToken.enterFrom)))
+                    .padding(.bottom, Spacing.xxl)
+            }
+        }
+        .animation(reduceMotion ? nil : VikAnimation.springDefault, value: undoMgr.currentAction?.id)
+        .sensoryFeedback(.warning, trigger: undoMgr.currentAction != nil)
     }
 }
 
@@ -48,12 +68,8 @@ struct UnifiedToastLayer: View {
 
 private struct UndoToastCard: View {
     let action: PendingUndoAction
-    var undoMgr = UndoActionManager.shared
     @AppStorage(UserDefaultsKey.undoDuration) private var undoDuration = 5
-
-    private var derivedTimeRemaining: Int {
-        max(1, Int(ceil(undoMgr.progress * Double(undoDuration))))
-    }
+    @State private var timeRemaining: Int = 5
 
     var body: some View {
         VStack(spacing: 0) {
@@ -65,12 +81,12 @@ private struct UndoToastCard: View {
 
                 Spacer()
 
-                Button("Undo") { undoMgr.undo() }
+                Button("Undo") { UndoActionManager.shared.undo() }
                     .font(Typography.bodySemibold)
                     .foregroundStyle(.tint)
                     .buttonStyle(.plain)
 
-                Text("\(derivedTimeRemaining)s")
+                Text("\(timeRemaining)s")
                     .font(Typography.caption.monospacedDigit())
                     .foregroundStyle(.tertiary)
                     .frame(width: 26, alignment: .trailing)
@@ -78,17 +94,49 @@ private struct UndoToastCard: View {
             .padding(.horizontal, Spacing.lg)
             .padding(.vertical, Spacing.md)
 
-            ZStack(alignment: .leading) {
-                Rectangle().fill(.separator)
-                Rectangle()
-                    .fill(Color.accentColor.opacity(0.7))
-                    .scaleEffect(x: undoMgr.progress, y: 1, anchor: .leading)
-                    .animation(VikAnimation.progressBar, value: undoMgr.progress)
-            }
-            .frame(height: 3)
+            UndoProgressBar(undoDuration: undoDuration, onSecondTick: { seconds in
+                timeRemaining = seconds
+            })
         }
         .transientGlass()
         .frame(width: 320)
+    }
+}
+
+// MARK: - Undo Progress Bar
+
+/// Reads `undoMgr.progress` in isolation so the 250ms animation ticks
+/// do not invalidate `UndoToastCard.body` or any ancestor.
+/// Fires `onSecondTick` only when the integer-second countdown changes.
+fileprivate struct UndoProgressBar: View {
+    let undoDuration: Int
+    let onSecondTick: (Int) -> Void
+    fileprivate var undoMgr = UndoActionManager.shared
+
+    fileprivate init(undoDuration: Int, onSecondTick: @escaping (Int) -> Void) {
+        self.undoDuration = undoDuration
+        self.onSecondTick = onSecondTick
+    }
+
+    var body: some View {
+        ZStack(alignment: .leading) {
+            Rectangle().fill(.separator)
+            Rectangle()
+                .fill(Color.accentColor.opacity(0.7))
+                .scaleEffect(x: undoMgr.progress, y: 1, anchor: .leading)
+                .animation(VikAnimation.progressBar, value: undoMgr.progress)
+        }
+        .frame(height: 3)
+        .onAppear {
+            onSecondTick(max(1, Int(ceil(undoMgr.progress * Double(undoDuration)))))
+        }
+        .onChange(of: undoMgr.progress) { oldProgress, newProgress in
+            let oldSeconds = max(1, Int(ceil(oldProgress * Double(undoDuration))))
+            let newSeconds = max(1, Int(ceil(newProgress * Double(undoDuration))))
+            if newSeconds != oldSeconds {
+                onSecondTick(newSeconds)
+            }
+        }
     }
 }
 

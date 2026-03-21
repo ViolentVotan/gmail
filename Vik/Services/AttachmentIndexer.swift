@@ -1,6 +1,35 @@
 import Foundation
 private import os
 
+// MARK: - BoundedIDCache
+
+/// A fixed-capacity LRU cache of string IDs.
+/// When full, the oldest-inserted entry is evicted. Thread-safe via actor isolation of the caller.
+private struct BoundedIDCache {
+    private let capacity: Int
+    private var set: Set<String> = []
+    /// Ordered from oldest to newest insertion.
+    private var order: [String] = []
+
+    init(capacity: Int) {
+        self.capacity = capacity
+    }
+
+    func contains(_ id: String) -> Bool {
+        set.contains(id)
+    }
+
+    mutating func insert(_ id: String) {
+        guard !set.contains(id) else { return }
+        if set.count >= capacity, let oldest = order.first {
+            order.removeFirst()
+            set.remove(oldest)
+        }
+        set.insert(id)
+        order.append(id)
+    }
+}
+
 actor AttachmentIndexer {
     nonisolated private static let logger = Logger(category: "AttachmentIndexer")
     private let database: AttachmentDatabase
@@ -10,8 +39,11 @@ actor AttachmentIndexer {
     private let maxConcurrent = 3
     private let maxRetries = 3
     private let cpuMonitor = CPUMonitor.shared
-    /// In-memory set of message IDs already processed — avoids redundant DB queries on repeated fetches.
-    private var processedMessageIDs: Set<String> = []
+
+    /// LRU-bounded cache of recently-seen message IDs.
+    /// Keeps memory usage fixed regardless of mailbox size.
+    /// Cache misses fall back to a DB query.
+    private var processedIDCache = BoundedIDCache(capacity: 10_000)
 
     /// Called on @MainActor after each indexing batch so the UI can refresh stats.
     var onProgressUpdate: (@MainActor () -> Void)?
@@ -121,6 +153,14 @@ actor AttachmentIndexer {
         return Calendar.current.date(byAdding: .month, value: -months, to: Date())
     }
 
+    /// Returns true if the message ID is known-processed: checks in-memory cache first, DB on miss.
+    private func isProcessed(_ id: String) async -> Bool {
+        if processedIDCache.contains(id) { return true }
+        let inDB = await database.isMessageScanned(id: id, accountID: accountID)
+        if inDB { processedIDCache.insert(id) }
+        return inDB
+    }
+
     /// Scans the account for messages with attachments using `has:attachment` query.
     /// Respects the user's scan depth setting (date-based cutoff).
     /// Persists scan progress so it can resume from where it left off on next launch.
@@ -129,11 +169,6 @@ actor AttachmentIndexer {
         guard !isScanning else { return }
         isScanning = true
         defer { isScanning = false }
-
-        // Pre-populate in-memory set from DB so we skip already-scanned messages
-        if processedMessageIDs.isEmpty {
-            processedMessageIDs = await database.allScannedMessageIDs(accountID: accountID)
-        }
 
         let service = messageService
         let acctID = accountID
@@ -172,9 +207,12 @@ actor AttachmentIndexer {
                 guard !refs.isEmpty else { break }
                 totalScanned += refs.count
 
-                // Filter out already-scanned messages (known from DB or current session)
-                let toScan = refs.filter { ref in
-                    !processedMessageIDs.contains(ref.id)
+                // Filter out already-scanned messages (cache + DB fallback)
+                var toScan: [GmailMessageRef] = []
+                for ref in refs {
+                    if await !isProcessed(ref.id) {
+                        toScan.append(ref)
+                    }
                 }
 
                 // If scan was previously complete and entire page is already known,
@@ -183,9 +221,9 @@ actor AttachmentIndexer {
                     break
                 }
 
-                // Mark all as seen in-memory + persist to DB
+                // Mark all page IDs as seen in cache + persist to DB
                 let newIDs = refs.map(\.id)
-                for id in newIDs { processedMessageIDs.insert(id) }
+                for id in newIDs { processedIDCache.insert(id) }
                 await db.markMessagesScanned(newIDs, accountID: acctID)
 
                 if !toScan.isEmpty {
@@ -248,7 +286,7 @@ actor AttachmentIndexer {
         for message in messages {
             let parts = message.attachmentParts
             guard !parts.isEmpty else { continue }
-            let alreadySeen = processedMessageIDs.contains(message.id)
+            let alreadySeen = processedIDCache.contains(message.id)
 
             let labels = message.labelIds ?? []
             let direction: IndexedAttachment.Direction = labels.contains(GmailSystemLabel.sent) ? .sent : .received
@@ -282,7 +320,7 @@ actor AttachmentIndexer {
                 await database.insertAttachment(indexed)
                 newCount += 1
             }
-            processedMessageIDs.insert(message.id)
+            processedIDCache.insert(message.id)
         }
         if let onProgress = onProgressUpdate { await onProgress() }
         if newCount > 0 { await processQueue() }

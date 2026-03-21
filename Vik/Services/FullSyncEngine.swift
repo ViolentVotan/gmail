@@ -55,6 +55,10 @@ actor FullSyncEngine {
     /// synchronously (no `await` between check and set), so it's actor-safe.
     private var isSyncingIncrementally = false
 
+    /// Reentrancy guard: prevents concurrent `syncFolderIfEmpty` calls for the same folder.
+    /// Rapid navigation (e.g. Spam↔Trash) can trigger multiple calls before the first finishes.
+    private var inProgressFolders = Set<String>()
+
     /// Consecutive incremental sync failures — drives adaptive backoff.
     private var consecutiveFailures = 0
 
@@ -121,6 +125,8 @@ actor FullSyncEngine {
         Self.activeEngines.withLock { (engines: inout [String: FullSyncEngine]) in
             if engines[id] === self { engines[id] = nil }
         }
+
+        // Cancel all tasks first.
         syncTask?.cancel()
         bodyPrefetchTask?.cancel()
         incrementalTask?.cancel()
@@ -128,17 +134,35 @@ actor FullSyncEngine {
         contactTask?.cancel()
         labelRefreshTask?.cancel()
         restartTask?.cancel()
-        // Wait for in-flight tasks to actually finish before clearing refs
-        await syncTask?.value
-        await bodyPrefetchTask?.value
-        await incrementalTask?.value
-        await triggeredSyncTask?.value
-        await contactTask?.value
-        await labelRefreshTask?.value
-        await restartTask?.value
-        // restartTask may have called start(), creating a new syncTask
+
+        // Snapshot task references so we can await them concurrently without
+        // re-entering the actor for each individual await.
+        let snap = (
+            sync: syncTask,
+            body: bodyPrefetchTask,
+            incremental: incrementalTask,
+            triggered: triggeredSyncTask,
+            contact: contactTask,
+            labelRefresh: labelRefreshTask,
+            restart: restartTask
+        )
+
+        // Await the 6 independent tasks concurrently, then restartTask last
+        // (it may call start(), spawning a new syncTask — handled below).
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await snap.sync?.value }
+            group.addTask { await snap.body?.value }
+            group.addTask { await snap.incremental?.value }
+            group.addTask { await snap.triggered?.value }
+            group.addTask { await snap.contact?.value }
+            group.addTask { await snap.labelRefresh?.value }
+        }
+        await snap.restart?.value
+
+        // restartTask may have called start(), creating a new syncTask.
         syncTask?.cancel()
         await syncTask?.value
+
         syncTask = nil
         bodyPrefetchTask = nil
         incrementalTask = nil
@@ -217,6 +241,10 @@ actor FullSyncEngine {
     /// Used to lazy-load Spam/Trash on first navigation.
     func syncFolderIfEmpty(labelId: String) async {
         guard state == .monitoring else { return }
+
+        // Reentrancy guard: rapid folder navigation can trigger concurrent calls.
+        guard inProgressFolders.insert(labelId).inserted else { return }
+        defer { inProgressFolders.remove(labelId) }
 
         // Check if we already have messages for this label
         let count = (try? await db.dbPool.read { db in

@@ -55,6 +55,10 @@ final class AttachmentStore {
     /// Cached result of filtering, exclusion, and deduplication. Updated only when inputs change.
     private(set) var displayedAttachments: [AttachmentSearchResult] = []
 
+    /// True when a refresh was requested while the attachments folder was not visible.
+    /// Flushed by `refreshIfNeeded()` on folder navigation.
+    private(set) var needsRefresh = false
+
     // MARK: - Dependencies
 
     @ObservationIgnored private let database: AttachmentDatabase
@@ -154,14 +158,31 @@ final class AttachmentStore {
 
     func refresh() async {
         loadExclusionRules()
-        allAttachments = await database.allAttachments(limit: 5000, offset: 0, accountID: accountID)
+        let newAttachments = await database.allAttachments(limit: 5000, offset: 0, accountID: accountID)
         let raw = await database.stats(accountID: accountID)
-        stats = IndexingStats(
+        let newStats = IndexingStats(
             total: raw.total,
             indexed: raw.indexed,
             pending: raw.pending,
             failed: raw.failed
         )
+        // Skip expensive array replacement if data is identical
+        if newAttachments.map(\.id) != allAttachments.map(\.id) {
+            allAttachments = newAttachments
+        }
+        stats = newStats
+        needsRefresh = false
+    }
+
+    /// Marks that a refresh is needed but defers it until the attachments folder is visible.
+    func setNeedsRefresh() {
+        needsRefresh = true
+    }
+
+    /// Called when the user navigates to the attachments folder — flushes a pending refresh.
+    func refreshIfNeeded() async {
+        guard needsRefresh else { return }
+        await refresh()
     }
 
     // MARK: - Exclusion Rules

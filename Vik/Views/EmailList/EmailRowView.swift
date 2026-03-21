@@ -12,7 +12,7 @@ struct EmailRowView: View, Equatable {
     @State private var isPressed = false
     @State private var hasAppeared = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @AppStorage("emailDensity") private var density = "comfortable"
+    let density: String
     @State private var showTags = false
     @State private var tagRevealTask: Task<Void, Never>?
     @State private var hoverTask: Task<Void, Never>?
@@ -37,6 +37,7 @@ struct EmailRowView: View, Equatable {
             && lhs.accountID == rhs.accountID
             && lhs.selectedFolder == rhs.selectedFolder
             && lhs.isMultiSelect == rhs.isMultiSelect
+            && lhs.density == rhs.density
     }
 
     init(
@@ -45,6 +46,7 @@ struct EmailRowView: View, Equatable {
         accountID: String,
         selectedFolder: Folder,
         isMultiSelect: Bool = false,
+        density: String = "comfortable",
         action: @escaping () -> Void,
         entranceIndex: Int = 0
     ) {
@@ -53,6 +55,7 @@ struct EmailRowView: View, Equatable {
         self.accountID = accountID
         self.selectedFolder = selectedFolder
         self.isMultiSelect = isMultiSelect
+        self.density = density
         self.action = action
         self.entranceIndex = entranceIndex
 
@@ -276,8 +279,8 @@ struct EmailRowView: View, Equatable {
         )
         .sensoryFeedback(.selection, trigger: isSelected)
         .scaleEffect(isPressed ? ScaleToken.press : (isHovered && !isSelected ? ScaleToken.rowHover : 1.0), anchor: .center)
-        .animation(VikAnimation.hoverFeedback, value: isHovered)
-        .animation(VikAnimation.hoverFeedback, value: isSelected)
+        .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
+        .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isSelected)
         .draggable(EmailDragItem(
             messageIds: [email.gmailMessageID ?? ""],
             accountID: accountID

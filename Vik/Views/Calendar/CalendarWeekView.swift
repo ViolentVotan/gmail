@@ -22,6 +22,7 @@ struct CalendarWeekView: View {
         var overlapGroupsByDay: [[[CalendarEvent]]] = []
         var todayIndex: Int? = nil
         var weekendIndices: Set<Int> = []
+        var dayNumbers: [Int] = []
     }
 
     @State private var weekCache = WeekLayoutCache()
@@ -131,17 +132,17 @@ struct CalendarWeekView: View {
                 .accessibilityHidden(true)
 
             ForEach(weekCache.weekDays.indices, id: \.self) { index in
-                dayHeader(for: weekCache.weekDays[index], width: dayColumnWidth)
+                dayHeader(for: weekCache.weekDays[index], index: index, width: dayColumnWidth)
             }
         }
         .padding(.vertical, Spacing.xs)
         .background(.bar)
     }
 
-    private func dayHeader(for date: Date, width: CGFloat) -> some View {
-        let isToday = weekCache.weekDays.firstIndex(of: date) == weekCache.todayIndex
+    private func dayHeader(for date: Date, index: Int, width: CGFloat) -> some View {
+        let isToday = index == weekCache.todayIndex
         let weekdayAbbrev = weekdayAbbreviation(for: date)
-        let dayNumber = Calendar.current.component(.day, from: date)
+        let dayNumber = index < weekCache.dayNumbers.count ? weekCache.dayNumbers[index] : Calendar.current.component(.day, from: date)
         let accessibilityLabel = date.formattedAccessibilityDay
 
         return VStack(spacing: 2) {
@@ -384,12 +385,14 @@ struct CalendarWeekView: View {
         }
 
         var cache = WeekLayoutCache()
+        let calendar = Calendar.current
         cache.weekDays = days
         cache.timedEventsByDay = timed
         cache.allDayEventsByDay = allDay
         cache.overlapGroupsByDay = timed.map { $0.overlapGroups() }
-        cache.todayIndex = days.firstIndex(where: { Calendar.current.isDateInToday($0) })
+        cache.todayIndex = days.firstIndex(where: { calendar.isDateInToday($0) })
         cache.weekendIndices = Set(days.indices.filter { isWeekend(days[$0]) })
+        cache.dayNumbers = days.map { calendar.component(.day, from: $0) }
         weekCache = cache
     }
 

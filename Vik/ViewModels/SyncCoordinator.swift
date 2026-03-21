@@ -13,7 +13,7 @@ final class SyncCoordinator {
     private(set) var backgroundSyncer: BackgroundSyncer?
     @ObservationIgnored private(set) var syncEngine: FullSyncEngine?
     var attachmentIndexer: AttachmentIndexer?
-    private(set) var contacts: [StoredContact] = []
+    @ObservationIgnored let contactsStore = ContactsStore()
 
     var undoDuration: Int = { let v = UserDefaults.standard.integer(forKey: UserDefaultsKey.undoDuration); return v != 0 ? v : 5 }() {
         didSet { UserDefaults.standard.set(undoDuration, forKey: UserDefaultsKey.undoDuration) }
@@ -22,7 +22,6 @@ final class SyncCoordinator {
     // MARK: - Private State
 
     @ObservationIgnored var lifecycleTask: Task<Void, Never>?
-    @ObservationIgnored private var contactsTask: Task<Void, Never>?
     @ObservationIgnored private var cleanupTask: Task<Void, Never>?
     @ObservationIgnored private var accountSwitchGeneration = 0
     @ObservationIgnored var accountSwitchTask: Task<Void, Never>?
@@ -70,17 +69,7 @@ final class SyncCoordinator {
     func loadContacts(accountID: String) {
         guard !accountID.isEmpty else { return }
         guard let db = mailDatabase else { return }
-        contactsTask?.cancel()
-        contactsTask = Task { [weak self] in
-            let result = (try? await db.dbPool.read { db in
-                try MailDatabaseQueries.allContacts(in: db).map {
-                    StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
-                }
-            }) ?? []
-            guard !Task.isCancelled else { return }
-            guard let self else { return }
-            contacts = result
-        }
+        contactsStore.load(accountID: accountID, database: db)
     }
 
     // MARK: - Snoozed / Scheduled Caches
@@ -154,7 +143,7 @@ final class SyncCoordinator {
 
     func cancelAllTasks() {
         lifecycleTask?.cancel()
-        contactsTask?.cancel()
+        contactsStore.cancelLoad()
         cleanupTask?.cancel()
         accountSwitchTask?.cancel()
     }

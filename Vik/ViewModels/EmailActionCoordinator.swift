@@ -13,11 +13,6 @@ final class EmailActionCoordinator {
         self.api = api
     }
 
-    // MARK: - Network / Offline state
-
-    var isConnected: Bool { NetworkMonitor.shared.isConnected }
-    var pendingOfflineActionCount: Int { OfflineActionQueue.shared.pendingCount }
-
     // MARK: - Undoable action helper
 
     /// Shared flow for single-email actions that follow the optimistic-update + undo pattern:

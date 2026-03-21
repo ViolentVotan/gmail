@@ -325,8 +325,13 @@ final class AppCoordinator {
             await engine.start()
         }
         guard !Task.isCancelled, navigation.selectedAccountID == id else { return }
-        await indexer.setProgressUpdate { [weak attachmentStore] in
-            Task { await attachmentStore?.refresh() }
+        await indexer.setProgressUpdate { [weak self] in
+            guard let self else { return }
+            if navigation.selectedFolder == .attachments {
+                Task { await attachmentStore.refresh() }
+            } else {
+                attachmentStore.setNeedsRefresh()
+            }
         }
         async let folderLoad: Void = loadCurrentFolder()
         async let labelsLoad: Void = mailboxViewModel.loadLabels()
@@ -370,7 +375,7 @@ final class AppCoordinator {
         } else if folder == .attachments {
             sync.lifecycleTask = Task { [weak self] in
                 guard let self else { return }
-                await attachmentStore.refresh()
+                await attachmentStore.refreshIfNeeded()
                 if let indexer = sync.attachmentIndexer {
                     await indexer.scanForAttachments()
                 }

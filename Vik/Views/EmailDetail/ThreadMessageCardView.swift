@@ -37,6 +37,7 @@ struct ThreadMessageCardView: View {
     private let cachedFullHTML: String
     private let cachedHTMLParts: (original: String, quoted: String?)
     private let cachedRecipientsLine: String
+    private let cachedFormattedDate: String?
 
     init(
         message: GmailMessage,
@@ -118,6 +119,8 @@ struct ThreadMessageCardView: View {
             if remaining > 0 { result += ", +\(remaining)" }
             self.cachedRecipientsLine = result
         }
+
+        self.cachedFormattedDate = message.date?.formattedRelative
     }
 
     // MARK: - Snippet text
@@ -234,7 +237,7 @@ struct ThreadMessageCardView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel({
             let senderName = isSentByMe ? "Me" : sender.name
-            let dateText = message.date.map { $0.formattedRelative } ?? ""
+            let dateText = cachedFormattedDate ?? ""
             let readState = message.isUnread ? "Unread" : "Read"
             if isExpanded {
                 return "\(senderName), \(cachedRecipientsLine), \(dateText), \(readState)"
@@ -300,8 +303,8 @@ struct ThreadMessageCardView: View {
                             .foregroundStyle(.tertiary)
                     }
 
-                    if let date = message.date {
-                        Text(date.formattedRelative)
+                    if let formattedDate = cachedFormattedDate {
+                        Text(formattedDate)
                             .font(Typography.captionRegular)
                             .foregroundStyle(.tertiary)
                     }

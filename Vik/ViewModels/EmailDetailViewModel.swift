@@ -36,6 +36,7 @@ final class EmailDetailViewModel {
     @ObservationIgnored var onMessagesRead: (([String]) -> Void)?
     @ObservationIgnored var mailDatabase: MailDatabase?
     @ObservationIgnored private let backgroundTasks: Mutex<[Task<Void, Never>]> = Mutex([])
+    @ObservationIgnored private var calendarInviteTask: Task<Void, Never>?
 
     // MARK: - Attachment state
 
@@ -63,6 +64,8 @@ final class EmailDetailViewModel {
     // MARK: - Load
 
     func loadThread(id: String) async {
+        calendarInviteTask?.cancel()
+        calendarInviteTask = nil
         backgroundTasks.withLock { tasks in
             tasks.forEach { $0.cancel() }
             tasks.removeAll()
@@ -191,9 +194,11 @@ final class EmailDetailViewModel {
               let html = msg.htmlBody, !html.isEmpty
         else { calendarInvite = nil; return }
 
-        let parsed = await Task.detached {
+        let parseTask = Task.detached {
             CalendarInviteParser.parse(html: html, subject: msg.subject, sender: msg.from)
-        }.value
+        }
+        calendarInviteTask = Task { _ = await parseTask.value }
+        let parsed = await parseTask.value
         guard !Task.isCancelled else { return }
         guard var invite = parsed else { calendarInvite = nil; return }
 

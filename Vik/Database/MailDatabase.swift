@@ -64,13 +64,10 @@ final class MailDatabase: Sendable {
         dbPool = try DatabasePool(path: path, configuration: config)
     }
 
-    /// Runs schema migrations and PRAGMA optimize.
+    /// Runs schema migrations.
     /// Called once, only for the instance that wins the `shared(for:)` race.
     private func migrate() throws {
         try MailDatabaseMigrations.migrator.migrate(dbPool)
-        try dbPool.write { db in
-            try db.execute(sql: "PRAGMA optimize")
-        }
     }
 
     /// Returns true if the database passes SQLite integrity check.
@@ -151,6 +148,13 @@ final class MailDatabase: Sendable {
             // always find the instance when their while loop exits.
             instances.withLock { $0[accountID] = db }
             _ = migrating.withLock { $0.remove(accountID) }
+
+            // Run PRAGMA optimize in the background — can be slow on large databases
+            // and must not block the initial database access on every app launch.
+            Task.detached(priority: .utility) {
+                try? await db.dbPool.write { try $0.execute(sql: "PRAGMA optimize") }
+            }
+
             return db
         } catch {
             _ = migrating.withLock { $0.remove(accountID) }

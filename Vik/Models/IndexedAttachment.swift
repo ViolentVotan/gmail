@@ -1,6 +1,6 @@
 import Foundation
 
-struct IndexedAttachment: Identifiable, Sendable {
+struct IndexedAttachment: Identifiable, Equatable, Sendable {
     let id: String                  // "{messageId}_{attachmentId}"
     let messageId: String
     let attachmentId: String        // Gmail attachment ID for re-download
@@ -28,7 +28,7 @@ struct IndexedAttachment: Identifiable, Sendable {
     }
 }
 
-struct AttachmentSearchResult: Identifiable, Sendable {
+struct AttachmentSearchResult: Identifiable, Equatable, Sendable {
     let id: String
     let attachment: IndexedAttachment
     let score: Double               // 0.0 - 1.0 relevance

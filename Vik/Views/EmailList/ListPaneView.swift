@@ -21,8 +21,9 @@ struct ListPaneView: View {
     let emptyTrashRequested: (Int) -> Void
     let emptySpamRequested: (Int) -> Void
     let loadCurrentFolder: () async -> Void
+    let selectedEmails: [Email]
+    let clearSelection: () -> Void
 
-    @State private var selectedCategory: InboxCategory = .all
     @State private var filterEmail: Email?
 
     private var navigationTitleText: String {
@@ -32,27 +33,22 @@ struct ListPaneView: View {
         return selectedFolder.rawValue
     }
 
-    // MARK: - Derived Selection (M2)
-
-    @State private var selectedEmails: [Email] = []
-
-    private func recomputeSelectedEmails() {
-        selectedEmails = emails.filter { selectedEmailIDs.contains($0.id.uuidString) }
-    }
-
-    private func clearSelection() {
-        selectedEmail = nil
-        selectedEmailIDs = []
+    /// Non-optional binding for CategoryTabBar, mapping nil to .all.
+    private var categoryBinding: Binding<InboxCategory> {
+        Binding(
+            get: { selectedInboxCategory ?? .all },
+            set: { selectedInboxCategory = $0 }
+        )
     }
 
     var body: some View {
         @Bindable var vm = mailboxViewModel
         VStack(spacing: 0) {
-            OfflineBannerView(actionCoordinator: actionCoordinator)
+            OfflineBannerView()
             CategoryTabBarSection(
                 mailboxViewModel: mailboxViewModel,
                 selectedFolder: selectedFolder,
-                selectedCategory: $selectedCategory
+                selectedCategory: categoryBinding
             )
             EmailListSection(
                 emails: emails,
@@ -74,12 +70,12 @@ struct ListPaneView: View {
                 selectedEmailIDs: $selectedEmailIDs,
                 priorityFilterOn: $vm.priorityFilterEnabled
             )
-                .id("\(selectedFolder.rawValue)-\(selectedCategory.rawValue)")
+                .id("\(selectedFolder.rawValue)-\((selectedInboxCategory ?? .all).rawValue)")
                 .transition(.asymmetric(
                     insertion: .opacity,
                     removal: .opacity.combined(with: .offset(y: -OffsetToken.nudge))
                 ))
-                .animation(VikAnimation.contentSwitch, value: selectedCategory)
+                .animation(VikAnimation.contentSwitch, value: selectedInboxCategory)
                 .animation(VikAnimation.folderSwitch, value: selectedFolder)
         }
         .navigationSplitViewColumnWidth(min: 300, ideal: 380, max: 480)
@@ -95,30 +91,22 @@ struct ListPaneView: View {
                 prefillFrom: email.sender.email
             )
         }
-        .onChange(of: selectedCategory) { _, newCategory in
-            selectedInboxCategory = newCategory
-        }
-        .onChange(of: selectedInboxCategory) { _, newValue in
-            selectedCategory = newValue ?? .all
-        }
-        .task { recomputeSelectedEmails() }
-        .onChange(of: selectedEmailIDs) { _, _ in recomputeSelectedEmails() }
-        .onChange(of: emails) { _, _ in recomputeSelectedEmails() }
     }
 }
 
 // MARK: - Offline Banner (Issue 5)
 
 private struct OfflineBannerView: View {
-    let actionCoordinator: EmailActionCoordinator
+    @State private var network = NetworkMonitor.shared
+    @State private var offlineQueue = OfflineActionQueue.shared
 
     var body: some View {
-        if !actionCoordinator.isConnected {
+        if !network.isConnected {
             HStack {
                 Image(systemName: "wifi.slash")
                 Text("You're offline. Changes will sync when connected.")
-                if actionCoordinator.pendingOfflineActionCount > 0 {
-                    Text("(\(actionCoordinator.pendingOfflineActionCount) pending)")
+                if offlineQueue.pendingCount > 0 {
+                    Text("(\(offlineQueue.pendingCount) pending)")
                         .fontWeight(.medium)
                 }
                 Spacer()

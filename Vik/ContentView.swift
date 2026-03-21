@@ -100,6 +100,7 @@ struct ContentView: View {
                     appFocus: $appFocus,
                     sidebarWidth: sidebarWidth
                 )
+                .environment(coordinator.syncProgressManager)
 
                 ModeContentView(
                     coordinator: coordinator,
@@ -112,7 +113,6 @@ struct ContentView: View {
                     reduceMotion: reduceMotion
                 )
             }
-            .environment(coordinator.syncProgressManager)
             .windowResizeAnchor(.top)
             .onChange(of: columnVisibility) { _, newValue in
                 // Prevent the system from hiding the list column
@@ -380,7 +380,9 @@ struct ContentView: View {
                         startCompose: { coordinator.startCompose(mode: $0) },
                         emptyTrashRequested: { coordinator.dialogs.emptyTrashRequested(count: $0) },
                         emptySpamRequested: { coordinator.dialogs.emptySpamRequested(count: $0) },
-                        loadCurrentFolder: { await coordinator.loadCurrentFolder() }
+                        loadCurrentFolder: { await coordinator.loadCurrentFolder() },
+                        selectedEmails: coordinator.selection.selectedEmails,
+                        clearSelection: { coordinator.selection.clearSelection() }
                     )
                     .focused(appFocus, equals: .list)
                 }
@@ -398,35 +400,150 @@ struct ContentView: View {
         let coordinator: AppCoordinator
 
         var body: some View {
-            if coordinator.navigation.selectedFolder != .attachments {
-                DetailPaneView(
-                    selectedEmail: coordinator.selection.selectedEmail,
-                    selectedEmailIDs: coordinator.selection.selectedEmailIDs,
-                    selectedFolder: coordinator.navigation.selectedFolder,
-                    displayedEmails: coordinator.selection.displayedEmails,
-                    actionCoordinator: coordinator.actionCoordinator,
-                    mailboxViewModel: coordinator.mailboxViewModel,
-                    mailStore: coordinator.mailStore,
-                    accountID: coordinator.navigation.accountID,
-                    fromAddress: coordinator.navigation.fromAddress,
-                    composeMode: coordinator.compose.composeMode,
-                    signatureForNew: coordinator.compose.signatureForNew,
-                    signatureForReply: coordinator.compose.signatureForReply,
-                    panelCoordinator: coordinator.panelCoordinator,
-                    attachmentIndexer: coordinator.sync.attachmentIndexer,
-                    contacts: coordinator.sync.contacts,
-                    mailDatabase: coordinator.sync.mailDatabase,
-                    selectNext: { coordinator.selection.selectNext($0) },
-                    clearSelection: { coordinator.selection.clearSelection() },
-                    deselectAll: { coordinator.selection.deselectAll() },
-                    startCompose: { coordinator.startCompose(mode: $0) },
-                    discardDraft: { coordinator.discardDraft(id: $0) },
-                    selectionDirection: coordinator.selection.selectionDirection,
-                    navigatePrevious: { coordinator.selection.selectPrevious() },
-                    navigateNext: { coordinator.selection.selectNextEmail() },
-                    switchToCalendar: { coordinator.navigateToEvent($0) }
-                )
+            let selectedEmail = coordinator.selection.selectedEmail
+            let selectedEmailIDs = coordinator.selection.selectedEmailIDs
+            let selectedFolder = coordinator.navigation.selectedFolder
+
+            if selectedFolder != .attachments {
+                if selectedEmailIDs.count > 1 {
+                    DetailBulkActionSection(coordinator: coordinator)
+                } else if let email = selectedEmail, email.isDraft {
+                    DetailComposeSection(coordinator: coordinator, draftId: email.id)
+                } else if selectedEmail != nil {
+                    DetailEmailSection(coordinator: coordinator)
+                } else {
+                    DetailEmptySection()
+                }
             }
+        }
+    }
+
+    /// Observation-scoped view for bulk action bar.
+    /// Reads only: selection (selectedEmailIDs, selectedEmails), navigation (selectedFolder),
+    /// actionCoordinator. Avoids observing compose/sync sub-coordinators.
+    private struct DetailBulkActionSection: View {
+        let coordinator: AppCoordinator
+
+        var body: some View {
+            DetailPaneView(
+                selectedEmail: nil,
+                selectedEmailIDs: coordinator.selection.selectedEmailIDs,
+                selectedFolder: coordinator.navigation.selectedFolder,
+                selectedEmails: coordinator.selection.selectedEmails,
+                actionCoordinator: coordinator.actionCoordinator,
+                mailboxViewModel: coordinator.mailboxViewModel,
+                mailStore: coordinator.mailStore,
+                accountID: "",
+                fromAddress: "",
+                composeMode: .new,
+                signatureForNew: "",
+                signatureForReply: "",
+                panelCoordinator: coordinator.panelCoordinator,
+                attachmentIndexer: nil,
+                contacts: [],
+                mailDatabase: nil,
+                selectNext: { _ in },
+                clearSelection: { coordinator.selection.clearSelection() },
+                deselectAll: { coordinator.selection.deselectAll() },
+                startCompose: { _ in },
+                discardDraft: { _ in },
+                selectionDirection: .bottom,
+                navigatePrevious: {},
+                navigateNext: {},
+                switchToCalendar: nil
+            )
+        }
+    }
+
+    /// Observation-scoped view for compose mode.
+    /// Reads only: compose (composeMode, signatures), navigation (accountID, fromAddress,
+    /// selectedFolder), selection (selectedEmail), sync (contacts), mailStore,
+    /// mailboxViewModel, panelCoordinator.
+    /// Avoids observing selection navigation (selectionDirection, selectedEmailIDs changes)
+    /// and sync resources (attachmentIndexer, mailDatabase).
+    private struct DetailComposeSection: View {
+        let coordinator: AppCoordinator
+        let draftId: UUID
+
+        var body: some View {
+            DetailPaneView(
+                selectedEmail: coordinator.selection.selectedEmail,
+                selectedEmailIDs: [],
+                selectedFolder: coordinator.navigation.selectedFolder,
+                selectedEmails: [],
+                actionCoordinator: coordinator.actionCoordinator,
+                mailboxViewModel: coordinator.mailboxViewModel,
+                mailStore: coordinator.mailStore,
+                accountID: coordinator.navigation.accountID,
+                fromAddress: coordinator.navigation.fromAddress,
+                composeMode: coordinator.compose.composeMode,
+                signatureForNew: coordinator.compose.signatureForNew,
+                signatureForReply: coordinator.compose.signatureForReply,
+                panelCoordinator: coordinator.panelCoordinator,
+                attachmentIndexer: nil,
+                contacts: coordinator.sync.contactsStore.contacts,
+                mailDatabase: nil,
+                selectNext: { _ in },
+                clearSelection: {},
+                deselectAll: {},
+                startCompose: { coordinator.startCompose(mode: $0) },
+                discardDraft: { coordinator.discardDraft(id: $0) },
+                selectionDirection: .bottom,
+                navigatePrevious: {},
+                navigateNext: {},
+                switchToCalendar: nil
+            )
+        }
+    }
+
+    /// Observation-scoped view for email detail.
+    /// Reads: selection (selectedEmail, selectionDirection), navigation (selectedFolder,
+    /// accountID, fromAddress), sync (attachmentIndexer, contacts, mailDatabase),
+    /// actionCoordinator, mailboxViewModel, mailStore, panelCoordinator.
+    /// Avoids observing compose sub-coordinator (composeMode, signatures).
+    private struct DetailEmailSection: View {
+        let coordinator: AppCoordinator
+
+        var body: some View {
+            DetailPaneView(
+                selectedEmail: coordinator.selection.selectedEmail,
+                selectedEmailIDs: [],
+                selectedFolder: coordinator.navigation.selectedFolder,
+                selectedEmails: [],
+                actionCoordinator: coordinator.actionCoordinator,
+                mailboxViewModel: coordinator.mailboxViewModel,
+                mailStore: coordinator.mailStore,
+                accountID: coordinator.navigation.accountID,
+                fromAddress: coordinator.navigation.fromAddress,
+                composeMode: .new,
+                signatureForNew: "",
+                signatureForReply: "",
+                panelCoordinator: coordinator.panelCoordinator,
+                attachmentIndexer: coordinator.sync.attachmentIndexer,
+                contacts: coordinator.sync.contactsStore.contacts,
+                mailDatabase: coordinator.sync.mailDatabase,
+                selectNext: { coordinator.selection.selectNext($0) },
+                clearSelection: { coordinator.selection.clearSelection() },
+                deselectAll: { coordinator.selection.deselectAll() },
+                startCompose: { coordinator.startCompose(mode: $0) },
+                discardDraft: { _ in },
+                selectionDirection: coordinator.selection.selectionDirection,
+                navigatePrevious: { coordinator.selection.selectPrevious() },
+                navigateNext: { coordinator.selection.selectNextEmail() },
+                switchToCalendar: { coordinator.navigateToEvent($0) }
+            )
+        }
+    }
+
+    /// Observation-scoped empty state — reads nothing from the coordinator.
+    private struct DetailEmptySection: View {
+        var body: some View {
+            ContentUnavailableView {
+                Label("No Email Selected", systemImage: "envelope")
+            } description: {
+                Text("Select an email to view its contents.")
+            }
+            .navigationSplitViewColumnWidth(min: 500, ideal: 700)
         }
     }
 

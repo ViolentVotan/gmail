@@ -4,7 +4,7 @@ struct DetailPaneView: View {
     let selectedEmail: Email?
     let selectedEmailIDs: Set<String>
     let selectedFolder: Folder
-    let displayedEmails: [Email]
+    let selectedEmails: [Email]
 
     // MARK: - Extracted from AppCoordinator (H8)
 
@@ -75,35 +75,25 @@ struct DetailPaneView: View {
         return email.isDraft
     }
 
-    // MARK: - Derived Selection (M2)
-
-    @State private var selectedEmails: [Email] = []
-
-    private func recomputeSelectedEmails() {
-        selectedEmails = displayedEmails.filter { selectedEmailIDs.contains($0.id.uuidString) }
-    }
-
     var body: some View {
         Group {
             if isMultiSelect {
                 bulkActionView
                     .transition(.opacity.combined(with: .scale(scale: ScaleToken.enterFrom)))
+                    .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: isMultiSelect)
             } else if isEditingDraft, let draftId = selectedEmail?.id {
                 composeView(draftId: draftId)
             } else if let email = selectedEmail {
                 emailDetailView(email: email)
                     .transition(softDirectionalTransition(from: selectionDirection))
+                    .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: selectedEmail?.id)
             } else {
                 emptyState
                     .transition(.opacity.combined(with: .scale(scale: ScaleToken.enterFrom)))
+                    .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: selectedEmail?.id)
             }
         }
-        .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: selectedEmail?.id)
-        .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: isMultiSelect)
         .navigationSplitViewColumnWidth(min: 500, ideal: 700)
-        .task { recomputeSelectedEmails() }
-        .onChange(of: selectedEmailIDs) { _, _ in recomputeSelectedEmails() }
-        .onChange(of: displayedEmails) { _, _ in recomputeSelectedEmails() }
     }
 
     // MARK: - Bulk Actions

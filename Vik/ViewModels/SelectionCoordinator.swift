@@ -11,10 +11,15 @@ final class SelectionCoordinator {
     // MARK: - State
 
     var selectedEmail: Email?
-    var selectedEmailIDs: Set<String> = []
+    var selectedEmailIDs: Set<String> = [] {
+        didSet { recomputeSelectedEmails() }
+    }
     /// Direction of the last email selection for directional detail pane transitions.
     var selectionDirection: Edge = .bottom
     private(set) var displayedEmails: [Email] = []
+    /// Derived from `displayedEmails` filtered by `selectedEmailIDs`. Single source of truth
+    /// for both ListPaneView and DetailPaneView (avoids duplicate @State + transient disagreement).
+    private(set) var selectedEmails: [Email] = []
 
     // MARK: - Private State
 
@@ -102,6 +107,7 @@ final class SelectionCoordinator {
         displayedEmails = newEmails
         // Rebuild O(1) lookup index for arrow-key navigation.
         emailIndexMap = Dictionary(uniqueKeysWithValues: displayedEmails.enumerated().map { ($1.id, $0) })
+        recomputeSelectedEmails()
         // Keep selectedEmail fresh: replace with the updated version from the
         // new list so the detail pane reflects property changes (read, star, labels).
         if let selected = selectedEmail,
@@ -109,6 +115,11 @@ final class SelectionCoordinator {
            fresh != selected {
             selectedEmail = fresh
         }
+    }
+
+    /// Recomputes `selectedEmails` from `displayedEmails` filtered by `selectedEmailIDs`.
+    private func recomputeSelectedEmails() {
+        selectedEmails = displayedEmails.filter { selectedEmailIDs.contains($0.id.uuidString) }
     }
 
     /// O(1) index lookup for a given email ID.

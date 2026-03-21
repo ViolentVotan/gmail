@@ -11,22 +11,35 @@ final class UnsubscribeService {
         "unsubscribedMessageIDs.\(accountID)"
     }
 
+    // MARK: - In-memory cache
+
+    /// Keyed by accountID → Set of unsubscribed message IDs.
+    /// Populated lazily on first access per account; invalidated on clearAccount.
+    private var cachedSets: [String: Set<String>] = [:]
+
+    private func cachedSet(for accountID: String) -> Set<String> {
+        if let existing = cachedSets[accountID] { return existing }
+        let arr = UserDefaults.standard.stringArray(forKey: doneKey(for: accountID)) ?? []
+        let set = Set(arr)
+        cachedSets[accountID] = set
+        return set
+    }
+
     // MARK: - Persisted state
 
     func isUnsubscribed(messageID: String, accountID: String) -> Bool {
-        let arr = UserDefaults.standard.stringArray(forKey: doneKey(for: accountID)) ?? []
-        return Set(arr).contains(messageID)
+        cachedSet(for: accountID).contains(messageID)
     }
 
     private func markUnsubscribed(messageID: String, accountID: String) {
-        let key = doneKey(for: accountID)
-        var set = UserDefaults.standard.stringArray(forKey: key) ?? []
-        guard !set.contains(messageID) else { return }
-        set.append(messageID)
-        UserDefaults.standard.set(set, forKey: key)
+        guard !cachedSet(for: accountID).contains(messageID) else { return }
+        cachedSets[accountID, default: []].insert(messageID)
+        let arr = Array(cachedSets[accountID]!)
+        UserDefaults.standard.set(arr, forKey: doneKey(for: accountID))
     }
 
     func clearAccount(_ accountID: String) {
+        cachedSets.removeValue(forKey: accountID)
         UserDefaults.standard.removeObject(forKey: doneKey(for: accountID))
     }
 

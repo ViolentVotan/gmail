@@ -3,26 +3,15 @@ import SwiftUI
 // MARK: - Environment
 
 /// Lightweight action container — only the actions hover buttons need (ISP).
-/// `@MainActor` matches `EmailListActions` isolation.
-@MainActor
-struct EmailHoverActions {
+/// Stored as `@State` in `EmailListView` so the environment reference stays stable
+/// across renders; only the closure properties are updated, not the injected object.
+@Observable @MainActor
+final class EmailHoverActions {
     var onArchive: ((Email) -> Void)?
     var onDelete: ((Email) -> Void)?
     var onSnooze: ((Email, Date) -> Void)?
     var onMarkRead: ((Email) -> Void)?
     var onMarkUnread: ((Email) -> Void)?
-}
-
-@MainActor
-struct EmailHoverActionsKey: EnvironmentKey {
-    static let defaultValue = EmailHoverActions()
-}
-
-extension EnvironmentValues {
-    @MainActor var emailHoverActions: EmailHoverActions {
-        get { self[EmailHoverActionsKey.self] }
-        set { self[EmailHoverActionsKey.self] = newValue }
-    }
 }
 
 // MARK: - View
@@ -31,7 +20,7 @@ struct HoverActionButtonsView: View {
     let email: Email
     let isHovered: Bool
     let selectedFolder: Folder
-    @Environment(\.emailHoverActions) private var actions
+    @Environment(EmailHoverActions.self) private var actions
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var actionTrigger = false
 

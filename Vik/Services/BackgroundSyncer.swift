@@ -195,10 +195,9 @@ actor BackgroundSyncer {
             // FTS index is NOT updated here because no searchable fields (subject, body, sender)
             // change during label-only operations. If the interface changes to pass updated
             // content through label updates, FTS must be updated too.
-            for update in labelUpdates {
-                try MailDatabaseQueries.rebuildLabels(
-                    forMessageID: update.gmailId,
-                    newLabelIDs: update.labelIds,
+            if !labelUpdates.isEmpty {
+                try MailDatabaseQueries.rebuildLabelsBatch(
+                    updates: labelUpdates.map { (messageId: $0.gmailId, labelIds: $0.labelIds) },
                     in: db
                 )
             }

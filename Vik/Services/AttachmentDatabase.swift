@@ -496,6 +496,17 @@ actor AttachmentDatabase {
         return ids
     }
 
+    /// Returns true if the message ID has already been recorded in the scanned_messages table.
+    func isMessageScanned(id: String, accountID: String) -> Bool {
+        let sql = "SELECT 1 FROM scanned_messages WHERE messageID = ? AND accountID = ? LIMIT 1"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return false }
+        defer { sqlite3_finalize(stmt) }
+        bindText(stmt, 1, id)
+        bindText(stmt, 2, accountID)
+        return sqlite3_step(stmt) == SQLITE_ROW
+    }
+
     /// Persists a batch of scanned message IDs so they are skipped on next launch.
     /// Wraps all inserts in a single transaction for performance.
     func markMessagesScanned(_ ids: [String], accountID: String) {

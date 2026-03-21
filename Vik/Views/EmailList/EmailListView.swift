@@ -26,6 +26,7 @@ struct EmailListView: View {
     @State private var isSearching = false
     @State private var scrollPosition = ScrollPosition(edge: .top)
     @AppStorage("emailDensity") private var density = "comfortable"
+    @State private var hoverActions = EmailHoverActions()
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
@@ -399,6 +400,7 @@ struct EmailListView: View {
             accountID: accountID,
             selectedFolder: selectedFolder,
             isMultiSelect: selectedEmailIDs.count > 1,
+            density: density,
             action: { handleTap(email: email) },
             entranceIndex: entranceIndex
         )
@@ -474,7 +476,16 @@ struct EmailListView: View {
     // MARK: - Scroll view
 
     private var emailScrollView: some View {
-        List(selection: $selectedEmailIDs) {
+        // Keep the stable hoverActions instance in sync with the current actions
+        // without re-injecting a new environment value each render.
+        let _ = {
+            hoverActions.onArchive = actions.onArchive
+            hoverActions.onDelete = actions.onDelete
+            hoverActions.onSnooze = actions.onSnooze
+            hoverActions.onMarkRead = actions.onMarkRead
+            hoverActions.onMarkUnread = actions.onMarkUnread
+        }()
+        return List(selection: $selectedEmailIDs) {
             if useDateSections {
                 ForEach(cachedSections) { section in
                     Section {
@@ -513,13 +524,7 @@ struct EmailListView: View {
             }
         }
         .listStyle(.plain)
-        .environment(\.emailHoverActions, EmailHoverActions(
-            onArchive: actions.onArchive,
-            onDelete: actions.onDelete,
-            onSnooze: actions.onSnooze,
-            onMarkRead: actions.onMarkRead,
-            onMarkUnread: actions.onMarkUnread
-        ))
+        .environment(hoverActions)
         .scrollPosition($scrollPosition)
         .id(selectedFolder)
         .onChange(of: selectedFolder) {
@@ -705,16 +710,15 @@ private struct EmailSkeletonRowView: View {
     }
 
     private var shimmerOverlay: some View {
-        GeometryReader { geo in
-            let width = geo.size.width
-            LinearGradient(
-                colors: [.clear, .white.opacity(0.06), .clear],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
-            .frame(width: width * 0.4)
-            .offset(x: shimmerPhase * width)
-        }
-        .clipped()
+        LinearGradient(
+            stops: [
+                .init(color: .clear, location: max(0, shimmerPhase - 0.2)),
+                .init(color: .white.opacity(0.06), location: shimmerPhase),
+                .init(color: .clear, location: min(1, shimmerPhase + 0.2))
+            ],
+            startPoint: .leading,
+            endPoint: .trailing
+        )
+        .containerRelativeFrame(.horizontal)
     }
 }

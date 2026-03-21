@@ -126,21 +126,69 @@ enum MailDatabaseQueries {
         newLabelIDs: [String],
         in db: Database
     ) throws {
-        try db.execute(
-            sql: "DELETE FROM message_labels WHERE message_id = ?",
-            arguments: [gmailId]
-        )
-        for labelId in newLabelIDs {
-            try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil)
-                .insert(db, onConflict: .ignore)
-            try MessageLabelRecord(messageId: gmailId, labelId: labelId).insert(db, onConflict: .ignore)
+        try rebuildLabelsBatch(updates: [(messageId: gmailId, labelIds: newLabelIDs)], in: db)
+    }
+
+    /// Batch variant — processes multiple messages in one set of SQL statements.
+    /// Prefer this when updating labels for many messages at once.
+    static func rebuildLabelsBatch(
+        updates: [(messageId: String, labelIds: [String])],
+        in db: Database
+    ) throws {
+        guard !updates.isEmpty else { return }
+
+        // 1. Collect all unique label IDs across all messages.
+        let allLabelIds = Set(updates.flatMap { $0.labelIds })
+
+        // 2. Batch-insert all unique LabelRecords (ignore duplicates).
+        if !allLabelIds.isEmpty {
+            // Build a single multi-row INSERT OR IGNORE for all label stubs.
+            let placeholders = allLabelIds.map { _ in "(?, ?, NULL, NULL, NULL)" }.joined(separator: ", ")
+            var args: [DatabaseValue] = []
+            for labelId in allLabelIds {
+                args.append(labelId.databaseValue)
+                args.append(labelId.databaseValue)
+            }
+            try db.execute(
+                sql: "INSERT OR IGNORE INTO labels (gmail_id, name, type, bg_color, text_color) VALUES \(placeholders)",
+                arguments: StatementArguments(args)
+            )
         }
-        let isRead = !newLabelIDs.contains(GmailSystemLabel.unread)
-        let isStarred = newLabelIDs.contains(GmailSystemLabel.starred)
+
+        // 3. Delete existing label assignments for all affected messages.
+        let messageIds = updates.map { $0.messageId }
+        let deletePlaceholders = messageIds.map { _ in "?" }.joined(separator: ", ")
         try db.execute(
-            sql: "UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?",
-            arguments: [isRead, isStarred, gmailId]
+            sql: "DELETE FROM message_labels WHERE message_id IN (\(deletePlaceholders))",
+            arguments: StatementArguments(messageIds.map { $0.databaseValue })
         )
+
+        // 4. Batch-insert all new message↔label assignments.
+        let allAssignments = updates.flatMap { update in
+            update.labelIds.map { (messageId: update.messageId, labelId: $0) }
+        }
+        if !allAssignments.isEmpty {
+            let placeholders = allAssignments.map { _ in "(?, ?)" }.joined(separator: ", ")
+            var args: [DatabaseValue] = []
+            for pair in allAssignments {
+                args.append(pair.messageId.databaseValue)
+                args.append(pair.labelId.databaseValue)
+            }
+            try db.execute(
+                sql: "INSERT OR IGNORE INTO message_labels (message_id, label_id) VALUES \(placeholders)",
+                arguments: StatementArguments(args)
+            )
+        }
+
+        // 5. Update denormalized is_read / is_starred for each message in one pass.
+        for update in updates {
+            let isRead = !update.labelIds.contains(GmailSystemLabel.unread)
+            let isStarred = update.labelIds.contains(GmailSystemLabel.starred)
+            try db.execute(
+                sql: "UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?",
+                arguments: [isRead, isStarred, update.messageId]
+            )
+        }
     }
 
     // MARK: - Thread Counts

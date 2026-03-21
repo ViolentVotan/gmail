@@ -14,7 +14,14 @@ struct CalendarAgendaView: View {
     var onEmailAttendees: (CalendarEvent) -> Void = { _ in }
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @State private var groupedDays: [(date: Date, events: [CalendarEvent])] = []
+    private struct AgendaSection {
+        let date: Date
+        let events: [CalendarEvent]
+        let isToday: Bool
+        let isTomorrow: Bool
+    }
+
+    @State private var groupedDays: [AgendaSection] = []
     @State private var cachedTodayEvents: [CalendarEvent] = []
 
     // MARK: - Body
@@ -42,7 +49,7 @@ struct CalendarAgendaView: View {
                                     .padding(.bottom, Spacing.xs)
                             }
                         } header: {
-                            sectionHeader(for: group.date)
+                            sectionHeader(for: group.date, isToday: group.isToday, isTomorrow: group.isTomorrow)
                         }
                     }
                 }
@@ -65,12 +72,8 @@ struct CalendarAgendaView: View {
 
     // MARK: - Section header
 
-    private func sectionHeader(for date: Date) -> some View {
-        let calendar = Calendar.current
-        let isToday = calendar.isDateInToday(date)
-        let isTomorrow = calendar.isDateInTomorrow(date)
-
-        return HStack(spacing: Spacing.sm) {
+    private func sectionHeader(for date: Date, isToday: Bool, isTomorrow: Bool) -> some View {
+        HStack(spacing: Spacing.sm) {
             // Today accent line
             if isToday {
                 RoundedRectangle(cornerRadius: 1.5)
@@ -117,11 +120,16 @@ struct CalendarAgendaView: View {
     private func recomputeGroupedDays() {
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: viewModel.selectedDate)
-        groupedDays = (0..<30).compactMap { offset -> (Date, [CalendarEvent])? in
+        groupedDays = (0..<30).compactMap { offset -> AgendaSection? in
             guard let day = calendar.date(byAdding: .day, value: offset, to: start) else { return nil }
             let dayEvents = viewModel.eventsForDay(day)
             guard !dayEvents.isEmpty else { return nil }
-            return (day, dayEvents)
+            return AgendaSection(
+                date: day,
+                events: dayEvents,
+                isToday: calendar.isDateInToday(day),
+                isTomorrow: calendar.isDateInTomorrow(day)
+            )
         }
         cachedTodayEvents = viewModel.events.filter { calendar.isDateInToday($0.startTime) }
     }
@@ -148,12 +156,17 @@ private struct AgendaEventRow: View {
     @State private var isHovered = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var isPast: Bool {
-        event.endTime < .now && !Calendar.current.isDateInToday(event.startTime)
+    private let isPast: Bool
+
+    init(event: CalendarEvent, onSelect: @escaping (CalendarEvent) -> Void) {
+        self.event = event
+        self.onSelect = onSelect
+        self.isPast = event.endTime < .now && !Calendar.current.isDateInToday(event.startTime)
     }
 
     var body: some View {
-        Button {
+        let timeRange = event.formattedTimeRangeCompact
+        return Button {
             onSelect(event)
         } label: {
             HStack(spacing: Spacing.sm) {
@@ -165,7 +178,7 @@ private struct AgendaEventRow: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     // Time
-                    Text(event.formattedTimeRangeCompact)
+                    Text(timeRange)
                         .font(Typography.calendarAgendaTime)
                         .foregroundStyle(.secondary)
 
@@ -218,7 +231,7 @@ private struct AgendaEventRow: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
-        .accessibilityLabel("\(event.formattedTimeRangeCompact), \(event.summary)")
+        .accessibilityLabel("\(timeRange), \(event.summary)")
         .accessibilityAddTraits(.isButton)
     }
 

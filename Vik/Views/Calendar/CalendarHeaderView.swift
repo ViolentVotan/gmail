@@ -7,6 +7,8 @@ struct CalendarHeaderView: View {
     var onNewEvent: () -> Void
     @Namespace private var viewModeNamespace
 
+    @State private var cachedWeekRangeText: String = ""
+
     var body: some View {
         HStack(spacing: Spacing.sm) {
             navigationButtons
@@ -21,6 +23,12 @@ struct CalendarHeaderView: View {
         .padding(.vertical, Spacing.sm)
         .background(.bar)
         .clipped()
+        .task {
+            cachedWeekRangeText = weekRangeText
+        }
+        .onChange(of: viewModel.selectedWeek) {
+            cachedWeekRangeText = weekRangeText
+        }
     }
 
     // MARK: - Subviews
@@ -72,7 +80,7 @@ struct CalendarHeaderView: View {
         case .day:
             return viewModel.selectedDate.formatted(date: .abbreviated, time: .omitted)
         case .week, .agenda:
-            return weekRangeText
+            return cachedWeekRangeText
         }
     }
 
