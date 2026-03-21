@@ -144,7 +144,7 @@ struct DebugMenuView: View {
 
             // ── Collapsed header ──
             Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
+                withAnimation(VikAnimation.springSnappy) {
                     expandedEntryID = isExpanded ? nil : entry.id
                 }
             } label: {

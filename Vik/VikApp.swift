@@ -16,13 +16,6 @@ struct VikApp: App {
         NotificationService.shared.setup()
         VikShortcuts.updateAppShortcutParameters()
         NSApplication.shared.activate()
-        NotificationCenter.default.addObserver(
-            forName: NSApplication.willResignActiveNotification,
-            object: nil,
-            queue: .main
-        ) { _ in
-            Task { await TemporaryFileManager.shared.cleanupStale() }
-        }
     }
 
     var body: some Scene {
@@ -57,6 +50,11 @@ struct VikApp: App {
                         try? await Task.sleep(for: .seconds(600))
                         await TemporaryFileManager.shared.cleanupStale()
                     }
+                }
+
+                // Clean up stale files whenever the app resigns active
+                for await _ in NotificationCenter.default.notifications(named: NSApplication.willResignActiveNotification) {
+                    await TemporaryFileManager.shared.cleanupStale()
                 }
             }
         }

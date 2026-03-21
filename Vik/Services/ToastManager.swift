@@ -1,5 +1,4 @@
 import Foundation
-import Observation
 
 enum ToastType: Sendable {
     case success, error, info

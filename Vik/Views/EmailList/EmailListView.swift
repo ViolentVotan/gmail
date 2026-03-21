@@ -651,6 +651,7 @@ private struct EmailDateSection: Identifiable {
 
 private struct EmailSkeletonRowView: View {
     @State private var shimmerPhase: CGFloat = -1
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 12) {
@@ -681,8 +682,9 @@ private struct EmailSkeletonRowView: View {
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.sm)
         .padding(.horizontal, Spacing.sm)
-        .onAppear {
-            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+        .task {
+            guard !reduceMotion else { return }
+            withAnimation(VikAnimation.shimmer) {
                 shimmerPhase = 1
             }
         }

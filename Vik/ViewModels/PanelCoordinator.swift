@@ -36,6 +36,11 @@ final class PanelCoordinator {
     @ObservationIgnored private var originalMessageTask: Task<Void, Never>?
     @ObservationIgnored private var downloadTask: Task<Void, Never>?
 
+    isolated deinit {
+        originalMessageTask?.cancel()
+        downloadTask?.cancel()
+    }
+
     var isAnyOpen: Bool {
         showHelp || showDebug || showAttachmentPreview || showOriginal || showWebBrowser || showEmailPreview
     }

@@ -26,6 +26,10 @@ final class SelectionCoordinator {
         self.mailboxViewModel = mailboxViewModel
     }
 
+    isolated deinit {
+        markReadTask?.cancel()
+    }
+
     // MARK: - Actions
 
     func selectNext(_ email: Email?) {

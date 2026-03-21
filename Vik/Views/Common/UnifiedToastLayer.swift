@@ -83,7 +83,7 @@ private struct UndoToastCard: View {
                 Rectangle()
                     .fill(Color.accentColor.opacity(0.7))
                     .scaleEffect(x: undoMgr.progress, y: 1, anchor: .leading)
-                    .animation(.linear(duration: 0.06), value: undoMgr.progress)
+                    .animation(VikAnimation.progressBar, value: undoMgr.progress)
             }
             .frame(height: 3)
         }

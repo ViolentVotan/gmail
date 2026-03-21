@@ -75,15 +75,4 @@ enum EmailSelectionManager {
         selectionAnchorID = email.id.uuidString
     }
 
-    /// Select all emails in the sorted list.
-    static func selectAll(
-        sortedEmails: [Email],
-        selectedEmailIDs: inout Set<String>,
-        selectedEmail: inout Email?,
-        selectionAnchorID: inout String?
-    ) {
-        selectedEmailIDs = Set(sortedEmails.map { $0.id.uuidString })
-        selectedEmail = nil
-        selectionAnchorID = sortedEmails.first?.id.uuidString
-    }
 }

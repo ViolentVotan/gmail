@@ -135,7 +135,7 @@ struct CalendarMonthView: View {
             Divider()
 
             ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 0) {
+                LazyVStack(spacing: 0) {
                     ForEach(Array(cachedWeeks.enumerated()), id: \.offset) { weekIndex, weekDays in
                         if weekIndex > 0 {
                             Divider()

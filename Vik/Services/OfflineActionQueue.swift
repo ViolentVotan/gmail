@@ -89,6 +89,11 @@ final class OfflineActionQueue {
                 } catch {
                     if case .httpError(404, _) = error as? GmailAPIError {
                         removeAction(action)
+                    } else if case .partialFailure = error as? GmailAPIError {
+                        // Partial success: some messages deleted. Remove action to avoid
+                        // infinite retry loop (deleted IDs return 404 on next attempt).
+                        // Failed deletions will be retried on next full sync.
+                        removeAction(action)
                     } else {
                         Self.logger.warning("Drain error: \(error.localizedDescription, privacy: .public), retrying in \(self.retryDelay)s")
                         hitError = true

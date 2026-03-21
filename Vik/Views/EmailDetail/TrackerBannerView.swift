@@ -19,7 +19,7 @@ struct TrackerBannerView: View {
                     .foregroundStyle(.primary)
 
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(VikAnimation.springDefault) {
                         showDetails.toggle()
                     }
                 } label: {

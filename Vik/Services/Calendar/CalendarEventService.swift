@@ -76,13 +76,15 @@ final class CalendarEventService {
     @concurrent func syncEvents(
         calendarId: String,
         accountID: String,
-        syncToken: String,
+        syncToken: String? = nil,
         pageToken: String? = nil
     ) async throws(CalendarAPIError) -> CalendarEventListResponse {
         var queryItems = [
-            URLQueryItem(name: "syncToken", value: syncToken),
             URLQueryItem(name: "fields", value: Self.eventFieldMask),
         ]
+        if let syncToken {
+            queryItems.append(URLQueryItem(name: "syncToken", value: syncToken))
+        }
         if let pageToken {
             queryItems.append(URLQueryItem(name: "pageToken", value: pageToken))
         }

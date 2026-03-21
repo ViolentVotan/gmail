@@ -82,12 +82,14 @@ final class CalendarOfflineActionQueue {
             } catch CalendarAPIError.conflict(_) where action.actionType.isUpdate {
                 // 409 Conflict on update — re-fetch fresh etag and retry once
                 let resolved = await resolveConflict(for: action)
-                processed.append(action.id)
-                if !resolved {
+                if resolved {
+                    processed.append(action.id)
+                } else {
                     ToastManager.shared.show(
                         message: "Calendar edit conflicted with a server change",
                         type: .error
                     )
+                    break  // leave in queue for retry
                 }
             } catch let error where error.isNonRetriable {
                 Self.logger.warning("Discarding calendar offline action \(action.id) (non-retriable): \(error)")
@@ -148,7 +150,7 @@ final class CalendarOfflineActionQueue {
     }
 
     /// Re-fetches the event for a fresh etag, then retries the update once.
-    /// Returns `true` if the retry succeeded, `false` if it failed (action is discarded either way).
+    /// Returns `true` if the retry succeeded, `false` if it failed (action stays in queue for retry).
     private func resolveConflict(for action: CalendarOfflineAction) async -> Bool {
         guard case .updateEvent(let calendarId, let eventId, let input, _, let sendUpdates) = action.actionType else {
             return false

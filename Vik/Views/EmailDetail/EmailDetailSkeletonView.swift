@@ -2,6 +2,7 @@ import SwiftUI
 
 struct EmailDetailSkeletonView: View {
     @State private var animate = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ScrollView {
@@ -38,8 +39,9 @@ struct EmailDetailSkeletonView: View {
                 .padding(.horizontal, Spacing.xl)
             }
         }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) {
+        .task {
+            guard !reduceMotion else { return }
+            withAnimation(VikAnimation.skeletonPulse) {
                 animate = true
             }
         }

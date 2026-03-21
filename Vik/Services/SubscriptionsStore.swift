@@ -1,5 +1,4 @@
 import Foundation
-import Observation
 
 // MARK: - URL validity cache (actor-isolated)
 
@@ -148,7 +147,7 @@ final class SubscriptionsStore {
                 // Seed initial batch
                 for _ in 0..<min(maxConcurrent, candidates.count) {
                     guard let email = iterator.next() else { break }
-                    group.addTask {
+                    group.addTask { @Sendable in
                         guard let url = email.unsubscribeURL else { return (email, false) }
                         let valid = await urlCache.check(url)
                         return (email, valid)
@@ -174,7 +173,7 @@ final class SubscriptionsStore {
                     }
                     // Slide the window: add the next candidate as a slot frees up
                     if let nextEmail = iterator.next() {
-                        group.addTask {
+                        group.addTask { @Sendable in
                             guard let url = nextEmail.unsubscribeURL else { return (nextEmail, false) }
                             let valid = await urlCache.check(url)
                             return (nextEmail, valid)

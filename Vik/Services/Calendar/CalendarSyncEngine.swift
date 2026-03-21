@@ -244,6 +244,7 @@ actor CalendarSyncEngine {
                     var allActive: [CalendarAPIEvent] = []
                     var pageToken: String? = nil
                     var finalSyncToken: String? = nil
+                    var isFirstPage = true
 
                     // Note: singleEvents is intentionally not passed here. Google's sync token
                     // remembers the expansion mode from the initial listEvents(singleEvents: true).
@@ -252,9 +253,10 @@ actor CalendarSyncEngine {
                         let response = try await eventService.syncEvents(
                             calendarId: calendar.calendarId,
                             accountID: accountID,
-                            syncToken: syncToken,
+                            syncToken: isFirstPage ? syncToken : nil,
                             pageToken: pageToken
                         )
+                        isFirstPage = false
 
                         let items = response.items ?? []
                         for item in items {

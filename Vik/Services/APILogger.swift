@@ -1,5 +1,4 @@
 import Foundation
-import Observation
 
 // MARK: - API Log Entry
 

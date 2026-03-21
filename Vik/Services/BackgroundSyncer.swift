@@ -6,8 +6,8 @@ internal import GRDB
 /// Lightweight writes (star, read, archive) go directly through dbPool.write.
 actor BackgroundSyncer {
     let db: MailDatabase
-    private nonisolated(unsafe) static let htmlTagRegex = try! Regex("<[^>]+>")
-    private nonisolated(unsafe) static let whitespaceRegex = try! Regex("\\s+")
+    nonisolated(unsafe) private static let htmlTagRegex = try! Regex("<[^>]+>")
+    nonisolated(unsafe) private static let whitespaceRegex = try! Regex("\\s+")
 
     /// Strip HTML tags and collapse whitespace using pre-compiled regexes.
     nonisolated private static func stripHTML(_ html: String) -> String {

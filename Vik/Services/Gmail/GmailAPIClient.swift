@@ -734,7 +734,11 @@ final class GmailAPIClient {
         let generation = (refreshGeneration[accountID] ?? 0) + 1
         refreshGeneration[accountID] = generation
 
-        let task = Task { @MainActor in
+        // Create and register the task atomically — since we're on @MainActor,
+        // the dictionary assignment below runs before the Task closure executes,
+        // preventing a TOCTOU race where concurrent callers miss the in-flight task.
+        let task = Task {
+            defer { refreshTasks[accountID] = nil }
             let token: AuthToken?
             do {
                 token = try TokenStore.shared.retrieve(for: accountID)
@@ -750,16 +754,10 @@ final class GmailAPIClient {
 
         do {
             let result = try await task.value
-            if refreshGeneration[accountID] == generation {
-                refreshTasks[accountID] = nil
-                refreshGeneration.removeValue(forKey: accountID)
-            }
+            refreshGeneration.removeValue(forKey: accountID)
             cachedTokens.withLock { $0[accountID] = result }
             return result
         } catch {
-            // Always evict a failed task — a dead task should never be reused.
-            // The generation check only guards the success path (don't clear if superseded).
-            refreshTasks[accountID] = nil
             refreshGeneration.removeValue(forKey: accountID)
             // Clear revoked tokens from Keychain so we don't retry stale credentials on next launch
             if case .tokenRevoked = error as? OAuthError {
@@ -998,7 +996,12 @@ enum GmailAPIError: Error, LocalizedError {
     /// Maps `OAuthError.tokenRevoked` to `.tokenRevoked` so callers get a clear signal.
     static func wrap(_ error: Error) -> GmailAPIError {
         if let apiError = error as? GmailAPIError { return apiError }
-        if case .tokenRevoked = error as? OAuthError { return .tokenRevoked }
+        if let oauthError = error as? OAuthError {
+            switch oauthError {
+            case .tokenRevoked, .noRefreshToken: return .tokenRevoked
+            default: break
+            }
+        }
         return .networkError(error)
     }
 }

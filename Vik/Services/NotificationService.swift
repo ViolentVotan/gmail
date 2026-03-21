@@ -195,13 +195,13 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
 
         // Handle calendar reminder actions separately — they have no messageId.
         if requestContent.categoryIdentifier == "CALENDAR_REMINDER" {
-            guard let accountID = userInfo["accountID"] as? String else { return }
+            guard userInfo["accountID"] is String else { return }
             switch actionIdentifier {
             case "JOIN_MEETING":
                 if let linkString = userInfo["conferenceLink"] as? String,
                    !linkString.isEmpty,
                    let url = URL(string: linkString) {
-                    await MainActor.run { NSWorkspace.shared.open(url) }
+                    _ = await MainActor.run { NSWorkspace.shared.open(url) }
                 }
             case "SNOOZE_5MIN":
                 let snoozedContent = requestContent.mutableCopy() as! UNMutableNotificationContent
@@ -228,6 +228,8 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
 
             switch actionIdentifier {
             case "ARCHIVE":
+                // Unstructured Task: bridges MainActor sync context → async API call.
+                // Idempotent — OfflineActionQueue deduplicates on replay.
                 Task {
                     do {
                         try await GmailMessageService.shared.archiveMessage(id: messageId, accountID: accountID)
@@ -238,6 +240,8 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
                     }
                 }
             case "MARK_READ":
+                // Unstructured Task: bridges MainActor sync context → async API call.
+                // Idempotent — OfflineActionQueue deduplicates on replay.
                 Task {
                     do {
                         try await GmailMessageService.shared.markAsRead(id: messageId, accountID: accountID)

@@ -286,7 +286,7 @@ struct CalendarEventEditorView: View {
 
             if !attendeeEmails.isEmpty {
                 FlowLayout(spacing: Spacing.xs) {
-                    ForEach(attendeeEmails, id: \.self) { email in
+                    ForEach(Array(attendeeEmails.enumerated()), id: \.offset) { _, email in
                         AttendeeChip(email: email) {
                             attendeeEmails.removeAll { $0 == email }
                         }

@@ -1,4 +1,4 @@
-import SwiftUI
+import Foundation
 
 /// Utility for HTML quote stripping and full-HTML computation.
 /// View rendering has moved to ThreadMessageCardView.

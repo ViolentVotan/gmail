@@ -23,17 +23,18 @@ actor AttachmentDatabase {
     static let shared = AttachmentDatabase()
     nonisolated private static let logger = Logger(category: "AttachmentDatabase")
 
-    /// `nonisolated(unsafe)` is required because `init()` is nonisolated on actors
-    /// and calls `openDatabase()`/`createSchema()` which set `db` before the actor is shared.
-    /// Safe: init completes synchronously before any other code can access the actor.
+    // nonisolated(unsafe) required: actor init is nonisolated, must assign here.
+    // Safety: only written once in init, read from actor-isolated methods thereafter.
+    // All nonisolated helpers take OpaquePointer as a parameter — they never read this property.
     nonisolated(unsafe) private var db: OpaquePointer?
 
     // MARK: - Lifecycle
 
     private init() {
         do {
-            try openDatabase()
-            try createSchema()
+            let ptr = try openDatabase()
+            try createSchema(ptr)
+            self.db = ptr
         } catch {
             Self.logger.error("Init failed: \(error, privacy: .public)")
         }
@@ -48,21 +49,27 @@ actor AttachmentDatabase {
     // MARK: - Open
 
     /// Called only from `init()` — nonisolated because actor init is nonisolated.
-    nonisolated private func openDatabase() throws {
+    /// Returns the opened database pointer; never touches instance state.
+    nonisolated private func openDatabase() throws -> OpaquePointer {
         let fm = FileManager.default
         let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let dir = support.appendingPathComponent(AppPaths.appSupportName, isDirectory: true)
         try fm.createDirectory(at: dir, withIntermediateDirectories: true)
 
+        var ptr: OpaquePointer?
         let path = dir.appendingPathComponent("attachment-index.sqlite").path
-        if sqlite3_open(path, &db) != SQLITE_OK {
-            let msg = db.flatMap { String(cString: sqlite3_errmsg($0)) } ?? "unknown"
+        if sqlite3_open(path, &ptr) != SQLITE_OK {
+            let msg = ptr.flatMap { String(cString: sqlite3_errmsg($0)) } ?? "unknown"
             throw AttachmentDatabaseError.openFailed(msg)
+        }
+        guard let ptr else {
+            throw AttachmentDatabaseError.openFailed("sqlite3_open returned OK but pointer is nil")
         }
 
         // WAL mode for better concurrency
-        exec("PRAGMA journal_mode=WAL")
-        exec("PRAGMA foreign_keys=ON")
+        exec("PRAGMA journal_mode=WAL", on: ptr)
+        exec("PRAGMA foreign_keys=ON", on: ptr)
+        return ptr
     }
 
     // MARK: - Schema
@@ -74,7 +81,8 @@ actor AttachmentDatabase {
     // 4. Bump PRAGMA user_version only after successful migration
 
     /// Called only from `init()` — nonisolated because actor init is nonisolated.
-    nonisolated private func createSchema() throws {
+    /// Operates entirely on the passed-in pointer; never touches instance state.
+    nonisolated private func createSchema(_ db: OpaquePointer) throws {
         // 1. Base table
         let createTable = """
         CREATE TABLE IF NOT EXISTS attachments (
@@ -97,15 +105,15 @@ actor AttachmentDatabase {
         );
         """
         if sqlite3_exec(db, createTable, nil, nil, nil) != SQLITE_OK {
-            let msg = db.flatMap { String(cString: sqlite3_errmsg($0)) } ?? "unknown"
+            let msg = String(cString: sqlite3_errmsg(db))
             throw AttachmentDatabaseError.schemaFailed(msg)
         }
 
         // 1a. Indexes for frequently queried columns
-        exec("CREATE INDEX IF NOT EXISTS idx_attachments_account_id ON attachments(accountID)")
-        exec("CREATE INDEX IF NOT EXISTS idx_attachments_status_account ON attachments(indexingStatus, accountID)")
-        exec("CREATE INDEX IF NOT EXISTS idx_attachments_message_id ON attachments(messageId)")
-        exec("CREATE INDEX IF NOT EXISTS idx_attachments_account_date ON attachments(accountID, emailDate DESC)")
+        exec("CREATE INDEX IF NOT EXISTS idx_attachments_account_id ON attachments(accountID)", on: db)
+        exec("CREATE INDEX IF NOT EXISTS idx_attachments_status_account ON attachments(indexingStatus, accountID)", on: db)
+        exec("CREATE INDEX IF NOT EXISTS idx_attachments_message_id ON attachments(messageId)", on: db)
+        exec("CREATE INDEX IF NOT EXISTS idx_attachments_account_date ON attachments(accountID, emailDate DESC)", on: db)
 
         // 1b. Scanned messages tracking table
         sqlite3_exec(db, """
@@ -127,18 +135,19 @@ actor AttachmentDatabase {
         """, nil, nil, nil)
 
         // 2. Column migrations (only if column doesn't exist yet)
-        addColumnIfMissing("attachments", column: "retryCount", definition: "INTEGER DEFAULT 0")
-        addColumnIfMissing("attachments", column: "emailBody", definition: "TEXT")
-        addColumnIfMissing("attachments", column: "accountID", definition: "TEXT")
+        addColumnIfMissing("attachments", column: "retryCount", definition: "INTEGER DEFAULT 0", on: db)
+        addColumnIfMissing("attachments", column: "emailBody", definition: "TEXT", on: db)
+        addColumnIfMissing("attachments", column: "accountID", definition: "TEXT", on: db)
         // Clean up pre-migration rows without accountID — they can't be attributed to any account
         sqlite3_exec(db, "DELETE FROM attachments WHERE accountID IS NULL", nil, nil, nil)
 
         // 3. FTS migration — rebuild when schema changes
-        migrateFTS()
+        migrateFTS(db)
     }
 
     /// Called only from `createSchema()` during init — nonisolated for the same reason.
-    nonisolated private func migrateFTS() {
+    /// Operates entirely on the passed-in pointer; never touches instance state.
+    nonisolated private func migrateFTS(_ db: OpaquePointer) {
         // Check schema version
         var version: Int32 = 0
         var stmt: OpaquePointer?
@@ -149,10 +158,10 @@ actor AttachmentDatabase {
 
         // v0 → v1: add emailBody to FTS index
         if version < 1 {
-            exec("DROP TRIGGER IF EXISTS attachments_ai")
-            exec("DROP TRIGGER IF EXISTS attachments_ad")
-            exec("DROP TRIGGER IF EXISTS attachments_au")
-            exec("DROP TABLE IF EXISTS attachments_fts")
+            exec("DROP TRIGGER IF EXISTS attachments_ai", on: db)
+            exec("DROP TRIGGER IF EXISTS attachments_ad", on: db)
+            exec("DROP TRIGGER IF EXISTS attachments_au", on: db)
+            exec("DROP TABLE IF EXISTS attachments_fts", on: db)
         }
 
         // Create FTS + triggers (idempotent via IF NOT EXISTS)
@@ -183,17 +192,17 @@ actor AttachmentDatabase {
         sqlite3_exec(db, fts, nil, nil, nil)
 
         if version < 1 {
-            exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')")
-            exec("PRAGMA user_version = 1")
+            exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')", on: db)
+            exec("PRAGMA user_version = 1", on: db)
             version = 1
             Self.logger.info("Migrated FTS to v1 (added emailBody)")
         }
 
         // v1 → v2: rebuild FTS + vacuum after accountID cleanup
         if version < 2 {
-            exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')")
-            exec("VACUUM")
-            exec("PRAGMA user_version = 2")
+            exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')", on: db)
+            exec("VACUUM", on: db)
+            exec("PRAGMA user_version = 2", on: db)
             Self.logger.info("Migrated to v2 (accountID cleanup + vacuum)")
         }
     }
@@ -746,7 +755,7 @@ actor AttachmentDatabase {
     /// WARNING: `table`, `column`, and `definition` are interpolated directly into SQL.
     /// All callers MUST pass compile-time literals. Never pass user-supplied input.
     /// Init-only helper — nonisolated because called from nonisolated `createSchema()`.
-    nonisolated private func addColumnIfMissing(_ table: String, column: String, definition: String) {
+    nonisolated private func addColumnIfMissing(_ table: String, column: String, definition: String, on db: OpaquePointer) {
         // Guard against SQL injection — identifiers must contain only alphanumeric chars or underscores.
         let identifierPattern = #/^[a-zA-Z0-9_]+$/#
         guard table.wholeMatch(of: identifierPattern) != nil,
@@ -766,10 +775,16 @@ actor AttachmentDatabase {
         sqlite3_exec(db, alterSQL, nil, nil, nil)
     }
 
-    /// Fire-and-forget exec (for PRAGMAs, etc).
+    /// Fire-and-forget exec for actor-isolated methods (uses `self.db`).
     @discardableResult
-    /// Init-only helper — nonisolated because called from nonisolated schema setup.
-    nonisolated private func exec(_ sql: String) -> Bool {
+    private func exec(_ sql: String) -> Bool {
+        guard let db else { return false }
+        return sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK
+    }
+
+    /// Fire-and-forget exec for nonisolated init helpers (uses explicit pointer).
+    @discardableResult
+    nonisolated private func exec(_ sql: String, on db: OpaquePointer) -> Bool {
         sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK
     }
 

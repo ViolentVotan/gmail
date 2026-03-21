@@ -260,7 +260,7 @@ struct OnboardingView: View {
         }
 
         // 1. Ambient orbs fade in
-        withAnimation(.easeIn(duration: 1.8)) {
+        withAnimation(VikAnimation.onboardingAmbient) {
             orbsVisible = true
         }
         startOrbAnimations()
@@ -279,12 +279,12 @@ struct OnboardingView: View {
         }
 
         // 4. "Vik" text fades + slides up
-        withAnimation(.easeOut(duration: 0.5).delay(1.1)) {
+        withAnimation(VikAnimation.onboardingReveal.delay(1.1)) {
             showName = true
         }
 
         // 5. Tagline fades in
-        withAnimation(.easeOut(duration: 0.4).delay(1.4)) {
+        withAnimation(VikAnimation.onboardingRevealShort.delay(1.4)) {
             showTagline = true
         }
 
@@ -296,13 +296,13 @@ struct OnboardingView: View {
 
     private func startOrbAnimations() {
         guard !reduceMotion else { return }
-        withAnimation(.easeInOut(duration: 9).repeatForever(autoreverses: true)) {
+        withAnimation(VikAnimation.orbDrift(duration: 9)) {
             orb1Offset = CGSize(width: 120, height: 80)
         }
-        withAnimation(.easeInOut(duration: 11).repeatForever(autoreverses: true).delay(0.5)) {
+        withAnimation(VikAnimation.orbDrift(duration: 11, delay: 0.5)) {
             orb2Offset = CGSize(width: -140, height: -90)
         }
-        withAnimation(.easeInOut(duration: 10).repeatForever(autoreverses: true).delay(1.0)) {
+        withAnimation(VikAnimation.orbDrift(duration: 10, delay: 1.0)) {
             orb3Offset = CGSize(width: 90, height: -110)
         }
     }
@@ -316,7 +316,7 @@ struct OnboardingView: View {
         isSigningIn = false
         if authViewModel.hasAccounts {
             hideTrafficLights(false)
-            withAnimation(.easeInOut(duration: 0.5)) {
+            withAnimation(VikAnimation.onboardingTransition) {
                 isSignedIn = true
             }
         } else {

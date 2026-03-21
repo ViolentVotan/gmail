@@ -69,7 +69,7 @@ struct EmailHoverSummaryView: View {
                     .font(Typography.subheadRegular)
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .animation(.easeIn(duration: 0.05), value: summaryVM.displayedText)
+                    .animation(VikAnimation.typewriterReveal, value: summaryVM.displayedText)
 
                 #if canImport(FoundationModels)
                 if let insight = summaryVM.insight {

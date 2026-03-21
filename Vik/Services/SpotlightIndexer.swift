@@ -58,12 +58,12 @@ final class SpotlightIndexer {
 
     private func cleanLegacyItemsIfNeeded() {
         guard !legacyCleaned else { return }
-        Task {
-            // Remove legacy items indexed as CSSearchableItem with domain "com.vikingz.vik.emails"
+        legacyCleaned = true
+        Task { [weak self] in
             try? await CSSearchableIndex.default().deleteSearchableItems(
                 withDomainIdentifiers: ["com.vikingz.vik.emails"]
             )
-            await MainActor.run { legacyCleaned = true }
+            _ = self
         }
     }
 

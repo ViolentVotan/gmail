@@ -106,6 +106,26 @@ enum VikAnimation {
     static let microBounce = Animation.spring(duration: 0.25, bounce: 0.35)
     /// Hover/selection feedback — ultra-responsive spring for interactive state changes.
     static let hoverFeedback = Animation.snappy(duration: 0.2)
+    /// Skeleton shimmer — continuous linear sweep for loading placeholders.
+    static let shimmer = Animation.linear(duration: 1.2).repeatForever(autoreverses: false)
+    /// Skeleton pulse — continuous ease-in-out fade for loading placeholders.
+    static let skeletonPulse = Animation.easeInOut(duration: 0.9).repeatForever(autoreverses: true)
+    /// Progress bar — fast linear fill for time-sensitive progress indicators.
+    static let progressBar = Animation.linear(duration: 0.06)
+    /// Typewriter reveal — instant text update for character-by-character streaming.
+    static let typewriterReveal = Animation.linear(duration: 0.05)
+    /// Onboarding entrance — slow fade for ambient background elements.
+    static let onboardingAmbient = Animation.easeIn(duration: 1.8)
+    /// Onboarding reveal — smooth fade-out for text elements appearing in sequence.
+    static let onboardingReveal = Animation.easeOut(duration: 0.5)
+    /// Onboarding short reveal — quick fade for secondary text elements.
+    static let onboardingRevealShort = Animation.easeOut(duration: 0.4)
+    /// Onboarding transition — crossfade for post-sign-in view swap.
+    static let onboardingTransition = Animation.easeInOut(duration: 0.5)
+    /// Orb drift — long looping ease for ambient floating orb movement.
+    static func orbDrift(duration: Double, delay: Double = 0) -> Animation {
+        .easeInOut(duration: duration).repeatForever(autoreverses: true).delay(delay)
+    }
 }
 
 // MARK: - Opacity Tokens

@@ -36,7 +36,7 @@ enum CalendarAPIError: Error, LocalizedError, Sendable {
     /// Whether this error should not be retried (the action should be discarded).
     var isNonRetriable: Bool {
         switch self {
-        case .conflict, .gone, .notFound: true
+        case .conflict, .gone, .notFound, .tokenRevoked, .unauthorized: true
         default: false
         }
     }
