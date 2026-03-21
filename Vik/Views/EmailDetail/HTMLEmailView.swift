@@ -226,9 +226,9 @@ struct HTMLEmailView: NSViewRepresentable {
 
     /// JavaScript injected at document-end to fix contrast and observe content height.
     ///
-    /// `fixContrastColorsAsync()` processes elements in chunks of 50 per
-    /// `requestAnimationFrame` so content is visible immediately while colors
-    /// fix progressively over 2-3 frames.
+    /// `fixContrastColorsAsync()` uses a `TreeWalker` to lazily iterate elements
+    /// in chunks of 60 per `requestAnimationFrame`, fixing colors progressively.
+    /// Called from `injectContent` Phase 2 (dark mode only), not during template load.
     ///
     /// Posts `heightChanged` messages to the native side instead of requiring periodic
     /// `evaluateJavaScript` polling. A `ResizeObserver` on `#emailContent` fires whenever
