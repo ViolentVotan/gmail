@@ -241,6 +241,20 @@ actor CalendarSyncEngine {
 
     // MARK: - Incremental Sync
 
+    /// Result of fetching incremental changes for a single calendar.
+    /// Produced off-actor by the task group, consumed on-actor for DB writes.
+    private enum IncrementalFetchResult: Sendable {
+        case success(
+            calendarId: String,
+            calendarTimeZone: String?,
+            cancelled: [CalendarAPIEvent],
+            active: [CalendarAPIEvent],
+            syncToken: String?
+        )
+        case gone(calendarId: String, calendarTimeZone: String?)
+        case failed(calendarId: String, errorDescription: String)
+    }
+
     private func syncIncremental() async {
         if case .initialSync = state { return }
         guard NetworkMonitor.isReachable else { return }
@@ -250,89 +264,107 @@ actor CalendarSyncEngine {
         state = .syncing
 
         do {
+            // Capture actor properties for use in off-actor task group closures
+            let eventService = self.eventService
+            let accountID = self.accountID
+
             let calendars = try await db.dbPool.read { db in
                 try MailDatabaseQueries.visibleCalendars(accountId: accountID, in: db)
             }
 
-            for calendar in calendars {
-                guard let syncToken = calendar.syncToken, !syncToken.isEmpty else { continue }
+            let syncableCalendars = calendars.filter { calendar in
+                guard let token = calendar.syncToken else { return false }
+                return !token.isEmpty
+            }
 
-                do {
-                    var allCancelled: [CalendarAPIEvent] = []
-                    var allActive: [CalendarAPIEvent] = []
-                    var pageToken: String? = nil
-                    var finalSyncToken: String? = nil
-                    var isFirstPage = true
+            // Fetch incremental changes in parallel (max 3 concurrent)
+            let results: [IncrementalFetchResult] = await withTaskGroup(of: IncrementalFetchResult.self) { group in
+                var inFlight = 0
+                let maxConcurrency = 3
+                var collected: [IncrementalFetchResult] = []
 
-                    // Note: singleEvents is intentionally not passed here. Google's sync token
-                    // remembers the expansion mode from the initial listEvents(singleEvents: true).
-                    // Passing it with a syncToken may cause API errors per Google's docs.
-                    repeat {
-                        let response = try await eventService.syncEvents(
-                            calendarId: calendar.calendarId,
-                            accountID: accountID,
-                            syncToken: isFirstPage ? syncToken : nil,
-                            pageToken: pageToken
-                        )
-                        isFirstPage = false
+                for calendar in syncableCalendars {
+                    guard !Task.isCancelled else { break }
 
-                        let items = response.items ?? []
-                        for item in items {
-                            if item.status == "cancelled" {
-                                allCancelled.append(item)
-                            } else {
-                                allActive.append(item)
-                            }
+                    if inFlight >= maxConcurrency {
+                        if let result = await group.next() {
+                            collected.append(result)
+                            inFlight -= 1
                         }
+                    }
 
-                        pageToken = response.nextPageToken
-                        if response.nextSyncToken != nil { finalSyncToken = response.nextSyncToken }
-                    } while pageToken != nil
+                    let calId = calendar.calendarId
+                    let calTZ = calendar.timeZone
+                    let syncToken = calendar.syncToken!
+                    group.addTask {
+                        await Self.fetchIncrementalChanges(
+                            calendarId: calId,
+                            calendarTimeZone: calTZ,
+                            syncToken: syncToken,
+                            accountID: accountID,
+                            eventService: eventService
+                        )
+                    }
+                    inFlight += 1
+                }
 
-                    if !allCancelled.isEmpty {
-                        let deleteIds = allCancelled.compactMap { event -> (eventId: String, calendarId: String, accountId: String)? in
+                // Drain remaining tasks
+                for await result in group {
+                    collected.append(result)
+                }
+                return collected
+            }
+
+            // Process results on-actor (DB writes, sync token updates, 410 recovery)
+            for result in results {
+                switch result {
+                case .success(let calendarId, let calendarTimeZone, let cancelled, let active, let syncToken):
+                    if !cancelled.isEmpty {
+                        let deleteIds = cancelled.compactMap { event -> (eventId: String, calendarId: String, accountId: String)? in
                             guard let id = event.id else { return nil }
-                            return (eventId: id, calendarId: calendar.calendarId, accountId: accountID)
+                            return (eventId: id, calendarId: calendarId, accountId: accountID)
                         }
                         try await syncer.deleteEvents(deleteIds)
                     }
 
-                    if !allActive.isEmpty {
+                    if !active.isEmpty {
                         let (eventRecords, attendeeRecords) = Self.convertToRecords(
-                            events: allActive, calendarId: calendar.calendarId, accountId: accountID,
-                            calendarTimeZone: calendar.timeZone
+                            events: active, calendarId: calendarId, accountId: accountID,
+                            calendarTimeZone: calendarTimeZone
                         )
                         try await syncer.upsertEvents(eventRecords, attendees: attendeeRecords)
                     }
 
-                    if let finalSyncToken {
+                    if let syncToken {
                         try await syncer.updateSyncToken(
-                            calendarId: calendar.calendarId, accountId: accountID, token: finalSyncToken
+                            calendarId: calendarId, accountId: accountID, token: syncToken
                         )
                     }
-                } catch CalendarAPIError.gone {
+
+                case .gone(let calendarId, let calendarTimeZone):
                     // SyncToken expired — clear stale events and trigger full resync for this calendar
                     // Per Google Calendar API 410 spec: wipe local store before full resync
                     // to remove server-side deletions that won't appear in the new full fetch.
-                    Self.logger.warning("SyncToken expired for calendar \(calendar.calendarId), performing full resync")
+                    Self.logger.warning("SyncToken expired for calendar \(calendarId), performing full resync")
                     try? await syncer.deleteEventsForCalendar(
-                        calendarId: calendar.calendarId, accountId: accountID
+                        calendarId: calendarId, accountId: accountID
                     )
                     let now = Date()
                     let timeMin = now.addingTimeInterval(-30 * 86400)
                     let timeMax = now.addingTimeInterval(90 * 86400)
                     do {
                         try await syncFullEvents(
-                            calendarId: calendar.calendarId,
+                            calendarId: calendarId,
                             timeMin: timeMin,
                             timeMax: timeMax,
-                            calendarTimeZone: calendar.timeZone
+                            calendarTimeZone: calendarTimeZone
                         )
                     } catch {
-                        Self.logger.error("Full resync failed for calendar \(calendar.calendarId): \(String(describing: error))")
+                        Self.logger.error("Full resync failed for calendar \(calendarId): \(String(describing: error))")
                     }
-                } catch {
-                    Self.logger.error("Incremental sync failed for calendar \(calendar.calendarId): \(String(describing: error))")
+
+                case .failed(let calendarId, let errorDescription):
+                    Self.logger.error("Incremental sync failed for calendar \(calendarId): \(errorDescription)")
                 }
             }
 
@@ -340,6 +372,61 @@ actor CalendarSyncEngine {
         } catch {
             state = .error(CalendarAPIError.wrap(error))
             Self.logger.error("Incremental calendar sync failed: \(String(describing: error))")
+        }
+    }
+
+    /// Fetches incremental changes for a single calendar. Runs off-actor (nonisolated)
+    /// so multiple calendars can be fetched concurrently in a task group.
+    private nonisolated static func fetchIncrementalChanges(
+        calendarId: String,
+        calendarTimeZone: String?,
+        syncToken: String,
+        accountID: String,
+        eventService: CalendarEventService
+    ) async -> IncrementalFetchResult {
+        do {
+            var allCancelled: [CalendarAPIEvent] = []
+            var allActive: [CalendarAPIEvent] = []
+            var pageToken: String? = nil
+            var finalSyncToken: String? = nil
+            var isFirstPage = true
+
+            // Note: singleEvents is intentionally not passed here. Google's sync token
+            // remembers the expansion mode from the initial listEvents(singleEvents: true).
+            // Passing it with a syncToken may cause API errors per Google's docs.
+            repeat {
+                let response = try await eventService.syncEvents(
+                    calendarId: calendarId,
+                    accountID: accountID,
+                    syncToken: isFirstPage ? syncToken : nil,
+                    pageToken: pageToken
+                )
+                isFirstPage = false
+
+                let items = response.items ?? []
+                for item in items {
+                    if item.status == "cancelled" {
+                        allCancelled.append(item)
+                    } else {
+                        allActive.append(item)
+                    }
+                }
+
+                pageToken = response.nextPageToken
+                if response.nextSyncToken != nil { finalSyncToken = response.nextSyncToken }
+            } while pageToken != nil
+
+            return .success(
+                calendarId: calendarId,
+                calendarTimeZone: calendarTimeZone,
+                cancelled: allCancelled,
+                active: allActive,
+                syncToken: finalSyncToken
+            )
+        } catch CalendarAPIError.gone {
+            return .gone(calendarId: calendarId, calendarTimeZone: calendarTimeZone)
+        } catch {
+            return .failed(calendarId: calendarId, errorDescription: String(describing: error))
         }
     }
 

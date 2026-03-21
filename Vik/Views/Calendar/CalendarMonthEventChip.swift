@@ -8,9 +8,25 @@ struct CalendarMonthEventChip: View {
     let event: CalendarEvent
     var onSelect: (CalendarEvent) -> Void = { _ in }
 
+    /// Pre-formatted time string (e.g. "14:30") computed once at init, not per body evaluation.
+    private let formattedStartTime: String
+
     @State private var isHovered = false
     @GestureState private var isPressed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// 24-hour "HH:mm" formatter matching the previous `.dateTime.hour(.twoDigits(amPM: .omitted)).minute()`.
+    private static let chipTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "HH:mm"
+        return f
+    }()
+
+    init(event: CalendarEvent, onSelect: @escaping (CalendarEvent) -> Void = { _ in }) {
+        self.event = event
+        self.onSelect = onSelect
+        self.formattedStartTime = Self.chipTimeFormatter.string(from: event.startTime)
+    }
 
     var body: some View {
         HStack(spacing: 3) {
@@ -19,7 +35,7 @@ struct CalendarMonthEventChip: View {
                 Circle()
                     .fill(event.resolvedColor)
                     .frame(width: 6, height: 6)
-                Text(event.startTime, format: .dateTime.hour(.twoDigits(amPM: .omitted)).minute())
+                Text(formattedStartTime)
                     .font(Typography.calendarEventTime)
                     .foregroundStyle(.secondary)
                 Text(event.summary)

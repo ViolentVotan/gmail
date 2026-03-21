@@ -16,11 +16,6 @@ final class LabelSuggestionService {
 
     private init() {}
 
-    func cachedSuggestions(for email: Email) -> [LabelSuggestion]? {
-        let key = AIServiceHelpers.cacheKey(for: email)
-        return cache[key]
-    }
-
     func generateSuggestions(for email: Email, existingLabels: [GmailLabel]) async -> [LabelSuggestion] {
         let key = AIServiceHelpers.cacheKey(for: email)
         if let cached = cache[key] {

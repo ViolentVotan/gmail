@@ -547,11 +547,16 @@ enum CalendarLayout {
     // MARK: - Layout calculations
 
     /// Y-position for a given time in the day/week grid.
+    /// Convenience overload — computes `startOfDay` internally.
     static func yPosition(for date: Date) -> CGFloat {
-        let calendar = Calendar.current
-        let hour = calendar.component(.hour, from: date)
-        let minute = calendar.component(.minute, from: date)
-        return CGFloat(hour) * hourRowHeight + CGFloat(minute) / 60.0 * hourRowHeight
+        yPosition(for: date, startOfDay: Calendar.current.startOfDay(for: date))
+    }
+
+    /// Y-position using a pre-computed `startOfDay` to avoid repeated `Calendar.current` calls.
+    /// Prefer this overload in render loops where multiple events share the same day.
+    static func yPosition(for date: Date, startOfDay: Date) -> CGFloat {
+        let secondsSinceMidnight = date.timeIntervalSince(startOfDay)
+        return CGFloat(secondsSinceMidnight / 3600.0) * hourRowHeight
     }
 
     /// Height for an event spanning from `start` to `end`.

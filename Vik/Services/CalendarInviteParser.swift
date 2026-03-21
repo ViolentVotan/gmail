@@ -53,26 +53,6 @@ enum CalendarInviteParser {
         return regex
     }()
 
-    private static let htmlTagRegex: NSRegularExpression = {
-        guard let regex = try? NSRegularExpression(
-            pattern: #"<[^>]+>"#,
-            options: []
-        ) else {
-            preconditionFailure("Invalid regex pattern for htmlTagRegex")
-        }
-        return regex
-    }()
-
-    private static let whitespaceRegex: NSRegularExpression = {
-        guard let regex = try? NSRegularExpression(
-            pattern: #"\s+"#,
-            options: []
-        ) else {
-            preconditionFailure("Invalid regex pattern for whitespaceRegex")
-        }
-        return regex
-    }()
-
     /// Detects a Google Calendar invitation from the HTML body.
     /// Returns nil if no RSVP URLs are found (not a calendar invite).
     static func parse(html: String, subject: String, sender: String) -> CalendarInvite? {
@@ -152,14 +132,14 @@ enum CalendarInviteParser {
         // Pattern 1: <b>Label</b> ... text content (up to next <b> or </td> or </div>)
         let pattern1 = #"<b>\s*(?:\#(label))\s*</b>\s*(?:</td>\s*<td[^>]*>)?\s*(.*?)(?=<b>|</td>|</div>|</tr>|<br\s*/?>)"#
         if let value = firstMatch(pattern: pattern1, in: html, group: 2) {
-            let clean = stripHTML(value)
+            let clean = value.strippingHTML
             if !clean.isEmpty { return clean }
         }
 
         // Pattern 2: td/div with label, next td/div with value
         let pattern2 = #"(?:\#(label))\s*:?\s*</(?:td|div|span|b)>\s*</td>\s*<td[^>]*>\s*(.*?)\s*</td>"#
         if let value = firstMatch(pattern: pattern2, in: html, group: 2) {
-            let clean = stripHTML(value)
+            let clean = value.strippingHTML
             if !clean.isEmpty { return clean }
         }
 
@@ -173,7 +153,7 @@ enum CalendarInviteParser {
               match.numberOfRanges > 1,
               let r = Range(match.range(at: 1), in: html)
         else { return nil }
-        let clean = stripHTML(String(html[r]))
+        let clean = String(html[r]).strippingHTML
         return clean.isEmpty ? nil : clean
     }
 
@@ -207,15 +187,4 @@ enum CalendarInviteParser {
         return String(text[r])
     }
 
-    /// Strips HTML tags and decodes entities via `String.decodingHTMLEntities()`.
-    private static func stripHTML(_ html: String) -> String {
-        let range = NSRange(html.startIndex..., in: html)
-        var text = htmlTagRegex.stringByReplacingMatches(in: html, range: range, withTemplate: " ")
-        // Decode all HTML entities (named, decimal, hex) using the shared extension
-        text = text.decodingHTMLEntities()
-        // Collapse whitespace
-        let wsRange = NSRange(text.startIndex..., in: text)
-        text = whitespaceRegex.stringByReplacingMatches(in: text, range: wsRange, withTemplate: " ")
-        return text.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
 }

@@ -843,48 +843,13 @@ final class GmailAPIClient {
     @concurrent private nonisolated static func retryingRequest(
         _ request: URLRequest
     ) async throws(GmailAPIError) -> (Data, HTTPURLResponse) {
-        for attempt in 0...RetryPolicy.maxRetries {
-            let data: Data
-            let response: URLResponse
-            do {
-                (data, response) = try await sharedSession.data(for: request)
-            } catch {
-                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
-                    continue
-                }
-                throw .networkError(error)
+        do {
+            return try await RetryPolicy.retryingHTTP {
+                try await sharedSession.data(for: request)
             }
-            guard let http = response as? HTTPURLResponse else { throw .invalidURL }
-
-            // Handle 429 with backoff
-            if http.statusCode == 429, attempt < RetryPolicy.maxRetries {
-                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                continue
-            }
-
-            // Handle 403 rate-limiting (needs body check)
-            if http.statusCode == 403, RetryPolicy.isRateLimited403(data),
-               attempt < RetryPolicy.maxRetries {
-                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                continue
-            }
-
-            // Handle other retriable status codes (5xx)
-            if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
-                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                // Intentionally use try? — if task is cancelled, the next iteration's
-                // URLSession call will throw, which we convert to .networkError.
-                try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                continue
-            }
-
-            // All other statuses: return to caller for handling
-            return (data, http)
+        } catch {
+            throw GmailAPIError.wrap(error)
         }
-        throw .httpError(0, Data())
     }
 
     /// Returns (data, httpStatusCode, responseHeaders).
@@ -1037,6 +1002,61 @@ enum RetryPolicy {
         let base = pow(2.0, Double(attempt))
         let jitter = Double.random(in: 0...1.0)
         return min(base + jitter, 64.0)
+    }
+
+    /// Shared HTTP retry loop handling network errors, retriable status codes (5xx),
+    /// 429 rate-limiting, and 403 rate-limiting. Returns the raw response — callers
+    /// handle domain-specific status codes (401, 409, 410, success parsing, etc.).
+    ///
+    /// - Parameter execute: Closure that performs the actual HTTP request.
+    /// - Throws: The `Error` produced by the closure on non-retriable failure,
+    ///   or a generic error if retries are exhausted. Callers map to their typed error.
+    static func retryingHTTP(
+        _ execute: () async throws -> (Data, URLResponse)
+    ) async throws -> (Data, HTTPURLResponse) {
+        for attempt in 0...maxRetries {
+            let data: Data
+            let response: URLResponse
+            do {
+                (data, response) = try await execute()
+            } catch {
+                if isRetriableNetworkError(error), attempt < maxRetries {
+                    try? await Task.sleep(for: .seconds(delay(forAttempt: attempt)))
+                    continue
+                }
+                throw error
+            }
+            guard let http = response as? HTTPURLResponse else {
+                throw URLError(.badServerResponse)
+            }
+
+            // Handle 429 with backoff
+            if http.statusCode == 429, attempt < maxRetries {
+                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                try? await Task.sleep(for: .seconds(delay(forAttempt: attempt, retryAfter: retryAfter)))
+                continue
+            }
+
+            // Handle 403 rate-limiting (needs body check)
+            if http.statusCode == 403, isRateLimited403(data), attempt < maxRetries {
+                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                try? await Task.sleep(for: .seconds(delay(forAttempt: attempt, retryAfter: retryAfter)))
+                continue
+            }
+
+            // Handle other retriable status codes (5xx)
+            if isRetriable(statusCode: http.statusCode), attempt < maxRetries {
+                let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
+                // Intentionally use try? — if task is cancelled, the next iteration's
+                // URLSession call will throw, which the caller converts to its error type.
+                try? await Task.sleep(for: .seconds(delay(forAttempt: attempt, retryAfter: retryAfter)))
+                continue
+            }
+
+            // All other statuses: return to caller for handling
+            return (data, http)
+        }
+        throw URLError(.timedOut)
     }
 }
 

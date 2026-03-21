@@ -165,13 +165,21 @@ struct CalendarMonthView: View {
     private func recomputeMonthLayout() {
         let weeks = calendar.weeksInMonth(for: viewModel.selectedDate)
         let currentMonth = calendar.component(.month, from: viewModel.selectedDate)
+        let allMultiDayEvents = viewModel.multiDayEvents
 
         var layouts: [MonthSpanningLayout] = []
         var contents: [[MonthDayCellContent]] = []
 
         for weekDays in weeks {
+            // Pre-filter events to only those overlapping this week,
+            // avoiding O(N) re-scan inside MonthSpanningLayout.compute for each row.
+            let weekStart = calendar.startOfDay(for: weekDays[0])
+            let weekEnd = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: weekDays[6]))!
+            let weekEvents = allMultiDayEvents.filter { event in
+                event.startTime < weekEnd && event.endTime > weekStart
+            }
             let layout = MonthSpanningLayout.compute(
-                events: viewModel.multiDayEvents,
+                events: weekEvents,
                 weekDays: weekDays
             )
             let cells = computeCellContents(

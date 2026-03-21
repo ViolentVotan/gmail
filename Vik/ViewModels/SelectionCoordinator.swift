@@ -20,6 +20,8 @@ final class SelectionCoordinator {
 
     @ObservationIgnored private var emailIndexMap: [UUID: Int] = [:]
     @ObservationIgnored private var markReadTask: Task<Void, Never>?
+    @ObservationIgnored private var lastEmailIDs: [String] = []
+    @ObservationIgnored private var lastFolder: Folder = .inbox
 
     // MARK: - Init
 
@@ -82,16 +84,22 @@ final class SelectionCoordinator {
         cachedSnoozedEmails: [Email],
         cachedScheduledEmails: [Email]
     ) {
+        let newEmails: [Email]
         switch folder {
-        case .drafts:        displayedEmails = mailStore.emails(for: .drafts)
-        case .subscriptions: displayedEmails = SubscriptionsStore.shared.entries
-        case .snoozed:       displayedEmails = cachedSnoozedEmails
-        case .scheduled:     displayedEmails = cachedScheduledEmails
+        case .drafts:        newEmails = mailStore.emails(for: .drafts)
+        case .subscriptions: newEmails = SubscriptionsStore.shared.entries
+        case .snoozed:       newEmails = cachedSnoozedEmails
+        case .scheduled:     newEmails = cachedScheduledEmails
         default:
-            displayedEmails = mailboxViewModel.priorityFilterEnabled
+            newEmails = mailboxViewModel.priorityFilterEnabled
                 ? mailboxViewModel.emails.filter { $0.gmailLabelIDs.contains(GmailSystemLabel.important) }
                 : mailboxViewModel.emails
         }
+        let newIDs = newEmails.map { $0.id.uuidString }
+        guard folder != lastFolder || newIDs != lastEmailIDs else { return }
+        lastFolder = folder
+        lastEmailIDs = newIDs
+        displayedEmails = newEmails
         // Rebuild O(1) lookup index for arrow-key navigation.
         emailIndexMap = Dictionary(uniqueKeysWithValues: displayedEmails.enumerated().map { ($1.id, $0) })
         // Keep selectedEmail fresh: replace with the updated version from the

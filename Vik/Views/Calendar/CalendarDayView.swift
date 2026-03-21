@@ -126,13 +126,15 @@ struct CalendarDayView: View {
                     }
 
                     // Event cards overlaid on the grid
+                    let dayStartOfDay = Calendar.current.startOfDay(for: viewModel.selectedDate)
                     ForEach(Array(cachedOverlapGroups.enumerated()), id: \.element.first?.id) { groupIndex, group in
                         ForEach(Array(group.enumerated()), id: \.element.id) { colIndex, event in
                             dayEventCard(
                                 event: event,
                                 colIndex: colIndex,
                                 colCount: group.count,
-                                totalWidth: gridWidth
+                                totalWidth: gridWidth,
+                                startOfDay: dayStartOfDay
                             )
                         }
                     }
@@ -200,10 +202,11 @@ struct CalendarDayView: View {
         event: CalendarEvent,
         colIndex: Int,
         colCount: Int,
-        totalWidth: CGFloat
+        totalWidth: CGFloat,
+        startOfDay: Date
     ) -> some View {
         let columnWidth = totalWidth - CalendarLayout.timeColumnWidth
-        let yOffset = CalendarLayout.yPosition(for: event.startTime)
+        let yOffset = CalendarLayout.yPosition(for: event.startTime, startOfDay: startOfDay)
         let height = CalendarLayout.eventHeight(start: event.startTime, end: event.endTime, clampToMinHeight: true)
         let colWidth = (columnWidth - 4) / CGFloat(colCount)
         let xOffset = CalendarLayout.timeColumnWidth + CGFloat(colIndex) * colWidth + 2
@@ -226,7 +229,7 @@ struct CalendarDayView: View {
     // MARK: - Current time indicator
 
     private var currentTimeIndicator: some View {
-        let yPos = CalendarLayout.yPosition(for: currentTime)
+        let yPos = CalendarLayout.yPosition(for: currentTime, startOfDay: Calendar.current.startOfDay(for: currentTime))
         return HStack(spacing: 0) {
             Spacer().frame(width: CalendarLayout.timeColumnWidth - CalendarLayout.currentTimeIndicatorDotSize / 2)
             Circle()

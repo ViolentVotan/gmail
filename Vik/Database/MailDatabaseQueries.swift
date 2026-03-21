@@ -110,6 +110,33 @@ enum MailDatabaseQueries {
         ) ?? 0
     }
 
+    // MARK: - Label Mutation
+
+    /// Rebuild the `message_labels` join rows for a message and sync denormalized columns.
+    /// Shared by `MailboxViewModel`, `BackgroundSyncer.applyDelta`, and `BackgroundSyncer.upsertSingleMessage`.
+    /// Must be called inside an existing write transaction.
+    static func rebuildLabels(
+        forMessageID gmailId: String,
+        newLabelIDs: [String],
+        in db: Database
+    ) throws {
+        try db.execute(
+            sql: "DELETE FROM message_labels WHERE message_id = ?",
+            arguments: [gmailId]
+        )
+        for labelId in newLabelIDs {
+            try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil)
+                .insert(db, onConflict: .ignore)
+            try MessageLabelRecord(messageId: gmailId, labelId: labelId).insert(db, onConflict: .ignore)
+        }
+        let isRead = !newLabelIDs.contains(GmailSystemLabel.unread)
+        let isStarred = newLabelIDs.contains(GmailSystemLabel.starred)
+        try db.execute(
+            sql: "UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?",
+            arguments: [isRead, isStarred, gmailId]
+        )
+    }
+
     // MARK: - Thread Counts
 
     /// Update `thread_message_count` for all messages belonging to the given threads.
@@ -182,22 +209,18 @@ enum MailDatabaseQueries {
     /// Events within a date range for a unified multi-account view.
     /// Each key pairs a calendar ID with its owning account, preventing cross-account
     /// collisions on shared calendar IDs (e.g. `company-all@group.calendar.google.com`).
+    /// Uses a SQL tuple `IN` clause so SQLite can leverage the composite index efficiently.
     static func eventsForDateRange(
         calendarKeys: [(calendarId: String, accountId: String)],
         start: Double,
         end: Double,
         in db: Database
     ) throws -> [CalendarEventRecord] {
-        guard let first = calendarKeys.first else { return [] }
-        var keyFilter = Column("calendar_id") == first.calendarId
-            && Column("account_id") == first.accountId
-        for key in calendarKeys.dropFirst() {
-            keyFilter = keyFilter
-                || (Column("calendar_id") == key.calendarId
-                    && Column("account_id") == key.accountId)
-        }
+        guard !calendarKeys.isEmpty else { return [] }
+        let placeholders = calendarKeys.map { _ in "(?, ?)" }.joined(separator: ", ")
+        let keyArgs: [any DatabaseValueConvertible] = calendarKeys.flatMap { [$0.calendarId, $0.accountId] as [any DatabaseValueConvertible] }
         return try CalendarEventRecord
-            .filter(keyFilter)
+            .filter(sql: "(calendar_id, account_id) IN (\(placeholders))", arguments: StatementArguments(keyArgs))
             .filter(Column("start_time") < end)
             .filter(Column("end_time") > start)
             .order(Column("start_time").asc)

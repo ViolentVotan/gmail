@@ -6,15 +6,6 @@ internal import GRDB
 /// Lightweight writes (star, read, archive) go directly through dbPool.write.
 actor BackgroundSyncer {
     let db: MailDatabase
-    nonisolated(unsafe) private static let htmlTagRegex = try! Regex("<[^>]+>")
-    nonisolated(unsafe) private static let whitespaceRegex = try! Regex("\\s+")
-
-    /// Strip HTML tags and collapse whitespace using pre-compiled regexes.
-    nonisolated private static func stripHTML(_ html: String) -> String {
-        html.replacing(Self.htmlTagRegex, with: " ")
-            .replacing(Self.whitespaceRegex, with: " ")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-    }
 
     init(db: MailDatabase) {
         self.db = db
@@ -114,7 +105,7 @@ actor BackgroundSyncer {
             if let plain = update.plain {
                 plainText = plain
             } else if let html = update.html {
-                plainText = Self.stripHTML(html)
+                plainText = html.strippingHTML
             } else {
                 plainText = nil
             }
@@ -199,17 +190,11 @@ actor BackgroundSyncer {
             // change during label-only operations. If the interface changes to pass updated
             // content through label updates, FTS must be updated too.
             for update in labelUpdates {
-                try db.execute(sql: "DELETE FROM message_labels WHERE message_id = ?", arguments: [update.gmailId])
-                for labelId in update.labelIds {
-                    try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil).insert(db, onConflict: .ignore)
-                    try MessageLabelRecord(messageId: update.gmailId, labelId: labelId).insert(db, onConflict: .ignore)
-                }
-                // Update denormalized columns
-                let isRead = !update.labelIds.contains(GmailSystemLabel.unread)
-                let isStarred = update.labelIds.contains(GmailSystemLabel.starred)
-                try db.execute(sql: """
-                    UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?
-                """, arguments: [isRead, isStarred, update.gmailId])
+                try MailDatabaseQueries.rebuildLabels(
+                    forMessageID: update.gmailId,
+                    newLabelIDs: update.labelIds,
+                    in: db
+                )
             }
 
             try MailDatabaseQueries.updateThreadCounts(for: affectedThreadIds, in: db)
@@ -402,15 +387,11 @@ actor BackgroundSyncer {
         gmail: GmailMessage,
         in db: Database
     ) throws {
-        try db.execute(
-            sql: "DELETE FROM message_labels WHERE message_id = ?",
-            arguments: [messageId]
+        try MailDatabaseQueries.rebuildLabels(
+            forMessageID: messageId,
+            newLabelIDs: gmail.labelIds ?? [],
+            in: db
         )
-        for labelId in gmail.labelIds ?? [] {
-            try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil)
-                .insert(db, onConflict: .ignore)
-            try MessageLabelRecord(messageId: messageId, labelId: labelId).insert(db, onConflict: .ignore)
-        }
     }
 
 }

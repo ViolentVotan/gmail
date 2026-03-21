@@ -27,17 +27,17 @@ extension Calendar {
     /// Weeks start on `self.firstWeekday` (locale-dependent). Overflow days from adjacent months fill the grid.
     func weeksInMonth(for date: Date) -> [[Date]] {
         let components = dateComponents([.year, .month], from: date)
-        let firstOfMonth = self.date(from: components)!
+        guard let firstOfMonth = self.date(from: components) else { return [] }
         let weekday = component(.weekday, from: firstOfMonth)
         let offset = (weekday - self.firstWeekday + 7) % 7
-        let gridStart = self.date(byAdding: .day, value: -offset, to: firstOfMonth)!
+        guard let gridStart = self.date(byAdding: .day, value: -offset, to: firstOfMonth) else { return [] }
 
         var weeks: [[Date]] = []
         for week in 0..<6 {
             var weekDays: [Date] = []
             for day in 0..<7 {
                 let offset = week * 7 + day
-                let cellDate = self.date(byAdding: .day, value: offset, to: gridStart)!
+                guard let cellDate = self.date(byAdding: .day, value: offset, to: gridStart) else { continue }
                 weekDays.append(startOfDay(for: cellDate))
             }
             weeks.append(weekDays)

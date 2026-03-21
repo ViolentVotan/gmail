@@ -106,80 +106,54 @@ final class CalendarAPIClient {
         }
         guard let url = components.url else { throw .invalidURL }
 
-        for attempt in 0...RetryPolicy.maxRetries {
-            var request = URLRequest(url: url)
-            request.httpMethod = method
-            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-            request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
-            request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
-            if body != nil {
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            }
-            extraHeaders?.forEach { request.setValue($1, forHTTPHeaderField: $0) }
-            request.httpBody = body
-
-            let data: Data
-            let response: URLResponse
-            do {
-                (data, response) = try await GmailAPIClient.sharedSession.data(for: request)
-            } catch {
-                if RetryPolicy.isRetriableNetworkError(error), attempt < RetryPolicy.maxRetries {
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt)))
-                    continue
-                }
-                throw .networkError(error)
-            }
-            guard let http = response as? HTTPURLResponse else { throw .invalidURL }
-
-            switch http.statusCode {
-            case 200...299:
-                return data
-            case 401:
-                throw .unauthorized
-            case 404:
-                throw .notFound
-            case 409:
-                let etag = http.value(forHTTPHeaderField: "ETag")
-                    ?? http.value(forHTTPHeaderField: "Etag")
-                    ?? ""
-                throw .conflict(etag: etag)
-            case 412:
-                let etag = http.value(forHTTPHeaderField: "ETag")
-                    ?? http.value(forHTTPHeaderField: "Etag")
-                    ?? ""
-                throw .conflict(etag: etag)
-            case 410:
-                throw .gone
-            case 429:
-                if attempt < RetryPolicy.maxRetries {
-                    let retryAfterHeader = http.value(forHTTPHeaderField: "Retry-After")
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfterHeader)))
-                    continue
-                }
-                let retryAfterSecs = http.value(forHTTPHeaderField: "Retry-After").flatMap(Int.init) ?? 0
-                throw .rateLimited(retryAfter: retryAfterSecs)
-            case 403:
-                if RetryPolicy.isRateLimited403(data), attempt < RetryPolicy.maxRetries {
-                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                    continue
-                }
-                if let body = String(data: data, encoding: .utf8), body.contains("insufficientPermissions") {
-                    Self.logger.warning("Calendar API: insufficientPermissions for account \(accountID) — posting reauth notification")
-                    await postInsufficientPermissionsNotification(accountID: accountID)
-                    throw .insufficientPermissions
-                }
-                throw .httpError(http.statusCode, data)
-            default:
-                if RetryPolicy.isRetriable(statusCode: http.statusCode), attempt < RetryPolicy.maxRetries {
-                    let retryAfter = http.value(forHTTPHeaderField: "Retry-After")
-                    try? await Task.sleep(for: .seconds(RetryPolicy.delay(forAttempt: attempt, retryAfter: retryAfter)))
-                    continue
-                }
-                throw .httpError(http.statusCode, data)
-            }
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
+        if body != nil {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
-        throw .httpError(0, Data())
+        extraHeaders?.forEach { request.setValue($1, forHTTPHeaderField: $0) }
+        request.httpBody = body
+
+        let data: Data
+        let http: HTTPURLResponse
+        do {
+            (data, http) = try await RetryPolicy.retryingHTTP {
+                try await GmailAPIClient.sharedSession.data(for: request)
+            }
+        } catch {
+            throw CalendarAPIError.wrap(error)
+        }
+
+        switch http.statusCode {
+        case 200...299:
+            return data
+        case 401:
+            throw .unauthorized
+        case 404:
+            throw .notFound
+        case 409, 412:
+            let etag = http.value(forHTTPHeaderField: "ETag")
+                ?? http.value(forHTTPHeaderField: "Etag")
+                ?? ""
+            throw .conflict(etag: etag)
+        case 410:
+            throw .gone
+        case 429:
+            let retryAfterSecs = http.value(forHTTPHeaderField: "Retry-After").flatMap(Int.init) ?? 0
+            throw .rateLimited(retryAfter: retryAfterSecs)
+        case 403:
+            if let body = String(data: data, encoding: .utf8), body.contains("insufficientPermissions") {
+                Self.logger.warning("Calendar API: insufficientPermissions for account \(accountID) — posting reauth notification")
+                await postInsufficientPermissionsNotification(accountID: accountID)
+                throw .insufficientPermissions
+            }
+            throw .httpError(http.statusCode, data)
+        default:
+            throw .httpError(http.statusCode, data)
+        }
     }
 
     // MARK: - Scope reauthorization

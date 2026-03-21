@@ -195,7 +195,14 @@ struct CalendarWeekView: View {
     // MARK: - Grid Background
 
     private func gridBackground(dayColumnWidth: CGFloat) -> some View {
-        LazyVStack(spacing: 0) {
+        let todayIdx = weekCache.todayIndex
+        let weekendSet = weekCache.weekendIndices
+        let dayCount = weekCache.weekDays.count
+        let todayFill = CalendarSemanticColor.todayHighlight
+        let weekendFill = Color.primary.opacity(CalendarSemanticColor.weekendColumnOpacity * 0.02)
+        let dividerColor = Color.primary.opacity(0.04)
+
+        return LazyVStack(spacing: 0) {
             ForEach(hours, id: \.self) { hour in
                 HStack(spacing: 0) {
                     // Hour label
@@ -207,36 +214,39 @@ struct CalendarWeekView: View {
                         .offset(y: -7)
                         .accessibilityHidden(true)
 
-                    // Day columns with grid lines
-                    HStack(spacing: 0) {
-                        ForEach(weekCache.weekDays.indices, id: \.self) { dayIndex in
-                            let isToday = dayIndex == weekCache.todayIndex
-                            let isWeekendDay = weekCache.weekendIndices.contains(dayIndex)
-                            let isLastDay = dayIndex == weekCache.weekDays.count - 1
+                    // Day columns drawn via Canvas — replaces 7 Rectangles + ~13 Dividers per row
+                    Canvas { context, size in
+                        let rowHeight = size.height
 
-                            Rectangle()
-                                .fill(
-                                    isToday
-                                    ? CalendarSemanticColor.todayHighlight
-                                    : isWeekendDay
-                                    ? Color.primary.opacity(CalendarSemanticColor.weekendColumnOpacity * 0.02)
-                                    : Color.clear
-                                )
-                                .frame(width: dayColumnWidth)
-                                .overlay(alignment: .top) {
-                                    // Horizontal hour divider
-                                    Divider()
-                                        .opacity(0.04)
+                        for dayIndex in 0..<dayCount {
+                            let x = CGFloat(dayIndex) * dayColumnWidth
+                            let columnRect = CGRect(x: x, y: 0, width: dayColumnWidth, height: rowHeight)
+
+                            // Column background fill
+                            if dayIndex == todayIdx {
+                                context.fill(Path(columnRect), with: .color(todayFill))
+                            } else if weekendSet.contains(dayIndex) {
+                                context.fill(Path(columnRect), with: .color(weekendFill))
+                            }
+
+                            // Horizontal hour divider at top
+                            let hDivider = Path { p in
+                                p.move(to: CGPoint(x: x, y: 0))
+                                p.addLine(to: CGPoint(x: x + dayColumnWidth, y: 0))
+                            }
+                            context.stroke(hDivider, with: .color(dividerColor), lineWidth: 1)
+
+                            // Vertical column divider on trailing edge (except last day)
+                            if dayIndex < dayCount - 1 {
+                                let vDivider = Path { p in
+                                    p.move(to: CGPoint(x: x + dayColumnWidth, y: 0))
+                                    p.addLine(to: CGPoint(x: x + dayColumnWidth, y: rowHeight))
                                 }
-                                .overlay(alignment: .trailing) {
-                                    // Vertical column divider
-                                    if !isLastDay {
-                                        Divider()
-                                            .opacity(0.04)
-                                    }
-                                }
+                                context.stroke(vDivider, with: .color(dividerColor), lineWidth: 1)
+                            }
                         }
                     }
+                    .frame(width: dayColumnWidth * CGFloat(dayCount))
                 }
                 .frame(height: CalendarLayout.hourRowHeight)
                 .id("hour-\(hour)")
@@ -272,6 +282,7 @@ struct CalendarWeekView: View {
         timedEvents: [CalendarEvent],
         dayColumnWidth: CGFloat
     ) -> some View {
+        let startOfDay = Calendar.current.startOfDay(for: day)
         let groups = dayIndex < weekCache.overlapGroupsByDay.count ? weekCache.overlapGroupsByDay[dayIndex] : []
         ForEach(Array(groups.enumerated()), id: \.element.first?.id) { groupIndex, group in
             ForEach(Array(group.enumerated()), id: \.element.id) { colIndex, event in
@@ -280,7 +291,8 @@ struct CalendarWeekView: View {
                     dayIndex: dayIndex,
                     colIndex: colIndex,
                     colCount: group.count,
-                    dayColumnWidth: dayColumnWidth
+                    dayColumnWidth: dayColumnWidth,
+                    startOfDay: startOfDay
                 )
             }
         }
@@ -292,9 +304,10 @@ struct CalendarWeekView: View {
         dayIndex: Int,
         colIndex: Int,
         colCount: Int,
-        dayColumnWidth: CGFloat
+        dayColumnWidth: CGFloat,
+        startOfDay: Date
     ) -> some View {
-        let yOffset = CalendarLayout.yPosition(for: event.startTime)
+        let yOffset = CalendarLayout.yPosition(for: event.startTime, startOfDay: startOfDay)
         let height = CalendarLayout.eventHeight(start: event.startTime, end: event.endTime, clampToMinHeight: true)
         let colWidth = (dayColumnWidth - 4) / CGFloat(colCount)
         let xOffset = CalendarLayout.timeColumnWidth

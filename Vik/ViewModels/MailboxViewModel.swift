@@ -12,14 +12,13 @@ private struct MessageWithAssociations: Decodable, FetchableRecord {
 }
 
 /// Per-message label mutation logic: reads current labels, applies a transform, writes results,
-/// and syncs denormalized `is_read`/`is_starred` columns.
+/// and syncs denormalized `is_read`/`is_starred` columns via `MailDatabaseQueries.rebuildLabels`.
 /// Called inside an existing write transaction — does **not** open one itself.
 /// Returns the **original** label IDs (before the transform) for undo.
 ///
 /// File-scope to avoid `@MainActor` isolation inheritance from `MailboxViewModel`.
 private func mutateLabels(
     for messageID: String,
-    ensureLabelRecords: Bool = false,
     in database: Database,
     transform: (inout Set<String>) -> Void
 ) throws -> [String] {
@@ -33,28 +32,11 @@ private func mutateLabels(
     // 2. Apply transform
     transform(&labels)
 
-    // 3. Delete all label rows for this message
-    try database.execute(
-        sql: "DELETE FROM message_labels WHERE message_id = ?",
-        arguments: [messageID]
-    )
-
-    // 4. Insert new label rows
-    for labelId in labels {
-        if ensureLabelRecords {
-            try LabelRecord(gmailId: labelId, name: labelId, type: nil, bgColor: nil, textColor: nil)
-                .insert(database, onConflict: .ignore)
-        }
-        try MessageLabelRecord(messageId: messageID, labelId: labelId)
-            .insert(database, onConflict: .ignore)
-    }
-
-    // 5. Sync denormalized columns
-    let isRead = !labels.contains(GmailSystemLabel.unread)
-    let isStarred = labels.contains(GmailSystemLabel.starred)
-    try database.execute(
-        sql: "UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?",
-        arguments: [isRead, isStarred, messageID]
+    // 3. Rebuild labels + sync denormalized columns via shared helper
+    try MailDatabaseQueries.rebuildLabels(
+        forMessageID: messageID,
+        newLabelIDs: Array(labels),
+        in: database
     )
 
     return currentLabels
@@ -226,16 +208,9 @@ final class MailboxViewModel {
         }
         let grouped = Dictionary(grouping: emails) { $0.gmailThreadID ?? $0.gmailMessageID ?? $0.id.uuidString }
         return grouped.values.compactMap { threadEmails -> Email? in
-            // Single pass: find latest email by date and max thread count simultaneously
-            var latest: Email?
-            var maxThreadCount = 0
-            for email in threadEmails {
-                if latest == nil || email.date > latest!.date {
-                    latest = email
-                }
-                maxThreadCount = max(maxThreadCount, email.threadMessageCount)
-            }
-            latest?.threadMessageCount = max(maxThreadCount, threadEmails.count)
+            guard var latest = threadEmails.max(by: { $0.date < $1.date }) else { return nil }
+            let maxThreadCount = threadEmails.map(\.threadMessageCount).max() ?? 0
+            latest.threadMessageCount = max(maxThreadCount, threadEmails.count)
             return latest
         }.sorted { $0.date > $1.date }
     }
@@ -592,13 +567,10 @@ final class MailboxViewModel {
     ///
     /// - Parameters:
     ///   - messageID: The Gmail message ID.
-    ///   - ensureLabelRecords: When `true`, upserts `LabelRecord` rows for every label in the
-    ///     final set (needed when labels may not yet exist in the `labels` table).
     ///   - transform: Mutates the current label set in place.
     @discardableResult
     private func writeLabels(
         _ messageID: String,
-        ensureLabelRecords: Bool = false,
         transform: @Sendable (inout Set<String>) -> Void
     ) async -> [String]? {
         guard let db = mailDatabase else { return nil }
@@ -606,7 +578,6 @@ final class MailboxViewModel {
             return try await db.dbPool.write { database in
                 try mutateLabels(
                     for: messageID,
-                    ensureLabelRecords: ensureLabelRecords,
                     in: database,
                     transform: transform
                 )
@@ -621,7 +592,7 @@ final class MailboxViewModel {
     /// Returns the original label IDs for undo.
     @discardableResult
     func updateLabelsInDatabase(_ messageID: String, addLabelIds: [String], removeLabelIds: [String]) async -> [String]? {
-        await writeLabels(messageID, ensureLabelRecords: true) { labels in
+        await writeLabels(messageID) { labels in
             labels.subtract(removeLabelIds)
             labels.formUnion(addLabelIds)
         }
@@ -638,7 +609,6 @@ final class MailboxViewModel {
                 for msgID in messageIDs {
                     let original = try mutateLabels(
                         for: msgID,
-                        ensureLabelRecords: true,
                         in: database
                     ) { labels in
                         labels.subtract(removeLabelIds)
@@ -671,7 +641,7 @@ final class MailboxViewModel {
     /// Reconciles DB labels with the server's authoritative label set after an API mutation.
     /// Corrects any drift between our optimistic update and what the server actually applied.
     private func reconcileLabelsInDatabase(_ messageID: String, serverLabelIds: [String]) async {
-        await writeLabels(messageID, ensureLabelRecords: true) { labels in
+        await writeLabels(messageID) { labels in
             labels = Set(serverLabelIds)
         }
     }
@@ -849,7 +819,7 @@ final class MailboxViewModel {
     /// Returns original label IDs for undo. Avoids double ValueObservation notifications.
     @discardableResult
     private func markAsReadInDatabase(_ messageID: String, isRead: Bool) async -> [String]? {
-        await writeLabels(messageID, ensureLabelRecords: !isRead) { labels in
+        await writeLabels(messageID) { labels in
             if isRead {
                 labels.remove(GmailSystemLabel.unread)
             } else {
