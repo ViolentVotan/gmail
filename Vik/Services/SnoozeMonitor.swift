@@ -27,9 +27,11 @@ final class SnoozeMonitor {
         }
     }
 
-    func stop() {
+    func stop() async {
+        let task = timerTask
         timerTask?.cancel()
         timerTask = nil
+        await task?.value
     }
 
     func clearAllFailureCounts() {

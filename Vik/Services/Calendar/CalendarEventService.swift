@@ -268,10 +268,26 @@ final class CalendarEventService {
     ) async throws(CalendarAPIError) -> CalendarAPIEvent {
         let event = try await getEvent(calendarId: calendarId, eventId: eventId, accountID: accountID)
 
-        // Rebuild the attendees list updating only the self attendee's responseStatus.
+        // Rebuild the full attendees list, preserving all metadata and only updating
+        // responseStatus for the self attendee. This prevents the PATCH from stripping
+        // displayName, organizer, resource, optional, additionalGuests, comment, and isSelf
+        // fields, which the Google Calendar API would otherwise discard (arrays are replaced).
         struct AttendeeResponsePatch: Encodable {
             let email: String
+            let displayName: String?
             let responseStatus: String
+            let organizer: Bool?
+            let resource: Bool?
+            let optional: Bool?
+            let additionalGuests: Int?
+            let comment: String?
+            let isSelf: Bool?
+
+            private enum CodingKeys: String, CodingKey {
+                case email, displayName, responseStatus, organizer, resource
+                case optional, additionalGuests, comment
+                case isSelf = "self"
+            }
         }
         struct AttendeePatch: Encodable {
             let attendees: [AttendeeResponsePatch]
@@ -280,7 +296,14 @@ final class CalendarEventService {
         let updatedAttendees = (event.attendees ?? []).map { attendee -> AttendeeResponsePatch in
             AttendeeResponsePatch(
                 email: attendee.email ?? "",
-                responseStatus: attendee.isSelf == true ? status : (attendee.responseStatus ?? "needsAction")
+                displayName: attendee.displayName,
+                responseStatus: attendee.isSelf == true ? status : (attendee.responseStatus ?? "needsAction"),
+                organizer: attendee.organizer,
+                resource: attendee.resource,
+                optional: attendee.optional,
+                additionalGuests: attendee.additionalGuests,
+                comment: attendee.comment,
+                isSelf: attendee.isSelf
             )
         }
 

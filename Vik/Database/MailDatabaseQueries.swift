@@ -117,7 +117,7 @@ enum MailDatabaseQueries {
     /// that would execute COUNT(*) for every row in the UPDATE's target set.
     static func updateThreadCounts(for threadIDs: Set<String>, in db: Database) throws {
         guard !threadIDs.isEmpty else { return }
-        let placeholders = threadIDs.map { _ in "?" }.joined(separator: ",")
+        let placeholders = threadIDs.sqlPlaceholders
         let args = Array(threadIDs)
         try db.execute(sql: """
             WITH thread_counts AS (

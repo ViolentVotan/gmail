@@ -207,7 +207,7 @@ struct CalendarEventEditorView: View {
     private var locationField: some View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: "mappin")
-                .font(.system(size: 14))
+                .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
             TextField("Location", text: $location)
@@ -221,7 +221,7 @@ struct CalendarEventEditorView: View {
     private var descriptionField: some View {
         HStack(alignment: .top, spacing: Spacing.sm) {
             Image(systemName: "text.alignleft")
-                .font(.system(size: 14))
+                .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
                 .padding(.top, 4)
@@ -252,7 +252,7 @@ struct CalendarEventEditorView: View {
                     .frame(width: 10, height: 10)
             } else {
                 Image(systemName: "calendar")
-                    .font(.system(size: 14))
+                    .font(.system(size: CalendarLayout.editorIconSize))
                     .foregroundStyle(.secondary)
                     .frame(width: 18)
             }
@@ -274,7 +274,7 @@ struct CalendarEventEditorView: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "person.badge.plus")
-                    .font(.system(size: 14))
+                    .font(.system(size: CalendarLayout.editorIconSize))
                     .foregroundStyle(.secondary)
                     .frame(width: 18)
 
@@ -302,7 +302,7 @@ struct CalendarEventEditorView: View {
     private var googleMeetToggle: some View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: "video")
-                .font(.system(size: 14))
+                .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
             Toggle("Add Google Meet", isOn: $addGoogleMeet)
@@ -318,7 +318,7 @@ struct CalendarEventEditorView: View {
             HStack {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "bell")
-                        .font(.system(size: 14))
+                        .font(.system(size: CalendarLayout.editorIconSize))
                         .foregroundStyle(.secondary)
                         .frame(width: 18)
                     Text("Reminders")
@@ -330,7 +330,7 @@ struct CalendarEventEditorView: View {
                     reminders.append(DraftReminder(method: .popup, minutes: 10))
                 } label: {
                     Image(systemName: "plus.circle")
-                        .font(.system(size: 16))
+                        .font(.system(size: CalendarLayout.editorActionIconSize))
                         .foregroundStyle(BrandColor.blue)
                 }
                 .buttonStyle(.plain)
@@ -350,7 +350,7 @@ struct CalendarEventEditorView: View {
     private var recurrenceSection: some View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: "repeat")
-                .font(.system(size: 14))
+                .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
 
@@ -369,7 +369,7 @@ struct CalendarEventEditorView: View {
     private var colorPickerSection: some View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: "paintpalette")
-                .font(.system(size: 14))
+                .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
 
@@ -398,7 +398,7 @@ struct CalendarEventEditorView: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "eye")
-                    .font(.system(size: 14))
+                    .font(.system(size: CalendarLayout.editorIconSize))
                     .foregroundStyle(.secondary)
                     .frame(width: 18)
                 Picker("Visibility", selection: $visibility) {
@@ -411,7 +411,7 @@ struct CalendarEventEditorView: View {
 
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "calendar.badge.clock")
-                    .font(.system(size: 14))
+                    .font(.system(size: CalendarLayout.editorIconSize))
                     .foregroundStyle(.secondary)
                     .frame(width: 18)
                 Picker("Show as", selection: $showAs) {
@@ -654,7 +654,7 @@ private struct ReminderRow: View {
 
             Button(action: onRemove) {
                 Image(systemName: "minus.circle")
-                    .font(.system(size: 16))
+                    .font(.system(size: CalendarLayout.editorActionIconSize))
                     .foregroundStyle(SemanticColor.error)
             }
             .buttonStyle(.plain)
@@ -676,7 +676,7 @@ private struct AttendeeChip: View {
                 .lineLimit(1)
             Button(action: onRemove) {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 11))
+                    .font(.system(size: CalendarLayout.editorSmallIconSize))
                     .foregroundStyle(.secondary)
                     .symbolRenderingMode(.hierarchical)
             }
@@ -741,7 +741,7 @@ private struct RecurringScopeButton: View {
                 }
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(.system(size: CalendarLayout.editorChevronSize, weight: .semibold))
                     .foregroundStyle(.tertiary)
             }
             .padding(.horizontal, Spacing.md)

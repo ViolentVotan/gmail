@@ -265,13 +265,13 @@ struct OnboardingView: View {
         }
         startOrbAnimations()
 
-        // 2. Glass card scales up — Custom: heavier spring for onboarding entrance
-        withAnimation(.spring(response: 0.7, dampingFraction: 0.8).delay(0.3)) {
+        // 2. Glass card scales up
+        withAnimation(VikAnimation.onboardingCardEntrance.delay(0.3)) {
             showCard = true
         }
 
-        // 3. Viking helmet drops in with rotation + bounce — Custom: underdamped for dramatic bounce
-        withAnimation(.spring(response: 0.7, dampingFraction: 0.55).delay(0.7)) {
+        // 3. Viking helmet drops in with rotation + bounce
+        withAnimation(VikAnimation.onboardingIconBounce.delay(0.7)) {
             showIcon = true
             iconDrop = 0
             iconRotation = 0
@@ -288,8 +288,8 @@ struct OnboardingView: View {
             showTagline = true
         }
 
-        // 6. Sign-in button — Custom: heavier spring for onboarding entrance
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(1.8)) {
+        // 6. Sign-in button
+        withAnimation(VikAnimation.onboardingButtonEntrance.delay(1.8)) {
             showButton = true
         }
     }

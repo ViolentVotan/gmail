@@ -25,7 +25,7 @@ final class GmailAPIClient {
     private init() {}
 
     /// Key for the account ID in `gmailScopesInsufficient` notification's userInfo.
-    static let accountIDKey = "accountID"
+    nonisolated static let accountIDKey = "accountID"
 
     nonisolated private static let jsonDecoder = JSONDecoder()
 
@@ -50,6 +50,39 @@ final class GmailAPIClient {
         config.requestCachePolicy = .reloadIgnoringLocalCacheData
         return URLSession(configuration: config)
     }()
+
+    nonisolated private static let userAgent = "Vik/1.0 (gzip)"
+
+    // MARK: - Shared request helpers
+
+    /// Applies the three standard HTTP headers to every outbound request.
+    private nonisolated static func applyCommonHeaders(to request: inout URLRequest, accessToken: String) {
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
+    }
+
+    /// Classifies a 403 response body and returns the matching error.
+    /// Posts the `gmailScopesInsufficient` notification when `insufficientPermissions`
+    /// is detected and an `accountID` is available.
+    private nonisolated static func classify403(data: Data, accountID: String?) -> GmailAPIError {
+        guard let body = String(data: data, encoding: .utf8) else {
+            return .httpError(403, data)
+        }
+        if body.contains("dailyLimitExceeded") { return .dailyLimitExceeded }
+        if body.contains("domainPolicy") { return .domainPolicy }
+        if body.contains("insufficientPermissions") {
+            if let accountID {
+                NotificationCenter.default.post(
+                    name: .gmailScopesInsufficient,
+                    object: nil,
+                    userInfo: [GmailAPIClient.accountIDKey: accountID]
+                )
+            }
+            return .insufficientPermissions
+        }
+        return .httpError(403, data)
+    }
 
     // MARK: - Decoded requests
 
@@ -149,12 +182,10 @@ final class GmailAPIClient {
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        Self.applyCommonHeaders(to: &request, accessToken: accessToken)
         request.setValue("application/json; charset=UTF-8", forHTTPHeaderField: "Content-Type")
         request.setValue("message/rfc822", forHTTPHeaderField: "X-Upload-Content-Type")
         request.setValue("\(mimeData.count)", forHTTPHeaderField: "X-Upload-Content-Length")
-        request.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
-        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
         request.httpBody = metadataBody
 
         let (data, http) = try await Self.retryingRequest(request)
@@ -182,7 +213,7 @@ final class GmailAPIClient {
         request.httpMethod = "PUT"
         request.setValue("message/rfc822", forHTTPHeaderField: "Content-Type")
         request.setValue("\(mimeData.count)", forHTTPHeaderField: "Content-Length")
-        request.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
+        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
         request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
         request.httpBody = mimeData
 
@@ -246,9 +277,7 @@ final class GmailAPIClient {
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
-        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
+        Self.applyCommonHeaders(to: &request, accessToken: accessToken)
         if let etag {
             request.setValue(etag, forHTTPHeaderField: "If-None-Match")
         }
@@ -270,11 +299,7 @@ final class GmailAPIClient {
         case 401:
             throw .unauthorized
         case 403:
-            if let body = String(data: data, encoding: .utf8) {
-                if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
-                if body.contains("domainPolicy") { throw .domainPolicy }
-            }
-            throw .httpError(http.statusCode, data)
+            throw Self.classify403(data: data, accountID: nil)
         default:
             throw .httpError(http.statusCode, data)
         }
@@ -531,9 +556,7 @@ final class GmailAPIClient {
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        request.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
-        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
+        applyCommonHeaders(to: &request, accessToken: token)
 
         let (data, http) = try await retryingRequest(request)
 
@@ -547,11 +570,7 @@ final class GmailAPIClient {
         case 401:
             throw .unauthorized
         case 403:
-            if let body = String(data: data, encoding: .utf8) {
-                if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
-                if body.contains("domainPolicy") { throw .domainPolicy }
-            }
-            throw .httpError(http.statusCode, data)
+            throw classify403(data: data, accountID: nil)
         default:
             throw .httpError(http.statusCode, data)
         }
@@ -568,9 +587,7 @@ final class GmailAPIClient {
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
-        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
+        Self.applyCommonHeaders(to: &request, accessToken: accessToken)
 
         let (data, http) = try await Self.retryingRequest(request)
 
@@ -580,11 +597,7 @@ final class GmailAPIClient {
         case 401:
             throw .unauthorized
         case 403:
-            if let body = String(data: data, encoding: .utf8) {
-                if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
-                if body.contains("domainPolicy") { throw .domainPolicy }
-            }
-            throw .httpError(http.statusCode, data)
+            throw Self.classify403(data: data, accountID: nil)
         default:
             throw .httpError(http.statusCode, data)
         }
@@ -620,10 +633,8 @@ final class GmailAPIClient {
 
         var urlRequest = URLRequest(url: url)
         urlRequest.httpMethod = "POST"
-        urlRequest.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        Self.applyCommonHeaders(to: &urlRequest, accessToken: accessToken)
         urlRequest.setValue("multipart/mixed; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        urlRequest.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
-        urlRequest.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
         urlRequest.httpBody = bodyData
 
         let (data, http) = try await Self.retryingRequest(urlRequest)
@@ -638,11 +649,7 @@ final class GmailAPIClient {
         case 401:
             throw .unauthorized
         case 403:
-            if let body = String(data: data, encoding: .utf8) {
-                if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
-                if body.contains("domainPolicy") { throw .domainPolicy }
-            }
-            throw .httpError(http.statusCode, data)
+            throw Self.classify403(data: data, accountID: nil)
         default:
             throw .httpError(http.statusCode, data)
         }
@@ -900,9 +907,7 @@ final class GmailAPIClient {
 
         var request = URLRequest(url: url)
         request.httpMethod = method
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("Vik/1.0 (gzip)", forHTTPHeaderField: "User-Agent")
-        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
+        Self.applyCommonHeaders(to: &request, accessToken: accessToken)
         if let contentType { request.setValue(contentType, forHTTPHeaderField: "Content-Type") }
         request.httpBody = body
 
@@ -918,15 +923,7 @@ final class GmailAPIClient {
         case 401:
             throw .unauthorized
         case 403:
-            if let body = String(data: data, encoding: .utf8) {
-                if body.contains("dailyLimitExceeded") { throw .dailyLimitExceeded }
-                if body.contains("domainPolicy") { throw .domainPolicy }
-                if body.contains("insufficientPermissions") {
-                    await postInsufficientPermissionsNotification(accountID: accountID)
-                    throw .insufficientPermissions
-                }
-            }
-            throw .httpError(http.statusCode, data)
+            throw Self.classify403(data: data, accountID: accountID)
         default:
             throw .httpError(http.statusCode, data)
         }
@@ -945,16 +942,6 @@ final class GmailAPIClient {
         try await refreshAndRetry(accountID: accountID)
     }
 
-    // MARK: - Scope reauthorization
-
-    /// Posts a notification so the UI can prompt the user to reauthorize with Gmail scopes.
-    private func postInsufficientPermissionsNotification(accountID: String) {
-        NotificationCenter.default.post(
-            name: .gmailScopesInsufficient,
-            object: self,
-            userInfo: [Self.accountIDKey: accountID]
-        )
-    }
 }
 
 // MARK: - Errors

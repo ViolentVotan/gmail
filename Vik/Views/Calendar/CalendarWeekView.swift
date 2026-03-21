@@ -72,7 +72,7 @@ struct CalendarWeekView: View {
             HStack(spacing: 0) {
                 // Time column spacer
                 Text("all-day")
-                    .font(.system(size: 9, weight: .regular))
+                    .font(Typography.calendarWeekAllDayLabel)
                     .foregroundStyle(.tertiary)
                     .frame(width: CalendarLayout.timeColumnWidth, alignment: .trailing)
                     .padding(.trailing, Spacing.xs)
@@ -99,7 +99,7 @@ struct CalendarWeekView: View {
             onSelectEvent(event)
         } label: {
             Text(event.summary)
-                .font(.system(size: 10, weight: .medium))
+                .font(Typography.calendarWeekAllDayEvent)
                 .foregroundStyle(.white)
                 .lineLimit(1)
                 .padding(.horizontal, Spacing.xs)
@@ -146,7 +146,7 @@ struct CalendarWeekView: View {
 
         return VStack(spacing: 2) {
             Text(weekdayAbbrev)
-                .font(.system(size: 11, weight: .medium))
+                .font(Typography.calendarWeekdayAbbrev)
                 .foregroundStyle(isToday ? BrandColor.blue : .secondary)
 
             ZStack {
@@ -200,7 +200,7 @@ struct CalendarWeekView: View {
                 HStack(spacing: 0) {
                     // Hour label
                     Text(hourLabel(for: hour))
-                        .font(.system(size: 10, weight: .regular))
+                        .font(Typography.calendarWeekHourLabel)
                         .foregroundStyle(.tertiary)
                         .frame(width: CalendarLayout.timeColumnWidth, alignment: .trailing)
                         .padding(.trailing, Spacing.xs)

@@ -34,15 +34,16 @@ final class WebViewPool {
 
     /// Recycles a WKWebView back to the pool after use.
     func recycle(_ webView: WKWebView) {
-        // Clear content for next use via JS (avoids full navigation cycle).
+        // Clear content before returning to pool — append only after JS completes
+        // so a fast dequeue() never gets a view still showing old content.
         Task { @MainActor in
             _ = try? await webView.callAsyncJavaScript(
                 "var el = document.getElementById('emailContent'); if (el) el.textContent = '';",
                 arguments: [:],
                 contentWorld: .page
             )
+            available.append(webView)
         }
-        available.append(webView)
     }
 
     private func replenish() {

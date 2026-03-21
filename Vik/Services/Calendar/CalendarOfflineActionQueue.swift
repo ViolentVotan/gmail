@@ -47,7 +47,7 @@ final class CalendarOfflineActionQueue {
     private var processingAccounts: Set<String> = []
 
     var pendingCount: Int {
-        store.allItems.count
+        store.totalCount
     }
 
     // MARK: - Public API

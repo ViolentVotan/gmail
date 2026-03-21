@@ -121,6 +121,12 @@ enum VikAnimation {
     static let onboardingRevealShort = Animation.easeOut(duration: 0.4)
     /// Onboarding transition — crossfade for post-sign-in view swap.
     static let onboardingTransition = Animation.easeInOut(duration: 0.5)
+    /// Onboarding card entrance — heavier spring for the glass card scaling up.
+    static let onboardingCardEntrance = Animation.spring(response: 0.7, dampingFraction: 0.8)
+    /// Onboarding icon bounce — underdamped spring for dramatic helmet drop-in with rotation.
+    static let onboardingIconBounce = Animation.spring(response: 0.7, dampingFraction: 0.55)
+    /// Onboarding button entrance — snappier spring for the sign-in button appearing.
+    static let onboardingButtonEntrance = Animation.spring(response: 0.5, dampingFraction: 0.8)
     /// Orb drift — long looping ease for ambient floating orb movement.
     static func orbDrift(duration: Double, delay: Double = 0) -> Animation {
         .easeInOut(duration: duration).repeatForever(autoreverses: true).delay(delay)
@@ -243,6 +249,16 @@ enum Typography {
     static let calendarMiniEventTitle: Font = .system(size: 12, weight: .medium)
     /// Mini agenda widget time — small regular time string in sidebar widget.
     static let calendarMiniEventTime: Font = .system(size: 11, weight: .regular)
+
+    // Week view
+    /// Week view "all-day" label in the time column — tiny regular label for accessibility column.
+    static let calendarWeekAllDayLabel: Font = .system(size: 9, weight: .regular)
+    /// Week view all-day event chip text — medium weight event name inside all-day chips.
+    static let calendarWeekAllDayEvent: Font = .system(size: 10, weight: .medium)
+    /// Week view weekday abbreviation header — medium weight column header above each day.
+    static let calendarWeekdayAbbrev: Font = .system(size: 11, weight: .medium)
+    /// Week view hour label — small regular label for each hour row in the time grid.
+    static let calendarWeekHourLabel: Font = .system(size: 10, weight: .regular)
 }
 
 // MARK: - Elevation
@@ -499,6 +515,23 @@ enum CalendarLayout {
     static let miniMonthDaySize: CGFloat = 20
     /// Maximum number of events shown inline in the mini agenda before a "more" link.
     static let miniAgendaMaxEvents: Int = 5
+
+    // MARK: - Icon sizes (editor & detail views)
+
+    /// Standard SF Symbol icon size for form row icons in the event editor and detail views.
+    static let editorIconSize: CGFloat = 14
+    /// Circular action icon size for add/remove reminder buttons in the editor.
+    static let editorActionIconSize: CGFloat = 16
+    /// Small icon size for dismiss/clear icons (xmark) in the editor.
+    static let editorSmallIconSize: CGFloat = 11
+    /// Disclosure chevron icon size for calendar/account picker rows in the editor.
+    static let editorChevronSize: CGFloat = 12
+    /// Close button icon size for the dismiss control in CalendarEventDetailView.
+    static let detailCloseIconSize: CGFloat = 18
+    /// Small icon size for inline metadata icons (repeat badge) in the detail view.
+    static let detailSmallIconSize: CGFloat = 11
+    /// Meeting/conference icon size for the Join Meeting row in the detail view.
+    static let detailMeetingIconSize: CGFloat = 13
 
     // MARK: - Month View
 

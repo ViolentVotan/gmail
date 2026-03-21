@@ -38,7 +38,7 @@ actor BackgroundSyncer {
             let gmailIds = gmailMessages.map(\.id)
             var existingLabelSets: [String: Set<String>] = [:]
             if !gmailIds.isEmpty {
-                let placeholders = gmailIds.map { _ in "?" }.joined(separator: ",")
+                let placeholders = gmailIds.sqlPlaceholders
                 let rows = try Row.fetchAll(db, sql:
                     "SELECT message_id, label_id FROM message_labels WHERE message_id IN (\(placeholders))",
                     arguments: StatementArguments(gmailIds)
@@ -67,7 +67,7 @@ actor BackgroundSyncer {
         guard !gmailIds.isEmpty else { return }
         try await db.dbPool.write { db in
             // Collect thread IDs before deletion so we can update counts afterward
-            let placeholders = gmailIds.map { _ in "?" }.joined(separator: ",")
+            let placeholders = gmailIds.sqlPlaceholders
             let affectedThreadIds = try Set(String.fetchAll(db, sql:
                 "SELECT DISTINCT thread_id FROM messages WHERE gmail_id IN (\(placeholders))",
                 arguments: StatementArguments(gmailIds)
@@ -93,7 +93,7 @@ actor BackgroundSyncer {
         guard !mappings.isEmpty else { return }
         // Single CASE-based UPDATE replaces N individual statements.
         let caseClauses = mappings.map { _ in "WHEN ? THEN ?" }.joined(separator: " ")
-        let inPlaceholders = mappings.map { _ in "?" }.joined(separator: ", ")
+        let inPlaceholders = mappings.sqlPlaceholders
         let sql = "UPDATE messages SET gmail_draft_id = CASE gmail_id \(caseClauses) END WHERE gmail_id IN (\(inPlaceholders))"
         var args: [String] = []
         for m in mappings { args += [m.messageGmailId, m.draftId] }
@@ -139,7 +139,7 @@ actor BackgroundSyncer {
     func incrementBodyFetchAttempts(for gmailIds: [String]) async throws {
         guard !gmailIds.isEmpty else { return }
         try await db.dbPool.write { db in
-            let placeholders = gmailIds.map { _ in "?" }.joined(separator: ",")
+            let placeholders = gmailIds.sqlPlaceholders
             try db.execute(
                 sql: "UPDATE messages SET body_fetch_attempts = body_fetch_attempts + 1 WHERE gmail_id IN (\(placeholders))",
                 arguments: StatementArguments(gmailIds)

@@ -555,7 +555,7 @@ actor FullSyncEngine {
             var existingIDs = Set<String>()
             if !candidateIDs.isEmpty {
                 existingIDs = try await db.dbPool.read { db in
-                    let placeholders = candidateIDs.map { _ in "?" }.joined(separator: ",")
+                    let placeholders = candidateIDs.sqlPlaceholders
                     return try Set(String.fetchAll(db, sql:
                         "SELECT gmail_id FROM messages WHERE gmail_id IN (\(placeholders))",
                         arguments: StatementArguments(candidateIDs)

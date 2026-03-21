@@ -65,7 +65,7 @@ struct CalendarEventDetailView: View {
 
             Button(action: onDismiss) {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 18))
+                    .font(.system(size: CalendarLayout.detailCloseIconSize))
                     .foregroundStyle(.secondary)
                     .symbolRenderingMode(.hierarchical)
             }
@@ -81,7 +81,7 @@ struct CalendarEventDetailView: View {
     private var timeSection: some View {
         HStack(alignment: .top, spacing: Spacing.sm) {
             Image(systemName: "clock")
-                .font(.system(size: 14))
+                .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
                 .padding(.top, 2)
@@ -110,7 +110,7 @@ struct CalendarEventDetailView: View {
                 if event.isRecurring {
                     HStack(spacing: 4) {
                         Image(systemName: "repeat")
-                            .font(.system(size: 11))
+                            .font(.system(size: CalendarLayout.detailSmallIconSize))
                         Text("Recurring event")
                             .font(Typography.caption)
                     }
@@ -132,7 +132,7 @@ struct CalendarEventDetailView: View {
         } label: {
             HStack(alignment: .top, spacing: Spacing.sm) {
                 Image(systemName: "mappin")
-                    .font(.system(size: 14))
+                    .font(.system(size: CalendarLayout.editorIconSize))
                     .foregroundStyle(BrandColor.blue)
                     .frame(width: 18)
                     .padding(.top, 2)
@@ -159,7 +159,7 @@ struct CalendarEventDetailView: View {
         } label: {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "video.fill")
-                    .font(.system(size: 13))
+                    .font(.system(size: CalendarLayout.detailMeetingIconSize))
                 Text(event.conferenceName ?? "Join Meeting")
                     .font(Typography.bodySemibold)
             }
@@ -180,7 +180,7 @@ struct CalendarEventDetailView: View {
     private var organizerSection: some View {
         HStack(alignment: .top, spacing: Spacing.sm) {
             Image(systemName: "person.circle")
-                .font(.system(size: 14))
+                .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
                 .padding(.top, 2)
@@ -217,7 +217,7 @@ struct CalendarEventDetailView: View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "person.2")
-                    .font(.system(size: 14))
+                    .font(.system(size: CalendarLayout.editorIconSize))
                     .foregroundStyle(.secondary)
                     .frame(width: 18)
                 Text("Attendees (\(event.attendees.count))")
@@ -244,7 +244,7 @@ struct CalendarEventDetailView: View {
     private var descriptionSection: some View {
         HStack(alignment: .top, spacing: Spacing.sm) {
             Image(systemName: "text.alignleft")
-                .font(.system(size: 14))
+                .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
                 .padding(.top, 2)
@@ -262,7 +262,7 @@ struct CalendarEventDetailView: View {
     private var remindersSection: some View {
         HStack(alignment: .top, spacing: Spacing.sm) {
             Image(systemName: "bell")
-                .font(.system(size: 14))
+                .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
                 .padding(.top, 2)

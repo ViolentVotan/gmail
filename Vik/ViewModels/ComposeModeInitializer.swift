@@ -56,8 +56,8 @@ struct ComposeModeInitializer {
             applyQuotedBody(&fields, signatureForReply: signatureForReply, aliases: aliases, quotedBody: quotedBody)
             applyThreading(&fields, threadID: threadID, replyToMessageID: replyToMessageID, parentMessageID: parentMessageID, parentReferences: parentReferences)
 
-        case .forward(let fwdSubject, let quotedBody):
-            fields.to = ""
+        case .forward(let to, let fwdSubject, let quotedBody):
+            fields.to = to ?? ""
             fields.subject = fwdSubject.withForwardPrefix
             applyQuotedBody(&fields, signatureForReply: signatureForReply, aliases: aliases, quotedBody: quotedBody)
         }

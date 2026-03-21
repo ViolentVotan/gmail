@@ -45,7 +45,7 @@ private struct KeyboardEventMonitor: NSViewRepresentable {
     @MainActor
     class Coordinator {
         var coordinator: AppCoordinator
-        nonisolated(unsafe) private var monitor: Any?
+        private var monitor: Any?
 
         init(coordinator: AppCoordinator) {
             self.coordinator = coordinator
@@ -73,7 +73,7 @@ private struct KeyboardEventMonitor: NSViewRepresentable {
             }
         }
 
-        deinit {
+        isolated deinit {
             if let monitor { NSEvent.removeMonitor(monitor) }
         }
 

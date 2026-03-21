@@ -169,7 +169,11 @@ final class AppCoordinator {
         navigationTask = Task {
             guard let (email, _) = await fetchAndShowMessage(gmailMessageID: gmailMessageID) else { return }
             let mode = EmailDetailViewModel.forwardMode(for: email)
-            startCompose(mode: mode)
+            if case .forward(_, let subject, let quotedBody) = mode, let recipient {
+                startCompose(mode: .forward(to: recipient, subject: subject, quotedBody: quotedBody))
+            } else {
+                startCompose(mode: mode)
+            }
         }
     }
 

@@ -568,7 +568,7 @@ actor AttachmentDatabase {
     /// leave orphaned scanned_messages entries.
     func deleteMessages(_ gmailIds: [String]) {
         guard !gmailIds.isEmpty else { return }
-        let placeholders = gmailIds.map { _ in "?" }.joined(separator: ",")
+        let placeholders = gmailIds.sqlPlaceholders
 
         sqlite3_exec(db, "BEGIN TRANSACTION", nil, nil, nil)
 

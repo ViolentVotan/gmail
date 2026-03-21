@@ -153,7 +153,7 @@ final class MailboxViewModel {
         } else {
             // Multiple labels (e.g. INBOX + CATEGORY_PERSONAL): require ALL labels present.
             // Matches Gmail API semantics where labelIds filters by AND.
-            let placeholders = labelIDs.map { _ in "?" }.joined(separator: ",")
+            let placeholders = labelIDs.sqlPlaceholders
             base = MessageRecord
                 .filter(sql: """
                     gmail_id IN (
@@ -399,7 +399,7 @@ final class MailboxViewModel {
                     let categoryIds = InboxCategory.allCases
                         .filter { $0 != .all }
                         .map { $0.rawValue }
-                    let placeholders = categoryIds.map { _ in "?" }.joined(separator: ",")
+                    let placeholders = categoryIds.sqlPlaceholders
                     let rows = try Row.fetchAll(database, sql: """
                         SELECT ml2.label_id, COUNT(*) AS cnt FROM messages m
                         JOIN message_labels ml1 ON ml1.message_id = m.gmail_id AND ml1.label_id = ?

@@ -110,16 +110,18 @@ enum HTMLPreprocessor {
         return patterns.compactMap { try? NSRegularExpression(pattern: $0, options: .caseInsensitive) }
     }()
 
-    private static func removeHiddenElements(_ html: String) -> String {
-        // Find opening tags with style attributes containing hidden patterns
-        guard let tagRegex = try? NSRegularExpression(
+    private static let hiddenTagRegex: NSRegularExpression = {
+        try! NSRegularExpression(
             pattern: "<(\\w+)\\s[^>]*?style\\s*=\\s*\"([^\"]*)\"[^>]*>",
             options: .caseInsensitive
-        ) else { return html }
+        )
+    }()
 
+    private static func removeHiddenElements(_ html: String) -> String {
+        // Find opening tags with style attributes containing hidden patterns
         var result = html
         let nsString = result as NSString
-        let matches = tagRegex.matches(in: result, range: NSRange(location: 0, length: nsString.length))
+        let matches = hiddenTagRegex.matches(in: result, range: NSRange(location: 0, length: nsString.length))
 
         // Process in reverse so ranges stay valid
         for match in matches.reversed() {
@@ -150,19 +152,21 @@ enum HTMLPreprocessor {
 
     // MARK: - Pass 6: data-* Attributes
 
-    private static func stripDataAttributes(_ html: String) -> String {
-        // Match data-* attributes within HTML tags only
-        guard let tagRegex = try? NSRegularExpression(
-            pattern: "<[^>]+>",
-            options: []
-        ),
-        let dataAttrRegex = try? NSRegularExpression(
+    private static let dataTagRegex: NSRegularExpression = {
+        try! NSRegularExpression(pattern: "<[^>]+>", options: [])
+    }()
+
+    private static let dataAttrRegex: NSRegularExpression = {
+        try! NSRegularExpression(
             pattern: "\\s+data-[a-zA-Z0-9-]*\\s*=\\s*(?:\"[^\"]*\"|'[^']*'|\\S+)",
             options: []
-        ) else { return html }
+        )
+    }()
 
+    private static func stripDataAttributes(_ html: String) -> String {
+        // Match data-* attributes within HTML tags only
         let nsString = html as NSString
-        let tagMatches = tagRegex.matches(in: html, range: NSRange(location: 0, length: nsString.length))
+        let tagMatches = dataTagRegex.matches(in: html, range: NSRange(location: 0, length: nsString.length))
 
         var result = html
         // Process in reverse to preserve ranges
@@ -182,16 +186,21 @@ enum HTMLPreprocessor {
 
     // MARK: - Pass 7: MSO Style Properties
 
-    private static func stripMSOStyleProperties(_ html: String) -> String {
-        guard let styleAttrRegex = try? NSRegularExpression(
+    private static let styleAttrRegex: NSRegularExpression = {
+        try! NSRegularExpression(
             pattern: "\\s*style\\s*=\\s*\"([^\"]*)\"",
             options: .caseInsensitive
-        ),
-        let msoPropRegex = try? NSRegularExpression(
+        )
+    }()
+
+    private static let msoPropRegex: NSRegularExpression = {
+        try! NSRegularExpression(
             pattern: "\\s*;?\\s*mso-[^;:]+:[^;\"]*;?",
             options: .caseInsensitive
-        ) else { return html }
+        )
+    }()
 
+    private static func stripMSOStyleProperties(_ html: String) -> String {
         let nsString = html as NSString
         let matches = styleAttrRegex.matches(in: html, range: NSRange(location: 0, length: nsString.length))
 
@@ -232,12 +241,14 @@ enum HTMLPreprocessor {
         "mc_eid", "mc_cid", "scp", "scid",
     ]
 
-    private static func shortenTrackingURLs(_ html: String) -> String {
-        guard let hrefRegex = try? NSRegularExpression(
+    private static let hrefRegex: NSRegularExpression = {
+        try! NSRegularExpression(
             pattern: "href\\s*=\\s*\"([^\"]*)\"",
             options: .caseInsensitive
-        ) else { return html }
+        )
+    }()
 
+    private static func shortenTrackingURLs(_ html: String) -> String {
         let nsString = html as NSString
         let matches = hrefRegex.matches(in: html, range: NSRange(location: 0, length: nsString.length))
 
@@ -299,23 +310,54 @@ enum HTMLPreprocessor {
 
     // MARK: - Shared Helpers
 
+    private static let tagContentRegexes: [String: (paired: NSRegularExpression, void: NSRegularExpression)] = {
+        var cache: [String: (paired: NSRegularExpression, void: NSRegularExpression)] = [:]
+        for tag in ["head", "script", "iframe", "form", "object", "embed", "applet", "style"] {
+            cache[tag] = (
+                paired: try! NSRegularExpression(
+                    pattern: "<\(tag)\\b[^>]*>[\\s\\S]*?</\(tag)\\s*>",
+                    options: .caseInsensitive
+                ),
+                void: try! NSRegularExpression(
+                    pattern: "<\(tag)\\b[^>]*/?>",
+                    options: .caseInsensitive
+                )
+            )
+        }
+        return cache
+    }()
+
     private static func removeTagWithContent(_ tag: String, from html: String) -> String {
         // Match <tag ...>...</tag> (with content) or <tag .../> or <tag ...> (void/self-closing)
-        guard let pairedRegex = try? NSRegularExpression(
-            pattern: "<\(tag)\\b[^>]*>[\\s\\S]*?</\(tag)\\s*>",
-            options: .caseInsensitive
-        ),
-        let voidRegex = try? NSRegularExpression(
-            pattern: "<\(tag)\\b[^>]*/?>",
-            options: .caseInsensitive
-        ) else { return html }
+        guard let regexes = tagContentRegexes[tag] else {
+            // Fallback for tags not in the pre-compiled cache (shouldn't happen in practice)
+            guard let pairedRegex = try? NSRegularExpression(
+                pattern: "<\(tag)\\b[^>]*>[\\s\\S]*?</\(tag)\\s*>",
+                options: .caseInsensitive
+            ),
+            let voidRegex = try? NSRegularExpression(
+                pattern: "<\(tag)\\b[^>]*/?>",
+                options: .caseInsensitive
+            ) else { return html }
+            var result = pairedRegex.stringByReplacingMatches(
+                in: html,
+                range: NSRange(location: 0, length: (html as NSString).length),
+                withTemplate: ""
+            )
+            result = voidRegex.stringByReplacingMatches(
+                in: result,
+                range: NSRange(location: 0, length: (result as NSString).length),
+                withTemplate: ""
+            )
+            return result
+        }
 
-        var result = pairedRegex.stringByReplacingMatches(
+        var result = regexes.paired.stringByReplacingMatches(
             in: html,
             range: NSRange(location: 0, length: (html as NSString).length),
             withTemplate: ""
         )
-        result = voidRegex.stringByReplacingMatches(
+        result = regexes.void.stringByReplacingMatches(
             in: result,
             range: NSRange(location: 0, length: (result as NSString).length),
             withTemplate: ""
