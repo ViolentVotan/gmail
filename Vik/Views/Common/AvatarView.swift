@@ -32,6 +32,18 @@ struct AvatarView: View {
 
     private let avatarTextColor: Color
 
+    /// Caches luminance check per hex color to avoid repeated NSColor conversions.
+    private nonisolated(unsafe) static var luminanceCache: [String: Bool] = [:]
+
+    @MainActor private static func isHighLuminance(for hexColor: String) -> Bool {
+        if let cached = luminanceCache[hexColor] { return cached }
+        let bgColor = NSColor(Color(hex: hexColor)).usingColorSpace(.sRGB)
+        let luminance = bgColor?.relativeLuminance() ?? 0
+        let result = luminance > 0.7
+        luminanceCache[hexColor] = result
+        return result
+    }
+
     init(initials: String, color: String, size: CGFloat = 36, avatarURL: String? = nil, senderDomain: String? = nil) {
         self.initials = initials
         self.color = color
@@ -39,9 +51,7 @@ struct AvatarView: View {
         self.avatarURL = avatarURL
         self.senderDomain = senderDomain
 
-        let bgColor = NSColor(Color(hex: color)).usingColorSpace(.sRGB)
-        let luminance = bgColor?.relativeLuminance() ?? 0
-        self.avatarTextColor = luminance > 0.7 ? .primary : .white
+        self.avatarTextColor = Self.isHighLuminance(for: color) ? .primary : .white
     }
 
     var body: some View {

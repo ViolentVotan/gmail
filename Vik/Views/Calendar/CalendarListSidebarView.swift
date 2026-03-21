@@ -6,12 +6,7 @@ struct CalendarListSidebarView: View {
     @Bindable var viewModel: CalendarViewModel
     var onNewEvent: () -> Void
 
-    private var calendarsByAccount: [(accountID: String, calendars: [CalendarInfo])] {
-        let grouped = Dictionary(grouping: viewModel.calendars, by: \.accountID)
-        return grouped
-            .map { (accountID: $0.key, calendars: $0.value.sorted { $0.isPrimary && !$1.isPrimary }) }
-            .sorted { $0.accountID < $1.accountID }
-    }
+    @State private var calendarsByAccount: [(accountID: String, calendars: [CalendarInfo])] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -21,6 +16,15 @@ struct CalendarListSidebarView: View {
                 .padding(.top, Spacing.sm)
                 .padding(.bottom, Spacing.md)
         }
+        .task { recomputeCalendars() }
+        .onChange(of: viewModel.calendars) { _, _ in recomputeCalendars() }
+    }
+
+    private func recomputeCalendars() {
+        let grouped = Dictionary(grouping: viewModel.calendars, by: \.accountID)
+        calendarsByAccount = grouped
+            .map { (accountID: $0.key, calendars: $0.value.sorted { $0.isPrimary && !$1.isPrimary }) }
+            .sorted { $0.accountID < $1.accountID }
     }
 
     // MARK: - Calendar Sections

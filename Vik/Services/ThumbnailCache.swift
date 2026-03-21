@@ -68,8 +68,11 @@ final class ThumbnailCache {
         loading.removeAll()
         pendingQueue.removeAll()
         activeFetches = 0
-        try? FileManager.default.removeItem(at: cacheDirectory)
-        try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+        let dir = cacheDirectory
+        Task.detached {
+            try? FileManager.default.removeItem(at: dir)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        }
     }
 
     func thumbnail(for id: String) -> NSImage? {
@@ -152,15 +155,16 @@ final class ThumbnailCache {
     }
 
     private func dequeueNext() {
-        guard activeFetches < maxConcurrentFetches, !pendingQueue.isEmpty else { return }
-        let next = pendingQueue.removeFirst()
-        // Skip if cancelled (removed from loading) or already cached
-        guard loading.contains(next.id), thumbnailCache.object(forKey: next.id as NSString) == nil else {
-            loading.remove(next.id)
-            dequeueNext()
-            return
+        while activeFetches < maxConcurrentFetches, !pendingQueue.isEmpty {
+            let next = pendingQueue.removeFirst()
+            // Skip if cancelled (removed from loading) or already cached
+            guard loading.contains(next.id), thumbnailCache.object(forKey: next.id as NSString) == nil else {
+                loading.remove(next.id)
+                continue
+            }
+            startFetch(id: next.id, attachment: next.attachment, accountID: next.accountID)
+            break
         }
-        startFetch(id: next.id, attachment: next.attachment, accountID: next.accountID)
     }
 
     // MARK: - Disk Cache

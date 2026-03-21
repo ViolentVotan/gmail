@@ -185,18 +185,19 @@ final class MailboxViewModel {
         let fetchedCount = records.count
         let limit = displayLimit
         enrichmentTask?.cancel()
-        enrichmentTask = Task { @MainActor [weak self] in
+        enrichmentTask = Task { [weak self] in
             let threadEmails = Self.threadedEmails(from: records)
             guard !Task.isCancelled else { return }
-            guard let self else { return }
-            guard db === self.mailDatabase else { return }
-            // Guard against empty results when the observation returned non-empty records
-            if threadEmails.isEmpty && !records.isEmpty { return }
-            // Only show "load more" if the DB query hit the limit (more raw rows may exist)
-            // AND we haven't already loaded all available messages
-            self.hasMoreEmails = fetchedCount >= limit
-            self.isLoadingMore = false
-            self.emails = threadEmails
+            await MainActor.run {
+                guard let self, db === self.mailDatabase else { return }
+                // Guard against empty results when the observation returned non-empty records
+                if threadEmails.isEmpty && !records.isEmpty { return }
+                // Only show "load more" if the DB query hit the limit (more raw rows may exist)
+                // AND we haven't already loaded all available messages
+                self.hasMoreEmails = fetchedCount >= limit
+                self.isLoadingMore = false
+                self.emails = threadEmails
+            }
         }
     }
 

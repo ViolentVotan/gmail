@@ -385,38 +385,48 @@ struct ContentView: View {
                     .focused(appFocus, equals: .list)
                 }
             } detail: {
-                if coordinator.navigation.selectedFolder != .attachments {
-                    DetailPaneView(
-                        selectedEmail: coordinator.selection.selectedEmail,
-                        selectedEmailIDs: coordinator.selection.selectedEmailIDs,
-                        selectedFolder: coordinator.navigation.selectedFolder,
-                        displayedEmails: coordinator.selection.displayedEmails,
-                        actionCoordinator: coordinator.actionCoordinator,
-                        mailboxViewModel: coordinator.mailboxViewModel,
-                        mailStore: coordinator.mailStore,
-                        accountID: coordinator.navigation.accountID,
-                        fromAddress: coordinator.navigation.fromAddress,
-                        composeMode: coordinator.compose.composeMode,
-                        signatureForNew: coordinator.compose.signatureForNew,
-                        signatureForReply: coordinator.compose.signatureForReply,
-                        panelCoordinator: coordinator.panelCoordinator,
-                        attachmentIndexer: coordinator.sync.attachmentIndexer,
-                        contacts: coordinator.sync.contacts,
-                        mailDatabase: coordinator.sync.mailDatabase,
-                        selectNext: { coordinator.selection.selectNext($0) },
-                        clearSelection: { coordinator.selection.clearSelection() },
-                        deselectAll: { coordinator.selection.deselectAll() },
-                        startCompose: { coordinator.startCompose(mode: $0) },
-                        discardDraft: { coordinator.discardDraft(id: $0) },
-                        selectionDirection: coordinator.selection.selectionDirection,
-                        navigatePrevious: { coordinator.selection.selectPrevious() },
-                        navigateNext: { coordinator.selection.selectNextEmail() },
-                        switchToCalendar: { coordinator.navigateToEvent($0) }
-                    )
+                DetailPaneContainer(coordinator: coordinator)
                     .focused(appFocus, equals: .detail)
-                }
             }
             .navigationSplitViewStyle(.balanced)
+        }
+    }
+
+    /// Isolates detail-pane reads (compose mode, signatures, contacts, mailDatabase,
+    /// selectionDirection) from the list pane so those changes don't trigger list re-evaluation.
+    private struct DetailPaneContainer: View {
+        let coordinator: AppCoordinator
+
+        var body: some View {
+            if coordinator.navigation.selectedFolder != .attachments {
+                DetailPaneView(
+                    selectedEmail: coordinator.selection.selectedEmail,
+                    selectedEmailIDs: coordinator.selection.selectedEmailIDs,
+                    selectedFolder: coordinator.navigation.selectedFolder,
+                    displayedEmails: coordinator.selection.displayedEmails,
+                    actionCoordinator: coordinator.actionCoordinator,
+                    mailboxViewModel: coordinator.mailboxViewModel,
+                    mailStore: coordinator.mailStore,
+                    accountID: coordinator.navigation.accountID,
+                    fromAddress: coordinator.navigation.fromAddress,
+                    composeMode: coordinator.compose.composeMode,
+                    signatureForNew: coordinator.compose.signatureForNew,
+                    signatureForReply: coordinator.compose.signatureForReply,
+                    panelCoordinator: coordinator.panelCoordinator,
+                    attachmentIndexer: coordinator.sync.attachmentIndexer,
+                    contacts: coordinator.sync.contacts,
+                    mailDatabase: coordinator.sync.mailDatabase,
+                    selectNext: { coordinator.selection.selectNext($0) },
+                    clearSelection: { coordinator.selection.clearSelection() },
+                    deselectAll: { coordinator.selection.deselectAll() },
+                    startCompose: { coordinator.startCompose(mode: $0) },
+                    discardDraft: { coordinator.discardDraft(id: $0) },
+                    selectionDirection: coordinator.selection.selectionDirection,
+                    navigatePrevious: { coordinator.selection.selectPrevious() },
+                    navigateNext: { coordinator.selection.selectNextEmail() },
+                    switchToCalendar: { coordinator.navigateToEvent($0) }
+                )
+            }
         }
     }
 

@@ -191,11 +191,11 @@ final class EmailDetailViewModel {
               let html = msg.htmlBody, !html.isEmpty
         else { calendarInvite = nil; return }
 
-        guard var invite = CalendarInviteParser.parse(
-            html: html,
-            subject: msg.subject,
-            sender: msg.from
-        ) else { calendarInvite = nil; return }
+        let parsed = await Task.detached {
+            CalendarInviteParser.parse(html: html, subject: msg.subject, sender: msg.from)
+        }.value
+        guard !Task.isCancelled else { return }
+        guard var invite = parsed else { calendarInvite = nil; return }
 
         // Restore persisted RSVP status
         if let saved = UserDefaults.standard.string(forKey: rsvpKey(for: msg.id)),
@@ -292,7 +292,13 @@ final class EmailDetailViewModel {
         let raw = trackerSanitizedHTML ?? message.htmlBody ?? ""
         // trackerSanitizedHTML is already preprocessed via sanitizeOffMainActor.
         // Raw htmlBody needs explicit preprocessing.
-        let baseHTML = trackerSanitizedHTML != nil ? raw : HTMLPreprocessor.strip(raw)
+        let baseHTML: String
+        if trackerSanitizedHTML != nil {
+            baseHTML = raw
+        } else {
+            baseHTML = await Task.detached { HTMLPreprocessor.strip(raw) }.value
+        }
+        guard !Task.isCancelled else { return }
         guard !baseHTML.isEmpty else { return }
         guard !message.inlineParts.isEmpty else {
             if resolvedMessageHTML[message.id] != baseHTML {

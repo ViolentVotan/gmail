@@ -26,6 +26,7 @@ struct EmailRowView: View, Equatable {
     /// Cached at init to avoid per-render allocations and direct service access.
     private let tagBadges: [BadgeItem]
     /// Cached at init to avoid Calendar.current per-render overhead.
+    private let formattedDate: String
     private let nudgeText: String?
 
     /// Equatable conformance compares only the data that affects visual output.
@@ -62,6 +63,8 @@ struct EmailRowView: View, Equatable {
         } else {
             self.tagBadges = []
         }
+
+        self.formattedDate = email.date.formattedRelative
 
         let daysAgo = Calendar.current.dateComponents([.day], from: email.date, to: .now).day ?? 0
         self.nudgeText = daysAgo >= 3 ? "Received \(daysAgo) days ago" : nil
@@ -174,7 +177,7 @@ struct EmailRowView: View, Equatable {
 
                         Spacer()
 
-                        Text(email.date.formattedRelative)
+                        Text(formattedDate)
                             .font(Typography.captionRegular)
                             .monospacedDigit()
                             .foregroundStyle(.tertiary)
@@ -292,9 +295,13 @@ struct EmailRowView: View, Equatable {
                 }
             }
         }
-        .background(PopoverAnchor(holder: popoverHolder))
+        .background {
+            if Self.isAppleIntelligenceAvailable {
+                PopoverAnchor(holder: popoverHolder)
+            }
+        }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(email.sender.name), \(email.subject), \(email.preview), \(email.date.formattedRelative)")
+        .accessibilityLabel("\(email.sender.name), \(email.subject), \(email.preview), \(formattedDate)")
         .accessibilityValue(email.isRead ? "Read" : "Unread")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityHint(email.isStarred ? "Starred" : "Not starred")

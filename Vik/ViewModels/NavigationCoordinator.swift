@@ -10,27 +10,34 @@ final class NavigationCoordinator {
 
     // MARK: - State
 
-    var selectedAccountID: String?
+    var selectedAccountID: String? {
+        didSet { updateAccountProperties() }
+    }
     var selectedFolder: Folder = .inbox
     var selectedInboxCategory: InboxCategory? = .all
     var selectedLabel: GmailLabel?
     var searchResetTrigger = 0
     var searchFocusTrigger = false
 
+    // MARK: - Cached Account Properties
+
+    /// Cached from `authViewModel` to avoid transitive observation. Updated when `selectedAccountID` changes.
+    var accountID: String = ""
+    /// Cached from `authViewModel` to avoid transitive observation. Updated when `selectedAccountID` changes.
+    var fromAddress: String = ""
+
     // MARK: - Init
 
     init(authViewModel: AuthViewModel) {
         self.authViewModel = authViewModel
+        updateAccountProperties()
     }
 
-    // MARK: - Computed Properties
+    // MARK: - Private
 
-    var accountID: String {
-        selectedAccountID ?? authViewModel.primaryAccount?.id ?? ""
-    }
-
-    var fromAddress: String {
-        authViewModel.accounts.first(where: { $0.id == selectedAccountID })?.email
+    private func updateAccountProperties() {
+        accountID = selectedAccountID ?? authViewModel.primaryAccount?.id ?? ""
+        fromAddress = authViewModel.accounts.first(where: { $0.id == accountID })?.email
             ?? authViewModel.primaryAccount?.email
             ?? ""
     }

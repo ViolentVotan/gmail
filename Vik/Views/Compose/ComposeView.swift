@@ -259,7 +259,7 @@ struct ComposeView: View {
 
     /// Validates recipients/subject and populates `composeVM` fields from the compose form.
     /// Returns `false` (with `sendError` set) when validation fails.
-    private func prepareForSend() -> Bool {
+    private func prepareForSend() async -> Bool {
         guard !to.isEmpty else {
             sendError = "Please add at least one recipient."
             return false
@@ -270,7 +270,10 @@ struct ComposeView: View {
         }
         sendError = nil
 
-        let (processedHTML, images) = InlineImageProcessor.extractInlineImages(from: bodyHTML)
+        let html = bodyHTML
+        let (processedHTML, images) = await Task.detached {
+            InlineImageProcessor.extractInlineImages(from: html)
+        }.value
         composeVM.to             = to
         composeVM.cc             = cc
         composeVM.bcc            = bcc
@@ -283,7 +286,7 @@ struct ComposeView: View {
     }
 
     private func sendEmail() async {
-        guard prepareForSend() else { return }
+        guard await prepareForSend() else { return }
         sendHapticTrigger.toggle()
         await composeVM.send()
         // send() returns immediately after scheduling the undo action.
@@ -292,7 +295,7 @@ struct ComposeView: View {
     }
 
     private func scheduleEmail(at date: Date) async {
-        guard prepareForSend() else { return }
+        guard await prepareForSend() else { return }
         await composeVM.scheduleSend(at: date)
     }
 

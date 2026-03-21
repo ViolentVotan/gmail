@@ -105,18 +105,19 @@ final class AvatarCache {
     }
 
     private func dequeueNext() {
-        guard activeFetches < maxConcurrentFetches, !pendingQueue.isEmpty else { return }
-        let next = pendingQueue.removeFirst()
-        // If all waiters for this key were already resolved by a concurrent fetch, skip it.
-        guard let pending = waiters[next.key], !pending.isEmpty else {
-            inFlightKeys.remove(next.key)
-            dequeueNext()
-            return
-        }
-        // Reserve the slot before yielding to the Task to prevent over-scheduling.
-        activeFetches += 1
-        Task {
-            _ = await performFetch(keyString: next.key, url: next.url, fileURL: next.fileURL)
+        while activeFetches < maxConcurrentFetches, !pendingQueue.isEmpty {
+            let next = pendingQueue.removeFirst()
+            // If all waiters for this key were already resolved by a concurrent fetch, skip it.
+            guard let pending = waiters[next.key], !pending.isEmpty else {
+                inFlightKeys.remove(next.key)
+                continue
+            }
+            // Reserve the slot before yielding to the Task to prevent over-scheduling.
+            activeFetches += 1
+            Task {
+                _ = await performFetch(keyString: next.key, url: next.url, fileURL: next.fileURL)
+            }
+            break
         }
     }
 
@@ -162,8 +163,11 @@ final class AvatarCache {
             }
         }
         waiters.removeAll()
-        try? FileManager.default.removeItem(at: cacheDir)
-        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+        let dir = cacheDir
+        Task.detached {
+            try? FileManager.default.removeItem(at: dir)
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        }
     }
 
     private func cacheKey(for urlString: String) -> String {

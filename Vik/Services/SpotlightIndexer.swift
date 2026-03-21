@@ -1,8 +1,7 @@
 import AppIntents
 import CoreSpotlight
 
-@MainActor
-final class SpotlightIndexer {
+actor SpotlightIndexer {
     static let shared = SpotlightIndexer()
     /// Tracks indexed message IDs in insertion order (oldest first) for LRU eviction.
     private var indexedIDs: [String] = []
@@ -15,7 +14,6 @@ final class SpotlightIndexer {
 
     private init() {
         indexedIDs = UserDefaults.standard.stringArray(forKey: indexedIDsKey) ?? []
-        cleanLegacyItemsIfNeeded()
     }
 
     func indexEmail(_ email: Email) async {
@@ -59,11 +57,10 @@ final class SpotlightIndexer {
     private func cleanLegacyItemsIfNeeded() {
         guard !legacyCleaned else { return }
         legacyCleaned = true
-        Task { [weak self] in
+        Task {
             try? await CSSearchableIndex.default().deleteSearchableItems(
                 withDomainIdentifiers: ["com.vikingz.vik.emails"]
             )
-            _ = self
         }
     }
 
@@ -71,10 +68,10 @@ final class SpotlightIndexer {
 
     private func schedulePersist() {
         persistTask?.cancel()
-        persistTask = Task { [weak self] in
+        persistTask = Task {
             try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled else { return }
-            self?.persistIndexedIDs()
+            self.persistIndexedIDs()
         }
     }
 

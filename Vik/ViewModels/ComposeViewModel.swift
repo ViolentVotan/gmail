@@ -241,7 +241,10 @@ final class ComposeViewModel {
             guard !Task.isCancelled else { return }
             do {
                 // Extract inline data: URLs → cid: + MIME parts for proper Gmail storage
-                let (processedBody, extractedImages) = InlineImageProcessor.extractInlineImages(from: body)
+                let bodySnapshot = body
+                let (processedBody, extractedImages) = await Task.detached {
+                    InlineImageProcessor.extractInlineImages(from: bodySnapshot)
+                }.value
                 let allImages = extractedImages + inlineImages
 
                 // Build threading headers for reply drafts
@@ -328,7 +331,9 @@ final class ComposeViewModel {
         replyCleanupMailStore = mailStore
         replyCleanupDraftID = gmailDraftID
 
-        let (processedHTML, images) = InlineImageProcessor.extractInlineImages(from: replyHTML)
+        let (processedHTML, images) = await Task.detached {
+            InlineImageProcessor.extractInlineImages(from: replyHTML)
+        }.value
         let sub = emailSubject.withReplyPrefix
 
         self.to = to
@@ -646,7 +651,10 @@ final class ComposeViewModel {
         sendError = nil
         saveTask?.cancel()
 
-        let (processedHTML, images) = InlineImageProcessor.extractInlineImages(from: body)
+        let bodySnapshot = body
+        let (processedHTML, images) = await Task.detached {
+            InlineImageProcessor.extractInlineImages(from: bodySnapshot)
+        }.value
 
         self.subject = (subjectOverride ?? email.subject).withReplyPrefix
         self.body = processedHTML
