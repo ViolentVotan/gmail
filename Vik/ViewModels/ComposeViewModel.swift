@@ -496,12 +496,18 @@ final class ComposeViewModel {
     // MARK: - Reply Bar Content
 
     /// Debounced update of the cached stripped text for `replyBodyIsEmpty` / `hasUserContent`.
+    @concurrent private static func stripHTML(_ html: String) async -> String {
+        html.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     func updateCachedText(html: String) {
         stripTask?.cancel()
         stripTask = Task {
             try? await Task.sleep(for: .milliseconds(150))
             guard !Task.isCancelled else { return }
-            cachedStrippedText = html.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines)
+            let stripped = await Self.stripHTML(html)
+            guard !Task.isCancelled else { return }
+            cachedStrippedText = stripped
         }
     }
 

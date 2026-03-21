@@ -65,8 +65,8 @@ final class SnoozeStore {
 
     var count: Int { store.totalCount }
 
-    func load(accountID: String) {
-        store.loadFiltered(by: accountID, keyPath: \.accountID)
+    func load(accountID: String) async {
+        await store.loadFiltered(by: accountID, keyPath: \.accountID)
     }
 
     func add(_ item: SnoozedItem) {

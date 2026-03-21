@@ -436,9 +436,6 @@ final class AppCoordinator {
         SubscriptionsStore.shared.accountID = id
         attachmentStore.accountID = id
         SummaryService.shared.accountID = id
-        SnoozeStore.shared.load(accountID: id)
-        ScheduledSendStore.shared.load(accountID: id)
-        OfflineActionQueue.shared.load(accountID: id)
         let oldEngine = sync.syncEngine
         let oldCalendarEngine = calendar.calendarSyncEngine
         sync.clearSyncEngines()
@@ -448,6 +445,9 @@ final class AppCoordinator {
         sync.accountSwitchTask?.cancel()
         let task = Task { [weak self] in
             guard let self else { return }
+            await SnoozeStore.shared.load(accountID: id)
+            await ScheduledSendStore.shared.load(accountID: id)
+            await OfflineActionQueue.shared.load(accountID: id)
             defer {
                 if self.sync.currentAccountSwitchGeneration == generation {
                     self.sync.accountSwitchTask = nil
@@ -482,9 +482,11 @@ final class AppCoordinator {
         let addedIDs = currentIDs.subtracting(previousIDs)
 
         for addedID in addedIDs {
-            SnoozeStore.shared.load(accountID: addedID)
-            ScheduledSendStore.shared.load(accountID: addedID)
-            OfflineActionQueue.shared.load(accountID: addedID)
+            Task {
+                await SnoozeStore.shared.load(accountID: addedID)
+                await ScheduledSendStore.shared.load(accountID: addedID)
+                await OfflineActionQueue.shared.load(accountID: addedID)
+            }
         }
 
         for removedID in removedIDs {

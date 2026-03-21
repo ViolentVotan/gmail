@@ -67,7 +67,7 @@ final class CalendarOfflineActionQueue {
         processingAccounts.insert(accountID)
         defer { processingAccounts.remove(accountID) }
 
-        store.loadMerging(accountID: accountID)
+        await store.loadMerging(accountID: accountID)
         guard let pending = store.itemsByAccount[accountID], !pending.isEmpty else { return }
 
         var processed: [UUID] = []

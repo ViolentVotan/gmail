@@ -36,9 +36,9 @@ struct VikApp: App {
 
                 // Load snooze/scheduled data for all accounts
                 for account in AccountStore.shared.accounts {
-                    SnoozeStore.shared.load(accountID: account.id)
-                    ScheduledSendStore.shared.load(accountID: account.id)
-                    OfflineActionQueue.shared.load(accountID: account.id)
+                    await SnoozeStore.shared.load(accountID: account.id)
+                    await ScheduledSendStore.shared.load(accountID: account.id)
+                    await OfflineActionQueue.shared.load(accountID: account.id)
                 }
 
                 // Drain any pending offline actions if already online at launch

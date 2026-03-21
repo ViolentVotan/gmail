@@ -92,7 +92,7 @@ struct DebugMenuView: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                 } else {
-                    VStack(spacing: 0) {
+                    LazyVStack(spacing: 0) {
                         ForEach(reversedEntries) { entry in
                             logEntryRow(entry)
                             if entry.id != reversedEntries.last?.id {

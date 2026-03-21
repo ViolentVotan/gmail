@@ -49,8 +49,8 @@ final class OfflineActionQueue {
         store.deleteAccount(accountID)
     }
 
-    func load(accountID: String) {
-        store.loadMerging(accountID: accountID)
+    func load(accountID: String) async {
+        await store.loadMerging(accountID: accountID)
     }
 
     func startDraining() {

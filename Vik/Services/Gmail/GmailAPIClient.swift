@@ -696,8 +696,8 @@ final class GmailAPIClient {
 
     // MARK: - Token refresh
 
-    /// Fast path for `@concurrent` callers: returns the cached token if still valid,
-    /// avoiding a MainActor hop. Falls back to the full MainActor `validToken(for:)` otherwise.
+    /// Fast path: returns the cached token if still valid.
+    /// On cache miss, falls back to `validToken(for:)` which reads Keychain off MainActor.
     @concurrent private func cachedValidToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
         if let cached = cachedTokens.withLock({ $0[accountID] }), !cached.isExpired {
             return cached
@@ -705,10 +705,10 @@ final class GmailAPIClient {
         return try await validToken(for: accountID)
     }
 
-    private func validToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
+    @concurrent private func validToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
         let token: AuthToken?
         do {
-            token = try TokenStore.shared.retrieve(for: accountID)
+            token = try await TokenStore.shared.retrieve(for: accountID)
         } catch {
             throw .networkError(error)
         }
@@ -744,7 +744,7 @@ final class GmailAPIClient {
             defer { refreshTasks[accountID] = nil }
             let token: AuthToken?
             do {
-                token = try TokenStore.shared.retrieve(for: accountID)
+                token = try await TokenStore.shared.retrieve(for: accountID)
             } catch {
                 throw GmailAPIError.networkError(error)
             }

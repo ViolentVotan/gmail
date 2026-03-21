@@ -251,7 +251,7 @@ struct CalendarMonthView: View {
 
     private func spanningBarArea(layout: MonthSpanningLayout) -> some View {
         ZStack(alignment: .topLeading) {
-            ForEach(Array(layout.rows.enumerated()), id: \.offset) { _, placement in
+            ForEach(layout.rows, id: \.event.id) { placement in
                 CalendarMonthSpanningBar(
                     event: placement.event,
                     startColumn: placement.startColumn,

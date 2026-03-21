@@ -1,6 +1,7 @@
 import Foundation
 private import CryptoKit
 private import Security
+import Synchronization
 
 /// Persists OAuth tokens encrypted with AES-256-GCM.
 /// Both the symmetric key and the encrypted token data are stored in the macOS Keychain.
@@ -27,22 +28,24 @@ final class TokenStore {
 
     // MARK: - Symmetric key (Keychain, cached after first load)
 
-    private var _cachedKey: SymmetricKey?
+    private nonisolated let _cachedKey = Mutex<SymmetricKey?>(nil)
 
-    private var symmetricKey: SymmetricKey {
-        if let cached = _cachedKey { return cached }
-        let key: SymmetricKey
-        if let data = loadKeyFromKeychain() {
-            key = SymmetricKey(data: data)
-        } else {
-            key = SymmetricKey(size: .bits256)
-            saveKeyToKeychain(key.withUnsafeBytes { Data($0) })
+    private nonisolated var symmetricKey: SymmetricKey {
+        _cachedKey.withLock { cached in
+            if let cached { return cached }
+            let key: SymmetricKey
+            if let data = loadKeyFromKeychain() {
+                key = SymmetricKey(data: data)
+            } else {
+                key = SymmetricKey(size: .bits256)
+                saveKeyToKeychain(key.withUnsafeBytes { Data($0) })
+            }
+            cached = key
+            return key
         }
-        _cachedKey = key
-        return key
     }
 
-    private func loadKeyFromKeychain() -> Data? {
+    nonisolated private func loadKeyFromKeychain() -> Data? {
         let query: [String: Any] = [
             kSecClass as String:            kSecClassGenericPassword,
             kSecAttrService as String:      keychainService,
@@ -95,7 +98,7 @@ final class TokenStore {
         "token-\(accountID)"
     }
 
-    private func loadTokenData(for accountID: String) -> Data? {
+    nonisolated private func loadTokenData(for accountID: String) -> Data? {
         let query: [String: Any] = [
             kSecClass as String:            kSecClassGenericPassword,
             kSecAttrService as String:      keychainService,
@@ -113,7 +116,7 @@ final class TokenStore {
         saveKeychainItem(service: keychainService, account: tokenKeychainAccount(for: accountID), data: data)
     }
 
-    private func deleteTokenData(for accountID: String) {
+    nonisolated private func deleteTokenData(for accountID: String) {
         let query: [String: Any] = [
             kSecClass as String:            kSecClassGenericPassword,
             kSecAttrService as String:      keychainService,
@@ -138,8 +141,7 @@ final class TokenStore {
     // MARK: - CRUD
 
     @concurrent func save(_ token: AuthToken, for accountID: String) async throws {
-        // Capture MainActor state before hopping off the main thread.
-        let key = await MainActor.run { symmetricKey }
+        let key = symmetricKey
         let plaintext = try JSONEncoder().encode(token)
         let sealed    = try AES.GCM.seal(plaintext, using: key)
         guard let combined = sealed.combined else { throw TokenStoreError.encryptionFailed }
@@ -154,18 +156,21 @@ final class TokenStore {
         }
     }
 
-    func retrieve(for accountID: String) throws -> AuthToken? {
-        // Read from Keychain; fall back to UserDefaults for unmigrated tokens
+    @concurrent func retrieve(for accountID: String) async throws -> AuthToken? {
+        // Primary path: read from Keychain (nonisolated — no MainActor hop)
         let combined: Data
         if let keychainData = loadTokenData(for: accountID) {
             combined = keychainData
-        } else if let udData = defaults.data(forKey: keyPrefix + accountID) {
-            // Migrate on read
-            saveTokenData(udData, for: accountID)
-            defaults.removeObject(forKey: keyPrefix + accountID)
-            combined = udData
         } else {
-            return nil
+            // Legacy fallback: check UserDefaults for unmigrated tokens (requires MainActor)
+            let udKey = keyPrefix + accountID
+            guard let udData = await MainActor.run(body: { defaults.data(forKey: udKey) }) else {
+                return nil
+            }
+            // Migrate to Keychain and clean up UserDefaults
+            saveTokenData(udData, for: accountID)
+            await MainActor.run { defaults.removeObject(forKey: udKey) }
+            combined = udData
         }
         let box       = try AES.GCM.SealedBox(combined: combined)
         let plaintext = try AES.GCM.open(box, using: symmetricKey)

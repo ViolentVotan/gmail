@@ -98,9 +98,10 @@ actor BackgroundSyncer {
     // MARK: - Body Pre-fetch Update
 
     /// Update message bodies after background pre-fetch.
-    func updateBodies(_ updates: [(gmailId: String, html: String?, plain: String?)]) async throws {
-        guard !updates.isEmpty else { return }
-        let prepared = updates.map { update -> (gmailId: String, html: String?, plainText: String?) in
+    @concurrent private static func prepareBodyUpdates(
+        _ updates: [(gmailId: String, html: String?, plain: String?)]
+    ) async -> [(gmailId: String, html: String?, plainText: String?)] {
+        updates.map { update in
             let plainText: String?
             if let plain = update.plain {
                 plainText = plain
@@ -111,6 +112,11 @@ actor BackgroundSyncer {
             }
             return (gmailId: update.gmailId, html: update.html, plainText: plainText)
         }
+    }
+
+    func updateBodies(_ updates: [(gmailId: String, html: String?, plain: String?)]) async throws {
+        guard !updates.isEmpty else { return }
+        let prepared = await Self.prepareBodyUpdates(updates)
         // Loop kept intentionally: each row updates multiple columns with distinct values
         // (body_html, body_plain, fetched_at), making a single CASE expression per column
         // unwieldy and fragile. The wrapping write transaction already amortises the

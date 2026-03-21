@@ -48,9 +48,10 @@ final class ContactPhotoCache: Sendable {
         storage.withLock { dict in
             dict[email.lowercased()] = (url: url, lastAccess: Date())
             if dict.count > maxSize {
-                // Evict oldest entry
-                if let oldest = dict.min(by: { $0.value.lastAccess < $1.value.lastAccess }) {
-                    dict.removeValue(forKey: oldest.key)
+                let evictCount = maxSize / 4
+                let sorted = dict.sorted { $0.value.lastAccess < $1.value.lastAccess }
+                for entry in sorted.prefix(evictCount) {
+                    dict.removeValue(forKey: entry.key)
                 }
             }
         }

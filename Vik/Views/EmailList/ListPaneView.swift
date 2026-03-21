@@ -46,30 +46,32 @@ struct ListPaneView: View {
     var body: some View {
         @Bindable var vm = mailboxViewModel
         VStack(spacing: 0) {
-            if !actionCoordinator.isConnected {
-                HStack {
-                    Image(systemName: "wifi.slash")
-                    Text("You're offline. Changes will sync when connected.")
-                    if actionCoordinator.pendingOfflineActionCount > 0 {
-                        Text("(\(actionCoordinator.pendingOfflineActionCount) pending)")
-                            .fontWeight(.medium)
-                    }
-                    Spacer()
-                }
-                .font(Typography.captionRegular)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 6)
-                .background(SemanticColor.warning.opacity(OpacityToken.highlight))
-            }
-            if selectedFolder == .inbox {
-                CategoryTabBar(
-                    selectedCategory: $selectedCategory,
-                    unreadCounts: mailboxViewModel.categoryUnreadCounts
-                )
-                Divider()
-            }
-            emailList(priorityFilterOn: $vm.priorityFilterEnabled)
+            OfflineBannerView(actionCoordinator: actionCoordinator)
+            CategoryTabBarSection(
+                mailboxViewModel: mailboxViewModel,
+                selectedFolder: selectedFolder,
+                selectedCategory: $selectedCategory
+            )
+            EmailListSection(
+                emails: emails,
+                isLoading: isLoading,
+                selectedFolder: selectedFolder,
+                searchResetTrigger: searchResetTrigger,
+                mailboxViewModel: mailboxViewModel,
+                actionCoordinator: actionCoordinator,
+                selectNext: selectNext,
+                startCompose: startCompose,
+                emptyTrashRequested: emptyTrashRequested,
+                emptySpamRequested: emptySpamRequested,
+                loadCurrentFolder: loadCurrentFolder,
+                selectedEmails: selectedEmails,
+                clearSelection: clearSelection,
+                filterEmail: $filterEmail,
+                searchFocusTrigger: $searchFocusTrigger,
+                selectedEmail: $selectedEmail,
+                selectedEmailIDs: $selectedEmailIDs,
+                priorityFilterOn: $vm.priorityFilterEnabled
+            )
                 .id("\(selectedFolder.rawValue)-\(selectedCategory.rawValue)")
                 .transition(.asymmetric(
                     insertion: .opacity,
@@ -98,8 +100,74 @@ struct ListPaneView: View {
             selectedCategory = newValue ?? .all
         }
     }
+}
 
-    private func emailList(priorityFilterOn: Binding<Bool>) -> some View {
+// MARK: - Offline Banner (Issue 5)
+
+private struct OfflineBannerView: View {
+    let actionCoordinator: EmailActionCoordinator
+
+    var body: some View {
+        if !actionCoordinator.isConnected {
+            HStack {
+                Image(systemName: "wifi.slash")
+                Text("You're offline. Changes will sync when connected.")
+                if actionCoordinator.pendingOfflineActionCount > 0 {
+                    Text("(\(actionCoordinator.pendingOfflineActionCount) pending)")
+                        .fontWeight(.medium)
+                }
+                Spacer()
+            }
+            .font(Typography.captionRegular)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(SemanticColor.warning.opacity(OpacityToken.highlight))
+        }
+    }
+}
+
+// MARK: - Category Tab Bar (Issue 6)
+
+private struct CategoryTabBarSection: View {
+    let mailboxViewModel: MailboxViewModel
+    let selectedFolder: Folder
+    @Binding var selectedCategory: InboxCategory
+
+    var body: some View {
+        if selectedFolder == .inbox {
+            CategoryTabBar(
+                selectedCategory: $selectedCategory,
+                unreadCounts: mailboxViewModel.categoryUnreadCounts
+            )
+            Divider()
+        }
+    }
+}
+
+// MARK: - Email List (Issue 7)
+
+private struct EmailListSection: View {
+    let emails: [Email]
+    let isLoading: Bool
+    let selectedFolder: Folder
+    let searchResetTrigger: Int
+    let mailboxViewModel: MailboxViewModel
+    let actionCoordinator: EmailActionCoordinator
+    let selectNext: (Email?) -> Void
+    let startCompose: (ComposeMode) -> Void
+    let emptyTrashRequested: (Int) -> Void
+    let emptySpamRequested: (Int) -> Void
+    let loadCurrentFolder: () async -> Void
+    let selectedEmails: [Email]
+    let clearSelection: () -> Void
+    @Binding var filterEmail: Email?
+    @Binding var searchFocusTrigger: Bool
+    @Binding var selectedEmail: Email?
+    @Binding var selectedEmailIDs: Set<String>
+    @Binding var priorityFilterOn: Bool
+
+    var body: some View {
         EmailListView(
             emails: emails,
             isLoading: isLoading,
@@ -159,8 +227,8 @@ struct ListPaneView: View {
             searchFocusTrigger: $searchFocusTrigger,
             selectedEmail: $selectedEmail,
             selectedEmailIDs: $selectedEmailIDs,
-            selectedFolder: $selectedFolder,
-            priorityFilterOn: priorityFilterOn,
+            selectedFolder: .constant(selectedFolder),
+            priorityFilterOn: $priorityFilterOn,
             showPriorityFilter: selectedFolder == .inbox
         )
     }

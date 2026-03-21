@@ -56,50 +56,65 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
 
     @ObservationIgnored private let decoder = JSONDecoder()
 
-    private func decodeFromDisk(accountID: String) -> [Item]? {
-        let url = fileURL(accountID)
+    @concurrent private static func decodeFromDisk(
+        url: URL,
+        decoder: JSONDecoder,
+        legacyDecoder: (@Sendable (Data) -> [Item]?)?
+    ) async -> [Item]? {
         guard let data = try? Data(contentsOf: url) else { return nil }
         if let decoded = try? decoder.decode([Item].self, from: data) {
             return decoded
         } else if let decoded = legacyDecoder?(data) {
             return decoded
         } else {
-            Self.logger.warning("Failed to decode \(url.lastPathComponent, privacy: .public) for \(accountID, privacy: .public)")
+            logger.warning("Failed to decode \(url.lastPathComponent, privacy: .public)")
             return nil
         }
     }
 
     /// Loads items from disk, atomically replacing any in-memory data for the
     /// given account.
-    func load(accountID: String) {
-        if let decoded = decodeFromDisk(accountID: accountID) {
+    func load(accountID: String) async {
+        if let decoded = await Self.decodeFromDisk(
+            url: fileURL(accountID),
+            decoder: decoder,
+            legacyDecoder: legacyDecoder
+        ) {
             itemsByAccount[accountID] = decoded
         }
     }
 
     /// Loads items from disk, merging with existing in-memory items rather than
     /// replacing. Deduplicates by `Item.ID`.
-    func loadMerging(accountID: String) {
-        guard let decoded = decodeFromDisk(accountID: accountID) else { return }
+    func loadMerging(accountID: String) async {
+        guard let decoded = await Self.decodeFromDisk(
+            url: fileURL(accountID),
+            decoder: decoder,
+            legacyDecoder: legacyDecoder
+        ) else { return }
         let existingIDs = Set((itemsByAccount[accountID] ?? []).map { $0.id })
         let newItems = decoded.filter { !existingIDs.contains($0.id) }
         itemsByAccount[accountID, default: []].append(contentsOf: newItems)
     }
 
     func save(accountID: String) {
-        let url = fileURL(accountID)
         let items = itemsByAccount[accountID] ?? []
+        let url = fileURL(accountID)
         saveTasks[accountID]?.cancel()
         saveTasks[accountID] = Task {
-            do {
-                try FileManager.default.createDirectory(
-                    at: url.deletingLastPathComponent(),
-                    withIntermediateDirectories: true
-                )
-                try JSONEncoder().encode(items).write(to: url, options: .atomic)
-            } catch {
-                Self.logger.error("Save failed for \(accountID, privacy: .public): \(error, privacy: .public)")
-            }
+            await Self.writeToDisk(items: items, url: url)
+        }
+    }
+
+    @concurrent private static func writeToDisk(items: [Item], url: URL) async {
+        do {
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try JSONEncoder().encode(items).write(to: url, options: .atomic)
+        } catch {
+            logger.error("Save failed: \(error, privacy: .public)")
         }
     }
 
@@ -112,8 +127,8 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
 
     /// Loads items from disk and filters by account ID using the given key path,
     /// pruning mismatched items (legacy safety). Shared by SnoozeStore and ScheduledSendStore.
-    func loadFiltered(by accountID: String, keyPath: KeyPath<Item, String>) {
-        load(accountID: accountID)
+    func loadFiltered(by accountID: String, keyPath: KeyPath<Item, String>) async {
+        await load(accountID: accountID)
         let items = itemsByAccount[accountID] ?? []
         let filtered = items.filter { $0[keyPath: keyPath] == accountID }
         if filtered.count != items.count {

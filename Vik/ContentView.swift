@@ -101,22 +101,17 @@ struct ContentView: View {
                     sidebarWidth: sidebarWidth
                 )
 
-                if coordinator.calendar.viewMode == .calendar,
-                   let calendarVM = coordinator.calendar.calendarViewModel {
-                    CalendarContainer(
-                        coordinator: coordinator,
-                        calendarVM: calendarVM,
-                        showNewCalendarEvent: $showNewCalendarEvent,
-                        newCalendarEventDraft: $newCalendarEventDraft,
-                        newEventStartTime: $newEventStartTime
-                    )
-                    .transition(.opacity)
-                } else {
-                    listDetailSplit
-                        .transition(.opacity)
-                }
+                ModeContentView(
+                    coordinator: coordinator,
+                    columnVisibility: $columnVisibility,
+                    appFocus: $appFocus,
+                    isSidebarCollapsed: isSidebarCollapsed,
+                    showNewCalendarEvent: $showNewCalendarEvent,
+                    newCalendarEventDraft: $newCalendarEventDraft,
+                    newEventStartTime: $newEventStartTime,
+                    reduceMotion: reduceMotion
+                )
             }
-            .animation(reduceMotion ? nil : VikAnimation.folderSwitch, value: coordinator.calendar.viewMode)
             .environment(coordinator.syncProgressManager)
             .windowResizeAnchor(.top)
             .onChange(of: columnVisibility) { _, newValue in
@@ -184,36 +179,11 @@ struct ContentView: View {
             UnifiedToastLayer()
                 .zIndex(5)
 
-            SlidePanelsOverlay(
-                panels: coordinator.panelCoordinator,
-                authViewModel: coordinator.authViewModel,
-                selectedAccountID: $navigation.selectedAccountID,
-                attachmentStore: coordinator.attachmentStore,
-                mailStore: coordinator.mailStore,
-                mailDatabase: coordinator.sync.mailDatabase,
-                attachmentIndexer: coordinator.sync.attachmentIndexer,
-                onToggleStar: { [coordinator] msgID, isCurrentlyStarred, accountID in
-                    coordinator.previewToggleStar(messageID: msgID, isCurrentlyStarred: isCurrentlyStarred, accountID: accountID)
-                },
-                onMarkUnread: { [coordinator] msgID, accountID in
-                    coordinator.previewMarkUnread(messageID: msgID, accountID: accountID)
-                },
-                onMessagesRead: { [coordinator] messageIDs in
-                    Task { await coordinator.mailboxViewModel.applyReadLocally(messageIDs) }
-                }
+            SlidePanelsWrapper(
+                coordinator: coordinator,
+                commandPalette: commandPalette,
+                commandPaletteNamespace: commandPaletteNamespace
             )
-
-            if commandPalette.isVisible {
-                Color.black.opacity(OpacityToken.overlay)
-                    .ignoresSafeArea()
-                    .onTapGesture { commandPalette.dismiss() }
-                    .zIndex(10)
-
-                CommandPaletteView(viewModel: commandPalette)
-                    .matchedGeometryEffect(id: "commandPalette", in: commandPaletteNamespace)
-                    .zIndex(11)
-                    .transition(.opacity.combined(with: .scale(scale: ScaleToken.enterFrom)))
-            }
         }
         .onChange(of: coordinator.calendar.calendarNewEventTrigger) { _, triggered in
             guard triggered else { return }
@@ -253,76 +223,12 @@ struct ContentView: View {
     // MARK: - List + Detail Split
 
     private var listDetailSplit: some View {
-        @Bindable var navigation = coordinator.navigation
-        @Bindable var selection = coordinator.selection
-        return NavigationSplitView(columnVisibility: $columnVisibility) {
-            if coordinator.navigation.selectedFolder == .attachments {
-                AttachmentExplorerView(
-                    store: coordinator.attachmentStore,
-                    panelCoordinator: coordinator.panelCoordinator,
-                    accountID: coordinator.navigation.accountID,
-                    onViewMessage: { messageId in
-                        coordinator.navigateToMessage(gmailMessageID: messageId)
-                    },
-                    onDownloadAttachment: coordinator.downloadAttachment
-                )
-                .navigationTitle("Attachments")
-                .toolbar(removing: .sidebarToggle)
-            } else {
-                ListPaneView(
-                    emails: coordinator.selection.displayedEmails,
-                    isLoading: coordinator.listIsLoading,
-                    selectedFolder: $navigation.selectedFolder,
-                    searchResetTrigger: coordinator.navigation.searchResetTrigger,
-                    selectedEmail: $selection.selectedEmail,
-                    selectedEmailIDs: $selection.selectedEmailIDs,
-                    searchFocusTrigger: $navigation.searchFocusTrigger,
-                    selectedLabel: coordinator.navigation.selectedLabel,
-                    isSidebarCollapsed: isSidebarCollapsed,
-                    actionCoordinator: coordinator.actionCoordinator,
-                    mailboxViewModel: coordinator.mailboxViewModel,
-                    selectedInboxCategory: $navigation.selectedInboxCategory,
-                    selectNext: { coordinator.selection.selectNext($0) },
-                    startCompose: { coordinator.startCompose(mode: $0) },
-                    emptyTrashRequested: { coordinator.dialogs.emptyTrashRequested(count: $0) },
-                    emptySpamRequested: { coordinator.dialogs.emptySpamRequested(count: $0) },
-                    loadCurrentFolder: { await coordinator.loadCurrentFolder() }
-                )
-                .focused($appFocus, equals: .list)
-            }
-        } detail: {
-            if coordinator.navigation.selectedFolder != .attachments {
-                DetailPaneView(
-                    selectedEmail: coordinator.selection.selectedEmail,
-                    selectedEmailIDs: coordinator.selection.selectedEmailIDs,
-                    selectedFolder: coordinator.navigation.selectedFolder,
-                    displayedEmails: coordinator.selection.displayedEmails,
-                    actionCoordinator: coordinator.actionCoordinator,
-                    mailboxViewModel: coordinator.mailboxViewModel,
-                    mailStore: coordinator.mailStore,
-                    accountID: coordinator.navigation.accountID,
-                    fromAddress: coordinator.navigation.fromAddress,
-                    composeMode: coordinator.compose.composeMode,
-                    signatureForNew: coordinator.compose.signatureForNew,
-                    signatureForReply: coordinator.compose.signatureForReply,
-                    panelCoordinator: coordinator.panelCoordinator,
-                    attachmentIndexer: coordinator.sync.attachmentIndexer,
-                    contacts: coordinator.sync.contacts,
-                    mailDatabase: coordinator.sync.mailDatabase,
-                    selectNext: { coordinator.selection.selectNext($0) },
-                    clearSelection: { coordinator.selection.clearSelection() },
-                    deselectAll: { coordinator.selection.deselectAll() },
-                    startCompose: { coordinator.startCompose(mode: $0) },
-                    discardDraft: { coordinator.discardDraft(id: $0) },
-                    selectionDirection: coordinator.selection.selectionDirection,
-                    navigatePrevious: { coordinator.selection.selectPrevious() },
-                    navigateNext: { coordinator.selection.selectNextEmail() },
-                    switchToCalendar: { coordinator.navigateToEvent($0) }
-                )
-                .focused($appFocus, equals: .detail)
-            }
-        }
-        .navigationSplitViewStyle(.balanced)
+        ListDetailSplitView(
+            coordinator: coordinator,
+            columnVisibility: $columnVisibility,
+            appFocus: $appFocus,
+            isSidebarCollapsed: isSidebarCollapsed
+        )
     }
 
     // MARK: - Toolbar
@@ -338,131 +244,310 @@ struct ContentView: View {
                 Label("Toggle Sidebar", systemImage: "sidebar.leading")
             }
             .buttonStyle(.glass)
-            .help("Toggle Sidebar (⌘\\)")
+            .help("Toggle Sidebar (\u{2318}\\)")
             .keyboardShortcut("\\", modifiers: .command)
             .sensoryFeedback(.impact(flexibility: .soft), trigger: isSidebarCollapsed)
         }
 
-        if !coordinator.panelCoordinator.isAnyOpen {
-            ToolbarItem(placement: .primaryAction) {
-                Button { coordinator.composeNewEmail() } label: {
-                    Label("Compose", systemImage: "square.and.pencil")
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .help("Compose (\u{2318}N)")
-            }
+        EmailToolbarItems(
+            coordinator: coordinator,
+            showSnoozePicker: $showSnoozePicker
+        )
+    }
 
-            ToolbarSpacer(.fixed, placement: .primaryAction)
+    // MARK: - Observation Boundary Views
 
-            if let email = coordinator.selection.selectedEmail {
-                ToolbarItemGroup(placement: .primaryAction) {
-                    Button {
-                        coordinator.startCompose(mode: EmailDetailViewModel.replyMode(for: email))
-                    } label: {
-                        Label("Reply", systemImage: "arrowshape.turn.up.left")
-                    }
-                    .buttonStyle(.glass)
-                    .help("Reply")
+    /// Isolates the calendar/mail mode switch so `viewMode` changes
+    /// don't invalidate the rest of `mainLayout`.
+    private struct ModeContentView: View {
+        let coordinator: AppCoordinator
+        @Binding var columnVisibility: NavigationSplitViewVisibility
+        var appFocus: FocusState<AppFocus?>.Binding
+        let isSidebarCollapsed: Bool
+        @Binding var showNewCalendarEvent: Bool
+        @Binding var newCalendarEventDraft: EventEditDraft?
+        @Binding var newEventStartTime: Date?
+        let reduceMotion: Bool
 
-                    if coordinator.navigation.selectedFolder != .archive {
-                        Button {
-                            Task { await coordinator.actionCoordinator.archiveEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
-                        } label: {
-                            Label("Archive", systemImage: "archivebox")
-                        }
-                        .buttonStyle(.glass)
-                        .help("Archive (\u{2318}E)")
-                    }
-
-                    if coordinator.navigation.selectedFolder != .trash {
-                        Button {
-                            Task { await coordinator.actionCoordinator.deleteEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                        .buttonStyle(.glass)
-                        .help("Delete (\u{2318}\u{232B})")
-                    }
-
-                    Button {
-                        showSnoozePicker = true
-                    } label: {
-                        Label("Snooze", systemImage: "clock")
-                    }
-                    .buttonStyle(.glass)
-                    .help("Snooze")
-                    .popover(isPresented: $showSnoozePicker) {
-                        SnoozePickerView { date in
-                            showSnoozePicker = false
-                            Task { await coordinator.actionCoordinator.snoozeEmail(email, until: date, selectNext: { coordinator.selection.selectNext($0) }) }
-                        }
-                    }
+        var body: some View {
+            Group {
+                if coordinator.calendar.viewMode == .calendar,
+                   let calendarVM = coordinator.calendar.calendarViewModel {
+                    CalendarContainer(
+                        coordinator: coordinator,
+                        calendarVM: calendarVM,
+                        showNewCalendarEvent: $showNewCalendarEvent,
+                        newCalendarEventDraft: $newCalendarEventDraft,
+                        newEventStartTime: $newEventStartTime
+                    )
+                    .transition(.opacity)
+                } else {
+                    ListDetailSplitView(
+                        coordinator: coordinator,
+                        columnVisibility: $columnVisibility,
+                        appFocus: appFocus,
+                        isSidebarCollapsed: isSidebarCollapsed
+                    )
+                    .transition(.opacity)
                 }
             }
+            .animation(reduceMotion ? nil : VikAnimation.folderSwitch, value: coordinator.calendar.viewMode)
+        }
+    }
 
-            ToolbarSpacer(.fixed, placement: .primaryAction)
+    /// Isolates `SlidePanelsOverlay` and command palette reads from `mainLayout`.
+    private struct SlidePanelsWrapper: View {
+        let coordinator: AppCoordinator
+        let commandPalette: CommandPaletteViewModel
+        let commandPaletteNamespace: Namespace.ID
 
-            if let email = coordinator.selection.selectedEmail {
-                ToolbarItem(placement: .automatic) {
-                    Menu {
-                        Button {
-                            coordinator.startCompose(mode: EmailDetailViewModel.replyAllMode(for: email))
-                        } label: { Label("Reply All", systemImage: "arrowshape.turn.up.left.2") }
-
-                        Button {
-                            coordinator.startCompose(mode: EmailDetailViewModel.forwardMode(for: email))
-                        } label: { Label("Forward", systemImage: "arrowshape.turn.up.right") }
-
-                        Divider()
-
-                        Button {
-                            guard let msgID = email.gmailMessageID else { return }
-                            Task { await coordinator.mailboxViewModel.toggleStar(msgID, isStarred: email.isStarred) }
-                        } label: {
-                            Label(email.isStarred ? "Remove from Favorites" : "Add to Favorites", systemImage: email.isStarred ? "star.slash" : "star")
-                        }
-
-                        Button {
-                            Task { await coordinator.actionCoordinator.markUnreadEmail(email) }
-                        } label: { Label("Mark as Unread", systemImage: "envelope.badge") }
-
-                        if coordinator.navigation.selectedFolder == .archive || coordinator.navigation.selectedFolder == .trash {
-                            Button {
-                                Task { await coordinator.actionCoordinator.moveToInboxEmail(email, selectedFolder: coordinator.navigation.selectedFolder, selectNext: { coordinator.selection.selectNext($0) }) }
-                            } label: { Label("Move to Inbox", systemImage: "tray.and.arrow.down") }
-                        }
-
-                        Divider()
-
-                        Button {
-                            Task { await coordinator.actionCoordinator.printEmail(email) }
-                        } label: {
-                            Label("Print", systemImage: "printer")
-                        }
-                        .disabled(email.gmailMessageID == nil)
-
-                        Divider()
-
-                        if coordinator.navigation.selectedFolder == .spam {
-                            Button {
-                                Task { await coordinator.actionCoordinator.markNotSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
-                            } label: { Label("Not Spam", systemImage: "tray.and.arrow.down") }
-                        } else {
-                            Button(role: .destructive) {
-                                Task { await coordinator.actionCoordinator.markSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
-                            } label: { Label("Report as Spam", systemImage: "exclamationmark.shield") }
-                        }
-
-                        if coordinator.navigation.selectedFolder == .trash {
-                            Button(role: .destructive) {
-                                Task { await coordinator.actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
-                            } label: { Label("Delete Permanently", systemImage: "trash.slash") }
-                        }
-                    } label: {
-                        Label("More", systemImage: "ellipsis.circle")
+        var body: some View {
+            @Bindable var navigation = coordinator.navigation
+            ZStack {
+                SlidePanelsOverlay(
+                    panels: coordinator.panelCoordinator,
+                    authViewModel: coordinator.authViewModel,
+                    selectedAccountID: $navigation.selectedAccountID,
+                    attachmentStore: coordinator.attachmentStore,
+                    mailStore: coordinator.mailStore,
+                    mailDatabase: coordinator.sync.mailDatabase,
+                    attachmentIndexer: coordinator.sync.attachmentIndexer,
+                    onToggleStar: { [coordinator] msgID, isCurrentlyStarred, accountID in
+                        coordinator.previewToggleStar(messageID: msgID, isCurrentlyStarred: isCurrentlyStarred, accountID: accountID)
+                    },
+                    onMarkUnread: { [coordinator] msgID, accountID in
+                        coordinator.previewMarkUnread(messageID: msgID, accountID: accountID)
+                    },
+                    onMessagesRead: { [coordinator] messageIDs in
+                        Task { await coordinator.mailboxViewModel.applyReadLocally(messageIDs) }
                     }
-                    .help("More actions")
+                )
+
+                if commandPalette.isVisible {
+                    Color.black.opacity(OpacityToken.overlay)
+                        .ignoresSafeArea()
+                        .onTapGesture { commandPalette.dismiss() }
+                        .zIndex(10)
+
+                    CommandPaletteView(viewModel: commandPalette)
+                        .matchedGeometryEffect(id: "commandPalette", in: commandPaletteNamespace)
+                        .zIndex(11)
+                        .transition(.opacity.combined(with: .scale(scale: ScaleToken.enterFrom)))
+                }
+            }
+        }
+    }
+
+    /// Isolates list/detail navigation reads from `mainLayout` so changes
+    /// to list-specific coordinator properties don't invalidate the parent.
+    private struct ListDetailSplitView: View {
+        let coordinator: AppCoordinator
+        @Binding var columnVisibility: NavigationSplitViewVisibility
+        var appFocus: FocusState<AppFocus?>.Binding
+        let isSidebarCollapsed: Bool
+
+        var body: some View {
+            @Bindable var navigation = coordinator.navigation
+            @Bindable var selection = coordinator.selection
+            NavigationSplitView(columnVisibility: $columnVisibility) {
+                if coordinator.navigation.selectedFolder == .attachments {
+                    AttachmentExplorerView(
+                        store: coordinator.attachmentStore,
+                        panelCoordinator: coordinator.panelCoordinator,
+                        accountID: coordinator.navigation.accountID,
+                        onViewMessage: { messageId in
+                            coordinator.navigateToMessage(gmailMessageID: messageId)
+                        },
+                        onDownloadAttachment: coordinator.downloadAttachment
+                    )
+                    .navigationTitle("Attachments")
+                    .toolbar(removing: .sidebarToggle)
+                } else {
+                    ListPaneView(
+                        emails: coordinator.selection.displayedEmails,
+                        isLoading: coordinator.listIsLoading,
+                        selectedFolder: $navigation.selectedFolder,
+                        searchResetTrigger: coordinator.navigation.searchResetTrigger,
+                        selectedEmail: $selection.selectedEmail,
+                        selectedEmailIDs: $selection.selectedEmailIDs,
+                        searchFocusTrigger: $navigation.searchFocusTrigger,
+                        selectedLabel: coordinator.navigation.selectedLabel,
+                        isSidebarCollapsed: isSidebarCollapsed,
+                        actionCoordinator: coordinator.actionCoordinator,
+                        mailboxViewModel: coordinator.mailboxViewModel,
+                        selectedInboxCategory: $navigation.selectedInboxCategory,
+                        selectNext: { coordinator.selection.selectNext($0) },
+                        startCompose: { coordinator.startCompose(mode: $0) },
+                        emptyTrashRequested: { coordinator.dialogs.emptyTrashRequested(count: $0) },
+                        emptySpamRequested: { coordinator.dialogs.emptySpamRequested(count: $0) },
+                        loadCurrentFolder: { await coordinator.loadCurrentFolder() }
+                    )
+                    .focused(appFocus, equals: .list)
+                }
+            } detail: {
+                if coordinator.navigation.selectedFolder != .attachments {
+                    DetailPaneView(
+                        selectedEmail: coordinator.selection.selectedEmail,
+                        selectedEmailIDs: coordinator.selection.selectedEmailIDs,
+                        selectedFolder: coordinator.navigation.selectedFolder,
+                        displayedEmails: coordinator.selection.displayedEmails,
+                        actionCoordinator: coordinator.actionCoordinator,
+                        mailboxViewModel: coordinator.mailboxViewModel,
+                        mailStore: coordinator.mailStore,
+                        accountID: coordinator.navigation.accountID,
+                        fromAddress: coordinator.navigation.fromAddress,
+                        composeMode: coordinator.compose.composeMode,
+                        signatureForNew: coordinator.compose.signatureForNew,
+                        signatureForReply: coordinator.compose.signatureForReply,
+                        panelCoordinator: coordinator.panelCoordinator,
+                        attachmentIndexer: coordinator.sync.attachmentIndexer,
+                        contacts: coordinator.sync.contacts,
+                        mailDatabase: coordinator.sync.mailDatabase,
+                        selectNext: { coordinator.selection.selectNext($0) },
+                        clearSelection: { coordinator.selection.clearSelection() },
+                        deselectAll: { coordinator.selection.deselectAll() },
+                        startCompose: { coordinator.startCompose(mode: $0) },
+                        discardDraft: { coordinator.discardDraft(id: $0) },
+                        selectionDirection: coordinator.selection.selectionDirection,
+                        navigatePrevious: { coordinator.selection.selectPrevious() },
+                        navigateNext: { coordinator.selection.selectNextEmail() },
+                        switchToCalendar: { coordinator.navigateToEvent($0) }
+                    )
+                    .focused(appFocus, equals: .detail)
+                }
+            }
+            .navigationSplitViewStyle(.balanced)
+        }
+    }
+
+    /// Isolates email-dependent toolbar items so `selectedEmail` changes
+    /// don't re-evaluate the entire toolbar.
+    private struct EmailToolbarItems: ToolbarContent {
+        let coordinator: AppCoordinator
+        @Binding var showSnoozePicker: Bool
+
+        var body: some ToolbarContent {
+            if !coordinator.panelCoordinator.isAnyOpen {
+                ToolbarItem(placement: .primaryAction) {
+                    Button { coordinator.composeNewEmail() } label: {
+                        Label("Compose", systemImage: "square.and.pencil")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .help("Compose (\u{2318}N)")
+                }
+
+                ToolbarSpacer(.fixed, placement: .primaryAction)
+
+                if let email = coordinator.selection.selectedEmail {
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        Button {
+                            coordinator.startCompose(mode: EmailDetailViewModel.replyMode(for: email))
+                        } label: {
+                            Label("Reply", systemImage: "arrowshape.turn.up.left")
+                        }
+                        .buttonStyle(.glass)
+                        .help("Reply")
+
+                        if coordinator.navigation.selectedFolder != .archive {
+                            Button {
+                                Task { await coordinator.actionCoordinator.archiveEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
+                            } label: {
+                                Label("Archive", systemImage: "archivebox")
+                            }
+                            .buttonStyle(.glass)
+                            .help("Archive (\u{2318}E)")
+                        }
+
+                        if coordinator.navigation.selectedFolder != .trash {
+                            Button {
+                                Task { await coordinator.actionCoordinator.deleteEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                            .buttonStyle(.glass)
+                            .help("Delete (\u{2318}\u{232B})")
+                        }
+
+                        Button {
+                            showSnoozePicker = true
+                        } label: {
+                            Label("Snooze", systemImage: "clock")
+                        }
+                        .buttonStyle(.glass)
+                        .help("Snooze")
+                        .popover(isPresented: $showSnoozePicker) {
+                            SnoozePickerView { date in
+                                showSnoozePicker = false
+                                Task { await coordinator.actionCoordinator.snoozeEmail(email, until: date, selectNext: { coordinator.selection.selectNext($0) }) }
+                            }
+                        }
+                    }
+                }
+
+                ToolbarSpacer(.fixed, placement: .primaryAction)
+
+                if let email = coordinator.selection.selectedEmail {
+                    ToolbarItem(placement: .automatic) {
+                        Menu {
+                            Button {
+                                coordinator.startCompose(mode: EmailDetailViewModel.replyAllMode(for: email))
+                            } label: { Label("Reply All", systemImage: "arrowshape.turn.up.left.2") }
+
+                            Button {
+                                coordinator.startCompose(mode: EmailDetailViewModel.forwardMode(for: email))
+                            } label: { Label("Forward", systemImage: "arrowshape.turn.up.right") }
+
+                            Divider()
+
+                            Button {
+                                guard let msgID = email.gmailMessageID else { return }
+                                Task { await coordinator.mailboxViewModel.toggleStar(msgID, isStarred: email.isStarred) }
+                            } label: {
+                                Label(email.isStarred ? "Remove from Favorites" : "Add to Favorites", systemImage: email.isStarred ? "star.slash" : "star")
+                            }
+
+                            Button {
+                                Task { await coordinator.actionCoordinator.markUnreadEmail(email) }
+                            } label: { Label("Mark as Unread", systemImage: "envelope.badge") }
+
+                            if coordinator.navigation.selectedFolder == .archive || coordinator.navigation.selectedFolder == .trash {
+                                Button {
+                                    Task { await coordinator.actionCoordinator.moveToInboxEmail(email, selectedFolder: coordinator.navigation.selectedFolder, selectNext: { coordinator.selection.selectNext($0) }) }
+                                } label: { Label("Move to Inbox", systemImage: "tray.and.arrow.down") }
+                            }
+
+                            Divider()
+
+                            Button {
+                                Task { await coordinator.actionCoordinator.printEmail(email) }
+                            } label: {
+                                Label("Print", systemImage: "printer")
+                            }
+                            .disabled(email.gmailMessageID == nil)
+
+                            Divider()
+
+                            if coordinator.navigation.selectedFolder == .spam {
+                                Button {
+                                    Task { await coordinator.actionCoordinator.markNotSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
+                                } label: { Label("Not Spam", systemImage: "tray.and.arrow.down") }
+                            } else {
+                                Button(role: .destructive) {
+                                    Task { await coordinator.actionCoordinator.markSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
+                                } label: { Label("Report as Spam", systemImage: "exclamationmark.shield") }
+                            }
+
+                            if coordinator.navigation.selectedFolder == .trash {
+                                Button(role: .destructive) {
+                                    Task { await coordinator.actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
+                                } label: { Label("Delete Permanently", systemImage: "trash.slash") }
+                            }
+                        } label: {
+                            Label("More", systemImage: "ellipsis.circle")
+                        }
+                        .help("More actions")
+                    }
                 }
             }
         }

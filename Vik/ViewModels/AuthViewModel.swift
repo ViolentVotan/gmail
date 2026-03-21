@@ -48,14 +48,15 @@ final class AuthViewModel {
     // MARK: - Sign Out
 
     func signOut(_ account: GmailAccount) {
-        // Retrieve the token synchronously before removal deletes it from the Keychain.
-        let storedToken = try? TokenStore.shared.retrieve(for: account.id)
-
         // Revoke the OAuth token with Google (best-effort, non-blocking).
         // Prefer revoking the refresh token (also invalidates the access token);
         // fall back to the access token if no refresh token is stored.
-        if let tokenToRevoke = storedToken?.refreshToken ?? storedToken?.accessToken {
-            Task { await OAuthService.shared.revokeToken(token: tokenToRevoke) }
+        let accountID = account.id
+        Task {
+            let storedToken = try? await TokenStore.shared.retrieve(for: accountID)
+            if let tokenToRevoke = storedToken?.refreshToken ?? storedToken?.accessToken {
+                await OAuthService.shared.revokeToken(token: tokenToRevoke)
+            }
         }
 
         // Defense-in-depth: cancel scheduled work BEFORE AccountStore.remove
