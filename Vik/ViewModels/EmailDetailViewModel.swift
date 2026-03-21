@@ -84,14 +84,25 @@ final class EmailDetailViewModel {
             if let records = threadMessages, !records.isEmpty {
                 let allHaveBodies = records.allSatisfy { $0.fullBodyFetched }
                 let gmailMessages = records.map { $0.toGmailMessage() }
+                // Pre-analyze trackers so resolvedMessageHTML is set in the same
+                // main-actor turn as thread — avoids a redundant WebView reload.
+                let latestHTML = gmailMessages.last?.htmlBody ?? ""
+                trackerResult = !latestHTML.isEmpty
+                    ? await sanitizeOffMainActor(html: latestHTML) : nil
                 thread = GmailThread(id: id, historyId: nil, messages: gmailMessages)
-                await analyzeTrackers()
-                await detectCalendarInvite()
+                if let latestID = gmailMessages.last?.id {
+                    let baseHTML = trackerSanitizedHTML ?? latestHTML
+                    if !baseHTML.isEmpty { resolvedMessageHTML[latestID] = baseHTML }
+                }
+                // Calendar detection is independent — run concurrently.
+                async let inviteDone: Void = detectCalendarInvite()
                 if let latest = gmailMessages.last {
-                    await detectCalendarContext(for: latest)
+                    async let contextDone: Void = detectCalendarContext(for: latest)
+                    _ = await (inviteDone, contextDone)
+                } else {
+                    _ = await inviteDone
                 }
                 if allHaveBodies {
-                    // Notify that unread messages were displayed so the list can update read state
                     let unreadIDs = gmailMessages.filter(\.isUnread).map(\.id)
                     if !unreadIDs.isEmpty {
                         onMessagesRead?(unreadIDs)
@@ -111,18 +122,29 @@ final class EmailDetailViewModel {
             let fresh = try await api.getThread(id: id, accountID: accountID)
             let changed = fresh.messages?.count != thread?.messages?.count
                 || fresh.messages?.last?.id != thread?.messages?.last?.id
-            thread = fresh
             if changed {
-                await analyzeTrackers()
-                await detectCalendarInvite()
+                // Pre-analyze trackers before updating thread (single WebView load).
+                let freshHTML = fresh.messages?.last?.htmlBody ?? ""
+                trackerResult = !freshHTML.isEmpty
+                    ? await sanitizeOffMainActor(html: freshHTML) : nil
+                thread = fresh
                 if let latest = fresh.messages?.last {
-                    await detectCalendarContext(for: latest)
-                    await resolveInlineImages(for: latest)
+                    let baseHTML = trackerSanitizedHTML ?? latest.htmlBody ?? ""
+                    if !baseHTML.isEmpty { resolvedMessageHTML[latest.id] = baseHTML }
                 }
-                // Resolve inline images for older thread messages
+                async let inviteDone: Void = detectCalendarInvite()
+                if let latest = fresh.messages?.last {
+                    async let contextDone: Void = detectCalendarContext(for: latest)
+                    _ = await (inviteDone, contextDone)
+                    await resolveInlineImages(for: latest)
+                } else {
+                    _ = await inviteDone
+                }
                 if let allMessages = fresh.messages, allMessages.count > 1 {
                     await resolveInlineImagesForOlderMessages(Array(allMessages.dropLast()))
                 }
+            } else {
+                thread = fresh
             }
             // Passive attachment registration from full-format messages
             if let indexer = attachmentIndexer, let messages = fresh.messages {
@@ -270,9 +292,14 @@ final class EmailDetailViewModel {
 
     /// Downloads inline CID images and replaces cid: references with data: URIs in the HTML.
     private func resolveInlineImages(for message: GmailMessage) async {
-        guard !message.inlineParts.isEmpty else { return }
         let baseHTML = trackerSanitizedHTML ?? message.htmlBody ?? ""
         guard !baseHTML.isEmpty else { return }
+        guard !message.inlineParts.isEmpty else {
+            if resolvedMessageHTML[message.id] != baseHTML {
+                resolvedMessageHTML[message.id] = baseHTML
+            }
+            return
+        }
         resolvedMessageHTML[message.id] = await Self.replaceCIDReferences(in: baseHTML, message: message, accountID: accountID, api: api)
     }
 

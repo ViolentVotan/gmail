@@ -245,48 +245,67 @@ struct HTMLEmailView: NSViewRepresentable {
                 return '#000000';
             }
 
+            // Cache background luminance per element to avoid redundant ancestor walks.
+            // Siblings sharing the same ancestor chain hit the cache immediately.
+            var bgCache = new WeakMap();
+
             function effectiveBgLum(el) {
+                if (bgCache.has(el)) return bgCache.get(el);
                 var node = el;
+                var uncached = [];
+                var result = PAGE_BG_LUM;
                 while (node) {
-                    // Skip html & body — both forced transparent by our CSS.
                     if (node === document.body || node === document.documentElement) {
                         node = node.parentElement;
                         continue;
                     }
+                    if (bgCache.has(node)) { result = bgCache.get(node); break; }
                     var bg = window.getComputedStyle(node).backgroundColor;
                     var rgba = parseRgb(bg);
                     if (rgba) {
                         var parts = bg.slice(bg.indexOf('(') + 1).split(',');
                         var alpha = parts.length >= 4 ? parseFloat(parts[3]) : 1;
-                        if (alpha > 0.1) return relativeLum(rgba[0], rgba[1], rgba[2]);
+                        if (alpha > 0.1) {
+                            result = relativeLum(rgba[0], rgba[1], rgba[2]);
+                            bgCache.set(node, result);
+                            break;
+                        }
                     }
+                    uncached.push(node);
                     node = node.parentElement;
                 }
-                return PAGE_BG_LUM;
+                for (var k = 0; k < uncached.length; k++) bgCache.set(uncached[k], result);
+                bgCache.set(el, result);
+                return result;
             }
 
-            function processEl(el) {
-                var c = window.getComputedStyle(el).color;
+            var els = document.querySelectorAll(
+                'p,div,span,td,th,li,a,font,b,strong,em,i,h1,h2,h3,h4,h5,h6,small,label,cite,blockquote'
+            );
+
+            // Phase 1: Batch read — identify elements needing color adjustment.
+            var fixes = [];
+            for (var i = 0; i < els.length; i++) {
+                var el = els[i];
+                var style = window.getComputedStyle(el);
+                if (style.display === 'none' || style.visibility === 'hidden') continue;
+                var c = style.color;
                 var rgb = parseRgb(c);
-                if (!rgb) return;
-                // Skip fully transparent text — don't make hidden content visible
+                if (!rgb) continue;
                 var cParts = c.slice(c.indexOf('(') + 1).split(',');
-                if (cParts.length >= 4 && parseFloat(cParts[3]) < 0.1) return;
+                if (cParts.length >= 4 && parseFloat(cParts[3]) < 0.1) continue;
                 var bgLum = effectiveBgLum(el);
                 var textLum = relativeLum(rgb[0], rgb[1], rgb[2]);
-                var cr = contrastBetween(textLum, bgLum);
-                if (cr >= MIN_CR) return;
-
-                if (bgLum > 0.5) {
-                    el.style.setProperty('color', darkenToContrast(rgb[0], rgb[1], rgb[2], bgLum), 'important');
-                } else {
-                    el.style.setProperty('color', lightenToContrast(rgb[0], rgb[1], rgb[2], bgLum), 'important');
-                }
+                if (contrastBetween(textLum, bgLum) >= MIN_CR) continue;
+                fixes.push([el, bgLum > 0.5
+                    ? darkenToContrast(rgb[0], rgb[1], rgb[2], bgLum)
+                    : lightenToContrast(rgb[0], rgb[1], rgb[2], bgLum)]);
             }
 
-            document.querySelectorAll(
-                'body,p,div,span,td,th,li,a,font,b,strong,em,i,h1,h2,h3,h4,h5,h6,small,label,cite,blockquote'
-            ).forEach(processEl);
+            // Phase 2: Batch write — apply all fixes to avoid read/write layout thrashing.
+            for (var j = 0; j < fixes.length; j++) {
+                fixes[j][0].style.setProperty('color', fixes[j][1], 'important');
+            }
         }
 
         fixContrastColors();
