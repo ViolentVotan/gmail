@@ -172,7 +172,7 @@ final class GmailSendService {
         var lines = [
             "MIME-Version: 1.0",
             "Message-ID: <\(UUID().uuidString)@vik.app>",
-            "Date: \(Self.rfc2822Formatter.string(from: Date()))",
+            "Date: \(Date().formattedRFC2822)",
             "From: \(from)",
             "To: \(to)",
             "Subject: \(mimeEncodeHeader(subject))",
@@ -377,16 +377,6 @@ final class GmailSendService {
         if !failedFilenames.isEmpty { throw .attachmentReadFailed(failedFilenames) }
         return mime
     }
-
-    // MARK: - Formatters
-
-    private nonisolated static let rfc2822Formatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
-        f.timeZone = TimeZone.autoupdatingCurrent
-        return f
-    }()
 
     // MARK: - Helpers
 

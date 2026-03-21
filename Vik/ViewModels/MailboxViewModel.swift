@@ -96,12 +96,10 @@ final class MailboxViewModel {
     @ObservationIgnored private(set) var mailDatabase: MailDatabase?
     @ObservationIgnored private(set) var backgroundSyncer: BackgroundSyncer?
 
-    /// Update the mail database for this view model.
     func setMailDatabase(_ db: MailDatabase?) {
         self.mailDatabase = db
     }
 
-    /// Update the background syncer for this view model.
     func setBackgroundSyncer(_ syncer: BackgroundSyncer?) {
         self.backgroundSyncer = syncer
     }
@@ -783,29 +781,8 @@ final class MailboxViewModel {
         )
     }
 
-    /// Adds a label to a message. Optimistic DB write → offline queue or API call → revert on failure.
-    ///
-    /// - Note: When offline, the optimistic DB write is preserved and the action is enqueued.
-    ///   If the queued action later fails (e.g. 404), the DB is **not** reverted — the label
-    ///   change is best-effort. A full sync on reconnection will reconcile any drift.
     func addLabel(_ labelID: String, to messageID: String) async {
-        let original = await updateLabelsInDatabase(messageID, addLabelIds: [labelID], removeLabelIds: [])
-        guard NetworkMonitor.shared.isConnected else {
-            OfflineActionQueue.shared.enqueue(OfflineAction(
-                actionType: .addLabel, messageIds: [messageID], accountID: accountID,
-                metadata: ["labelId": labelID]
-            ))
-            ToastManager.shared.show(message: "Label added (will sync when online)")
-            return
-        }
-        do {
-            try await api.modifyLabels(
-                id: messageID, add: [labelID], remove: [], accountID: accountID
-            )
-        } catch {
-            if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            ToastManager.shared.show(message: "Failed to add label", type: .error)
-        }
+        await modifyLabel(labelID, on: messageID, isAdding: true)
     }
 
     @discardableResult
@@ -822,28 +799,31 @@ final class MailboxViewModel {
         }
     }
 
-    /// Removes a label from a message. Optimistic DB write → offline queue or API call → revert on failure.
-    ///
-    /// - Note: When offline, the optimistic DB write is preserved and the action is enqueued.
-    ///   If the queued action later fails (e.g. 404), the DB is **not** reverted — the label
-    ///   change is best-effort. A full sync on reconnection will reconcile any drift.
     func removeLabel(_ labelID: String, from messageID: String) async {
-        let original = await updateLabelsInDatabase(messageID, addLabelIds: [], removeLabelIds: [labelID])
+        await modifyLabel(labelID, on: messageID, isAdding: false)
+    }
+
+    private func modifyLabel(_ labelID: String, on messageID: String, isAdding: Bool) async {
+        let addIDs    = isAdding ? [labelID] : []
+        let removeIDs = isAdding ? [] : [labelID]
+        let original  = await updateLabelsInDatabase(messageID, addLabelIds: addIDs, removeLabelIds: removeIDs)
         guard NetworkMonitor.shared.isConnected else {
             OfflineActionQueue.shared.enqueue(OfflineAction(
-                actionType: .removeLabel, messageIds: [messageID], accountID: accountID,
+                actionType: isAdding ? .addLabel : .removeLabel,
+                messageIds: [messageID],
+                accountID: accountID,
                 metadata: ["labelId": labelID]
             ))
-            ToastManager.shared.show(message: "Label removed (will sync when online)")
+            ToastManager.shared.show(message: isAdding ? "Label added (will sync when online)" : "Label removed (will sync when online)")
             return
         }
         do {
             try await api.modifyLabels(
-                id: messageID, add: [], remove: [labelID], accountID: accountID
+                id: messageID, add: addIDs, remove: removeIDs, accountID: accountID
             )
         } catch {
             if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            ToastManager.shared.show(message: "Failed to remove label", type: .error)
+            ToastManager.shared.show(message: isAdding ? "Failed to add label" : "Failed to remove label", type: .error)
         }
     }
 

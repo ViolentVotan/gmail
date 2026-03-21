@@ -144,18 +144,6 @@ struct CalendarHeaderView: View {
 
     // MARK: - Helpers
 
-    private static let weekRangeShortFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "MMM d"
-        return f
-    }()
-
-    private static let weekRangeLongFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "MMM d, yyyy"
-        return f
-    }()
-
     private static let weekRangeEndSameMonthFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "d, yyyy"
@@ -176,13 +164,13 @@ struct CalendarHeaderView: View {
         let endText: String
 
         if startYear != endYear {
-            startText = Self.weekRangeLongFormatter.string(from: start)
-            endText = Self.weekRangeLongFormatter.string(from: end)
+            startText = start.formattedShortDateYear
+            endText = end.formattedShortDateYear
         } else if startMonth != endMonth {
-            startText = Self.weekRangeShortFormatter.string(from: start)
-            endText = Self.weekRangeLongFormatter.string(from: end)
+            startText = start.formattedShortDate
+            endText = end.formattedShortDateYear
         } else {
-            startText = Self.weekRangeShortFormatter.string(from: start)
+            startText = start.formattedShortDate
             endText = Self.weekRangeEndSameMonthFormatter.string(from: end)
         }
 

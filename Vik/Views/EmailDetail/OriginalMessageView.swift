@@ -7,22 +7,6 @@ struct OriginalMessageView: View {
 
     @State private var copied = false
 
-    // MARK: - Cached formatters (allocated once per type, not per render)
-
-    private static let rfc2822Formatters: [DateFormatter] = {
-        let formats = [
-            "EEE, dd MMM yyyy HH:mm:ss Z",
-            "dd MMM yyyy HH:mm:ss Z",
-            "EEE, dd MMM yyyy HH:mm:ss z"
-        ]
-        return formats.map { fmt in
-            let f = DateFormatter()
-            f.locale = Locale(identifier: "en_US_POSIX")
-            f.dateFormat = fmt
-            return f
-        }
-    }()
-
     // MARK: - Parsed metadata
 
     private var messageIDValue: String {
@@ -40,20 +24,15 @@ struct OriginalMessageView: View {
         guard let dateHeader = message.header(named: "Date"),
               let internalMs = message.internalDate,
               let ms = Int64(internalMs) else { return nil }
-        // Use pre-allocated static formatters — avoid allocating DateFormatter on every render
-        for formatter in Self.rfc2822Formatters {
-            if let sent = formatter.date(from: dateHeader) {
-                let received = Date(timeIntervalSince1970: TimeInterval(ms) / 1000)
-                let diff = Int(received.timeIntervalSince(sent))
-                if diff < 0 { return nil }
-                if diff < 60 { return "\(diff) seconds" }
-                let mins = diff / 60
-                let secs = diff % 60
-                if mins < 60 { return secs > 0 ? "\(mins) min \(secs) sec" : "\(mins) min" }
-                return "\(mins / 60)h \(mins % 60)m"
-            }
-        }
-        return nil
+        guard let sent = Date.parseRFC2822(dateHeader) else { return nil }
+        let received = Date(timeIntervalSince1970: TimeInterval(ms) / 1000)
+        let diff = Int(received.timeIntervalSince(sent))
+        if diff < 0 { return nil }
+        if diff < 60 { return "\(diff) seconds" }
+        let mins = diff / 60
+        let secs = diff % 60
+        if mins < 60 { return secs > 0 ? "\(mins) min \(secs) sec" : "\(mins) min" }
+        return "\(mins / 60)h \(mins % 60)m"
     }
 
     private var fromValue: String { message.from }

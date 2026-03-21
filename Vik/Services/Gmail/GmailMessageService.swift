@@ -20,6 +20,11 @@ final class GmailMessageService {
         }
     }
 
+    nonisolated private func appendPageToken(_ token: String?, to path: inout String) {
+        guard let token else { return }
+        path += "&pageToken=\(token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token)"
+    }
+
     // MARK: - List
 
     /// Lists message refs for a given label and optional search query.
@@ -35,7 +40,7 @@ final class GmailMessageService {
         if let q = query, !q.isEmpty {
             path += "&q=\(q.addingPercentEncoding(withAllowedCharacters: GmailPathBuilder.queryAllowed) ?? q)"
         }
-        if let token = pageToken { path += "&pageToken=\(token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token)" }
+        appendPageToken(pageToken, to: &path)
         return try await client.request(
             path: path,
             fields: "messages(id,threadId),nextPageToken,resultSizeEstimate",

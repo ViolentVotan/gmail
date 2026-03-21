@@ -18,6 +18,7 @@ final class SelectionCoordinator {
 
     // MARK: - Private State
 
+    @ObservationIgnored private var emailIndexMap: [UUID: Int] = [:]
     @ObservationIgnored private var markReadTask: Task<Void, Never>?
 
     // MARK: - Init
@@ -39,7 +40,7 @@ final class SelectionCoordinator {
     /// Navigate to the previous email in the displayed list.
     func selectPrevious() {
         guard let current = selectedEmail,
-              let idx = displayedEmails.firstIndex(where: { $0.id == current.id }),
+              let idx = emailIndexMap[current.id],
               idx > 0 else { return }
         selectionDirection = .top
         let prev = displayedEmails[idx - 1]
@@ -50,7 +51,7 @@ final class SelectionCoordinator {
     /// Navigate to the next email in the displayed list.
     func selectNextEmail() {
         guard let current = selectedEmail,
-              let idx = displayedEmails.firstIndex(where: { $0.id == current.id }),
+              let idx = emailIndexMap[current.id],
               idx < displayedEmails.count - 1 else { return }
         selectionDirection = .bottom
         let next = displayedEmails[idx + 1]
@@ -91,6 +92,8 @@ final class SelectionCoordinator {
                 ? mailboxViewModel.emails.filter { $0.gmailLabelIDs.contains(GmailSystemLabel.important) }
                 : mailboxViewModel.emails
         }
+        // Rebuild O(1) lookup index for arrow-key navigation.
+        emailIndexMap = Dictionary(uniqueKeysWithValues: displayedEmails.enumerated().map { ($1.id, $0) })
         // Keep selectedEmail fresh: replace with the updated version from the
         // new list so the detail pane reflects property changes (read, star, labels).
         if let selected = selectedEmail,
@@ -98,6 +101,11 @@ final class SelectionCoordinator {
            fresh != selected {
             selectedEmail = fresh
         }
+    }
+
+    /// O(1) index lookup for a given email ID.
+    func emailIndex(for id: UUID) -> Int? {
+        emailIndexMap[id]
     }
 
     // MARK: - Email Change Handler

@@ -54,7 +54,7 @@ struct CalendarDayView: View {
         let (allDay, timed) = allEvents.partitioned()
         cachedAllDayEvents = allDay
         cachedTimedEvents = timed
-        cachedOverlapGroups = overlapGroups(for: timed)
+        cachedOverlapGroups = timed.overlapGroups()
     }
 
     // MARK: - All-day header
@@ -267,28 +267,6 @@ struct CalendarDayView: View {
         }
     }
 
-    /// Groups overlapping timed events into columns for side-by-side layout.
-    private func overlapGroups(for events: [CalendarEvent]) -> [[CalendarEvent]] {
-        let sorted = events.sorted { $0.startTime < $1.startTime }
-        var groups: [[CalendarEvent]] = []
-        var currentGroup: [CalendarEvent] = []
-        var groupEnd: Date = .distantPast
-
-        for event in sorted {
-            if event.startTime < groupEnd {
-                // Overlaps with existing group
-                currentGroup.append(event)
-                if event.endTime > groupEnd { groupEnd = event.endTime }
-            } else {
-                // New non-overlapping group
-                if !currentGroup.isEmpty { groups.append(currentGroup) }
-                currentGroup = [event]
-                groupEnd = event.endTime
-            }
-        }
-        if !currentGroup.isEmpty { groups.append(currentGroup) }
-        return groups
-    }
 }
 
 // MARK: - DayEventCardView
@@ -316,7 +294,7 @@ private struct DayEventCardView: View {
                     .lineLimit(2)
 
                 // Time range
-                Text(timeRangeString)
+                Text(event.formattedTimeRangeCompact)
                     .font(Typography.calendarEventTime)
                     .foregroundStyle(.secondary)
 
@@ -378,16 +356,10 @@ private struct DayEventCardView: View {
                 .onEnded { _ in onSelect(event) }
         )
         .onHover { isHovered = $0 }
-        .accessibilityLabel("\(event.summary), \(timeRangeString)")
+        .accessibilityLabel("\(event.summary), \(event.formattedTimeRangeCompact)")
         .accessibilityAddTraits(.isButton)
     }
 
-    private var timeRangeString: String {
-        if event.isAllDay {
-            return "All day"
-        }
-        return "\(event.startTime.formattedCalendarTime) – \(event.endTime.formattedCalendarTimeAmPm)"
-    }
 }
 
 // MARK: - Preview

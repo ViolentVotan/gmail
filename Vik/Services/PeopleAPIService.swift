@@ -39,7 +39,7 @@ final class PeopleAPIService {
     /// writes are serialized through the same actor instance used by the sync engine.
     func refreshContacts(accountID: String, syncer: BackgroundSyncer) async {
         await fetchAndStoreContacts(accountID: accountID, syncer: syncer)
-        if UserDefaults.standard.bool(forKey: "syncDirectoryContacts") {
+        if UserDefaults.standard.bool(forKey: UserDefaultsKey.syncDirectoryContacts) {
             await fetchDirectoryPeople(accountID: accountID, syncer: syncer)
         }
     }
@@ -106,7 +106,7 @@ final class PeopleAPIService {
                             + "?personFields=metadata,names,emailAddresses,photos&syncToken=\(encoded)"
                             + "&pageSize=1000&sortOrder=LAST_MODIFIED_ASCENDING"
                             + "&fields=\(Self.connectionsFields)"
-                        if let pt = pageToken { urlStr += "&pageToken=\(pt.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pt)" }
+                        appendPageToken(pageToken, to: &urlStr)
                         let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
                         // Delete removed contacts from this page
@@ -167,7 +167,7 @@ final class PeopleAPIService {
                             + "?personFields=metadata,names,emailAddresses,photos&pageSize=1000"
                             + "&requestSyncToken=true&sortOrder=LAST_MODIFIED_ASCENDING"
                             + "&fields=\(Self.connectionsFields)"
-                        if let pt = pageToken { urlStr += "&pageToken=\(pt.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pt)" }
+                        appendPageToken(pageToken, to: &urlStr)
                         let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
                         let parsed = parseContacts(from: response.connections ?? [])
@@ -222,7 +222,7 @@ final class PeopleAPIService {
                         var urlStr = "\(Self.baseURL)/otherContacts"
                             + "?readMask=metadata,names,emailAddresses&syncToken=\(encoded)"
                             + "&pageSize=1000&fields=\(Self.otherContactsFields)"
-                        if let pt = pageToken { urlStr += "&pageToken=\(pt.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pt)" }
+                        appendPageToken(pageToken, to: &urlStr)
                         let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
                         // Delete removed contacts from this page
@@ -278,7 +278,7 @@ final class PeopleAPIService {
                         var urlStr = "\(Self.baseURL)/otherContacts"
                             + "?readMask=metadata,names,emailAddresses&pageSize=1000"
                             + "&requestSyncToken=true&fields=\(Self.otherContactsFields)"
-                        if let pt = pageToken { urlStr += "&pageToken=\(pt.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pt)" }
+                        appendPageToken(pageToken, to: &urlStr)
                         let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
                         let parsed = parseContacts(from: response.otherContacts ?? [])
@@ -371,7 +371,7 @@ final class PeopleAPIService {
                             + "&readMask=metadata,names,emailAddresses,photos"
                             + "&syncToken=\(encoded)"
                             + "&pageSize=1000&fields=\(Self.directoryFields)"
-                        if let pt = pageToken { urlStr += "&pageToken=\(pt.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pt)" }
+                        appendPageToken(pageToken, to: &urlStr)
                         let response: DirectoryPeopleResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
                         let parsed = parseContacts(from: response.people ?? [], source: "directory")
@@ -410,7 +410,7 @@ final class PeopleAPIService {
                         + "&readMask=metadata,names,emailAddresses,photos"
                         + "&requestSyncToken=true&pageSize=1000"
                         + "&fields=\(Self.directoryFields)"
-                    if let pt = pageToken { urlStr += "&pageToken=\(pt.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? pt)" }
+                    appendPageToken(pageToken, to: &urlStr)
                     let response: DirectoryPeopleResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
                     let parsed = parseContacts(from: response.people ?? [], source: "directory")
@@ -487,6 +487,13 @@ final class PeopleAPIService {
             Self.logger.debug("Person detail enrichment failed for \(resourceName): \(error)")
             return nil
         }
+    }
+
+    // MARK: - URL Helpers
+
+    nonisolated private func appendPageToken(_ token: String?, to url: inout String) {
+        guard let token else { return }
+        url += "&pageToken=\(token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token)"
     }
 
     // MARK: - Response Field Masks

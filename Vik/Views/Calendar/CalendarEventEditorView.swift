@@ -469,22 +469,16 @@ struct CalendarEventEditorView: View {
         commitSave(scope: nil)
     }
 
-    private static let allDayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.timeZone = TimeZone.current
-        return f
-    }()
 
     private func commitSave(scope: RecurringEditScope?) {
         showRecurringSheet = false
 
         let startDTO: CalendarAPIDateTime = isAllDay
-            ? CalendarAPIDateTime(date: Self.allDayFormatter.string(from: startTime), dateTime: nil, timeZone: nil)
+            ? CalendarAPIDateTime(date: startTime.formattedAllDayISO, dateTime: nil, timeZone: nil)
             : CalendarAPIDateTime(date: nil, dateTime: CalendarEventService.rfc3339(startTime), timeZone: TimeZone.current.identifier)
 
         let endDTO: CalendarAPIDateTime = isAllDay
-            ? CalendarAPIDateTime(date: Self.allDayFormatter.string(from: endTime), dateTime: nil, timeZone: nil)
+            ? CalendarAPIDateTime(date: endTime.formattedAllDayISO, dateTime: nil, timeZone: nil)
             : CalendarAPIDateTime(date: nil, dateTime: CalendarEventService.rfc3339(endTime), timeZone: TimeZone.current.identifier)
 
         let attendeeInputs = attendeeEmails.map { CalendarAPIAttendeeInput(email: $0) }

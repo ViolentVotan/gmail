@@ -10,6 +10,8 @@ struct EmailTagRecord: Codable, Identifiable, FetchableRecord, PersistableRecord
     var fyiOnly: Bool
     var hasDeadline: Bool
     var financial: Bool
+    var classifiedAt: Double?
+    var classifierVersion: Int?
 
     var id: String { messageId }
 }

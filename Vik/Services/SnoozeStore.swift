@@ -63,6 +63,8 @@ final class SnoozeStore {
         store.allItems
     }
 
+    var count: Int { store.totalCount }
+
     func load(accountID: String) {
         store.loadFiltered(by: accountID, keyPath: \.accountID)
     }

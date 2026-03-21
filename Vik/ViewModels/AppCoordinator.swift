@@ -62,6 +62,9 @@ final class AppCoordinator {
         WebViewPool.shared.warmUp()
     }
 
+    private static func replyDraftsKey(for accountID: String) -> String { "replyDrafts.\(accountID)" }
+    private static func migrationKey(for accountID: String) -> String { "com.vikingz.vik.dbMigrationCompleted.\(accountID)" }
+
     isolated deinit {
         navigationTask?.cancel()
         sync.cancelAllTasks()
@@ -494,8 +497,8 @@ final class AppCoordinator {
             UserDefaults.standard.removeObject(forKey: UserDefaultsKey.signatureForNew(removedID))
             UserDefaults.standard.removeObject(forKey: UserDefaultsKey.signatureForReply(removedID))
             UserDefaults.standard.removeObject(forKey: UserDefaultsKey.attachmentExclusionRules(removedID))
-            UserDefaults.standard.removeObject(forKey: "replyDrafts.\(removedID)")
-            UserDefaults.standard.removeObject(forKey: "com.vikingz.vik.dbMigrationCompleted.\(removedID)")
+            UserDefaults.standard.removeObject(forKey: Self.replyDraftsKey(for: removedID))
+            UserDefaults.standard.removeObject(forKey: Self.migrationKey(for: removedID))
         }
         if removedIDs == previousIDs, !removedIDs.isEmpty {
             Task { await SpotlightIndexer.shared.deleteAllItems() }

@@ -477,8 +477,8 @@ struct ContentView: View {
                 coordinator: coordinator,
                 commandPalette: commandPalette,
                 showSnoozePicker: $showSnoozePicker,
-                snoozeCount: SnoozeStore.shared.items.count,
-                scheduledCount: ScheduledSendStore.shared.items.count
+                snoozeCount: SnoozeStore.shared.count,
+                scheduledCount: ScheduledSendStore.shared.count
             ))
             .modifier(LifecycleNotificationModifier(coordinator: coordinator))
             .task {
@@ -530,9 +530,8 @@ struct ContentView: View {
                     showSnoozePicker = false
                     // Track direction for directional detail pane transitions
                     if let newEmail = newValue, let oldEmail = oldValue {
-                        let emails = coordinator.selection.displayedEmails
-                        if let newIdx = emails.firstIndex(where: { $0.id == newEmail.id }),
-                           let oldIdx = emails.firstIndex(where: { $0.id == oldEmail.id }) {
+                        if let newIdx = coordinator.selection.emailIndex(for: newEmail.id),
+                           let oldIdx = coordinator.selection.emailIndex(for: oldEmail.id) {
                             coordinator.selection.selectionDirection = newIdx < oldIdx ? .top : .bottom
                         }
                     }

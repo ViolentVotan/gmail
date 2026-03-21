@@ -18,14 +18,7 @@ struct ForwardMailIntent {
         let accountID = await IntentHelpers.findOwnerAccount(for: messageId)
             ?? account?.id
             ?? ""
-        let recipient = to.first.flatMap { person -> String? in
-            guard let handle = person.handle else { return nil }
-            switch handle.value {
-            case .emailAddress(let email): return email
-            case .applicationDefined(let value): return value
-            default: return nil
-            }
-        }
+        let recipient = to.first.flatMap { IntentHelpers.emailAddress(from: $0) }
         await MainActor.run {
             var userInfo: [String: Any] = ["messageId": messageId]
             if !accountID.isEmpty {

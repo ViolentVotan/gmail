@@ -82,6 +82,74 @@ extension Date {
         return f
     }()
 
+    private static let weekdayShortFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEE"
+        return f
+    }()
+
+    private static let weekdayFullFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEEE"
+        return f
+    }()
+
+    private static let monthDayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMMM d"
+        return f
+    }()
+
+    private static let fullDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .full
+        return f
+    }()
+
+    private static let fullDateTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateStyle = .full
+        f.timeStyle = .short
+        return f
+    }()
+
+    private static let accessibilityDayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEEE, MMMM d"
+        return f
+    }()
+
+    private static let allDayISOFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f
+    }()
+
+    // MARK: - RFC 2822 formatters
+
+    private static let rfc2822WriteFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+        f.timeZone = TimeZone.autoupdatingCurrent
+        return f
+    }()
+
+    private static let rfc2822ReadFormatters: [DateFormatter] = {
+        let formats = [
+            "EEE, dd MMM yyyy HH:mm:ss Z",
+            "dd MMM yyyy HH:mm:ss Z",
+            "EEE, dd MMM yyyy HH:mm:ss z"
+        ]
+        return formats.map { fmt in
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "en_US_POSIX")
+            f.dateFormat = fmt
+            return f
+        }
+    }()
+
     // MARK: - Formatted properties
 
     /// Formats a date relative to today: time for today, "Yesterday", or "MMM d" otherwise.
@@ -146,5 +214,63 @@ extension Date {
     /// Month and year: "March 2026".
     var formattedMonthYear: String {
         Self.monthYearFormatter.string(from: self)
+    }
+
+    /// Short weekday: "Mon".
+    var formattedWeekdayShort: String {
+        Self.weekdayShortFormatter.string(from: self)
+    }
+
+    /// Full weekday: "Monday".
+    var formattedWeekdayFull: String {
+        Self.weekdayFullFormatter.string(from: self)
+    }
+
+    /// Month and day: "March 21".
+    var formattedMonthDay: String {
+        Self.monthDayFormatter.string(from: self)
+    }
+
+    /// Full date: "Friday, March 21, 2026".
+    var formattedFullDate: String {
+        Self.fullDateFormatter.string(from: self)
+    }
+
+    /// Full date with short time: "Friday, March 21, 2026 at 2:30 PM".
+    var formattedFullDateTime: String {
+        Self.fullDateTimeFormatter.string(from: self)
+    }
+
+    /// Accessibility day: "Monday, March 21".
+    var formattedAccessibilityDay: String {
+        Self.accessibilityDayFormatter.string(from: self)
+    }
+
+    /// All-day ISO date: "2026-03-21".
+    var formattedAllDayISO: String {
+        Self.allDayISOFormatter.string(from: self)
+    }
+
+    /// Short date without year: "Mar 21".
+    var formattedShortDate: String {
+        Self.shortDateFormatter.string(from: self)
+    }
+
+    /// Short date with year: "Mar 21, 2026".
+    var formattedShortDateYear: String {
+        Self.shortDateYearFormatter.string(from: self)
+    }
+
+    /// RFC 2822 formatted string for use in outgoing message headers.
+    var formattedRFC2822: String {
+        Self.rfc2822WriteFormatter.string(from: self)
+    }
+
+    /// Parses an RFC 2822 date string, trying multiple format variants.
+    static func parseRFC2822(_ string: String) -> Date? {
+        for parser in rfc2822ReadFormatters {
+            if let date = parser.date(from: string) { return date }
+        }
+        return nil
     }
 }

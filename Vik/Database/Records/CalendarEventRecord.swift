@@ -37,5 +37,6 @@ struct CalendarEventRecord: Codable, Identifiable, FetchableRecord, PersistableR
     var sequence: Int?
     var remindersJson: String?
     var attachmentsJson: String?
+    var extendedPropertiesJson: String?
     var updatedAt: Double
 }

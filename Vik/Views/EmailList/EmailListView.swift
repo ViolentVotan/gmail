@@ -472,10 +472,8 @@ struct EmailListView: View {
             if useDateSections {
                 ForEach(cachedSections) { section in
                     Section {
-                        // Performance: zip avoids allocating a new Array on every render;
-                        // index is only used for the one-shot staggered entrance animation.
-                        ForEach(Array(zip(section.emails.indices, section.emails)), id: \.1.id) { index, email in
-                            emailRow(for: email, entranceIndex: index)
+                        ForEach(section.emails) { email in
+                            emailRow(for: email)
                         }
                     } header: {
                         Text(section.title)
@@ -488,8 +486,8 @@ struct EmailListView: View {
                     }
                 }
             } else {
-                ForEach(Array(zip(sortedEmails.indices, sortedEmails)), id: \.1.id) { index, email in
-                    emailRow(for: email, entranceIndex: index)
+                ForEach(sortedEmails) { email in
+                    emailRow(for: email)
                 }
             }
 

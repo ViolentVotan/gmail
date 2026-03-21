@@ -434,7 +434,13 @@ final class CalendarViewModel {
         var multiDay: [CalendarEvent] = []
         for event in events {
             var day = cal.startOfDay(for: event.startTime)
-            let endDay = cal.startOfDay(for: event.endTime)
+            let startDay = day
+            let rawEndDay = cal.startOfDay(for: event.endTime)
+            let endDay: Date = if event.endTime == rawEndDay && rawEndDay > startDay {
+                cal.date(byAdding: .day, value: -1, to: rawEndDay)!
+            } else {
+                rawEndDay
+            }
             while day <= endDay {
                 dict[day, default: []].append(event)
                 day = cal.date(byAdding: .day, value: 1, to: day)!

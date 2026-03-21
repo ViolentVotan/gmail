@@ -21,12 +21,17 @@ actor CalendarBackgroundSyncer {
     func upsertCalendars(_ calendars: [CalendarRecord]) async throws {
         guard !calendars.isEmpty else { return }
         try await db.dbPool.write { db in
+            // Batch-prefetch all existing calendars for this account in one query
+            // to avoid N+1 individual fetchOne calls inside the loop.
+            let accountId = calendars[0].accountId
+            let existingRecords = try CalendarRecord
+                .filter(Column("account_id") == accountId)
+                .fetchAll(db)
+            let existingMap = Dictionary(uniqueKeysWithValues: existingRecords.map { ($0.calendarId, $0) })
+
             for var calendar in calendars {
                 // Preserve existing sync metadata if present
-                if let existing = try CalendarRecord
-                    .filter(Column("calendar_id") == calendar.calendarId)
-                    .filter(Column("account_id") == calendar.accountId)
-                    .fetchOne(db) {
+                if let existing = existingMap[calendar.calendarId] {
                     if calendar.syncToken == nil { calendar.syncToken = existing.syncToken }
                     if calendar.lastSyncedAt == nil { calendar.lastSyncedAt = existing.lastSyncedAt }
                     // Preserve local visibility preference — isVisible is treated as a

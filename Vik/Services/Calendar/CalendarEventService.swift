@@ -31,6 +31,8 @@ final class CalendarEventService {
 
     // MARK: - Field mask
 
+    nonisolated private static let jsonEncoder = JSONEncoder()
+
     nonisolated private static let eventFieldMask =
         "items(id,status,htmlLink,created,updated,summary,description,location,colorId,creator,organizer,start,end,recurrence,recurringEventId,transparency,visibility,iCalUID,sequence,attendees,conferenceData,reminders,attachments,eventType,etag,hangoutLink,guestsCanModify,extendedProperties),nextPageToken,nextSyncToken"
 
@@ -123,7 +125,7 @@ final class CalendarEventService {
     ) async throws(CalendarAPIError) -> CalendarAPIEvent {
         let body: Data
         do {
-            body = try JSONEncoder().encode(event)
+            body = try Self.jsonEncoder.encode(event)
         } catch {
             throw .encodingError(error)
         }
@@ -158,7 +160,7 @@ final class CalendarEventService {
     ) async throws(CalendarAPIError) -> CalendarAPIEvent {
         let body: Data
         do {
-            body = try JSONEncoder().encode(event)
+            body = try Self.jsonEncoder.encode(event)
         } catch {
             throw .encodingError(error)
         }
@@ -285,7 +287,7 @@ final class CalendarEventService {
         let patch = AttendeePatch(attendees: updatedAttendees)
         let body: Data
         do {
-            body = try JSONEncoder().encode(patch)
+            body = try Self.jsonEncoder.encode(patch)
         } catch {
             throw .encodingError(error)
         }

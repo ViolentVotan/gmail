@@ -24,9 +24,6 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
 
     /// Total count of items across all accounts without flattening the dictionary.
     /// Prefer this over `allItems.count` for badge/count-only reads.
-    /// Note: ContentView uses `SnoozeStore.shared.items.count` and
-    /// `ScheduledSendStore.shared.items.count` — update those call sites to
-    /// `store.totalCount` if the SnoozeStore/ScheduledSendStore wrappers expose it.
     var totalCount: Int {
         itemsByAccount.values.reduce(0) { $0 + $1.count }
     }

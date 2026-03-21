@@ -155,22 +155,40 @@ actor CalendarSyncEngine {
             let timeMin = now.addingTimeInterval(-30 * 86400)
             let timeMax = now.addingTimeInterval(90 * 86400)
 
-            for (index, calendar) in records.enumerated() where calendar.isVisible {
-                // Pace API calls to avoid 429s during initial sync of many calendars
-                if index > 0 {
-                    try? await Task.sleep(for: .milliseconds(200))
+            let visibleCalendars = records.filter { $0.isVisible }
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                var inFlight = 0
+                let maxConcurrency = 3
+
+                for calendar in visibleCalendars {
+                    guard !Task.isCancelled else { break }
+
+                    if inFlight >= maxConcurrency {
+                        // Wait for one slot to free up before adding more
+                        try await group.next()
+                        inFlight -= 1
+                    }
+
+                    let calId = calendar.calendarId
+                    let calTZ = calendar.timeZone
+                    group.addTask {
+                        do {
+                            try await self.syncFullEvents(
+                                calendarId: calId,
+                                timeMin: timeMin,
+                                timeMax: timeMax,
+                                calendarTimeZone: calTZ
+                            )
+                        } catch {
+                            Self.logger.warning("Initial sync failed for calendar \(calId): \(String(describing: error))")
+                            // Continue with other calendars — swallow per-calendar errors
+                        }
+                    }
+                    inFlight += 1
                 }
-                do {
-                    try await syncFullEvents(
-                        calendarId: calendar.calendarId,
-                        timeMin: timeMin,
-                        timeMax: timeMax,
-                        calendarTimeZone: calendar.timeZone
-                    )
-                } catch {
-                    Self.logger.warning("Initial sync failed for calendar \(calendar.calendarId): \(String(describing: error))")
-                    // Continue with other calendars
-                }
+
+                // Drain remaining tasks
+                for try await _ in group {}
             }
 
             state = .idle

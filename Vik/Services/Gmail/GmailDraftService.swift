@@ -20,6 +20,11 @@ final class GmailDraftService {
         }
     }
 
+    nonisolated private func appendPageToken(_ token: String?, to path: inout String) {
+        guard let token else { return }
+        path += "&pageToken=\(token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token)"
+    }
+
     // MARK: - List Drafts
 
     /// Lists draft refs for the authenticated user.
@@ -29,7 +34,7 @@ final class GmailDraftService {
         maxResults: Int = 50
     ) async throws(GmailAPIError) -> GmailDraftListResponse {
         var path = "/users/me/drafts?maxResults=\(maxResults)"
-        if let token = pageToken { path += "&pageToken=\(token.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? token)" }
+        appendPageToken(pageToken, to: &path)
         return try await client.request(
             path: path,
             fields: "drafts(id,message(id,threadId)),nextPageToken,resultSizeEstimate",

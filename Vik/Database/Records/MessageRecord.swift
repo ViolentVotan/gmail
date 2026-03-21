@@ -5,6 +5,8 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord,
     static let databaseTableName = "messages"
     static let databaseColumnDecodingStrategy: DatabaseColumnDecodingStrategy = .convertFromSnakeCase
     static let databaseColumnEncodingStrategy: DatabaseColumnEncodingStrategy = .convertToSnakeCase
+    private static let jsonDecoder = JSONDecoder()
+    private static let jsonEncoder = JSONEncoder()
 
     /// Columns needed for list display — excludes heavy body/header blobs
     /// (`body_html`, `body_plain`, `raw_headers`) that can be tens of KB each.
@@ -198,12 +200,12 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord,
     private static func encodeRecipients(_ raw: String?) -> String? {
         guard let raw, !raw.isEmpty else { return nil }
         let addresses = raw.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
-        return try? String(data: JSONEncoder().encode(addresses), encoding: .utf8)
+        return try? String(data: Self.jsonEncoder.encode(addresses), encoding: .utf8)
     }
 
     private static func encodeHeaders(_ headers: [GmailHeader]?) -> String? {
         guard let headers else { return nil }
-        return try? String(data: JSONEncoder().encode(headers), encoding: .utf8)
+        return try? String(data: Self.jsonEncoder.encode(headers), encoding: .utf8)
     }
 }
 
@@ -286,7 +288,7 @@ extension MessageRecord {
 
     private static func decodeRecipientStrings(_ json: String?) -> [String] {
         guard let json, let data = json.data(using: .utf8) else { return [] }
-        return (try? JSONDecoder().decode([String].self, from: data)) ?? []
+        return (try? Self.jsonDecoder.decode([String].self, from: data)) ?? []
     }
 }
 
@@ -346,7 +348,7 @@ extension MessageRecord {
 
     private func decodeRecipientsAsString(_ json: String) -> String {
         guard let data = json.data(using: .utf8),
-              let arr = try? JSONDecoder().decode([String].self, from: data) else { return json }
+              let arr = try? Self.jsonDecoder.decode([String].self, from: data) else { return json }
         return arr.joined(separator: ", ")
     }
 }

@@ -12,11 +12,7 @@ struct FlagEmailIntent: AppIntent {
     var flagged: Bool
 
     func perform() async throws -> some IntentResult {
-        for message in emails {
-            let messageId = message.id
-            guard let accountID = await IntentHelpers.findOwnerAccount(for: messageId) else {
-                throw IntentError.accountNotFound
-            }
+        try await IntentHelpers.performOnEach(emails) { messageId, accountID in
             try await GmailMessageService.shared.setStarred(flagged, id: messageId, accountID: accountID)
         }
         return .result()

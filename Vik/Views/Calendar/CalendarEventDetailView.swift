@@ -95,7 +95,7 @@ struct CalendarEventDetailView: View {
                     Text(dateRangeString)
                         .font(Typography.body)
                         .foregroundStyle(.primary)
-                    Text(timeRangeString)
+                    Text(event.formattedTimeRange)
                         .font(Typography.callout)
                         .foregroundStyle(.secondary)
                 }
@@ -320,24 +320,13 @@ struct CalendarEventDetailView: View {
     }
 
     private var dateRangeString: String {
-        let start = Self.fullDateFormatter.string(from: event.startTime)
-        let end = Self.fullDateFormatter.string(from: event.endTime)
+        let start = event.startTime.formattedFullDate
+        let end = event.endTime.formattedFullDate
         return start == end ? start : "\(start) – \(end)"
     }
 
-    private static let fullDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .full
-        formatter.timeStyle = .none
-        return formatter
-    }()
-
-    private var timeRangeString: String {
-        "\(event.startTime.formattedTime) – \(event.endTime.formattedTime)"
-    }
-
     private func fullDateString(_ date: Date) -> String {
-        Self.fullDateFormatter.string(from: date)
+        date.formattedFullDate
     }
 
     private func reminderLabel(_ reminder: EventReminder) -> String {

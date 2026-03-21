@@ -13,14 +13,7 @@ struct ComposeEmailIntent {
     @Parameter var account: MailAccountEntity?
 
     func perform() async throws -> some IntentResult & ReturnsValue<MailDraftEntity> {
-        let recipient: String? = to.first.flatMap { person in
-            guard let handle = person.handle else { return nil }
-            switch handle.value {
-            case .emailAddress(let email): return email
-            case .applicationDefined(let value): return value
-            default: return nil
-            }
-        }
+        let recipient = to.first.flatMap { IntentHelpers.emailAddress(from: $0) }
         await MainActor.run {
             NotificationCenter.default.post(
                 name: .composeEmailFromIntent,

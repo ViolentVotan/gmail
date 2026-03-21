@@ -126,26 +126,15 @@ struct CalendarAgendaView: View {
         cachedTodayEvents = viewModel.events.filter { calendar.isDateInToday($0.startTime) }
     }
 
-    private static let dayOfWeekFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE"
-        return formatter
-    }()
-
-    private static let monthDayFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM d"
-        return formatter
-    }()
 
     private func relativeDayLabel(_ date: Date, isToday: Bool, isTomorrow: Bool) -> String {
         if isToday { return "Today" }
         if isTomorrow { return "Tomorrow" }
-        return Self.dayOfWeekFormatter.string(from: date)
+        return date.formattedWeekdayFull
     }
 
     private func fullDateLabel(_ date: Date) -> String {
-        Self.monthDayFormatter.string(from: date)
+        date.formattedMonthDay
     }
 }
 
@@ -176,7 +165,7 @@ private struct AgendaEventRow: View {
 
                 VStack(alignment: .leading, spacing: 3) {
                     // Time
-                    Text(timeString)
+                    Text(event.formattedTimeRangeCompact)
                         .font(Typography.calendarAgendaTime)
                         .foregroundStyle(.secondary)
 
@@ -229,14 +218,10 @@ private struct AgendaEventRow: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
-        .accessibilityLabel("\(timeString), \(event.summary)")
+        .accessibilityLabel("\(event.formattedTimeRangeCompact), \(event.summary)")
         .accessibilityAddTraits(.isButton)
     }
 
-    private var timeString: String {
-        if event.isAllDay { return "All day" }
-        return "\(event.startTime.formattedCalendarTime) – \(event.endTime.formattedCalendarTimeAmPm)"
-    }
 }
 
 // MARK: - Preview

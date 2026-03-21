@@ -53,12 +53,6 @@ enum CalendarEventQuickActions {
 
     // MARK: - Private helpers
 
-    private static let dateTimeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .full
-        f.timeStyle = .short
-        return f
-    }()
 
     /// Returns the self email derived from the event, or empty string.
     private static func selfEmail(event: CalendarEvent) -> String {
@@ -75,7 +69,7 @@ enum CalendarEventQuickActions {
     private static func eventBody(event: CalendarEvent) -> String {
         var lines: [String] = [
             "Event: \(event.summary)",
-            "When: \(Self.dateTimeFormatter.string(from: event.startTime)) – \(Self.dateTimeFormatter.string(from: event.endTime))",
+            "When: \(event.startTime.formattedFullDateTime) – \(event.endTime.formattedFullDateTime)",
         ]
 
         if let location = event.location {

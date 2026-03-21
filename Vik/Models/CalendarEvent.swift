@@ -44,6 +44,16 @@ struct CalendarEvent: Identifiable, Sendable, Equatable {
     enum EventStatus: String, Sendable { case confirmed, tentative, cancelled }
     enum EventType: String, Sendable { case `default`, birthday, focusTime, fromGmail, outOfOffice, workingLocation }
 
+    /// Compact: "2:30 – 3:30 PM" or "All day"
+    var formattedTimeRangeCompact: String {
+        isAllDay ? "All day" : "\(startTime.formattedCalendarTime) – \(endTime.formattedCalendarTimeAmPm)"
+    }
+
+    /// Full: "2:30 PM – 3:30 PM" or "All day"
+    var formattedTimeRange: String {
+        isAllDay ? "All day" : "\(startTime.formattedTime) – \(endTime.formattedTime)"
+    }
+
     static func == (lhs: CalendarEvent, rhs: CalendarEvent) -> Bool {
         lhs.googleEventId == rhs.googleEventId &&
         lhs.calendarId == rhs.calendarId &&
@@ -143,8 +153,9 @@ extension CalendarEventRecord {
 
         let reminders: [EventReminder] = if let remindersJson,
             let data = remindersJson.data(using: .utf8),
-            let parsed = try? Self.jsonDecoder.decode([ReminderJSON].self, from: data) {
-            parsed.map { EventReminder(
+            let wrapper = try? Self.jsonDecoder.decode(RemindersWrapperJSON.self, from: data),
+            let overrides = wrapper.overrides {
+            overrides.map { EventReminder(
                 method: EventReminder.ReminderMethod(rawValue: $0.method) ?? .popup,
                 minutes: $0.minutes
             ) }
@@ -245,6 +256,11 @@ extension CalendarRecord {
 }
 
 // MARK: - JSON Decodable Helpers (for reminders/attachments stored as JSON strings)
+
+private struct RemindersWrapperJSON: Decodable {
+    let useDefault: Bool?
+    let overrides: [ReminderJSON]?
+}
 
 private struct ReminderJSON: Decodable {
     let method: String

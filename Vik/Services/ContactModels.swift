@@ -17,11 +17,17 @@ final class ContactStore {
     static let shared = ContactStore()
     private init() {}
 
+    private enum LegacyKeys {
+        static func contacts(_ id: String) -> String { "com.vikingz.vik.contacts.\(id)" }
+        static func contactsSyncToken(_ id: String) -> String { "com.vikingz.vik.contacts.syncToken.\(id)" }
+        static func contactsOtherSyncToken(_ id: String) -> String { "com.vikingz.vik.contacts.otherSyncToken.\(id)" }
+    }
+
     /// Clean up legacy UserDefaults keys when an account is removed.
     func deleteAccount(_ accountID: String) {
-        UserDefaults.standard.removeObject(forKey: "com.vikingz.vik.contacts.\(accountID)")
-        UserDefaults.standard.removeObject(forKey: "com.vikingz.vik.contacts.syncToken.\(accountID)")
-        UserDefaults.standard.removeObject(forKey: "com.vikingz.vik.contacts.otherSyncToken.\(accountID)")
+        UserDefaults.standard.removeObject(forKey: LegacyKeys.contacts(accountID))
+        UserDefaults.standard.removeObject(forKey: LegacyKeys.contactsSyncToken(accountID))
+        UserDefaults.standard.removeObject(forKey: LegacyKeys.contactsOtherSyncToken(accountID))
     }
 }
 

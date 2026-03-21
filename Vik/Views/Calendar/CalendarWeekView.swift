@@ -28,17 +28,6 @@ struct CalendarWeekView: View {
 
     private let hours = Array(0..<24)
 
-    private static let weekdayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "EEE"
-        return f
-    }()
-
-    private static let accessibilityDayFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "EEEE, MMMM d"
-        return f
-    }()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -153,7 +142,7 @@ struct CalendarWeekView: View {
         let isToday = weekCache.weekDays.firstIndex(of: date) == weekCache.todayIndex
         let weekdayAbbrev = weekdayAbbreviation(for: date)
         let dayNumber = Calendar.current.component(.day, from: date)
-        let accessibilityLabel = Self.accessibilityDayFormatter.string(from: date)
+        let accessibilityLabel = date.formattedAccessibilityDay
 
         return VStack(spacing: 2) {
             Text(weekdayAbbrev)
@@ -386,14 +375,14 @@ struct CalendarWeekView: View {
         cache.weekDays = days
         cache.timedEventsByDay = timed
         cache.allDayEventsByDay = allDay
-        cache.overlapGroupsByDay = timed.map { overlapGroups(for: $0) }
+        cache.overlapGroupsByDay = timed.map { $0.overlapGroups() }
         cache.todayIndex = days.firstIndex(where: { Calendar.current.isDateInToday($0) })
         cache.weekendIndices = Set(days.indices.filter { isWeekend(days[$0]) })
         weekCache = cache
     }
 
     private func weekdayAbbreviation(for date: Date) -> String {
-        Self.weekdayFormatter.string(from: date).uppercased()
+        date.formattedWeekdayShort.uppercased()
     }
 
     private func isWeekend(_ date: Date) -> Bool {
@@ -416,26 +405,4 @@ struct CalendarWeekView: View {
         Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: viewModel.selectedDate) ?? viewModel.selectedDate
     }
 
-    /// Groups overlapping timed events into columns for side-by-side layout.
-    private func overlapGroups(for events: [CalendarEvent]) -> [[CalendarEvent]] {
-        let sorted = events.sorted { $0.startTime < $1.startTime }
-        var groups: [[CalendarEvent]] = []
-        var currentGroup: [CalendarEvent] = []
-        var groupEnd: Date = .distantPast
-
-        for event in sorted {
-            if event.startTime < groupEnd {
-                // Overlaps with existing group
-                currentGroup.append(event)
-                if event.endTime > groupEnd { groupEnd = event.endTime }
-            } else {
-                // New non-overlapping group
-                if !currentGroup.isEmpty { groups.append(currentGroup) }
-                currentGroup = [event]
-                groupEnd = event.endTime
-            }
-        }
-        if !currentGroup.isEmpty { groups.append(currentGroup) }
-        return groups
-    }
 }

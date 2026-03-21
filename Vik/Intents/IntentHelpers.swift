@@ -1,3 +1,4 @@
+import AppIntents
 import Foundation
 
 enum IntentHelpers {
@@ -14,5 +15,29 @@ enum IntentHelpers {
             }
         }
         return nil
+    }
+
+    /// Extracts an email address string from an `IntentPerson` handle.
+    static func emailAddress(from person: IntentPerson) -> String? {
+        guard let handle = person.handle else { return nil }
+        switch handle.value {
+        case .emailAddress(let email): return email
+        case .applicationDefined(let value): return value
+        default: return nil
+        }
+    }
+
+    /// Iterates over a collection of mail message entities, resolves each owner account,
+    /// and invokes `action` for each (messageId, accountID) pair.
+    static func performOnEach(
+        _ entities: [MailMessageEntity],
+        action: (_ messageId: String, _ accountID: String) async throws -> Void
+    ) async throws {
+        for entity in entities {
+            guard let accountID = await findOwnerAccount(for: entity.id) else {
+                throw IntentError.accountNotFound
+            }
+            try await action(entity.id, accountID)
+        }
     }
 }

@@ -21,6 +21,7 @@ final class CalendarAPIClient {
 
     private let baseURL = "https://www.googleapis.com/calendar/v3"
     nonisolated private static let logger = Logger(category: "CalendarAPI")
+    nonisolated private static let jsonDecoder = JSONDecoder()
 
     // MARK: - Decoded requests
 
@@ -35,7 +36,7 @@ final class CalendarAPIClient {
     ) async throws(CalendarAPIError) -> T {
         let data = try await requestData(path: path, method: method, body: body, queryItems: queryItems, extraHeaders: extraHeaders, accountID: accountID)
         do {
-            return try JSONDecoder().decode(T.self, from: data)
+            return try Self.jsonDecoder.decode(T.self, from: data)
         } catch {
             throw .decodingError(error)
         }
