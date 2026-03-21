@@ -346,48 +346,38 @@ struct HTMLEmailView: NSViewRepresentable {
                 return result;
             }
 
-            var els = Array.from(document.querySelectorAll(
-                'p,div,span,td,th,li,a,font,b,strong,em,i,h1,h2,h3,h4,h5,h6,small,label,cite,blockquote'
-            ));
-
-            // Process in chunks of 50 per rAF frame so content is visible immediately.
-            // Colors fix progressively over 2-3 frames instead of blocking.
-            var CHUNK = 50;
-            var idx = 0;
-
+            // TreeWalker: lazy iteration — no upfront querySelectorAll + Array.from allocation.
+            var content = document.getElementById('emailContent');
+            if (!content) return;
+            var walker = document.createTreeWalker(content, NodeFilter.SHOW_ELEMENT, null);
+            var CHUNK = 60;
             function processChunk() {
                 var fixes = [];
-                var end = Math.min(idx + CHUNK, els.length);
-                for (var i = idx; i < end; i++) {
-                    var el = els[i];
-                    var style = window.getComputedStyle(el);
+                var count = 0;
+                var node;
+                while (count < CHUNK && (node = walker.nextNode())) {
+                    count++;
+                    var style = window.getComputedStyle(node);
                     if (style.display === 'none' || style.visibility === 'hidden') continue;
                     var c = style.color;
                     var rgb = parseRgb(c);
                     if (!rgb) continue;
                     var cParts = c.slice(c.indexOf('(') + 1).split(',');
                     if (cParts.length >= 4 && parseFloat(cParts[3]) < 0.1) continue;
-                    var bgLum = effectiveBgLum(el);
+                    var bgLum = effectiveBgLum(node);
                     var textLum = relativeLum(rgb[0], rgb[1], rgb[2]);
                     if (contrastBetween(textLum, bgLum) >= MIN_CR) continue;
-                    fixes.push([el, bgLum > 0.5
+                    fixes.push([node, bgLum > 0.5
                         ? darkenToContrast(rgb[0], rgb[1], rgb[2], bgLum)
                         : lightenToContrast(rgb[0], rgb[1], rgb[2], bgLum)]);
                 }
                 for (var j = 0; j < fixes.length; j++) {
                     fixes[j][0].style.setProperty('color', fixes[j][1], 'important');
                 }
-                idx = end;
-                if (idx < els.length) {
-                    requestAnimationFrame(processChunk);
-                }
+                if (node) { requestAnimationFrame(processChunk); }
             }
-            if (els.length > 0) {
-                requestAnimationFrame(processChunk);
-            }
+            requestAnimationFrame(processChunk);
         }
-
-        fixContrastColorsAsync();
 
         // Robust content height measurement -- layered approach:
         // 1. ResizeObserver for layout-driven changes (reflow, font render)
