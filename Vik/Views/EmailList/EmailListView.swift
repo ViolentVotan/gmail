@@ -46,22 +46,28 @@ struct EmailListView: View {
         case .sender:                   sortedEmails = emails.sorted { $0.sender.name.localizedCaseInsensitiveCompare($1.sender.name) == .orderedAscending }
         }
 
+        // Single pass: build ID list and accessibility caches simultaneously.
+        var currentIDs: [Email.ID] = []
+        currentIDs.reserveCapacity(sortedEmails.count)
+        var newCache = AccessibilityCache()
+        newCache.unreadEmails.reserveCapacity(sortedEmails.count)
+        newCache.starredEmails.reserveCapacity(sortedEmails.count / 4)
+        newCache.emailsWithAttachments.reserveCapacity(sortedEmails.count / 4)
+
+        for email in sortedEmails {
+            currentIDs.append(email.id)
+            if !email.isRead { newCache.unreadEmails.append(email) }
+            if email.isStarred { newCache.starredEmails.append(email) }
+            if email.hasAttachments { newCache.emailsWithAttachments.append(email) }
+        }
+
         // Only rebuild date sections when the email list, ordering, or section mode changed.
         // Property-only updates (read status, star toggle) reuse the existing sections
         // because SwiftUI's List diffing handles per-row updates via identity.
-        let currentIDs = sortedEmails.map(\.id)
         if currentIDs != lastEmailIDs || useDateSections != lastUseDateSections {
             lastEmailIDs = currentIDs
             lastUseDateSections = useDateSections
             cachedSections = useDateSections ? Self.buildSections(from: sortedEmails) : []
-        }
-
-        // Recompute accessibility rotor caches alongside the sorted emails.
-        var newCache = AccessibilityCache()
-        for email in emails {
-            if !email.isRead { newCache.unreadEmails.append(email) }
-            if email.isStarred { newCache.starredEmails.append(email) }
-            if email.hasAttachments { newCache.emailsWithAttachments.append(email) }
         }
 
         // Recompute folder action caches.

@@ -565,6 +565,14 @@ enum CalendarLayout {
         let height = CGFloat(duration / 3600.0) * hourRowHeight
         return clampToMinHeight ? max(height, eventCardMinHeight) : height
     }
+
+    /// Precomputed hour labels (0..<24) for day/week time grids. Index 0 is empty (midnight row hidden).
+    static let hourLabels: [String] = (0..<24).map { hour in
+        guard hour != 0 else { return "" }
+        let components = DateComponents(hour: hour)
+        let date = Calendar.current.date(from: components) ?? Date()
+        return date.formattedCalendarHour
+    }
 }
 
 // MARK: - Calendar Semantic Colors
@@ -600,6 +608,5 @@ enum VikHaptic {
 
     static func generic() { perform(.generic) }
     static func levelChange() { perform(.levelChange) }
-    static func alignment() { perform(.alignment) }
 }
 

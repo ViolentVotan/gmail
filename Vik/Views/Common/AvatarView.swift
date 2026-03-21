@@ -30,10 +30,18 @@ struct AvatarView: View {
 
     @State private var loader = AvatarLoader()
 
-    private var avatarTextColor: Color {
+    private let avatarTextColor: Color
+
+    init(initials: String, color: String, size: CGFloat = 36, avatarURL: String? = nil, senderDomain: String? = nil) {
+        self.initials = initials
+        self.color = color
+        self.size = size
+        self.avatarURL = avatarURL
+        self.senderDomain = senderDomain
+
         let bgColor = NSColor(Color(hex: color)).usingColorSpace(.sRGB)
         let luminance = bgColor?.relativeLuminance() ?? 0
-        return luminance > 0.7 ? .primary : .white
+        self.avatarTextColor = luminance > 0.7 ? .primary : .white
     }
 
     var body: some View {

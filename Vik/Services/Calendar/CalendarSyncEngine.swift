@@ -152,8 +152,9 @@ actor CalendarSyncEngine {
 
             // 2. For each visible calendar: fetch events (-30d to +90d)
             let now = Date()
-            let timeMin = now.addingTimeInterval(-30 * 86400)
-            let timeMax = now.addingTimeInterval(90 * 86400)
+            let calendar = Calendar.current
+            let timeMin = calendar.date(byAdding: .day, value: -30, to: now) ?? now.addingTimeInterval(-30 * 86400)
+            let timeMax = calendar.date(byAdding: .day, value: 90, to: now) ?? now.addingTimeInterval(90 * 86400)
 
             let visibleCalendars = records.filter { $0.isVisible }
             try await withThrowingTaskGroup(of: Void.self) { group in
@@ -350,8 +351,9 @@ actor CalendarSyncEngine {
                         calendarId: calendarId, accountId: accountID
                     )
                     let now = Date()
-                    let timeMin = now.addingTimeInterval(-30 * 86400)
-                    let timeMax = now.addingTimeInterval(90 * 86400)
+                    let calendar = Calendar.current
+                    let timeMin = calendar.date(byAdding: .day, value: -30, to: now) ?? now.addingTimeInterval(-30 * 86400)
+                    let timeMax = calendar.date(byAdding: .day, value: 90, to: now) ?? now.addingTimeInterval(90 * 86400)
                     do {
                         try await syncFullEvents(
                             calendarId: calendarId,
@@ -537,8 +539,8 @@ actor CalendarSyncEngine {
 
         for event in events {
             guard let eventId = event.id else { continue }
-            let startTime = event.start.map { parseDateTime($0, calendarTimeZone: calendarTimeZone) } ?? Date().timeIntervalSince1970
-            let endTime = event.end.map { parseDateTime($0, calendarTimeZone: calendarTimeZone) } ?? Date().timeIntervalSince1970
+            let startTime = event.start.map { parseDateTime($0, calendarTimeZone: calendarTimeZone) } ?? Self.fallbackTimestamp
+            let endTime = event.end.map { parseDateTime($0, calendarTimeZone: calendarTimeZone) } ?? Self.fallbackTimestamp
             let isAllDay = event.start?.date != nil
 
             let record = CalendarEventRecord(
@@ -571,7 +573,7 @@ actor CalendarSyncEngine {
                 sequence: event.sequence,
                 remindersJson: encodeJSON(event.reminders),
                 attachmentsJson: encodeJSON(event.attachments),
-                updatedAt: parseRFC3339(event.updated) ?? Date().timeIntervalSince1970
+                updatedAt: parseRFC3339(event.updated) ?? Self.fallbackTimestamp
             )
             eventRecords.append(record)
 
@@ -607,6 +609,9 @@ actor CalendarSyncEngine {
     /// Gregorian calendar for date-component parsing — Google Calendar dates always assume Gregorian.
     nonisolated private static let gregorianCalendar = Calendar(identifier: .gregorian)
 
+    /// Sentinel timestamp for unparseable dates — `distantPast` makes bad data obvious instead of silently using "now".
+    nonisolated private static let fallbackTimestamp = Date.distantPast.timeIntervalSince1970
+
     /// Parses a `CalendarAPIDateTime` into a Unix timestamp.
     /// For all-day events, `calendarTimeZone` is used as the fallback when the event itself
     /// has no timezone — prevents incorrect date display in negative-UTC timezones.
@@ -622,7 +627,7 @@ actor CalendarSyncEngine {
             if let date = try? iso8601Standard.parse(dateTime) {
                 return date.timeIntervalSince1970
             }
-            return Date().timeIntervalSince1970
+            return Self.fallbackTimestamp
         } else if let dateStr = dt.date {
             // All-day event: "yyyy-MM-dd" — parse via DateComponents (allocation-free, thread-safe)
             let parts = dateStr.split(separator: "-")
@@ -630,7 +635,7 @@ actor CalendarSyncEngine {
                   let year = Int(parts[0]),
                   let month = Int(parts[1]),
                   let day = Int(parts[2]) else {
-                return Date().timeIntervalSince1970
+                return Self.fallbackTimestamp
             }
             var dc = DateComponents()
             dc.year = year
@@ -638,9 +643,9 @@ actor CalendarSyncEngine {
             dc.day = day
             let tzIdentifier = dt.timeZone ?? calendarTimeZone ?? "UTC"
             dc.timeZone = TimeZone(identifier: tzIdentifier) ?? .gmt
-            return gregorianCalendar.date(from: dc)?.timeIntervalSince1970 ?? Date().timeIntervalSince1970
+            return gregorianCalendar.date(from: dc)?.timeIntervalSince1970 ?? Self.fallbackTimestamp
         }
-        return Date().timeIntervalSince1970
+        return Self.fallbackTimestamp
     }
 
     /// Parses an RFC3339 string into a Unix timestamp.

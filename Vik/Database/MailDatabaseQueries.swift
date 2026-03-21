@@ -1,6 +1,12 @@
 import Foundation
 internal import GRDB
 
+/// A calendar event record paired with its attendees, fetched in a single query via GRDB association prefetching.
+struct EventWithAttendees: Decodable, FetchableRecord, Sendable {
+    var calendarEventRecord: CalendarEventRecord
+    var attendees: [CalendarAttendeeRecord]
+}
+
 /// Centralized read queries for the mail database.
 /// All methods take a `Database` parameter and should be called within dbPool.read { }.
 enum MailDatabaseQueries {
@@ -224,6 +230,28 @@ enum MailDatabaseQueries {
             .filter(Column("start_time") < end)
             .filter(Column("end_time") > start)
             .order(Column("start_time").asc)
+            .fetchAll(db)
+    }
+
+    /// Events with attendees within a date range for a unified multi-account view.
+    /// Uses GRDB association prefetching to fetch events and attendees in a single
+    /// database read, eliminating the need for a separate attendee query.
+    static func eventsWithAttendeesForDateRange(
+        calendarKeys: [(calendarId: String, accountId: String)],
+        start: Double,
+        end: Double,
+        in db: Database
+    ) throws -> [EventWithAttendees] {
+        guard !calendarKeys.isEmpty else { return [] }
+        let placeholders = calendarKeys.map { _ in "(?, ?)" }.joined(separator: ", ")
+        let keyArgs: [any DatabaseValueConvertible] = calendarKeys.flatMap { [$0.calendarId, $0.accountId] as [any DatabaseValueConvertible] }
+        return try CalendarEventRecord
+            .filter(sql: "(calendar_id, account_id) IN (\(placeholders))", arguments: StatementArguments(keyArgs))
+            .filter(Column("start_time") < end)
+            .filter(Column("end_time") > start)
+            .including(all: CalendarEventRecord.attendees)
+            .order(Column("start_time").asc)
+            .asRequest(of: EventWithAttendees.self)
             .fetchAll(db)
     }
 

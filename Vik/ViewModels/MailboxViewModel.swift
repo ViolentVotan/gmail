@@ -207,12 +207,16 @@ final class MailboxViewModel {
             row.message.toEmail(labels: row.labels, tags: row.tags, attachments: row.attachments)
         }
         let grouped = Dictionary(grouping: emails) { $0.gmailThreadID ?? $0.gmailMessageID ?? $0.id.uuidString }
-        return grouped.values.compactMap { threadEmails -> Email? in
-            guard var latest = threadEmails.max(by: { $0.date < $1.date }) else { return nil }
+        var result: [Email] = []
+        result.reserveCapacity(grouped.count)
+        for (_, threadEmails) in grouped {
+            guard var latest = threadEmails.max(by: { $0.date < $1.date }) else { continue }
             let maxThreadCount = threadEmails.map(\.threadMessageCount).max() ?? 0
             latest.threadMessageCount = max(maxThreadCount, threadEmails.count)
-            return latest
-        }.sorted { $0.date > $1.date }
+            result.append(latest)
+        }
+        result.sort { $0.date > $1.date }
+        return result
     }
 
     // MARK: - Load
@@ -472,15 +476,15 @@ final class MailboxViewModel {
     }
 
     /// Marks a message as read. Optimistic DB write → API call → revert on failure.
-    /// Uses `markAsReadInDatabase` (combined label + read flag) instead of the shared helper.
     func markAsRead(_ messageID: String) async {
-        let original = await markAsReadInDatabase(messageID, isRead: true)
-        do {
-            try await api.markAsRead(id: messageID, accountID: accountID)
-        } catch {
-            if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            ToastManager.shared.show(message: "Failed to mark as read", type: .error)
-        }
+        await performOptimisticAction(
+            messageID,
+            removeLabelIDs: [GmailSystemLabel.unread],
+            apiCall: { [api, accountID] in
+                try await api.markAsRead(id: messageID, accountID: accountID)
+            },
+            failureToast: "Failed to mark as read"
+        )
     }
 
     /// Updates DB read state for messages already marked as read by another component (e.g. EmailDetailVM).
@@ -490,16 +494,9 @@ final class MailboxViewModel {
         do {
             try await db.dbPool.write { database in
                 for id in messageIDs {
-                    // Remove UNREAD label
-                    try database.execute(
-                        sql: "DELETE FROM message_labels WHERE message_id = ? AND label_id = ?",
-                        arguments: [id, GmailSystemLabel.unread]
-                    )
-                    // Sync denormalized is_read flag
-                    try database.execute(
-                        sql: "UPDATE messages SET is_read = 1 WHERE gmail_id = ?",
-                        arguments: [id]
-                    )
+                    try mutateLabels(for: id, in: database) { labels in
+                        labels.remove(GmailSystemLabel.unread)
+                    }
                 }
             }
         } catch {
@@ -811,21 +808,6 @@ final class MailboxViewModel {
             )
         }
         return GmailDataTransformer.makeEmail(from: message, labels: emailLabels)
-    }
-
-    // MARK: - Private helpers
-
-    /// Combined label + read flag update in a single transaction.
-    /// Returns original label IDs for undo. Avoids double ValueObservation notifications.
-    @discardableResult
-    private func markAsReadInDatabase(_ messageID: String, isRead: Bool) async -> [String]? {
-        await writeLabels(messageID) { labels in
-            if isRead {
-                labels.remove(GmailSystemLabel.unread)
-            } else {
-                labels.insert(GmailSystemLabel.unread)
-            }
-        }
     }
 
 }

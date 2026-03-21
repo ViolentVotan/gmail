@@ -133,7 +133,7 @@ final class CalendarViewModel {
         let start = dateRange.start.timeIntervalSince1970
         let end = dateRange.end.timeIntervalSince1970
         let observation = ValueObservation.tracking { db in
-            try MailDatabaseQueries.eventsForDateRange(
+            try MailDatabaseQueries.eventsWithAttendeesForDateRange(
                 calendarKeys: calendarKeys,
                 start: start,
                 end: end,
@@ -149,7 +149,7 @@ final class CalendarViewModel {
                     self.debounceTask = Task { @MainActor [weak self] in
                         try? await Task.sleep(for: .milliseconds(50))
                         guard !Task.isCancelled, let self else { return }
-                        self.events = await self.enrichRecords(records)
+                        self.events = self.enrichRecords(records)
                         self.recomputeEventCaches()
                     }
                 }
@@ -436,14 +436,17 @@ final class CalendarViewModel {
             var day = cal.startOfDay(for: event.startTime)
             let startDay = day
             let rawEndDay = cal.startOfDay(for: event.endTime)
-            let endDay: Date = if event.endTime == rawEndDay && rawEndDay > startDay {
-                cal.date(byAdding: .day, value: -1, to: rawEndDay)!
+            let endDay: Date
+            if event.endTime == rawEndDay && rawEndDay > startDay {
+                guard let adjusted = cal.date(byAdding: .day, value: -1, to: rawEndDay) else { continue }
+                endDay = adjusted
             } else {
-                rawEndDay
+                endDay = rawEndDay
             }
             while day <= endDay {
                 dict[day, default: []].append(event)
-                day = cal.date(byAdding: .day, value: 1, to: day)!
+                guard let nextDay = cal.date(byAdding: .day, value: 1, to: day) else { break }
+                day = nextDay
             }
             if event.isAllDay || cal.startOfDay(for: event.startTime) != cal.startOfDay(for: event.endTime) {
                 multiDay.append(event)
@@ -465,56 +468,43 @@ final class CalendarViewModel {
         let calendar = Calendar.current
         switch viewMode {
         case .month:
-            let firstOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedDate))!
+            let firstOfMonth = calendar.date(from: calendar.dateComponents([.year, .month], from: selectedDate))
+                ?? selectedDate
             let weekday = calendar.component(.weekday, from: firstOfMonth)
             let firstWeekdayOffset = (weekday - calendar.firstWeekday + 7) % 7
-            let gridStart = calendar.date(byAdding: .day, value: -firstWeekdayOffset, to: firstOfMonth)!
-            let gridEnd = calendar.date(byAdding: .day, value: 42, to: gridStart)!
+            let gridStart = calendar.date(byAdding: .day, value: -firstWeekdayOffset, to: firstOfMonth)
+                ?? firstOfMonth
+            let gridEnd = calendar.date(byAdding: .day, value: 42, to: gridStart)
+                ?? gridStart
             return DateInterval(start: gridStart, end: gridEnd)
         case .week:
             return selectedWeek
         case .day:
             let start = calendar.startOfDay(for: selectedDate)
-            let end = calendar.date(byAdding: .day, value: 1, to: start)!
+            let end = calendar.date(byAdding: .day, value: 1, to: start)
+                ?? start
             return DateInterval(start: start, end: end)
         case .agenda:
             let start = calendar.startOfDay(for: selectedDate)
-            let end = calendar.date(byAdding: .day, value: 30, to: start)!
+            let end = calendar.date(byAdding: .day, value: 30, to: start)
+                ?? start
             return DateInterval(start: start, end: end)
         }
     }
 
     /// Enriches event records with attendee data and resolved colors.
-    private func enrichRecords(_ records: [CalendarEventRecord]) async -> [CalendarEvent] {
+    private func enrichRecords(_ records: [EventWithAttendees]) -> [CalendarEvent] {
         guard !records.isEmpty else { return [] }
 
         // Use cached color map (rebuilt when calendars change, not per-enrichment).
         let colorMap = calendarColorMap
 
-        // Batch-fetch all attendees for all event records in a single async DB read.
-        let compositeKeys = records.map { ($0.eventId, $0.calendarId, $0.accountId) }
-        let allAttendees: [CalendarAttendeeRecord] = (try? await db.dbPool.read { db in
-            guard !compositeKeys.isEmpty else { return [] }
-            // Tuple IN clause — SQLite can use index for composite key lookup.
-            // OR-chains degrade to full scans on large attendee tables.
-            let placeholders = compositeKeys.map { _ in "(?, ?, ?)" }.joined(separator: ", ")
-            let args = compositeKeys.flatMap { [$0.0 as (any DatabaseValueConvertible), $0.1, $0.2] }
-            return try CalendarAttendeeRecord.filter(
-                sql: "(event_id, calendar_id, account_id) IN (\(placeholders))",
-                arguments: StatementArguments(args)
-            ).fetchAll(db)
-        }) ?? []
-
-        // Group attendees by composite key for O(1) lookup.
-        let attendeesByKey: [String: [CalendarAttendeeRecord]] = Dictionary(
-            grouping: allAttendees
-        ) { "\($0.eventId)\u{001F}\($0.calendarId)\u{001F}\($0.accountId)" }
-
-        return records.compactMap { record in
-            let key = "\(record.eventId)\u{001F}\(record.calendarId)\u{001F}\(record.accountId)"
-            let attendees = attendeesByKey[key] ?? []
-            let calendarColor = colorMap[record.calendarId] ?? BrandColor.blue
-            return record.toCalendarEvent(attendees: attendees, calendarColor: calendarColor)
+        return records.compactMap { item in
+            let calendarColor = colorMap[item.calendarEventRecord.calendarId] ?? BrandColor.blue
+            return item.calendarEventRecord.toCalendarEvent(
+                attendees: item.attendees,
+                calendarColor: calendarColor
+            )
         }
     }
 }

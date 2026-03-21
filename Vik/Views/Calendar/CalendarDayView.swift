@@ -250,15 +250,8 @@ struct CalendarDayView: View {
 
     // MARK: - Helpers
 
-    private static let hourLabels: [String] = (0..<24).map { hour in
-        guard hour != 0 else { return "" }
-        let components = DateComponents(hour: hour)
-        let date = Calendar.current.date(from: components) ?? Date()
-        return date.formattedCalendarHour
-    }
-
     private func hourLabel(_ hour: Int) -> String {
-        Self.hourLabels[hour]
+        CalendarLayout.hourLabels[hour]
     }
 
     private func scrollToCurrentTime(proxy: ScrollViewProxy) {

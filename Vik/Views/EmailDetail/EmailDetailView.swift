@@ -383,7 +383,7 @@ struct EmailDetailView: View {
             }
 
             GlassEffectContainer(spacing: 1) {
-                VStack(spacing: 1) {
+                LazyVStack(spacing: 1, pinnedViews: []) {
                     ForEach(Array(allMessages.enumerated()), id: \.element.id) { index, message in
                         threadCard(for: message, at: index)
                             .id(message.id)

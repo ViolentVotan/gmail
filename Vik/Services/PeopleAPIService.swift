@@ -66,51 +66,68 @@ final class PeopleAPIService {
         return contacts
     }
 
-    /// Fetches contacts from People API and persists them per-page.
-    /// Uses sync tokens for incremental updates when available.
+    // MARK: - Paginated Sync Helper
+
+    /// Configuration for a paginated People API sync source.
+    private struct ContactSyncSource<Response: PaginatedPeopleResponse>: Sendable {
+        let label: String
+        let source: String
+        let incrementalURL: @Sendable (_ encodedSyncToken: String) -> String
+        let fullFetchURL: @Sendable () -> String
+        let readSyncToken: @Sendable (AccountSyncStateRecord?) -> String?
+        let readSyncTokenTimestamp: @Sendable (AccountSyncStateRecord?) -> Double?
+        let clearSyncToken: @Sendable (inout AccountSyncStateRecord) -> Void
+        let saveSyncToken: @Sendable (inout AccountSyncStateRecord, _ token: String) -> Void
+        let handleDeletes: Bool
+        let evictPhotoCacheOnDelete: Bool
+        let preservePhotosOnUpsert: Bool
+        let responseType: Response.Type
+    }
+
+    /// Result of a paginated sync, indicating whether a full re-fetch was performed.
+    private enum SyncResult: Sendable {
+        case incremental
+        case fullFetch
+    }
+
+    /// Generic paginated sync: incremental (with sync token) or full re-fetch.
     /// Each page is written to the DB immediately — a crash mid-pagination loses
     /// the sync token (forcing a full re-fetch on restart) but contacts fetched so
     /// far are already persisted. The sync token is only saved after all pages
     /// complete, matching the pattern used by `performInitialSync` for messages.
-    @concurrent private func fetchAndStoreContacts(accountID: String, syncer: BackgroundSyncer) async {
-        var newContactsSyncToken: String?
-        var newOtherSyncToken: String?
-        var contactsFetchSucceeded = false
-        var didFullConnectionsFetch = false
-        var didFullOtherContactsFetch = false
-        let syncStartTime = Date().timeIntervalSince1970
+    @concurrent private func paginatedSync<Response: PaginatedPeopleResponse>(
+        source config: ContactSyncSource<Response>,
+        accountID: String,
+        syncer: BackgroundSyncer,
+        mailDB: MailDatabase?
+    ) async throws -> SyncResult {
+        var newSyncToken: String?
+        var needsFullFetch: Bool
 
-        let mailDB = try? await MailDatabase.shared(for: accountID)
+        let syncState = try? await mailDB?.dbPool.read { db in
+            try MailDatabaseQueries.syncState(in: db)
+        }
+        let syncToken = config.readSyncToken(syncState)
+        let tokenExpired = config.readSyncTokenTimestamp(syncState).map {
+            Date().timeIntervalSince1970 - $0 > Self.syncTokenMaxAge
+        } ?? false
+        needsFullFetch = syncToken == nil || tokenExpired
+        if tokenExpired {
+            Self.logger.info("\(config.label) sync token older than 6 days, forcing full re-fetch")
+        }
 
-        // 1. Fetch "My Contacts" via Connections
-        do {
-            let syncState = try? await mailDB?.dbPool.read { db in
-                try MailDatabaseQueries.syncState(in: db)
-            }
-            let syncToken = syncState?.contactsSyncToken
-            let tokenExpired = syncState?.contactsSyncTokenAt.map {
-                Date().timeIntervalSince1970 - $0 > Self.syncTokenMaxAge
-            } ?? false
-            var needsFullFetch = syncToken == nil || tokenExpired
-            if tokenExpired {
-                Self.logger.info("Contacts sync token older than 6 days, forcing full re-fetch")
-            }
+        if let syncToken, !needsFullFetch {
+            // Incremental sync — write per-page
+            do {
+                var pageToken: String? = nil
+                repeat {
+                    let encoded = syncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? syncToken
+                    var urlStr = config.incrementalURL(encoded)
+                    appendPageToken(pageToken, to: &urlStr)
+                    let response: Response = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
 
-            if let syncToken, !needsFullFetch {
-                // Incremental sync — write per-page
-                do {
-                    var pageToken: String? = nil
-                    repeat {
-                        let encoded = syncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? syncToken
-                        var urlStr = "\(Self.baseURL)/people/me/connections"
-                            + "?personFields=metadata,names,emailAddresses,photos&syncToken=\(encoded)"
-                            + "&pageSize=1000&sortOrder=LAST_MODIFIED_ASCENDING"
-                            + "&fields=\(Self.connectionsFields)"
-                        appendPageToken(pageToken, to: &urlStr)
-                        let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
-
-                        // Delete removed contacts from this page
-                        let deleted = (response.connections ?? [])
+                    if config.handleDeletes {
+                        let deleted = (response.persons ?? [])
                             .filter { $0.metadata?.deleted == true }
                             .flatMap { $0.emailAddresses?.compactMap { $0.value?.lowercased() } ?? [] }
                         if !deleted.isEmpty {
@@ -119,80 +136,160 @@ final class PeopleAPIService {
                             } catch {
                                 Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
                             }
-                            for email in deleted { ContactPhotoCache.shared.remove(email) }
+                            if config.evictPhotoCacheOnDelete {
+                                for email in deleted { ContactPhotoCache.shared.remove(email) }
+                            }
                         }
-
-                        // Upsert new/updated contacts from this page
-                        let nonDeleted = (response.connections ?? []).filter { $0.metadata?.deleted != true }
-                        let parsed = parseContacts(from: nonDeleted)
-                        do {
-                            try await syncer.upsertContacts(parsed)
-                        } catch {
-                            Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
-                        }
-
-                        pageToken = response.nextPageToken
-                        newContactsSyncToken = response.nextSyncToken ?? newContactsSyncToken
-                        if pageToken != nil {
-                            try? await Task.sleep(for: .milliseconds(100))
-                        }
-                    } while pageToken != nil
-                    contactsFetchSucceeded = true
-                    Self.logger.info("Contacts incremental sync completed")
-                } catch {
-                    let isGone = if case GmailAPIError.httpError(410, _) = error { true } else { false }
-                    if isGone {
-                        Self.logger.warning("Sync token expired, performing full re-fetch")
-                        try? await mailDB?.dbPool.write { db in
-                            try MailDatabaseQueries.updateSyncState({
-                                $0.contactsSyncToken = nil
-                                $0.contactsSyncTokenAt = nil
-                            }, in: db)
-                        }
-                        needsFullFetch = true
-                    } else {
-                        throw error
                     }
-                }
-            }
 
-            if needsFullFetch {
-                // Full fetch — write each page to DB as it arrives
-                newContactsSyncToken = nil
-                var totalStored = 0
-                var pageToken: String? = nil
-                do {
-                    repeat {
-                        var urlStr = "\(Self.baseURL)/people/me/connections"
-                            + "?personFields=metadata,names,emailAddresses,photos&pageSize=1000"
-                            + "&requestSyncToken=true&sortOrder=LAST_MODIFIED_ASCENDING"
-                            + "&fields=\(Self.connectionsFields)"
-                        appendPageToken(pageToken, to: &urlStr)
-                        let response: PeopleConnectionsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
-
-                        let parsed = parseContacts(from: response.connections ?? [])
-                        do {
+                    let nonDeleted = (response.persons ?? []).filter { $0.metadata?.deleted != true }
+                    let parsed = parseContacts(from: nonDeleted, source: config.source)
+                    do {
+                        if config.preservePhotosOnUpsert {
+                            try await syncer.upsertContactsPreservingPhotos(parsed)
+                        } else {
                             try await syncer.upsertContacts(parsed)
-                        } catch {
-                            Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
                         }
-                        totalStored += parsed.count
+                    } catch {
+                        Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
+                    }
 
-                        pageToken = response.nextPageToken
-                        newContactsSyncToken = response.nextSyncToken ?? newContactsSyncToken
-                        if pageToken != nil {
-                            try? await Task.sleep(for: .milliseconds(100))
-                        }
-                    } while pageToken != nil
-                    contactsFetchSucceeded = true
-                    didFullConnectionsFetch = true
-                    Self.logger.info("Full fetch: stored \(totalStored, privacy: .public) contacts from Connections")
-                } catch {
-                    Self.logger.error("Full Connections fetch failed: \(error, privacy: .public)")
-                    return
+                    pageToken = response.nextPageToken
+                    newSyncToken = response.nextSyncToken ?? newSyncToken
+                    if pageToken != nil {
+                        try? await Task.sleep(for: .milliseconds(100))
+                    }
+                } while pageToken != nil
+                Self.logger.info("\(config.label) incremental sync completed")
+            } catch {
+                let isGone = if case GmailAPIError.httpError(410, _) = error { true } else { false }
+                if isGone {
+                    Self.logger.warning("\(config.label) sync token expired, performing full re-fetch")
+                    try? await mailDB?.dbPool.write { db in
+                        try MailDatabaseQueries.updateSyncState({ config.clearSyncToken(&$0) }, in: db)
+                    }
+                    needsFullFetch = true
+                } else {
+                    throw error
                 }
             }
+        }
 
+        if needsFullFetch {
+            // Full fetch — write per-page
+            newSyncToken = nil
+            var totalStored = 0
+            var pageToken: String? = nil
+            repeat {
+                var urlStr = config.fullFetchURL()
+                appendPageToken(pageToken, to: &urlStr)
+                let response: Response = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
+
+                let parsed = parseContacts(from: response.persons ?? [], source: config.source)
+                do {
+                    if config.preservePhotosOnUpsert {
+                        try await syncer.upsertContactsPreservingPhotos(parsed)
+                    } else {
+                        try await syncer.upsertContacts(parsed)
+                    }
+                } catch {
+                    Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
+                }
+                totalStored += parsed.count
+
+                pageToken = response.nextPageToken
+                newSyncToken = response.nextSyncToken ?? newSyncToken
+                if pageToken != nil {
+                    try? await Task.sleep(for: .milliseconds(100))
+                }
+            } while pageToken != nil
+            Self.logger.info("\(config.label) full fetch: stored \(totalStored, privacy: .public) contacts")
+        }
+
+        // Save sync token after all pages succeeded
+        if let token = newSyncToken {
+            try? await mailDB?.dbPool.write { db in
+                try MailDatabaseQueries.updateSyncState({ config.saveSyncToken(&$0, token) }, in: db)
+            }
+        }
+
+        return needsFullFetch ? .fullFetch : .incremental
+    }
+
+    /// Fetches contacts from People API and persists them per-page.
+    @concurrent private func fetchAndStoreContacts(accountID: String, syncer: BackgroundSyncer) async {
+        let syncStartTime = Date().timeIntervalSince1970
+        let mailDB = try? await MailDatabase.shared(for: accountID)
+
+        let connectionsSource = ContactSyncSource(
+            label: "Contacts",
+            source: "people_api",
+            incrementalURL: { syncToken in
+                "\(Self.baseURL)/people/me/connections"
+                    + "?personFields=metadata,names,emailAddresses,photos&syncToken=\(syncToken)"
+                    + "&pageSize=1000&sortOrder=LAST_MODIFIED_ASCENDING"
+                    + "&fields=\(Self.connectionsFields)"
+            },
+            fullFetchURL: {
+                "\(Self.baseURL)/people/me/connections"
+                    + "?personFields=metadata,names,emailAddresses,photos&pageSize=1000"
+                    + "&requestSyncToken=true&sortOrder=LAST_MODIFIED_ASCENDING"
+                    + "&fields=\(Self.connectionsFields)"
+            },
+            readSyncToken: { $0?.contactsSyncToken },
+            readSyncTokenTimestamp: { $0?.contactsSyncTokenAt },
+            clearSyncToken: {
+                $0.contactsSyncToken = nil
+                $0.contactsSyncTokenAt = nil
+            },
+            saveSyncToken: {
+                $0.contactsSyncToken = $1
+                $0.contactsSyncTokenAt = Date().timeIntervalSince1970
+            },
+            handleDeletes: true,
+            evictPhotoCacheOnDelete: true,
+            preservePhotosOnUpsert: false,
+            responseType: PeopleConnectionsResponse.self
+        )
+
+        let otherContactsSource = ContactSyncSource(
+            label: "Other Contacts",
+            source: "people_api",
+            incrementalURL: { syncToken in
+                "\(Self.baseURL)/otherContacts"
+                    + "?readMask=metadata,names,emailAddresses&syncToken=\(syncToken)"
+                    + "&pageSize=1000&fields=\(Self.otherContactsFields)"
+            },
+            fullFetchURL: {
+                "\(Self.baseURL)/otherContacts"
+                    + "?readMask=metadata,names,emailAddresses&pageSize=1000"
+                    + "&requestSyncToken=true&fields=\(Self.otherContactsFields)"
+            },
+            readSyncToken: { $0?.otherContactsSyncToken },
+            readSyncTokenTimestamp: { $0?.otherContactsSyncTokenAt },
+            clearSyncToken: {
+                $0.otherContactsSyncToken = nil
+                $0.otherContactsSyncTokenAt = nil
+            },
+            saveSyncToken: {
+                $0.otherContactsSyncToken = $1
+                $0.otherContactsSyncTokenAt = Date().timeIntervalSince1970
+            },
+            handleDeletes: true,
+            evictPhotoCacheOnDelete: false,
+            preservePhotosOnUpsert: true,
+            responseType: OtherContactsResponse.self
+        )
+
+        // 1. Fetch "My Contacts" via Connections
+        var contactsFetchSucceeded = false
+        var didFullConnectionsFetch = false
+        do {
+            let result = try await paginatedSync(
+                source: connectionsSource, accountID: accountID, syncer: syncer, mailDB: mailDB
+            )
+            contactsFetchSucceeded = true
+            didFullConnectionsFetch = result == .fullFetch
         } catch {
             Self.logger.error("Connections fetch error: \(error, privacy: .public)")
         }
@@ -200,131 +297,17 @@ final class PeopleAPIService {
         // 2. Fetch "Other Contacts" (auto-created from email interactions)
         // Note: readMask omits "photos" — Other Contacts don't support photo fields.
         // Uses photo-preserving upsert to avoid overwriting Connections photos with nil.
+        var didFullOtherContactsFetch = false
         do {
-            let otherState = try? await mailDB?.dbPool.read { db in
-                try MailDatabaseQueries.syncState(in: db)
-            }
-            let otherSyncToken = otherState?.otherContactsSyncToken
-            let otherTokenExpired = otherState?.otherContactsSyncTokenAt.map {
-                Date().timeIntervalSince1970 - $0 > Self.syncTokenMaxAge
-            } ?? false
-            var needsFullOtherFetch = otherSyncToken == nil || otherTokenExpired
-            if otherTokenExpired {
-                Self.logger.info("Other Contacts sync token older than 6 days, forcing full re-fetch")
-            }
-
-            if let otherSyncToken, !needsFullOtherFetch {
-                // Incremental sync — write per-page
-                do {
-                    var pageToken: String? = nil
-                    repeat {
-                        let encoded = otherSyncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? otherSyncToken
-                        var urlStr = "\(Self.baseURL)/otherContacts"
-                            + "?readMask=metadata,names,emailAddresses&syncToken=\(encoded)"
-                            + "&pageSize=1000&fields=\(Self.otherContactsFields)"
-                        appendPageToken(pageToken, to: &urlStr)
-                        let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
-
-                        // Delete removed contacts from this page
-                        let deleted = (response.otherContacts ?? [])
-                            .filter { $0.metadata?.deleted == true }
-                            .flatMap { $0.emailAddresses?.compactMap { $0.value?.lowercased() } ?? [] }
-                        if !deleted.isEmpty {
-                            do {
-                                try await syncer.deleteContacts(emails: deleted)
-                            } catch {
-                                Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
-                            }
-                        }
-
-                        // Upsert non-deleted, preserving photos from Connections
-                        let nonDeleted = (response.otherContacts ?? []).filter { $0.metadata?.deleted != true }
-                        let parsed = parseContacts(from: nonDeleted)
-                        do {
-                            try await syncer.upsertContactsPreservingPhotos(parsed)
-                        } catch {
-                            Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
-                        }
-
-                        pageToken = response.nextPageToken
-                        newOtherSyncToken = response.nextSyncToken ?? newOtherSyncToken
-                        if pageToken != nil {
-                            try? await Task.sleep(for: .milliseconds(100))
-                        }
-                    } while pageToken != nil
-                    Self.logger.info("Other Contacts incremental sync completed")
-                } catch {
-                    let isGone = if case GmailAPIError.httpError(410, _) = error { true } else { false }
-                    if isGone {
-                        Self.logger.warning("Other Contacts sync token expired, performing full re-fetch")
-                        try? await mailDB?.dbPool.write { db in
-                            try MailDatabaseQueries.updateSyncState({
-                                $0.otherContactsSyncToken = nil
-                                $0.otherContactsSyncTokenAt = nil
-                            }, in: db)
-                        }
-                        needsFullOtherFetch = true
-                    } else {
-                        throw error
-                    }
-                }
-            }
-
-            if needsFullOtherFetch {
-                // Full fetch — write per-page with photo preservation
-                var pageToken: String? = nil
-                do {
-                    repeat {
-                        var urlStr = "\(Self.baseURL)/otherContacts"
-                            + "?readMask=metadata,names,emailAddresses&pageSize=1000"
-                            + "&requestSyncToken=true&fields=\(Self.otherContactsFields)"
-                        appendPageToken(pageToken, to: &urlStr)
-                        let response: OtherContactsResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
-
-                        let parsed = parseContacts(from: response.otherContacts ?? [])
-                        do {
-                            try await syncer.upsertContactsPreservingPhotos(parsed)
-                        } catch {
-                            Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
-                        }
-
-                        pageToken = response.nextPageToken
-                        newOtherSyncToken = response.nextSyncToken ?? newOtherSyncToken
-                        if pageToken != nil {
-                            try? await Task.sleep(for: .milliseconds(100))
-                        }
-                    } while pageToken != nil
-                    didFullOtherContactsFetch = true
-                } catch {
-                    Self.logger.error("Full Other Contacts fetch failed: \(error, privacy: .public)")
-                    return
-                }
-            }
-
+            let result = try await paginatedSync(
+                source: otherContactsSource, accountID: accountID, syncer: syncer, mailDB: mailDB
+            )
+            didFullOtherContactsFetch = result == .fullFetch
         } catch {
             Self.logger.error("Other Contacts fetch error: \(error, privacy: .public)")
         }
 
-        // 3. Advance sync tokens after all pages succeeded.
-        // Tokens are only available from the last page response — saving them here
-        // ensures we never advance a token without having stored all its contacts.
-        if let token = newContactsSyncToken {
-            try? await mailDB?.dbPool.write { db in
-                try MailDatabaseQueries.updateSyncState({
-                    $0.contactsSyncToken = token
-                    $0.contactsSyncTokenAt = Date().timeIntervalSince1970
-                }, in: db)
-            }
-        }
-        if let token = newOtherSyncToken {
-            try? await mailDB?.dbPool.write { db in
-                try MailDatabaseQueries.updateSyncState({
-                    $0.otherContactsSyncToken = token
-                    $0.otherContactsSyncTokenAt = Date().timeIntervalSince1970
-                }, in: db)
-            }
-        }
-        // 4. Purge stale people_api contacts after a full re-fetch.
+        // 3. Purge stale people_api contacts after a full re-fetch.
         // When both Connections and Other Contacts completed a full fetch, all live
         // contacts were upserted above — anything with updated_at < syncStartTime
         // no longer exists upstream and can be safely pruned.
@@ -352,82 +335,41 @@ final class PeopleAPIService {
         let mailDB = try? await MailDatabase.shared(for: accountID)
         let syncStartTime = Date().timeIntervalSince1970
 
+        let directorySource = ContactSyncSource(
+            label: "Directory",
+            source: "directory",
+            incrementalURL: { syncToken in
+                "\(Self.baseURL)/people:listDirectoryPeople"
+                    + "?sources=DIRECTORY_SOURCE_TYPE_DOMAIN_CONTACT"
+                    + "&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE"
+                    + "&readMask=metadata,names,emailAddresses,photos"
+                    + "&syncToken=\(syncToken)"
+                    + "&pageSize=1000&fields=\(Self.directoryFields)"
+            },
+            fullFetchURL: {
+                "\(Self.baseURL)/people:listDirectoryPeople"
+                    + "?sources=DIRECTORY_SOURCE_TYPE_DOMAIN_CONTACT"
+                    + "&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE"
+                    + "&readMask=metadata,names,emailAddresses,photos"
+                    + "&requestSyncToken=true&pageSize=1000"
+                    + "&fields=\(Self.directoryFields)"
+            },
+            readSyncToken: { $0?.directorySyncToken },
+            readSyncTokenTimestamp: { _ in nil },
+            clearSyncToken: { $0.directorySyncToken = nil },
+            saveSyncToken: { $0.directorySyncToken = $1 },
+            handleDeletes: false,
+            evictPhotoCacheOnDelete: false,
+            preservePhotosOnUpsert: false,
+            responseType: DirectoryPeopleResponse.self
+        )
+
         do {
-            let dirSyncToken: String? = try? await mailDB?.dbPool.read { db in
-                try MailDatabaseQueries.syncState(in: db)?.directorySyncToken
-            }
-            var newDirSyncToken: String?
-            var needsFullDirFetch = dirSyncToken == nil
-
-            if let dirSyncToken {
-                // Incremental sync — write per-page
-                do {
-                    var pageToken: String? = nil
-                    repeat {
-                        let encoded = dirSyncToken.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? dirSyncToken
-                        var urlStr = "\(Self.baseURL)/people:listDirectoryPeople"
-                            + "?sources=DIRECTORY_SOURCE_TYPE_DOMAIN_CONTACT"
-                            + "&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE"
-                            + "&readMask=metadata,names,emailAddresses,photos"
-                            + "&syncToken=\(encoded)"
-                            + "&pageSize=1000&fields=\(Self.directoryFields)"
-                        appendPageToken(pageToken, to: &urlStr)
-                        let response: DirectoryPeopleResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
-
-                        let parsed = parseContacts(from: response.people ?? [], source: "directory")
-                        do {
-                            try await syncer.upsertContacts(parsed)
-                        } catch {
-                            Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
-                        }
-
-                        pageToken = response.nextPageToken
-                        newDirSyncToken = response.nextSyncToken ?? newDirSyncToken
-                        if pageToken != nil {
-                            try? await Task.sleep(for: .milliseconds(100))
-                        }
-                    } while pageToken != nil
-                } catch {
-                    let isGone = if case GmailAPIError.httpError(410, _) = error { true } else { false }
-                    if isGone {
-                        try? await mailDB?.dbPool.write { db in
-                            try MailDatabaseQueries.updateSyncState({ $0.directorySyncToken = nil }, in: db)
-                        }
-                        needsFullDirFetch = true
-                    } else {
-                        throw error
-                    }
-                }
-            }
-
-            if needsFullDirFetch {
-                // Full fetch — write per-page
-                var pageToken: String? = nil
-                repeat {
-                    var urlStr = "\(Self.baseURL)/people:listDirectoryPeople"
-                        + "?sources=DIRECTORY_SOURCE_TYPE_DOMAIN_CONTACT"
-                        + "&sources=DIRECTORY_SOURCE_TYPE_DOMAIN_PROFILE"
-                        + "&readMask=metadata,names,emailAddresses,photos"
-                        + "&requestSyncToken=true&pageSize=1000"
-                        + "&fields=\(Self.directoryFields)"
-                    appendPageToken(pageToken, to: &urlStr)
-                    let response: DirectoryPeopleResponse = try await GmailAPIClient.shared.requestURL(urlStr, accountID: accountID)
-
-                    let parsed = parseContacts(from: response.people ?? [], source: "directory")
-                    do {
-                        try await syncer.upsertContacts(parsed)
-                    } catch {
-                        Self.logger.error("Contact DB write failed: \(error, privacy: .public)")
-                    }
-
-                    pageToken = response.nextPageToken
-                    newDirSyncToken = response.nextSyncToken ?? newDirSyncToken
-                    if pageToken != nil {
-                        try? await Task.sleep(for: .milliseconds(100))
-                    }
-                } while pageToken != nil
-
-                // Purge directory contacts not seen in this full re-fetch
+            let result = try await paginatedSync(
+                source: directorySource, accountID: accountID, syncer: syncer, mailDB: mailDB
+            )
+            // Purge directory contacts not seen in this full re-fetch
+            if result == .fullFetch {
                 let pruned = try? await mailDB?.dbPool.write { db -> Int in
                     try ContactRecord
                         .filter(Column("source") == "directory")
@@ -438,14 +380,6 @@ final class PeopleAPIService {
                     Self.logger.info("Pruned \(pruned, privacy: .public) stale directory contacts")
                 }
             }
-
-            // Persist the sync token after all pages succeeded.
-            if let token = newDirSyncToken {
-                try? await mailDB?.dbPool.write { db in
-                    try MailDatabaseQueries.updateSyncState({ $0.directorySyncToken = token }, in: db)
-                }
-            }
-
         } catch {
             if case GmailAPIError.httpError(403, _) = error {
                 Self.logger.info("Directory contacts skipped — scope not granted")
@@ -523,22 +457,31 @@ final class PeopleAPIService {
 
 // MARK: - People API response models
 
-struct PeopleConnectionsResponse: Decodable {
+private protocol PaginatedPeopleResponse: Decodable, Sendable {
+    var persons: [PersonResource]? { get }
+    var nextPageToken: String? { get }
+    var nextSyncToken: String? { get }
+}
+
+struct PeopleConnectionsResponse: Decodable, Sendable, PaginatedPeopleResponse {
     let connections: [PersonResource]?
     let nextPageToken: String?
     let nextSyncToken: String?
+    var persons: [PersonResource]? { connections }
 }
 
-struct OtherContactsResponse: Decodable {
+struct OtherContactsResponse: Decodable, Sendable, PaginatedPeopleResponse {
     let otherContacts: [PersonResource]?
     let nextPageToken: String?
     let nextSyncToken: String?
+    var persons: [PersonResource]? { otherContacts }
 }
 
-struct DirectoryPeopleResponse: Decodable {
+struct DirectoryPeopleResponse: Decodable, Sendable, PaginatedPeopleResponse {
     let people: [PersonResource]?
     let nextPageToken: String?
     let nextSyncToken: String?
+    var persons: [PersonResource]? { people }
 }
 
 struct PersonMetadata: Decodable {

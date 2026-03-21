@@ -31,21 +31,11 @@ final class AuthViewModel {
             // 3. Save token to Keychain
             try await TokenStore.shared.save(token, for: userInfo.email)
 
-            // 4. Fetch Gmail profile (message counts)
-            let profile = try await GmailProfileService.shared.getProfile(accountID: userInfo.email)
-
-            // 5. Fetch signature (best-effort)
-            let signature = try? await GmailProfileService.shared.getSignature(accountID: userInfo.email)
-
-            // 6. Persist account metadata
+            // 4. Persist account metadata
             let account = GmailAccount(
                 email:             userInfo.email,
                 displayName:       userInfo.name ?? userInfo.email,
-                profilePictureURL: userInfo.picture.flatMap { URL(string: $0) },
-                messagesTotal:     profile.messagesTotal,
-                threadsTotal:      profile.threadsTotal,
-                signature:         signature,
-                unreadCount:       0
+                profilePictureURL: userInfo.picture.flatMap { URL(string: $0) }
             )
             AccountStore.shared.add(account)
             accounts = AccountStore.shared.accounts

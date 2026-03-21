@@ -282,7 +282,6 @@ struct CalendarWeekView: View {
         timedEvents: [CalendarEvent],
         dayColumnWidth: CGFloat
     ) -> some View {
-        let startOfDay = Calendar.current.startOfDay(for: day)
         let groups = dayIndex < weekCache.overlapGroupsByDay.count ? weekCache.overlapGroupsByDay[dayIndex] : []
         ForEach(Array(groups.enumerated()), id: \.element.first?.id) { groupIndex, group in
             ForEach(Array(group.enumerated()), id: \.element.id) { colIndex, event in
@@ -292,7 +291,7 @@ struct CalendarWeekView: View {
                     colIndex: colIndex,
                     colCount: group.count,
                     dayColumnWidth: dayColumnWidth,
-                    startOfDay: startOfDay
+                    startOfDay: day
                 )
             }
         }
@@ -403,15 +402,8 @@ struct CalendarWeekView: View {
         return weekday == 1 || weekday == 7
     }
 
-    private static let hourLabels: [String] = (0..<24).map { hour in
-        guard hour != 0 else { return "" }
-        let components = DateComponents(hour: hour)
-        let date = Calendar.current.date(from: components) ?? Date()
-        return date.formattedCalendarHour
-    }
-
     private func hourLabel(for hour: Int) -> String {
-        Self.hourLabels[hour]
+        CalendarLayout.hourLabels[hour]
     }
 
     private func dateForTap(hour: Int) -> Date {

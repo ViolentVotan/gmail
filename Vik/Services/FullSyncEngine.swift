@@ -169,6 +169,25 @@ actor FullSyncEngine {
         restartTask = nil
     }
 
+    /// Cancel and nil all task references except `restartTask`.
+    /// Used in the 410/restart path so that `restartTask` is already assigned
+    /// before other tasks are cancelled — prevents a race where `stop()` sees
+    /// `restartTask == nil` and doesn't wait, allowing a zombie engine.
+    private func cancelNonRestartTasks() {
+        syncTask?.cancel()
+        bodyPrefetchTask?.cancel()
+        incrementalTask?.cancel()
+        triggeredSyncTask?.cancel()
+        contactTask?.cancel()
+        labelRefreshTask?.cancel()
+        syncTask = nil
+        bodyPrefetchTask = nil
+        incrementalTask = nil
+        triggeredSyncTask = nil
+        contactTask = nil
+        labelRefreshTask = nil
+    }
+
     /// Request an immediate incremental sync (e.g., user tapped sync bubble).
     /// Also accepts `.error` state to restart the full sync lifecycle after failure.
     func triggerIncrementalSync() {
@@ -668,8 +687,6 @@ actor FullSyncEngine {
                 // Note: this catch only fires for errors from history.list — getMessages
                 // failures (e.g. deleted messages) surface as BatchFetchResult.failedIDs,
                 // not thrown errors, so they won't trigger this path.
-                // Cancel all tasks directly — can't use stop() inside restartTask
-                // because stop() awaits restartTask.value, causing self-deadlock.
                 Self.logger.warning("History ID expired, restarting full sync")
                 await writeSyncState { state in
                     state.initialSyncComplete = false
@@ -677,10 +694,16 @@ actor FullSyncEngine {
                     state.lastHistoryId = nil
                     state.syncedMessageCount = 0
                 }
-                cancelAllTasks()
+                // Assign restartTask BEFORE cancelling other tasks so that a
+                // concurrent stop() always sees a non-nil restartTask to await.
+                // Cancel non-restart tasks inside the task to keep the
+                // assignment and cancellation atomic from stop()'s perspective.
+                // Do NOT remove from activeEngines — start() will overwrite
+                // the entry atomically, avoiding a registry race.
                 state = .idle
                 restartTask = Task { [weak self] in
                     guard let self else { return }
+                    await self.cancelNonRestartTasks()
                     guard !Task.isCancelled else { return }
                     // Yield to let any concurrent stop() complete before restarting
                     try? await Task.sleep(for: .milliseconds(50))

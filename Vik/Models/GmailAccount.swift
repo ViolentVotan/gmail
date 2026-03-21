@@ -9,10 +9,6 @@ struct GmailAccount: Identifiable, Codable, Equatable, Sendable {
     let email:             String
     let displayName:       String
     let profilePictureURL: URL?
-    var messagesTotal:     Int
-    var threadsTotal:      Int
-    var signature:         String?
-    var unreadCount:       Int
     var accentColor:       String?
 }
 

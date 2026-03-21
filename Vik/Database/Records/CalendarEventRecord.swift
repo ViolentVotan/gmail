@@ -40,3 +40,13 @@ struct CalendarEventRecord: Codable, Identifiable, FetchableRecord, PersistableR
     var extendedPropertiesJson: String?
     var updatedAt: Double
 }
+
+// MARK: - GRDB Associations
+
+extension CalendarEventRecord {
+    static let attendees = hasMany(
+        CalendarAttendeeRecord.self,
+        key: "attendees",
+        using: ForeignKey(["event_id", "calendar_id", "account_id"])
+    )
+}

@@ -101,20 +101,19 @@ struct ContentView: View {
                     sidebarWidth: sidebarWidth
                 )
 
-                ZStack {
+                if coordinator.calendar.viewMode == .calendar,
+                   let calendarVM = coordinator.calendar.calendarViewModel {
+                    CalendarContainer(
+                        coordinator: coordinator,
+                        calendarVM: calendarVM,
+                        showNewCalendarEvent: $showNewCalendarEvent,
+                        newCalendarEventDraft: $newCalendarEventDraft,
+                        newEventStartTime: $newEventStartTime
+                    )
+                    .transition(.opacity)
+                } else {
                     listDetailSplit
-                        .opacity(coordinator.calendar.viewMode == .mail ? 1 : 0)
-
-                    if let calendarVM = coordinator.calendar.calendarViewModel {
-                        CalendarContainer(
-                            coordinator: coordinator,
-                            calendarVM: calendarVM,
-                            showNewCalendarEvent: $showNewCalendarEvent,
-                            newCalendarEventDraft: $newCalendarEventDraft,
-                            newEventStartTime: $newEventStartTime
-                        )
-                        .opacity(coordinator.calendar.viewMode == .calendar ? 1 : 0)
-                    }
+                        .transition(.opacity)
                 }
             }
             .animation(reduceMotion ? nil : VikAnimation.folderSwitch, value: coordinator.calendar.viewMode)

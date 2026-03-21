@@ -80,24 +80,30 @@ final class OfflineActionQueue {
             }
             var succeeded = 0
             var hitError = false
-            while let action = pendingActions.first {
-                guard !action.messageIds.isEmpty else { removeAction(action); continue }
-                do {
-                    try await executeAction(action)
-                    removeAction(action)
-                    succeeded += 1
-                } catch {
-                    if case .httpError(404, _) = error as? GmailAPIError {
+            // Drain each account independently so one account's failure
+            // doesn't block other accounts from making progress.
+            let accountIDs = Array(store.itemsByAccount.keys)
+            for accountID in accountIDs {
+                guard !Task.isCancelled else { break }
+                while let action = store.itemsByAccount[accountID]?.first {
+                    guard !action.messageIds.isEmpty else { removeAction(action); continue }
+                    do {
+                        try await executeAction(action)
                         removeAction(action)
-                    } else if case .partialFailure = error as? GmailAPIError {
-                        // Partial success: some messages deleted. Remove action to avoid
-                        // infinite retry loop (deleted IDs return 404 on next attempt).
-                        // Failed deletions will be retried on next full sync.
-                        removeAction(action)
-                    } else {
-                        Self.logger.warning("Drain error: \(error.localizedDescription, privacy: .public), retrying in \(self.retryDelay)s")
-                        hitError = true
-                        break
+                        succeeded += 1
+                    } catch {
+                        if case .httpError(404, _) = error as? GmailAPIError {
+                            removeAction(action)
+                        } else if case .partialFailure = error as? GmailAPIError {
+                            // Partial success: some messages deleted. Remove action to avoid
+                            // infinite retry loop (deleted IDs return 404 on next attempt).
+                            // Failed deletions will be retried on next full sync.
+                            removeAction(action)
+                        } else {
+                            Self.logger.warning("Drain error for account \(accountID, privacy: .private): \(error.localizedDescription, privacy: .public), continuing with next account")
+                            hitError = true
+                            break
+                        }
                     }
                 }
             }

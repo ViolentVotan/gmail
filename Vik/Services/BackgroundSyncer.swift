@@ -304,7 +304,7 @@ actor BackgroundSyncer {
                 || existing.unsubscribeUrl != record.unsubscribeUrl
             let contentChanged = headersChanged || fieldsChanged || metaChanged
 
-            let bodyChanged: Bool = (record.fullBodyFetched && !existing.fullBodyFetched)
+            let bodyChanged: Bool = (record.fullBodyFetched == true && existing.fullBodyFetched != true)
                 || (record.bodyHtml != nil && existing.bodyHtml != record.bodyHtml)
                 || (record.bodyPlain != nil && existing.bodyPlain != record.bodyPlain)
 
@@ -325,7 +325,7 @@ actor BackgroundSyncer {
             if contentChanged || bodyChanged || labelsChanged {
                 // Preserve body if the new record doesn't have it but the old one does
                 var toSave = record
-                if !record.fullBodyFetched && existing.fullBodyFetched {
+                if record.fullBodyFetched != true && existing.fullBodyFetched == true {
                     toSave.bodyHtml = existing.bodyHtml
                     toSave.bodyPlain = existing.bodyPlain
                     toSave.fullBodyFetched = true

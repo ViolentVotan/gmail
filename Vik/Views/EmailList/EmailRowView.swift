@@ -294,7 +294,7 @@ struct EmailRowView: View, Equatable {
         }
         .background(PopoverAnchor(holder: popoverHolder))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(email.sender.name), \(email.subject), \(email.preview), \(email.date.formatted())")
+        .accessibilityLabel("\(email.sender.name), \(email.subject), \(email.preview), \(email.date.formattedRelative)")
         .accessibilityValue(email.isRead ? "Read" : "Unread")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityHint(email.isStarred ? "Starred" : "Not starred")

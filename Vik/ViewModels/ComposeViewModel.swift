@@ -103,6 +103,7 @@ final class ComposeViewModel {
             onConfirm: { [weak self] in
                 Task { @MainActor in
                     self?.isAwaitingUndoSend = false
+                    var sendSucceeded = false
                     do {
                         _ = try await GmailSendService.shared.send(
                             from:               capturedFrom,
@@ -126,18 +127,9 @@ final class ComposeViewModel {
                             try? await GmailDraftService.shared.deleteDraft(draftID: draftID, accountID: capturedAccountID)
                         }
                         self?.isSent = true
+                        sendSucceeded = true
                         SoundManager.play(.sent)
                         VikHaptic.levelChange()
-                        // Clean up reply draft references if this was a reply send
-                        if let store = capturedReplyCleanupMailStore {
-                            if let tid = capturedThreadID {
-                                store.replyDrafts.removeValue(forKey: tid)
-                                store.saveReplyDrafts()
-                            }
-                            if let gid = capturedReplyCleanupDraftID {
-                                store.gmailDrafts.removeAll { $0.gmailDraftID == gid }
-                            }
-                        }
                     } catch let apiError as GmailAPIError {
                         if case .offline = apiError {
                             // Offline — build the raw MIME payload and queue for later
@@ -165,6 +157,7 @@ final class ComposeViewModel {
                                 )
                                 OfflineActionQueue.shared.enqueue(action)
                                 self?.isSent = true
+                                sendSucceeded = true
                                 ToastManager.shared.show(message: "Email queued — will send when online")
                             } catch {
                                 self?.error = error.localizedDescription
@@ -174,6 +167,18 @@ final class ComposeViewModel {
                         }
                     } catch {
                         self?.error = error.localizedDescription
+                    }
+                    // Clean up reply draft references after any successful send
+                    // (online or offline-queued). Uses strongly captured values so
+                    // cleanup runs even if self (ComposeViewModel) was deallocated.
+                    if sendSucceeded, let store = capturedReplyCleanupMailStore {
+                        if let tid = capturedThreadID {
+                            store.replyDrafts.removeValue(forKey: tid)
+                            store.saveReplyDrafts()
+                        }
+                        if let gid = capturedReplyCleanupDraftID {
+                            store.gmailDrafts.removeAll { $0.gmailDraftID == gid }
+                        }
                     }
                     self?.isSending = false
                 }

@@ -303,17 +303,6 @@ actor AttachmentDatabase {
         return sqlite3_step(stmt) == SQLITE_ROW
     }
 
-    // MARK: - Message-level check
-
-    func hasMessageAttachments(messageId: String) -> Bool {
-        let sql = "SELECT 1 FROM attachments WHERE messageId = ? LIMIT 1"
-        var stmt: OpaquePointer?
-        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return false }
-        defer { sqlite3_finalize(stmt) }
-        bindText(stmt, 1, messageId)
-        return sqlite3_step(stmt) == SQLITE_ROW
-    }
-
     // MARK: - Retry
 
     func resetFailedForRetry(maxRetries: Int, accountID: String) {

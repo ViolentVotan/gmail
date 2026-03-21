@@ -82,7 +82,7 @@ final class EmailDetailViewModel {
                 try MailDatabaseQueries.messagesForThread(id, in: db)
             }
             if let records = threadMessages, !records.isEmpty {
-                let allHaveBodies = records.allSatisfy { $0.fullBodyFetched }
+                let allHaveBodies = records.allSatisfy { $0.fullBodyFetched == true }
                 let gmailMessages = records.map { $0.toGmailMessage() }
                 // Pre-analyze trackers so resolvedMessageHTML is set in the same
                 // main-actor turn as thread — avoids a redundant WebView reload.

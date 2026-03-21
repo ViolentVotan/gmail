@@ -268,11 +268,7 @@ final class GmailAPIClient {
         accessToken: String
     ) async throws(GmailAPIError) -> (T, String?)? {
         var fullPath = path
-        if let fields {
-            let separator = fullPath.contains("?") ? "&" : "?"
-            let encoded = fields.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? fields
-            fullPath += "\(separator)fields=\(encoded)"
-        }
+        Self.appendFields(fields, to: &fullPath)
         guard let url = URL(string: baseURL + fullPath) else { throw .invalidURL }
 
         var request = URLRequest(url: url)
@@ -835,6 +831,15 @@ final class GmailAPIClient {
         #endif
     }
 
+    // MARK: - Query helpers
+
+    nonisolated private static func appendFields(_ fields: String?, to path: inout String) {
+        guard let fields else { return }
+        let separator = path.contains("?") ? "&" : "?"
+        let encoded = fields.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? fields
+        path += "\(separator)fields=\(encoded)"
+    }
+
     // MARK: - HTTP layer
 
     /// Low-level retry loop handling network errors, retriable status codes (5xx),
@@ -863,11 +868,7 @@ final class GmailAPIClient {
         accountID: String
     ) async throws(GmailAPIError) -> (Data, Int, [String: String]) {
         var fullPath = path
-        if let fields {
-            let separator = fullPath.contains("?") ? "&" : "?"
-            let encoded = fields.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? fields
-            fullPath += "\(separator)fields=\(encoded)"
-        }
+        Self.appendFields(fields, to: &fullPath)
         guard let url = URL(string: baseURL + fullPath) else { throw .invalidURL }
 
         var request = URLRequest(url: url)
