@@ -98,6 +98,7 @@ struct MonthSpanningLayout: Sendable {
 struct MonthDayCellContent: Identifiable {
     var id: Date { date }
     let date: Date
+    let dayNumber: Int
     let visibleChips: [CalendarEvent]
     let visibleSpanningBarCount: Int
     let overflowCount: Int
@@ -135,7 +136,7 @@ struct CalendarMonthView: View {
 
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 0) {
-                    ForEach(Array(cachedWeeks.enumerated()), id: \.element.first) { weekIndex, weekDays in
+                    ForEach(Array(cachedWeeks.enumerated()), id: \.offset) { weekIndex, weekDays in
                         if weekIndex > 0 {
                             Divider()
                         }
@@ -323,6 +324,7 @@ struct CalendarMonthView: View {
 
             return MonthDayCellContent(
                 date: date,
+                dayNumber: cal.component(.day, from: date),
                 visibleChips: visibleChips,
                 visibleSpanningBarCount: visibleSpanCount,
                 overflowCount: chipOverflow + spanOverflow,
@@ -393,7 +395,7 @@ private struct CalendarMonthDayCell: View {
     }
 
     private var dayNumber: some View {
-        let dayText = "\(Calendar.current.component(.day, from: content.date))"
+        let dayText = "\(content.dayNumber)"
 
         return Button {
             withAnimation(VikAnimation.springSnappy) {

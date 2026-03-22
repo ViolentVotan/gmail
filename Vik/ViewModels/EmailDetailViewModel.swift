@@ -38,6 +38,9 @@ final class EmailDetailViewModel {
 
     var blockedTrackerCount: Int { trackerResult?.trackerCount ?? 0 }
     var hasBlockedTrackers: Bool { !allowTrackers && (trackerResult?.hasTrackers ?? false) }
+    var groupedTrackers: [TrackerBannerView.TrackerGroup] {
+        TrackerBannerView.TrackerGroup.group(from: trackerResult?.trackers ?? [])
+    }
 
     @ObservationIgnored let accountID: String
     @ObservationIgnored let api: any MessageFetching
@@ -46,6 +49,7 @@ final class EmailDetailViewModel {
     @ObservationIgnored var mailDatabase: MailDatabase?
     @ObservationIgnored private let backgroundTasks: Mutex<[Task<Void, Never>]> = Mutex([])
     @ObservationIgnored private var calendarInviteTask: Task<Void, Never>?
+    @ObservationIgnored private var lastPrecomputedInput: [String: String] = [:]
 
     // MARK: - Attachment state
 
@@ -531,9 +535,13 @@ final class EmailDetailViewModel {
 
     /// Pre-computes full HTML and quoted-content-stripped parts for all thread messages.
     /// Call after resolvedMessageHTML is updated so rendering can skip regex work.
+    /// Skips messages whose input HTML hasn't changed since last computation.
     private func precomputeHTMLParts() {
         guard let messages = thread?.messages else { return }
         for message in messages {
+            let inputHTML = resolvedMessageHTML[message.id] ?? message.htmlBody ?? ""
+            if lastPrecomputedInput[message.id] == inputHTML,
+               precomputedHTMLParts[message.id] != nil { continue }
             let html = GmailThreadMessageView.computeFullHTML(
                 message: message,
                 resolvedHTML: resolvedMessageHTML[message.id]
@@ -545,6 +553,7 @@ final class EmailDetailViewModel {
                 originalHTML: parts.original,
                 quotedHTML: parts.quoted
             )
+            lastPrecomputedInput[message.id] = inputHTML
         }
     }
 

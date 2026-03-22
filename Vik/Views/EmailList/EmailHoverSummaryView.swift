@@ -26,7 +26,7 @@ struct EmailHoverSummaryView: View {
                         .lineLimit(2)
                 }
                 Spacer(minLength: 0)
-                Text(email.date.formatted(date: .abbreviated, time: .shortened))
+                Text(email.date.formattedMedium)
                     .font(Typography.captionSmallRegular)
                     .foregroundStyle(.tertiary)
             }

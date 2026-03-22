@@ -250,6 +250,12 @@ struct AttachmentPreviewView: View {
 private struct PDFKitView: NSViewRepresentable {
     let data: Data
 
+    final class Coordinator {
+        var lastData: Data?
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeNSView(context: Context) -> PDFView {
         let view = PDFView()
         view.autoScales = true
@@ -259,11 +265,13 @@ private struct PDFKitView: NSViewRepresentable {
         if let document = PDFDocument(data: data) {
             view.document = document
         }
+        context.coordinator.lastData = data
         return view
     }
 
     func updateNSView(_ nsView: PDFView, context: Context) {
-        // Always update — data may have changed when previewing a different attachment
+        guard data != context.coordinator.lastData else { return }
+        context.coordinator.lastData = data
         if let document = PDFDocument(data: data) {
             nsView.document = document
         }

@@ -85,12 +85,9 @@ actor QuotaTracker {
     private func pruneIfNeeded() {
         let cutoff = Date().addingTimeInterval(-60)
         guard let oldest = ledger.first, oldest.timestamp < cutoff else { return }
-        var removed = 0
-        ledger.removeAll { entry in
-            guard entry.timestamp < cutoff else { return false }
-            removed += entry.units
-            return true
+        while let first = ledger.first, first.timestamp < cutoff {
+            _cachedSpend -= first.units
+            ledger.removeFirst()
         }
-        _cachedSpend -= removed
     }
 }

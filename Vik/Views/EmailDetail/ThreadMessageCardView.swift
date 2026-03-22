@@ -53,6 +53,8 @@ struct ThreadMessageCardView: View, Equatable {
     private let cachedHTMLParts: (original: String, quoted: String?)
     private let cachedRecipientsLine: String
     private let cachedFormattedDate: String?
+    private let cachedHasRemoteImages: Bool
+    private let cachedCollapsedAttachmentSummary: String
 
     init(
         message: GmailMessage,
@@ -144,6 +146,16 @@ struct ThreadMessageCardView: View, Equatable {
         }
 
         self.cachedFormattedDate = message.date?.formattedRelative
+        self.cachedHasRemoteImages = cachedFullHTML.range(of: #"<img[^>]+src\s*=\s*["']https?://"#, options: .regularExpression) != nil
+
+        let attNames = attachmentPairs.prefix(2).map { pair in
+            let name = pair.0.name
+            return name.count > 20 ? String(name.prefix(17)) + "..." : name
+        }
+        let attRemaining = attachmentPairs.count - attNames.count
+        self.cachedCollapsedAttachmentSummary = attRemaining > 0
+            ? attNames.joined(separator: ", ") + ", and \(attRemaining) more"
+            : attNames.joined(separator: ", ")
     }
 
     // MARK: - Snippet text
@@ -164,23 +176,11 @@ struct ThreadMessageCardView: View, Equatable {
     }
 
     /// True when the email body contains at least one remote image reference (http/https src).
-    private var hasRemoteImages: Bool {
-        cachedFullHTML.range(of: #"<img[^>]+src\s*=\s*["']https?://"#, options: .regularExpression) != nil
-    }
+    private var hasRemoteImages: Bool { cachedHasRemoteImages }
 
     // MARK: - Collapsed Attachment Summary
 
-    private var collapsedAttachmentSummary: String {
-        let names = attachmentPairs.prefix(2).map { pair in
-            let name = pair.0.name
-            return name.count > 20 ? String(name.prefix(17)) + "..." : name
-        }
-        let remaining = attachmentPairs.count - names.count
-        if remaining > 0 {
-            return names.joined(separator: ", ") + ", and \(remaining) more"
-        }
-        return names.joined(separator: ", ")
-    }
+    private var collapsedAttachmentSummary: String { cachedCollapsedAttachmentSummary }
 
     // MARK: - Body
 

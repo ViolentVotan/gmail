@@ -28,7 +28,9 @@ final class EmailContentCache: Sendable {
     func get(_ threadID: String) -> ThreadContent? {
         storage.withLock { s in
             guard s.entries[threadID] != nil else { return nil }
-            s.accessOrder.removeAll { $0 == threadID }
+            if let idx = s.accessOrder.firstIndex(of: threadID) {
+                s.accessOrder.remove(at: idx)
+            }
             s.accessOrder.append(threadID)
             return s.entries[threadID]
         }
@@ -37,7 +39,9 @@ final class EmailContentCache: Sendable {
     func set(_ threadID: String, content: ThreadContent) {
         storage.withLock { s in
             s.entries[threadID] = content
-            s.accessOrder.removeAll { $0 == threadID }
+            if let idx = s.accessOrder.firstIndex(of: threadID) {
+                s.accessOrder.remove(at: idx)
+            }
             s.accessOrder.append(threadID)
             while s.entries.count > s.maxEntries, let oldest = s.accessOrder.first {
                 s.accessOrder.removeFirst()

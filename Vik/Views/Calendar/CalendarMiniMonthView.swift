@@ -8,6 +8,7 @@ struct CalendarMiniMonthView: View {
     @State private var cachedWeeks: [[Date?]] = []
     @State private var cachedMonth: Int = -1
     @State private var cachedYear: Int = -1
+    @State private var selectedWeekIndex: Int? = nil
 
     private let dayColumns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
     private static let daySymbols: [String] = {
@@ -84,7 +85,7 @@ struct CalendarMiniMonthView: View {
         GlassEffectContainer {
             VStack(spacing: 2) {
                 ForEach(cachedWeeks.indices, id: \.self) { weekIndex in
-                    weekRow(cachedWeeks[weekIndex], isSelectedWeek: isSelectedWeek(cachedWeeks[weekIndex]))
+                    weekRow(cachedWeeks[weekIndex], isSelectedWeek: weekIndex == selectedWeekIndex)
                 }
             }
         }
@@ -114,10 +115,15 @@ struct CalendarMiniMonthView: View {
         )
     }
 
+    @ViewBuilder
     private func dayCell(_ date: Date, inSelectedWeek: Bool) -> some View {
+        let cal = Calendar.current
         MiniMonthDayCell(
             date: date,
-            selectedDate: viewModel.selectedDate,
+            dayNumber: cal.component(.day, from: date),
+            isToday: cal.isDateInToday(date),
+            isSelected: cal.isDate(date, inSameDayAs: viewModel.selectedDate),
+            isInCurrentMonth: cal.isDate(date, equalTo: viewModel.selectedDate, toGranularity: .month),
             onSelectDate: { viewModel.selectDate($0) }
         )
     }
@@ -128,18 +134,19 @@ struct CalendarMiniMonthView: View {
         viewModel.selectedDate.formattedMonthYear
     }
 
-    private func isSelectedWeek(_ days: [Date?]) -> Bool {
-        days.compactMap { $0 }.contains { Calendar.current.isDate($0, equalTo: viewModel.selectedDate, toGranularity: .weekOfYear) }
-    }
-
     private func recomputeWeeksIfNeeded() {
         let cal = Calendar.current
         let month = cal.component(.month, from: viewModel.selectedDate)
         let year = cal.component(.year, from: viewModel.selectedDate)
-        guard month != cachedMonth || year != cachedYear else { return }
-        cachedMonth = month
-        cachedYear = year
-        cachedWeeks = weeksInMonth()
+        let needsFullRecompute = month != cachedMonth || year != cachedYear
+        if needsFullRecompute {
+            cachedMonth = month
+            cachedYear = year
+            cachedWeeks = weeksInMonth()
+        }
+        selectedWeekIndex = cachedWeeks.firstIndex { days in
+            days.compactMap { $0 }.contains { cal.isDate($0, equalTo: viewModel.selectedDate, toGranularity: .weekOfYear) }
+        }
     }
 
     private func weeksInMonth() -> [[Date?]] {
@@ -178,23 +185,22 @@ struct CalendarMiniMonthView: View {
 /// Extracted day cell with local hover state to avoid invalidating the entire mini-month grid on hover.
 private struct MiniMonthDayCell: View {
     let date: Date
-    let selectedDate: Date
+    let dayNumber: Int
+    let isToday: Bool
+    let isSelected: Bool
+    let isInCurrentMonth: Bool
     let onSelectDate: (Date) -> Void
 
     @State private var isHovered = false
 
     var body: some View {
-        let cal = Calendar.current
-        let isToday = cal.isDateInToday(date)
-        let isSelected = cal.isDate(date, inSameDayAs: selectedDate)
-        let isInCurrentMonth = cal.isDate(date, equalTo: selectedDate, toGranularity: .month)
 
         Button {
             withAnimation(VikAnimation.springSnappy) {
                 onSelectDate(date)
             }
         } label: {
-            Text("\(cal.component(.day, from: date))")
+            Text("\(dayNumber)")
                 .font(isToday ? Typography.calendarMiniDay.bold() : Typography.calendarMiniDay)
                 .foregroundStyle(dayTextColor(isToday: isToday, isSelected: isSelected, isInMonth: isInCurrentMonth))
                 .frame(width: CalendarLayout.miniMonthDaySize, height: CalendarLayout.miniMonthDaySize)

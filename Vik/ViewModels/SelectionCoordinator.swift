@@ -121,7 +121,10 @@ final class SelectionCoordinator {
 
     /// Recomputes `selectedEmails` from `displayedEmails` filtered by `selectedEmailIDs`.
     private func recomputeSelectedEmails() {
-        selectedEmails = displayedEmails.filter { selectedEmailIDs.contains($0.id.uuidString) }
+        let new = displayedEmails.filter { selectedEmailIDs.contains($0.id.uuidString) }
+        if new.map(\.id) != selectedEmails.map(\.id) {
+            selectedEmails = new
+        }
     }
 
     /// O(1) index lookup for a given email ID.

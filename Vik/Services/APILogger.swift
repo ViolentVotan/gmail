@@ -88,7 +88,9 @@ final class APILogger {
     private let maxEntries = 200
 
     func log(_ entry: APILogEntry) {
-        if entries.count >= maxEntries { entries.removeFirst() }
+        if entries.count >= maxEntries {
+            entries.removeFirst(maxEntries / 4)
+        }
         entries.append(entry)
     }
 

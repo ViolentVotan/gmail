@@ -23,6 +23,7 @@ struct CalendarWeekView: View {
         var todayIndex: Int? = nil
         var weekendIndices: Set<Int> = []
         var dayNumbers: [Int] = []
+        var weekdayAbbrevs: [String] = []
     }
 
     @State private var weekCache = WeekLayoutCache()
@@ -146,7 +147,7 @@ struct CalendarWeekView: View {
 
     private func dayHeader(for date: Date, index: Int, width: CGFloat) -> some View {
         let isToday = index == weekCache.todayIndex
-        let weekdayAbbrev = weekdayAbbreviation(for: date)
+        let weekdayAbbrev = index < weekCache.weekdayAbbrevs.count ? weekCache.weekdayAbbrevs[index] : date.formattedWeekdayShort.uppercased()
         let dayNumber = index < weekCache.dayNumbers.count ? weekCache.dayNumbers[index] : Calendar.current.component(.day, from: date)
         let accessibilityLabel = date.formattedAccessibilityDay
 
@@ -291,7 +292,7 @@ struct CalendarWeekView: View {
         dayColumnWidth: CGFloat
     ) -> some View {
         let groups = dayIndex < weekCache.overlapGroupsByDay.count ? weekCache.overlapGroupsByDay[dayIndex] : []
-        ForEach(Array(groups.enumerated()), id: \.element.first?.id) { groupIndex, group in
+        ForEach(Array(groups.enumerated()), id: \.offset) { groupIndex, group in
             ForEach(Array(group.enumerated()), id: \.element.id) { colIndex, event in
                 eventCard(
                     event: event,
@@ -400,6 +401,7 @@ struct CalendarWeekView: View {
         cache.todayIndex = days.firstIndex(where: { calendar.isDateInToday($0) })
         cache.weekendIndices = Set(days.indices.filter { isWeekend(days[$0]) })
         cache.dayNumbers = days.map { calendar.component(.day, from: $0) }
+        cache.weekdayAbbrevs = days.map { $0.formattedWeekdayShort.uppercased() }
         weekCache = cache
     }
 

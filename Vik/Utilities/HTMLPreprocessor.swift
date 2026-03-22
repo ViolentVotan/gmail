@@ -183,12 +183,10 @@ enum HTMLPreprocessor {
     }()
 
     private static func stripDataAttributes(_ html: String) -> String {
-        // Match data-* attributes within HTML tags only
         let nsString = html as NSString
         let tagMatches = dataTagRegex.matches(in: html, range: NSRange(location: 0, length: nsString.length))
 
-        var result = html
-        // Process in reverse to preserve ranges
+        let mutable = NSMutableString(string: html)
         for tagMatch in tagMatches.reversed() {
             let tagString = nsString.substring(with: tagMatch.range)
             let cleaned = dataAttrRegex.stringByReplacingMatches(
@@ -197,10 +195,10 @@ enum HTMLPreprocessor {
                 withTemplate: ""
             )
             if cleaned != tagString {
-                result = (result as NSString).replacingCharacters(in: tagMatch.range, with: cleaned)
+                mutable.replaceCharacters(in: tagMatch.range, with: cleaned)
             }
         }
-        return result
+        return mutable as String
     }
 
     // MARK: - Pass 6: MSO Style Properties
@@ -223,7 +221,7 @@ enum HTMLPreprocessor {
         let nsString = html as NSString
         let matches = styleAttrRegex.matches(in: html, range: NSRange(location: 0, length: nsString.length))
 
-        var result = html
+        let mutable = NSMutableString(string: html)
         for match in matches.reversed() {
             let styleValue = nsString.substring(with: match.range(at: 1))
             var cleaned = msoPropRegex.stringByReplacingMatches(
@@ -231,7 +229,6 @@ enum HTMLPreprocessor {
                 range: NSRange(location: 0, length: (styleValue as NSString).length),
                 withTemplate: ""
             )
-            // Clean up leading/trailing semicolons and whitespace
             cleaned = cleaned.trimmingCharacters(in: .whitespaces)
             while cleaned.hasPrefix(";") {
                 cleaned = String(cleaned.dropFirst()).trimmingCharacters(in: .whitespaces)
@@ -241,14 +238,13 @@ enum HTMLPreprocessor {
             }
 
             if cleaned.isEmpty {
-                // Remove entire style attribute
-                result = (result as NSString).replacingCharacters(in: match.range, with: "")
+                mutable.replaceCharacters(in: match.range, with: "")
             } else if cleaned != styleValue {
                 let replacement = " style=\"\(cleaned)\""
-                result = (result as NSString).replacingCharacters(in: match.range, with: replacement)
+                mutable.replaceCharacters(in: match.range, with: replacement)
             }
         }
-        return result
+        return mutable as String
     }
 
     // MARK: - Pass 7: Tracking URL Parameters
@@ -271,7 +267,7 @@ enum HTMLPreprocessor {
         let nsString = html as NSString
         let matches = hrefRegex.matches(in: html, range: NSRange(location: 0, length: nsString.length))
 
-        var result = html
+        let mutable = NSMutableString(string: html)
         for match in matches.reversed() {
             let urlString = nsString.substring(with: match.range(at: 1))
             guard urlString.contains("?") else { continue }
@@ -284,9 +280,9 @@ enum HTMLPreprocessor {
             components.queryItems = filtered.isEmpty ? nil : filtered
             guard let cleaned = components.string else { continue }
             let replacement = "href=\"\(cleaned)\""
-            result = (result as NSString).replacingCharacters(in: match.range, with: replacement)
+            mutable.replaceCharacters(in: match.range, with: replacement)
         }
-        return result
+        return mutable as String
     }
 
     // MARK: - Pass 8: Inter-tag Whitespace
