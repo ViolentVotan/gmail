@@ -4,7 +4,7 @@
 enum HTMLPreprocessingPipeline {
     /// Bump when HTMLPreprocessor, TrackerBlockerService, or stripQuotedHTML logic changes.
     /// Mismatched versions trigger lazy recomputation in loadThread().
-    static let currentVersion = 1
+    static let currentVersion = 2
 
     struct Result: Sendable {
         let preprocessedHTML: String

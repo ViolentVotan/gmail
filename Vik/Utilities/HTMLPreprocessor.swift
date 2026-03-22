@@ -5,13 +5,14 @@ import Foundation
 /// cuts DOM size by 30-50% and proportionally speeds up contrast fixing.
 enum HTMLPreprocessor {
 
-    /// Removes HTML bloat in 9 ordered passes (outside-in).
+    /// Removes HTML bloat in 8 ordered passes (outside-in).
+    /// `<style>` blocks are preserved — email CSS is needed for proper layout.
+    /// CSP (`style-src 'unsafe-inline'`) allows them; `script-src 'none'` blocks JS.
     static func strip(_ html: String) -> String {
         var result = html
         result = removeHeadElement(result)
         result = removeHTMLComments(result)
         result = removeBlockedTags(result)
-        result = removeStyleBlocks(result)
         result = removeHiddenElements(result)
         result = stripDataAttributes(result)
         result = stripMSOStyleProperties(result)
@@ -20,10 +21,34 @@ enum HTMLPreprocessor {
         return result
     }
 
-    // MARK: - Pass 1: Head Element
+    // MARK: - Pass 1: Head Element (preserving style blocks)
 
+    /// Removes `<head>` but extracts and preserves `<style>` blocks within it.
+    /// Other head content (meta, link, title, script refs) is discarded.
     private static func removeHeadElement(_ html: String) -> String {
-        removeTagWithContent("head", from: html)
+        guard let headRegexes = tagContentRegexes["head"],
+              let styleRegexes = tagContentRegexes["style"]
+        else {
+            return removeTagWithContent("head", from: html)
+        }
+
+        let nsString = html as NSString
+        let fullRange = NSRange(location: 0, length: nsString.length)
+
+        guard let headMatch = headRegexes.paired.firstMatch(in: html, range: fullRange) else {
+            return headRegexes.void.stringByReplacingMatches(in: html, range: fullRange, withTemplate: "")
+        }
+
+        let headContent = nsString.substring(with: headMatch.range)
+        let headNS = headContent as NSString
+        let headRange = NSRange(location: 0, length: headNS.length)
+        let styleMatches = styleRegexes.paired.matches(in: headContent, range: headRange)
+
+        let preservedStyles = styleMatches.isEmpty
+            ? ""
+            : styleMatches.map { headNS.substring(with: $0.range) }.joined(separator: "\n")
+
+        return nsString.replacingCharacters(in: headMatch.range, with: preservedStyles)
     }
 
     // MARK: - Pass 2: HTML Comments
@@ -92,13 +117,7 @@ enum HTMLPreprocessor {
         return result
     }
 
-    // MARK: - Pass 4: Style Blocks
-
-    private static func removeStyleBlocks(_ html: String) -> String {
-        removeTagWithContent("style", from: html)
-    }
-
-    // MARK: - Pass 5: Hidden Elements
+    // MARK: - Pass 4: Hidden Elements
 
     private static let hiddenPatterns: [NSRegularExpression] = {
         let patterns = [
@@ -150,7 +169,7 @@ enum HTMLPreprocessor {
         return result
     }
 
-    // MARK: - Pass 6: data-* Attributes
+    // MARK: - Pass 5: data-* Attributes
 
     private static let dataTagRegex: NSRegularExpression = {
         try! NSRegularExpression(pattern: "<[^>]+>", options: [])
@@ -184,7 +203,7 @@ enum HTMLPreprocessor {
         return result
     }
 
-    // MARK: - Pass 7: MSO Style Properties
+    // MARK: - Pass 6: MSO Style Properties
 
     private static let styleAttrRegex: NSRegularExpression = {
         try! NSRegularExpression(
@@ -232,7 +251,7 @@ enum HTMLPreprocessor {
         return result
     }
 
-    // MARK: - Pass 8: Tracking URL Parameters
+    // MARK: - Pass 7: Tracking URL Parameters
 
     private static let trackingParams: Set<String> = [
         "trackingId", "trkEmail", "trk", "midToken", "midSig",
@@ -270,7 +289,7 @@ enum HTMLPreprocessor {
         return result
     }
 
-    // MARK: - Pass 9: Inter-tag Whitespace
+    // MARK: - Pass 8: Inter-tag Whitespace
 
     /// Collapse whitespace-only runs between `>` and `<` to a single space.
     /// Preserves whitespace inside text content.
