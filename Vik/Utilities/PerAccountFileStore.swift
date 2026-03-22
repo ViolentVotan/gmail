@@ -14,13 +14,6 @@ private enum FileStoreKeychain {
     static let account = "encryption-key"
 }
 
-/// Cached coders shared by all `PerAccountFileStore` specializations
-/// (static let not allowed on generic types).
-private enum PerAccountFileStoreCoders {
-    nonisolated static let encoder = JSONEncoder()
-    nonisolated static let decoder = JSONDecoder()
-}
-
 /// Generic per-account JSON file persistence.
 ///
 /// Handles the boilerplate shared by `SnoozeStore`, `ScheduledSendStore`, and
@@ -74,17 +67,15 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
 
     // MARK: - Persistence
 
-    @ObservationIgnored private let decoder = JSONDecoder()
-
     @concurrent private static func decodeFromDisk(
         url: URL,
-        decoder: JSONDecoder,
         legacyDecoder: (@Sendable (Data) -> [Item]?)?
     ) async -> [Item]? {
         guard let raw = try? Data(contentsOf: url) else { return nil }
 
         // Try decrypting first (new format). Fall back to treating `raw` as
         // plain JSON to handle files written before encryption was introduced.
+        let isPlaintext: Bool
         let data: Data
         if let decrypted = try? DataEncryption.decrypt(
             raw,
@@ -92,18 +83,28 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
             account: FileStoreKeychain.account
         ) {
             data = decrypted
+            isPlaintext = false
         } else {
             data = raw
+            isPlaintext = true
         }
 
-        if let decoded = try? decoder.decode([Item].self, from: data) {
-            return decoded
-        } else if let decoded = legacyDecoder?(data) {
-            return decoded
+        let decoded: [Item]?
+        if let items = try? JSONDecoder().decode([Item].self, from: data) {
+            decoded = items
+        } else if let items = legacyDecoder?(data) {
+            decoded = items
         } else {
             logger.warning("Failed to decode \(url.lastPathComponent, privacy: .public)")
             return nil
         }
+
+        // Re-encrypt legacy plaintext files on first successful read.
+        if isPlaintext, let items = decoded {
+            Task { await Self.writeToDisk(items: items, url: url) }
+        }
+
+        return decoded
     }
 
     /// Loads items from disk, atomically replacing any in-memory data for the
@@ -111,7 +112,6 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
     func load(accountID: String) async {
         if let decoded = await Self.decodeFromDisk(
             url: fileURL(accountID),
-            decoder: decoder,
             legacyDecoder: legacyDecoder
         ) {
             itemsByAccount[accountID] = decoded
@@ -123,7 +123,6 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
     func loadMerging(accountID: String) async {
         guard let decoded = await Self.decodeFromDisk(
             url: fileURL(accountID),
-            decoder: decoder,
             legacyDecoder: legacyDecoder
         ) else { return }
         let existingIDs = Set((itemsByAccount[accountID] ?? []).map { $0.id })
@@ -165,7 +164,7 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
                 at: url.deletingLastPathComponent(),
                 withIntermediateDirectories: true
             )
-            let plaintext  = try PerAccountFileStoreCoders.encoder.encode(items)
+            let plaintext  = try JSONEncoder().encode(items)
             let ciphertext = try DataEncryption.encrypt(
                 plaintext,
                 service: FileStoreKeychain.service,

@@ -686,12 +686,10 @@ actor CalendarSyncEngine {
         data?.entryPoints?.first(where: { $0.entryPointType == "video" })?.uri
     }
 
-    nonisolated private static let jsonEncoder = JSONEncoder()
-
     /// Encodes an `Encodable` value to a JSON string.
     nonisolated private static func encodeJSON<T: Encodable>(_ value: T?) -> String? {
         guard let value else { return nil }
-        guard let data = try? jsonEncoder.encode(value) else { return nil }
+        guard let data = try? JSONEncoder().encode(value) else { return nil }
         return String(data: data, encoding: .utf8)
     }
 }

@@ -68,10 +68,11 @@ final class EmailDetailViewModel {
         self.api = api
     }
 
-    deinit {
+    isolated deinit {
         backgroundTasks.withLock { tasks in
             tasks.forEach { $0.cancel() }
         }
+        calendarInviteTask?.cancel()
     }
 
     // MARK: - Load
@@ -109,7 +110,7 @@ final class EmailDetailViewModel {
                 try MailDatabaseQueries.messagesForThread(id, in: db)
             }
             if let records = threadMessages, !records.isEmpty {
-                let allHaveBodies = records.allSatisfy { $0.fullBodyFetched == true }
+                let allHaveBodies = records.allSatisfy { $0.fullBodyFetched }
                 let gmailMessages = records.map { $0.toGmailMessage() }
 
                 // Tier 2: Check preprocessed DB columns — zero regex work
@@ -155,7 +156,7 @@ final class EmailDetailViewModel {
                     // Lazy backfill: write preprocessed columns back to DB
                     if allHaveBodies {
                         let recordsToBackfill = records.filter {
-                            $0.fullBodyFetched == true && $0.bodyHtml != nil && $0.preprocessedHtml == nil
+                            $0.fullBodyFetched && $0.bodyHtml != nil && $0.preprocessedHtml == nil
                         }
                         if !recordsToBackfill.isEmpty {
                             let t = Task<Void, Never>.detached { [db] in
@@ -597,6 +598,32 @@ final class EmailDetailViewModel {
     static func forwardMode(for email: Email, latestHTMLBody: String? = nil) -> ComposeMode {
         let sub = email.subject.withForwardPrefix
         return .forward(subject: sub, quotedBody: quotedHTML(for: email, latestHTMLBody: latestHTMLBody))
+    }
+
+    /// Builds reply-all To/CC fields from a raw `GmailMessage` by parsing RFC 2822 address tokens,
+    /// stripping the current user, and deduplicating by bare email.
+    static func buildReplyAllFields(from message: GmailMessage, selfEmail: String) -> (to: String, cc: String) {
+        let self_ = selfEmail.lowercased()
+
+        func buildField(from addressLists: [String], excluding seen: inout Set<String>) -> String {
+            addressLists
+                .filter { !$0.isEmpty }
+                .flatMap { $0.components(separatedBy: ",") }
+                .compactMap { token -> String? in
+                    let trimmed = token.trimmingCharacters(in: .whitespaces)
+                    guard !trimmed.isEmpty else { return nil }
+                    let bare = GmailDataTransformer.parseContactCore(trimmed).email.lowercased()
+                    guard bare != self_, !seen.contains(bare) else { return nil }
+                    seen.insert(bare)
+                    return trimmed
+                }
+                .joined(separator: ", ")
+        }
+
+        var seen = Set<String>()
+        let toField = buildField(from: [message.from, message.to], excluding: &seen)
+        let ccField = buildField(from: [message.cc], excluding: &seen)
+        return (toField, ccField)
     }
 
     // MARK: Instance wrappers (use latestMessage context for accurate quoted body)

@@ -17,29 +17,8 @@ struct CalendarEventEditorView: View {
     let onSave: (CalendarAPIEventInput, String?, RecurringEditScope?) -> Void
     let onCancel: () -> Void
 
-    // MARK: - Local state
-
-    @State private var summary = ""
-    @State private var isAllDay = false
-    @State private var startTime = Date()
-    @State private var endTime = Date().addingTimeInterval(3600)
-    @State private var location = ""
-    @State private var description = ""
-    @State private var selectedCalendarID: String = ""
-    @State private var attendeeInput = ""
-    @State private var attendeeEntries: [AttendeeEntry] = []
-    @State private var addGoogleMeet = false
-    @State private var reminders: [DraftReminder] = [DraftReminder(method: .popup, minutes: 10)]
-    @State private var recurrence: RecurrenceOption = .none
-    @State private var colorId: String? = nil
-    @State private var visibility: VisibilityOption = .default
-    @State private var showAs: ShowAsOption = .busy
-    @State private var showRecurringSheet = false
-    @State private var showDiscardAlert = false
-
+    @State private var viewModel: CalendarEventEditorViewModel
     @FocusState private var isTitleFocused: Bool
-
-    private let writableCalendars: [CalendarInfo]
 
     init(
         editDraft: Binding<EventEditDraft?>,
@@ -53,38 +32,14 @@ struct CalendarEventEditorView: View {
         self.defaultStartTime = defaultStartTime
         self.onSave = onSave
         self.onCancel = onCancel
-        self.writableCalendars = calendars.filter { $0.accessRole == .writer || $0.accessRole == .owner }
-    }
-
-    // MARK: - Derived
-
-    private var isEditing: Bool { editDraft != nil }
-
-    private var hasChanges: Bool {
-        guard let draft = editDraft else {
-            // New event: any non-empty field counts as a change
-            return !summary.trimmingCharacters(in: .whitespaces).isEmpty
-                || !location.isEmpty
-                || !description.isEmpty
-                || !attendeeEntries.isEmpty
-        }
-        return summary != draft.summary
-            || isAllDay != draft.isAllDay
-            || startTime != draft.startTime
-            || endTime != draft.endTime
-            || location != (draft.location ?? "")
-            || description != (draft.description ?? "")
-            || attendeeEntries.map(\.email) != draft.attendeeEmails
-            || colorId != draft.colorId
-    }
-
-    private var selectedCalendar: CalendarInfo? {
-        writableCalendars.first { $0.calendarId == selectedCalendarID }
+        self._viewModel = State(initialValue: CalendarEventEditorViewModel(calendars: calendars))
     }
 
     // MARK: - Body
 
     var body: some View {
+        @Bindable var vm = viewModel
+
         VStack(spacing: 0) {
             // Title bar
             toolbar
@@ -114,11 +69,14 @@ struct CalendarEventEditorView: View {
         }
         .background(.regularMaterial)
         .clipShape(.rect(cornerRadius: CornerRadius.lg))
-        .task { populateFromDraft() }
-        .interactiveDismissDisabled(hasChanges)
+        .task {
+            viewModel.populateFromDraft(editDraft, defaultStartTime: defaultStartTime)
+            viewModel.updateHasChanges(editDraft: editDraft)
+        }
+        .interactiveDismissDisabled(viewModel.hasChanges)
         .confirmationDialog(
             "Discard Changes?",
-            isPresented: $showDiscardAlert,
+            isPresented: $vm.showDiscardAlert,
             titleVisibility: .visible
         ) {
             Button("Discard Changes", role: .destructive) { onCancel() }
@@ -126,7 +84,7 @@ struct CalendarEventEditorView: View {
         } message: {
             Text("You have unsaved changes.")
         }
-        .sheet(isPresented: $showRecurringSheet) {
+        .sheet(isPresented: $vm.showRecurringSheet) {
             recurringEditSheet
         }
     }
@@ -136,8 +94,8 @@ struct CalendarEventEditorView: View {
     private var toolbar: some View {
         HStack(spacing: Spacing.sm) {
             Button("Cancel") {
-                if hasChanges {
-                    showDiscardAlert = true
+                if viewModel.hasChanges {
+                    viewModel.showDiscardAlert = true
                 } else {
                     onCancel()
                 }
@@ -148,19 +106,19 @@ struct CalendarEventEditorView: View {
 
             Spacer()
 
-            Text(isEditing ? "Edit Event" : "New Event")
+            Text(viewModel.isEditing ? "Edit Event" : "New Event")
                 .font(Typography.bodySemibold)
                 .foregroundStyle(.primary)
 
             Spacer()
 
             Button("Save") {
-                handleSave()
+                viewModel.handleSave(editDraft: editDraft, onSave: onSave)
             }
             .buttonStyle(.plain)
             .font(Typography.bodySemibold)
             .foregroundStyle(BrandColor.blue)
-            .disabled(summary.trimmingCharacters(in: .whitespaces).isEmpty)
+            .disabled(viewModel.summary.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.md)
@@ -169,48 +127,57 @@ struct CalendarEventEditorView: View {
     // MARK: - Title Field
 
     private var titleField: some View {
-        TextField("Title", text: $summary)
+        @Bindable var vm = viewModel
+
+        return TextField("Title", text: $vm.summary)
             .font(.system(size: 20, weight: .semibold))
             .foregroundStyle(.primary)
             .textFieldStyle(.plain)
             .focused($isTitleFocused)
             .onAppear { isTitleFocused = true }
+            .onChange(of: viewModel.summary) { _, _ in viewModel.updateHasChanges(editDraft: editDraft) }
     }
 
     // MARK: - Timing Section
 
     private var timingSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
-            Toggle("All-day", isOn: $isAllDay)
+        @Bindable var vm = viewModel
+
+        return VStack(alignment: .leading, spacing: Spacing.sm) {
+            Toggle("All-day", isOn: $vm.isAllDay)
                 .font(Typography.body)
                 .toggleStyle(.switch)
-                .onChange(of: isAllDay) { _, newValue in
+                .onChange(of: viewModel.isAllDay) { _, newValue in
                     if newValue {
-                        // Snap times to midnight
-                        startTime = Calendar.current.startOfDay(for: startTime)
-                        endTime = Calendar.current.startOfDay(for: endTime)
+                        viewModel.startTime = Calendar.current.startOfDay(for: viewModel.startTime)
+                        viewModel.endTime = Calendar.current.startOfDay(for: viewModel.endTime)
                     }
+                    viewModel.updateHasChanges(editDraft: editDraft)
                 }
 
-            if isAllDay {
-                DatePicker("Start", selection: $startTime, displayedComponents: .date)
+            if viewModel.isAllDay {
+                DatePicker("Start", selection: $vm.startTime, displayedComponents: .date)
                     .datePickerStyle(.compact)
                     .font(Typography.body)
-                DatePicker("End", selection: $endTime, displayedComponents: .date)
+                    .onChange(of: viewModel.startTime) { _, _ in viewModel.updateHasChanges(editDraft: editDraft) }
+                DatePicker("End", selection: $vm.endTime, displayedComponents: .date)
                     .datePickerStyle(.compact)
                     .font(Typography.body)
+                    .onChange(of: viewModel.endTime) { _, _ in viewModel.updateHasChanges(editDraft: editDraft) }
             } else {
-                DatePicker("Start", selection: $startTime, displayedComponents: [.date, .hourAndMinute])
+                DatePicker("Start", selection: $vm.startTime, displayedComponents: [.date, .hourAndMinute])
                     .datePickerStyle(.compact)
                     .font(Typography.body)
-                    .onChange(of: startTime) { _, newStart in
-                        if endTime <= newStart {
-                            endTime = newStart.addingTimeInterval(3600)
+                    .onChange(of: viewModel.startTime) { _, newStart in
+                        if viewModel.endTime <= newStart {
+                            viewModel.endTime = newStart.addingTimeInterval(3600)
                         }
+                        viewModel.updateHasChanges(editDraft: editDraft)
                     }
-                DatePicker("End", selection: $endTime, in: startTime..., displayedComponents: [.date, .hourAndMinute])
+                DatePicker("End", selection: $vm.endTime, in: viewModel.startTime..., displayedComponents: [.date, .hourAndMinute])
                     .datePickerStyle(.compact)
                     .font(Typography.body)
+                    .onChange(of: viewModel.endTime) { _, _ in viewModel.updateHasChanges(editDraft: editDraft) }
             }
         }
     }
@@ -218,33 +185,38 @@ struct CalendarEventEditorView: View {
     // MARK: - Location Field
 
     private var locationField: some View {
-        HStack(spacing: Spacing.sm) {
+        @Bindable var vm = viewModel
+
+        return HStack(spacing: Spacing.sm) {
             Image(systemName: "mappin")
                 .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
-            TextField("Location", text: $location)
+            TextField("Location", text: $vm.location)
                 .font(Typography.body)
                 .textFieldStyle(.plain)
+                .onChange(of: viewModel.location) { _, _ in viewModel.updateHasChanges(editDraft: editDraft) }
         }
     }
 
     // MARK: - Description Field
 
     private var descriptionField: some View {
-        HStack(alignment: .top, spacing: Spacing.sm) {
+        @Bindable var vm = viewModel
+
+        return HStack(alignment: .top, spacing: Spacing.sm) {
             Image(systemName: "text.alignleft")
                 .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
                 .padding(.top, 4)
 
-            TextEditor(text: $description)
+            TextEditor(text: $vm.eventDescription)
                 .font(Typography.body)
                 .frame(minHeight: 80)
                 .scrollContentBackground(.hidden)
                 .overlay(alignment: .topLeading) {
-                    if description.isEmpty {
+                    if viewModel.eventDescription.isEmpty {
                         Text("Description")
                             .font(Typography.body)
                             .foregroundStyle(.tertiary)
@@ -252,14 +224,17 @@ struct CalendarEventEditorView: View {
                             .allowsHitTesting(false)
                     }
                 }
+                .onChange(of: viewModel.eventDescription) { _, _ in viewModel.updateHasChanges(editDraft: editDraft) }
         }
     }
 
     // MARK: - Calendar Picker
 
     private var calendarPicker: some View {
-        HStack(spacing: Spacing.sm) {
-            if let cal = selectedCalendar {
+        @Bindable var vm = viewModel
+
+        return HStack(spacing: Spacing.sm) {
+            if let cal = viewModel.selectedCalendar {
                 Circle()
                     .fill(Color(hex: cal.backgroundColor))
                     .frame(width: 10, height: 10)
@@ -270,8 +245,8 @@ struct CalendarEventEditorView: View {
                     .frame(width: 18)
             }
 
-            Picker("Calendar", selection: $selectedCalendarID) {
-                ForEach(writableCalendars) { cal in
+            Picker("Calendar", selection: $vm.selectedCalendarID) {
+                ForEach(viewModel.writableCalendars) { cal in
                     Text(cal.summaryOverride ?? cal.summary)
                         .tag(cal.calendarId)
                 }
@@ -284,24 +259,30 @@ struct CalendarEventEditorView: View {
     // MARK: - Attendees Section
 
     private var attendeesSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        @Bindable var vm = viewModel
+
+        return VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "person.badge.plus")
                     .font(.system(size: CalendarLayout.editorIconSize))
                     .foregroundStyle(.secondary)
                     .frame(width: 18)
 
-                TextField("Add attendees by email", text: $attendeeInput)
+                TextField("Add attendees by email", text: $vm.attendeeInput)
                     .font(Typography.body)
                     .textFieldStyle(.plain)
-                    .onSubmit { addAttendee() }
+                    .onSubmit {
+                        viewModel.addAttendee()
+                        viewModel.updateHasChanges(editDraft: editDraft)
+                    }
             }
 
-            if !attendeeEntries.isEmpty {
+            if !viewModel.attendeeEntries.isEmpty {
                 FlowLayout(spacing: Spacing.xs) {
-                    ForEach(attendeeEntries) { entry in
+                    ForEach(viewModel.attendeeEntries) { entry in
                         AttendeeChip(email: entry.email) {
-                            attendeeEntries.removeAll { $0.id == entry.id }
+                            viewModel.attendeeEntries.removeAll { $0.id == entry.id }
+                            viewModel.updateHasChanges(editDraft: editDraft)
                         }
                     }
                 }
@@ -313,12 +294,14 @@ struct CalendarEventEditorView: View {
     // MARK: - Google Meet Toggle
 
     private var googleMeetToggle: some View {
-        HStack(spacing: Spacing.sm) {
+        @Bindable var vm = viewModel
+
+        return HStack(spacing: Spacing.sm) {
             Image(systemName: "video")
                 .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
-            Toggle("Add Google Meet", isOn: $addGoogleMeet)
+            Toggle("Add Google Meet", isOn: $vm.addGoogleMeet)
                 .font(Typography.body)
                 .toggleStyle(.switch)
         }
@@ -327,7 +310,9 @@ struct CalendarEventEditorView: View {
     // MARK: - Reminders Section
 
     private var remindersSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        @Bindable var vm = viewModel
+
+        return VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "bell")
@@ -340,7 +325,7 @@ struct CalendarEventEditorView: View {
                 }
                 Spacer()
                 Button {
-                    reminders.append(DraftReminder(method: .popup, minutes: 10))
+                    viewModel.reminders.append(DraftReminder(method: .popup, minutes: 10))
                 } label: {
                     Image(systemName: "plus.circle")
                         .font(.system(size: CalendarLayout.editorActionIconSize))
@@ -349,9 +334,9 @@ struct CalendarEventEditorView: View {
                 .buttonStyle(.plain)
             }
 
-            ForEach($reminders) { $reminder in
+            ForEach($vm.reminders) { $reminder in
                 ReminderRow(reminder: $reminder) {
-                    reminders.removeAll { $0.id == reminder.id }
+                    viewModel.reminders.removeAll { $0.id == reminder.id }
                 }
                 .padding(.leading, 26)
             }
@@ -361,15 +346,17 @@ struct CalendarEventEditorView: View {
     // MARK: - Recurrence Section
 
     private var recurrenceSection: some View {
-        HStack(spacing: Spacing.sm) {
+        @Bindable var vm = viewModel
+
+        return HStack(spacing: Spacing.sm) {
             Image(systemName: "repeat")
                 .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
 
-            Picker("Recurrence", selection: $recurrence) {
+            Picker("Recurrence", selection: $vm.recurrence) {
                 ForEach(RecurrenceOption.allCases) { option in
-                    Text(option.label(for: startTime)).tag(option)
+                    Text(option.label(for: viewModel.startTime)).tag(option)
                 }
             }
             .labelsHidden()
@@ -388,16 +375,17 @@ struct CalendarEventEditorView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Spacing.xs) {
-                    // "Default" option (no override)
-                    ColorDot(color: .secondary.opacity(0.4), isSelected: colorId == nil) {
-                        colorId = nil
+                    ColorDot(color: .secondary.opacity(0.4), isSelected: viewModel.colorId == nil) {
+                        viewModel.colorId = nil
+                        viewModel.updateHasChanges(editDraft: editDraft)
                     }
                     ForEach(1...11, id: \.self) { id in
                         ColorDot(
                             color: CalendarColor.color(forId: id),
-                            isSelected: colorId == String(id)
+                            isSelected: viewModel.colorId == String(id)
                         ) {
-                            colorId = String(id)
+                            viewModel.colorId = String(id)
+                            viewModel.updateHasChanges(editDraft: editDraft)
                         }
                     }
                 }
@@ -408,13 +396,15 @@ struct CalendarEventEditorView: View {
     // MARK: - Advanced Section
 
     private var advancedSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.sm) {
+        @Bindable var vm = viewModel
+
+        return VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "eye")
                     .font(.system(size: CalendarLayout.editorIconSize))
                     .foregroundStyle(.secondary)
                     .frame(width: 18)
-                Picker("Visibility", selection: $visibility) {
+                Picker("Visibility", selection: $vm.visibility) {
                     ForEach(VisibilityOption.allCases) { option in
                         Text(option.label).tag(option)
                     }
@@ -427,7 +417,7 @@ struct CalendarEventEditorView: View {
                     .font(.system(size: CalendarLayout.editorIconSize))
                     .foregroundStyle(.secondary)
                     .frame(width: 18)
-                Picker("Show as", selection: $showAs) {
+                Picker("Show as", selection: $vm.showAs) {
                     ForEach(ShowAsOption.allCases) { option in
                         Text(option.label).tag(option)
                     }
@@ -447,17 +437,17 @@ struct CalendarEventEditorView: View {
 
             VStack(spacing: Spacing.sm) {
                 RecurringScopeButton(label: "This event", subtitle: "Only this occurrence") {
-                    commitSave(scope: .thisEvent)
+                    viewModel.commitSave(scope: .thisEvent, onSave: onSave)
                 }
                 RecurringScopeButton(label: "This and following events", subtitle: "This and all future occurrences") {
-                    commitSave(scope: .thisAndFollowing)
+                    viewModel.commitSave(scope: .thisAndFollowing, onSave: onSave)
                 }
                 RecurringScopeButton(label: "All events", subtitle: "Every occurrence of this event") {
-                    commitSave(scope: .allEvents)
+                    viewModel.commitSave(scope: .allEvents, onSave: onSave)
                 }
             }
 
-            Button("Cancel") { showRecurringSheet = false }
+            Button("Cancel") { viewModel.showRecurringSheet = false }
                 .buttonStyle(.plain)
                 .font(Typography.body)
                 .foregroundStyle(.secondary)
@@ -468,174 +458,9 @@ struct CalendarEventEditorView: View {
         .padding(Spacing.xl)
         .presentationDetents([.medium])
     }
-
-    // MARK: - Actions
-
-    private func handleSave() {
-        guard !summary.trimmingCharacters(in: .whitespaces).isEmpty else { return }
-
-        if isEditing, let draft = editDraft, draft.isRecurring {
-            showRecurringSheet = true
-            return
-        }
-
-        commitSave(scope: nil)
-    }
-
-
-    private func commitSave(scope: RecurringEditScope?) {
-        showRecurringSheet = false
-
-        let startDTO: CalendarAPIDateTime = isAllDay
-            ? CalendarAPIDateTime(date: startTime.formattedAllDayISO, dateTime: nil, timeZone: nil)
-            : CalendarAPIDateTime(date: nil, dateTime: startTime.rfc3339String, timeZone: TimeZone.current.identifier)
-
-        let endDTO: CalendarAPIDateTime = isAllDay
-            ? CalendarAPIDateTime(date: endTime.formattedAllDayISO, dateTime: nil, timeZone: nil)
-            : CalendarAPIDateTime(date: nil, dateTime: endTime.rfc3339String, timeZone: TimeZone.current.identifier)
-
-        let attendeeInputs = attendeeEntries.map { CalendarAPIAttendeeInput(email: $0.email) }
-
-        let reminderOverrides = reminders.map { r in
-            CalendarAPIReminderOverride(method: r.method.rawValue, minutes: r.minutes)
-        }
-
-        let input = CalendarAPIEventInput(
-            summary: summary,
-            description: description.isEmpty ? nil : description,
-            location: location.isEmpty ? nil : location,
-            start: startDTO,
-            end: endDTO,
-            attendees: attendeeInputs.isEmpty ? nil : attendeeInputs,
-            reminders: CalendarAPIReminders(useDefault: false, overrides: reminderOverrides),
-            conferenceData: nil,
-            colorId: colorId,
-            recurrence: recurrence.rruleStrings(for: startTime),
-            transparency: showAs == .free ? "transparent" : nil,
-            visibility: visibility == .default ? nil : visibility.rawValue
-        )
-
-        onSave(input, selectedCalendarID.isEmpty ? nil : selectedCalendarID, scope)
-    }
-
-    private func addAttendee() {
-        let trimmed = attendeeInput.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty, !attendeeEntries.contains(where: { $0.email == trimmed }) else {
-            attendeeInput = ""
-            return
-        }
-        attendeeEntries.append(AttendeeEntry(email: trimmed))
-        attendeeInput = ""
-    }
-
-    // MARK: - Population
-
-    private func populateFromDraft() {
-        guard let draft = editDraft else {
-            // New event defaults
-            if let primary = writableCalendars.first(where: { $0.isPrimary }) {
-                selectedCalendarID = primary.calendarId
-            } else if let first = writableCalendars.first {
-                selectedCalendarID = first.calendarId
-            }
-            if let defaultStartTime {
-                startTime = defaultStartTime
-            } else {
-                startTime = roundToNextHour(Date())
-            }
-            endTime = startTime.addingTimeInterval(3600)
-            return
-        }
-        populate(from: draft)
-    }
-
-    private func populate(from draft: EventEditDraft) {
-        summary = draft.summary
-        description = draft.description ?? ""
-        location = draft.location ?? ""
-        startTime = draft.startTime
-        endTime = draft.endTime
-        isAllDay = draft.isAllDay
-        attendeeEntries = draft.attendeeEmails.map { AttendeeEntry(email: $0) }
-        colorId = draft.colorId
-        selectedCalendarID = draft.calendarId
-    }
-
-    private func roundToNextHour(_ date: Date) -> Date {
-        let cal = Calendar.current
-        var comps = cal.dateComponents([.year, .month, .day, .hour], from: date)
-        comps.hour = (comps.hour ?? 0) + 1
-        comps.minute = 0
-        comps.second = 0
-        return cal.date(from: comps) ?? date
-    }
 }
 
-// MARK: - Supporting Types
-
-private struct AttendeeEntry: Identifiable {
-    let id = UUID()
-    var email: String
-}
-
-private struct DraftReminder: Identifiable {
-    let id = UUID()
-    var method: EventReminder.ReminderMethod
-    var minutes: Int
-}
-
-private enum RecurrenceOption: String, CaseIterable, Identifiable {
-    case none, daily, weekly, monthly, custom
-    var id: String { rawValue }
-
-    func label(for date: Date) -> String {
-        switch self {
-        case .none: return "Does not repeat"
-        case .daily: return "Daily"
-        case .weekly:
-            let dayName = Calendar.current.weekdaySymbols[Calendar.current.component(.weekday, from: date) - 1]
-            return "Weekly on \(dayName)"
-        case .monthly: return "Monthly"
-        case .custom: return "Custom..."
-        }
-    }
-
-    func rruleStrings(for date: Date) -> [String]? {
-        switch self {
-        case .none: return nil
-        case .daily: return ["RRULE:FREQ=DAILY"]
-        case .weekly:
-            let days = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"]
-            let idx = Calendar.current.component(.weekday, from: date) - 1
-            return ["RRULE:FREQ=WEEKLY;BYDAY=\(days[idx])"]
-        case .monthly: return ["RRULE:FREQ=MONTHLY"]
-        case .custom: return nil
-        }
-    }
-}
-
-private enum VisibilityOption: String, CaseIterable, Identifiable {
-    case `default`, `public`, `private`
-    var id: String { rawValue }
-    var label: String {
-        switch self {
-        case .default: "Default visibility"
-        case .public: "Public"
-        case .private: "Private"
-        }
-    }
-}
-
-private enum ShowAsOption: String, CaseIterable, Identifiable {
-    case busy, free
-    var id: String { rawValue }
-    var label: String {
-        switch self {
-        case .busy: "Busy"
-        case .free: "Free"
-        }
-    }
-}
+// MARK: - Supporting View Types
 
 // MARK: - ReminderRow
 

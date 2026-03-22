@@ -214,7 +214,7 @@ final class ComposeViewModel {
             subject: subject,
             recipients: splitAddresses(to)
         )
-        ScheduledSendStore.shared.add(item)
+        await ScheduledSendStore.shared.add(item)
 
         // Clean up reply draft registry if this was a reply
         if let store = cleanupStore, let tid = cleanupThreadID {
@@ -303,6 +303,37 @@ final class ComposeViewModel {
         guard let draftID = gmailDraftID else { return }
         try? await GmailDraftService.shared.deleteDraft(draftID: draftID, accountID: accountID)
         gmailDraftID = nil
+    }
+
+    /// Syncs compose fields from the view, persists via Gmail API, and updates
+    /// the reply-draft preview in MailStore when applicable.
+    func autoSaveDraft(
+        to: String,
+        cc: String,
+        bcc: String,
+        subject: String,
+        bodyHTML: String,
+        draftId: UUID,
+        mailStore: MailStore
+    ) async {
+        self.to      = to
+        self.cc      = cc
+        self.bcc     = bcc
+        self.subject = subject
+        self.body    = bodyHTML
+        self.isHTML  = true
+        await saveDraft()
+        if let gid = gmailDraftID {
+            mailStore.setGmailDraftID(gid, for: draftId)
+            if let threadID, mailStore.replyDrafts[threadID] != nil {
+                let plain = bodyHTML.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines)
+                mailStore.replyDrafts[threadID] = .init(
+                    gmailDraftID: gid,
+                    preview: String(plain.prefix(50))
+                )
+                mailStore.saveReplyDrafts()
+            }
+        }
     }
 
     // MARK: - Reply Orchestration

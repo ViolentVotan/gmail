@@ -292,6 +292,7 @@ final class CalendarViewModel {
                 createdAt: .now,
                 actionType: .createEvent(calendarId: calendarId, input: input)
             ))
+            ToastManager.shared.show(message: "Event queued (will sync when online)")
         } catch {
             self.error = error
             throw error
@@ -333,6 +334,7 @@ final class CalendarViewModel {
                     etag: etag ?? ""
                 )
             ))
+            ToastManager.shared.show(message: "Event queued (will sync when online)")
         } catch {
             self.error = error
             throw error
@@ -385,6 +387,7 @@ final class CalendarViewModel {
                 createdAt: .now,
                 actionType: .deleteEvent(calendarId: event.calendarId, eventId: event.googleEventId)
             ))
+            ToastManager.shared.show(message: "Event queued (will sync when online)")
         } catch {
             // Rollback: re-insert the deleted records.
             if let (eventRecord, attendees) = snapshot {
@@ -437,6 +440,7 @@ final class CalendarViewModel {
                 createdAt: .now,
                 actionType: .rsvpEvent(calendarId: event.calendarId, eventId: event.googleEventId, status: status.rawValue)
             ))
+            ToastManager.shared.show(message: "Event queued (will sync when online)")
         } catch {
             // Rollback: restore previous RSVP status.
             do {

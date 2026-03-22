@@ -231,27 +231,11 @@ struct ComposeView: View {
         saveTask = Task {
             try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled else { return }
-            composeVM.to      = to
-            composeVM.cc      = cc
-            composeVM.bcc     = bcc
-            composeVM.subject = subject
-            composeVM.body    = bodyHTML
-            composeVM.isHTML  = true
-            await composeVM.saveDraft()
-            // Persist gmailDraftID back to the Email in mailStore so it survives view destruction
-            if let gid = composeVM.gmailDraftID {
-                mailStore.setGmailDraftID(gid, for: draftId)
-                // Update reply draft preview if this draft is linked to a quick reply
-                if let threadID = composeVM.threadID,
-                   mailStore.replyDrafts[threadID] != nil {
-                    let plain = bodyHTML.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines)
-                    mailStore.replyDrafts[threadID] = .init(
-                        gmailDraftID: gid,
-                        preview: String(plain.prefix(50))
-                    )
-                    mailStore.saveReplyDrafts()
-                }
-            }
+            await composeVM.autoSaveDraft(
+                to: to, cc: cc, bcc: bcc,
+                subject: subject, bodyHTML: bodyHTML,
+                draftId: draftId, mailStore: mailStore
+            )
         }
     }
 

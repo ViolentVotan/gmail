@@ -66,8 +66,8 @@ final class ScheduledSendStore {
         await store.loadFiltered(by: accountID, keyPath: \.accountID)
     }
 
-    func add(_ item: ScheduledSendItem) {
-        store.append(item, accountID: item.accountID)
+    func add(_ item: ScheduledSendItem) async {
+        await store.appendAndWait(item, accountID: item.accountID)
     }
 
     func remove(draftId: String, accountID: String) {

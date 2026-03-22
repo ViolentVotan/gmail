@@ -1,4 +1,5 @@
 import Foundation
+private import os
 
 /// Handles label loading, sendAs aliases, and category unread counts.
 /// Uses ETag-based caching to avoid redundant API responses (304 Not Modified).
@@ -8,6 +9,7 @@ import Foundation
 @MainActor
 final class LabelSyncService {
     static let shared = LabelSyncService()
+    private static let logger = Logger(category: "LabelSyncService")
     private init() {}
 
     /// Cached ETag for label list requests — keyed by accountID for multi-account support.
@@ -71,6 +73,7 @@ final class LabelSyncService {
             }
             return extractCategoryCounts(from: labels)
         } catch {
+            Self.logger.warning("loadCategoryUnreadCounts failed: \(error.localizedDescription, privacy: .public)")
             return [:]
         }
     }

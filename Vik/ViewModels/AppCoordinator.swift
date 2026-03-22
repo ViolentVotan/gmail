@@ -457,6 +457,7 @@ final class AppCoordinator {
             await SnoozeStore.shared.load(accountID: id)
             await ScheduledSendStore.shared.load(accountID: id)
             await OfflineActionQueue.shared.load(accountID: id)
+            await UnsubscribeService.shared.load(accountID: id)
             defer {
                 if self.sync.currentAccountSwitchGeneration == generation {
                     self.sync.accountSwitchTask = nil
@@ -495,6 +496,7 @@ final class AppCoordinator {
                 await SnoozeStore.shared.load(accountID: addedID)
                 await ScheduledSendStore.shared.load(accountID: addedID)
                 await OfflineActionQueue.shared.load(accountID: addedID)
+                await UnsubscribeService.shared.load(accountID: addedID)
             }
         }
 

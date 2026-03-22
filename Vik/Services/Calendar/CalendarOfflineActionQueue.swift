@@ -87,6 +87,10 @@ final class CalendarOfflineActionQueue {
                     )
                     break  // leave in queue for retry
                 }
+            } catch CalendarAPIError.rateLimited(let retryAfter) {
+                Self.logger.warning("Calendar offline queue rate-limited — backing off \(max(retryAfter, 2))s")
+                try? await Task.sleep(for: .seconds(max(retryAfter, 2)))
+                break
             } catch let error where error.isNonRetriable {
                 Self.logger.warning("Discarding calendar offline action \(action.id) (non-retriable): \(error)")
                 processed.append(action.id)

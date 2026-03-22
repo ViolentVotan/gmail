@@ -66,12 +66,19 @@ actor BackgroundSyncer {
     func deleteMessages(gmailIds: [String]) async throws {
         guard !gmailIds.isEmpty else { return }
         try await db.dbPool.write { db in
-            // Collect thread IDs before deletion so we can update counts afterward
-            let placeholders = gmailIds.sqlPlaceholders
-            let affectedThreadIds = try Set(String.fetchAll(db, sql:
-                "SELECT DISTINCT thread_id FROM messages WHERE gmail_id IN (\(placeholders))",
-                arguments: StatementArguments(gmailIds)
-            ))
+            // Collect thread IDs before deletion so we can update counts afterward.
+            // Chunk to stay below SQLite's SQLITE_MAX_VARIABLE_NUMBER limit.
+            var affectedThreadIds = Set<String>()
+            let chunkSize = 1000
+            for chunkStart in stride(from: 0, to: gmailIds.count, by: chunkSize) {
+                let chunk = Array(gmailIds[chunkStart..<min(chunkStart + chunkSize, gmailIds.count)])
+                let placeholders = chunk.sqlPlaceholders
+                let threadIds = try Set(String.fetchAll(db, sql:
+                    "SELECT DISTINCT thread_id FROM messages WHERE gmail_id IN (\(placeholders))",
+                    arguments: StatementArguments(chunk)
+                ))
+                affectedThreadIds.formUnion(threadIds)
+            }
             // FTS cleanup is handled by the AFTER DELETE trigger (v6 migration) — no manual delete needed.
             // CASCADE handles message_labels, email_tags, attachments
             try MessageRecord.deleteAll(db, keys: gmailIds)
@@ -219,9 +226,31 @@ actor BackgroundSyncer {
                 try MessageRecord.deleteAll(db, keys: deletedIds)
             }
 
+            // Batch-prefetch existing message records for all new messages in a single query
+            // instead of N per-message fetchOne calls inside upsertSingleMessage.
+            let newIds = newMessages.map(\.id)
+            let fetchedRecords = try MessageRecord.fetchAll(db, keys: newIds)
+            let existingRecords = Dictionary(uniqueKeysWithValues: fetchedRecords.map { ($0.gmailId, $0) })
+
+            // Batch-prefetch existing label sets for all new messages in a single query
+            // instead of N per-message queries inside upsertSingleMessage.
+            var existingLabelSets: [String: Set<String>] = [:]
+            if !newIds.isEmpty {
+                let placeholders = newIds.sqlPlaceholders
+                let rows = try Row.fetchAll(db, sql:
+                    "SELECT message_id, label_id FROM message_labels WHERE message_id IN (\(placeholders))",
+                    arguments: StatementArguments(newIds)
+                )
+                for row in rows {
+                    let messageId: String = row["message_id"]
+                    let labelId: String = row["label_id"]
+                    existingLabelSets[messageId, default: []].insert(labelId)
+                }
+            }
+
             // Insert new messages
             for gmail in newMessages {
-                try Self.upsertSingleMessage(gmail, in: db, affectedThreadIds: &affectedThreadIds, preprocessing: preprocessingResults[gmail.id])
+                try Self.upsertSingleMessage(gmail, in: db, affectedThreadIds: &affectedThreadIds, existingRecords: existingRecords, existingLabelSets: existingLabelSets, preprocessing: preprocessingResults[gmail.id])
             }
 
             // Update labels on existing messages
@@ -344,7 +373,7 @@ actor BackgroundSyncer {
                 || existing.unsubscribeUrl != record.unsubscribeUrl
             let contentChanged = headersChanged || fieldsChanged || metaChanged
 
-            let bodyChanged: Bool = (record.fullBodyFetched == true && existing.fullBodyFetched != true)
+            let bodyChanged: Bool = (record.fullBodyFetched && !existing.fullBodyFetched)
                 || (record.bodyHtml != nil && existing.bodyHtml != record.bodyHtml)
                 || (record.bodyPlain != nil && existing.bodyPlain != record.bodyPlain)
 
@@ -365,7 +394,7 @@ actor BackgroundSyncer {
             if contentChanged || bodyChanged || labelsChanged {
                 // Preserve body if the new record doesn't have it but the old one does
                 var toSave = record
-                if record.fullBodyFetched != true && existing.fullBodyFetched == true {
+                if !record.fullBodyFetched && existing.fullBodyFetched {
                     toSave.bodyHtml = existing.bodyHtml
                     toSave.bodyPlain = existing.bodyPlain
                     toSave.fullBodyFetched = true
@@ -378,7 +407,7 @@ actor BackgroundSyncer {
                 // Preserve thread count — updateThreadCounts only runs for newly-inserted messages.
                 toSave.threadMessageCount = existing.threadMessageCount
                 // Set preprocessing columns if available and body is present
-                if let p = preprocessing, toSave.fullBodyFetched == true {
+                if let p = preprocessing, toSave.fullBodyFetched {
                     toSave.preprocessedHtml = p.preprocessedHTML
                     toSave.sanitizedHtml = p.sanitizedHTML
                     toSave.originalHtml = p.originalHTML
@@ -401,7 +430,7 @@ actor BackgroundSyncer {
         } else {
             // --- New message: full insert ---
             var newRecord = record
-            if let p = preprocessing, newRecord.fullBodyFetched == true {
+            if let p = preprocessing, newRecord.fullBodyFetched {
                 newRecord.preprocessedHtml = p.preprocessedHTML
                 newRecord.sanitizedHtml = p.sanitizedHTML
                 newRecord.originalHtml = p.originalHTML
@@ -433,10 +462,6 @@ actor BackgroundSyncer {
                 try attachment.insert(db)
             }
 
-            // FTS index created with metadata-only fields (body_plain may be nil).
-            // Body content is indexed later by the V15 AFTER UPDATE trigger when
-            // updateBodies() writes the fetched body_plain.
-            try FTSManager.update(message: record, in: db)
         }
     }
 

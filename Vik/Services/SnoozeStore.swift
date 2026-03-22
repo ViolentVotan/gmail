@@ -69,8 +69,8 @@ final class SnoozeStore {
         await store.loadFiltered(by: accountID, keyPath: \.accountID)
     }
 
-    func add(_ item: SnoozedItem) {
-        store.append(item, accountID: item.accountID)
+    func add(_ item: SnoozedItem) async {
+        await store.appendAndWait(item, accountID: item.accountID)
     }
 
     func remove(messageId: String, accountID: String) {

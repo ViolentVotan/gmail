@@ -551,6 +551,7 @@ final class GmailAPIClient {
         token: String
     ) async throws(GmailAPIError) -> T {
         guard let url = URL(string: urlString) else { throw .invalidURL }
+        guard let host = url.host, host.hasSuffix(".googleapis.com") else { throw .invalidURL }
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"

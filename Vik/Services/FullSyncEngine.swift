@@ -602,11 +602,18 @@ actor FullSyncEngine {
             var existingIDs = Set<String>()
             if !candidateIDs.isEmpty {
                 existingIDs = try await db.dbPool.read { db in
-                    let placeholders = candidateIDs.sqlPlaceholders
-                    return try Set(String.fetchAll(db, sql:
-                        "SELECT gmail_id FROM messages WHERE gmail_id IN (\(placeholders))",
-                        arguments: StatementArguments(candidateIDs)
-                    ))
+                    var result = Set<String>()
+                    let chunkSize = 1000
+                    for chunkStart in stride(from: 0, to: candidateIDs.count, by: chunkSize) {
+                        let chunk = Array(candidateIDs[chunkStart..<min(chunkStart + chunkSize, candidateIDs.count)])
+                        let placeholders = chunk.sqlPlaceholders
+                        let chunkResult = try Set(String.fetchAll(db, sql:
+                            "SELECT gmail_id FROM messages WHERE gmail_id IN (\(placeholders))",
+                            arguments: StatementArguments(chunk)
+                        ))
+                        result.formUnion(chunkResult)
+                    }
+                    return result
                 }
             }
             let trulyNewIDs = candidateIDs.filter { !existingIDs.contains($0) }

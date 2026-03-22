@@ -293,7 +293,7 @@ final class EmailActionCoordinator {
                     // so a failed archive doesn't leave the email in both inbox and snoozed list.
                     let success = await vm.archive(msgID)
                     guard success else { return }
-                    SnoozeStore.shared.add(item)
+                    await SnoozeStore.shared.add(item)
                 }
             },
             onUndo: { [weak vm] in Task {
@@ -319,7 +319,7 @@ final class EmailActionCoordinator {
                     accountID: accountID
                 )
             } catch {
-                if let item { SnoozeStore.shared.add(item) }
+                if let item { await SnoozeStore.shared.add(item) }
                 ToastManager.shared.show(message: "Failed to unsnooze", type: .error)
             }
         }

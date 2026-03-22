@@ -1,46 +1,43 @@
 import Foundation
 import AppKit
 
+// MARK: - Model
+
+struct UnsubscribedMessageID: Codable, Identifiable, Sendable {
+    let id: String          // Gmail message ID
+    let accountID: String
+}
+
 /// Handles all unsubscribe interactions: RFC 8058 one-click POST, browser URL, mailto, and body link scanning.
 @MainActor
 final class UnsubscribeService {
     static let shared = UnsubscribeService()
     private init() {}
 
-    nonisolated private func doneKey(for accountID: String) -> String {
-        "unsubscribedMessageIDs.\(accountID)"
-    }
-
-    // MARK: - In-memory cache
-
-    /// Keyed by accountID → Set of unsubscribed message IDs.
-    /// Populated lazily on first access per account; invalidated on clearAccount.
-    private var cachedSets: [String: Set<String>] = [:]
-
-    private func cachedSet(for accountID: String) -> Set<String> {
-        if let existing = cachedSets[accountID] { return existing }
-        let arr = UserDefaults.standard.stringArray(forKey: doneKey(for: accountID)) ?? []
-        let set = Set(arr)
-        cachedSets[accountID] = set
-        return set
-    }
+    private let store = PerAccountFileStore<UnsubscribedMessageID>(
+        fileURL: { accountID in
+            AppPaths.appSupportDirectory
+                .appendingPathComponent("mail-data/\(accountID)/unsubscribed.json")
+        }
+    )
 
     // MARK: - Persisted state
 
+    func load(accountID: String) async {
+        await store.loadFiltered(by: accountID, keyPath: \.accountID)
+    }
+
     func isUnsubscribed(messageID: String, accountID: String) -> Bool {
-        cachedSet(for: accountID).contains(messageID)
+        store.itemsByAccount[accountID]?.contains(where: { $0.id == messageID }) ?? false
     }
 
     private func markUnsubscribed(messageID: String, accountID: String) {
-        guard !cachedSet(for: accountID).contains(messageID) else { return }
-        cachedSets[accountID, default: []].insert(messageID)
-        let arr = Array(cachedSets[accountID]!)
-        UserDefaults.standard.set(arr, forKey: doneKey(for: accountID))
+        guard !isUnsubscribed(messageID: messageID, accountID: accountID) else { return }
+        store.append(UnsubscribedMessageID(id: messageID, accountID: accountID), accountID: accountID)
     }
 
     func clearAccount(_ accountID: String) {
-        cachedSets.removeValue(forKey: accountID)
-        UserDefaults.standard.removeObject(forKey: doneKey(for: accountID))
+        store.deleteAccount(accountID)
     }
 
     // MARK: - Perform unsubscribe
