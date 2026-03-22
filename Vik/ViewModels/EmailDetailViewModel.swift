@@ -4,7 +4,7 @@ internal import GRDB
 import Synchronization
 
 /// Pre-computed HTML content for a thread message, avoiding regex work during SwiftUI rendering.
-struct PrecomputedMessageHTML: Equatable {
+struct PrecomputedMessageHTML: Equatable, Sendable {
     let fullHTML: String
     let originalHTML: String
     let quotedHTML: String?
