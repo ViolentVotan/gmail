@@ -146,8 +146,9 @@ final class AvatarCache {
             return nil
         }
 
+        let image = NSImage(data: data)
         try? data.write(to: fileURL, options: .atomic)
-        return NSImage(contentsOfFile: fileURL.path)
+        return image
     }
 
     /// Remove all cached avatar images from disk.

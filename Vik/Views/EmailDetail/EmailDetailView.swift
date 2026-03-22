@@ -387,8 +387,7 @@ struct EmailDetailView: View {
 
             GlassEffectContainer(spacing: 1) {
                 LazyVStack(spacing: 1, pinnedViews: []) {
-                    ForEach(allMessages, id: \.id) { message in
-                        let index = allMessages.firstIndex(where: { $0.id == message.id }) ?? 0
+                    ForEach(Array(allMessages.enumerated()), id: \.element.id) { index, message in
                         threadCard(for: message, at: index)
                             .id(message.id)
                     }

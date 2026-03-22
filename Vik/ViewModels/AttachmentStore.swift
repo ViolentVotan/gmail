@@ -86,10 +86,12 @@ final class AttachmentStore {
 
         recomputeTask?.cancel()
         recomputeTask = Task {
-            let filtered = Self.filterAttachments(
-                query: query, allAttachments: all, searchResults: results,
-                fileType: fileType, direction: direction, exclusionRules: rules
-            )
+            let filtered = await Task.detached {
+                Self.filterAttachments(
+                    query: query, allAttachments: all, searchResults: results,
+                    fileType: fileType, direction: direction, exclusionRules: rules
+                )
+            }.value
             guard !Task.isCancelled else { return }
             displayedAttachments = filtered
         }

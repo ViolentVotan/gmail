@@ -41,7 +41,7 @@ struct AttachmentSearchService {
         // Step 2: Semantic fallback if fewer than threshold results
         if ftsResults.count < semanticThreshold {
             if let queryEmbedding = ContentExtractor.generateEmbedding(for: trimmed) {
-                let allEmbeddings = await database.allEmbeddings(accountID: accountID)
+                let allEmbeddings = await database.allEmbeddings(accountID: accountID, limit: 200)
                 var semanticScores: [(String, Float)] = []
 
                 for (id, emb) in allEmbeddings {

@@ -1,6 +1,13 @@
 import Foundation
 private import os
 
+/// Cached coders shared by all `PerAccountFileStore` specializations
+/// (static let not allowed on generic types).
+private enum PerAccountFileStoreCoders {
+    nonisolated static let encoder = JSONEncoder()
+    nonisolated static let decoder = JSONDecoder()
+}
+
 /// Generic per-account JSON file persistence.
 ///
 /// Handles the boilerplate shared by `SnoozeStore`, `ScheduledSendStore`, and
@@ -112,7 +119,7 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
                 at: url.deletingLastPathComponent(),
                 withIntermediateDirectories: true
             )
-            try JSONEncoder().encode(items).write(to: url, options: .atomic)
+            try PerAccountFileStoreCoders.encoder.encode(items).write(to: url, options: .atomic)
         } catch {
             logger.error("Save failed: \(error, privacy: .public)")
         }

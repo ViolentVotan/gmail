@@ -71,18 +71,18 @@ final class UnsubscribeService {
 
     // MARK: - Body link scanning
 
+    private static let bodyUnsubscribeRegex: NSRegularExpression = {
+        try! NSRegularExpression(
+            pattern: #"href=["'](https?://[^"'\s>]+)["'][^>]*>(?:[^<]{0,300})(?:unsubscribe|opt.out|désabonner|se désinscrire|remove me)"#,
+            options: .caseInsensitive
+        )
+    }()
+
     /// Scans an HTML (or plain-text) email body for the first unsubscribe link.
     /// Returns nil if no link is found.
     static func extractBodyUnsubscribeURL(from html: String) -> URL? {
-        // Pattern: href="https://..." within an <a> tag whose visible text contains an unsubscribe keyword
-        // We match the href value, then verify the nearby text contains the keyword.
-        guard let regex = try? NSRegularExpression(
-            pattern: #"href=["'](https?://[^"'\s>]+)["'][^>]*>(?:[^<]{0,300})(?:unsubscribe|opt.out|désabonner|se désinscrire|remove me)"#,
-            options: .caseInsensitive
-        ) else { return nil }
-
         let range = NSRange(html.startIndex..., in: html)
-        guard let match = regex.firstMatch(in: html, options: [], range: range),
+        guard let match = bodyUnsubscribeRegex.firstMatch(in: html, options: [], range: range),
               let urlRange = Range(match.range(at: 1), in: html)
         else { return nil }
 

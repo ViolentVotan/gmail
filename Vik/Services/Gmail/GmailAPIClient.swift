@@ -27,7 +27,7 @@ final class GmailAPIClient {
     /// Key for the account ID in `gmailScopesInsufficient` notification's userInfo.
     nonisolated static let accountIDKey = "accountID"
 
-    nonisolated private static var jsonDecoder: JSONDecoder { JSONDecoder() }
+    nonisolated private static let jsonDecoder = JSONDecoder()
 
     private let baseURL = "https://gmail.googleapis.com/gmail/v1"
     nonisolated private static let logger = Logger(category: "GmailAPI")

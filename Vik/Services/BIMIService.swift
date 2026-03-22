@@ -19,6 +19,8 @@ final class BIMIService {
         "laposte.net", "bbox.fr", "numericable.fr"
     ]
 
+    nonisolated private static let jsonDecoder = JSONDecoder()
+
     // in-memory: domain → logo URL (empty string means "no BIMI found")
     // @MainActor provides serialization — no lock needed.
     private let cache = LRUCache<String, String>(maxSize: 500)
@@ -48,7 +50,7 @@ final class BIMIService {
         req.timeoutInterval = 5
 
         guard let (data, _) = try? await NetworkConfig.externalSession.data(for: req),
-              let doh = try? JSONDecoder().decode(DoHResponse.self, from: data),
+              let doh = try? Self.jsonDecoder.decode(DoHResponse.self, from: data),
               doh.status == 0
         else { return nil }
 

@@ -72,16 +72,20 @@ enum ContentExtractor {
         return extractPDFWithLegacy(data: data)
     }
 
+    /// Maximum pages to process via Vision OCR — caps memory usage for large PDFs.
+    private static let maxOCRPages = 20
+
     private static func extractPDFWithDocumentRecognition(data: Data) async -> ExtractionResult {
         guard let document = PDFDocument(data: data), document.pageCount > 0 else {
             return .unsupported
         }
 
         var allText: [String] = []
+        let pageCount = min(document.pageCount, maxOCRPages)
 
-        for i in 0..<document.pageCount {
+        for i in 0..<pageCount {
             guard let page = document.page(at: i) else { continue }
-            let pageImage = page.thumbnail(of: CGSize(width: 2048, height: 2048), for: .mediaBox)
+            let pageImage = page.thumbnail(of: CGSize(width: 1024, height: 1024), for: .mediaBox)
             guard let tiffData = pageImage.tiffRepresentation else { continue }
 
             var request = RecognizeDocumentsRequest()

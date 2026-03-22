@@ -65,27 +65,30 @@ final class EmailClassifier {
                     hasDeadline: result.content.hasDeadline, financial: result.content.financial
                 )
                 pendingWrites[msgId] = tags
-                // Write to DB
-                if let db {
-                    try? await db.dbPool.write { database in
-                        try EmailTagRecord(
-                            messageId: msgId,
-                            needsReply: tags.needsReply,
-                            fyiOnly: tags.fyiOnly,
-                            hasDeadline: tags.hasDeadline,
-                            financial: tags.financial
-                        ).upsert(database)
-                    }
-                }
             } catch {
                 Self.logger.error("Failed to classify \(msgId): \(error)")
                 continue
             }
         }
 
+        // Batch DB writes — single transaction instead of per-email writes
+        let writes = pendingWrites
+        if let db, !writes.isEmpty {
+            try? await db.dbPool.write { database in
+                for (msgId, tags) in writes {
+                    try EmailTagRecord(
+                        messageId: msgId,
+                        needsReply: tags.needsReply,
+                        fyiOnly: tags.fyiOnly,
+                        hasDeadline: tags.hasDeadline,
+                        financial: tags.financial
+                    ).upsert(database)
+                }
+            }
+        }
+
         // ONE MainActor hop to flush all cache writes
-        if !pendingWrites.isEmpty {
-            let writes = pendingWrites
+        if !writes.isEmpty {
             await MainActor.run {
                 for (id, tags) in writes { tagCache[id] = tags }
             }
