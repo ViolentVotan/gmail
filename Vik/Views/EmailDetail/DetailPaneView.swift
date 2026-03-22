@@ -10,6 +10,7 @@ struct DetailPaneView: View {
 
     let actionCoordinator: EmailActionCoordinator
     let mailboxViewModel: MailboxViewModel
+    let allLabels: [GmailLabel]
     let mailStore: MailStore
     let accountID: String
     let fromAddress: String
@@ -141,7 +142,7 @@ struct DetailPaneView: View {
             mailStore: mailStore,
             actions: actions,
             attachmentIndexer: attachmentIndexer,
-            allLabels: mailboxViewModel.labels,
+            allLabels: allLabels,
             fromAddress: resolvedFromAddress(for: email),
             mailDatabase: mailDatabase,
             contacts: contacts

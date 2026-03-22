@@ -143,7 +143,7 @@ struct AutocompleteTextField: View {
     private var autocompleteDropdown: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
+                LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(suggestions.enumerated()), id: \.element.id) { index, contact in
                         if index > 0 {
                             Divider()

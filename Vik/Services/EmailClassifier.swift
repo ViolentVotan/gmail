@@ -74,16 +74,20 @@ final class EmailClassifier {
         // Batch DB writes — single transaction instead of per-email writes
         let writes = pendingWrites
         if let db, !writes.isEmpty {
-            try? await db.dbPool.write { database in
-                for (msgId, tags) in writes {
-                    try EmailTagRecord(
-                        messageId: msgId,
-                        needsReply: tags.needsReply,
-                        fyiOnly: tags.fyiOnly,
-                        hasDeadline: tags.hasDeadline,
-                        financial: tags.financial
-                    ).upsert(database)
+            do {
+                try await db.dbPool.write { database in
+                    for (msgId, tags) in writes {
+                        try EmailTagRecord(
+                            messageId: msgId,
+                            needsReply: tags.needsReply,
+                            fyiOnly: tags.fyiOnly,
+                            hasDeadline: tags.hasDeadline,
+                            financial: tags.financial
+                        ).upsert(database)
+                    }
                 }
+            } catch {
+                Self.logger.error("Failed to persist \(writes.count, privacy: .public) email tags: \(error, privacy: .public)")
             }
         }
 

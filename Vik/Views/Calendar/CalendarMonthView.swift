@@ -127,8 +127,6 @@ struct CalendarMonthView: View {
     @State private var orderedShortSymbols: [String] = []
     @State private var orderedFullSymbols: [String] = []
 
-    private let calendar = Calendar.current
-
     var body: some View {
         VStack(spacing: 0) {
             dayOfWeekHeader
@@ -164,8 +162,9 @@ struct CalendarMonthView: View {
     }
 
     private func recomputeMonthLayout() {
-        let weeks = calendar.weeksInMonth(for: viewModel.selectedDate)
-        let currentMonth = calendar.component(.month, from: viewModel.selectedDate)
+        let cal = Calendar.current
+        let weeks = cal.weeksInMonth(for: viewModel.selectedDate)
+        let currentMonth = cal.component(.month, from: viewModel.selectedDate)
         let allMultiDayEvents = viewModel.multiDayEvents
 
         var layouts: [MonthSpanningLayout] = []
@@ -174,8 +173,8 @@ struct CalendarMonthView: View {
         for weekDays in weeks {
             // Pre-filter events to only those overlapping this week,
             // avoiding O(N) re-scan inside MonthSpanningLayout.compute for each row.
-            let weekStart = calendar.startOfDay(for: weekDays[0])
-            let weekEnd = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: weekDays[6]))!
+            let weekStart = cal.startOfDay(for: weekDays[0])
+            let weekEnd = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: weekDays[6]))!
             let weekEvents = allMultiDayEvents.filter { event in
                 event.startTime < weekEnd && event.endTime > weekStart
             }
@@ -216,9 +215,10 @@ struct CalendarMonthView: View {
     }
 
     private func recomputeWeekdaySymbols() {
-        let firstWeekday = calendar.firstWeekday
-        let shortSymbols = calendar.shortWeekdaySymbols
-        let fullSymbols = calendar.weekdaySymbols
+        let cal = Calendar.current
+        let firstWeekday = cal.firstWeekday
+        let shortSymbols = cal.shortWeekdaySymbols
+        let fullSymbols = cal.weekdaySymbols
         orderedShortSymbols = Array(shortSymbols[(firstWeekday - 1)...]) + Array(shortSymbols[..<(firstWeekday - 1)])
         orderedFullSymbols = Array(fullSymbols[(firstWeekday - 1)...]) + Array(fullSymbols[..<(firstWeekday - 1)])
     }
@@ -245,7 +245,10 @@ struct CalendarMonthView: View {
                         }
                         CalendarMonthDayCell(
                             content: content,
-                            viewModel: viewModel,
+                            onSwitchToDay: { date in
+                                viewModel.selectDate(date)
+                                viewModel.viewMode = .day
+                            },
                             onSelectEvent: onSelectEvent,
                             onCreateEvent: onCreateEvent
                         )
@@ -288,17 +291,18 @@ struct CalendarMonthView: View {
         currentMonth: Int,
         spanningLayout: MonthSpanningLayout
     ) -> [MonthDayCellContent] {
+        let cal = Calendar.current
         let eventsByDay = viewModel.eventsByDay
 
         return weekDays.enumerated().map { colIndex, date in
-            let dayStart = calendar.startOfDay(for: date)
+            let dayStart = cal.startOfDay(for: date)
             let allEvents = eventsByDay[dayStart] ?? []
 
             // Partition once instead of two separate filter passes
             var singleDayTimed: [CalendarEvent] = []
             var singleDayAllDay: [CalendarEvent] = []
             for event in allEvents {
-                let isSingleDay = calendar.startOfDay(for: event.startTime) == calendar.startOfDay(for: event.endTime)
+                let isSingleDay = cal.startOfDay(for: event.startTime) == cal.startOfDay(for: event.endTime)
                 guard isSingleDay else { continue }
                 if event.isAllDay {
                     singleDayAllDay.append(event)
@@ -322,9 +326,9 @@ struct CalendarMonthView: View {
                 visibleChips: visibleChips,
                 visibleSpanningBarCount: visibleSpanCount,
                 overflowCount: chipOverflow + spanOverflow,
-                isInCurrentMonth: calendar.component(.month, from: date) == currentMonth,
-                isToday: calendar.isDateInToday(date),
-                isWeekend: calendar.isDateInWeekend(date)
+                isInCurrentMonth: cal.component(.month, from: date) == currentMonth,
+                isToday: cal.isDateInToday(date),
+                isWeekend: cal.isDateInWeekend(date)
             )
         }
     }
@@ -335,14 +339,12 @@ struct CalendarMonthView: View {
 /// Extracted day cell with local hover state to avoid invalidating the entire month grid on hover.
 private struct CalendarMonthDayCell: View {
     let content: MonthDayCellContent
-    @Bindable var viewModel: CalendarViewModel
+    let onSwitchToDay: (Date) -> Void
     let onSelectEvent: (CalendarEvent) -> Void
     let onCreateEvent: (Date, Int) -> Void
 
     @State private var isHovered = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private let calendar = Calendar.current
 
     var body: some View {
         VStack(alignment: .leading, spacing: 1) {
@@ -356,8 +358,7 @@ private struct CalendarMonthDayCell: View {
 
             if content.overflowCount > 0 {
                 MonthOverflowButton(count: content.overflowCount) {
-                    viewModel.selectDate(content.date)
-                    viewModel.viewMode = .day
+                    onSwitchToDay(content.date)
                 }
             }
 
@@ -392,12 +393,11 @@ private struct CalendarMonthDayCell: View {
     }
 
     private var dayNumber: some View {
-        let dayText = "\(calendar.component(.day, from: content.date))"
+        let dayText = "\(Calendar.current.component(.day, from: content.date))"
 
         return Button {
             withAnimation(VikAnimation.springSnappy) {
-                viewModel.selectDate(content.date)
-                viewModel.viewMode = .day
+                onSwitchToDay(content.date)
             }
         } label: {
             Text(dayText)

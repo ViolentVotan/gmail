@@ -111,7 +111,9 @@ final class MailDatabase: Sendable {
     // MARK: - Shared Instance Cache
 
     private static let instances = Mutex<[String: MailDatabase]>([:])
-    private static let migrating = Mutex<Set<String>>([])
+    /// Per-account migration state: tracks whether a migration is in progress
+    /// and holds continuations for callers waiting on that migration to complete.
+    private static let migrationState = Mutex<[String: [CheckedContinuation<MailDatabase, any Error>]]>([:])
 
     /// Returns a cached `MailDatabase` for the given account, creating one if needed.
     /// Avoids opening redundant `DatabasePool` connections across Intents and extensions.
@@ -124,19 +126,56 @@ final class MailDatabase: Sendable {
         }
 
         // Ensure only one caller migrates a given account at a time.
-        // If another caller is already migrating this account, yield until it finishes
-        // and then return the cached result.
-        let didClaim = migrating.withLock { $0.insert(accountID).inserted }
-        guard didClaim else {
-            // Another caller is migrating — yield cooperatively (not Thread.sleep).
-            while migrating.withLock({ $0.contains(accountID) }) {
-                try await Task.sleep(for: .milliseconds(10))
+        // If another caller is already migrating, suspend via continuation
+        // and resume when the migrating caller finishes.
+        let shouldMigrate = migrationState.withLock { state in
+            if state[accountID] != nil {
+                // Migration in progress — caller will suspend below.
+                return false
             }
-            guard let cached = instances.withLock({ $0[accountID] }) else {
-                // The other caller failed; retry from scratch.
-                return try await shared(for: accountID)
+            // Claim migration by creating the waiters array (empty = we own it).
+            state[accountID] = []
+            return true
+        }
+
+        guard shouldMigrate else {
+            // Another caller is migrating — suspend until it finishes.
+            return try await withCheckedThrowingContinuation { continuation in
+                enum Resolution {
+                    case cached(MailDatabase)
+                    case waiting
+                    case raceRetry
+                }
+                let resolution = migrationState.withLock { state -> Resolution in
+                    if state[accountID] != nil {
+                        // Migration still in progress — store continuation for later resume.
+                        state[accountID]?.append(continuation)
+                        return .waiting
+                    }
+                    // Migration finished between our initial check and here.
+                    if let db = instances.withLock({ $0[accountID] }) {
+                        return .cached(db)
+                    }
+                    // Migration failed (no instance cached) — retry from scratch.
+                    return .raceRetry
+                }
+                switch resolution {
+                case .cached(let db):
+                    continuation.resume(returning: db)
+                case .waiting:
+                    break // continuation stored, will be resumed by the migrating caller
+                case .raceRetry:
+                    // Spawn a retry — can't recursively call async shared(for:) here.
+                    Task {
+                        do {
+                            let db = try await Self.shared(for: accountID)
+                            continuation.resume(returning: db)
+                        } catch {
+                            continuation.resume(throwing: error)
+                        }
+                    }
+                }
             }
-            return cached
         }
 
         // Create and migrate outside the instances lock.
@@ -144,10 +183,12 @@ final class MailDatabase: Sendable {
             let db = try MailDatabase(accountID: accountID, skipMigrations: true)
             try db.migrate()
 
-            // Store in instances BEFORE releasing migration lock so waiters
-            // always find the instance when their while loop exits.
+            // Store in instances BEFORE resuming waiters so they always find the instance.
             instances.withLock { $0[accountID] = db }
-            _ = migrating.withLock { $0.remove(accountID) }
+            let waiters = migrationState.withLock { $0.removeValue(forKey: accountID) ?? [] }
+            for waiter in waiters {
+                waiter.resume(returning: db)
+            }
 
             // Run PRAGMA optimize in the background — can be slow on large databases
             // and must not block the initial database access on every app launch.
@@ -157,7 +198,10 @@ final class MailDatabase: Sendable {
 
             return db
         } catch {
-            _ = migrating.withLock { $0.remove(accountID) }
+            let waiters = migrationState.withLock { $0.removeValue(forKey: accountID) ?? [] }
+            for waiter in waiters {
+                waiter.resume(throwing: error)
+            }
             throw error
         }
     }

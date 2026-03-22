@@ -736,7 +736,6 @@ final class GmailAPIClient {
             // Use Task.detached to avoid inheriting MainActor isolation —
             // the body does network I/O that should not occupy the main actor.
             let t = Task.detached { [self] in
-                await MainActor.run { self.refreshTasks[accountID] = nil }
                 let token: AuthToken?
                 do {
                     token = try await TokenStore.shared.retrieve(for: accountID)
@@ -755,13 +754,19 @@ final class GmailAPIClient {
         do {
             let result = try await task.value
             if isNew {
-                await MainActor.run { _ = refreshGeneration.removeValue(forKey: accountID) }
+                await MainActor.run {
+                    refreshTasks[accountID] = nil
+                    _ = refreshGeneration.removeValue(forKey: accountID)
+                }
                 cachedTokens.withLock { $0[accountID] = result }
             }
             return result
         } catch {
             if isNew {
-                await MainActor.run { _ = refreshGeneration.removeValue(forKey: accountID) }
+                await MainActor.run {
+                    refreshTasks[accountID] = nil
+                    _ = refreshGeneration.removeValue(forKey: accountID)
+                }
                 // Clear revoked tokens from Keychain so we don't retry stale credentials on next launch
                 if case .tokenRevoked = error as? OAuthError {
                     await TokenStore.shared.delete(for: accountID)

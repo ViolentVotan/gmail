@@ -11,15 +11,9 @@ final class CalendarEventService {
     // MARK: - Date formatting
 
     /// Formats a Date as RFC3339 with fractional seconds, safe for use from any isolation context.
+    /// Thin wrapper around the `Date.rfc3339String` extension in DateFormatting.swift.
     nonisolated static func rfc3339(_ date: Date) -> String {
-        date.formatted(
-            .iso8601
-                .year().month().day()
-                .time(includingFractionalSeconds: true)
-                .timeSeparator(.colon)
-                .dateTimeSeparator(.standard)
-                .timeZone(separator: .omitted)
-        )
+        date.rfc3339String
     }
 
     /// Percent-encodes a calendar or event ID for safe interpolation into a URL path segment.

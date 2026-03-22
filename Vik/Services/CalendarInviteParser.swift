@@ -77,7 +77,13 @@ enum CalendarInviteParser {
     }
 
     /// Sends a silent GET to the RSVP URL. Returns true on 2xx.
+    /// Only allows HTTPS requests to calendar.google.com for safety.
     static func sendRSVP(url: URL) async -> Bool {
+        guard url.scheme == "https",
+              let host = url.host,
+              host == "calendar.google.com" || host == "www.calendar.google.com"
+        else { return false }
+
         do {
             let (_, response) = try await NetworkConfig.externalSession.data(from: url)
             if let http = response as? HTTPURLResponse {

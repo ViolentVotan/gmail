@@ -11,15 +11,22 @@ struct SidebarView: View {
     var viewMode: AppViewMode
     var calendarViewModel: CalendarViewModel?
     var miniAgendaEvents: [CalendarEvent]
+    // MARK: - Action Callbacks — Navigation
     var onSwitchToMail: () -> Void
     var onSwitchToCalendar: () -> Void
     var onNavigateToEvent: (CalendarEvent) -> Void
+
+    // MARK: - Action Callbacks — Label Management
     var onRenameLabel: ((GmailLabel, String) -> Void)?
     var onDeleteLabel: ((GmailLabel) -> Void)?
+
+    // MARK: - Action Callbacks — Drag & Drop
     var onDropToTrash: ((String, String) -> Void)?
     var onDropToArchive: ((String, String) -> Void)?
     var onDropToSpam: ((String, String) -> Void)?
     var onDropToLabel: ((String, String, String) -> Void)?
+
+    // MARK: - Action Callbacks — Account & App
     var onSignOut: ((GmailAccount) -> Void)?
     var onSetAsDefault: ((String) -> Void)?
     var onSetAccentColor: ((String, String) -> Void)?

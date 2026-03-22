@@ -343,13 +343,11 @@ private struct ClickOutsideDetector: NSViewRepresentable {
             }
         }
 
-        deinit {
+        isolated deinit {
             // dismantleNSView handles cleanup; this is a safety net for unexpected teardown paths.
-            // NSViewRepresentable coordinators are always torn down on the main thread by SwiftUI.
-            MainActor.assumeIsolated {
-                if let monitor {
-                    NSEvent.removeMonitor(monitor)
-                }
+            if let monitor {
+                NSEvent.removeMonitor(monitor)
+                self.monitor = nil
             }
         }
     }

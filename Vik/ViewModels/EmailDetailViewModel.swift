@@ -3,6 +3,13 @@ import SwiftUI
 internal import GRDB
 import Synchronization
 
+/// Pre-computed HTML content for a thread message, avoiding regex work during SwiftUI rendering.
+struct PrecomputedMessageHTML: Equatable {
+    let fullHTML: String
+    let originalHTML: String
+    let quotedHTML: String?
+}
+
 /// Drives the email detail / thread view.
 @Observable
 @MainActor
@@ -14,6 +21,8 @@ final class EmailDetailViewModel {
     var allowTrackers    = false
     /// Resolved inline-image HTML for each thread message (keyed by message ID).
     var resolvedMessageHTML: [String: String] = [:]
+    /// Pre-computed HTML parts for each thread message, avoiding regex work during rendering.
+    var precomputedHTMLParts: [String: PrecomputedMessageHTML] = [:]
     var calendarInvite:  CalendarInvite?
     var rsvpInProgress   = false
     /// Matched real calendar event for an email invite (iCalUID lookup).
@@ -78,6 +87,7 @@ final class EmailDetailViewModel {
         defer { isLoading = false }
 
         resolvedMessageHTML.removeAll()
+        precomputedHTMLParts.removeAll()
 
         // DB fast path: load thread from local database (instant)
         if let db = mailDatabase {
@@ -117,6 +127,7 @@ final class EmailDetailViewModel {
                         await resolveInlineImagesForOlderMessages(Array(gmailMessages.dropLast()))
                     }
                 }
+                precomputeHTMLParts()
             }
         }
 
@@ -146,8 +157,10 @@ final class EmailDetailViewModel {
                 if let allMessages = fresh.messages, allMessages.count > 1 {
                     await resolveInlineImagesForOlderMessages(Array(allMessages.dropLast()))
                 }
+                precomputeHTMLParts()
             } else {
                 thread = fresh
+                precomputeHTMLParts()
             }
             // Passive attachment registration from full-format messages
             if let indexer = attachmentIndexer, let messages = fresh.messages {
@@ -402,6 +415,27 @@ final class EmailDetailViewModel {
 
     func generateLabelSuggestions(for email: Email, existingLabels: [GmailLabel]) async -> [LabelSuggestion] {
         await LabelSuggestionService.shared.generateSuggestions(for: email, existingLabels: existingLabels)
+    }
+
+    // MARK: - HTML Precomputation
+
+    /// Pre-computes full HTML and quoted-content-stripped parts for all thread messages.
+    /// Call after resolvedMessageHTML is updated so rendering can skip regex work.
+    private func precomputeHTMLParts() {
+        guard let messages = thread?.messages else { return }
+        for message in messages {
+            let html = GmailThreadMessageView.computeFullHTML(
+                message: message,
+                resolvedHTML: resolvedMessageHTML[message.id]
+            )
+            guard !html.isEmpty else { continue }
+            let parts = GmailThreadMessageView.stripQuotedHTML(html)
+            precomputedHTMLParts[message.id] = PrecomputedMessageHTML(
+                fullHTML: html,
+                originalHTML: parts.original,
+                quotedHTML: parts.quoted
+            )
+        }
     }
 
     // MARK: - Derived content

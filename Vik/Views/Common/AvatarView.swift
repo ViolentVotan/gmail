@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import Synchronization
 
 @Observable @MainActor
 private final class AvatarLoader {
@@ -33,14 +34,14 @@ struct AvatarView: View {
     private let avatarTextColor: Color
 
     /// Caches luminance check per hex color to avoid repeated NSColor conversions.
-    private nonisolated(unsafe) static var luminanceCache: [String: Bool] = [:]
+    private static let luminanceCache = Mutex<[String: Bool]>([:])
 
-    @MainActor private static func isHighLuminance(for hexColor: String) -> Bool {
-        if let cached = luminanceCache[hexColor] { return cached }
+    private static func isHighLuminance(for hexColor: String) -> Bool {
+        if let cached = luminanceCache.withLock({ $0[hexColor] }) { return cached }
         let bgColor = NSColor(Color(hex: hexColor)).usingColorSpace(.sRGB)
         let luminance = bgColor?.relativeLuminance() ?? 0
         let result = luminance > 0.7
-        luminanceCache[hexColor] = result
+        luminanceCache.withLock { $0[hexColor] = result }
         return result
     }
 

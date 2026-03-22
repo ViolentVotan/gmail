@@ -197,11 +197,12 @@ enum MailDatabaseQueries {
         let inPlaceholders = updates.map { _ in "?" }.joined(separator: ", ")
         let inArgs: [DatabaseValueConvertible] = updates.map { $0.messageId }
         // Argument order matches SQL placeholder order: all read CASE args, then starred CASE args, then IN args.
+        // ELSE clauses preserve current values for rows not matched by the CASE (prevents NULL assignment).
         try db.execute(
             sql: """
                 UPDATE messages SET
-                    is_read = CASE gmail_id\(readCases) END,
-                    is_starred = CASE gmail_id\(starredCases) END
+                    is_read = CASE gmail_id\(readCases) ELSE is_read END,
+                    is_starred = CASE gmail_id\(starredCases) ELSE is_starred END
                 WHERE gmail_id IN (\(inPlaceholders))
                 """,
             arguments: StatementArguments(readArgs + starredArgs + inArgs)

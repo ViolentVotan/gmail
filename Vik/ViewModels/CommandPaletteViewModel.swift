@@ -30,7 +30,7 @@ final class CommandPaletteViewModel {
             ) { [weak self] in
                 guard let coordinator = self?.coordinator else { return }
                 guard let calendarVM = coordinator.calendar.calendarViewModel else {
-                    coordinator.calendar.switchToCalendar(db: coordinator.sync.mailDatabase)
+                    coordinator.switchToCalendar()
                     return
                 }
                 Task {
@@ -134,11 +134,11 @@ final class CommandPaletteViewModel {
 
             // MARK: Calendar — mode & navigation
             Command(id: "calendar.show", title: "Show Calendar", icon: "calendar") { [weak coordinator] in
-                coordinator?.calendar.switchToCalendar(db: coordinator?.sync.mailDatabase)
+                coordinator?.switchToCalendar()
             },
             Command(id: "calendar.create", title: "Create Event", icon: "calendar.badge.plus") { [weak coordinator] in
                 guard let coordinator else { return }
-                coordinator.calendar.switchToCalendar(db: coordinator.sync.mailDatabase)
+                coordinator.switchToCalendar()
                 // calendarViewModel receives a new-event signal via selectedDate reset to now.
                 coordinator.calendar.calendarViewModel?.selectedDate = .now
                 coordinator.calendar.calendarViewModel?.selectedEvent = nil
@@ -146,17 +146,17 @@ final class CommandPaletteViewModel {
             },
             Command(id: "calendar.today", title: "Go to Today", icon: "calendar.day.timeline.left") { [weak coordinator] in
                 guard let coordinator else { return }
-                coordinator.calendar.switchToCalendar(db: coordinator.sync.mailDatabase)
+                coordinator.switchToCalendar()
                 coordinator.calendar.calendarViewModel?.goToToday()
             },
             Command(id: "calendar.next_week", title: "Next Week", icon: "chevron.right") { [weak coordinator] in
                 guard let coordinator else { return }
-                coordinator.calendar.switchToCalendar(db: coordinator.sync.mailDatabase)
+                coordinator.switchToCalendar()
                 coordinator.calendar.calendarViewModel?.navigateForward()
             },
             Command(id: "calendar.prev_week", title: "Previous Week", icon: "chevron.left") { [weak coordinator] in
                 guard let coordinator else { return }
-                coordinator.calendar.switchToCalendar(db: coordinator.sync.mailDatabase)
+                coordinator.switchToCalendar()
                 coordinator.calendar.calendarViewModel?.navigateBackward()
             },
 
@@ -177,10 +177,10 @@ final class CommandPaletteViewModel {
                     if let event {
                         let time = event.startTime.formattedTime
                         ToastManager.shared.show(message: "\(event.summary) at \(time)")
-                        coordinator.calendar.navigateToEvent(event, db: coordinator.sync.mailDatabase)
+                        coordinator.navigateToEvent(event)
                     } else {
                         // Fall back to showing today in calendar
-                        coordinator.calendar.switchToCalendar(db: coordinator.sync.mailDatabase)
+                        coordinator.switchToCalendar()
                         coordinator.calendar.calendarViewModel?.goToToday()
                         ToastManager.shared.show(message: "No upcoming meetings found")
                     }

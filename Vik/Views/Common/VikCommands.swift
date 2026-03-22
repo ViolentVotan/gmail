@@ -181,14 +181,14 @@ struct VikCommands: Commands {
     private var viewMenu: some Commands {
         CommandMenu("View") {
             Button {
-                coordinator?.calendar.switchToMail()
+                coordinator?.switchToMail()
             } label: {
                 Label("Mail", systemImage: "envelope")
             }
             .keyboardShortcut("1", modifiers: .command)
 
             Button {
-                coordinator?.calendar.switchToCalendar(db: coordinator?.sync.mailDatabase)
+                coordinator?.switchToCalendar()
             } label: {
                 Label("Calendar", systemImage: "calendar")
             }

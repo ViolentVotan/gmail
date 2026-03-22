@@ -14,6 +14,8 @@ struct GmailAccount: Identifiable, Codable, Equatable, Sendable {
 
 /// Persists the list of connected accounts to UserDefaults.
 /// Tokens are stored separately in the Keychain via TokenStore.
+/// Security note: Account metadata (email, name) stored in UserDefaults for quick access.
+/// OAuth tokens are in Keychain (encrypted). Profile picture URLs are sanitized below.
 /// All access is confined to @MainActor, eliminating the need for @unchecked Sendable.
 @MainActor
 final class AccountStore {
@@ -51,8 +53,9 @@ final class AccountStore {
             return decoded
         }
         set {
-            _cachedAccounts = newValue
-            let data = try? JSONEncoder().encode(newValue)
+            let sanitized = newValue.map { Self.sanitizeProfileURL($0) }
+            _cachedAccounts = sanitized
+            let data = try? JSONEncoder().encode(sanitized)
             UserDefaults.standard.set(data, forKey: key)
         }
     }
@@ -120,6 +123,20 @@ final class AccountStore {
             all[idx].accentColor = hex
             accounts = all
         }
+    }
+
+    /// Strips query parameters from profile picture URLs to avoid persisting potential auth tokens.
+    private static func sanitizeProfileURL(_ account: GmailAccount) -> GmailAccount {
+        guard let url = account.profilePictureURL,
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+        else { return account }
+        components.query = nil
+        return GmailAccount(
+            email: account.email,
+            displayName: account.displayName,
+            profilePictureURL: components.url,
+            accentColor: account.accentColor
+        )
     }
 
     /// Assigns accent colors to any accounts that don't have one yet.

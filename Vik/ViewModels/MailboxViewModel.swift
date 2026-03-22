@@ -412,23 +412,7 @@ final class MailboxViewModel {
 
     /// Sums inbox unread counts across all accounts and updates the dock badge.
     static func updateDockBadge() async {
-        let accounts = AccountStore.shared.accounts
-        let total = await Task.detached {
-            var sum = 0
-            for account in accounts {
-                do {
-                    let db = try await MailDatabase.shared(for: account.id)
-                    let count = try await db.dbPool.read { database in
-                        try MailDatabaseQueries.unreadCount(forLabel: GmailSystemLabel.inbox, in: database)
-                    }
-                    sum += count
-                } catch {
-                    logger.error("updateDockBadge: DB error for \(account.id): \(error)")
-                }
-            }
-            return sum
-        }.value
-        NSApp.dockTile.badgeLabel = total > 0 ? "\(total)" : nil
+        await NotificationService.updateDockBadge()
     }
 
     // MARK: - Account switching

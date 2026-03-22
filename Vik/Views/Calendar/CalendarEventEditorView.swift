@@ -27,7 +27,7 @@ struct CalendarEventEditorView: View {
     @State private var description = ""
     @State private var selectedCalendarID: String = ""
     @State private var attendeeInput = ""
-    @State private var attendeeEmails: [String] = []
+    @State private var attendeeEntries: [AttendeeEntry] = []
     @State private var addGoogleMeet = false
     @State private var reminders: [DraftReminder] = [DraftReminder(method: .popup, minutes: 10)]
     @State private var recurrence: RecurrenceOption = .none
@@ -49,7 +49,7 @@ struct CalendarEventEditorView: View {
             return !summary.trimmingCharacters(in: .whitespaces).isEmpty
                 || !location.isEmpty
                 || !description.isEmpty
-                || !attendeeEmails.isEmpty
+                || !attendeeEntries.isEmpty
         }
         return summary != draft.summary
             || isAllDay != draft.isAllDay
@@ -57,7 +57,7 @@ struct CalendarEventEditorView: View {
             || endTime != draft.endTime
             || location != (draft.location ?? "")
             || description != (draft.description ?? "")
-            || attendeeEmails != draft.attendeeEmails
+            || attendeeEntries.map(\.email) != draft.attendeeEmails
             || colorId != draft.colorId
     }
 
@@ -284,11 +284,11 @@ struct CalendarEventEditorView: View {
                     .onSubmit { addAttendee() }
             }
 
-            if !attendeeEmails.isEmpty {
+            if !attendeeEntries.isEmpty {
                 FlowLayout(spacing: Spacing.xs) {
-                    ForEach(attendeeEmails, id: \.self) { email in
-                        AttendeeChip(email: email) {
-                            attendeeEmails.removeAll { $0 == email }
+                    ForEach(attendeeEntries) { entry in
+                        AttendeeChip(email: entry.email) {
+                            attendeeEntries.removeAll { $0.id == entry.id }
                         }
                     }
                 }
@@ -475,13 +475,13 @@ struct CalendarEventEditorView: View {
 
         let startDTO: CalendarAPIDateTime = isAllDay
             ? CalendarAPIDateTime(date: startTime.formattedAllDayISO, dateTime: nil, timeZone: nil)
-            : CalendarAPIDateTime(date: nil, dateTime: CalendarEventService.rfc3339(startTime), timeZone: TimeZone.current.identifier)
+            : CalendarAPIDateTime(date: nil, dateTime: startTime.rfc3339String, timeZone: TimeZone.current.identifier)
 
         let endDTO: CalendarAPIDateTime = isAllDay
             ? CalendarAPIDateTime(date: endTime.formattedAllDayISO, dateTime: nil, timeZone: nil)
-            : CalendarAPIDateTime(date: nil, dateTime: CalendarEventService.rfc3339(endTime), timeZone: TimeZone.current.identifier)
+            : CalendarAPIDateTime(date: nil, dateTime: endTime.rfc3339String, timeZone: TimeZone.current.identifier)
 
-        let attendeeInputs = attendeeEmails.map { CalendarAPIAttendeeInput(email: $0) }
+        let attendeeInputs = attendeeEntries.map { CalendarAPIAttendeeInput(email: $0.email) }
 
         let reminderOverrides = reminders.map { r in
             CalendarAPIReminderOverride(method: r.method.rawValue, minutes: r.minutes)
@@ -507,11 +507,11 @@ struct CalendarEventEditorView: View {
 
     private func addAttendee() {
         let trimmed = attendeeInput.trimmingCharacters(in: .whitespaces)
-        guard !trimmed.isEmpty, !attendeeEmails.contains(trimmed) else {
+        guard !trimmed.isEmpty, !attendeeEntries.contains(where: { $0.email == trimmed }) else {
             attendeeInput = ""
             return
         }
-        attendeeEmails.append(trimmed)
+        attendeeEntries.append(AttendeeEntry(email: trimmed))
         attendeeInput = ""
     }
 
@@ -543,7 +543,7 @@ struct CalendarEventEditorView: View {
         startTime = draft.startTime
         endTime = draft.endTime
         isAllDay = draft.isAllDay
-        attendeeEmails = draft.attendeeEmails
+        attendeeEntries = draft.attendeeEmails.map { AttendeeEntry(email: $0) }
         colorId = draft.colorId
         selectedCalendarID = draft.calendarId
     }
@@ -559,6 +559,11 @@ struct CalendarEventEditorView: View {
 }
 
 // MARK: - Supporting Types
+
+private struct AttendeeEntry: Identifiable {
+    let id = UUID()
+    var email: String
+}
 
 private struct DraftReminder: Identifiable {
     let id = UUID()

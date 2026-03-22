@@ -98,7 +98,10 @@ final class SubscriptionsStore {
 
     /// Call this whenever new emails are available.  Already-processed messages
     /// are skipped.  Eligible emails are those with a valid unsubscribeURL.
-    func analyze(_ emails: [Email]) {
+    /// - Parameter validateURLs: When `false` (the default), skips HEAD requests to
+    ///   unsubscribe URLs — avoids leaking the user's IP on automatic email display.
+    ///   Pass `true` only when the user explicitly opens the Subscriptions view.
+    func analyze(_ emails: [Email], validateURLs: Bool = false) {
         // Instantly surface known subscriptions from previous sessions (no HEAD needed)
         let knownSubscriptions = emails.filter { email in
             guard let id = email.gmailMessageID,
@@ -121,6 +124,9 @@ final class SubscriptionsStore {
             return true
         }
         guard !candidates.isEmpty else { return }
+
+        // Skip HEAD requests unless explicitly requested to avoid leaking IP on email display
+        guard validateURLs else { return }
 
         // Cancel any in-flight analysis and bump the generation so the old
         // task's defer block won't corrupt the new task's state.

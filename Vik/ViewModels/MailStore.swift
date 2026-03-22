@@ -56,7 +56,12 @@ final class MailStore {
 
     func saveReplyDrafts() {
         guard !accountID.isEmpty else { return }
-        guard let data = try? JSONEncoder().encode(replyDrafts) else { return }
+        // Strip email content previews before persisting to UserDefaults (unencrypted).
+        // The preview is re-derived from the draft on load.
+        let sanitized = replyDrafts.mapValues { draft in
+            ReplyDraftInfo(gmailDraftID: draft.gmailDraftID, preview: "", lastModified: draft.lastModified)
+        }
+        guard let data = try? JSONEncoder().encode(sanitized) else { return }
         UserDefaults.standard.set(data, forKey: Self.replyDraftsKeyPrefix + accountID)
     }
 

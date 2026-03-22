@@ -251,6 +251,18 @@ extension Date {
         Self.allDayISOFormatter.string(from: self)
     }
 
+    /// RFC 3339 with fractional seconds: "2026-03-21T14:30:00.000Z".
+    var rfc3339String: String {
+        formatted(
+            .iso8601
+                .year().month().day()
+                .time(includingFractionalSeconds: true)
+                .timeSeparator(.colon)
+                .dateTimeSeparator(.standard)
+                .timeZone(separator: .omitted)
+        )
+    }
+
     /// Short date without year: "Mar 21".
     var formattedShortDate: String {
         Self.shortDateFormatter.string(from: self)

@@ -198,7 +198,7 @@ struct LabelEditorView: View {
     private func autocompleteDropdown(items: [DropdownItem]) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
+                LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                         if index > 0 {
                             Divider()

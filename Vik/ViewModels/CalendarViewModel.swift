@@ -76,22 +76,66 @@ final class CalendarViewModel {
         observeEvents()
     }
 
+    /// Lightweight projection of CalendarRecord excluding sync_token and last_synced_at.
+    /// Conforms to Equatable so `removeDuplicates()` can filter out observation notifications
+    /// triggered by sync metadata writes that don't affect the UI.
+    private struct CalendarSnapshot: Decodable, FetchableRecord, Equatable {
+        var calendarId: String
+        var accountId: String
+        var summary: String
+        var description: String?
+        var timeZone: String?
+        var backgroundColor: String
+        var foregroundColor: String
+        var isPrimary: Bool
+        var accessRole: String
+        var isVisible: Bool
+        var summaryOverride: String?
+
+        static let databaseColumnDecodingStrategy: DatabaseColumnDecodingStrategy = .convertFromSnakeCase
+
+        func toCalendarInfo() -> CalendarInfo {
+            CalendarInfo(
+                id: "\(accountId)_\(calendarId)",
+                calendarId: calendarId,
+                accountID: accountId,
+                summary: summary,
+                description: description,
+                timeZone: timeZone,
+                backgroundColor: backgroundColor,
+                foregroundColor: foregroundColor,
+                isPrimary: isPrimary,
+                accessRole: CalendarInfo.AccessRole(rawValue: accessRole) ?? .reader,
+                isVisible: isVisible,
+                summaryOverride: summaryOverride
+            )
+        }
+    }
+
     private func observeCalendars() {
         calendarObservationTask?.cancel()
         let dbPool = db.dbPool
+        // Select only UI-relevant columns to avoid triggering on sync_token / last_synced_at writes.
         let calendarObservation = ValueObservation.tracking { db in
-            try MailDatabaseQueries.allCalendars(in: db)
+            try CalendarSnapshot.fetchAll(db, sql: """
+                SELECT calendar_id, account_id, summary, description, time_zone,
+                       background_color, foreground_color, is_primary, access_role,
+                       is_visible, summary_override
+                FROM calendars
+                ORDER BY is_primary DESC, summary ASC
+            """)
         }
+        .removeDuplicates()
         calendarObservationTask = Task { @MainActor [weak self] in
             do {
-                for try await records in calendarObservation.values(in: dbPool) {
+                for try await snapshots in calendarObservation.values(in: dbPool) {
                     guard let self else { return }
-                    self.calendars = records.map { $0.toCalendarInfo() }
+                    self.calendars = snapshots.map { $0.toCalendarInfo() }
                     self.calendarColorMap = self.calendars.reduce(into: [:]) { map, cal in
                         map[cal.calendarId] = Color(hex: cal.backgroundColor)
                     }
                     let newVisibleIDs = Set(
-                        records.filter(\.isVisible).map { "\($0.accountId)\u{001F}\($0.calendarId)" }
+                        snapshots.filter(\.isVisible).map { "\($0.accountId)\u{001F}\($0.calendarId)" }
                     )
                     let changed = newVisibleIDs != self.visibleCalendarIDs
                     self.visibleCalendarIDs = newVisibleIDs

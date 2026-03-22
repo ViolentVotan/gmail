@@ -20,6 +20,10 @@ actor CalendarBackgroundSyncer {
     /// in the incoming records (calendar list API doesn't return per-calendar sync tokens).
     func upsertCalendars(_ calendars: [CalendarRecord]) async throws {
         guard !calendars.isEmpty else { return }
+        assert(
+            calendars.allSatisfy { $0.accountId == calendars[0].accountId },
+            "upsertCalendars requires all calendars to share the same accountId"
+        )
         try await db.dbPool.write { db in
             // Batch-prefetch all existing calendars for this account in one query
             // to avoid N+1 individual fetchOne calls inside the loop.
@@ -73,7 +77,7 @@ actor CalendarBackgroundSyncer {
             var clearedEvents: Set<EventKey> = []
 
             for event in events {
-                try event.save(db, onConflict: .replace)
+                try event.upsert(db)
 
                 let key = EventKey(eventId: event.eventId, calendarId: event.calendarId, accountId: event.accountId)
                 if clearedEvents.insert(key).inserted {

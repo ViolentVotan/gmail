@@ -18,7 +18,7 @@ final class PeopleAPIService {
     /// writes are serialized through the same actor instance used by the sync engine.
     func loadContactPhotos(accountID: String, syncer: BackgroundSyncer) async {
         let local: [StoredContact] = (try? await MailDatabase.shared(for: accountID).dbPool.read { db in
-            try MailDatabaseQueries.allContacts(in: db).map {
+            try MailDatabaseQueries.allContacts(limit: 10_000, in: db).map {
                 StoredContact(name: $0.name ?? $0.email, email: $0.email, photoURL: $0.photoUrl)
             }
         }) ?? []
@@ -165,8 +165,12 @@ final class PeopleAPIService {
                 let isGone = if case GmailAPIError.httpError(410, _) = error { true } else { false }
                 if isGone {
                     Self.logger.warning("\(config.label) sync token expired, performing full re-fetch")
-                    try? await mailDB?.dbPool.write { db in
-                        try MailDatabaseQueries.updateSyncState({ config.clearSyncToken(&$0) }, in: db)
+                    do {
+                        try await mailDB?.dbPool.write { db in
+                            try MailDatabaseQueries.updateSyncState({ config.clearSyncToken(&$0) }, in: db)
+                        }
+                    } catch {
+                        Self.logger.warning("Failed to clear expired \(config.label) sync token: \(error, privacy: .public)")
                     }
                     needsFullFetch = true
                 } else {
@@ -208,8 +212,12 @@ final class PeopleAPIService {
 
         // Save sync token after all pages succeeded
         if let token = newSyncToken {
-            try? await mailDB?.dbPool.write { db in
-                try MailDatabaseQueries.updateSyncState({ config.saveSyncToken(&$0, token) }, in: db)
+            do {
+                try await mailDB?.dbPool.write { db in
+                    try MailDatabaseQueries.updateSyncState({ config.saveSyncToken(&$0, token) }, in: db)
+                }
+            } catch {
+                Self.logger.warning("Failed to save \(config.label) sync token: \(error, privacy: .public)")
             }
         }
 
@@ -312,14 +320,18 @@ final class PeopleAPIService {
         // contacts were upserted above — anything with updated_at < syncStartTime
         // no longer exists upstream and can be safely pruned.
         if didFullConnectionsFetch && didFullOtherContactsFetch {
-            let pruned = try? await mailDB?.dbPool.write { db -> Int in
-                try ContactRecord
-                    .filter(Column("source") == "people_api")
-                    .filter(Column("updated_at") < syncStartTime)
-                    .deleteAll(db)
-            }
-            if let pruned, pruned > 0 {
-                Self.logger.info("Pruned \(pruned, privacy: .public) stale people_api contacts")
+            do {
+                let pruned = try await mailDB?.dbPool.write { db -> Int in
+                    try ContactRecord
+                        .filter(Column("source") == "people_api")
+                        .filter(Column("updated_at") < syncStartTime)
+                        .deleteAll(db)
+                }
+                if let pruned, pruned > 0 {
+                    Self.logger.info("Pruned \(pruned, privacy: .public) stale people_api contacts")
+                }
+            } catch {
+                Self.logger.error("Failed to prune stale people_api contacts: \(error, privacy: .public)")
             }
         }
 
@@ -370,14 +382,18 @@ final class PeopleAPIService {
             )
             // Purge directory contacts not seen in this full re-fetch
             if result == .fullFetch {
-                let pruned = try? await mailDB?.dbPool.write { db -> Int in
-                    try ContactRecord
-                        .filter(Column("source") == "directory")
-                        .filter(Column("updated_at") < syncStartTime)
-                        .deleteAll(db)
-                }
-                if let pruned, pruned > 0 {
-                    Self.logger.info("Pruned \(pruned, privacy: .public) stale directory contacts")
+                do {
+                    let pruned = try await mailDB?.dbPool.write { db -> Int in
+                        try ContactRecord
+                            .filter(Column("source") == "directory")
+                            .filter(Column("updated_at") < syncStartTime)
+                            .deleteAll(db)
+                    }
+                    if let pruned, pruned > 0 {
+                        Self.logger.info("Pruned \(pruned, privacy: .public) stale directory contacts")
+                    }
+                } catch {
+                    Self.logger.error("Failed to prune stale directory contacts: \(error, privacy: .public)")
                 }
             }
         } catch {
@@ -418,7 +434,7 @@ final class PeopleAPIService {
             }
             return details
         } catch {
-            Self.logger.debug("Person detail enrichment failed for \(resourceName): \(error)")
+            Self.logger.debug("Person detail enrichment failed for \(resourceName, privacy: .private): \(error, privacy: .public)")
             return nil
         }
     }

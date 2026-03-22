@@ -19,4 +19,5 @@ struct AccountSyncStateRecord: Codable, FetchableRecord, PersistableRecord, Send
     var directorySyncToken: String?
     var labelsEtag: String?
     var lastBodyPrefetchAt: Double?
+    var calendarListSyncToken: String?
 }

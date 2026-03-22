@@ -73,6 +73,11 @@ actor CalendarSyncEngine {
     func start() async {
         guard syncTask == nil else { return }
 
+        // Restore persisted calendar list sync token
+        calendarListSyncToken = try? await db.dbPool.read { db in
+            try MailDatabaseQueries.syncState(in: db)?.calendarListSyncToken
+        }
+
         let hasTokens = (try? await db.dbPool.read { db in
             try CalendarRecord
                 .filter(Column("account_id") == accountID)
@@ -148,7 +153,7 @@ actor CalendarSyncEngine {
             let (calendars, listSyncToken) = try await listService.listCalendars(accountID: accountID)
             let records = calendars.compactMap { Self.calendarRecord(from: $0, accountId: accountID) }
             try await syncer.upsertCalendars(records)
-            calendarListSyncToken = listSyncToken
+            await persistCalendarListSyncToken(listSyncToken)
 
             // 2. For each visible calendar: fetch events (-30d to +90d)
             let now = Date()
@@ -481,10 +486,10 @@ actor CalendarSyncEngine {
                     }
 
                     if let newToken = response.nextSyncToken {
-                        calendarListSyncToken = newToken
+                        await persistCalendarListSyncToken(newToken)
                     }
                 } catch CalendarAPIError.gone {
-                    calendarListSyncToken = nil
+                    await persistCalendarListSyncToken(nil)
                     // Don't recurse — let the next scheduled poll handle the full fetch.
                     Self.logger.info("Calendar list sync token expired, cleared for next poll")
                 }
@@ -493,10 +498,20 @@ actor CalendarSyncEngine {
                 let (calendars, listSyncToken) = try await listService.listCalendars(accountID: accountID)
                 let records = calendars.compactMap { Self.calendarRecord(from: $0, accountId: accountID) }
                 try await syncer.upsertCalendars(records)
-                calendarListSyncToken = listSyncToken
+                await persistCalendarListSyncToken(listSyncToken)
             }
         } catch {
             Self.logger.error("Calendar list sync failed: \(String(describing: error))")
+        }
+    }
+
+    // MARK: - Calendar List Sync Token Persistence
+
+    /// Persists the calendar list sync token to the account_sync_state table.
+    private func persistCalendarListSyncToken(_ token: String?) async {
+        calendarListSyncToken = token
+        try? await db.dbPool.write { db in
+            try MailDatabaseQueries.updateSyncState({ $0.calendarListSyncToken = token }, in: db)
         }
     }
 

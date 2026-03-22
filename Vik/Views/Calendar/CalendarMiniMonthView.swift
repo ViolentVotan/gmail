@@ -9,7 +9,6 @@ struct CalendarMiniMonthView: View {
     @State private var cachedMonth: Int = -1
     @State private var cachedYear: Int = -1
 
-    private let calendar = Calendar.current
     private let dayColumns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
     private static let daySymbols: [String] = {
         let symbols = Calendar.current.veryShortWeekdaySymbols
@@ -118,7 +117,8 @@ struct CalendarMiniMonthView: View {
     private func dayCell(_ date: Date, inSelectedWeek: Bool) -> some View {
         MiniMonthDayCell(
             date: date,
-            viewModel: viewModel
+            selectedDate: viewModel.selectedDate,
+            onSelectDate: { viewModel.selectDate($0) }
         )
     }
 
@@ -129,12 +129,13 @@ struct CalendarMiniMonthView: View {
     }
 
     private func isSelectedWeek(_ days: [Date?]) -> Bool {
-        days.compactMap { $0 }.contains { calendar.isDate($0, equalTo: viewModel.selectedDate, toGranularity: .weekOfYear) }
+        days.compactMap { $0 }.contains { Calendar.current.isDate($0, equalTo: viewModel.selectedDate, toGranularity: .weekOfYear) }
     }
 
     private func recomputeWeeksIfNeeded() {
-        let month = calendar.component(.month, from: viewModel.selectedDate)
-        let year = calendar.component(.year, from: viewModel.selectedDate)
+        let cal = Calendar.current
+        let month = cal.component(.month, from: viewModel.selectedDate)
+        let year = cal.component(.year, from: viewModel.selectedDate)
         guard month != cachedMonth || year != cachedYear else { return }
         cachedMonth = month
         cachedYear = year
@@ -142,13 +143,14 @@ struct CalendarMiniMonthView: View {
     }
 
     private func weeksInMonth() -> [[Date?]] {
-        let components = calendar.dateComponents([.year, .month], from: viewModel.selectedDate)
-        guard let firstOfMonth = calendar.date(from: components),
-              let range = calendar.range(of: .day, in: .month, for: firstOfMonth)
+        let cal = Calendar.current
+        let components = cal.dateComponents([.year, .month], from: viewModel.selectedDate)
+        guard let firstOfMonth = cal.date(from: components),
+              let range = cal.range(of: .day, in: .month, for: firstOfMonth)
         else { return [] }
 
-        let weekdayOfFirst = calendar.component(.weekday, from: firstOfMonth)
-        let firstWeekday = (weekdayOfFirst - calendar.firstWeekday + 7) % 7
+        let weekdayOfFirst = cal.component(.weekday, from: firstOfMonth)
+        let firstWeekday = (weekdayOfFirst - cal.firstWeekday + 7) % 7
         let totalDays = range.count
         let totalCells = firstWeekday + totalDays
         let totalWeeks = Int(ceil(Double(totalCells) / 7.0))
@@ -161,7 +163,7 @@ struct CalendarMiniMonthView: View {
                 if offset < 0 || offset >= totalDays {
                     weekDays.append(nil)
                 } else {
-                    let date = calendar.date(byAdding: .day, value: offset, to: firstOfMonth)
+                    let date = cal.date(byAdding: .day, value: offset, to: firstOfMonth)
                     weekDays.append(date)
                 }
             }
@@ -176,23 +178,23 @@ struct CalendarMiniMonthView: View {
 /// Extracted day cell with local hover state to avoid invalidating the entire mini-month grid on hover.
 private struct MiniMonthDayCell: View {
     let date: Date
-    @Bindable var viewModel: CalendarViewModel
+    let selectedDate: Date
+    let onSelectDate: (Date) -> Void
 
     @State private var isHovered = false
 
-    private let calendar = Calendar.current
-
     var body: some View {
-        let isToday = calendar.isDateInToday(date)
-        let isSelected = calendar.isDate(date, inSameDayAs: viewModel.selectedDate)
-        let isInCurrentMonth = calendar.isDate(date, equalTo: viewModel.selectedDate, toGranularity: .month)
+        let cal = Calendar.current
+        let isToday = cal.isDateInToday(date)
+        let isSelected = cal.isDate(date, inSameDayAs: selectedDate)
+        let isInCurrentMonth = cal.isDate(date, equalTo: selectedDate, toGranularity: .month)
 
         Button {
             withAnimation(VikAnimation.springSnappy) {
-                viewModel.selectDate(date)
+                onSelectDate(date)
             }
         } label: {
-            Text("\(calendar.component(.day, from: date))")
+            Text("\(cal.component(.day, from: date))")
                 .font(isToday ? Typography.calendarMiniDay.bold() : Typography.calendarMiniDay)
                 .foregroundStyle(dayTextColor(isToday: isToday, isSelected: isSelected, isInMonth: isInCurrentMonth))
                 .frame(width: CalendarLayout.miniMonthDaySize, height: CalendarLayout.miniMonthDaySize)

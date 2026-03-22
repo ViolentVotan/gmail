@@ -22,6 +22,7 @@ enum MailDatabaseMigrations {
         registerV15(&migrator)
         registerV16(&migrator)
         registerV17(&migrator)
+        registerV18(&migrator)
         return migrator
     }
 
@@ -510,6 +511,22 @@ enum MailDatabaseMigrations {
                     WHERE attachments.message_id = messages.gmail_id
                 ) WHERE has_attachments = 1
             """)
+        }
+    }
+
+    // MARK: - V18
+
+    private static func registerV18(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v18_calendar_list_sync_token_and_sender_nocase") { db in
+            // #16: Persist calendar list sync token in account_sync_state
+            try db.alter(table: "account_sync_state") { t in
+                t.add(column: "calendar_list_sync_token", .text)
+            }
+
+            // #17: NOCASE index on sender_email for pruneStaleMessageContacts correlated subquery.
+            // contacts.email uses NOCASE collation, but the existing messages_sender index uses
+            // BINARY — collation mismatch prevents index usage on the NOT EXISTS subquery.
+            try db.execute(sql: "CREATE INDEX IF NOT EXISTS messages_sender_nocase ON messages(sender_email COLLATE NOCASE)")
         }
     }
 }

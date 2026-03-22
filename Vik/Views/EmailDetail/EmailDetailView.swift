@@ -400,6 +400,9 @@ struct EmailDetailView: View {
 
     private func threadCard(for message: GmailMessage, at index: Int) -> some View {
         let isLastCard = message.id == detailVM.messages.last?.id
+        // TODO: Pass detailVM.precomputedHTMLParts[message.id] to ThreadMessageCardView
+        // to skip computeFullHTML + stripQuotedHTML regex work during init rendering.
+        // ThreadMessageCardView needs a new optional parameter for PrecomputedMessageHTML.
         return ThreadMessageCardView(
             message: message,
             isExpanded: isMessageExpanded(message),

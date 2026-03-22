@@ -52,8 +52,10 @@ final class UnsubscribeService {
             let success = await performOneClickPost(url: url)
             if success, let messageID { markUnsubscribed(messageID: messageID, accountID: accountID) }
             return success
-        } else {
+        } else if url.scheme == "https" || url.scheme == "http" || url.scheme == "mailto" {
             NSWorkspace.shared.open(url)
+            return false
+        } else {
             return false
         }
     }

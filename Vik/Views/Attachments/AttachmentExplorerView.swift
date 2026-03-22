@@ -200,7 +200,7 @@ struct AttachmentExplorerView: View {
                     .foregroundStyle(.tertiary)
             } else {
                 VStack(spacing: 4) {
-                    ForEach(store.exclusionRules, id: \.self) { rule in
+                    ForEach(Array(store.exclusionRules.enumerated()), id: \.offset) { _, rule in
                         HStack {
                             Text(rule)
                                 .font(.subheadline.monospaced())

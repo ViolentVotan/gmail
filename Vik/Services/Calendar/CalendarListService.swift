@@ -43,7 +43,7 @@ final class CalendarListService {
             lastSyncToken = response.nextSyncToken
         } while pageToken != nil
 
-        Self.logger.debug("listCalendars: fetched \(all.count) calendars for account \(accountID)")
+        Self.logger.debug("listCalendars: fetched \(all.count) calendars for account \(accountID, privacy: .private)")
         return (entries: all, syncToken: lastSyncToken)
     }
 
@@ -62,7 +62,7 @@ final class CalendarListService {
             queryItems: queryItems,
             accountID: accountID
         )
-        Self.logger.debug("syncCalendars: received \(response.items?.count ?? 0) changed calendars for account \(accountID)")
+        Self.logger.debug("syncCalendars: received \(response.items?.count ?? 0) changed calendars for account \(accountID, privacy: .private)")
         return response
     }
 

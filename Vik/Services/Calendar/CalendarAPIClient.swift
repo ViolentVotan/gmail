@@ -146,7 +146,7 @@ final class CalendarAPIClient {
             throw .rateLimited(retryAfter: retryAfterSecs)
         case 403:
             if let body = String(data: data, encoding: .utf8), body.contains("insufficientPermissions") {
-                Self.logger.warning("Calendar API: insufficientPermissions for account \(accountID) — posting reauth notification")
+                Self.logger.warning("Calendar API: insufficientPermissions for account \(accountID, privacy: .private) — posting reauth notification")
                 await postInsufficientPermissionsNotification(accountID: accountID)
                 throw .insufficientPermissions
             }

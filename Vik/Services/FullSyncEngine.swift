@@ -390,7 +390,7 @@ actor FullSyncEngine {
     // MARK: - Initial Sync
 
     private func performInitialSync(resumeFrom pageToken: String?) async -> Bool {
-        Self.logger.info("Starting initial sync for \(self.accountID)")
+        Self.logger.info("Starting initial sync for \(self.accountID, privacy: .private)")
         var currentPageToken = pageToken
         var totalEstimate: Int?
         var syncedCount = 0
@@ -502,7 +502,7 @@ actor FullSyncEngine {
             // stop() here — we're inside syncTask, and stop() awaits syncTask.value
             // which would deadlock. The retry loop checks isTokenRevoked to bail.
             if case .tokenRevoked = error as? GmailAPIError {
-                Self.logger.error("Token revoked during initial sync for \(self.accountID)")
+                Self.logger.error("Token revoked during initial sync for \(self.accountID, privacy: .private)")
                 isTokenRevoked = true
                 state = .error("Session expired — please sign in again")
                 await reportProgress(.failed("Session expired — please sign in again"))
@@ -703,7 +703,11 @@ actor FullSyncEngine {
                 // Cancel all tasks directly — can't use stop() here because we're
                 // running inside incrementalTask/triggeredSyncTask, and stop() awaits
                 // our own task's .value, causing actor self-deadlock.
-                Self.logger.error("Token revoked for \(self.accountID), stopping sync")
+                Self.logger.error("Token revoked for \(self.accountID, privacy: .private), stopping sync")
+                // cancelAllTasks() cancels and nils all task refs but does not await them.
+                // Invariant: this engine is removed from activeEngines immediately after,
+                // so start() will never be called on this instance again — the cancelled
+                // tasks will drain on their own without causing a registry lifecycle gap.
                 cancelAllTasks()
                 Self.activeEngines.withLock { _ = $0.removeValue(forKey: accountID) }
                 state = .error("Session expired — please sign in again")

@@ -36,13 +36,21 @@ struct APILogEntry: Identifiable, Sendable {
         self.durationMs      = durationMs
         self.fromCache       = fromCache
 
-        let limit = APILogEntry.maxBodyBytes
-        if responseBodyData.count > limit {
-            self.responseBody    = (String(data: responseBodyData.prefix(limit), encoding: .utf8) ?? "") + "\n…[truncated]"
-            self.bodyTruncated   = true
-        } else {
-            self.responseBody    = String(data: responseBodyData, encoding: .utf8) ?? ""
+        // Redact full response bodies for paths containing email/thread content
+        // to avoid storing sensitive message data in the debug log.
+        let shouldRedact = path.contains("/messages/") || path.contains("/threads/")
+        if shouldRedact {
+            self.responseBody    = "[EMAIL CONTENT REDACTED]"
             self.bodyTruncated   = false
+        } else {
+            let limit = APILogEntry.maxBodyBytes
+            if responseBodyData.count > limit {
+                self.responseBody    = (String(data: responseBodyData.prefix(limit), encoding: .utf8) ?? "") + "\n…[truncated]"
+                self.bodyTruncated   = true
+            } else {
+                self.responseBody    = String(data: responseBodyData, encoding: .utf8) ?? ""
+                self.bodyTruncated   = false
+            }
         }
     }
 

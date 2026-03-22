@@ -1,7 +1,19 @@
 import SwiftUI
 import AppKit
 
-struct ThreadMessageCardView: View {
+/// Equatable compares only value-type fields — closure properties (onToggle, onOpenLink, etc.)
+/// are excluded because closures cannot conform to Equatable.
+struct ThreadMessageCardView: View, Equatable {
+    static func == (lhs: ThreadMessageCardView, rhs: ThreadMessageCardView) -> Bool {
+        lhs.message.id == rhs.message.id &&
+        lhs.fromAddress == rhs.fromAddress &&
+        lhs.resolvedHTML == rhs.resolvedHTML &&
+        lhs.isExpanded == rhs.isExpanded &&
+        lhs.isLast == rhs.isLast &&
+        lhs.accountID == rhs.accountID &&
+        lhs.downloadingAttachmentIDs == rhs.downloadingAttachmentIDs
+    }
+
     let message: GmailMessage
     let isExpanded: Bool
     let fromAddress: String
@@ -448,14 +460,3 @@ struct ThreadMessageCardView: View {
     }
 }
 
-extension ThreadMessageCardView: Equatable {
-    static func == (lhs: ThreadMessageCardView, rhs: ThreadMessageCardView) -> Bool {
-        lhs.message.id == rhs.message.id &&
-        lhs.fromAddress == rhs.fromAddress &&
-        lhs.resolvedHTML == rhs.resolvedHTML &&
-        lhs.isExpanded == rhs.isExpanded &&
-        lhs.isLast == rhs.isLast &&
-        lhs.accountID == rhs.accountID &&
-        lhs.downloadingAttachmentIDs == rhs.downloadingAttachmentIDs
-    }
-}
