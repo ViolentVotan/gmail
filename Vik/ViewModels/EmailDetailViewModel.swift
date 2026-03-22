@@ -328,6 +328,7 @@ final class EmailDetailViewModel {
         if resolvedMessageHTML[message.id] != resolved {
             resolvedMessageHTML[message.id] = resolved
         }
+        precomputeHTMLParts()
     }
 
     /// Resolves inline CID images for older thread messages in parallel and stores results per message ID.
@@ -348,6 +349,7 @@ final class EmailDetailViewModel {
                 resolvedMessageHTML[messageID] = html
             }
         }
+        precomputeHTMLParts()
     }
 
     /// Shared helper: downloads inline CID attachments and replaces cid: references with data: URIs.

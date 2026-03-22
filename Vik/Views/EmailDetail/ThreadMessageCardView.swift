@@ -37,6 +37,7 @@ struct ThreadMessageCardView: View, Equatable {
     var onReplyAll: ((GmailMessage) -> Void)?
     var onForward: ((GmailMessage) -> Void)?
     var onMarkUnread: ((GmailMessage) -> Void)?
+    var precomputedHTML: PrecomputedMessageHTML?
 
     @State private var showQuoted = false
     @State private var contentHeight: CGFloat = 60
@@ -74,7 +75,8 @@ struct ThreadMessageCardView: View, Equatable {
         onReply: ((GmailMessage) -> Void)? = nil,
         onReplyAll: ((GmailMessage) -> Void)? = nil,
         onForward: ((GmailMessage) -> Void)? = nil,
-        onMarkUnread: ((GmailMessage) -> Void)? = nil
+        onMarkUnread: ((GmailMessage) -> Void)? = nil,
+        precomputedHTML: PrecomputedMessageHTML? = nil
     ) {
         self.message = message
         self.isExpanded = isExpanded
@@ -99,14 +101,20 @@ struct ThreadMessageCardView: View, Equatable {
         self.onReplyAll = onReplyAll
         self.onForward = onForward
         self.onMarkUnread = onMarkUnread
+        self.precomputedHTML = precomputedHTML
 
         let parsedSender = GmailDataTransformer.parseContact(message.from)
         self.sender = parsedSender
         self.isSentByMe = !fromAddress.isEmpty && parsedSender.email.lowercased() == fromAddress.lowercased()
 
-        let html = GmailThreadMessageView.computeFullHTML(message: message, resolvedHTML: resolvedHTML)
-        self.cachedFullHTML = html
-        self.cachedHTMLParts = GmailThreadMessageView.stripQuotedHTML(html)
+        if let precomputed = precomputedHTML {
+            self.cachedFullHTML = precomputed.fullHTML
+            self.cachedHTMLParts = (original: precomputed.originalHTML, quoted: precomputed.quotedHTML)
+        } else {
+            let html = GmailThreadMessageView.computeFullHTML(message: message, resolvedHTML: resolvedHTML)
+            self.cachedFullHTML = html
+            self.cachedHTMLParts = GmailThreadMessageView.stripQuotedHTML(html)
+        }
 
         let parts = message.to.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }
         if parts.isEmpty {
