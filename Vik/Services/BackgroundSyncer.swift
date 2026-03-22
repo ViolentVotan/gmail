@@ -17,6 +17,10 @@ actor BackgroundSyncer {
     /// Handles: message records, label records, message_labels join, FTS index, thread counts.
     func upsertMessages(_ gmailMessages: [GmailMessage], ensureLabels labelIds: [String]) async throws {
         guard !gmailMessages.isEmpty else { return }
+
+        // Pre-compute outside sync write closure (matching prepareBodyUpdates pattern)
+        let preprocessingResults = await Self.computePreprocessing(for: gmailMessages)
+
         try await db.dbPool.write { db in
             // Ensure label records exist (insert placeholder only if absent — preserves synced metadata)
             for labelId in labelIds {
@@ -49,7 +53,7 @@ actor BackgroundSyncer {
             var affectedThreadIds = Set<String>()
 
             for gmail in gmailMessages {
-                try Self.upsertSingleMessage(gmail, in: db, affectedThreadIds: &affectedThreadIds, existingRecords: existingRecords, existingLabelSets: existingLabelSets)
+                try Self.upsertSingleMessage(gmail, in: db, affectedThreadIds: &affectedThreadIds, existingRecords: existingRecords, existingLabelSets: existingLabelSets, preprocessing: preprocessingResults[gmail.id])
             }
 
             try MailDatabaseQueries.updateThreadCounts(for: affectedThreadIds, in: db)
@@ -105,7 +109,7 @@ actor BackgroundSyncer {
     /// Update message bodies after background pre-fetch.
     @concurrent private static func prepareBodyUpdates(
         _ updates: [(gmailId: String, html: String?, plain: String?)]
-    ) async -> [(gmailId: String, html: String?, plainText: String?)] {
+    ) async -> [(gmailId: String, html: String?, plainText: String?, preprocessing: HTMLPreprocessingPipeline.Result?)] {
         updates.map { update in
             let plainText: String?
             if let plain = update.plain {
@@ -115,8 +119,21 @@ actor BackgroundSyncer {
             } else {
                 plainText = nil
             }
-            return (gmailId: update.gmailId, html: update.html, plainText: plainText)
+            let preprocessing = update.html.map { HTMLPreprocessingPipeline.preprocess($0) }
+            return (gmailId: update.gmailId, html: update.html, plainText: plainText, preprocessing: preprocessing)
         }
+    }
+
+    /// Pre-compute HTML preprocessing results outside sync write closures (actor-safe).
+    @concurrent private static func computePreprocessing(
+        for messages: [GmailMessage]
+    ) async -> [String: HTMLPreprocessingPipeline.Result] {
+        var results: [String: HTMLPreprocessingPipeline.Result] = [:]
+        for msg in messages {
+            guard let html = msg.htmlBody, !html.isEmpty else { continue }
+            results[msg.id] = HTMLPreprocessingPipeline.preprocess(html)
+        }
+        return results
     }
 
     func updateBodies(_ updates: [(gmailId: String, html: String?, plain: String?)]) async throws {
@@ -130,8 +147,17 @@ actor BackgroundSyncer {
             let now = Date().timeIntervalSince1970
             for item in prepared {
                 try db.execute(
-                    sql: "UPDATE messages SET body_html = ?, body_plain = ?, full_body_fetched = 1, fetched_at = ? WHERE gmail_id = ?",
-                    arguments: [item.html, item.plainText, now, item.gmailId]
+                    sql: """
+                        UPDATE messages SET body_html = ?, body_plain = ?, full_body_fetched = 1, fetched_at = ?,
+                        preprocessed_html = ?, sanitized_html = ?, original_html = ?, quoted_html = ?, preprocessing_version = ?
+                        WHERE gmail_id = ?
+                        """,
+                    arguments: [
+                        item.html, item.plainText, now,
+                        item.preprocessing?.preprocessedHTML, item.preprocessing?.sanitizedHTML,
+                        item.preprocessing?.originalHTML, item.preprocessing?.quotedHTML,
+                        item.preprocessing?.version, item.gmailId,
+                    ]
                 )
             }
         }
@@ -177,6 +203,9 @@ actor BackgroundSyncer {
         deletedIds: [String],
         labelUpdates: [(gmailId: String, labelIds: [String])]
     ) async throws {
+        // Pre-compute preprocessing for new messages
+        let preprocessingResults = await Self.computePreprocessing(for: newMessages)
+
         try await db.dbPool.write { db in
             var affectedThreadIds = Set<String>()
 
@@ -192,7 +221,7 @@ actor BackgroundSyncer {
 
             // Insert new messages
             for gmail in newMessages {
-                try Self.upsertSingleMessage(gmail, in: db, affectedThreadIds: &affectedThreadIds)
+                try Self.upsertSingleMessage(gmail, in: db, affectedThreadIds: &affectedThreadIds, preprocessing: preprocessingResults[gmail.id])
             }
 
             // Update labels on existing messages
@@ -292,7 +321,8 @@ actor BackgroundSyncer {
         in db: Database,
         affectedThreadIds: inout Set<String>,
         existingRecords: [String: MessageRecord]? = nil,
-        existingLabelSets: [String: Set<String>]? = nil
+        existingLabelSets: [String: Set<String>]? = nil,
+        preprocessing: HTMLPreprocessingPipeline.Result? = nil
     ) throws {
         let record = MessageRecord(from: gmail)
         let existing: MessageRecord? = if let existingRecords {
@@ -354,6 +384,14 @@ actor BackgroundSyncer {
                 toSave.bodyFetchAttempts = existing.bodyFetchAttempts
                 // Preserve thread count — updateThreadCounts only runs for newly-inserted messages.
                 toSave.threadMessageCount = existing.threadMessageCount
+                // Set preprocessing columns if available and body is present
+                if let p = preprocessing, toSave.fullBodyFetched == true {
+                    toSave.preprocessedHtml = p.preprocessedHTML
+                    toSave.sanitizedHtml = p.sanitizedHTML
+                    toSave.originalHtml = p.originalHTML
+                    toSave.quotedHtml = p.quotedHTML
+                    toSave.preprocessingVersion = p.version
+                }
                 try toSave.update(db)
 
                 // FTS is maintained by the AFTER UPDATE trigger (v14+) which covers
@@ -369,8 +407,16 @@ actor BackgroundSyncer {
             // Attachments and thread counts: not affected by updates to existing messages
         } else {
             // --- New message: full insert ---
-            try record.insert(db)
-            affectedThreadIds.insert(record.threadId)
+            var newRecord = record
+            if let p = preprocessing, newRecord.fullBodyFetched == true {
+                newRecord.preprocessedHtml = p.preprocessedHTML
+                newRecord.sanitizedHtml = p.sanitizedHTML
+                newRecord.originalHtml = p.originalHTML
+                newRecord.quotedHtml = p.quotedHTML
+                newRecord.preprocessingVersion = p.version
+            }
+            try newRecord.insert(db)
+            affectedThreadIds.insert(newRecord.threadId)
 
             try rebuildMessageLabels(for: record.gmailId, gmail: gmail, in: db)
 
