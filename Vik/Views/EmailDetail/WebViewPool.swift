@@ -11,9 +11,11 @@ final class WebViewPool {
     /// Call once at app launch to pre-warm the pool.
     func warmUp() {
         guard available.isEmpty else { return }
-        let webView = createWebView()
-        webView.loadHTMLString(HTMLEmailView.templateHTML(), baseURL: nil)
-        available.append(webView)
+        for _ in 0..<3 {
+            let webView = createWebView()
+            webView.loadHTMLString(HTMLEmailView.templateHTML(), baseURL: nil)
+            available.append(webView)
+        }
     }
 
     /// Returns a pre-warmed WKWebView, or creates one on demand.
@@ -47,10 +49,13 @@ final class WebViewPool {
     }
 
     private func replenish() {
-        guard available.isEmpty else { return }
-        let wv = createWebView()
-        wv.loadHTMLString(HTMLEmailView.templateHTML(), baseURL: nil)
-        available.append(wv)
+        let deficit = 3 - available.count
+        guard deficit > 0 else { return }
+        for _ in 0..<deficit {
+            let wv = createWebView()
+            wv.loadHTMLString(HTMLEmailView.templateHTML(), baseURL: nil)
+            available.append(wv)
+        }
     }
 
     private func createWebView() -> WKWebView {
