@@ -27,7 +27,7 @@ final class GmailAPIClient {
     /// Key for the account ID in `gmailScopesInsufficient` notification's userInfo.
     nonisolated static let accountIDKey = "accountID"
 
-    nonisolated private static let jsonDecoder = JSONDecoder()
+    nonisolated private static var jsonDecoder: JSONDecoder { JSONDecoder() }
 
     private let baseURL = "https://gmail.googleapis.com/gmail/v1"
     nonisolated private static let logger = Logger(category: "GmailAPI")
@@ -723,49 +723,50 @@ final class GmailAPIClient {
     /// Forces a token refresh (invalidates cached token). Used for 401 auto-retry.
     /// If a refresh is already in flight, awaits it instead of starting a new one
     /// (avoids double-refresh when concurrent 401s race).
-    private func refreshAndRetry(accountID: String) async throws(GmailAPIError) -> AuthToken {
-        // Coalesce: if a refresh is already in flight, just await it
-        if let existing = refreshTasks[accountID] {
-            do {
-                return try await existing.value
-            } catch {
-                throw .wrap(error)
+    @concurrent private func refreshAndRetry(accountID: String) async throws(GmailAPIError) -> AuthToken {
+        // Single atomic check-or-create on MainActor — prevents TOCTOU race
+        // where two concurrent callers both see nil and create duplicate refresh tasks.
+        let (task, isNew): (Task<AuthToken, Error>, Bool) = await MainActor.run {
+            if let existing = refreshTasks[accountID] {
+                return (existing, false)
             }
-        }
+            let generation = (refreshGeneration[accountID] ?? 0) + 1
+            refreshGeneration[accountID] = generation
 
-        // No in-flight refresh — create one
-        let generation = (refreshGeneration[accountID] ?? 0) + 1
-        refreshGeneration[accountID] = generation
-
-        // Create and register the task atomically — since we're on @MainActor,
-        // the dictionary assignment below runs before the Task closure executes,
-        // preventing a TOCTOU race where concurrent callers miss the in-flight task.
-        let task = Task {
-            defer { refreshTasks[accountID] = nil }
-            let token: AuthToken?
-            do {
-                token = try await TokenStore.shared.retrieve(for: accountID)
-            } catch {
-                throw GmailAPIError.networkError(error)
+            // Use Task.detached to avoid inheriting MainActor isolation —
+            // the body does network I/O that should not occupy the main actor.
+            let t = Task.detached { [self] in
+                await MainActor.run { self.refreshTasks[accountID] = nil }
+                let token: AuthToken?
+                do {
+                    token = try await TokenStore.shared.retrieve(for: accountID)
+                } catch {
+                    throw GmailAPIError.networkError(error)
+                }
+                guard let token else { throw GmailAPIError.unauthorized }
+                let fresh = try await OAuthService.shared.refreshToken(token)
+                try await TokenStore.shared.save(fresh, for: accountID)
+                return fresh
             }
-            guard let token else { throw GmailAPIError.unauthorized }
-            let fresh = try await OAuthService.shared.refreshToken(token)
-            try await TokenStore.shared.save(fresh, for: accountID)
-            return fresh
+            refreshTasks[accountID] = t
+            return (t, true)
         }
-        refreshTasks[accountID] = task
 
         do {
             let result = try await task.value
-            refreshGeneration.removeValue(forKey: accountID)
-            cachedTokens.withLock { $0[accountID] = result }
+            if isNew {
+                await MainActor.run { _ = refreshGeneration.removeValue(forKey: accountID) }
+                cachedTokens.withLock { $0[accountID] = result }
+            }
             return result
         } catch {
-            refreshGeneration.removeValue(forKey: accountID)
-            // Clear revoked tokens from Keychain so we don't retry stale credentials on next launch
-            if case .tokenRevoked = error as? OAuthError {
-                TokenStore.shared.delete(for: accountID)
-                _ = cachedTokens.withLock { $0.removeValue(forKey: accountID) }
+            if isNew {
+                await MainActor.run { _ = refreshGeneration.removeValue(forKey: accountID) }
+                // Clear revoked tokens from Keychain so we don't retry stale credentials on next launch
+                if case .tokenRevoked = error as? OAuthError {
+                    await TokenStore.shared.delete(for: accountID)
+                    _ = cachedTokens.withLock { $0.removeValue(forKey: accountID) }
+                }
             }
             throw .wrap(error)
         }
@@ -774,7 +775,7 @@ final class GmailAPIClient {
     // MARK: - Perform with logging
 
     /// Wraps `perform()` with DEBUG logging. Extracted to allow 401 retry without duplicating logic.
-    private func doPerform(
+    @concurrent private func doPerform(
         path: String,
         method: String,
         body: Data?,
@@ -798,7 +799,7 @@ final class GmailAPIClient {
         do {
             let (data, code, respHeaders) = try await perform(path: path, method: method, body: body, contentType: contentType, fields: fields, accessToken: accessToken, accountID: accountID)
             let ms = Int(Date().timeIntervalSince(t0) * 1000)
-            APILogger.shared.log(APILogEntry(
+            await APILogger.shared.log(APILogEntry(
                 method: method, path: path, statusCode: code, errorMessage: nil,
                 requestHeaders: reqHeaders, requestBody: reqBody,
                 responseHeaders: respHeaders,
@@ -811,13 +812,13 @@ final class GmailAPIClient {
         } catch {
             let ms = Int(Date().timeIntervalSince(t0) * 1000)
             if case .httpError(let code, let errData) = error {
-                APILogger.shared.log(APILogEntry(
+                await APILogger.shared.log(APILogEntry(
                     method: method, path: path, statusCode: code, errorMessage: "HTTP \(code)",
                     requestHeaders: reqHeaders, requestBody: reqBody,
                     responseBodyData: errData, responseSize: errData.count, durationMs: ms, fromCache: false
                 ))
             } else {
-                APILogger.shared.log(APILogEntry(
+                await APILogger.shared.log(APILogEntry(
                     method: method, path: path, statusCode: nil, errorMessage: error.localizedDescription,
                     requestHeaders: reqHeaders, requestBody: reqBody,
                     responseBodyData: Data(), responseSize: 0, durationMs: ms, fromCache: false

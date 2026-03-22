@@ -102,6 +102,8 @@ struct MonthDayCellContent: Identifiable {
     let visibleSpanningBarCount: Int
     let overflowCount: Int
     let isInCurrentMonth: Bool
+    let isToday: Bool
+    let isWeekend: Bool
 }
 
 // MARK: - CalendarMonthView
@@ -117,7 +119,6 @@ struct CalendarMonthView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    @State private var hoveredDate: Date?
     @State private var spanningBarColumnWidth: CGFloat = 0
     @State private var cachedWeeks: [[Date]] = []
     @State private var cachedCurrentMonth: Int = 0
@@ -231,17 +232,24 @@ struct CalendarMonthView: View {
         spanningLayout: MonthSpanningLayout,
         cellContents: [MonthDayCellContent]
     ) -> some View {
-        VStack(spacing: 0) {
-            if !spanningLayout.rows.isEmpty {
-                spanningBarArea(layout: spanningLayout)
-            }
+        GlassEffectContainer {
+            VStack(spacing: 0) {
+                if !spanningLayout.rows.isEmpty {
+                    spanningBarArea(layout: spanningLayout)
+                }
 
-            HStack(spacing: 0) {
-                ForEach(Array(cellContents.enumerated()), id: \.offset) { colIndex, content in
-                    if colIndex > 0 {
-                        Divider()
+                HStack(spacing: 0) {
+                    ForEach(Array(cellContents.enumerated()), id: \.offset) { colIndex, content in
+                        if colIndex > 0 {
+                            Divider()
+                        }
+                        CalendarMonthDayCell(
+                            content: content,
+                            viewModel: viewModel,
+                            onSelectEvent: onSelectEvent,
+                            onCreateEvent: onCreateEvent
+                        )
                     }
-                    dayCell(content: content)
                 }
             }
         }
@@ -270,98 +278,6 @@ struct CalendarMonthView: View {
             proxy.size.width / 7
         } action: { newWidth in
             spanningBarColumnWidth = newWidth
-        }
-    }
-
-    // MARK: - Day Cell
-
-    @ViewBuilder
-    private func dayCell(content: MonthDayCellContent) -> some View {
-        let isToday = calendar.isDateInToday(content.date)
-        let isWeekend = calendar.isDateInWeekend(content.date)
-
-        VStack(alignment: .leading, spacing: 1) {
-            dayNumber(date: content.date, isToday: isToday, isInMonth: content.isInCurrentMonth)
-
-            ForEach(content.visibleChips, id: \.id) { event in
-                CalendarMonthEventChip(event: event) { selected in
-                    onSelectEvent(selected)
-                }
-            }
-
-            if content.overflowCount > 0 {
-                overflowButton(count: content.overflowCount, date: content.date)
-            }
-
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 2)
-        .padding(.vertical, 2)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(isToday ? CalendarSemanticColor.todayHighlight : Color.clear)
-        .background(
-            hoveredDate == content.date ? CalendarSemanticColor.monthCellHover : Color.clear,
-            in: .rect(cornerRadius: 0)
-        )
-        .opacity(
-            !content.isInCurrentMonth ? CalendarSemanticColor.monthOverflowDayOpacity
-            : isWeekend ? CalendarSemanticColor.weekendColumnOpacity
-            : 1.0
-        )
-        .contentShape(Rectangle())
-        .onHover { hovering in
-            withAnimation(reduceMotion ? nil : VikAnimation.springDefault) {
-                hoveredDate = hovering ? content.date : nil
-            }
-        }
-        .onTapGesture {
-            onCreateEvent(content.date, 9)
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(
-            "\(content.date.formatted(date: .complete, time: .omitted)), \(content.visibleChips.count + content.overflowCount) events"
-        )
-    }
-
-    // MARK: - Day Number
-
-    @ViewBuilder
-    private func dayNumber(date: Date, isToday: Bool, isInMonth: Bool) -> some View {
-        let dayText = "\(calendar.component(.day, from: date))"
-
-        Button {
-            withAnimation(VikAnimation.springSnappy) {
-                viewModel.selectDate(date)
-                viewModel.viewMode = .day
-            }
-        } label: {
-            Text(dayText)
-                .font(Typography.caption)
-                .fontWeight(isToday ? .bold : .regular)
-                .foregroundStyle(dayNumberForeground(isToday: isToday, isInMonth: isInMonth))
-                .frame(width: 22, height: 22)
-                .background {
-                    if isToday {
-                        Circle()
-                            .fill(CalendarSemanticColor.todayHeaderCircle)
-                            .glassEffect(.regular, in: .circle)
-                    }
-                }
-        }
-        .buttonStyle(.plain)
-        .frame(width: 32, height: 32)
-        .contentShape(Circle())
-        .accessibilityLabel("\(date.formatted(date: .complete, time: .omitted))")
-        .accessibilityHint("Switch to day view")
-        .accessibilityAddTraits(isToday ? [.isButton, .isSelected] : .isButton)
-    }
-
-    // MARK: - Overflow Button
-
-    private func overflowButton(count: Int, date: Date) -> some View {
-        MonthOverflowButton(count: count) {
-            viewModel.selectDate(date)
-            viewModel.viewMode = .day
         }
     }
 
@@ -406,14 +322,108 @@ struct CalendarMonthView: View {
                 visibleChips: visibleChips,
                 visibleSpanningBarCount: visibleSpanCount,
                 overflowCount: chipOverflow + spanOverflow,
-                isInCurrentMonth: calendar.component(.month, from: date) == currentMonth
+                isInCurrentMonth: calendar.component(.month, from: date) == currentMonth,
+                isToday: calendar.isDateInToday(date),
+                isWeekend: calendar.isDateInWeekend(date)
             )
         }
     }
+}
 
-    private func dayNumberForeground(isToday: Bool, isInMonth: Bool) -> Color {
-        if isToday { return .white }
-        if !isInMonth { return Color(nsColor: .tertiaryLabelColor) }
+// MARK: - CalendarMonthDayCell
+
+/// Extracted day cell with local hover state to avoid invalidating the entire month grid on hover.
+private struct CalendarMonthDayCell: View {
+    let content: MonthDayCellContent
+    @Bindable var viewModel: CalendarViewModel
+    let onSelectEvent: (CalendarEvent) -> Void
+    let onCreateEvent: (Date, Int) -> Void
+
+    @State private var isHovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private let calendar = Calendar.current
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            dayNumber
+
+            ForEach(content.visibleChips, id: \.id) { event in
+                CalendarMonthEventChip(event: event) { selected in
+                    onSelectEvent(selected)
+                }
+            }
+
+            if content.overflowCount > 0 {
+                MonthOverflowButton(count: content.overflowCount) {
+                    viewModel.selectDate(content.date)
+                    viewModel.viewMode = .day
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 2)
+        .padding(.vertical, 2)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(content.isToday ? CalendarSemanticColor.todayHighlight : Color.clear)
+        .background(
+            isHovered ? CalendarSemanticColor.monthCellHover : Color.clear,
+            in: .rect(cornerRadius: 0)
+        )
+        .opacity(
+            !content.isInCurrentMonth ? CalendarSemanticColor.monthOverflowDayOpacity
+            : content.isWeekend ? CalendarSemanticColor.weekendColumnOpacity
+            : 1.0
+        )
+        .contentShape(Rectangle())
+        .onHover { hovering in
+            withAnimation(reduceMotion ? nil : VikAnimation.springDefault) {
+                isHovered = hovering
+            }
+        }
+        .onTapGesture {
+            onCreateEvent(content.date, 9)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(
+            "\(content.date.formatted(date: .complete, time: .omitted)), \(content.visibleChips.count + content.overflowCount) events"
+        )
+    }
+
+    private var dayNumber: some View {
+        let dayText = "\(calendar.component(.day, from: content.date))"
+
+        return Button {
+            withAnimation(VikAnimation.springSnappy) {
+                viewModel.selectDate(content.date)
+                viewModel.viewMode = .day
+            }
+        } label: {
+            Text(dayText)
+                .font(Typography.caption)
+                .fontWeight(content.isToday ? .bold : .regular)
+                .foregroundStyle(dayNumberForeground)
+                .frame(width: 22, height: 22)
+                .background {
+                    if content.isToday {
+                        Circle()
+                            .fill(CalendarSemanticColor.todayHeaderCircle)
+                            .glassEffect(.regular, in: .circle)
+                    }
+                }
+        }
+        .buttonStyle(.plain)
+        .frame(width: 32, height: 32)
+        .contentShape(Circle())
+        .accessibilityLabel("\(content.date.formatted(date: .complete, time: .omitted))")
+        .accessibilityHint("Switch to day view")
+        .accessibilityAddTraits(content.isToday ? [.isButton, .isSelected] : .isButton)
+    }
+
+    private var dayNumberForeground: Color {
+        if content.isToday { return .white }
+        if !content.isInCurrentMonth { return Color(nsColor: .tertiaryLabelColor) }
         return Color(nsColor: .labelColor)
     }
 }

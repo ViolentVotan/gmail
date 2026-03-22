@@ -51,12 +51,13 @@ actor CalendarBackgroundSyncer {
     func deleteCalendars(_ ids: [(calendarId: String, accountId: String)]) async throws {
         guard !ids.isEmpty else { return }
         try await db.dbPool.write { db in
-            for id in ids {
-                try CalendarRecord
-                    .filter(Column("calendar_id") == id.calendarId)
-                    .filter(Column("account_id") == id.accountId)
-                    .deleteAll(db)
-            }
+            // Single DELETE with OR-chained compound predicates — one round trip for all pairs.
+            let conditions = ids.map { _ in "(calendar_id = ? AND account_id = ?)" }.joined(separator: " OR ")
+            let args: [DatabaseValueConvertible] = ids.flatMap { [$0.calendarId, $0.accountId] }
+            try db.execute(
+                sql: "DELETE FROM calendars WHERE \(conditions)",
+                arguments: StatementArguments(args)
+            )
         }
     }
 
@@ -97,13 +98,13 @@ actor CalendarBackgroundSyncer {
     func deleteEvents(_ ids: [(eventId: String, calendarId: String, accountId: String)]) async throws {
         guard !ids.isEmpty else { return }
         try await db.dbPool.write { db in
-            for id in ids {
-                try CalendarEventRecord
-                    .filter(Column("event_id") == id.eventId)
-                    .filter(Column("calendar_id") == id.calendarId)
-                    .filter(Column("account_id") == id.accountId)
-                    .deleteAll(db)
-            }
+            // Single DELETE with OR-chained compound predicates — one round trip for all tuples.
+            let conditions = ids.map { _ in "(event_id = ? AND calendar_id = ? AND account_id = ?)" }.joined(separator: " OR ")
+            let args: [DatabaseValueConvertible] = ids.flatMap { [$0.eventId, $0.calendarId, $0.accountId] }
+            try db.execute(
+                sql: "DELETE FROM calendar_events WHERE \(conditions)",
+                arguments: StatementArguments(args)
+            )
         }
     }
 

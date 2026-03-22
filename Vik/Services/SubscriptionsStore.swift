@@ -140,6 +140,7 @@ final class SubscriptionsStore {
             }
 
             var newValidated = false
+            var validatedEmails: [Email] = []
             await withTaskGroup(of: (Email, Bool).self) { [urlCache] group in
                 var iterator = candidates.makeIterator()
                 let maxConcurrent = 15
@@ -164,7 +165,7 @@ final class SubscriptionsStore {
                     }
                     if valid {
                         if !entries.contains(where: { $0.id == email.id }) {
-                            entries.append(email)
+                            validatedEmails.append(email)
                         }
                         if let id = email.gmailMessageID {
                             validatedIDs.insert(id)
@@ -182,6 +183,10 @@ final class SubscriptionsStore {
                 }
             }
             guard !Task.isCancelled else { return }
+            // Single batch update: one @Observable notification instead of one per entry
+            if !validatedEmails.isEmpty {
+                entries.append(contentsOf: validatedEmails)
+            }
             entries.sort { $0.date > $1.date }
             if newValidated { saveValidatedIDs() }
         }

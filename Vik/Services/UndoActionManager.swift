@@ -17,7 +17,7 @@ final class UndoActionManager {
     /// Stack of pending actions (most recent = last). Max 5.
     private(set) var pendingActions: [PendingUndoAction] = []
     private(set) var progress: Double = 1.0
-    @ObservationIgnored private(set) var timeRemaining: Double = 0
+    private(set) var timeRemaining: Double = 0
 
     private let maxStack = 5
     private var countdownTask: Task<Void, Never>?

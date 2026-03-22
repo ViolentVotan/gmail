@@ -8,6 +8,7 @@ final class AvatarCache {
     private init() {
         try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
         memoryCache.countLimit = 200
+        negativeCacheKeys.countLimit = 500
     }
 
     private let ttl: TimeInterval = 90 * 24 * 60 * 60 // 90 days

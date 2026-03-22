@@ -10,7 +10,7 @@ final class SnoozeMonitor {
     nonisolated private static let logger = Logger(category: "SnoozeMonitor")
 
     private var timerTask: Task<Void, Never>?
-    private var isCheckingExpired = false
+    @ObservationIgnored private var isCheckingExpired = false
     private var snoozeFailureCounts: [String: Int] = [:]
     private var scheduledSendFailureCounts: [String: Int] = [:]
     private let failureNotifyThreshold = 5

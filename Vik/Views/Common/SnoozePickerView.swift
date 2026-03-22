@@ -64,24 +64,26 @@ struct SnoozePickerView: View {
                 .padding(.horizontal, 8)
                 .padding(.top, 4)
 
-            ForEach(presets) { preset in
-                Button {
-                    onSelect(preset.date)
-                } label: {
-                    HStack {
-                        Label(preset.title, systemImage: preset.icon)
-                        Spacer()
-                        Text(preset.date.formattedTime)
-                            .font(Typography.captionRegular)
-                            .foregroundStyle(.secondary)
+            GlassEffectContainer {
+                ForEach(presets) { preset in
+                    Button {
+                        onSelect(preset.date)
+                    } label: {
+                        HStack {
+                            Label(preset.title, systemImage: preset.icon)
+                            Spacer()
+                            Text(preset.date.formattedTime)
+                                .font(Typography.captionRegular)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .contentShape(.rect)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .contentShape(.rect)
+                    .buttonStyle(.plain)
+                    .glassEffect(hoveredPresetID == preset.id ? .regular.interactive() : .identity, in: .rect(cornerRadius: CornerRadius.sm))
+                    .onHover { hoveredPresetID = $0 ? preset.id : nil }
                 }
-                .buttonStyle(.plain)
-                .glassEffect(hoveredPresetID == preset.id ? .regular.interactive() : .identity, in: .rect(cornerRadius: CornerRadius.sm))
-                .onHover { hoveredPresetID = $0 ? preset.id : nil }
             }
 
             Divider()
@@ -99,17 +101,19 @@ struct SnoozePickerView: View {
                 .padding(.horizontal, 8)
                 .padding(.bottom, 8)
             } else {
-                Button {
-                    showCustomPicker = true
-                } label: {
-                    Label("Pick Date & Time", systemImage: "calendar")
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .contentShape(.rect)
+                GlassEffectContainer {
+                    Button {
+                        showCustomPicker = true
+                    } label: {
+                        Label("Pick Date & Time", systemImage: "calendar")
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .contentShape(.rect)
+                    }
+                    .buttonStyle(.plain)
+                    .glassEffect(isPickDateHovered ? .regular.interactive() : .identity, in: .rect(cornerRadius: CornerRadius.sm))
+                    .onHover { isPickDateHovered = $0 }
                 }
-                .buttonStyle(.plain)
-                .glassEffect(isPickDateHovered ? .regular.interactive() : .identity, in: .rect(cornerRadius: CornerRadius.sm))
-                .onHover { isPickDateHovered = $0 }
             }
         }
         .frame(width: 260)

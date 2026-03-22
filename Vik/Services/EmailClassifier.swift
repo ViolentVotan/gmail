@@ -23,12 +23,23 @@ final class EmailClassifier {
         guard SystemLanguageModel.default.availability == .available else { return }
         let model = SystemLanguageModel(useCase: .contentTagging)
         let instructions = Instructions("Classify this email with boolean tags.")
-        for email in emails.prefix(10) {
-            guard !Task.isCancelled else { return }
+
+        let batch = Array(emails.prefix(10))
+        let msgIds = batch.compactMap(\.gmailMessageID)
+
+        // ONE MainActor hop to read all needed cache entries up front
+        let cachedSnapshot: [String: EmailTags] = await MainActor.run {
+            msgIds.reduce(into: [:]) { dict, id in dict[id] = tagCache[id] }
+        }
+
+        // Accumulate writes during the loop — no per-email actor hops
+        var pendingWrites: [String: EmailTags] = [:]
+
+        for email in batch {
+            guard !Task.isCancelled else { break }
             guard let msgId = email.gmailMessageID else { continue }
-            // Check in-memory cache on MainActor before doing any I/O
-            let cached = await MainActor.run { tagCache[msgId] }
-            guard cached == nil else { continue }
+            guard cachedSnapshot[msgId] == nil && pendingWrites[msgId] == nil else { continue }
+
             do {
                 // Check DB for persisted tags before invoking the model
                 if let db {
@@ -40,7 +51,7 @@ final class EmailClassifier {
                             needsReply: persisted.needsReply, fyiOnly: persisted.fyiOnly,
                             hasDeadline: persisted.hasDeadline, financial: persisted.financial
                         )
-                        await MainActor.run { tagCache[msgId] = tags }
+                        pendingWrites[msgId] = tags
                         continue
                     }
                 }
@@ -53,7 +64,7 @@ final class EmailClassifier {
                     needsReply: result.content.needsReply, fyiOnly: result.content.fyiOnly,
                     hasDeadline: result.content.hasDeadline, financial: result.content.financial
                 )
-                await MainActor.run { tagCache[msgId] = tags }
+                pendingWrites[msgId] = tags
                 // Write to DB
                 if let db {
                     try? await db.dbPool.write { database in
@@ -69,6 +80,14 @@ final class EmailClassifier {
             } catch {
                 Self.logger.error("Failed to classify \(msgId): \(error)")
                 continue
+            }
+        }
+
+        // ONE MainActor hop to flush all cache writes
+        if !pendingWrites.isEmpty {
+            let writes = pendingWrites
+            await MainActor.run {
+                for (id, tags) in writes { tagCache[id] = tags }
             }
         }
         #endif

@@ -429,6 +429,18 @@ final class CalendarViewModel {
     }
 
     private func recomputeEventCaches() {
+        let events = self.events
+        Task.detached {
+            let (byDay, multiDay) = Self.computeEventCaches(events: events)
+            await MainActor.run { [weak self] in
+                guard let self else { return }
+                self.eventsByDay = byDay
+                self.multiDayEvents = multiDay
+            }
+        }
+    }
+
+    private nonisolated static func computeEventCaches(events: [CalendarEvent]) -> ([Date: [CalendarEvent]], [CalendarEvent]) {
         let cal = Calendar.current
         var dict: [Date: [CalendarEvent]] = [:]
         var multiDay: [CalendarEvent] = []
@@ -459,8 +471,7 @@ final class CalendarViewModel {
                 return lhs.startTime < rhs.startTime
             }
         }
-        eventsByDay = dict
-        multiDayEvents = multiDay
+        return (dict, multiDay)
     }
 
     /// The date range for the current view mode, used to scope the DB query.

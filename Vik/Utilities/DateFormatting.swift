@@ -262,8 +262,13 @@ extension Date {
     }
 
     /// RFC 2822 formatted string for use in outgoing message headers.
+    /// Creates a fresh formatter per call to avoid data races from concurrent sends.
     var formattedRFC2822: String {
-        Self.rfc2822WriteFormatter.string(from: self)
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "EEE, dd MMM yyyy HH:mm:ss Z"
+        f.timeZone = TimeZone.autoupdatingCurrent
+        return f.string(from: self)
     }
 
     /// Parses an RFC 2822 date string, trying multiple format variants.

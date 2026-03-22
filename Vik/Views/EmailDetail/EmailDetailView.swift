@@ -20,6 +20,7 @@ struct EmailDetailView: View {
     @State private var didUnsubscribe = false
     @State private var showOriginalInviteEmail = false
     @State private var userToggledMessageIDs: Set<String> = []
+    @State private var expandedCount: Int = 0
     @State private var labelSuggestions: [LabelSuggestion] = []
     @State private var showTranslation = false
     @State private var showMetadata = false
@@ -135,6 +136,7 @@ struct EmailDetailView: View {
                     .task(id: detailVM.latestMessage?.id) {
                         if let latestID = detailVM.latestMessage?.id {
                             userToggledMessageIDs = []
+                            expandedCount = 1
                             try? await Task.sleep(for: .milliseconds(100))
                             withAnimation(VikAnimation.springDefault) { proxy.scrollTo(latestID, anchor: .top) }
                         }
@@ -364,10 +366,11 @@ struct EmailDetailView: View {
                         .foregroundStyle(.tertiary)
                         .accessibilityLabel("\(allMessages.count) messages in thread")
                     Spacer()
-                    if allMessages.count(where: { isMessageExpanded($0) }) > 1 {
+                    if expandedCount > 1 {
                         Button {
                             withAnimation(VikAnimation.springSnappy) {
                                 userToggledMessageIDs = []
+                                expandedCount = 1
                             }
                         } label: {
                             Text("Collapse Others")
@@ -384,7 +387,8 @@ struct EmailDetailView: View {
 
             GlassEffectContainer(spacing: 1) {
                 LazyVStack(spacing: 1, pinnedViews: []) {
-                    ForEach(Array(allMessages.enumerated()), id: \.element.id) { index, message in
+                    ForEach(allMessages, id: \.id) { message in
+                        let index = allMessages.firstIndex(where: { $0.id == message.id }) ?? 0
                         threadCard(for: message, at: index)
                             .id(message.id)
                     }
@@ -404,12 +408,14 @@ struct EmailDetailView: View {
             isLast: isLastCard,
             resolvedHTML: detailVM.resolvedMessageHTML[message.id],
             onToggle: {
-                withAnimation(VikAnimation.springSnappy.delay(Double(index) * DurationToken.stagger)) {
+                withAnimation(VikAnimation.springSnappy.delay(Double(min(index, 8)) * DurationToken.stagger)) {
+                    let isCurrentlyExpanded = isMessageExpanded(message)
                     if userToggledMessageIDs.contains(message.id) {
                         userToggledMessageIDs.remove(message.id)
                     } else {
                         userToggledMessageIDs.insert(message.id)
                     }
+                    expandedCount += isCurrentlyExpanded ? -1 : 1
                 }
             },
             onOpenLink: actions.onOpenLink,
@@ -542,6 +548,7 @@ struct EmailDetailView: View {
             },
             onMarkUnread: { _ in actions.onMarkUnread?() }
         )
+        .equatable()
     }
 
     // MARK: - Load

@@ -21,7 +21,7 @@ final class CalendarAPIClient {
 
     private let baseURL = "https://www.googleapis.com/calendar/v3"
     nonisolated private static let logger = Logger(category: "CalendarAPI")
-    nonisolated private static let jsonDecoder = JSONDecoder()
+    nonisolated private static var jsonDecoder: JSONDecoder { JSONDecoder() }
     nonisolated private static let userAgent = "Vik/1.0 (gzip)"
 
     // MARK: - Decoded requests

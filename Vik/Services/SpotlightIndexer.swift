@@ -3,8 +3,9 @@ import CoreSpotlight
 
 actor SpotlightIndexer {
     static let shared = SpotlightIndexer()
-    /// Tracks indexed message IDs in insertion order (oldest first) for LRU eviction.
-    private var indexedIDs: [String] = []
+    /// Set for O(1) membership testing; array tracks insertion order (oldest first) for eviction.
+    private var indexedIDSet: Set<String> = []
+    private var indexedIDOrder: [String] = []
     private let maxIndexed = 1000
     /// Fraction of oldest entries to evict when the threshold is reached.
     private let evictionFraction = 0.25
@@ -13,17 +14,19 @@ actor SpotlightIndexer {
     private var persistTask: Task<Void, Never>?
 
     private init() {
-        indexedIDs = UserDefaults.standard.stringArray(forKey: indexedIDsKey) ?? []
+        let persisted = UserDefaults.standard.stringArray(forKey: indexedIDsKey) ?? []
+        indexedIDOrder = persisted
+        indexedIDSet = Set(persisted)
     }
 
     func indexEmail(_ email: Email) async {
         guard let messageID = email.gmailMessageID else { return }
 
-        // Deduplicate: if already indexed, refresh LRU position and return early
-        if let existingIndex = indexedIDs.firstIndex(of: messageID) {
-            indexedIDs.remove(at: existingIndex)
-            indexedIDs.append(messageID)
-            schedulePersist()
+        // Deduplicate: if already indexed, just refresh — no O(n) scan needed.
+        if indexedIDSet.contains(messageID) {
+            // Re-index to pick up any metadata changes; order stays, no eviction needed.
+            let entity = MailMessageEntity(from: email)
+            try? await CSSearchableIndex.default().indexAppEntities([entity])
             return
         }
 
@@ -32,23 +35,26 @@ actor SpotlightIndexer {
 
         let entity = MailMessageEntity(from: email)
 
-        if indexedIDs.count >= maxIndexed {
+        if indexedIDSet.count >= maxIndexed {
             let evictCount = max(1, Int(Double(maxIndexed) * evictionFraction))
-            let toEvict = Array(indexedIDs.prefix(evictCount))
+            let toEvict = Array(indexedIDOrder.prefix(evictCount))
             try? await CSSearchableIndex.default().deleteSearchableItems(withIdentifiers: toEvict)
-            indexedIDs.removeFirst(evictCount)
+            indexedIDOrder.removeFirst(evictCount)
+            for id in toEvict { indexedIDSet.remove(id) }
             schedulePersist()
         }
 
         try? await CSSearchableIndex.default().indexAppEntities([entity])
-        indexedIDs.append(messageID)
+        indexedIDSet.insert(messageID)
+        indexedIDOrder.append(messageID)
         schedulePersist()
     }
 
     /// Removes all Spotlight items and resets the indexed ID tracking.
     func deleteAllItems() async {
         try? await CSSearchableIndex.default().deleteAllSearchableItems()
-        indexedIDs.removeAll()
+        indexedIDSet.removeAll()
+        indexedIDOrder.removeAll()
         persistIndexedIDs()
     }
 
@@ -76,6 +82,6 @@ actor SpotlightIndexer {
     }
 
     private func persistIndexedIDs() {
-        UserDefaults.standard.set(indexedIDs, forKey: indexedIDsKey)
+        UserDefaults.standard.set(indexedIDOrder, forKey: indexedIDsKey)
     }
 }

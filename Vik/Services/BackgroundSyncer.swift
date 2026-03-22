@@ -24,9 +24,14 @@ actor BackgroundSyncer {
                 try label.insert(db, onConflict: .ignore)
             }
 
+            // Batch-prefetch existing message records for all messages in a single query
+            // instead of N per-message fetchOne calls inside upsertSingleMessage.
+            let gmailIds = gmailMessages.map(\.id)
+            let fetchedRecords = try MessageRecord.fetchAll(db, keys: gmailIds)
+            let existingRecords = Dictionary(uniqueKeysWithValues: fetchedRecords.map { ($0.gmailId, $0) })
+
             // Batch-prefetch existing label sets for all messages in a single query
             // instead of N per-message queries inside upsertSingleMessage.
-            let gmailIds = gmailMessages.map(\.id)
             var existingLabelSets: [String: Set<String>] = [:]
             if !gmailIds.isEmpty {
                 let placeholders = gmailIds.sqlPlaceholders
@@ -44,7 +49,7 @@ actor BackgroundSyncer {
             var affectedThreadIds = Set<String>()
 
             for gmail in gmailMessages {
-                try Self.upsertSingleMessage(gmail, in: db, affectedThreadIds: &affectedThreadIds, existingLabelSets: existingLabelSets)
+                try Self.upsertSingleMessage(gmail, in: db, affectedThreadIds: &affectedThreadIds, existingRecords: existingRecords, existingLabelSets: existingLabelSets)
             }
 
             try MailDatabaseQueries.updateThreadCounts(for: affectedThreadIds, in: db)
@@ -278,16 +283,23 @@ actor BackgroundSyncer {
     /// Upsert a single message: record, labels, attachments, FTS.
     /// Checks whether the message already exists and skips unchanged writes to reduce
     /// write amplification (avoids CASCADE deletes of labels/attachments on every sync).
+    /// - Parameter existingRecords: Pre-fetched MessageRecords keyed by gmail_id. When provided,
+    ///   avoids a per-message fetchOne call. Pass `nil` to query per-message (fallback).
     /// - Parameter existingLabelSets: Pre-fetched label sets keyed by gmail_id. When provided,
     ///   avoids a per-message DB query for label comparison. Pass `nil` to query per-message (fallback).
     private static func upsertSingleMessage(
         _ gmail: GmailMessage,
         in db: Database,
         affectedThreadIds: inout Set<String>,
+        existingRecords: [String: MessageRecord]? = nil,
         existingLabelSets: [String: Set<String>]? = nil
     ) throws {
         let record = MessageRecord(from: gmail)
-        let existing = try MessageRecord.fetchOne(db, key: record.gmailId)
+        let existing: MessageRecord? = if let existingRecords {
+            existingRecords[record.gmailId]
+        } else {
+            try MessageRecord.fetchOne(db, key: record.gmailId)
+        }
 
         if let existing {
             // --- Existing message: conditional update ---

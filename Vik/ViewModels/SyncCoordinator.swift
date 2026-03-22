@@ -25,8 +25,8 @@ final class SyncCoordinator {
     @ObservationIgnored private var cleanupTask: Task<Void, Never>?
     @ObservationIgnored private var accountSwitchGeneration = 0
     @ObservationIgnored var accountSwitchTask: Task<Void, Never>?
-    private var cachedSnoozedEmails: [Email] = []
-    private var cachedScheduledEmails: [Email] = []
+    @ObservationIgnored private var cachedSnoozedEmails: [Email] = []
+    @ObservationIgnored private var cachedScheduledEmails: [Email] = []
     @ObservationIgnored var pendingFolderChange: Folder?
 
     // MARK: - Callbacks

@@ -79,16 +79,18 @@ struct CalendarWeekView: View {
                     .padding(.trailing, Spacing.xs)
                     .accessibilityHidden(true)
 
-                // All-day chips per day
-                ForEach(weekCache.weekDays.indices, id: \.self) { index in
-                    let allDayEvents = weekCache.allDayEventsByDay[index]
-                    VStack(spacing: 2) {
-                        ForEach(allDayEvents) { event in
-                            allDayChip(event: event, width: dayColumnWidth)
+                // All-day chips per day — shared container so glass effects merge
+                GlassEffectContainer {
+                    ForEach(weekCache.weekDays.indices, id: \.self) { index in
+                        let allDayEvents = weekCache.allDayEventsByDay[index]
+                        VStack(spacing: 2) {
+                            ForEach(allDayEvents) { event in
+                                allDayChip(event: event, width: dayColumnWidth)
+                            }
                         }
+                        .frame(width: dayColumnWidth)
+                        .padding(.vertical, Spacing.xs)
                     }
-                    .frame(width: dayColumnWidth)
-                    .padding(.vertical, Spacing.xs)
                 }
             }
             .frame(height: CGFloat(max(1, maxCount)) * (CalendarLayout.allDayEventHeight + 2) + Spacing.sm)
@@ -131,8 +133,11 @@ struct CalendarWeekView: View {
                 .frame(width: CalendarLayout.timeColumnWidth)
                 .accessibilityHidden(true)
 
-            ForEach(weekCache.weekDays.indices, id: \.self) { index in
-                dayHeader(for: weekCache.weekDays[index], index: index, width: dayColumnWidth)
+            // Shared container so today-circle glass merges with siblings
+            GlassEffectContainer {
+                ForEach(weekCache.weekDays.indices, id: \.self) { index in
+                    dayHeader(for: weekCache.weekDays[index], index: index, width: dayColumnWidth)
+                }
             }
         }
         .padding(.vertical, Spacing.xs)
@@ -264,14 +269,16 @@ struct CalendarWeekView: View {
     // MARK: - Events Overlay
 
     private func eventsOverlay(dayColumnWidth: CGFloat) -> some View {
-        ZStack(alignment: .topLeading) {
-            ForEach(weekCache.weekDays.indices, id: \.self) { dayIndex in
-                dayEventsOverlay(
-                    dayIndex: dayIndex,
-                    day: weekCache.weekDays[dayIndex],
-                    timedEvents: dayIndex < weekCache.timedEventsByDay.count ? weekCache.timedEventsByDay[dayIndex] : [],
-                    dayColumnWidth: dayColumnWidth
-                )
+        GlassEffectContainer {
+            ZStack(alignment: .topLeading) {
+                ForEach(weekCache.weekDays.indices, id: \.self) { dayIndex in
+                    dayEventsOverlay(
+                        dayIndex: dayIndex,
+                        day: weekCache.weekDays[dayIndex],
+                        timedEvents: dayIndex < weekCache.timedEventsByDay.count ? weekCache.timedEventsByDay[dayIndex] : [],
+                        dayColumnWidth: dayColumnWidth
+                    )
+                }
             }
         }
     }

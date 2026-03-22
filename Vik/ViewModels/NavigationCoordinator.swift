@@ -36,9 +36,10 @@ final class NavigationCoordinator {
     // MARK: - Private
 
     private func updateAccountProperties() {
-        accountID = selectedAccountID ?? authViewModel.primaryAccount?.id ?? ""
-        fromAddress = authViewModel.accounts.first(where: { $0.id == accountID })?.email
-            ?? authViewModel.primaryAccount?.email
-            ?? ""
+        let newAccountID = selectedAccountID ?? authViewModel.primaryAccount?.id ?? ""
+        if accountID != newAccountID { accountID = newAccountID }
+        let newFromAddress = authViewModel.accounts.first(where: { $0.id == accountID })?.email
+            ?? authViewModel.primaryAccount?.email ?? ""
+        if fromAddress != newFromAddress { fromAddress = newFromAddress }
     }
 }

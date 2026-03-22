@@ -7,7 +7,7 @@ struct CalendarHeaderView: View {
     var onNewEvent: () -> Void
     @Namespace private var viewModeNamespace
 
-    @State private var cachedWeekRangeText: String = ""
+    @State private var cachedDateRangeText: String = ""
 
     var body: some View {
         HStack(spacing: Spacing.sm) {
@@ -24,10 +24,13 @@ struct CalendarHeaderView: View {
         .background(.bar)
         .clipped()
         .task {
-            cachedWeekRangeText = weekRangeText
+            recomputeDateRangeText()
         }
-        .onChange(of: viewModel.selectedWeek) {
-            cachedWeekRangeText = weekRangeText
+        .onChange(of: viewModel.selectedDate) {
+            recomputeDateRangeText()
+        }
+        .onChange(of: viewModel.viewMode) {
+            recomputeDateRangeText()
         }
     }
 
@@ -67,21 +70,10 @@ struct CalendarHeaderView: View {
     }
 
     private var dateRangeLabel: some View {
-        Text(dateRangeText)
+        Text(cachedDateRangeText)
             .font(Typography.subheadSemibold)
             .foregroundStyle(.primary)
             .monospacedDigit()
-    }
-
-    private var dateRangeText: String {
-        switch viewModel.viewMode {
-        case .month:
-            return viewModel.selectedDate.formatted(.dateTime.month(.wide).year())
-        case .day:
-            return viewModel.selectedDate.formatted(date: .abbreviated, time: .omitted)
-        case .week, .agenda:
-            return cachedWeekRangeText
-        }
     }
 
     private var todayButton: some View {
@@ -151,6 +143,17 @@ struct CalendarHeaderView: View {
     }
 
     // MARK: - Helpers
+
+    private func recomputeDateRangeText() {
+        switch viewModel.viewMode {
+        case .month:
+            cachedDateRangeText = viewModel.selectedDate.formatted(.dateTime.month(.wide).year())
+        case .day:
+            cachedDateRangeText = viewModel.selectedDate.formatted(date: .abbreviated, time: .omitted)
+        case .week, .agenda:
+            cachedDateRangeText = weekRangeText
+        }
+    }
 
     private static let weekRangeEndSameMonthFormatter: DateFormatter = {
         let f = DateFormatter()

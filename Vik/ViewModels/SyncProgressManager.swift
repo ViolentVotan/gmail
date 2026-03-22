@@ -151,6 +151,7 @@ final class SyncProgressManager {
 
     /// Update the last-synced timestamp (called by loadCurrentFolder for DB-reload paths).
     func updateLastSynced(_ date: Date = Date()) {
+        guard lastSynced.map({ date.timeIntervalSince($0) > 0.5 }) ?? true else { return }
         lastSynced = date
         if case .idle = phase {
             phase = .idle(lastSynced: lastSynced)

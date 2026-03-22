@@ -15,6 +15,7 @@ final class ThumbnailCache {
     @ObservationIgnored private let thumbnailCache: NSCache<NSString, NSImage> = {
         let cache = NSCache<NSString, NSImage>()
         cache.countLimit = 200
+        cache.totalCostLimit = 50_000_000  // 50 MB
         return cache
     }()
 
@@ -101,7 +102,9 @@ final class ThumbnailCache {
             if let diskImage = await Self.loadFromDisk(id: id, cacheDir: cacheDir) {
                 guard !Task.isCancelled else { return }
                 self.loading.remove(id)
-                self.thumbnailCache.setObject(diskImage, forKey: id as NSString)
+                let diskSize = diskImage.size
+                let diskCost = Int(diskSize.width * diskSize.height) * 4
+                self.thumbnailCache.setObject(diskImage, forKey: id as NSString, cost: diskCost)
                 self.cachedIDs.insert(id)
                 return
             }
@@ -143,7 +146,9 @@ final class ThumbnailCache {
                 default:     nil
                 }
                 if let thumb {
-                    thumbnailCache.setObject(thumb, forKey: id as NSString)
+                    let thumbSize = thumb.size
+                    let thumbCost = Int(thumbSize.width * thumbSize.height) * 4
+                    thumbnailCache.setObject(thumb, forKey: id as NSString, cost: thumbCost)
                     cachedIDs.insert(id)
                     saveToDisk(image: thumb, id: id)
                 }

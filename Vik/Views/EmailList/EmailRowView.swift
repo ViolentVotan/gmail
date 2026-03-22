@@ -8,6 +8,8 @@ struct EmailRowView: View, Equatable {
     var isMultiSelect = false
     let action: () -> Void
     var entranceIndex: Int = 0
+    var hasAlreadyAnimated: Bool = false
+    var onFirstAppear: (() -> Void)?
     @State private var isHovered = false
     @State private var isPressed = false
     @State private var hasAppeared = false
@@ -38,6 +40,7 @@ struct EmailRowView: View, Equatable {
             && lhs.selectedFolder == rhs.selectedFolder
             && lhs.isMultiSelect == rhs.isMultiSelect
             && lhs.density == rhs.density
+            && lhs.hasAlreadyAnimated == rhs.hasAlreadyAnimated
     }
 
     init(
@@ -48,7 +51,9 @@ struct EmailRowView: View, Equatable {
         isMultiSelect: Bool = false,
         density: String = "comfortable",
         action: @escaping () -> Void,
-        entranceIndex: Int = 0
+        entranceIndex: Int = 0,
+        hasAlreadyAnimated: Bool = false,
+        onFirstAppear: (() -> Void)? = nil
     ) {
         self.email = email
         self.isSelected = isSelected
@@ -58,6 +63,8 @@ struct EmailRowView: View, Equatable {
         self.density = density
         self.action = action
         self.entranceIndex = entranceIndex
+        self.hasAlreadyAnimated = hasAlreadyAnimated
+        self.onFirstAppear = onFirstAppear
 
         self.labelBadges = email.labels.map { .label($0) }
 
@@ -274,7 +281,13 @@ struct EmailRowView: View, Equatable {
             }
         }
         .glassEffect(
-            isSelected || isHovered ? .regular.interactive() : .identity,
+            isSelected ? .regular.interactive() : .identity,
+            in: .rect(cornerRadius: CornerRadius.sm)
+        )
+        .background(
+            isHovered && !isSelected
+                ? AnyShapeStyle(Color.primary.opacity(0.06))
+                : AnyShapeStyle(Color.clear),
             in: .rect(cornerRadius: CornerRadius.sm)
         )
         .sensoryFeedback(.selection, trigger: isSelected)
@@ -285,17 +298,19 @@ struct EmailRowView: View, Equatable {
             messageIds: [email.gmailMessageID ?? ""],
             accountID: accountID
         ))
-        .opacity(hasAppeared ? 1 : 0)
-        .offset(y: hasAppeared ? 0 : OffsetToken.small)
+        .opacity(hasAppeared || hasAlreadyAnimated ? 1 : 0)
+        .offset(y: hasAppeared || hasAlreadyAnimated ? 0 : OffsetToken.small)
         .onAppear {
-            guard !hasAppeared else { return }
+            guard !hasAppeared, !hasAlreadyAnimated else { return }
             if reduceMotion {
                 hasAppeared = true
+                onFirstAppear?()
             } else {
                 let delay = Double(min(entranceIndex, 8)) * DurationToken.stagger
                 withAnimation(VikAnimation.springDefault.delay(delay)) {
                     hasAppeared = true
                 }
+                onFirstAppear?()
             }
         }
         .background {

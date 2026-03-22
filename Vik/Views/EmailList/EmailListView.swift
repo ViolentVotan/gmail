@@ -27,6 +27,7 @@ struct EmailListView: View {
     @State private var scrollPosition = ScrollPosition(edge: .top)
     @AppStorage("emailDensity") private var density = "comfortable"
     @State private var hoverActions = EmailHoverActions()
+    @State private var animatedEmailIDs: Set<String> = []
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
@@ -44,9 +45,25 @@ struct EmailListView: View {
         switch sortOrder {
         case .dateNewest, .unreadFirst: sortedEmails = emails
         case .dateOldest:               sortedEmails = emails.reversed()
-        case .sender:                   sortedEmails = emails.sorted { $0.sender.name.localizedCaseInsensitiveCompare($1.sender.name) == .orderedAscending }
+        case .sender:
+            let snapshot = emails
+            let folder = selectedFolder
+            let useSections = useDateSections
+            Task {
+                let sorted = await Task.detached {
+                    snapshot.sorted { $0.sender.name.localizedCaseInsensitiveCompare($1.sender.name) == .orderedAscending }
+                }.value
+                self.sortedEmails = sorted
+                self.applyPostSortUpdates(sortedEmails: sorted, folder: folder, useSections: useSections)
+            }
+            return
         }
 
+        applyPostSortUpdates(sortedEmails: sortedEmails, folder: selectedFolder, useSections: useDateSections)
+    }
+
+    /// Updates accessibility caches, date sections, and folder-action state after `sortedEmails` is resolved.
+    private func applyPostSortUpdates(sortedEmails: [Email], folder: Folder, useSections: Bool) {
         // Single pass: build ID list and accessibility caches simultaneously.
         var currentIDs: [Email.ID] = []
         currentIDs.reserveCapacity(sortedEmails.count)
@@ -65,14 +82,14 @@ struct EmailListView: View {
         // Only rebuild date sections when the email list, ordering, or section mode changed.
         // Property-only updates (read status, star toggle) reuse the existing sections
         // because SwiftUI's List diffing handles per-row updates via identity.
-        if currentIDs != lastEmailIDs || useDateSections != lastUseDateSections {
+        if currentIDs != lastEmailIDs || useSections != lastUseDateSections {
             lastEmailIDs = currentIDs
-            lastUseDateSections = useDateSections
-            cachedSections = useDateSections ? Self.buildSections(from: sortedEmails) : []
+            lastUseDateSections = useSections
+            cachedSections = useSections ? Self.buildSections(from: sortedEmails) : []
         }
 
         // Recompute folder action caches.
-        switch selectedFolder {
+        switch folder {
         case .subscriptions:
             newCache.unsubscribableEmails = emails.filter { $0.isFromMailingList && $0.unsubscribeURL != nil }
             newCache.hasFolderAction = !emails.isEmpty && actions.onUnsubscribe != nil && !newCache.unsubscribableEmails.isEmpty
@@ -394,15 +411,18 @@ struct EmailListView: View {
 
     @ViewBuilder
     private func emailRow(for email: Email, entranceIndex: Int = 0) -> some View {
+        let emailID = email.id.uuidString
         EmailRowView(
             email: email,
-            isSelected: selectedEmailIDs.contains(email.id.uuidString),
+            isSelected: selectedEmailIDs.contains(emailID),
             accountID: accountID,
             selectedFolder: selectedFolder,
             isMultiSelect: selectedEmailIDs.count > 1,
             density: density,
             action: { handleTap(email: email) },
-            entranceIndex: entranceIndex
+            entranceIndex: entranceIndex,
+            hasAlreadyAnimated: animatedEmailIDs.contains(emailID),
+            onFirstAppear: { animatedEmailIDs.insert(emailID) }
         )
         .equatable()
         .tag(email.id.uuidString)
@@ -475,17 +495,16 @@ struct EmailListView: View {
 
     // MARK: - Scroll view
 
+    private func syncHoverActions() {
+        hoverActions.onArchive = actions.onArchive
+        hoverActions.onDelete = actions.onDelete
+        hoverActions.onSnooze = actions.onSnooze
+        hoverActions.onMarkRead = actions.onMarkRead
+        hoverActions.onMarkUnread = actions.onMarkUnread
+    }
+
     private var emailScrollView: some View {
-        // Keep the stable hoverActions instance in sync with the current actions
-        // without re-injecting a new environment value each render.
-        let _ = {
-            hoverActions.onArchive = actions.onArchive
-            hoverActions.onDelete = actions.onDelete
-            hoverActions.onSnooze = actions.onSnooze
-            hoverActions.onMarkRead = actions.onMarkRead
-            hoverActions.onMarkUnread = actions.onMarkUnread
-        }()
-        return List(selection: $selectedEmailIDs) {
+        List(selection: $selectedEmailIDs) {
             if useDateSections {
                 ForEach(cachedSections) { section in
                     Section {
@@ -527,7 +546,11 @@ struct EmailListView: View {
         .environment(hoverActions)
         .scrollPosition($scrollPosition)
         .id(selectedFolder)
+        .onAppear { syncHoverActions() }
+        .onChange(of: accountID) { syncHoverActions() }
         .onChange(of: selectedFolder) {
+            syncHoverActions()
+            animatedEmailIDs.removeAll()
             withAnimation(VikAnimation.folderSwitch) {
                 scrollPosition.scrollTo(edge: .top)
             }

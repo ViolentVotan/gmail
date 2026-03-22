@@ -8,19 +8,8 @@ struct MiniAgendaWidget: View {
     var onShowCalendar: () -> Void
 
     @State private var cachedSortedEvents: [CalendarEvent] = []
-
-    private var isEvening: Bool {
-        let hour = Calendar.current.component(.hour, from: Date())
-        return hour >= 18
-    }
-
-    private var headerTitle: String {
-        let hasMoreEvents = events.contains { !$0.isAllDay && $0.endTime > Date() }
-        if isEvening && !hasMoreEvents {
-            return "Tomorrow"
-        }
-        return "Today"
-    }
+    @State private var isEvening: Bool = false
+    @State private var headerTitle: String = "Today"
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -33,8 +22,14 @@ struct MiniAgendaWidget: View {
         }
         .padding(Spacing.sm)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: CornerRadius.lg))
-        .task { recomputeSortedEvents() }
-        .onChange(of: events) { recomputeSortedEvents() }
+        .task {
+            recomputeSortedEvents()
+            updateHeaderState()
+        }
+        .onChange(of: events) {
+            recomputeSortedEvents()
+            updateHeaderState()
+        }
     }
 
     // MARK: - Subviews
@@ -126,6 +121,14 @@ struct MiniAgendaWidget: View {
     }
 
     // MARK: - Helpers
+
+    private func updateHeaderState() {
+        let hour = Calendar.current.component(.hour, from: Date())
+        let evening = hour >= 18
+        let hasMoreEvents = events.contains { !$0.isAllDay && $0.endTime > Date() }
+        isEvening = evening
+        headerTitle = (evening && !hasMoreEvents) ? "Tomorrow" : "Today"
+    }
 
     private func recomputeSortedEvents() {
         let (allDay, timed) = events.partitioned()

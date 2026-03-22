@@ -17,14 +17,13 @@ struct CalendarDayView: View {
     // MARK: - Private state
 
     @State private var currentTime: Date = .now
-    @State private var hoveredHour: Int? = nil
     @State private var gridWidth: CGFloat = 300
     @State private var cachedAllDayEvents: [CalendarEvent] = []
     @State private var cachedTimedEvents: [CalendarEvent] = []
     @State private var cachedOverlapGroups: [[CalendarEvent]] = []
 
     private let hours = Array(0..<24)
-    private var calendar: Calendar { .current }
+    private let calendar: Calendar = .current
 
     // MARK: - Body
 
@@ -70,17 +69,19 @@ struct CalendarDayView: View {
                 .padding(.vertical, Spacing.xs)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: Spacing.xs) {
-                    if cachedAllDayEvents.isEmpty {
-                        Color.clear.frame(height: CalendarLayout.allDayEventHeight)
-                    } else {
-                        ForEach(cachedAllDayEvents) { event in
-                            allDayChip(event)
+                GlassEffectContainer {
+                    HStack(spacing: Spacing.xs) {
+                        if cachedAllDayEvents.isEmpty {
+                            Color.clear.frame(height: CalendarLayout.allDayEventHeight)
+                        } else {
+                            ForEach(cachedAllDayEvents) { event in
+                                allDayChip(event)
+                            }
                         }
                     }
+                    .padding(.horizontal, Spacing.xs)
+                    .padding(.vertical, Spacing.xs)
                 }
-                .padding(.horizontal, Spacing.xs)
-                .padding(.vertical, Spacing.xs)
             }
         }
         .background(.background)
@@ -163,37 +164,12 @@ struct CalendarDayView: View {
     // MARK: - Hour row
 
     private func hourRow(hour: Int) -> some View {
-        HStack(spacing: 0) {
-            // Time label
-            Text(hourLabel(hour))
-                .font(Typography.captionSmallRegular)
-                .foregroundStyle(.secondary)
-                .frame(width: CalendarLayout.timeColumnWidth, alignment: .trailing)
-                .padding(.trailing, Spacing.sm)
-                .frame(height: CalendarLayout.hourRowHeight)
-
-            // Tappable slot area
-            Rectangle()
-                .fill(hoveredHour == hour
-                    ? Color.primary.opacity(0.04)
-                    : Color.clear)
-                .frame(maxWidth: .infinity)
-                .frame(height: CalendarLayout.hourRowHeight)
-                .overlay(alignment: .top) {
-                    Divider()
-                        .opacity(0.04)
-                }
-                .contentShape(Rectangle())
-                .onHover { inside in
-                    hoveredHour = inside ? hour : nil
-                }
-                .onTapGesture {
-                    onCreateEvent(viewModel.selectedDate, hour)
-                }
-                .accessibilityLabel(hour == 0 ? "Create event at midnight" : "Create event at \(hourLabel(hour))")
-                .accessibilityAddTraits(.isButton)
-        }
-        .id("hour-\(hour)")
+        CalendarDayHourRow(
+            hour: hour,
+            label: hourLabel(hour),
+            selectedDate: viewModel.selectedDate,
+            onCreateEvent: onCreateEvent
+        )
     }
 
     // MARK: - Day event card
@@ -263,6 +239,51 @@ struct CalendarDayView: View {
         }
     }
 
+}
+
+// MARK: - CalendarDayHourRow
+
+/// Single hour row in CalendarDayView. Uses local `isHovered` state so only this
+/// row re-evaluates on cursor enter/exit — not all 24 rows.
+private struct CalendarDayHourRow: View {
+    let hour: Int
+    let label: String
+    let selectedDate: Date
+    let onCreateEvent: (Date, Int) -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        HStack(spacing: 0) {
+            // Time label
+            Text(label)
+                .font(Typography.captionSmallRegular)
+                .foregroundStyle(.secondary)
+                .frame(width: CalendarLayout.timeColumnWidth, alignment: .trailing)
+                .padding(.trailing, Spacing.sm)
+                .frame(height: CalendarLayout.hourRowHeight)
+
+            // Tappable slot area
+            Rectangle()
+                .fill(isHovered
+                    ? Color.primary.opacity(0.04)
+                    : Color.clear)
+                .frame(maxWidth: .infinity)
+                .frame(height: CalendarLayout.hourRowHeight)
+                .overlay(alignment: .top) {
+                    Divider()
+                        .opacity(0.04)
+                }
+                .contentShape(Rectangle())
+                .onHover { isHovered = $0 }
+                .onTapGesture {
+                    onCreateEvent(selectedDate, hour)
+                }
+                .accessibilityLabel(hour == 0 ? "Create event at midnight" : "Create event at \(label)")
+                .accessibilityAddTraits(.isButton)
+        }
+        .id("hour-\(hour)")
+    }
 }
 
 // MARK: - DayEventCardView

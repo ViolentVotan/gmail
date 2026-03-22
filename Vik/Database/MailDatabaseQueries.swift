@@ -180,15 +180,32 @@ enum MailDatabaseQueries {
             )
         }
 
-        // 5. Update denormalized is_read / is_starred for each message in one pass.
+        // 5. Update denormalized is_read / is_starred in a single CASE/WHEN statement
+        //    instead of one UPDATE per message — O(1) round trips regardless of batch size.
+        var readCases = ""
+        var starredCases = ""
+        var readArgs: [DatabaseValueConvertible] = []
+        var starredArgs: [DatabaseValueConvertible] = []
         for update in updates {
             let isRead = !update.labelIds.contains(GmailSystemLabel.unread)
             let isStarred = update.labelIds.contains(GmailSystemLabel.starred)
-            try db.execute(
-                sql: "UPDATE messages SET is_read = ?, is_starred = ? WHERE gmail_id = ?",
-                arguments: [isRead, isStarred, update.messageId]
-            )
+            readCases += " WHEN ? THEN ?"
+            starredCases += " WHEN ? THEN ?"
+            readArgs += [update.messageId, isRead]
+            starredArgs += [update.messageId, isStarred]
         }
+        let inPlaceholders = updates.map { _ in "?" }.joined(separator: ", ")
+        let inArgs: [DatabaseValueConvertible] = updates.map { $0.messageId }
+        // Argument order matches SQL placeholder order: all read CASE args, then starred CASE args, then IN args.
+        try db.execute(
+            sql: """
+                UPDATE messages SET
+                    is_read = CASE gmail_id\(readCases) END,
+                    is_starred = CASE gmail_id\(starredCases) END
+                WHERE gmail_id IN (\(inPlaceholders))
+                """,
+            arguments: StatementArguments(readArgs + starredArgs + inArgs)
+        )
     }
 
     // MARK: - Thread Counts

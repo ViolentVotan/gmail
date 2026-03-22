@@ -8,7 +8,6 @@ struct CalendarMiniMonthView: View {
     @State private var cachedWeeks: [[Date?]] = []
     @State private var cachedMonth: Int = -1
     @State private var cachedYear: Int = -1
-    @State private var hoveredDate: Date?
 
     private let calendar = Calendar.current
     private let dayColumns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
@@ -83,9 +82,11 @@ struct CalendarMiniMonthView: View {
     // MARK: - Days Grid
 
     private var daysGrid: some View {
-        VStack(spacing: 2) {
-            ForEach(cachedWeeks.indices, id: \.self) { weekIndex in
-                weekRow(cachedWeeks[weekIndex], isSelectedWeek: isSelectedWeek(cachedWeeks[weekIndex]))
+        GlassEffectContainer {
+            VStack(spacing: 2) {
+                ForEach(cachedWeeks.indices, id: \.self) { weekIndex in
+                    weekRow(cachedWeeks[weekIndex], isSelectedWeek: isSelectedWeek(cachedWeeks[weekIndex]))
+                }
             }
         }
         .task {
@@ -115,53 +116,16 @@ struct CalendarMiniMonthView: View {
     }
 
     private func dayCell(_ date: Date, inSelectedWeek: Bool) -> some View {
-        let isToday = calendar.isDateInToday(date)
-        let isSelected = calendar.isDate(date, inSameDayAs: viewModel.selectedDate)
-        let isInCurrentMonth = calendar.isDate(date, equalTo: viewModel.selectedDate, toGranularity: .month)
-        let isHovered = hoveredDate.map { calendar.isDate($0, inSameDayAs: date) } ?? false
-
-        return Button {
-            withAnimation(VikAnimation.springSnappy) {
-                viewModel.selectDate(date)
-            }
-        } label: {
-            Text("\(calendar.component(.day, from: date))")
-                .font(isToday ? Typography.calendarMiniDay.bold() : Typography.calendarMiniDay)
-                .foregroundStyle(dayTextColor(isToday: isToday, isSelected: isSelected, isInMonth: isInCurrentMonth))
-                .frame(width: CalendarLayout.miniMonthDaySize, height: CalendarLayout.miniMonthDaySize)
-                .background(
-                    isToday
-                        ? CalendarSemanticColor.todayHeaderCircle
-                        : Color.clear,
-                    in: Circle()
-                )
-                .glassEffect(
-                    isToday || isSelected || isHovered ? .regular.interactive() : .identity,
-                    in: .circle
-                )
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .onHover { hovering in
-            hoveredDate = hovering ? date : nil
-        }
-        .animation(VikAnimation.hoverFeedback, value: isHovered)
-        .accessibilityLabel(date.formatted(date: .complete, time: .omitted))
-        .accessibilityAddTraits(isToday ? [.isButton, .isSelected] : .isButton)
-        .accessibilityHidden(!isInCurrentMonth)
+        MiniMonthDayCell(
+            date: date,
+            viewModel: viewModel
+        )
     }
 
     // MARK: - Helpers
 
     private var monthYearText: String {
         viewModel.selectedDate.formattedMonthYear
-    }
-
-    private func dayTextColor(isToday: Bool, isSelected: Bool, isInMonth: Bool) -> Color {
-        if isToday { return .white }
-        if !isInMonth { return Color(nsColor: .tertiaryLabelColor) }
-        return Color(nsColor: .labelColor)
     }
 
     private func isSelectedWeek(_ days: [Date?]) -> Bool {
@@ -204,6 +168,61 @@ struct CalendarMiniMonthView: View {
             weeks.append(weekDays)
         }
         return weeks
+    }
+}
+
+// MARK: - MiniMonthDayCell
+
+/// Extracted day cell with local hover state to avoid invalidating the entire mini-month grid on hover.
+private struct MiniMonthDayCell: View {
+    let date: Date
+    @Bindable var viewModel: CalendarViewModel
+
+    @State private var isHovered = false
+
+    private let calendar = Calendar.current
+
+    var body: some View {
+        let isToday = calendar.isDateInToday(date)
+        let isSelected = calendar.isDate(date, inSameDayAs: viewModel.selectedDate)
+        let isInCurrentMonth = calendar.isDate(date, equalTo: viewModel.selectedDate, toGranularity: .month)
+
+        Button {
+            withAnimation(VikAnimation.springSnappy) {
+                viewModel.selectDate(date)
+            }
+        } label: {
+            Text("\(calendar.component(.day, from: date))")
+                .font(isToday ? Typography.calendarMiniDay.bold() : Typography.calendarMiniDay)
+                .foregroundStyle(dayTextColor(isToday: isToday, isSelected: isSelected, isInMonth: isInCurrentMonth))
+                .frame(width: CalendarLayout.miniMonthDaySize, height: CalendarLayout.miniMonthDaySize)
+                .background(
+                    isToday
+                        ? CalendarSemanticColor.todayHeaderCircle
+                        : Color.clear,
+                    in: Circle()
+                )
+                .glassEffect(
+                    isToday || isSelected || isHovered ? .regular.interactive() : .identity,
+                    in: .circle
+                )
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .animation(VikAnimation.hoverFeedback, value: isHovered)
+        .accessibilityLabel(date.formatted(date: .complete, time: .omitted))
+        .accessibilityAddTraits(isToday ? [.isButton, .isSelected] : .isButton)
+        .accessibilityHidden(!isInCurrentMonth)
+    }
+
+    private func dayTextColor(isToday: Bool, isSelected: Bool, isInMonth: Bool) -> Color {
+        if isToday { return .white }
+        if !isInMonth { return Color(nsColor: .tertiaryLabelColor) }
+        return Color(nsColor: .labelColor)
     }
 }
 

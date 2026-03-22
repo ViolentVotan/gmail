@@ -54,9 +54,9 @@ struct CalendarAgendaView: View {
                     }
                 }
             }
+            .id(viewModel.selectedDate)
             .padding(.bottom, Spacing.xxl)
         }
-        .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: viewModel.selectedDate)
         .task(id: viewModel.selectedDate) {
             recomputeGroupedDays()
         }

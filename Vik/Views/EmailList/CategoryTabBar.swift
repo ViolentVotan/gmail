@@ -3,7 +3,6 @@ import SwiftUI
 struct CategoryTabBar: View {
     @Binding var selectedCategory: InboxCategory
     let unreadCounts: [InboxCategory: Int]
-    @State private var hoveredCategory: InboxCategory?
     @Namespace private var tabNamespace
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -16,7 +15,17 @@ struct CategoryTabBar: View {
             GlassEffectContainer(spacing: 4) {
                 HStack(spacing: 4) {
                     ForEach(InboxCategory.allCases) { category in
-                        categoryTab(category)
+                        CategoryTabButton(
+                            category: category,
+                            isSelected: selectedCategory == category,
+                            unreadCount: unreadCounts[category] ?? 0,
+                            reduceMotion: reduceMotion,
+                            tabNamespace: tabNamespace
+                        ) {
+                            withAnimation(.smooth) {
+                                selectedCategory = category
+                            }
+                        }
                     }
                 }
             }
@@ -24,24 +33,27 @@ struct CategoryTabBar: View {
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.sm)
     }
+}
 
-    private func categoryTab(_ category: InboxCategory) -> some View {
-        let isSelected = selectedCategory == category
-        let isHovered = hoveredCategory == category
+private struct CategoryTabButton: View {
+    let category: InboxCategory
+    let isSelected: Bool
+    let unreadCount: Int
+    let reduceMotion: Bool
+    var tabNamespace: Namespace.ID
+    let action: () -> Void
+    @State private var isHovered = false
 
-        return Button {
-            withAnimation(.smooth) {
-                selectedCategory = category
-            }
-        } label: {
+    var body: some View {
+        Button(action: action) {
             HStack(spacing: 4) {
                 Text(category.displayName)
                     .font(Typography.subheadRegular)
                     .fontWeight(isSelected ? .semibold : .regular)
                     .fixedSize()
 
-                if let count = unreadCounts[category], count > 0 {
-                    Text("\(count)")
+                if unreadCount > 0 {
+                    Text("\(unreadCount)")
                         .font(Typography.captionSmall)
                         .foregroundStyle(isSelected ? .primary : .tertiary)
                         .contentTransition(.numericText())
@@ -65,21 +77,11 @@ struct CategoryTabBar: View {
         .sensoryFeedback(.selection, trigger: isSelected)
         .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
         .onHover { hovering in
-            hoveredCategory = hovering ? category : nil
+            isHovered = hovering
         }
         .foregroundStyle(isSelected ? Color.accentColor : .secondary)
         .accessibilityLabel(category.displayName)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .help(category.displayName)
     }
-}
-
-#Preview {
-    @Previewable @State var selectedCategory: InboxCategory = .all
-
-    CategoryTabBar(
-        selectedCategory: $selectedCategory,
-        unreadCounts: [.primary: 3, .social: 12, .promotions: 47]
-    )
-    .frame(width: 380)
 }

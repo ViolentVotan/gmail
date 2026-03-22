@@ -311,7 +311,10 @@ final class EmailDetailViewModel {
             }
             return
         }
-        resolvedMessageHTML[message.id] = await Self.replaceCIDReferences(in: baseHTML, message: message, accountID: accountID, api: api)
+        let resolved = await Self.replaceCIDReferences(in: baseHTML, message: message, accountID: accountID, api: api)
+        if resolvedMessageHTML[message.id] != resolved {
+            resolvedMessageHTML[message.id] = resolved
+        }
     }
 
     /// Resolves inline CID images for older thread messages in parallel and stores results per message ID.
