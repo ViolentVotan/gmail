@@ -62,7 +62,7 @@ final class SnoozeMonitor {
                 )
             },
             remove: { item in
-                SnoozeStore.shared.remove(messageId: item.messageId, accountID: item.accountID)
+                await SnoozeStore.shared.remove(messageId: item.messageId, accountID: item.accountID)
             },
             getFailureCount: { self.snoozeFailureCounts[$0] ?? 0 },
             setFailureCount: { self.snoozeFailureCounts[$0] = $1 },
@@ -82,7 +82,7 @@ final class SnoozeMonitor {
                 try await GmailDraftService.shared.sendDraft(draftId: item.draftId, accountID: item.accountID)
             },
             remove: { item in
-                ScheduledSendStore.shared.remove(draftId: item.draftId, accountID: item.accountID)
+                await ScheduledSendStore.shared.remove(draftId: item.draftId, accountID: item.accountID)
             },
             onSuccess: { item in
                 ToastManager.shared.show(message: "Scheduled email sent: \(item.subject)")
@@ -105,7 +105,7 @@ final class SnoozeMonitor {
         items: [T],
         itemID: KeyPath<T, String>,
         action: (T) async throws(GmailAPIError) -> Void,
-        remove: (T) -> Void,
+        remove: (T) async -> Void,
         onSuccess: ((T) -> Void)? = nil,
         onPermanentFailure: ((T) -> Void)? = nil,
         getFailureCount: (String) -> Int,
@@ -119,13 +119,13 @@ final class SnoozeMonitor {
             do {
                 try await action(item)
                 removeFailureCount(id)
-                remove(item)
+                await remove(item)
                 onSuccess?(item)
             } catch {
                 if case .httpError(404, _) = error {
                     Self.logger.info("\(logPrefix, privacy: .public) \(id, privacy: .private) deleted (404) — removing entry")
                     removeFailureCount(id)
-                    remove(item)
+                    await remove(item)
                 } else {
                     Self.logger.error("Error processing \(logPrefix, privacy: .public) \(id, privacy: .private): \(error.localizedDescription, privacy: .public)")
                     let count = getFailureCount(id) + 1
@@ -136,7 +136,7 @@ final class SnoozeMonitor {
                         if let onPermanentFailure {
                             onPermanentFailure(item)
                         } else {
-                            remove(item)
+                            await remove(item)
                         }
                     }
                 }

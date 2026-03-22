@@ -1,5 +1,159 @@
 import SwiftUI
 
+// MARK: - EmailListSortModel
+
+/// Owns sort/section/accessibility computation off the view's body.
+@Observable @MainActor
+private final class EmailListSortModel {
+
+    struct AccessibilityCache {
+        var unreadEmails: [Email] = []
+        var starredEmails: [Email] = []
+        var emailsWithAttachments: [Email] = []
+        var hasFolderAction = false
+        var unsubscribableEmails: [Email] = []
+    }
+
+    private(set) var sortedEmails: [Email] = []
+    private(set) var cachedSections: [EmailDateSection] = []
+    private(set) var accessibilityCache = AccessibilityCache()
+
+    private var lastEmailIDs: [UUID] = []
+    private var lastUseDateSections = false
+
+    func recompute(
+        emails: [Email],
+        sortOrder: EmailSortOrder,
+        folder: Folder,
+        hasUnsubscribe: Bool,
+        hasEmptyTrash: Bool,
+        hasEmptySpam: Bool
+    ) {
+        let useSections = sortOrder == .dateNewest || sortOrder == .dateOldest
+
+        switch sortOrder {
+        case .dateNewest, .unreadFirst: sortedEmails = emails
+        case .dateOldest:               sortedEmails = emails.reversed()
+        case .sender:
+            let snapshot = emails
+            Task {
+                let sorted = await Task.detached {
+                    snapshot.sorted { $0.sender.name.localizedCaseInsensitiveCompare($1.sender.name) == .orderedAscending }
+                }.value
+                sortedEmails = sorted
+                applyPostSortUpdates(
+                    sortedEmails: sorted, sourceEmails: snapshot,
+                    folder: folder, useSections: useSections,
+                    hasUnsubscribe: hasUnsubscribe, hasEmptyTrash: hasEmptyTrash, hasEmptySpam: hasEmptySpam
+                )
+            }
+            return
+        }
+
+        applyPostSortUpdates(
+            sortedEmails: sortedEmails, sourceEmails: emails,
+            folder: folder, useSections: useSections,
+            hasUnsubscribe: hasUnsubscribe, hasEmptyTrash: hasEmptyTrash, hasEmptySpam: hasEmptySpam
+        )
+    }
+
+    private func applyPostSortUpdates(
+        sortedEmails: [Email],
+        sourceEmails: [Email],
+        folder: Folder,
+        useSections: Bool,
+        hasUnsubscribe: Bool,
+        hasEmptyTrash: Bool,
+        hasEmptySpam: Bool
+    ) {
+        var currentIDs: [Email.ID] = []
+        currentIDs.reserveCapacity(sortedEmails.count)
+        var newCache = AccessibilityCache()
+        newCache.unreadEmails.reserveCapacity(sortedEmails.count)
+        newCache.starredEmails.reserveCapacity(sortedEmails.count / 4)
+        newCache.emailsWithAttachments.reserveCapacity(sortedEmails.count / 4)
+
+        for email in sortedEmails {
+            currentIDs.append(email.id)
+            if !email.isRead { newCache.unreadEmails.append(email) }
+            if email.isStarred { newCache.starredEmails.append(email) }
+            if email.hasAttachments { newCache.emailsWithAttachments.append(email) }
+        }
+
+        if currentIDs != lastEmailIDs || useSections != lastUseDateSections {
+            lastEmailIDs = currentIDs
+            lastUseDateSections = useSections
+            cachedSections = useSections ? EmailListSortModel.buildSections(from: sortedEmails) : []
+        }
+
+        switch folder {
+        case .subscriptions:
+            newCache.unsubscribableEmails = sourceEmails.filter { $0.isFromMailingList && $0.unsubscribeURL != nil }
+            newCache.hasFolderAction = !sourceEmails.isEmpty && hasUnsubscribe && !newCache.unsubscribableEmails.isEmpty
+        case .trash:
+            newCache.hasFolderAction = !sourceEmails.isEmpty && hasEmptyTrash
+        case .spam:
+            newCache.hasFolderAction = !sourceEmails.isEmpty && hasEmptySpam
+        default:
+            break
+        }
+        accessibilityCache = newCache
+    }
+
+    private static func buildSections(from emails: [Email]) -> [EmailDateSection] {
+        var sections: [EmailDateSection] = []
+        var currentTitle = ""
+        var currentEmails: [Email] = []
+        let calendar = Calendar.current
+        let now = Date()
+        let thisWeekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start
+        let lastWeekStart: Date? = {
+            guard let thisWeekStart else { return nil }
+            return calendar.date(byAdding: .day, value: -7, to: thisWeekStart)
+        }()
+
+        for email in emails {
+            let title = dateGroupTitle(for: email.date, calendar: calendar, now: now, thisWeekStart: thisWeekStart, lastWeekStart: lastWeekStart)
+            if title != currentTitle {
+                if !currentEmails.isEmpty {
+                    sections.append(EmailDateSection(title: currentTitle, emails: currentEmails))
+                }
+                currentTitle = title
+                currentEmails = [email]
+            } else {
+                currentEmails.append(email)
+            }
+        }
+        if !currentEmails.isEmpty {
+            sections.append(EmailDateSection(title: currentTitle, emails: currentEmails))
+        }
+        return sections
+    }
+
+    private static func dateGroupTitle(
+        for date: Date,
+        calendar: Calendar,
+        now: Date,
+        thisWeekStart: Date?,
+        lastWeekStart: Date?
+    ) -> String {
+        if calendar.isDateInToday(date) { return "Today" }
+        if calendar.isDateInYesterday(date) { return "Yesterday" }
+
+        if let thisWeekStart, date >= thisWeekStart {
+            return "This Week"
+        }
+
+        if let lastWeekStart, date >= lastWeekStart {
+            return "Last Week"
+        }
+
+        return date.formattedMonthYear
+    }
+}
+
+// MARK: - EmailListView
+
 struct EmailListView: View {
     let emails: [Email]
     let isLoading: Bool
@@ -18,11 +172,7 @@ struct EmailListView: View {
     @State private var searchDebounceTask: Task<Void, Never>?
     @State private var sortOrder: EmailSortOrder = .dateNewest
     @State private var selectionAnchorID: String?
-    @State private var sortedEmails: [Email] = []
-    @State private var cachedSections: [EmailDateSection] = []
-    /// Tracks email IDs and section mode to skip expensive section rebuilds when only properties changed.
-    @State private var lastEmailIDs: [UUID] = []
-    @State private var lastUseDateSections = false
+    @State private var sortModel = EmailListSortModel()
     @State private var isSearching = false
     @State private var scrollPosition = ScrollPosition(edge: .top)
     @AppStorage("emailDensity") private var density = "comfortable"
@@ -31,76 +181,15 @@ struct EmailListView: View {
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
-    private struct AccessibilityCache {
-        var unreadEmails: [Email] = []
-        var starredEmails: [Email] = []
-        var emailsWithAttachments: [Email] = []
-        var hasFolderAction = false
-        var unsubscribableEmails: [Email] = []
-    }
-
-    @State private var accessibilityCache = AccessibilityCache()
-
     private func recomputeSortedEmails() {
-        switch sortOrder {
-        case .dateNewest, .unreadFirst: sortedEmails = emails
-        case .dateOldest:               sortedEmails = emails.reversed()
-        case .sender:
-            let snapshot = emails
-            let folder = selectedFolder
-            let useSections = useDateSections
-            Task {
-                let sorted = await Task.detached {
-                    snapshot.sorted { $0.sender.name.localizedCaseInsensitiveCompare($1.sender.name) == .orderedAscending }
-                }.value
-                self.sortedEmails = sorted
-                self.applyPostSortUpdates(sortedEmails: sorted, folder: folder, useSections: useSections)
-            }
-            return
-        }
-
-        applyPostSortUpdates(sortedEmails: sortedEmails, folder: selectedFolder, useSections: useDateSections)
-    }
-
-    /// Updates accessibility caches, date sections, and folder-action state after `sortedEmails` is resolved.
-    private func applyPostSortUpdates(sortedEmails: [Email], folder: Folder, useSections: Bool) {
-        // Single pass: build ID list and accessibility caches simultaneously.
-        var currentIDs: [Email.ID] = []
-        currentIDs.reserveCapacity(sortedEmails.count)
-        var newCache = AccessibilityCache()
-        newCache.unreadEmails.reserveCapacity(sortedEmails.count)
-        newCache.starredEmails.reserveCapacity(sortedEmails.count / 4)
-        newCache.emailsWithAttachments.reserveCapacity(sortedEmails.count / 4)
-
-        for email in sortedEmails {
-            currentIDs.append(email.id)
-            if !email.isRead { newCache.unreadEmails.append(email) }
-            if email.isStarred { newCache.starredEmails.append(email) }
-            if email.hasAttachments { newCache.emailsWithAttachments.append(email) }
-        }
-
-        // Only rebuild date sections when the email list, ordering, or section mode changed.
-        // Property-only updates (read status, star toggle) reuse the existing sections
-        // because SwiftUI's List diffing handles per-row updates via identity.
-        if currentIDs != lastEmailIDs || useSections != lastUseDateSections {
-            lastEmailIDs = currentIDs
-            lastUseDateSections = useSections
-            cachedSections = useSections ? Self.buildSections(from: sortedEmails) : []
-        }
-
-        // Recompute folder action caches.
-        switch folder {
-        case .subscriptions:
-            newCache.unsubscribableEmails = emails.filter { $0.isFromMailingList && $0.unsubscribeURL != nil }
-            newCache.hasFolderAction = !emails.isEmpty && actions.onUnsubscribe != nil && !newCache.unsubscribableEmails.isEmpty
-        case .trash:
-            newCache.hasFolderAction = !emails.isEmpty && actions.onEmptyTrash != nil
-        case .spam:
-            newCache.hasFolderAction = !emails.isEmpty && actions.onEmptySpam != nil
-        default:
-            break
-        }
-        accessibilityCache = newCache
+        sortModel.recompute(
+            emails: emails,
+            sortOrder: sortOrder,
+            folder: selectedFolder,
+            hasUnsubscribe: actions.onUnsubscribe != nil,
+            hasEmptyTrash: actions.onEmptyTrash != nil,
+            hasEmptySpam: actions.onEmptySpam != nil
+        )
     }
 
     var body: some View {
@@ -160,7 +249,7 @@ struct EmailListView: View {
 
     // MARK: - Header
 
-    private var hasFolderAction: Bool { accessibilityCache.hasFolderAction }
+    private var hasFolderAction: Bool { sortModel.accessibilityCache.hasFolderAction }
 
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: Spacing.sm) {
@@ -195,11 +284,11 @@ struct EmailListView: View {
 
     @ViewBuilder
     private var folderActionButton: some View {
-        if selectedFolder == .subscriptions, !accessibilityCache.unsubscribableEmails.isEmpty, let onUnsubscribe = actions.onUnsubscribe {
+        if selectedFolder == .subscriptions, !sortModel.accessibilityCache.unsubscribableEmails.isEmpty, let onUnsubscribe = actions.onUnsubscribe {
             Button {
-                accessibilityCache.unsubscribableEmails.forEach { onUnsubscribe($0) }
+                sortModel.accessibilityCache.unsubscribableEmails.forEach { onUnsubscribe($0) }
             } label: {
-                Text("Unsubscribe All (\(accessibilityCache.unsubscribableEmails.count))")
+                Text("Unsubscribe All (\(sortModel.accessibilityCache.unsubscribableEmails.count))")
                     .destructiveActionStyle()
             }
             .buttonStyle(.plain)
@@ -356,57 +445,6 @@ struct EmailListView: View {
         sortOrder == .dateNewest || sortOrder == .dateOldest
     }
 
-    private static func buildSections(from emails: [Email]) -> [EmailDateSection] {
-        var sections: [EmailDateSection] = []
-        var currentTitle = ""
-        var currentEmails: [Email] = []
-        let calendar = Calendar.current
-        let now = Date()
-        let thisWeekStart = calendar.dateInterval(of: .weekOfYear, for: now)?.start
-        let lastWeekStart: Date? = {
-            guard let thisWeekStart else { return nil }
-            return calendar.date(byAdding: .day, value: -7, to: thisWeekStart)
-        }()
-
-        for email in emails {
-            let title = dateGroupTitle(for: email.date, calendar: calendar, now: now, thisWeekStart: thisWeekStart, lastWeekStart: lastWeekStart)
-            if title != currentTitle {
-                if !currentEmails.isEmpty {
-                    sections.append(EmailDateSection(title: currentTitle, emails: currentEmails))
-                }
-                currentTitle = title
-                currentEmails = [email]
-            } else {
-                currentEmails.append(email)
-            }
-        }
-        if !currentEmails.isEmpty {
-            sections.append(EmailDateSection(title: currentTitle, emails: currentEmails))
-        }
-        return sections
-    }
-
-    private static func dateGroupTitle(
-        for date: Date,
-        calendar: Calendar,
-        now: Date,
-        thisWeekStart: Date?,
-        lastWeekStart: Date?
-    ) -> String {
-        if calendar.isDateInToday(date) { return "Today" }
-        if calendar.isDateInYesterday(date) { return "Yesterday" }
-
-        if let thisWeekStart, date >= thisWeekStart {
-            return "This Week"
-        }
-
-        if let lastWeekStart, date >= lastWeekStart {
-            return "Last Week"
-        }
-
-        return date.formattedMonthYear
-    }
-
     // MARK: - Email row builder
 
     @ViewBuilder
@@ -506,7 +544,7 @@ struct EmailListView: View {
     private var emailScrollView: some View {
         List(selection: $selectedEmailIDs) {
             if useDateSections {
-                ForEach(cachedSections) { section in
+                ForEach(sortModel.cachedSections) { section in
                     Section {
                         ForEach(section.emails) { email in
                             emailRow(for: email)
@@ -522,7 +560,7 @@ struct EmailListView: View {
                     }
                 }
             } else {
-                ForEach(sortedEmails) { email in
+                ForEach(sortModel.sortedEmails) { email in
                     emailRow(for: email)
                 }
             }
@@ -569,17 +607,17 @@ struct EmailListView: View {
         .scrollEdgeEffectStyle(.soft, for: .top)
         .animation(VikAnimation.springDefault, value: density)
         .accessibilityRotor("Unread Emails") {
-            ForEach(accessibilityCache.unreadEmails) { email in
+            ForEach(sortModel.accessibilityCache.unreadEmails) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)
             }
         }
         .accessibilityRotor("Starred") {
-            ForEach(accessibilityCache.starredEmails) { email in
+            ForEach(sortModel.accessibilityCache.starredEmails) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)
             }
         }
         .accessibilityRotor("Has Attachments") {
-            ForEach(accessibilityCache.emailsWithAttachments) { email in
+            ForEach(sortModel.accessibilityCache.emailsWithAttachments) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)
             }
         }
@@ -630,7 +668,7 @@ struct EmailListView: View {
     private func handleTap(email: Email) {
         EmailSelectionManager.handleTap(
             email: email,
-            sortedEmails: sortedEmails,
+            sortedEmails: sortModel.sortedEmails,
             selectedEmailIDs: &selectedEmailIDs,
             selectedEmail: &selectedEmail,
             selectionAnchorID: &selectionAnchorID
@@ -639,7 +677,7 @@ struct EmailListView: View {
 
     private func navigateToPrevious() {
         EmailSelectionManager.navigateToPrevious(
-            sortedEmails: sortedEmails,
+            sortedEmails: sortModel.sortedEmails,
             selectedEmailIDs: &selectedEmailIDs,
             selectedEmail: &selectedEmail,
             selectionAnchorID: &selectionAnchorID
@@ -648,7 +686,7 @@ struct EmailListView: View {
 
     private func navigateToNext() {
         EmailSelectionManager.navigateToNext(
-            sortedEmails: sortedEmails,
+            sortedEmails: sortModel.sortedEmails,
             selectedEmailIDs: &selectedEmailIDs,
             selectedEmail: &selectedEmail,
             selectionAnchorID: &selectionAnchorID

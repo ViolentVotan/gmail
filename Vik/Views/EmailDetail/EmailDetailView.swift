@@ -398,14 +398,27 @@ struct EmailDetailView: View {
 
     // MARK: - Thread Card
 
-    private func threadCard(for message: GmailMessage, at index: Int) -> some View {
-        let isLastCard = message.id == detailVM.messages.last?.id
-        return ThreadMessageCardView(
-            message: message,
-            isExpanded: isMessageExpanded(message),
-            fromAddress: fromAddress,
-            isLast: isLastCard,
-            resolvedHTML: detailVM.resolvedMessageHTML[message.id],
+    /// Bundles all closure-based callbacks for a single thread card, pre-built once
+    /// per message to avoid creating 17 closures inside every `ForEach` iteration.
+    private struct ThreadCardActions {
+        let onToggle: () -> Void
+        let onOpenLink: ((URL) -> Void)?
+        let onPreviewAttachment: (Attachment, GmailMessagePart) -> Void
+        let onDownloadAttachment: (Attachment, GmailMessagePart) -> Void
+        let onOpenAttachment: (Attachment, GmailMessagePart) -> Void
+        let onSaveAllAttachments: () -> Void
+        let onShareAttachment: (Attachment, GmailMessagePart, NSView) -> Void
+        let onDragAttachment: (Attachment, GmailMessagePart) -> NSItemProvider
+        let composeTo: (String) -> Void
+        let searchSender: (String) -> Void
+        let onReply: (GmailMessage) -> Void
+        let onReplyAll: (GmailMessage) -> Void
+        let onForward: (GmailMessage) -> Void
+        let onMarkUnread: (GmailMessage) -> Void
+    }
+
+    private func makeThreadCardActions(for message: GmailMessage, at index: Int) -> ThreadCardActions {
+        ThreadCardActions(
             onToggle: {
                 withAnimation(VikAnimation.springSnappy.delay(Double(min(index, 8)) * DurationToken.stagger)) {
                     let isCurrentlyExpanded = isMessageExpanded(message)
@@ -418,35 +431,22 @@ struct EmailDetailView: View {
                 }
             },
             onOpenLink: actions.onOpenLink,
-            attachmentPairs: detailVM.attachmentPairsForMessage(message),
             onPreviewAttachment: { attachment, part in
-                Task {
-                    await detailVM.loadAndPreview(
-                        attachment: attachment,
-                        part: part,
-                        message: message
-                    )
-                }
+                Task { await detailVM.loadAndPreview(attachment: attachment, part: part, message: message) }
             },
             onDownloadAttachment: { attachment, part in
                 Task {
                     guard let data = await detailVM.downloadAndSave(
-                        attachment: attachment,
-                        part: part,
-                        messageID: message.id
+                        attachment: attachment, part: part, messageID: message.id
                     ) else { return }
                     saveAttachmentData(data, named: attachment.name)
                 }
             },
             onOpenAttachment: { attachment, part in
-                Task {
-                    await detailVM.openAttachmentInDefaultApp(attachment, part: part, messageID: message.id)
-                }
+                Task { await detailVM.openAttachmentInDefaultApp(attachment, part: part, messageID: message.id) }
             },
             onSaveAllAttachments: {
-                Task {
-                    await detailVM.saveAllAttachments(for: message)
-                }
+                Task { await detailVM.saveAllAttachments(for: message) }
             },
             onShareAttachment: { attachment, part, anchorView in
                 Task {
@@ -492,9 +492,6 @@ struct EmailDetailView: View {
                 }
                 return item
             },
-            downloadingAttachmentIDs: detailVM.downloadingAttachmentIDs,
-            batchProgress: detailVM.batchDownloadProgress,
-            accountID: accountID,
             composeTo: { actions.onComposeTo?($0) },
             searchSender: { actions.onSearchSender?($0) },
             onReply: { msg in
@@ -510,7 +507,6 @@ struct EmailDetailView: View {
                 let sub = msg.subject.withReplyPrefix
                 let body = msg.htmlBody ?? msg.snippet ?? ""
                 let fields = EmailDetailViewModel.buildReplyAllFields(from: msg, selfEmail: fromAddress)
-
                 actions.onReplyAll?(.replyAll(
                     to: fields.to, cc: fields.cc,
                     subject: sub, quotedBody: body,
@@ -523,7 +519,37 @@ struct EmailDetailView: View {
                 let body = msg.htmlBody ?? msg.snippet ?? ""
                 actions.onForward?(.forward(subject: sub, quotedBody: body))
             },
-            onMarkUnread: { _ in actions.onMarkUnread?() },
+            onMarkUnread: { _ in actions.onMarkUnread?() }
+        )
+    }
+
+    private func threadCard(for message: GmailMessage, at index: Int) -> some View {
+        let isLastCard = message.id == detailVM.messages.last?.id
+        let cardActions = makeThreadCardActions(for: message, at: index)
+        return ThreadMessageCardView(
+            message: message,
+            isExpanded: isMessageExpanded(message),
+            fromAddress: fromAddress,
+            isLast: isLastCard,
+            resolvedHTML: detailVM.resolvedMessageHTML[message.id],
+            onToggle: cardActions.onToggle,
+            onOpenLink: cardActions.onOpenLink,
+            attachmentPairs: detailVM.attachmentPairsForMessage(message),
+            onPreviewAttachment: cardActions.onPreviewAttachment,
+            onDownloadAttachment: cardActions.onDownloadAttachment,
+            onOpenAttachment: cardActions.onOpenAttachment,
+            onSaveAllAttachments: cardActions.onSaveAllAttachments,
+            onShareAttachment: cardActions.onShareAttachment,
+            onDragAttachment: cardActions.onDragAttachment,
+            downloadingAttachmentIDs: detailVM.downloadingAttachmentIDs,
+            batchProgress: detailVM.batchDownloadProgress,
+            accountID: accountID,
+            composeTo: cardActions.composeTo,
+            searchSender: cardActions.searchSender,
+            onReply: cardActions.onReply,
+            onReplyAll: cardActions.onReplyAll,
+            onForward: cardActions.onForward,
+            onMarkUnread: cardActions.onMarkUnread,
             precomputedHTML: detailVM.precomputedHTMLParts[message.id]
         )
         .equatable()

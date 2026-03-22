@@ -421,7 +421,13 @@ final class EmailDetailViewModel {
             }
             return
         }
-        let resolved = await Self.replaceCIDReferences(in: baseHTML, message: message, accountID: accountID, api: api)
+        let resolved = await CIDResolver.resolve(
+            html: baseHTML,
+            inlineParts: message.inlineParts,
+            messageID: message.id,
+            accountID: accountID,
+            api: api
+        )
         if resolvedMessageHTML[message.id] != resolved {
             resolvedMessageHTML[message.id] = resolved
         }
@@ -446,7 +452,13 @@ final class EmailDetailViewModel {
                 guard let baseHTML = message.htmlBody, !baseHTML.isEmpty else { continue }
 
                 group.addTask {
-                    let result = await Self.replaceCIDReferences(in: baseHTML, message: message, accountID: accountID, api: api)
+                    let result = await CIDResolver.resolve(
+                        html: baseHTML,
+                        inlineParts: message.inlineParts,
+                        messageID: message.id,
+                        accountID: accountID,
+                        api: api
+                    )
                     return (message.id, result)
                 }
             }
@@ -463,32 +475,6 @@ final class EmailDetailViewModel {
                 content.htmlParts = parts
             }
         }
-    }
-
-    /// Shared helper: downloads inline CID attachments and replaces cid: references with data: URIs.
-    @concurrent private static func replaceCIDReferences(in html: String, message: GmailMessage, accountID: String, api: any MessageFetching) async -> String {
-        var result = html
-        await withTaskGroup(of: (String, String, Data?).self) { group in
-            for part in message.inlineParts {
-                guard let cid = part.contentID,
-                      let attachmentID = part.body?.attachmentId,
-                      let mime = part.mimeType else { continue }
-                group.addTask {
-                    let data = try? await api.getAttachment(
-                        messageID: message.id,
-                        attachmentID: attachmentID,
-                        accountID: accountID
-                    )
-                    return (cid, mime, data)
-                }
-            }
-            for await (cid, mime, data) in group {
-                guard let data else { continue }
-                let dataURI = "data:\(mime);base64,\(data.base64EncodedString())"
-                result = result.replacingOccurrences(of: "cid:\(cid)", with: dataURI)
-            }
-        }
-        return result
     }
 
     // MARK: - Attachments

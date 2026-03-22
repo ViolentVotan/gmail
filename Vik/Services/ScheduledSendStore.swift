@@ -70,8 +70,8 @@ final class ScheduledSendStore {
         await store.appendAndWait(item, accountID: item.accountID)
     }
 
-    func remove(draftId: String, accountID: String) {
-        store.removeAll(accountID: accountID) { $0.draftId == draftId }
+    func remove(draftId: String, accountID: String) async {
+        await store.removeAllAndWait(accountID: accountID) { $0.draftId == draftId }
     }
 
     func markFailed(draftId: String, accountID: String) {

@@ -136,7 +136,7 @@ struct CalendarMonthView: View {
 
             ScrollView(.vertical, showsIndicators: false) {
                 LazyVStack(spacing: 0) {
-                    ForEach(Array(cachedWeeks.enumerated()), id: \.offset) { weekIndex, weekDays in
+                    ForEach(Array(cachedWeeks.enumerated()), id: \.element.first) { weekIndex, weekDays in
                         if weekIndex > 0 {
                             Divider()
                         }
@@ -240,7 +240,7 @@ struct CalendarMonthView: View {
                 }
 
                 HStack(spacing: 0) {
-                    ForEach(Array(cellContents.enumerated()), id: \.offset) { colIndex, content in
+                    ForEach(Array(cellContents.enumerated()), id: \.element.id) { colIndex, content in
                         if colIndex > 0 {
                             Divider()
                         }

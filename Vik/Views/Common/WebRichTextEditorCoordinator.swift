@@ -4,6 +4,8 @@ import WebKit
 final class WebRichTextEditorCoordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
     nonisolated private static let logger = Logger(category: "RichTextEditor")
     var parent: WebRichTextEditorRepresentable
+    /// Whether the template shell has finished loading (didFinish fired).
+    private var templateReady = false
 
     init(_ parent: WebRichTextEditorRepresentable) {
         self.parent = parent
@@ -60,10 +62,17 @@ final class WebRichTextEditorCoordinator: NSObject, WKScriptMessageHandler, WKNa
             // Links are handled by the JS popover in editor mode — don't open externally
             return .cancel
         }
+        // Only allow the initial template load (before templateReady).
+        guard !templateReady,
+              navigationAction.navigationType == .other
+        else {
+            return .cancel
+        }
         return .allow
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        templateReady = true
         MainActor.assumeIsolated {
             parent.state.webView = webView
             // Push existing content to the editor (e.g. when re-opening a draft)

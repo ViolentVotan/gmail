@@ -29,20 +29,54 @@ struct FormattingToolbar: View {
         ("Comic Sans MS", "Comic Sans MS, cursive"),
     ]
 
-    private func displayNameForFont(_ rawFamily: String) -> String {
-        let lower = rawFamily.lowercased()
-        for ff in fontFamilies {
-            if ff.css.lowercased().contains(lower) || ff.display.lowercased() == lower {
-                return ff.display
-            }
-        }
-        return rawFamily.isEmpty ? "Sans Serif" : rawFamily
-    }
-
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-        HStack(spacing: 0) {
-            // Undo / Redo
+            HStack(spacing: 0) {
+                UndoRedoGroup(state: state)
+                separator
+                FontFamilyGroup(state: state, fontFamilies: fontFamilies)
+                separator
+                FontSizeGroup(state: state, fontSizes: fontSizes)
+                separator
+                TextStyleGroup(state: state)
+                separator
+                ColorGroup(
+                    state: state,
+                    colorGrid: colorGrid,
+                    showColorPopover: $showColorPopover,
+                    showHighlightPopover: $showHighlightPopover
+                )
+                separator
+                AlignmentGroup(state: state)
+                separator
+                ListGroup(state: state)
+                separator
+                IndentAndInsertGroup(
+                    state: state,
+                    showLinkPopover: $showLinkPopover,
+                    linkURL: $linkURL,
+                    linkText: $linkText
+                )
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+        }
+        .onChange(of: state.linkPopoverRequest?.text) { _, _ in
+            if let request = state.linkPopoverRequest {
+                linkURL = request.url.isEmpty ? "https://" : request.url
+                linkText = request.text
+                showLinkPopover = true
+                state.linkPopoverRequest = nil
+            }
+        }
+    }
+
+    // MARK: - Toolbar Groups
+
+    private struct UndoRedoGroup: View {
+        var state: WebRichTextEditorState
+
+        var body: some View {
             Group {
                 toolbarButton(icon: "arrow.uturn.backward", tooltip: "Undo") {
                     state.undo()
@@ -53,10 +87,14 @@ struct FormattingToolbar: View {
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel("History")
+        }
+    }
 
-            separator
+    private struct FontFamilyGroup: View {
+        var state: WebRichTextEditorState
+        let fontFamilies: [(display: String, css: String)]
 
-            // Font family + Remove formatting
+        var body: some View {
             Group {
                 Menu {
                     ForEach(fontFamilies, id: \.css) { font in
@@ -87,19 +125,32 @@ struct FormattingToolbar: View {
                 .buttonStyle(.plain)
                 .frame(maxWidth: 110)
 
-                separator
+                ToolbarSeparator()
 
-                // Remove formatting
                 toolbarButton(icon: "textformat", tooltip: "Remove formatting") {
                     state.removeFormat()
                 }
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Font")
+        }
 
-            separator
+        private func displayNameForFont(_ rawFamily: String) -> String {
+            let lower = rawFamily.lowercased()
+            for ff in fontFamilies {
+                if ff.css.lowercased().contains(lower) || ff.display.lowercased() == lower {
+                    return ff.display
+                }
+            }
+            return rawFamily.isEmpty ? "Sans Serif" : rawFamily
+        }
+    }
 
-            // Font size
+    private struct FontSizeGroup: View {
+        var state: WebRichTextEditorState
+        let fontSizes: [CGFloat]
+
+        var body: some View {
             Group {
                 Menu {
                     ForEach(fontSizes, id: \.self) { size in
@@ -130,10 +181,13 @@ struct FormattingToolbar: View {
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Font size")
+        }
+    }
 
-            separator
+    private struct TextStyleGroup: View {
+        var state: WebRichTextEditorState
 
-            // Bold, Italic, Underline, Strikethrough
+        var body: some View {
             Group {
                 toggleButton(icon: "bold", tooltip: "Bold", isActive: state.isBold) {
                     state.toggleBold()
@@ -150,12 +204,17 @@ struct FormattingToolbar: View {
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Text style")
+        }
+    }
 
-            separator
+    private struct ColorGroup: View {
+        var state: WebRichTextEditorState
+        let colorGrid: [[NSColor]]
+        @Binding var showColorPopover: Bool
+        @Binding var showHighlightPopover: Bool
 
-            // Text color + Highlight color
+        var body: some View {
             Group {
-                // Text color - popover with color grid
                 Button {
                     showColorPopover.toggle()
                 } label: {
@@ -181,7 +240,6 @@ struct FormattingToolbar: View {
                     )
                 }
 
-                // Highlight color
                 Button {
                     showHighlightPopover.toggle()
                 } label: {
@@ -210,10 +268,13 @@ struct FormattingToolbar: View {
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Color")
+        }
+    }
 
-            separator
+    private struct AlignmentGroup: View {
+        var state: WebRichTextEditorState
 
-            // Alignment - individual icon buttons
+        var body: some View {
             Group {
                 alignmentButton(icon: "text.alignleft", alignment: .left, tooltip: "Align left")
                 alignmentButton(icon: "text.aligncenter", alignment: .center, tooltip: "Center")
@@ -222,10 +283,29 @@ struct FormattingToolbar: View {
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Alignment")
+        }
 
-            separator
+        private func alignmentButton(icon: String, alignment: NSTextAlignment, tooltip: String) -> some View {
+            let isActive = state.alignment == alignment
+            return Button {
+                state.setAlignment(alignment)
+            } label: {
+                Image(systemName: icon)
+                    .font(.subheadline.weight(isActive ? .bold : .regular))
+                    .foregroundStyle(isActive ? Color.accentColor : .secondary)
+                    .frame(width: ButtonSize.sm, height: ButtonSize.sm)
+                    .modifier(ToggleHighlight(isActive: isActive))
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(tooltip)
+        }
+    }
 
-            // Lists
+    private struct ListGroup: View {
+        var state: WebRichTextEditorState
+
+        var body: some View {
             Group {
                 toolbarButton(icon: "list.number", tooltip: "Numbered list") {
                     state.insertNumberedList()
@@ -239,10 +319,16 @@ struct FormattingToolbar: View {
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Lists")
+        }
+    }
 
-            separator
+    private struct IndentAndInsertGroup: View {
+        var state: WebRichTextEditorState
+        @Binding var showLinkPopover: Bool
+        @Binding var linkURL: String
+        @Binding var linkText: String
 
-            // Indentation and insert
+        var body: some View {
             Group {
                 toolbarButton(icon: "decrease.indent", tooltip: "Decrease indent") {
                     state.decreaseIndent()
@@ -251,16 +337,14 @@ struct FormattingToolbar: View {
                     state.increaseIndent()
                 }
 
-                separator
+                ToolbarSeparator()
 
-                // Translate
                 toolbarButton(icon: "globe", tooltip: "Translate") {
                     state.translationRequested = true
                 }
 
-                separator
+                ToolbarSeparator()
 
-                // Link
                 Button {
                     linkURL = "https://"
                     linkText = state.selectedText
@@ -321,69 +405,49 @@ struct FormattingToolbar: View {
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Indentation and insert")
-
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        }
-        .onChange(of: state.linkPopoverRequest?.text) { _, _ in
-            if let request = state.linkPopoverRequest {
-                linkURL = request.url.isEmpty ? "https://" : request.url
-                linkText = request.text
-                showLinkPopover = true
-                state.linkPopoverRequest = nil
-            }
         }
     }
 
     // MARK: - Helpers
 
     private var separator: some View {
+        ToolbarSeparator()
+    }
+}
+
+// MARK: - Shared Toolbar Helpers
+
+private struct ToolbarSeparator: View {
+    var body: some View {
         Divider()
             .frame(height: 16)
             .padding(.horizontal, 6)
     }
+}
 
-    private func toolbarButton(icon: String, tooltip: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(Typography.subheadRegular)
-                .foregroundStyle(.secondary)
-                .frame(width: ButtonSize.sm, height: ButtonSize.sm)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(tooltip)
+private func toolbarButton(icon: String, tooltip: String, action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+        Image(systemName: icon)
+            .font(Typography.subheadRegular)
+            .foregroundStyle(.secondary)
+            .frame(width: ButtonSize.sm, height: ButtonSize.sm)
+            .contentShape(Rectangle())
     }
+    .buttonStyle(.plain)
+    .help(tooltip)
+}
 
-    private func toggleButton(icon: String, tooltip: String, isActive: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.subheadline.weight(isActive ? .bold : .regular))
-                .foregroundStyle(isActive ? Color.accentColor : .secondary)
-                .frame(width: ButtonSize.sm, height: ButtonSize.sm)
-                .modifier(ToggleHighlight(isActive: isActive))
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(tooltip)
+private func toggleButton(icon: String, tooltip: String, isActive: Bool, action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+        Image(systemName: icon)
+            .font(.subheadline.weight(isActive ? .bold : .regular))
+            .foregroundStyle(isActive ? Color.accentColor : .secondary)
+            .frame(width: ButtonSize.sm, height: ButtonSize.sm)
+            .modifier(ToggleHighlight(isActive: isActive))
+            .contentShape(Rectangle())
     }
-
-    private func alignmentButton(icon: String, alignment: NSTextAlignment, tooltip: String) -> some View {
-        let isActive = state.alignment == alignment
-        return Button {
-            state.setAlignment(alignment)
-        } label: {
-            Image(systemName: icon)
-                .font(.subheadline.weight(isActive ? .bold : .regular))
-                .foregroundStyle(isActive ? Color.accentColor : .secondary)
-                .frame(width: ButtonSize.sm, height: ButtonSize.sm)
-                .modifier(ToggleHighlight(isActive: isActive))
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .help(tooltip)
-    }
+    .buttonStyle(.plain)
+    .help(tooltip)
 }
 
 // MARK: - Toggle Highlight

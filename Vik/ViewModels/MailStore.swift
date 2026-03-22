@@ -129,15 +129,15 @@ final class MailStore {
                 var email = Self.makeEmailFromGmailDraft(draft: draft, message: message)
 
                 // Resolve cid: → data: for inline images so they display in the editor.
-                // NOTE: Similar CID resolution logic exists in EmailDetailViewModel.replaceCIDReferences.
-                // That version uses a concurrent TaskGroup and only handles the attachment-fetch path.
-                // This version is sequential and additionally handles base64url data embedded in the
-                // "full" response, and preserves the data-cid attribute for the compose editor.
-                email.body = await Self.resolveCIDImages(
-                    body: email.body,
+                // Sequential + preserveDataCID for compose editor round-trip.
+                email.body = await CIDResolver.resolve(
+                    html: email.body,
                     inlineParts: message.inlineParts,
                     messageID: message.id,
-                    accountID: accountID
+                    accountID: accountID,
+                    api: GmailMessageService.shared,
+                    preserveDataCID: true,
+                    concurrent: false
                 )
                 emails.append(email)
             }
@@ -157,45 +157,6 @@ final class MailStore {
     /// Converts a Gmail draft + message into a read-only Email for display.
     private static func makeEmailFromGmailDraft(draft: GmailDraft, message: GmailMessage) -> Email {
         GmailDataTransformer.makeEmail(from: message, isDraft: true, draftID: draft.id)
-    }
-
-    /// Resolves cid: references in draft HTML to data: URIs off the main actor.
-    @concurrent private static func resolveCIDImages(
-        body: String,
-        inlineParts: [GmailMessagePart],
-        messageID: String,
-        accountID: String
-    ) async -> String {
-        guard !inlineParts.isEmpty && body.contains("cid:") else { return body }
-        var resolved = body
-        for part in inlineParts {
-            guard let cid = part.contentID,
-                  let mime = part.mimeType else { continue }
-
-            let imageBase64: String?
-            if let embedded = part.body?.data {
-                imageBase64 = Data(base64URLEncoded: embedded)?.base64EncodedString()
-            } else if let attID = part.body?.attachmentId {
-                if let data = try? await GmailMessageService.shared.getAttachment(
-                    messageID: messageID, attachmentID: attID, accountID: accountID
-                ) {
-                    imageBase64 = data.base64EncodedString()
-                } else {
-                    imageBase64 = nil
-                }
-            } else {
-                imageBase64 = nil
-            }
-
-            if let b64 = imageBase64 {
-                let dataURI = "data:\(mime);base64,\(b64)"
-                resolved = resolved.replacingOccurrences(
-                    of: "src=\"cid:\(cid)\"",
-                    with: "src=\"\(dataURI)\" data-cid=\"\(cid)\""
-                )
-            }
-        }
-        return resolved
     }
 
     // MARK: - Drafts

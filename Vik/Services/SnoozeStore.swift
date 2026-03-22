@@ -73,8 +73,8 @@ final class SnoozeStore {
         await store.appendAndWait(item, accountID: item.accountID)
     }
 
-    func remove(messageId: String, accountID: String) {
-        store.removeAll(accountID: accountID) { $0.messageId == messageId }
+    func remove(messageId: String, accountID: String) async {
+        await store.removeAllAndWait(accountID: accountID) { $0.messageId == messageId }
     }
 
     /// Removes all in-memory data and the on-disk JSON file for the given account.

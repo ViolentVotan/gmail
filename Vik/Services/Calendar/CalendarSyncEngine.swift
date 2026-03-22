@@ -58,6 +58,8 @@ actor CalendarSyncEngine {
 
     // MARK: - Init
 
+    /// - Note: `@MainActor` required because `eventService` and `listService`
+    /// are `@MainActor` singletons accessed via `.shared` in the init body.
     @MainActor init(accountID: String, db: MailDatabase) {
         self.accountID = accountID
         self.db = db

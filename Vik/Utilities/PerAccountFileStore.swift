@@ -227,6 +227,14 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
         save(accountID: accountID)
     }
 
+    /// Removes matching items and immediately flushes to disk without coalescing.
+    /// Use for critical removes where losing the removal on crash is unacceptable
+    /// (e.g. snooze/scheduled-send cancellation).
+    func removeAllAndWait(accountID: String, where predicate: (Item) -> Bool) async {
+        itemsByAccount[accountID]?.removeAll(where: predicate)
+        await saveAndWait(accountID: accountID)
+    }
+
     func replaceItems(_ items: [Item], accountID: String) {
         itemsByAccount[accountID] = items
         save(accountID: accountID)

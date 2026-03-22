@@ -287,6 +287,7 @@ enum MailDatabaseQueries {
         return try CalendarEventRecord
             .filter(calendarIds.contains(Column("calendar_id")))
             .filter(Column("account_id") == accountId)
+            .filter(Column("status") != "cancelled")
             .filter(Column("start_time") < end)
             .filter(Column("end_time") > start)
             .order(Column("start_time").asc)
@@ -308,6 +309,7 @@ enum MailDatabaseQueries {
         let keyArgs: [any DatabaseValueConvertible] = calendarKeys.flatMap { [$0.calendarId, $0.accountId] as [any DatabaseValueConvertible] }
         return try CalendarEventRecord
             .filter(sql: "(calendar_id, account_id) IN (\(placeholders))", arguments: StatementArguments(keyArgs))
+            .filter(Column("status") != "cancelled")
             .filter(Column("start_time") < end)
             .filter(Column("end_time") > start)
             .order(Column("start_time").asc)
@@ -328,6 +330,7 @@ enum MailDatabaseQueries {
         let keyArgs: [any DatabaseValueConvertible] = calendarKeys.flatMap { [$0.calendarId, $0.accountId] as [any DatabaseValueConvertible] }
         return try CalendarEventRecord
             .filter(sql: "(calendar_id, account_id) IN (\(placeholders))", arguments: StatementArguments(keyArgs))
+            .filter(Column("status") != "cancelled")
             .filter(Column("start_time") < end)
             .filter(Column("end_time") > start)
             .including(all: CalendarEventRecord.attendees)
@@ -348,6 +351,7 @@ enum MailDatabaseQueries {
             SELECT ce.* FROM calendar_events ce
             JOIN calendars c ON c.calendar_id = ce.calendar_id AND c.account_id = ce.account_id
             WHERE c.is_visible = 1
+            AND ce.status != 'cancelled'
             AND ce.start_time < ?
             AND ce.end_time > ?
             """
@@ -376,6 +380,7 @@ enum MailDatabaseQueries {
                 AND ca.account_id = ce.account_id
             WHERE ca.email = ?
             AND ce.account_id = ?
+            AND ce.status != 'cancelled'
             AND ce.start_time > ?
             ORDER BY ce.start_time ASC
             LIMIT ?

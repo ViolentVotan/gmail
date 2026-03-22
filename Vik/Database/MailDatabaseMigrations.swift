@@ -25,6 +25,7 @@ enum MailDatabaseMigrations {
         registerV18(&migrator)
         registerV19(&migrator)
         registerV20(&migrator)
+        registerV21(&migrator)
         return migrator
     }
 
@@ -556,6 +557,26 @@ enum MailDatabaseMigrations {
                     OR NEW.snippet IS NOT NULL OR NEW.sender_name IS NOT NULL
                     OR NEW.sender_email IS NOT NULL
                 BEGIN
+                    INSERT INTO messages_fts(gmail_id, subject, body_plain, snippet, sender_name, sender_email)
+                    VALUES (NEW.gmail_id, NEW.subject, NEW.body_plain, NEW.snippet, NEW.sender_name, NEW.sender_email);
+                END
+            """)
+        }
+    }
+
+    private static func registerV21(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v21_fts_insert_trigger_dedup") { db in
+            // Recreate the AFTER INSERT trigger with a DELETE before INSERT to prevent
+            // duplicate FTS rows when both the trigger and an explicit index path fire.
+            try db.execute(sql: "DROP TRIGGER IF EXISTS messages_fts_insert")
+            try db.execute(sql: """
+                CREATE TRIGGER messages_fts_insert
+                AFTER INSERT ON messages
+                WHEN NEW.subject IS NOT NULL OR NEW.body_plain IS NOT NULL
+                    OR NEW.snippet IS NOT NULL OR NEW.sender_name IS NOT NULL
+                    OR NEW.sender_email IS NOT NULL
+                BEGIN
+                    DELETE FROM messages_fts WHERE gmail_id = NEW.gmail_id;
                     INSERT INTO messages_fts(gmail_id, subject, body_plain, snippet, sender_name, sender_email)
                     VALUES (NEW.gmail_id, NEW.subject, NEW.body_plain, NEW.snippet, NEW.sender_name, NEW.sender_email);
                 END

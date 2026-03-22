@@ -309,8 +309,8 @@ final class EmailActionCoordinator {
 
     func unsnoozeEmail(messageId: String, accountID: String) {
         let item = SnoozeStore.shared.items.first { $0.messageId == messageId && $0.accountID == accountID }
-        SnoozeStore.shared.remove(messageId: messageId, accountID: accountID)
         Task {
+            await SnoozeStore.shared.remove(messageId: messageId, accountID: accountID)
             do {
                 try await GmailMessageService.shared.modifyLabels(
                     id: messageId,

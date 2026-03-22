@@ -60,7 +60,6 @@ struct ReplyBarView: View {
             composeVM.scheduleReplyAutoSaveUnified(email: email, mailStore: mailStore)
         }
         .animation(VikAnimation.springSnappy, value: composeVM.hasUserContent)
-        .animation(VikAnimation.springSnappy, value: NetworkMonitor.shared.isConnected)
         .task {
             try? await Task.sleep(for: ComposeViewModel.autoSaveGuardDelay)
             composeVM.isInitialLoad = false
@@ -177,18 +176,7 @@ struct ReplyBarView: View {
 
             AttachmentChipRow(attachments: $composeVM.attachments)
 
-            if !NetworkMonitor.shared.isConnected {
-                HStack(spacing: 6) {
-                    Image(systemName: "wifi.slash")
-                        .font(Typography.captionRegular)
-                    Text("You're offline — replies will be queued")
-                        .font(Typography.captionRegular)
-                }
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, Spacing.lg)
-                .padding(.vertical, Spacing.xs)
-                .transition(.opacity)
-            }
+            OfflineBanner()
 
             Divider().background(Color(.separatorColor))
 
@@ -349,6 +337,27 @@ private struct ClickOutsideDetector: NSViewRepresentable {
                 NSEvent.removeMonitor(monitor)
                 self.monitor = nil
             }
+        }
+    }
+}
+
+// MARK: - Offline Banner
+
+/// Extracted sub-view so `NetworkMonitor.shared` observation is scoped here
+/// and does not invalidate the entire `ReplyBarView` on connectivity changes.
+private struct OfflineBanner: View {
+    var body: some View {
+        if !NetworkMonitor.shared.isConnected {
+            HStack(spacing: 6) {
+                Image(systemName: "wifi.slash")
+                    .font(Typography.captionRegular)
+                Text("You're offline — replies will be queued")
+                    .font(Typography.captionRegular)
+            }
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.xs)
+            .transition(.opacity)
         }
     }
 }

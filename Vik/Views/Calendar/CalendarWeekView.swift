@@ -292,7 +292,7 @@ struct CalendarWeekView: View {
         dayColumnWidth: CGFloat
     ) -> some View {
         let groups = dayIndex < weekCache.overlapGroupsByDay.count ? weekCache.overlapGroupsByDay[dayIndex] : []
-        ForEach(Array(groups.enumerated()), id: \.offset) { groupIndex, group in
+        ForEach(Array(groups.enumerated()), id: \.element.first?.id) { groupIndex, group in
             ForEach(Array(group.enumerated()), id: \.element.id) { colIndex, event in
                 eventCard(
                     event: event,

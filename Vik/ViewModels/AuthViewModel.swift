@@ -72,6 +72,7 @@ final class AuthViewModel {
         SnoozeStore.shared.deleteAccount(account.id)
         OfflineActionQueue.shared.deleteAccount(account.id)
         CalendarOfflineActionQueue.shared.deleteAccount(account.id)
+        GmailAPIClient.shared.clearCachedToken(for: account.id)
         TokenStore.shared.delete(for: account.id)
 
         AccountStore.shared.remove(id: account.id)

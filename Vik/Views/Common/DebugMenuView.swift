@@ -26,7 +26,6 @@ struct DebugMenuView: View {
     private let logger = APILogger.shared
     @State private var viewModel = DebugViewModel()
     @State private var expandedEntryID: UUID?
-    @State private var reversedEntries: [APILogEntry] = []
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -93,9 +92,9 @@ struct DebugMenuView: View {
                         .padding(.vertical, 8)
                 } else {
                     LazyVStack(spacing: 0) {
-                        ForEach(reversedEntries) { entry in
+                        ForEach(logger.entries) { entry in
                             logEntryRow(entry)
-                            if entry.id != reversedEntries.last?.id {
+                            if entry.id != logger.entries.last?.id {
                                 Divider()
                             }
                         }
@@ -114,9 +113,6 @@ struct DebugMenuView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .task {
             await viewModel.refreshIndexingStats(accountID: accountID)
-        }
-        .task(id: logger.entries.count) {
-            reversedEntries = logger.entries.reversed()
         }
     }
 

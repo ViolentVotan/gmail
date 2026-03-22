@@ -98,6 +98,9 @@ final class MailboxViewModel {
     @ObservationIgnored private var observationTask: Task<Void, Never>?
     @ObservationIgnored private var enrichmentTask: Task<Void, Never>?
     @ObservationIgnored private var observationDebounceTask: Task<Void, Never>?
+    /// Fingerprint of the last processed observation result, used to skip
+    /// redundant `toEmail()` conversions when the DB fires duplicate updates.
+    @ObservationIgnored private var lastObservedFingerprint: Int = 0
 
     init(
         accountID: String,
@@ -120,6 +123,7 @@ final class MailboxViewModel {
         observationDebounceTask?.cancel()
         observationDebounceTask = nil
         observationTask?.cancel()
+        lastObservedFingerprint = 0
         guard let db = mailDatabase, let primaryLabel = labelIDs.first else { return }
         // Use GRDB association prefetching: 4 queries instead of N+1.
         // Query 1: SELECT m.* FROM messages … (filtered by label(s))
@@ -182,6 +186,14 @@ final class MailboxViewModel {
     private func handleDatabaseUpdate(_ records: [MessageWithAssociations], from db: MailDatabase) {
         // Stale check: ignore updates from a previous account's database
         guard db === mailDatabase else { return }
+
+        // Skip redundant conversions: compute a lightweight fingerprint from
+        // message IDs and key mutable columns to detect whether anything
+        // actually changed since the last observation result.
+        let fingerprint = Self.computeFingerprint(records)
+        guard fingerprint != lastObservedFingerprint else { return }
+        lastObservedFingerprint = fingerprint
+
         let fetchedCount = records.count
         let limit = displayLimit
         enrichmentTask?.cancel()
@@ -201,6 +213,22 @@ final class MailboxViewModel {
                 self.emails = threadEmails
             }
         }
+    }
+
+    /// Lightweight fingerprint from record IDs and key mutable columns.
+    /// Used to skip the expensive `toEmail()` conversion when the DB fires
+    /// duplicate observation updates during bulk sync writes.
+    nonisolated private static func computeFingerprint(_ records: [MessageWithAssociations]) -> Int {
+        var hasher = Hasher()
+        hasher.combine(records.count)
+        for row in records {
+            hasher.combine(row.message.gmailId)
+            hasher.combine(row.message.historyId)
+            hasher.combine(row.message.isRead)
+            hasher.combine(row.message.isStarred)
+            hasher.combine(row.labels.count)
+        }
+        return hasher.finalize()
     }
 
     /// Convert association-prefetched records into threaded Email models.
@@ -426,6 +454,7 @@ final class MailboxViewModel {
         enrichmentTask = nil
         observationDebounceTask?.cancel()
         observationDebounceTask = nil
+        lastObservedFingerprint = 0
         accountID = id
         emails    = []
         displayLimit = 200

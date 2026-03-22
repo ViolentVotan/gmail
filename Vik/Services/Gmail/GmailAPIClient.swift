@@ -700,6 +700,11 @@ final class GmailAPIClient {
 
     // MARK: - Token refresh
 
+    /// Removes the cached access token for the given account (e.g. on sign-out).
+    nonisolated func clearCachedToken(for accountID: String) {
+        _ = cachedTokens.withLock { $0.removeValue(forKey: accountID) }
+    }
+
     /// Fast path: returns the cached token if still valid.
     /// On cache miss, falls back to `validToken(for:)` which reads Keychain off MainActor.
     @concurrent private func cachedValidToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {

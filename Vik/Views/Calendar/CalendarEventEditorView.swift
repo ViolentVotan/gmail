@@ -38,8 +38,6 @@ struct CalendarEventEditorView: View {
     // MARK: - Body
 
     var body: some View {
-        @Bindable var vm = viewModel
-
         VStack(spacing: 0) {
             // Title bar
             toolbar
@@ -76,7 +74,7 @@ struct CalendarEventEditorView: View {
         .interactiveDismissDisabled(viewModel.hasChanges)
         .confirmationDialog(
             "Discard Changes?",
-            isPresented: $vm.showDiscardAlert,
+            isPresented: $viewModel.showDiscardAlert,
             titleVisibility: .visible
         ) {
             Button("Discard Changes", role: .destructive) { onCancel() }
@@ -84,7 +82,7 @@ struct CalendarEventEditorView: View {
         } message: {
             Text("You have unsaved changes.")
         }
-        .sheet(isPresented: $vm.showRecurringSheet) {
+        .sheet(isPresented: $viewModel.showRecurringSheet) {
             recurringEditSheet
         }
     }
@@ -127,9 +125,7 @@ struct CalendarEventEditorView: View {
     // MARK: - Title Field
 
     private var titleField: some View {
-        @Bindable var vm = viewModel
-
-        return TextField("Title", text: $vm.summary)
+        TextField("Title", text: $viewModel.summary)
             .font(.system(size: 20, weight: .semibold))
             .foregroundStyle(.primary)
             .textFieldStyle(.plain)
@@ -141,10 +137,8 @@ struct CalendarEventEditorView: View {
     // MARK: - Timing Section
 
     private var timingSection: some View {
-        @Bindable var vm = viewModel
-
-        return VStack(alignment: .leading, spacing: Spacing.sm) {
-            Toggle("All-day", isOn: $vm.isAllDay)
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Toggle("All-day", isOn: $viewModel.isAllDay)
                 .font(Typography.body)
                 .toggleStyle(.switch)
                 .onChange(of: viewModel.isAllDay) { _, newValue in
@@ -156,16 +150,16 @@ struct CalendarEventEditorView: View {
                 }
 
             if viewModel.isAllDay {
-                DatePicker("Start", selection: $vm.startTime, displayedComponents: .date)
+                DatePicker("Start", selection: $viewModel.startTime, displayedComponents: .date)
                     .datePickerStyle(.compact)
                     .font(Typography.body)
                     .onChange(of: viewModel.startTime) { _, _ in viewModel.updateHasChanges(editDraft: editDraft) }
-                DatePicker("End", selection: $vm.endTime, displayedComponents: .date)
+                DatePicker("End", selection: $viewModel.endTime, displayedComponents: .date)
                     .datePickerStyle(.compact)
                     .font(Typography.body)
                     .onChange(of: viewModel.endTime) { _, _ in viewModel.updateHasChanges(editDraft: editDraft) }
             } else {
-                DatePicker("Start", selection: $vm.startTime, displayedComponents: [.date, .hourAndMinute])
+                DatePicker("Start", selection: $viewModel.startTime, displayedComponents: [.date, .hourAndMinute])
                     .datePickerStyle(.compact)
                     .font(Typography.body)
                     .onChange(of: viewModel.startTime) { _, newStart in
@@ -174,7 +168,7 @@ struct CalendarEventEditorView: View {
                         }
                         viewModel.updateHasChanges(editDraft: editDraft)
                     }
-                DatePicker("End", selection: $vm.endTime, in: viewModel.startTime..., displayedComponents: [.date, .hourAndMinute])
+                DatePicker("End", selection: $viewModel.endTime, in: viewModel.startTime..., displayedComponents: [.date, .hourAndMinute])
                     .datePickerStyle(.compact)
                     .font(Typography.body)
                     .onChange(of: viewModel.endTime) { _, _ in viewModel.updateHasChanges(editDraft: editDraft) }
@@ -185,14 +179,12 @@ struct CalendarEventEditorView: View {
     // MARK: - Location Field
 
     private var locationField: some View {
-        @Bindable var vm = viewModel
-
-        return HStack(spacing: Spacing.sm) {
+        HStack(spacing: Spacing.sm) {
             Image(systemName: "mappin")
                 .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
-            TextField("Location", text: $vm.location)
+            TextField("Location", text: $viewModel.location)
                 .font(Typography.body)
                 .textFieldStyle(.plain)
                 .onChange(of: viewModel.location) { _, _ in viewModel.updateHasChanges(editDraft: editDraft) }
@@ -202,16 +194,14 @@ struct CalendarEventEditorView: View {
     // MARK: - Description Field
 
     private var descriptionField: some View {
-        @Bindable var vm = viewModel
-
-        return HStack(alignment: .top, spacing: Spacing.sm) {
+        HStack(alignment: .top, spacing: Spacing.sm) {
             Image(systemName: "text.alignleft")
                 .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
                 .padding(.top, 4)
 
-            TextEditor(text: $vm.eventDescription)
+            TextEditor(text: $viewModel.eventDescription)
                 .font(Typography.body)
                 .frame(minHeight: 80)
                 .scrollContentBackground(.hidden)
@@ -231,9 +221,7 @@ struct CalendarEventEditorView: View {
     // MARK: - Calendar Picker
 
     private var calendarPicker: some View {
-        @Bindable var vm = viewModel
-
-        return HStack(spacing: Spacing.sm) {
+        HStack(spacing: Spacing.sm) {
             if let cal = viewModel.selectedCalendar {
                 Circle()
                     .fill(Color(hex: cal.backgroundColor))
@@ -245,7 +233,7 @@ struct CalendarEventEditorView: View {
                     .frame(width: 18)
             }
 
-            Picker("Calendar", selection: $vm.selectedCalendarID) {
+            Picker("Calendar", selection: $viewModel.selectedCalendarID) {
                 ForEach(viewModel.writableCalendars) { cal in
                     Text(cal.summaryOverride ?? cal.summary)
                         .tag(cal.calendarId)
@@ -259,16 +247,14 @@ struct CalendarEventEditorView: View {
     // MARK: - Attendees Section
 
     private var attendeesSection: some View {
-        @Bindable var vm = viewModel
-
-        return VStack(alignment: .leading, spacing: Spacing.sm) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "person.badge.plus")
                     .font(.system(size: CalendarLayout.editorIconSize))
                     .foregroundStyle(.secondary)
                     .frame(width: 18)
 
-                TextField("Add attendees by email", text: $vm.attendeeInput)
+                TextField("Add attendees by email", text: $viewModel.attendeeInput)
                     .font(Typography.body)
                     .textFieldStyle(.plain)
                     .onSubmit {
@@ -294,14 +280,12 @@ struct CalendarEventEditorView: View {
     // MARK: - Google Meet Toggle
 
     private var googleMeetToggle: some View {
-        @Bindable var vm = viewModel
-
-        return HStack(spacing: Spacing.sm) {
+        HStack(spacing: Spacing.sm) {
             Image(systemName: "video")
                 .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
-            Toggle("Add Google Meet", isOn: $vm.addGoogleMeet)
+            Toggle("Add Google Meet", isOn: $viewModel.addGoogleMeet)
                 .font(Typography.body)
                 .toggleStyle(.switch)
         }
@@ -310,9 +294,7 @@ struct CalendarEventEditorView: View {
     // MARK: - Reminders Section
 
     private var remindersSection: some View {
-        @Bindable var vm = viewModel
-
-        return VStack(alignment: .leading, spacing: Spacing.sm) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack {
                 HStack(spacing: Spacing.sm) {
                     Image(systemName: "bell")
@@ -334,7 +316,7 @@ struct CalendarEventEditorView: View {
                 .buttonStyle(.plain)
             }
 
-            ForEach($vm.reminders) { $reminder in
+            ForEach($viewModel.reminders) { $reminder in
                 ReminderRow(reminder: $reminder) {
                     viewModel.reminders.removeAll { $0.id == reminder.id }
                 }
@@ -346,15 +328,13 @@ struct CalendarEventEditorView: View {
     // MARK: - Recurrence Section
 
     private var recurrenceSection: some View {
-        @Bindable var vm = viewModel
-
-        return HStack(spacing: Spacing.sm) {
+        HStack(spacing: Spacing.sm) {
             Image(systemName: "repeat")
                 .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
 
-            Picker("Recurrence", selection: $vm.recurrence) {
+            Picker("Recurrence", selection: $viewModel.recurrence) {
                 ForEach(RecurrenceOption.allCases) { option in
                     Text(option.label(for: viewModel.startTime)).tag(option)
                 }
@@ -396,15 +376,13 @@ struct CalendarEventEditorView: View {
     // MARK: - Advanced Section
 
     private var advancedSection: some View {
-        @Bindable var vm = viewModel
-
-        return VStack(alignment: .leading, spacing: Spacing.sm) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack(spacing: Spacing.sm) {
                 Image(systemName: "eye")
                     .font(.system(size: CalendarLayout.editorIconSize))
                     .foregroundStyle(.secondary)
                     .frame(width: 18)
-                Picker("Visibility", selection: $vm.visibility) {
+                Picker("Visibility", selection: $viewModel.visibility) {
                     ForEach(VisibilityOption.allCases) { option in
                         Text(option.label).tag(option)
                     }
@@ -417,7 +395,7 @@ struct CalendarEventEditorView: View {
                     .font(.system(size: CalendarLayout.editorIconSize))
                     .foregroundStyle(.secondary)
                     .frame(width: 18)
-                Picker("Show as", selection: $vm.showAs) {
+                Picker("Show as", selection: $viewModel.showAs) {
                     ForEach(ShowAsOption.allCases) { option in
                         Text(option.label).tag(option)
                     }

@@ -1,4 +1,5 @@
 import Foundation
+private import os
 #if canImport(FoundationModels)
 import FoundationModels
 #endif
@@ -11,6 +12,8 @@ struct LabelSuggestion: Equatable, Sendable {
 @MainActor
 final class LabelSuggestionService {
     static let shared = LabelSuggestionService()
+
+    nonisolated private static let logger = Logger(category: "LabelSuggestionService")
 
     private let cache = LRUCache<String, [LabelSuggestion]>(maxSize: 200)
 
@@ -68,6 +71,7 @@ final class LabelSuggestionService {
             cache[key] = suggestions
             return suggestions
         } catch {
+            Self.logger.debug("Label suggestion failed: \(error, privacy: .public)")
             return []
         }
     }

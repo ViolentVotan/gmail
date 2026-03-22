@@ -388,8 +388,9 @@ struct ContentView: View {
         }
     }
 
-    /// Isolates detail-pane reads (compose mode, signatures, contacts, mailDatabase,
-    /// selectionDirection) from the list pane so those changes don't trigger list re-evaluation.
+    /// Isolates detail-pane reads from the list pane so changes in compose, sync, or
+    /// selection sub-coordinators don't trigger list re-evaluation.
+    /// Extracts all coordinator properties here and passes only values to sub-views.
     private struct DetailPaneContainer: View {
         let coordinator: AppCoordinator
 
@@ -400,11 +401,56 @@ struct ContentView: View {
 
             if selectedFolder != .attachments {
                 if selectedEmailIDs.count > 1 {
-                    DetailBulkActionSection(coordinator: coordinator)
+                    DetailBulkActionSection(
+                        selectedEmailIDs: selectedEmailIDs,
+                        selectedFolder: selectedFolder,
+                        selectedEmails: coordinator.selection.selectedEmails,
+                        actionCoordinator: coordinator.actionCoordinator,
+                        mailboxViewModel: coordinator.mailboxViewModel,
+                        mailStore: coordinator.mailStore,
+                        panelCoordinator: coordinator.panelCoordinator,
+                        clearSelection: { coordinator.selection.clearSelection() },
+                        deselectAll: { coordinator.selection.deselectAll() }
+                    )
                 } else if let email = selectedEmail, email.isDraft {
-                    DetailComposeSection(coordinator: coordinator, draftId: email.id)
+                    DetailComposeSection(
+                        selectedEmail: email,
+                        selectedFolder: selectedFolder,
+                        actionCoordinator: coordinator.actionCoordinator,
+                        mailboxViewModel: coordinator.mailboxViewModel,
+                        mailStore: coordinator.mailStore,
+                        accountID: coordinator.navigation.accountID,
+                        fromAddress: coordinator.navigation.fromAddress,
+                        composeMode: coordinator.compose.composeMode,
+                        signatureForNew: coordinator.compose.signatureForNew,
+                        signatureForReply: coordinator.compose.signatureForReply,
+                        panelCoordinator: coordinator.panelCoordinator,
+                        contacts: coordinator.sync.contactsStore.contacts,
+                        startCompose: { coordinator.startCompose(mode: $0) },
+                        discardDraft: { coordinator.discardDraft(id: $0) }
+                    )
                 } else if selectedEmail != nil {
-                    DetailEmailSection(coordinator: coordinator)
+                    DetailEmailSection(
+                        selectedEmail: selectedEmail,
+                        selectedFolder: selectedFolder,
+                        actionCoordinator: coordinator.actionCoordinator,
+                        mailboxViewModel: coordinator.mailboxViewModel,
+                        mailStore: coordinator.mailStore,
+                        accountID: coordinator.navigation.accountID,
+                        fromAddress: coordinator.navigation.fromAddress,
+                        panelCoordinator: coordinator.panelCoordinator,
+                        attachmentIndexer: coordinator.sync.attachmentIndexer,
+                        contacts: coordinator.sync.contactsStore.contacts,
+                        mailDatabase: coordinator.sync.mailDatabase,
+                        selectionDirection: coordinator.selection.selectionDirection,
+                        selectNext: { coordinator.selection.selectNext($0) },
+                        clearSelection: { coordinator.selection.clearSelection() },
+                        deselectAll: { coordinator.selection.deselectAll() },
+                        startCompose: { coordinator.startCompose(mode: $0) },
+                        navigatePrevious: { coordinator.selection.selectPrevious() },
+                        navigateNext: { coordinator.selection.selectNextEmail() },
+                        switchToCalendar: { coordinator.navigateToEvent($0) }
+                    )
                 } else {
                     DetailEmptySection()
                 }
@@ -413,33 +459,40 @@ struct ContentView: View {
     }
 
     /// Observation-scoped view for bulk action bar.
-    /// Reads only: selection (selectedEmailIDs, selectedEmails), navigation (selectedFolder),
-    /// actionCoordinator. Avoids observing compose/sync sub-coordinators.
+    /// Accepts only the extracted values it needs — no coordinator reference.
     private struct DetailBulkActionSection: View {
-        let coordinator: AppCoordinator
+        let selectedEmailIDs: Set<String>
+        let selectedFolder: Folder
+        let selectedEmails: [Email]
+        let actionCoordinator: EmailActionCoordinator
+        let mailboxViewModel: MailboxViewModel
+        let mailStore: MailStore
+        let panelCoordinator: PanelCoordinator
+        let clearSelection: () -> Void
+        let deselectAll: () -> Void
 
         var body: some View {
             DetailPaneView(
                 selectedEmail: nil,
-                selectedEmailIDs: coordinator.selection.selectedEmailIDs,
-                selectedFolder: coordinator.navigation.selectedFolder,
-                selectedEmails: coordinator.selection.selectedEmails,
-                actionCoordinator: coordinator.actionCoordinator,
-                mailboxViewModel: coordinator.mailboxViewModel,
-                allLabels: coordinator.mailboxViewModel.labels,
-                mailStore: coordinator.mailStore,
+                selectedEmailIDs: selectedEmailIDs,
+                selectedFolder: selectedFolder,
+                selectedEmails: selectedEmails,
+                actionCoordinator: actionCoordinator,
+                mailboxViewModel: mailboxViewModel,
+                allLabels: mailboxViewModel.labels,
+                mailStore: mailStore,
                 accountID: "",
                 fromAddress: "",
                 composeMode: .new,
                 signatureForNew: "",
                 signatureForReply: "",
-                panelCoordinator: coordinator.panelCoordinator,
+                panelCoordinator: panelCoordinator,
                 attachmentIndexer: nil,
                 contacts: [],
                 mailDatabase: nil,
                 selectNext: { _ in },
-                clearSelection: { coordinator.selection.clearSelection() },
-                deselectAll: { coordinator.selection.deselectAll() },
+                clearSelection: clearSelection,
+                deselectAll: deselectAll,
                 startCompose: { _ in },
                 discardDraft: { _ in },
                 selectionDirection: .bottom,
@@ -451,39 +504,47 @@ struct ContentView: View {
     }
 
     /// Observation-scoped view for compose mode.
-    /// Reads only: compose (composeMode, signatures), navigation (accountID, fromAddress,
-    /// selectedFolder), selection (selectedEmail), sync (contacts), mailStore,
-    /// mailboxViewModel, panelCoordinator.
-    /// Avoids observing selection navigation (selectionDirection, selectedEmailIDs changes)
-    /// and sync resources (attachmentIndexer, mailDatabase).
+    /// Accepts only the extracted values it needs — no coordinator reference.
     private struct DetailComposeSection: View {
-        let coordinator: AppCoordinator
-        let draftId: UUID
+        let selectedEmail: Email?
+        let selectedFolder: Folder
+        let actionCoordinator: EmailActionCoordinator
+        let mailboxViewModel: MailboxViewModel
+        let mailStore: MailStore
+        let accountID: String
+        let fromAddress: String
+        let composeMode: ComposeMode
+        let signatureForNew: String
+        let signatureForReply: String
+        let panelCoordinator: PanelCoordinator
+        let contacts: [StoredContact]
+        let startCompose: (ComposeMode) -> Void
+        let discardDraft: (UUID) -> Void
 
         var body: some View {
             DetailPaneView(
-                selectedEmail: coordinator.selection.selectedEmail,
+                selectedEmail: selectedEmail,
                 selectedEmailIDs: [],
-                selectedFolder: coordinator.navigation.selectedFolder,
+                selectedFolder: selectedFolder,
                 selectedEmails: [],
-                actionCoordinator: coordinator.actionCoordinator,
-                mailboxViewModel: coordinator.mailboxViewModel,
-                allLabels: coordinator.mailboxViewModel.labels,
-                mailStore: coordinator.mailStore,
-                accountID: coordinator.navigation.accountID,
-                fromAddress: coordinator.navigation.fromAddress,
-                composeMode: coordinator.compose.composeMode,
-                signatureForNew: coordinator.compose.signatureForNew,
-                signatureForReply: coordinator.compose.signatureForReply,
-                panelCoordinator: coordinator.panelCoordinator,
+                actionCoordinator: actionCoordinator,
+                mailboxViewModel: mailboxViewModel,
+                allLabels: mailboxViewModel.labels,
+                mailStore: mailStore,
+                accountID: accountID,
+                fromAddress: fromAddress,
+                composeMode: composeMode,
+                signatureForNew: signatureForNew,
+                signatureForReply: signatureForReply,
+                panelCoordinator: panelCoordinator,
                 attachmentIndexer: nil,
-                contacts: coordinator.sync.contactsStore.contacts,
+                contacts: contacts,
                 mailDatabase: nil,
                 selectNext: { _ in },
                 clearSelection: {},
                 deselectAll: {},
-                startCompose: { coordinator.startCompose(mode: $0) },
-                discardDraft: { coordinator.discardDraft(id: $0) },
+                startCompose: startCompose,
+                discardDraft: discardDraft,
                 selectionDirection: .bottom,
                 navigatePrevious: {},
                 navigateNext: {},
@@ -493,41 +554,56 @@ struct ContentView: View {
     }
 
     /// Observation-scoped view for email detail.
-    /// Reads: selection (selectedEmail, selectionDirection), navigation (selectedFolder,
-    /// accountID, fromAddress), sync (attachmentIndexer, contacts, mailDatabase),
-    /// actionCoordinator, mailboxViewModel, mailStore, panelCoordinator.
-    /// Avoids observing compose sub-coordinator (composeMode, signatures).
+    /// Accepts only the extracted values it needs — no coordinator reference.
     private struct DetailEmailSection: View {
-        let coordinator: AppCoordinator
+        let selectedEmail: Email?
+        let selectedFolder: Folder
+        let actionCoordinator: EmailActionCoordinator
+        let mailboxViewModel: MailboxViewModel
+        let mailStore: MailStore
+        let accountID: String
+        let fromAddress: String
+        let panelCoordinator: PanelCoordinator
+        let attachmentIndexer: AttachmentIndexer?
+        let contacts: [StoredContact]
+        let mailDatabase: MailDatabase?
+        let selectionDirection: Edge
+        let selectNext: (Email?) -> Void
+        let clearSelection: () -> Void
+        let deselectAll: () -> Void
+        let startCompose: (ComposeMode) -> Void
+        let navigatePrevious: () -> Void
+        let navigateNext: () -> Void
+        let switchToCalendar: (CalendarEvent) -> Void
 
         var body: some View {
             DetailPaneView(
-                selectedEmail: coordinator.selection.selectedEmail,
+                selectedEmail: selectedEmail,
                 selectedEmailIDs: [],
-                selectedFolder: coordinator.navigation.selectedFolder,
+                selectedFolder: selectedFolder,
                 selectedEmails: [],
-                actionCoordinator: coordinator.actionCoordinator,
-                mailboxViewModel: coordinator.mailboxViewModel,
-                allLabels: coordinator.mailboxViewModel.labels,
-                mailStore: coordinator.mailStore,
-                accountID: coordinator.navigation.accountID,
-                fromAddress: coordinator.navigation.fromAddress,
+                actionCoordinator: actionCoordinator,
+                mailboxViewModel: mailboxViewModel,
+                allLabels: mailboxViewModel.labels,
+                mailStore: mailStore,
+                accountID: accountID,
+                fromAddress: fromAddress,
                 composeMode: .new,
                 signatureForNew: "",
                 signatureForReply: "",
-                panelCoordinator: coordinator.panelCoordinator,
-                attachmentIndexer: coordinator.sync.attachmentIndexer,
-                contacts: coordinator.sync.contactsStore.contacts,
-                mailDatabase: coordinator.sync.mailDatabase,
-                selectNext: { coordinator.selection.selectNext($0) },
-                clearSelection: { coordinator.selection.clearSelection() },
-                deselectAll: { coordinator.selection.deselectAll() },
-                startCompose: { coordinator.startCompose(mode: $0) },
+                panelCoordinator: panelCoordinator,
+                attachmentIndexer: attachmentIndexer,
+                contacts: contacts,
+                mailDatabase: mailDatabase,
+                selectNext: selectNext,
+                clearSelection: clearSelection,
+                deselectAll: deselectAll,
+                startCompose: startCompose,
                 discardDraft: { _ in },
-                selectionDirection: coordinator.selection.selectionDirection,
-                navigatePrevious: { coordinator.selection.selectPrevious() },
-                navigateNext: { coordinator.selection.selectNextEmail() },
-                switchToCalendar: { coordinator.navigateToEvent($0) }
+                selectionDirection: selectionDirection,
+                navigatePrevious: navigatePrevious,
+                navigateNext: navigateNext,
+                switchToCalendar: switchToCalendar
             )
         }
     }

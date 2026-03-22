@@ -23,20 +23,20 @@ actor AttachmentDatabase {
     static let shared = AttachmentDatabase()
     nonisolated private static let logger = Logger(category: "AttachmentDatabase")
 
-    // nonisolated(unsafe) required: actor init is nonisolated, must assign here.
-    // Safety: only written once in init, read from actor-isolated methods thereafter.
-    // All nonisolated helpers take OpaquePointer as a parameter — they never read this property.
-    nonisolated(unsafe) private var db: OpaquePointer?
+    /// Database pointer opened once during init and never reassigned.
+    /// `let` is safe because actor-isolated methods only read it.
+    private let db: OpaquePointer?
 
     // MARK: - Lifecycle
 
     private init() {
         do {
-            let ptr = try openDatabase()
-            try createSchema(ptr)
+            let ptr = try Self.openDatabase()
+            try Self.createSchemaOnOpen(ptr)
             self.db = ptr
         } catch {
             Self.logger.error("Init failed: \(error, privacy: .public)")
+            self.db = nil
         }
     }
 
@@ -48,9 +48,9 @@ actor AttachmentDatabase {
 
     // MARK: - Open
 
-    /// Called only from `init()` — nonisolated because actor init is nonisolated.
-    /// Returns the opened database pointer; never touches instance state.
-    nonisolated private func openDatabase() throws -> OpaquePointer {
+    /// Opens the database and returns the pointer.
+    /// Static pure function — never touches instance state.
+    private static func openDatabase() throws -> OpaquePointer {
         let fm = FileManager.default
         let support = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let dir = support.appendingPathComponent(AppPaths.appSupportName, isDirectory: true)
@@ -80,9 +80,9 @@ actor AttachmentDatabase {
     // 3. FTS changes: drop/recreate FTS virtual table + triggers, then rebuild from main table
     // 4. Bump PRAGMA user_version only after successful migration
 
-    /// Called only from `init()` — nonisolated because actor init is nonisolated.
+    /// Called only from `init()` — static because actor init is nonisolated.
     /// Operates entirely on the passed-in pointer; never touches instance state.
-    nonisolated private func createSchema(_ db: OpaquePointer) throws {
+    private static func createSchemaOnOpen(_ db: OpaquePointer) throws {
         // 1. Base table
         let createTable = """
         CREATE TABLE IF NOT EXISTS attachments (
@@ -145,9 +145,9 @@ actor AttachmentDatabase {
         migrateFTS(db)
     }
 
-    /// Called only from `createSchema()` during init — nonisolated for the same reason.
+    /// Called only from `createSchemaOnOpen()` during init — static for the same reason.
     /// Operates entirely on the passed-in pointer; never touches instance state.
-    nonisolated private func migrateFTS(_ db: OpaquePointer) {
+    private static func migrateFTS(_ db: OpaquePointer) {
         // Check schema version
         var version: Int32 = 0
         var stmt: OpaquePointer?
@@ -564,37 +564,43 @@ actor AttachmentDatabase {
     }
 
     /// Delete attachment and scanned_messages rows for the given Gmail message IDs.
-    /// Both DELETEs are wrapped in a transaction so a crash between them cannot
-    /// leave orphaned scanned_messages entries.
+    /// Both DELETEs are wrapped in a single transaction so a crash between them cannot
+    /// leave orphaned scanned_messages entries. Chunks at 999 to stay within SQLite's
+    /// `SQLITE_MAX_VARIABLE_NUMBER` limit.
     func deleteMessages(_ gmailIds: [String]) {
         guard !gmailIds.isEmpty else { return }
-        let placeholders = gmailIds.sqlPlaceholders
+        let chunkSize = 999
 
         sqlite3_exec(db, "BEGIN TRANSACTION", nil, nil, nil)
 
-        let sql = "DELETE FROM attachments WHERE messageId IN (\(placeholders))"
-        var stmt: OpaquePointer?
-        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
-            sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
-            return
-        }
-        defer { sqlite3_finalize(stmt) }
-        for (i, id) in gmailIds.enumerated() {
-            bindText(stmt, Int32(i + 1), id)
-        }
-        sqlite3_step(stmt)
+        for chunkStart in stride(from: 0, to: gmailIds.count, by: chunkSize) {
+            let chunk = Array(gmailIds[chunkStart ..< min(chunkStart + chunkSize, gmailIds.count)])
+            let placeholders = chunk.sqlPlaceholders
 
-        let sql2 = "DELETE FROM scanned_messages WHERE messageID IN (\(placeholders))"
-        var stmt2: OpaquePointer?
-        guard sqlite3_prepare_v2(db, sql2, -1, &stmt2, nil) == SQLITE_OK else {
-            sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
-            return
+            let sql1 = "DELETE FROM attachments WHERE messageId IN (\(placeholders))"
+            var stmt1: OpaquePointer?
+            guard sqlite3_prepare_v2(db, sql1, -1, &stmt1, nil) == SQLITE_OK else {
+                sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
+                return
+            }
+            for (i, id) in chunk.enumerated() {
+                bindText(stmt1, Int32(i + 1), id)
+            }
+            sqlite3_step(stmt1)
+            sqlite3_finalize(stmt1)
+
+            let sql2 = "DELETE FROM scanned_messages WHERE messageID IN (\(placeholders))"
+            var stmt2: OpaquePointer?
+            guard sqlite3_prepare_v2(db, sql2, -1, &stmt2, nil) == SQLITE_OK else {
+                sqlite3_exec(db, "ROLLBACK", nil, nil, nil)
+                return
+            }
+            for (i, id) in chunk.enumerated() {
+                bindText(stmt2, Int32(i + 1), id)
+            }
+            sqlite3_step(stmt2)
+            sqlite3_finalize(stmt2)
         }
-        defer { sqlite3_finalize(stmt2) }
-        for (i, id) in gmailIds.enumerated() {
-            bindText(stmt2, Int32(i + 1), id)
-        }
-        sqlite3_step(stmt2)
 
         sqlite3_exec(db, "COMMIT", nil, nil, nil)
     }
@@ -754,8 +760,8 @@ actor AttachmentDatabase {
     ///
     /// WARNING: `table`, `column`, and `definition` are interpolated directly into SQL.
     /// All callers MUST pass compile-time literals. Never pass user-supplied input.
-    /// Init-only helper — nonisolated because called from nonisolated `createSchema()`.
-    nonisolated private func addColumnIfMissing(_ table: String, column: String, definition: String, on db: OpaquePointer) {
+    /// Init-only helper — static because called from static `createSchemaOnOpen()`.
+    private static func addColumnIfMissing(_ table: String, column: String, definition: String, on db: OpaquePointer) {
         // Guard against SQL injection — identifiers must contain only alphanumeric chars or underscores.
         let identifierPattern = #/^[a-zA-Z0-9_]+$/#
         guard table.wholeMatch(of: identifierPattern) != nil,
@@ -782,9 +788,9 @@ actor AttachmentDatabase {
         return sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK
     }
 
-    /// Fire-and-forget exec for nonisolated init helpers (uses explicit pointer).
+    /// Fire-and-forget exec for static init helpers (uses explicit pointer).
     @discardableResult
-    nonisolated private func exec(_ sql: String, on db: OpaquePointer) -> Bool {
+    private static func exec(_ sql: String, on db: OpaquePointer) -> Bool {
         sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK
     }
 

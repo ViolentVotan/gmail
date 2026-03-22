@@ -128,7 +128,7 @@ struct CalendarDayView: View {
 
                     // Event cards overlaid on the grid
                     let dayStartOfDay = Calendar.current.startOfDay(for: viewModel.selectedDate)
-                    ForEach(Array(cachedOverlapGroups.enumerated()), id: \.offset) { groupIndex, group in
+                    ForEach(Array(cachedOverlapGroups.enumerated()), id: \.element.first?.id) { groupIndex, group in
                         ForEach(Array(group.enumerated()), id: \.element.id) { colIndex, event in
                             dayEventCard(
                                 event: event,

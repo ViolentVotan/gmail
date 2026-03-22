@@ -501,6 +501,7 @@ final class AppCoordinator {
         }
 
         for removedID in removedIDs {
+            GmailAPIClient.shared.clearCachedToken(for: removedID)
             TokenStore.shared.delete(for: removedID)
             UnsubscribeService.shared.clearAccount(removedID)
             ContactStore.shared.deleteAccount(removedID)
@@ -530,6 +531,9 @@ final class AppCoordinator {
             sync.clearSyncEngines()
             calendar.clearState()
             calendar.viewMode = .mail
+            EmailContentCache.shared.clear()
+            EmailContentPrefetcher.shared.cancel()
+            ThumbnailCache.shared.clearAll()
             sync.lifecycleTask?.cancel()
             sync.lifecycleTask = Task { [weak self] in
                 await engineToStop?.stop()
