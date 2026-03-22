@@ -89,25 +89,92 @@ final class EmailDetailViewModel {
         resolvedMessageHTML.removeAll()
         precomputedHTMLParts.removeAll()
 
-        // DB fast path: load thread from local database (instant)
-        if let db = mailDatabase {
+        // Tier 1: In-memory cache hit — skip DB read and all preprocessing
+        let cacheHit = EmailContentCache.shared.get(id)
+        if let cached = cacheHit {
+            thread = GmailThread(id: id, historyId: nil, messages: cached.messages)
+            precomputedHTMLParts = cached.htmlParts
+            trackerResult = cached.trackerResult
+            resolvedMessageHTML = cached.resolvedMessageHTML
+            // Don't return — still proceed to API refresh to check for new messages
+        }
+
+        // DB fast path: load thread from local database (skip if Tier 1 hit)
+        if cacheHit == nil, let db = mailDatabase {
             let threadMessages = try? await db.dbPool.read { db in
                 try MailDatabaseQueries.messagesForThread(id, in: db)
             }
             if let records = threadMessages, !records.isEmpty {
                 let allHaveBodies = records.allSatisfy { $0.fullBodyFetched == true }
                 let gmailMessages = records.map { $0.toGmailMessage() }
-                // Pre-analyze trackers so resolvedMessageHTML is set in the same
-                // main-actor turn as thread — avoids a redundant WebView reload.
-                let latestHTML = gmailMessages.last?.htmlBody ?? ""
-                trackerResult = !latestHTML.isEmpty
-                    ? await sanitizeOffMainActor(html: latestHTML) : nil
-                thread = GmailThread(id: id, historyId: nil, messages: gmailMessages)
-                if let latestID = gmailMessages.last?.id {
-                    let baseHTML = trackerSanitizedHTML ?? latestHTML
-                    if !baseHTML.isEmpty { resolvedMessageHTML[latestID] = baseHTML }
+
+                // Tier 2: Check preprocessed DB columns — zero regex work
+                let latestRecord = records.last!
+                let versionOK = latestRecord.preprocessingVersion == HTMLPreprocessingPipeline.currentVersion
+                if versionOK, latestRecord.preprocessedHtml != nil {
+                    if let sanitized = latestRecord.sanitizedHtml,
+                       let preprocessed = latestRecord.preprocessedHtml {
+                        trackerResult = TrackerResult(
+                            sanitizedHTML: sanitized,
+                            originalHTML: preprocessed,
+                            trackers: []
+                        )
+                    }
+                    thread = GmailThread(id: id, historyId: nil, messages: gmailMessages)
+
+                    for record in records {
+                        if let original = record.originalHtml {
+                            precomputedHTMLParts[record.gmailId] = PrecomputedMessageHTML(
+                                fullHTML: record.preprocessedHtml ?? "",
+                                originalHTML: original,
+                                quotedHTML: record.quotedHtml
+                            )
+                        }
+                    }
+
+                    if let latestID = gmailMessages.last?.id {
+                        let baseHTML = trackerSanitizedHTML ?? gmailMessages.last?.htmlBody ?? ""
+                        if !baseHTML.isEmpty { resolvedMessageHTML[latestID] = baseHTML }
+                    }
+                } else {
+                    // Tier 3: Full preprocessing fallback
+                    let latestHTML = gmailMessages.last?.htmlBody ?? ""
+                    trackerResult = !latestHTML.isEmpty
+                        ? await sanitizeOffMainActor(html: latestHTML) : nil
+                    thread = GmailThread(id: id, historyId: nil, messages: gmailMessages)
+                    if let latestID = gmailMessages.last?.id {
+                        let baseHTML = trackerSanitizedHTML ?? latestHTML
+                        if !baseHTML.isEmpty { resolvedMessageHTML[latestID] = baseHTML }
+                    }
+                    precomputeHTMLParts()
+
+                    // Lazy backfill: write preprocessed columns back to DB
+                    if allHaveBodies {
+                        let recordsToBackfill = records.filter {
+                            $0.fullBodyFetched == true && $0.bodyHtml != nil && $0.preprocessedHtml == nil
+                        }
+                        if !recordsToBackfill.isEmpty {
+                            Task.detached { [db] in
+                                try? await db.dbPool.write { dbConn in
+                                    for record in recordsToBackfill {
+                                        guard let html = record.bodyHtml else { continue }
+                                        let r = HTMLPreprocessingPipeline.preprocess(html)
+                                        try dbConn.execute(
+                                            sql: """
+                                                UPDATE messages SET preprocessed_html = ?, sanitized_html = ?,
+                                                original_html = ?, quoted_html = ?, preprocessing_version = ?
+                                                WHERE gmail_id = ?
+                                                """,
+                                            arguments: [r.preprocessedHTML, r.sanitizedHTML, r.originalHTML, r.quotedHTML, r.version, record.gmailId]
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-                // Calendar detection is independent — run concurrently.
+
+                // Calendar detection runs for both Tier 2 and Tier 3
                 async let inviteDone: Void = detectCalendarInvite()
                 if let latest = gmailMessages.last {
                     async let contextDone: Void = detectCalendarContext(for: latest)
@@ -115,6 +182,8 @@ final class EmailDetailViewModel {
                 } else {
                     _ = await inviteDone
                 }
+
+                // CID resolution and read tracking run for both tiers
                 if allHaveBodies {
                     let unreadIDs = gmailMessages.filter(\.isUnread).map(\.id)
                     if !unreadIDs.isEmpty {
@@ -128,6 +197,16 @@ final class EmailDetailViewModel {
                     }
                 }
                 precomputeHTMLParts()
+
+                // Populate in-memory cache after DB load
+                if let t = thread {
+                    EmailContentCache.shared.set(id, content: EmailContentCache.ThreadContent(
+                        messages: t.messages ?? [],
+                        htmlParts: precomputedHTMLParts,
+                        trackerResult: trackerResult,
+                        resolvedMessageHTML: resolvedMessageHTML
+                    ))
+                }
             }
         }
 
@@ -158,9 +237,21 @@ final class EmailDetailViewModel {
                     await resolveInlineImagesForOlderMessages(Array(allMessages.dropLast()))
                 }
                 precomputeHTMLParts()
+                EmailContentCache.shared.set(id, content: EmailContentCache.ThreadContent(
+                    messages: fresh.messages ?? [],
+                    htmlParts: precomputedHTMLParts,
+                    trackerResult: trackerResult,
+                    resolvedMessageHTML: resolvedMessageHTML
+                ))
             } else {
                 thread = fresh
                 precomputeHTMLParts()
+                EmailContentCache.shared.set(id, content: EmailContentCache.ThreadContent(
+                    messages: fresh.messages ?? [],
+                    htmlParts: precomputedHTMLParts,
+                    trackerResult: trackerResult,
+                    resolvedMessageHTML: resolvedMessageHTML
+                ))
             }
             // Passive attachment registration from full-format messages
             if let indexer = attachmentIndexer, let messages = fresh.messages {
@@ -329,6 +420,14 @@ final class EmailDetailViewModel {
             resolvedMessageHTML[message.id] = resolved
         }
         precomputeHTMLParts()
+        if let threadID = thread?.id {
+            let resolved = resolvedMessageHTML
+            let parts = precomputedHTMLParts
+            EmailContentCache.shared.update(threadID) { content in
+                content.resolvedMessageHTML = resolved
+                content.htmlParts = parts
+            }
+        }
     }
 
     /// Resolves inline CID images for older thread messages in parallel and stores results per message ID.
@@ -350,6 +449,14 @@ final class EmailDetailViewModel {
             }
         }
         precomputeHTMLParts()
+        if let threadID = thread?.id {
+            let resolved = resolvedMessageHTML
+            let parts = precomputedHTMLParts
+            EmailContentCache.shared.update(threadID) { content in
+                content.resolvedMessageHTML = resolved
+                content.htmlParts = parts
+            }
+        }
     }
 
     /// Shared helper: downloads inline CID attachments and replaces cid: references with data: URIs.
