@@ -74,6 +74,13 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord,
     var gmailDraftId: String?
     var attachmentCount: Int
 
+    // Preprocessed HTML cache (populated during sync, see HTMLPreprocessingPipeline)
+    var preprocessedHtml: String?
+    var sanitizedHtml: String?
+    var originalHtml: String?
+    var quotedHtml: String?
+    var preprocessingVersion: Int?
+
     var id: String { gmailId }
 
     // MARK: - Conversion from Gmail API model

@@ -23,6 +23,7 @@ enum MailDatabaseMigrations {
         registerV16(&migrator)
         registerV17(&migrator)
         registerV18(&migrator)
+        registerV19(&migrator)
         return migrator
     }
 
@@ -527,6 +528,18 @@ enum MailDatabaseMigrations {
             // contacts.email uses NOCASE collation, but the existing messages_sender index uses
             // BINARY — collation mismatch prevents index usage on the NOT EXISTS subquery.
             try db.execute(sql: "CREATE INDEX IF NOT EXISTS messages_sender_nocase ON messages(sender_email COLLATE NOCASE)")
+        }
+    }
+
+    private static func registerV19(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v19_preprocessed_html") { db in
+            try db.alter(table: "messages") { t in
+                t.add(column: "preprocessed_html", .text)
+                t.add(column: "sanitized_html", .text)
+                t.add(column: "original_html", .text)
+                t.add(column: "quoted_html", .text)
+                t.add(column: "preprocessing_version", .integer)
+            }
         }
     }
 }
