@@ -304,6 +304,8 @@ final class AppCoordinator {
         mailboxViewModel.setMailDatabase(sync.mailDatabase)
         mailboxViewModel.setBackgroundSyncer(sync.backgroundSyncer)
         mailboxViewModel.setSyncProgressManager(syncProgressManager)
+        selection.accountID = id
+        selection.mailDatabase = sync.mailDatabase
         await FullSyncEngine.stopActive(for: id)
         if let db = sync.mailDatabase, let syncer = sync.backgroundSyncer {
             let progressManager = syncProgressManager
@@ -437,6 +439,8 @@ final class AppCoordinator {
         }
         navigationTask?.cancel()
         ThumbnailCache.shared.clearAll()
+        EmailContentCache.shared.clear()
+        EmailContentPrefetcher.shared.cancel()
         mailStore.accountID = id
         SubscriptionsStore.shared.accountID = id
         attachmentStore.accountID = id

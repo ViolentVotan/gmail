@@ -7,6 +7,8 @@ final class SelectionCoordinator {
     // MARK: - Dependencies
 
     private let mailboxViewModel: MailboxViewModel
+    var accountID: String = ""
+    var mailDatabase: MailDatabase?
 
     // MARK: - State
 
@@ -131,6 +133,11 @@ final class SelectionCoordinator {
 
     func handleSelectedEmailChange(_ email: Email?) {
         guard let email else { return }
+        EmailContentPrefetcher.shared.prefetch(
+            email: email,
+            accountID: accountID,
+            mailDatabase: mailDatabase
+        )
         Task { await SpotlightIndexer.shared.indexEmail(email) }
         guard let msgID = email.gmailMessageID, !email.isRead else { return }
         markReadTask?.cancel()
