@@ -98,6 +98,10 @@ All skills target **macOS 26+ / Swift 6.2+ exclusively** — no legacy patterns.
 
 **Not used:** `swift-data` (project uses GRDB, not SwiftData).
 
+## Codebase Audit
+
+For full codebase audits, reviews, health checks, or multi-dimensional code quality sweeps, **invoke the `audit-swift` skill** (`/audit-swift`). It dispatches 5 parallel Opus agents across concurrency, SwiftUI, architecture/wiring, database, and security — then fixes all CRITICAL/HIGH/MEDIUM issues and verifies the build.
+
 ## Design Decisions
 
 - **Polling over push:** We use polling-based sync (60s foreground / 300s background) intentionally. No Gmail `users.watch` / Cloud Pub/Sub push notifications — the complexity of server-side Pub/Sub infrastructure isn't worth it for a native desktop client. Don't suggest or implement push notifications.
