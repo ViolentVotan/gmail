@@ -451,8 +451,10 @@ import Foundation
         store2.accountID = testAccountID
         #expect(store2.replyDrafts[threadID]?.gmailDraftID == "draft_xyz",
                 "Draft ID should survive MailStore recreation")
-        #expect(store2.replyDrafts[threadID]?.preview == "Test preview text",
-                "Preview should survive MailStore recreation")
+        // Preview is stripped before persisting to UserDefaults (security: avoid
+        // storing email content in unencrypted plist). Draft ID is the key data.
+        #expect(store2.replyDrafts[threadID]?.preview == "",
+                "Preview should be stripped for security")
 
         // Clean up
         UserDefaults.standard.removeObject(forKey: key)
