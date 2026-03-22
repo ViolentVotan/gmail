@@ -360,7 +360,7 @@ struct FormattingToolbar: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.subheadline.weight(isActive ? .bold : .regular))
-                .foregroundStyle(isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                .foregroundStyle(isActive ? Color.accentColor : .secondary)
                 .frame(width: ButtonSize.sm, height: ButtonSize.sm)
                 .modifier(ToggleHighlight(isActive: isActive))
                 .contentShape(Rectangle())
@@ -376,7 +376,7 @@ struct FormattingToolbar: View {
         } label: {
             Image(systemName: icon)
                 .font(.subheadline.weight(isActive ? .bold : .regular))
-                .foregroundStyle(isActive ? AnyShapeStyle(.tint) : AnyShapeStyle(.secondary))
+                .foregroundStyle(isActive ? Color.accentColor : .secondary)
                 .frame(width: ButtonSize.sm, height: ButtonSize.sm)
                 .modifier(ToggleHighlight(isActive: isActive))
                 .contentShape(Rectangle())

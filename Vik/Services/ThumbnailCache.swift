@@ -1,5 +1,6 @@
 import AppKit
 import Observation
+private import os
 import PDFKit
 
 /// In-memory + disk cache of attachment thumbnails, loaded on-demand with concurrency throttling.
@@ -7,6 +8,7 @@ import PDFKit
 @MainActor
 final class ThumbnailCache {
     static let shared = ThumbnailCache()
+    private static let logger = Logger(subsystem: "com.vikingz.vik.app", category: "ThumbnailCache")
     private init() {}
 
     /// Tracks which attachment IDs have a cached thumbnail; observed by SwiftUI to trigger re-renders.
@@ -153,7 +155,7 @@ final class ThumbnailCache {
                     saveToDisk(image: thumb, id: id)
                 }
             } catch {
-                // Silently skip — will show icon fallback
+                Self.logger.debug("Thumbnail fetch failed for \(id, privacy: .private): \(error.localizedDescription)")
             }
         }
         fetchTasks[id] = task

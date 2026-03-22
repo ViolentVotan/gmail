@@ -252,7 +252,7 @@ actor FullSyncEngine {
         }) ?? 0
         guard count == 0 else { return }
 
-        Self.logger.info("Lazy-loading folder \(labelId, privacy: .public)")
+        Self.logger.info("Lazy-loading folder \(labelId, privacy: .private)")
 
         do {
             // List up to 500 message IDs for this label
@@ -293,7 +293,7 @@ actor FullSyncEngine {
                 try await syncer.upsertMessages(messages, ensureLabels: Array(labelIds))
             }
         } catch {
-            Self.logger.error("Lazy folder sync error for \(labelId, privacy: .public): \(error.localizedDescription)")
+            Self.logger.error("Lazy folder sync error for \(labelId, privacy: .private): \(error.localizedDescription)")
         }
     }
 
@@ -736,10 +736,16 @@ actor FullSyncEngine {
                 restartTask = Task { [weak self] in
                     guard let self else { return }
                     await self.cancelNonRestartTasks()
-                    guard !Task.isCancelled else { return }
+                    guard !Task.isCancelled else {
+                        Self.activeEngines.withLock { _ = $0.removeValue(forKey: self.accountID) }
+                        return
+                    }
                     // Yield to let any concurrent stop() complete before restarting
                     try? await Task.sleep(for: .milliseconds(50))
-                    guard !Task.isCancelled else { return }
+                    guard !Task.isCancelled else {
+                        Self.activeEngines.withLock { _ = $0.removeValue(forKey: self.accountID) }
+                        return
+                    }
                     await self.start()
                 }
                 return false
@@ -864,8 +870,6 @@ actor FullSyncEngine {
                 try? await Task.sleep(for: .seconds(1800)) // 30 minutes
                 guard !Task.isCancelled else { return }
                 await PeopleAPIService.shared.refreshContacts(accountID: accountID, syncer: syncer)
-                // Prune contacts sourced from message headers whose messages no longer exist
-                try? await syncer.pruneStaleContacts()
             }
         }
     }

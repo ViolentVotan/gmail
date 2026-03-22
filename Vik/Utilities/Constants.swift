@@ -61,6 +61,10 @@ enum UserDefaultsKey {
     }
 }
 
+// MARK: - App View Mode
+
+enum AppViewMode: String, Sendable { case mail, calendar }
+
 // MARK: - Gmail System Labels
 
 enum GmailSystemLabel {

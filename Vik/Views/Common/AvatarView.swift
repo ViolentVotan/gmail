@@ -6,17 +6,17 @@ import Synchronization
 private final class AvatarLoader {
     var image: NSImage?
 
-    func load(avatarURL: String?, senderDomain: String?) async {
+    func load(avatarURL: String?, senderDomain: String?, avatarCache: AvatarCache, bimiService: BIMIService) async {
         image = nil
 
-        if let url = avatarURL, let img = await AvatarCache.shared.image(for: url) {
+        if let url = avatarURL, let img = await avatarCache.image(for: url) {
             image = img
             return
         }
 
         if let domain = senderDomain,
-           let bimiURL = await BIMIService.shared.logoURL(for: domain),
-           let img = await AvatarCache.shared.image(for: bimiURL) {
+           let bimiURL = await bimiService.logoURL(for: domain),
+           let img = await avatarCache.image(for: bimiURL) {
             image = img
         }
     }
@@ -28,6 +28,8 @@ struct AvatarView: View {
     var size: CGFloat = 36
     var avatarURL: String? = nil
     var senderDomain: String? = nil
+    var avatarCache: AvatarCache = .shared
+    var bimiService: BIMIService = .shared
 
     @State private var loader = AvatarLoader()
 
@@ -45,12 +47,22 @@ struct AvatarView: View {
         return result
     }
 
-    init(initials: String, color: String, size: CGFloat = 36, avatarURL: String? = nil, senderDomain: String? = nil) {
+    init(
+        initials: String,
+        color: String,
+        size: CGFloat = 36,
+        avatarURL: String? = nil,
+        senderDomain: String? = nil,
+        avatarCache: AvatarCache = .shared,
+        bimiService: BIMIService = .shared
+    ) {
         self.initials = initials
         self.color = color
         self.size = size
         self.avatarURL = avatarURL
         self.senderDomain = senderDomain
+        self.avatarCache = avatarCache
+        self.bimiService = bimiService
 
         self.avatarTextColor = Self.isHighLuminance(for: color) ? .primary : .white
     }
@@ -76,7 +88,12 @@ struct AvatarView: View {
         .accessibilityLabel("\(initials) avatar")
         .accessibilityAddTraits(.isImage)
         .task(id: avatarURL) {
-            await loader.load(avatarURL: avatarURL, senderDomain: senderDomain)
+            await loader.load(
+                avatarURL: avatarURL,
+                senderDomain: senderDomain,
+                avatarCache: avatarCache,
+                bimiService: bimiService
+            )
         }
     }
 }

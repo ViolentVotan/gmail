@@ -73,11 +73,13 @@ final class GmailAPIClient {
         if body.contains("domainPolicy") { return .domainPolicy }
         if body.contains("insufficientPermissions") {
             if let accountID {
-                NotificationCenter.default.post(
-                    name: .gmailScopesInsufficient,
-                    object: nil,
-                    userInfo: [GmailAPIClient.accountIDKey: accountID]
-                )
+                Task { @MainActor in
+                    NotificationCenter.default.post(
+                        name: .gmailScopesInsufficient,
+                        object: nil,
+                        userInfo: [GmailAPIClient.accountIDKey: accountID]
+                    )
+                }
             }
             return .insufficientPermissions
         }
@@ -580,6 +582,7 @@ final class GmailAPIClient {
         accessToken: String
     ) async throws(GmailAPIError) -> Data {
         guard let url = URL(string: urlString) else { throw .invalidURL }
+        guard let host = url.host, host.hasSuffix(".googleapis.com") else { throw .invalidURL }
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -940,8 +943,8 @@ enum GmailAPIError: Error, LocalizedError {
         case .offline:                         return "You're offline — please check your connection"
         case .tokenRevoked:                    return "Session expired — please sign in again"
         case .httpError(let c, _):             return "HTTP \(c)"
-        case .decodingError(let e):            return "Decode failed: \(e.localizedDescription)"
-        case .encodingError(let e):            return "Encode failed: \(e.localizedDescription)"
+        case .decodingError:                   return "Failed to process server response"
+        case .encodingError:                   return "Failed to prepare request"
         case .partialFailure(let count):       return "Failed to delete \(count) messages"
         case .networkError(let e):             return "Network error: \(e.localizedDescription)"
         case .attachmentReadFailed(let names): return "Could not read attachments: \(names.joined(separator: ", "))"

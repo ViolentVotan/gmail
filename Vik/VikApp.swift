@@ -83,7 +83,12 @@ struct VikApp: App {
                     )
                 },
                 accounts: AccountStore.shared.accounts,
-                onDeleteDatabase: { id in MailDatabase.deleteDatabase(accountID: id) }
+                onDeleteDatabase: { id in MailDatabase.deleteDatabase(accountID: id) },
+                onSetAsDefault: { id in AccountStore.shared.setAsDefault(id: id) },
+                onSetAccentColor: { id, hex in AccountStore.shared.setAccentColor(id: id, hex: hex) },
+                onMoveUp: { id in AccountStore.shared.moveUp(id: id) },
+                onMoveDown: { id in AccountStore.shared.moveDown(id: id) },
+                onReorder: { source, destination in AccountStore.shared.reorder(from: source, to: destination) }
             )
         }
     }

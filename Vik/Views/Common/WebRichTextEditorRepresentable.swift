@@ -52,8 +52,7 @@ struct WebRichTextEditorRepresentable: NSViewRepresentable {
             backgroundColor: "transparent",
             accentColor: resolvedHex(.controlAccentColor),
             placeholderColor: resolvedHex(.tertiaryLabelColor),
-            placeholderText: placeholder,
-            initialHTML: htmlContent
+            placeholderText: placeholder
         )
         webView.loadHTMLString(html, baseURL: Bundle.main.resourceURL)
 

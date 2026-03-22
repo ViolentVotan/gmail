@@ -19,10 +19,26 @@ actor TemporaryFileManager {
             return cached
         }
 
-        let dir = Self.baseDirectory.appendingPathComponent(messageID, isDirectory: true)
+        // Sanitize messageID to prevent path traversal in directory construction.
+        let safeMessageID = messageID
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "\0", with: "")
+        guard !safeMessageID.isEmpty, safeMessageID != ".", safeMessageID != ".." else {
+            throw CocoaError(.fileWriteInvalidFileName)
+        }
+
+        // Sanitize filename to prevent path traversal.
+        let safeName = URL(fileURLWithPath: filename).lastPathComponent
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "\0", with: "")
+        guard !safeName.isEmpty, safeName != ".", safeName != ".." else {
+            throw CocoaError(.fileWriteInvalidFileName)
+        }
+
+        let dir = Self.baseDirectory.appendingPathComponent(safeMessageID, isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
-        let url = dir.appendingPathComponent(filename)
+        let url = dir.appendingPathComponent(safeName)
         try data.write(to: url)
         cache[attachmentID] = url
         return url

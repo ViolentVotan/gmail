@@ -135,8 +135,6 @@ enum CalendarViewMode: String, Sendable {
     }
 }
 
-enum AppViewMode: String, Sendable { case mail, calendar }
-
 // MARK: - Record → Domain Conversions
 
 extension CalendarEventRecord {

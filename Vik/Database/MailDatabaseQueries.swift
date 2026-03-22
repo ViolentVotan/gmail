@@ -71,14 +71,6 @@ enum MailDatabaseQueries {
         return try request.fetchAll(db)
     }
 
-    /// Deletes contacts sourced from message headers that have no corresponding messages.
-    static func pruneStaleMessageContacts(in db: Database) throws {
-        try db.execute(sql: """
-            DELETE FROM contacts WHERE source = 'message'
-            AND NOT EXISTS (SELECT 1 FROM messages WHERE messages.sender_email = contacts.email)
-        """)
-    }
-
     // MARK: - Account Sync State
 
     /// Read the single-row account sync state.
@@ -131,12 +123,28 @@ enum MailDatabaseQueries {
 
     /// Batch variant — processes multiple messages in one set of SQL statements.
     /// Prefer this when updating labels for many messages at once.
+    /// Chunks the input into batches of 500 to stay below SQLite's SQLITE_MAX_VARIABLE_NUMBER (32766),
+    /// since each update contributes multiple placeholders (label IDs + CASE args).
     static func rebuildLabelsBatch(
         updates: [(messageId: String, labelIds: [String])],
         in db: Database
     ) throws {
         guard !updates.isEmpty else { return }
+        let chunkSize = 500
+        var offset = 0
+        while offset < updates.count {
+            let chunk = Array(updates[offset ..< min(offset + chunkSize, updates.count)])
+            try rebuildLabelsBatchChunk(updates: chunk, in: db)
+            offset += chunkSize
+        }
+    }
 
+    /// Processes a single chunk of label rebuild updates.
+    /// Must be called inside an existing write transaction.
+    private static func rebuildLabelsBatchChunk(
+        updates: [(messageId: String, labelIds: [String])],
+        in db: Database
+    ) throws {
         // 1. Collect all unique label IDs across all messages.
         let allLabelIds = Set(updates.flatMap { $0.labelIds })
 
@@ -214,21 +222,28 @@ enum MailDatabaseQueries {
     /// Update `thread_message_count` for all messages belonging to the given threads.
     /// Uses a CTE to compute counts once per thread, avoiding a correlated subquery
     /// that would execute COUNT(*) for every row in the UPDATE's target set.
+    /// Chunks the input into batches of 1000 to stay below SQLite's SQLITE_MAX_VARIABLE_NUMBER.
     static func updateThreadCounts(for threadIDs: Set<String>, in db: Database) throws {
         guard !threadIDs.isEmpty else { return }
-        let placeholders = threadIDs.sqlPlaceholders
-        let args = Array(threadIDs)
-        try db.execute(sql: """
-            WITH thread_counts AS (
-                SELECT thread_id, COUNT(*) AS cnt
-                FROM messages
-                WHERE thread_id IN (\(placeholders))
-                GROUP BY thread_id
-            )
-            UPDATE messages SET thread_message_count = (
-                SELECT cnt FROM thread_counts tc WHERE tc.thread_id = messages.thread_id
-            ) WHERE thread_id IN (\(placeholders))
-        """, arguments: StatementArguments(args + args))
+        let allIDs = Array(threadIDs)
+        let chunkSize = 1000
+        var offset = 0
+        while offset < allIDs.count {
+            let chunk = Array(allIDs[offset ..< min(offset + chunkSize, allIDs.count)])
+            let placeholders = chunk.sqlPlaceholders
+            try db.execute(sql: """
+                WITH thread_counts AS (
+                    SELECT thread_id, COUNT(*) AS cnt
+                    FROM messages
+                    WHERE thread_id IN (\(placeholders))
+                    GROUP BY thread_id
+                )
+                UPDATE messages SET thread_message_count = (
+                    SELECT cnt FROM thread_counts tc WHERE tc.thread_id = messages.thread_id
+                ) WHERE thread_id IN (\(placeholders))
+            """, arguments: StatementArguments(chunk + chunk))
+            offset += chunkSize
+        }
     }
 
     // MARK: - Calendars

@@ -1,6 +1,19 @@
 import Foundation
 private import os
 
+// MARK: - Encryption constants
+
+private enum FileStoreKeychain {
+    static let service: String = {
+        #if DEBUG
+        "com.vikingz.vik.filestore.debug"
+        #else
+        "com.vikingz.vik.filestore"
+        #endif
+    }()
+    static let account = "encryption-key"
+}
+
 /// Cached coders shared by all `PerAccountFileStore` specializations
 /// (static let not allowed on generic types).
 private enum PerAccountFileStoreCoders {
@@ -68,7 +81,21 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
         decoder: JSONDecoder,
         legacyDecoder: (@Sendable (Data) -> [Item]?)?
     ) async -> [Item]? {
-        guard let data = try? Data(contentsOf: url) else { return nil }
+        guard let raw = try? Data(contentsOf: url) else { return nil }
+
+        // Try decrypting first (new format). Fall back to treating `raw` as
+        // plain JSON to handle files written before encryption was introduced.
+        let data: Data
+        if let decrypted = try? DataEncryption.decrypt(
+            raw,
+            service: FileStoreKeychain.service,
+            account: FileStoreKeychain.account
+        ) {
+            data = decrypted
+        } else {
+            data = raw
+        }
+
         if let decoded = try? decoder.decode([Item].self, from: data) {
             return decoded
         } else if let decoded = legacyDecoder?(data) {
@@ -113,13 +140,38 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
         }
     }
 
+    /// Writes items for the given account to disk immediately, without coalescing.
+    /// Cancels any pending coalesced save first to avoid a stale write racing the flush.
+    /// Use this for critical stores where losing a queued item on crash is unacceptable.
+    func saveAndWait(accountID: String) async {
+        saveTasks[accountID]?.cancel()
+        saveTasks[accountID] = nil
+        guard let items = itemsByAccount[accountID] else { return }
+        let url = fileURL(accountID)
+        await Self.writeToDisk(items: items, url: url)
+    }
+
+    /// Appends an item and immediately flushes to disk without coalescing.
+    /// Use for critical stores (e.g. offline queues) where losing a queued item on crash
+    /// is unacceptable.
+    func appendAndWait(_ item: Item, accountID: String) async {
+        itemsByAccount[accountID, default: []].append(item)
+        await saveAndWait(accountID: accountID)
+    }
+
     @concurrent private static func writeToDisk(items: [Item], url: URL) async {
         do {
             try FileManager.default.createDirectory(
                 at: url.deletingLastPathComponent(),
                 withIntermediateDirectories: true
             )
-            try PerAccountFileStoreCoders.encoder.encode(items).write(to: url, options: .atomic)
+            let plaintext  = try PerAccountFileStoreCoders.encoder.encode(items)
+            let ciphertext = try DataEncryption.encrypt(
+                plaintext,
+                service: FileStoreKeychain.service,
+                account: FileStoreKeychain.account
+            )
+            try ciphertext.write(to: url, options: .atomic)
         } catch {
             logger.error("Save failed: \(error, privacy: .public)")
         }

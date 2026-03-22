@@ -300,13 +300,6 @@ actor BackgroundSyncer {
         }
     }
 
-    /// Prune contacts sourced from message headers that no longer have corresponding messages.
-    func pruneStaleContacts() async throws {
-        try await db.dbPool.write { db in
-            try MailDatabaseQueries.pruneStaleMessageContacts(in: db)
-        }
-    }
-
     // MARK: - Private Helpers
 
     /// Upsert a single message: record, labels, attachments, FTS.
@@ -440,6 +433,9 @@ actor BackgroundSyncer {
                 try attachment.insert(db)
             }
 
+            // FTS index created with metadata-only fields (body_plain may be nil).
+            // Body content is indexed later by the V15 AFTER UPDATE trigger when
+            // updateBodies() writes the fetched body_plain.
             try FTSManager.update(message: record, in: db)
         }
     }

@@ -40,8 +40,8 @@ final class OfflineActionQueue {
 
     var pendingCount: Int { store.totalCount }
 
-    func enqueue(_ action: OfflineAction) {
-        store.append(action, accountID: action.accountID)
+    func enqueue(_ action: OfflineAction) async {
+        await store.appendAndWait(action, accountID: action.accountID)
     }
 
     /// Removes all pending actions for the given account and deletes its on-disk JSON file.

@@ -43,9 +43,11 @@ struct ThreadMessageCardView: View, Equatable {
     @State private var contentHeight: CGFloat = 60
     @State private var isHTMLLoaded = false
     @State private var isHovering = false
+    @State private var allowRemoteImages = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let sender: Contact
+    private let toContact: Contact
     private let isSentByMe: Bool
     private let cachedFullHTML: String
     private let cachedHTMLParts: (original: String, quoted: String?)
@@ -105,6 +107,7 @@ struct ThreadMessageCardView: View, Equatable {
 
         let parsedSender = GmailDataTransformer.parseContact(message.from)
         self.sender = parsedSender
+        self.toContact = GmailDataTransformer.parseContact(message.to)
         self.isSentByMe = !fromAddress.isEmpty && parsedSender.email.lowercased() == fromAddress.lowercased()
 
         if let precomputed = precomputedHTML {
@@ -158,6 +161,11 @@ struct ThreadMessageCardView: View, Equatable {
             return cachedFullHTML
         }
         return cachedHTMLParts.original
+    }
+
+    /// True when the email body contains at least one remote image reference (http/https src).
+    private var hasRemoteImages: Bool {
+        cachedFullHTML.range(of: #"<img[^>]+src\s*=\s*["']https?://"#, options: .regularExpression) != nil
     }
 
     // MARK: - Collapsed Attachment Summary
@@ -254,6 +262,7 @@ struct ThreadMessageCardView: View, Equatable {
             }
         }
         .animation(VikAnimation.springDefault, value: isExpanded)
+        .onChange(of: message.id) { allowRemoteImages = false }
         .accessibilityElement(children: .combine)
         .accessibilityLabel({
             let senderName = isSentByMe ? "Me" : sender.name
@@ -336,7 +345,7 @@ struct ThreadMessageCardView: View, Equatable {
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
                         .contactPopover(
-                            contact: GmailDataTransformer.parseContact(message.to),
+                            contact: toContact,
                             message: message,
                             accountID: accountID,
                             composeTo: { composeTo?($0) },
@@ -357,6 +366,29 @@ struct ThreadMessageCardView: View, Equatable {
                 .background(Color(.separatorColor).opacity(0.5))
                 .padding(.horizontal, Spacing.xl)
 
+            if hasRemoteImages && !allowRemoteImages {
+                HStack(spacing: 6) {
+                    Image(systemName: "photo.badge.exclamationmark")
+                        .font(Typography.captionSmallRegular)
+                        .foregroundStyle(.secondary)
+                    Text("Remote images blocked")
+                        .font(Typography.captionSmallRegular)
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                    Button {
+                        allowRemoteImages = true
+                    } label: {
+                        Text("Load Images")
+                            .font(Typography.captionSmallMedium)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.tint)
+                }
+                .padding(.horizontal, Spacing.xl)
+                .padding(.vertical, Spacing.xs)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
             ZStack {
                 if !isHTMLLoaded {
                     ContentShimmerView()
@@ -366,12 +398,18 @@ struct ThreadMessageCardView: View, Equatable {
                         .transition(.opacity)
                 }
 
-                HTMLEmailView(html: renderedHTML, contentHeight: $contentHeight, isContentLoaded: $isHTMLLoaded, onOpenLink: onOpenLink)
-                    .frame(height: contentHeight)
-                    .padding(.horizontal, Spacing.xl)
-                    .padding(.top, Spacing.sm)
-                    .padding(.bottom, cachedHTMLParts.quoted != nil ? Spacing.xs : Spacing.md)
-                    .opacity(isHTMLLoaded ? 1 : 0)
+                HTMLEmailView(
+                    html: renderedHTML,
+                    contentHeight: $contentHeight,
+                    isContentLoaded: $isHTMLLoaded,
+                    allowRemoteImages: allowRemoteImages,
+                    onOpenLink: onOpenLink
+                )
+                .frame(height: contentHeight)
+                .padding(.horizontal, Spacing.xl)
+                .padding(.top, Spacing.sm)
+                .padding(.bottom, cachedHTMLParts.quoted != nil ? Spacing.xs : Spacing.md)
+                .opacity(isHTMLLoaded ? 1 : 0)
             }
             .background(.quinary, in: RoundedRectangle(cornerRadius: CornerRadius.sm))
             .overlay(

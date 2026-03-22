@@ -285,7 +285,7 @@ struct EmailDetailView: View {
                                 .animation(VikAnimation.springSnappy.delay(Double(min(index, 8)) * DurationToken.stagger))
                         )
                     }
-                    .animation(VikAnimation.springSnappy, value: labelSuggestions.map(\.name))
+                    .animation(VikAnimation.springSnappy, value: labelSuggestions.count)
                 }
             }
             .padding(.horizontal, Spacing.xl)

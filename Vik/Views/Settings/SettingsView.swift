@@ -8,6 +8,11 @@ struct SettingsView: View {
     var updateSignature: ((String, String, String) async throws -> GmailSendAs)?
     var accounts: [GmailAccount] = []
     var onDeleteDatabase: ((String) -> Void)?
+    var onSetAsDefault: ((String) -> Void)?
+    var onSetAccentColor: ((String, String) -> Void)?
+    var onMoveUp: ((String) -> Void)?
+    var onMoveDown: ((String) -> Void)?
+    var onReorder: ((IndexSet, Int) -> Void)?
 
     // Use the same @AppStorage keys as AppCoordinator and UndoActionManager
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
@@ -31,11 +36,11 @@ struct SettingsView: View {
             Tab("Accounts", systemImage: "person.2") {
                 AccountsSettingsView(
                     fetchAccounts: { accounts },
-                    onSetAsDefault: { id in AccountStore.shared.setAsDefault(id: id) },
-                    onSetAccentColor: { id, hex in AccountStore.shared.setAccentColor(id: id, hex: hex) },
-                    onMoveUp: { id in AccountStore.shared.moveUp(id: id) },
-                    onMoveDown: { id in AccountStore.shared.moveDown(id: id) },
-                    onReorder: { source, destination in AccountStore.shared.reorder(from: source, to: destination) }
+                    onSetAsDefault: onSetAsDefault,
+                    onSetAccentColor: onSetAccentColor,
+                    onMoveUp: onMoveUp,
+                    onMoveDown: onMoveDown,
+                    onReorder: onReorder
                 )
             }
 

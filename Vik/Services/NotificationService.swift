@@ -257,7 +257,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
                     do {
                         try await GmailMessageService.shared.archiveMessage(id: messageId, accountID: accountID)
                     } catch {
-                        OfflineActionQueue.shared.enqueue(
+                        await OfflineActionQueue.shared.enqueue(
                             OfflineAction(actionType: .archive, messageIds: [messageId], accountID: accountID)
                         )
                     }
@@ -269,7 +269,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
                     do {
                         try await GmailMessageService.shared.markAsRead(id: messageId, accountID: accountID)
                     } catch {
-                        OfflineActionQueue.shared.enqueue(
+                        await OfflineActionQueue.shared.enqueue(
                             OfflineAction(actionType: .markRead, messageIds: [messageId], accountID: accountID)
                         )
                     }

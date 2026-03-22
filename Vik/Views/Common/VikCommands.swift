@@ -118,11 +118,11 @@ struct VikCommands: Commands {
             .disabled(!hasSelection)
 
             Button {
-                guard let coordinator, let email = selectedEmail, let msgID = email.gmailMessageID else { return }
+                guard let coordinator, let email = selectedEmail else { return }
                 if isRead {
                     Task { await coordinator.actionCoordinator.markUnreadEmail(email) }
                 } else {
-                    Task { await coordinator.mailboxViewModel.markAsRead(msgID) }
+                    Task { await coordinator.actionCoordinator.markReadEmail(email) }
                 }
             } label: {
                 Label(isRead ? "Mark as Unread" : "Mark as Read", systemImage: isRead ? "envelope.badge" : "envelope.open")

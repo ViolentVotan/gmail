@@ -286,7 +286,7 @@ final class CalendarViewModel {
             )
             // Sync engine will pick up the new event via incremental sync.
         } catch CalendarAPIError.offline {
-            CalendarOfflineActionQueue.shared.enqueue(.init(
+            await CalendarOfflineActionQueue.shared.enqueue(.init(
                 id: UUID(),
                 accountID: accountID,
                 createdAt: .now,
@@ -322,7 +322,7 @@ final class CalendarViewModel {
                 etag: etag
             )
         } catch CalendarAPIError.offline {
-            CalendarOfflineActionQueue.shared.enqueue(.init(
+            await CalendarOfflineActionQueue.shared.enqueue(.init(
                 id: UUID(),
                 accountID: accountID,
                 createdAt: .now,
@@ -346,24 +346,30 @@ final class CalendarViewModel {
         defer { isLoading = false }
 
         // Snapshot and delete atomically in one write transaction.
-        let snapshot: (CalendarEventRecord, [CalendarAttendeeRecord])? = try? await db.dbPool.write { db in
-            guard let eventRecord = try CalendarEventRecord
-                .filter(Column("event_id") == event.googleEventId
-                    && Column("calendar_id") == event.calendarId
-                    && Column("account_id") == event.accountID)
-                .fetchOne(db)
-            else { return nil }
-            let attendees = try CalendarAttendeeRecord
-                .filter(Column("event_id") == event.googleEventId
-                    && Column("calendar_id") == event.calendarId
-                    && Column("account_id") == event.accountID)
-                .fetchAll(db)
-            // Delete event — attendees cascade automatically via ON DELETE CASCADE.
-            try db.execute(
-                sql: "DELETE FROM calendar_events WHERE event_id = ? AND calendar_id = ? AND account_id = ?",
-                arguments: [event.googleEventId, event.calendarId, event.accountID]
-            )
-            return (eventRecord, attendees)
+        let snapshot: (CalendarEventRecord, [CalendarAttendeeRecord])?
+        do {
+            snapshot = try await db.dbPool.write { db in
+                guard let eventRecord = try CalendarEventRecord
+                    .filter(Column("event_id") == event.googleEventId
+                        && Column("calendar_id") == event.calendarId
+                        && Column("account_id") == event.accountID)
+                    .fetchOne(db)
+                else { return nil }
+                let attendees = try CalendarAttendeeRecord
+                    .filter(Column("event_id") == event.googleEventId
+                        && Column("calendar_id") == event.calendarId
+                        && Column("account_id") == event.accountID)
+                    .fetchAll(db)
+                // Delete event — attendees cascade automatically via ON DELETE CASCADE.
+                try db.execute(
+                    sql: "DELETE FROM calendar_events WHERE event_id = ? AND calendar_id = ? AND account_id = ?",
+                    arguments: [event.googleEventId, event.calendarId, event.accountID]
+                )
+                return (eventRecord, attendees)
+            }
+        } catch {
+            self.error = CalendarAPIError.wrap(error)
+            return
         }
 
         do {
@@ -373,7 +379,7 @@ final class CalendarViewModel {
                 accountID: event.accountID
             )
         } catch CalendarAPIError.offline {
-            CalendarOfflineActionQueue.shared.enqueue(.init(
+            await CalendarOfflineActionQueue.shared.enqueue(.init(
                 id: UUID(),
                 accountID: event.accountID,
                 createdAt: .now,
@@ -382,9 +388,13 @@ final class CalendarViewModel {
         } catch {
             // Rollback: re-insert the deleted records.
             if let (eventRecord, attendees) = snapshot {
-                try? await db.dbPool.write { db in
-                    try eventRecord.insert(db)
-                    for attendee in attendees { try attendee.insert(db) }
+                do {
+                    try await db.dbPool.write { db in
+                        try eventRecord.insert(db)
+                        for attendee in attendees { try attendee.insert(db) }
+                    }
+                } catch {
+                    Self.logger.error("Rollback re-insert failed after deleteEvent API error: \(error.localizedDescription)")
                 }
             }
             self.error = error
@@ -400,14 +410,18 @@ final class CalendarViewModel {
         // Save original status for rollback.
         let previousStatus = event.selfResponseStatus
         // Optimistic local update regardless of connectivity.
-        try? await db.dbPool.write { db in
-            try db.execute(
-                sql: """
-                    UPDATE calendar_events SET self_response_status = ?
-                    WHERE event_id = ? AND calendar_id = ? AND account_id = ?
-                    """,
-                arguments: [status.rawValue, event.googleEventId, event.calendarId, event.accountID]
-            )
+        do {
+            try await db.dbPool.write { db in
+                try db.execute(
+                    sql: """
+                        UPDATE calendar_events SET self_response_status = ?
+                        WHERE event_id = ? AND calendar_id = ? AND account_id = ?
+                        """,
+                    arguments: [status.rawValue, event.googleEventId, event.calendarId, event.accountID]
+                )
+            }
+        } catch {
+            Self.logger.error("Optimistic RSVP update failed: \(error.localizedDescription)")
         }
         do {
             _ = try await eventService.respondToEvent(
@@ -417,7 +431,7 @@ final class CalendarViewModel {
                 status: status.rawValue
             )
         } catch CalendarAPIError.offline {
-            CalendarOfflineActionQueue.shared.enqueue(.init(
+            await CalendarOfflineActionQueue.shared.enqueue(.init(
                 id: UUID(),
                 accountID: event.accountID,
                 createdAt: .now,
@@ -425,14 +439,18 @@ final class CalendarViewModel {
             ))
         } catch {
             // Rollback: restore previous RSVP status.
-            try? await db.dbPool.write { db in
-                try db.execute(
-                    sql: """
-                        UPDATE calendar_events SET self_response_status = ?
-                        WHERE event_id = ? AND calendar_id = ? AND account_id = ?
-                        """,
-                    arguments: [previousStatus.rawValue, event.googleEventId, event.calendarId, event.accountID]
-                )
+            do {
+                try await db.dbPool.write { db in
+                    try db.execute(
+                        sql: """
+                            UPDATE calendar_events SET self_response_status = ?
+                            WHERE event_id = ? AND calendar_id = ? AND account_id = ?
+                            """,
+                        arguments: [previousStatus.rawValue, event.googleEventId, event.calendarId, event.accountID]
+                    )
+                }
+            } catch {
+                Self.logger.error("Rollback of RSVP status failed: \(error.localizedDescription)")
             }
             self.error = error
             throw error

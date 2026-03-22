@@ -285,9 +285,7 @@ struct EmailRowView: View, Equatable {
             in: .rect(cornerRadius: CornerRadius.sm)
         )
         .background(
-            isHovered && !isSelected
-                ? AnyShapeStyle(Color.primary.opacity(0.06))
-                : AnyShapeStyle(Color.clear),
+            Color.primary.opacity(isHovered && !isSelected ? 0.06 : 0),
             in: .rect(cornerRadius: CornerRadius.sm)
         )
         .sensoryFeedback(.selection, trigger: isSelected)

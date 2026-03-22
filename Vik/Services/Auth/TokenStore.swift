@@ -1,7 +1,5 @@
 import Foundation
-private import CryptoKit
 private import Security
-import Synchronization
 
 /// Persists OAuth tokens encrypted with AES-256-GCM.
 /// Both the symmetric key and the encrypted token data are stored in the macOS Keychain.
@@ -26,69 +24,19 @@ final class TokenStore {
     private let keychainAccount = "encryption-key"
     private let legacyKeyUD    = "com.vikingz.vik.token.key"
 
-    // MARK: - Symmetric key (Keychain, cached after first load)
-
-    private nonisolated let _cachedKey = Mutex<SymmetricKey?>(nil)
-
-    private nonisolated var symmetricKey: SymmetricKey {
-        _cachedKey.withLock { cached in
-            if let cached { return cached }
-            let key: SymmetricKey
-            if let data = loadKeyFromKeychain() {
-                key = SymmetricKey(data: data)
-            } else {
-                key = SymmetricKey(size: .bits256)
-                saveKeyToKeychain(key.withUnsafeBytes { Data($0) })
-            }
-            cached = key
-            return key
-        }
-    }
-
-    nonisolated private func loadKeyFromKeychain() -> Data? {
-        let query: [String: Any] = [
-            kSecClass as String:            kSecClassGenericPassword,
-            kSecAttrService as String:      keychainService,
-            kSecAttrAccount as String:      keychainAccount,
-            kSecReturnData as String:       true,
-            kSecMatchLimit as String:       kSecMatchLimitOne,
-        ]
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess else { return nil }
-        return result as? Data
-    }
-
-    nonisolated private func saveKeychainItem(service: String, account: String, data: Data) {
-        let query: [String: Any] = [
-            kSecClass as String:            kSecClassGenericPassword,
-            kSecAttrService as String:      service,
-            kSecAttrAccount as String:      account,
-            kSecValueData as String:        data,
-            kSecAttrAccessible as String:   kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-        ]
-        let status = SecItemAdd(query as CFDictionary, nil)
-        if status == errSecDuplicateItem {
-            let search: [String: Any] = [
-                kSecClass as String:       kSecClassGenericPassword,
-                kSecAttrService as String: service,
-                kSecAttrAccount as String: account,
-            ]
-            SecItemUpdate(search as CFDictionary, [kSecValueData as String: data] as CFDictionary)
-        }
-    }
-
-    nonisolated private func saveKeyToKeychain(_ data: Data) {
-        saveKeychainItem(service: keychainService, account: keychainAccount, data: data)
-    }
+    // MARK: - Symmetric key migration (Keychain)
 
     private func migrateKeyFromUserDefaultsIfNeeded() {
         guard let legacyData = defaults.data(forKey: legacyKeyUD) else { return }
-        guard loadKeyFromKeychain() == nil else {
+        guard DataEncryption.loadKeyFromKeychain(
+            service: keychainService, account: keychainAccount
+        ) == nil else {
             defaults.removeObject(forKey: legacyKeyUD)
             return
         }
-        saveKeyToKeychain(legacyData)
+        DataEncryption.saveKeychainItem(
+            service: keychainService, account: keychainAccount, data: legacyData
+        )
         defaults.removeObject(forKey: legacyKeyUD)
     }
 
@@ -113,7 +61,11 @@ final class TokenStore {
     }
 
     nonisolated private func saveTokenData(_ data: Data, for accountID: String) {
-        saveKeychainItem(service: keychainService, account: tokenKeychainAccount(for: accountID), data: data)
+        DataEncryption.saveKeychainItem(
+            service: keychainService,
+            account: tokenKeychainAccount(for: accountID),
+            data: data
+        )
     }
 
     nonisolated private func deleteTokenData(for accountID: String) {
@@ -141,10 +93,10 @@ final class TokenStore {
     // MARK: - CRUD
 
     @concurrent func save(_ token: AuthToken, for accountID: String) async throws {
-        let key = symmetricKey
         let plaintext = try JSONEncoder().encode(token)
-        let sealed    = try AES.GCM.seal(plaintext, using: key)
-        guard let combined = sealed.combined else { throw TokenStoreError.encryptionFailed }
+        let combined  = try DataEncryption.encrypt(
+            plaintext, service: keychainService, account: keychainAccount
+        )
         saveTokenData(combined, for: accountID)
 
         await MainActor.run {
@@ -172,8 +124,9 @@ final class TokenStore {
             await MainActor.run { defaults.removeObject(forKey: udKey) }
             combined = udData
         }
-        let box       = try AES.GCM.SealedBox(combined: combined)
-        let plaintext = try AES.GCM.open(box, using: symmetricKey)
+        let plaintext = try DataEncryption.decrypt(
+            combined, service: keychainService, account: keychainAccount
+        )
         return try JSONDecoder().decode(AuthToken.self, from: plaintext)
     }
 
@@ -188,10 +141,4 @@ final class TokenStore {
     func allAccountIDs() -> [String] {
         defaults.stringArray(forKey: accountsKey) ?? []
     }
-}
-
-enum TokenStoreError: Error, LocalizedError {
-    case encryptionFailed
-
-    var errorDescription: String? { "Token encryption failed" }
 }

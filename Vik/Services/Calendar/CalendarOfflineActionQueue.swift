@@ -52,8 +52,8 @@ final class CalendarOfflineActionQueue {
 
     // MARK: - Public API
 
-    func enqueue(_ action: CalendarOfflineAction) {
-        store.append(action, accountID: action.accountID)
+    func enqueue(_ action: CalendarOfflineAction) async {
+        await store.appendAndWait(action, accountID: action.accountID)
     }
 
     func pendingActions(for accountID: String) -> [CalendarOfflineAction] {

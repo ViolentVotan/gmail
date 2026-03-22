@@ -155,7 +155,7 @@ final class ComposeViewModel {
                                     messageIds: [],
                                     accountID: capturedAccountID
                                 )
-                                OfflineActionQueue.shared.enqueue(action)
+                                await OfflineActionQueue.shared.enqueue(action)
                                 self?.isSent = true
                                 sendSucceeded = true
                                 ToastManager.shared.show(message: "Email queued — will send when online")

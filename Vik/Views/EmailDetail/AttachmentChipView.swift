@@ -77,7 +77,7 @@ struct AttachmentChipView: View {
             } label: {
                 Image(systemName: "arrow.down.circle")
                     .font(Typography.subheadRegular)
-                    .foregroundStyle(isDownloadHovered ? AnyShapeStyle(Color.accentColor) : AnyShapeStyle(.tertiary))
+                    .foregroundStyle(isDownloadHovered ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
                     .frame(width: 28, height: 28)
                     .contentShape(Rectangle())
             }

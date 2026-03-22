@@ -39,6 +39,23 @@ struct CalendarEventEditorView: View {
 
     @FocusState private var isTitleFocused: Bool
 
+    private let writableCalendars: [CalendarInfo]
+
+    init(
+        editDraft: Binding<EventEditDraft?>,
+        calendars: [CalendarInfo],
+        defaultStartTime: Date? = nil,
+        onSave: @escaping (CalendarAPIEventInput, String?, RecurringEditScope?) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
+        self._editDraft = editDraft
+        self.calendars = calendars
+        self.defaultStartTime = defaultStartTime
+        self.onSave = onSave
+        self.onCancel = onCancel
+        self.writableCalendars = calendars.filter { $0.accessRole == .writer || $0.accessRole == .owner }
+    }
+
     // MARK: - Derived
 
     private var isEditing: Bool { editDraft != nil }
@@ -59,10 +76,6 @@ struct CalendarEventEditorView: View {
             || description != (draft.description ?? "")
             || attendeeEntries.map(\.email) != draft.attendeeEmails
             || colorId != draft.colorId
-    }
-
-    private var writableCalendars: [CalendarInfo] {
-        calendars.filter { $0.accessRole == .writer || $0.accessRole == .owner }
     }
 
     private var selectedCalendar: CalendarInfo? {

@@ -8,8 +8,7 @@ enum HTMLTemplate {
         accentColor: String,
         placeholderColor: String,
         placeholderText: String,
-        fontSize: Int = 13,
-        initialHTML: String = ""
+        fontSize: Int = 13
     ) -> String {
         let jsSource: String
         if let url = Bundle.main.url(forResource: "editor", withExtension: "js"),
@@ -102,7 +101,7 @@ enum HTMLTemplate {
         </style>
         </head>
         <body>
-        <div id="editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Email body" tabindex="0" data-placeholder="\(placeholderText.replacingOccurrences(of: "\"", with: "&quot;"))">\(Self.sanitizeHTML(initialHTML))</div>
+        <div id="editor" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Email body" tabindex="0" data-placeholder="\(placeholderText.replacingOccurrences(of: "\"", with: "&quot;"))"></div>
         <div id="a11y-status" aria-live="polite" aria-atomic="true" style="position:absolute;clip:rect(0 0 0 0);width:1px;height:1px;overflow:hidden;"></div>
         <script nonce="\(nonce)">
         \(jsSource)
@@ -120,46 +119,4 @@ enum HTMLTemplate {
         return String(value.unicodeScalars.filter { allowed.contains($0) })
     }
 
-    // MARK: - HTML Sanitization (pre-compiled regexes)
-
-    private static let scriptTagRegex      = try! NSRegularExpression(pattern: "<script[^>]*>[\\s\\S]*?</script>",   options: .caseInsensitive)
-    private static let styleTagRegex       = try! NSRegularExpression(pattern: "<style[^>]*>[\\s\\S]*?</style>",    options: .caseInsensitive)
-    private static let iframeTagRegex      = try! NSRegularExpression(pattern: "<iframe[^>]*>[\\s\\S]*?</iframe>",  options: .caseInsensitive)
-    private static let iframeSelfRegex     = try! NSRegularExpression(pattern: "<iframe[^>]*/>",                    options: .caseInsensitive)
-    private static let objectTagRegex      = try! NSRegularExpression(pattern: "<object[^>]*>[\\s\\S]*?</object>",  options: .caseInsensitive)
-    private static let embedTagRegex       = try! NSRegularExpression(pattern: "<embed[^>]*>",                      options: .caseInsensitive)
-    private static let formTagRegex        = try! NSRegularExpression(pattern: "<form[^>]*>[\\s\\S]*?</form>",      options: .caseInsensitive)
-    private static let linkTagRegex        = try! NSRegularExpression(pattern: "<link[^>]*>",                       options: .caseInsensitive)
-    private static let baseTagRegex        = try! NSRegularExpression(pattern: "<base[^>]*>",                       options: .caseInsensitive)
-    private static let metaRefreshRegex    = try! NSRegularExpression(pattern: "<meta[^>]*http-equiv[^>]*>",        options: .caseInsensitive)
-    private static let javascriptURLRegex  = try! NSRegularExpression(pattern: "javascript\\s*:",                   options: .caseInsensitive)
-    private static let vbscriptURLRegex    = try! NSRegularExpression(pattern: "vbscript\\s*:",                     options: .caseInsensitive)
-    private static let dataTextHTMLRegex   = try! NSRegularExpression(pattern: "data\\s*:\\s*text/html",            options: .caseInsensitive)
-    private static let onEventQuotedRegex  = try! NSRegularExpression(pattern: "\\bon\\w+\\s*=\\s*([\"'])[\\s\\S]*?\\1", options: .caseInsensitive)
-    private static let onEventUnquotedRegex = try! NSRegularExpression(pattern: "\\bon\\w+\\s*=\\s*[^\\s>]+",      options: .caseInsensitive)
-
-    /// Strips dangerous HTML constructs from email content before embedding in the editor.
-    private static func sanitizeHTML(_ html: String) -> String {
-        guard !html.isEmpty else { return html }
-        var result = html
-        let range = { NSRange(result.startIndex..., in: result) }
-
-        result = scriptTagRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
-        result = styleTagRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
-        result = iframeTagRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
-        result = iframeSelfRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
-        result = objectTagRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
-        result = embedTagRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
-        result = formTagRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
-        result = linkTagRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
-        result = baseTagRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
-        result = metaRefreshRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
-        result = javascriptURLRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "blocked:")
-        result = vbscriptURLRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "blocked:")
-        result = dataTextHTMLRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "blocked:")
-        // Remove event handler attributes (on*=); quoted variant first, then unquoted
-        result = onEventQuotedRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
-        result = onEventUnquotedRegex.stringByReplacingMatches(in: result, range: range(), withTemplate: "")
-        return result
-    }
 }

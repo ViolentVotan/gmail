@@ -41,7 +41,7 @@ final class EmailActionCoordinator {
         let originalLabels = await vm.updateLabelsInDatabase(msgID, addLabelIds: addLabels, removeLabelIds: removeLabels)
         selectNext(nil)
         if let offlineType, !NetworkMonitor.shared.isConnected {
-            OfflineActionQueue.shared.enqueue(OfflineAction(
+            await OfflineActionQueue.shared.enqueue(OfflineAction(
                 actionType: offlineType, messageIds: [msgID], accountID: vm.accountID
             ))
             ToastManager.shared.show(message: offlineToast)
@@ -78,7 +78,7 @@ final class EmailActionCoordinator {
     ) async -> Bool {
         guard NetworkMonitor.shared.isConnected else {
             let vm = mailboxViewModel
-            OfflineActionQueue.shared.enqueue(OfflineAction(
+            await OfflineActionQueue.shared.enqueue(OfflineAction(
                 actionType: offlineActionType, messageIds: [messageID], accountID: vm.accountID
             ))
             _ = await vm.updateLabelsInDatabase(messageID, addLabelIds: addLabelIds, removeLabelIds: removeLabelIds)
@@ -325,6 +325,34 @@ final class EmailActionCoordinator {
         }
     }
 
+    /// Adds a user label to a message. Delegates to MailboxViewModel which handles
+    /// optimistic DB update, offline queue, and API call.
+    func addLabelToEmail(_ labelID: String, to messageID: String) async {
+        await mailboxViewModel.addLabel(labelID, to: messageID)
+    }
+
+    /// Removes a user label from a message. Delegates to MailboxViewModel which handles
+    /// optimistic DB update, offline queue, and API call.
+    func removeLabelFromEmail(_ labelID: String, from messageID: String) async {
+        await mailboxViewModel.removeLabel(labelID, from: messageID)
+    }
+
+    /// Creates a new label and adds it to the message.
+    @discardableResult
+    func createAndAddLabelToEmail(name: String, to messageID: String) async -> String? {
+        await mailboxViewModel.createAndAddLabel(name: name, to: messageID)
+    }
+
+    /// Empties the Trash folder (permanent deletion of all trashed messages).
+    func emptyTrashFolder() async {
+        await mailboxViewModel.emptyTrash()
+    }
+
+    /// Empties the Spam folder (permanent deletion of all spam messages).
+    func emptySpamFolder() async {
+        await mailboxViewModel.emptySpam()
+    }
+
     func printEmail(_ email: Email) async {
         guard let msgID = email.gmailMessageID else { return }
         do {
@@ -383,7 +411,7 @@ final class EmailActionCoordinator {
         let originalLabelsMap = await vm.updateLabelsInDatabaseBatch(msgIDs, addLabelIds: addLabels, removeLabelIds: removeLabels)
         onClear()
         if let offlineType, !NetworkMonitor.shared.isConnected {
-            OfflineActionQueue.shared.enqueue(OfflineAction(
+            await OfflineActionQueue.shared.enqueue(OfflineAction(
                 actionType: offlineType, messageIds: msgIDs, accountID: vm.accountID
             ))
             ToastManager.shared.show(message: offlineToast)

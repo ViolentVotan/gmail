@@ -127,14 +127,14 @@ actor AttachmentIndexer {
             case .text(let text):
                 let embedding = ContentExtractor.generateEmbedding(for: text)
                 await database.updateIndexedContent(id: att.id, text: text, embedding: embedding, status: .indexed)
-                Self.logger.info("Indexed: \(att.filename, privacy: .public)")
+                Self.logger.info("Indexed: \(att.filename, privacy: .private)")
             case .unsupported:
                 await database.updateIndexedContent(id: att.id, text: nil, embedding: nil, status: .unsupported)
-                Self.logger.info("Unsupported: \(att.filename, privacy: .public)")
+                Self.logger.info("Unsupported: \(att.filename, privacy: .private)")
             }
         } catch {
             await database.incrementRetry(id: att.id)
-            Self.logger.error("Failed: \(att.filename, privacy: .public) — \(error.localizedDescription, privacy: .public)")
+            Self.logger.error("Failed: \(att.filename, privacy: .private) — \(error.localizedDescription, privacy: .public)")
         }
     }
 

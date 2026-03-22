@@ -59,26 +59,35 @@ final class EmailContentPrefetcher {
                     }
                 }
             } else {
-                // Fallback: full preprocessing pipeline
+                // Fallback: full preprocessing pipeline (off MainActor)
                 guard !Task.isCancelled else { return }
-                for msg in gmailMessages {
-                    guard let html = msg.htmlBody, !html.isEmpty else { continue }
-                    let result = HTMLPreprocessingPipeline.preprocess(html)
-                    htmlParts[msg.id] = PrecomputedMessageHTML(
-                        fullHTML: result.preprocessedHTML,
-                        originalHTML: result.originalHTML,
-                        quotedHTML: result.quotedHTML
-                    )
-                }
-                if let latest = gmailMessages.last, let html = latest.htmlBody, !html.isEmpty {
-                    let result = HTMLPreprocessingPipeline.preprocess(html)
-                    trackerResult = TrackerResult(
-                        sanitizedHTML: result.sanitizedHTML,
-                        originalHTML: result.preprocessedHTML,
-                        trackers: []
-                    )
-                    resolvedHTML[latest.id] = result.sanitizedHTML
-                }
+                let (computedParts, computedTracker, computedResolved) = await Task.detached {
+                    var parts: [String: PrecomputedMessageHTML] = [:]
+                    var tracker: TrackerResult?
+                    var resolved: [String: String] = [:]
+                    for msg in gmailMessages {
+                        guard let html = msg.htmlBody, !html.isEmpty else { continue }
+                        let result = HTMLPreprocessingPipeline.preprocess(html)
+                        parts[msg.id] = PrecomputedMessageHTML(
+                            fullHTML: result.preprocessedHTML,
+                            originalHTML: result.originalHTML,
+                            quotedHTML: result.quotedHTML
+                        )
+                    }
+                    if let latest = gmailMessages.last, let html = latest.htmlBody, !html.isEmpty {
+                        let result = HTMLPreprocessingPipeline.preprocess(html)
+                        tracker = TrackerResult(
+                            sanitizedHTML: result.sanitizedHTML,
+                            originalHTML: result.preprocessedHTML,
+                            trackers: []
+                        )
+                        resolved[latest.id] = result.sanitizedHTML
+                    }
+                    return (parts, tracker, resolved)
+                }.value
+                htmlParts = computedParts
+                trackerResult = computedTracker
+                resolvedHTML = computedResolved
             }
 
             guard !Task.isCancelled else { return }

@@ -182,9 +182,8 @@ struct DetailPaneView: View {
             ? { Task { await actionCoordinator.deletePermanentlyEmail(email, selectNext: selectNextFn) } } : nil
         actions.onMarkNotSpam = selectedFolder == .spam
             ? { Task { await actionCoordinator.markNotSpamEmail(email, selectNext: selectNextFn) } } : nil
-        actions.onToggleStar = { isCurrentlyStarred in
-            guard let msgID else { return }
-            Task { await mailboxViewModel.toggleStar(msgID, isStarred: isCurrentlyStarred) }
+        actions.onToggleStar = { _ in
+            Task { await actionCoordinator.toggleStarEmail(email) }
         }
         actions.onMarkUnread = { Task { await actionCoordinator.markUnreadEmail(email) } }
         actions.onSnooze = { date in Task { await actionCoordinator.snoozeEmail(email, until: date, selectNext: selectNextFn) } }
@@ -192,16 +191,16 @@ struct DetailPaneView: View {
         // Labels
         actions.onAddLabel = { labelID in
             guard let msgID else { return }
-            Task { await mailboxViewModel.addLabel(labelID, to: msgID) }
+            Task { await actionCoordinator.addLabelToEmail(labelID, to: msgID) }
         }
         actions.onRemoveLabel = { labelID in
             guard let msgID else { return }
-            Task { await mailboxViewModel.removeLabel(labelID, from: msgID) }
+            Task { await actionCoordinator.removeLabelFromEmail(labelID, from: msgID) }
         }
         actions.onCreateAndAddLabel = { name, completion in
             guard let msgID else { completion(nil); return }
             Task {
-                let labelID = await mailboxViewModel.createAndAddLabel(name: name, to: msgID)
+                let labelID = await actionCoordinator.createAndAddLabelToEmail(name: name, to: msgID)
                 completion(labelID)
             }
         }

@@ -177,6 +177,7 @@ actor CalendarSyncEngine {
 
                     let calId = calendar.calendarId
                     let calTZ = calendar.timeZone
+                    // self capture is intentional — actor lifecycle is managed by stop() which cancels syncTask
                     group.addTask {
                         do {
                             try await self.syncFullEvents(
@@ -510,8 +511,12 @@ actor CalendarSyncEngine {
     /// Persists the calendar list sync token to the account_sync_state table.
     private func persistCalendarListSyncToken(_ token: String?) async {
         calendarListSyncToken = token
-        try? await db.dbPool.write { db in
-            try MailDatabaseQueries.updateSyncState({ $0.calendarListSyncToken = token }, in: db)
+        do {
+            try await db.dbPool.write { db in
+                try MailDatabaseQueries.updateSyncState({ $0.calendarListSyncToken = token }, in: db)
+            }
+        } catch {
+            Self.logger.error("Failed to persist calendar list sync token: \(error.localizedDescription)")
         }
     }
 

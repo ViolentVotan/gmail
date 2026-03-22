@@ -46,6 +46,7 @@ struct HTMLEmailView: NSViewRepresentable {
     let html: String
     @Binding var contentHeight: CGFloat
     @Binding var isContentLoaded: Bool
+    var allowRemoteImages: Bool = false
     var onOpenLink: ((URL) -> Void)?
     @Environment(\.colorScheme) private var colorScheme
 
@@ -59,14 +60,19 @@ struct HTMLEmailView: NSViewRepresentable {
     /// Static HTML shell loaded once per WKWebView lifetime. Uses CSS custom
     /// properties (`--text-color`) so color scheme changes update via JS
     /// instead of triggering a full `loadHTMLString` navigation cycle.
-    static func templateHTML() -> String {
-        """
+    ///
+    /// When `allowRemoteImages` is false (default), remote images are blocked via
+    /// CSP so novel trackers cannot load even if they bypass `TrackerBlockerService`.
+    /// Passing `true` relaxes the policy to permit HTTPS image sources.
+    static func templateHTML(allowRemoteImages: Bool = false) -> String {
+        let imgSrc = allowRemoteImages ? "data: cid: https:" : "data: cid:"
+        return """
         <!DOCTYPE html>
         <html>
         <head>
         <meta name='viewport' content='width=device-width, initial-scale=1'>
         <meta name='color-scheme' content='light dark'>
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src data: cid: https:; style-src 'unsafe-inline'; font-src https:; frame-src 'none'; connect-src 'none'; script-src 'none';">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src \(imgSrc); style-src 'unsafe-inline'; font-src https:; frame-src 'none'; connect-src 'none'; script-src 'none';">
         <style>
         :root {
             --text-color: #FFFFFF;
@@ -176,6 +182,20 @@ struct HTMLEmailView: NSViewRepresentable {
     func updateNSView(_ webView: WKWebView, context: Context) {
         let coordinator = context.coordinator
         coordinator.parent = self
+
+        // Handle allowRemoteImages changes — requires a full template reload to
+        // apply the new CSP (CSP meta tags cannot be relaxed after navigation).
+        if coordinator.lastAllowRemoteImages != allowRemoteImages {
+            coordinator.lastAllowRemoteImages = allowRemoteImages
+            coordinator.templateReady = false
+            coordinator.pendingHTML = html
+            coordinator.lastContentKey = html
+            coordinator.parent.isContentLoaded = false
+            let bgLum = colorScheme == .dark ? "0.015" : "0.96"
+            coordinator.pendingCSSUpdate = (textHex: Self.currentTextHex(), bgLum: bgLum)
+            webView.loadHTMLString(Self.templateHTML(allowRemoteImages: allowRemoteImages), baseURL: nil)
+            return
+        }
 
         // Handle color scheme changes -- update CSS vars + re-run contrast fix.
         if coordinator.lastColorScheme != colorScheme {
@@ -431,6 +451,7 @@ struct HTMLEmailView: NSViewRepresentable {
         var lastColorScheme: ColorScheme?
         /// Tracks the last injected HTML to skip redundant updates.
         var lastContentKey = ""
+        var lastAllowRemoteImages = false
         var pendingHTML: String?
         var pendingCSSUpdate: (textHex: String, bgLum: String)?
         weak var webView: WKWebView?

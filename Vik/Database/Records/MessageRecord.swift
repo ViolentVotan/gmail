@@ -121,7 +121,7 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord,
         self.isStarred = gmail.labelIds?.contains(GmailSystemLabel.starred) ?? false
         self.isFromMailingList = headers["list-unsubscribe"] != nil || headers["list-id"] != nil
         self.unsubscribeUrl = gmail.unsubscribeURL?.absoluteString
-        self.fullBodyFetched = mime.htmlBody != nil || mime.plainBody != nil
+        self.fullBodyFetched = (mime.htmlBody != nil || mime.plainBody != nil)
         self.bodyFetchAttempts = 0
         self.threadMessageCount = 1
         self.fetchedAt = Date().timeIntervalSince1970

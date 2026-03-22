@@ -186,7 +186,9 @@ final class MailboxViewModel {
         let limit = displayLimit
         enrichmentTask?.cancel()
         enrichmentTask = Task { [weak self] in
-            let threadEmails = Self.threadedEmails(from: records)
+            let threadEmails = await Task.detached {
+                Self.threadedEmails(from: records)
+            }.value
             guard !Task.isCancelled else { return }
             await MainActor.run {
                 guard let self, db === self.mailDatabase else { return }
@@ -431,7 +433,7 @@ final class MailboxViewModel {
         isLoadingMore = false
     }
 
-    // MARK: - Mutations
+    // MARK: - Mutations (internal — use EmailActionCoordinator for user-facing actions)
 
     /// Shared optimistic-update flow: write labels to DB, call API, revert on failure.
     ///
@@ -465,6 +467,8 @@ final class MailboxViewModel {
     }
 
     /// Marks a message as read. Optimistic DB write → API call → revert on failure.
+    /// - Note: Called by `SelectionCoordinator` (auto-mark-read) and `EmailActionCoordinator`.
+    ///   Views should use `EmailActionCoordinator.markReadEmail(_:)` for user-initiated actions.
     func markAsRead(_ messageID: String) async {
         await performOptimisticAction(
             messageID,
@@ -494,6 +498,8 @@ final class MailboxViewModel {
     }
 
     /// Marks a message as unread. Optimistic DB write → API call → revert on failure.
+    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
+    ///   `EmailActionCoordinator.markUnreadEmail(_:)`.
     func markAsUnread(_ messageID: String) async {
         await performOptimisticAction(
             messageID,
@@ -506,6 +512,8 @@ final class MailboxViewModel {
     }
 
     /// Toggles star on a message. Optimistic DB write → API call → revert on failure.
+    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
+    ///   `EmailActionCoordinator.toggleStarEmail(_:)`.
     func toggleStar(_ messageID: String, isStarred: Bool) async {
         await performOptimisticAction(
             messageID,
@@ -519,6 +527,8 @@ final class MailboxViewModel {
     }
 
     /// Trashes a message. Optimistic DB write → API call → reconcile or revert.
+    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
+    ///   `EmailActionCoordinator.deleteEmail(_:selectNext:)`.
     func trash(_ messageID: String) async {
         await performOptimisticAction(
             messageID,
@@ -533,6 +543,8 @@ final class MailboxViewModel {
     }
 
     /// Archives a message. Optimistic DB write → API call → revert on failure.
+    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
+    ///   `EmailActionCoordinator.archiveEmail(_:selectNext:)`.
     @discardableResult
     func archive(_ messageID: String) async -> Bool {
         await performOptimisticAction(
@@ -569,7 +581,7 @@ final class MailboxViewModel {
                 )
             }
         } catch {
-            Self.logger.error("DB label mutation failed for \(messageID, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            Self.logger.error("DB label mutation failed for \(messageID, privacy: .private): \(error.localizedDescription, privacy: .public)")
             return nil
         }
     }
@@ -632,10 +644,16 @@ final class MailboxViewModel {
         }
     }
 
+    /// Permanently deletes all messages in Trash.
+    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
+    ///   `EmailActionCoordinator.emptyTrashFolder()`.
     func emptyTrash() async {
         await emptyFolder { [api, accountID] in try await api.emptyTrash(accountID: accountID) }
     }
 
+    /// Permanently deletes all messages in Spam.
+    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
+    ///   `EmailActionCoordinator.emptySpamFolder()`.
     func emptySpam() async {
         await emptyFolder { [api, accountID] in try await api.emptySpam(accountID: accountID) }
     }
@@ -652,6 +670,8 @@ final class MailboxViewModel {
     }
 
     /// Moves a message to inbox. Optimistic DB write → API call → revert on failure.
+    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
+    ///   `EmailActionCoordinator.moveToInboxEmail(_:selectedFolder:selectNext:)`.
     func moveToInbox(_ messageID: String) async {
         await performOptimisticAction(
             messageID,
@@ -666,6 +686,7 @@ final class MailboxViewModel {
     }
 
     /// Untrashes a message. Optimistic DB write → API call → reconcile or revert.
+    /// - Note: Internal — called by `EmailActionCoordinator`.
     func untrash(_ messageID: String) async {
         await performOptimisticAction(
             messageID,
@@ -680,6 +701,8 @@ final class MailboxViewModel {
 
     /// Permanently deletes a message. Removes all labels from DB optimistically,
     /// then deletes the message record itself after a successful API call.
+    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
+    ///   `EmailActionCoordinator.deletePermanentlyEmail(_:selectNext:)`.
     ///
     /// - Parameters:
     ///   - messageID: The Gmail message ID.
@@ -710,6 +733,8 @@ final class MailboxViewModel {
     }
 
     /// Marks a message as not spam. Optimistic DB write → API call → revert on failure.
+    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
+    ///   `EmailActionCoordinator.markNotSpamEmail(_:selectNext:)`.
     func unspam(_ messageID: String) async {
         await performOptimisticAction(
             messageID,
@@ -725,6 +750,8 @@ final class MailboxViewModel {
     }
 
     /// Marks a message as spam. Optimistic DB write → API call → revert on failure.
+    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
+    ///   `EmailActionCoordinator.markSpamEmail(_:selectNext:)`.
     func spam(_ messageID: String) async {
         await performOptimisticAction(
             messageID,
@@ -737,10 +764,16 @@ final class MailboxViewModel {
         )
     }
 
+    /// Adds a user label to a message. Handles optimistic DB update, offline queue, and API call.
+    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
+    ///   `EmailActionCoordinator.addLabelToEmail(_:to:)`.
     func addLabel(_ labelID: String, to messageID: String) async {
         await modifyLabel(labelID, on: messageID, isAdding: true)
     }
 
+    /// Creates a new label and adds it to a message.
+    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
+    ///   `EmailActionCoordinator.createAndAddLabelToEmail(name:to:)`.
     @discardableResult
     func createAndAddLabel(name: String, to messageID: String) async -> String? {
         do {
@@ -755,6 +788,9 @@ final class MailboxViewModel {
         }
     }
 
+    /// Removes a user label from a message. Handles optimistic DB update, offline queue, and API call.
+    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
+    ///   `EmailActionCoordinator.removeLabelFromEmail(_:from:)`.
     func removeLabel(_ labelID: String, from messageID: String) async {
         await modifyLabel(labelID, on: messageID, isAdding: false)
     }
@@ -764,7 +800,7 @@ final class MailboxViewModel {
         let removeIDs = isAdding ? [] : [labelID]
         let original  = await updateLabelsInDatabase(messageID, addLabelIds: addIDs, removeLabelIds: removeIDs)
         guard NetworkMonitor.shared.isConnected else {
-            OfflineActionQueue.shared.enqueue(OfflineAction(
+            await OfflineActionQueue.shared.enqueue(OfflineAction(
                 actionType: isAdding ? .addLabel : .removeLabel,
                 messageIds: [messageID],
                 accountID: accountID,

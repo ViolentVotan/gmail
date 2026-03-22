@@ -154,7 +154,7 @@ final class EmailDetailViewModel {
                             $0.fullBodyFetched == true && $0.bodyHtml != nil && $0.preprocessedHtml == nil
                         }
                         if !recordsToBackfill.isEmpty {
-                            Task.detached { [db] in
+                            let t = Task<Void, Never>.detached { [db] in
                                 try? await db.dbPool.write { dbConn in
                                     for record in recordsToBackfill {
                                         guard let html = record.bodyHtml else { continue }
@@ -170,6 +170,7 @@ final class EmailDetailViewModel {
                                     }
                                 }
                             }
+                            backgroundTasks.withLock { $0.append(t) }
                         }
                     }
                 }

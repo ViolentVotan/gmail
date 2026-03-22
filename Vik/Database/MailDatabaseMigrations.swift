@@ -24,6 +24,7 @@ enum MailDatabaseMigrations {
         registerV17(&migrator)
         registerV18(&migrator)
         registerV19(&migrator)
+        registerV20(&migrator)
         return migrator
     }
 
@@ -540,6 +541,25 @@ enum MailDatabaseMigrations {
                 t.add(column: "quoted_html", .text)
                 t.add(column: "preprocessing_version", .integer)
             }
+        }
+    }
+
+    private static func registerV20(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v20_fts_insert_trigger") { db in
+            // Add AFTER INSERT trigger for FTS so new messages are indexed immediately
+            // without requiring a separate FTSManager.update call.
+            // The WHEN clause skips rows with no searchable content (e.g. stub records).
+            try db.execute(sql: """
+                CREATE TRIGGER IF NOT EXISTS messages_fts_insert
+                AFTER INSERT ON messages
+                WHEN NEW.subject IS NOT NULL OR NEW.body_plain IS NOT NULL
+                    OR NEW.snippet IS NOT NULL OR NEW.sender_name IS NOT NULL
+                    OR NEW.sender_email IS NOT NULL
+                BEGIN
+                    INSERT INTO messages_fts(gmail_id, subject, body_plain, snippet, sender_name, sender_email)
+                    VALUES (NEW.gmail_id, NEW.subject, NEW.body_plain, NEW.snippet, NEW.sender_name, NEW.sender_email);
+                END
+            """)
         }
     }
 }
