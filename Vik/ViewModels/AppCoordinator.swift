@@ -289,6 +289,35 @@ final class AppCoordinator {
         }
     }
 
+    /// One-time Pub/Sub initialization on app launch.
+    /// Stores the task in SyncCoordinator for lifecycle management.
+    func startPubSub() {
+        sync.pubSubTask = Task { [weak self] in
+            guard let self else { return }
+            let accounts = AccountStore.shared.accounts
+            guard let first = accounts.first else { return }
+
+            // Register watches for ALL accounts
+            for account in accounts {
+                await sync.watchService.registerWatch(accountID: account.id)
+            }
+
+            // Start pull loop with first account's token
+            await sync.pubSubService.start(tokenAccountID: first.id)
+
+            // Start daily renewal
+            await sync.watchService.startRenewalLoop(accountIDs: accounts.map(\.id))
+        }
+    }
+
+    /// Stops all Pub/Sub watches and pull loop. Call on app termination.
+    func stopPubSub() {
+        Task {
+            await sync.watchService.stopAll()
+            await sync.pubSubService.stop()
+        }
+    }
+
     // MARK: - Shared Account Setup
 
     private func setupAccount(_ id: String) async {
@@ -325,6 +354,12 @@ final class AppCoordinator {
             guard !Task.isCancelled, navigation.selectedAccountID == id else { return }
             sync.setSyncEngine(engine)
             await engine.start()
+
+            // Wire Pub/Sub: set active engine and enable backup polling
+            if let email = AccountStore.shared.accounts.first(where: { $0.id == id })?.email {
+                await sync.pubSubService.setActiveEngine(email: email, engine: engine)
+            }
+            await engine.setPubSubActive(true)
         }
         guard !Task.isCancelled, navigation.selectedAccountID == id else { return }
         await indexer.setProgressUpdate { [weak self] in
@@ -498,6 +533,7 @@ final class AppCoordinator {
                 await OfflineActionQueue.shared.load(accountID: addedID)
                 await UnsubscribeService.shared.load(accountID: addedID)
             }
+            Task { await sync.watchService.registerWatch(accountID: addedID) }
         }
 
         for removedID in removedIDs {
@@ -517,6 +553,21 @@ final class AppCoordinator {
             UserDefaults.standard.removeObject(forKey: UserDefaultsKey.attachmentExclusionRules(removedID))
             UserDefaults.standard.removeObject(forKey: Self.replyDraftsKey(for: removedID))
             UserDefaults.standard.removeObject(forKey: Self.migrationKey(for: removedID))
+            Task {
+                await sync.watchService.stopWatch(accountID: removedID)
+                // If removed account was the Pub/Sub token account, switch to next available
+                if await sync.pubSubService.tokenAccountID == removedID {
+                    if let next = accounts.first {
+                        await sync.pubSubService.setTokenAccountID(next.id)
+                    }
+                }
+            }
+        }
+        if accounts.isEmpty {
+            Task {
+                await sync.pubSubService.stop()
+                await sync.watchService.stopAll()
+            }
         }
         if removedIDs == previousIDs, !removedIDs.isEmpty {
             Task { await SpotlightIndexer.shared.deleteAllItems() }

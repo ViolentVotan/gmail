@@ -648,6 +648,14 @@ struct ContentView: View {
                     showGmailScopesAlert = true
                 }
             }
+            .task {
+                coordinator.startPubSub()
+            }
+            .task {
+                for await _ in NotificationCenter.default.notifications(named: NSApplication.willTerminateNotification) {
+                    coordinator.stopPubSub()
+                }
+            }
     }
 
 }
