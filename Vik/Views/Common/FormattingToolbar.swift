@@ -495,7 +495,7 @@ struct ColorPickerPopover: View {
                                     .overlay(
                                         RoundedRectangle(cornerRadius: CornerRadius.xs)
                                             .stroke(
-                                                isSelected(color) ? Color.white : Color.white.opacity(0.15),
+                                                isSelected(color) ? Color.primary : Color.primary.opacity(OpacityToken.interactive),
                                                 lineWidth: isSelected(color) ? 2 : 1
                                             )
                                     )
@@ -504,6 +504,7 @@ struct ColorPickerPopover: View {
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel("Text color: \(colorName(for: color))")
+                            .accessibilityAddTraits(isSelected(color) ? [.isButton, .isSelected] : .isButton)
                         }
                     }
                 }

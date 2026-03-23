@@ -84,7 +84,6 @@ struct AvatarView: View {
             }
         }
         .frame(width: size, height: size)
-        .glassEffect(.regular, in: .circle)
         .accessibilityLabel("\(initials) avatar")
         .accessibilityAddTraits(.isImage)
         .task(id: avatarURL) {

@@ -479,8 +479,7 @@ private struct ActionBarButton: View {
             .foregroundStyle(isDestructive ? SemanticColor.error : Color.primary)
             .padding(.horizontal, Spacing.sm)
             .padding(.vertical, 5)
-            .background(isHovered ? Color.primary.opacity(OpacityToken.tag) : Color.clear)
-            .clipShape(.rect(cornerRadius: CornerRadius.sm))
+            .glassEffect(isHovered ? .regular.interactive() : .identity, in: .rect(cornerRadius: CornerRadius.sm))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)

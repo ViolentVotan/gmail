@@ -18,7 +18,7 @@ struct SignaturesSettingsView: View {
             } else if let error = errorMessage {
                 VStack(spacing: 8) {
                     Image(systemName: "exclamationmark.triangle")
-                        .font(.largeTitle)
+                        .font(Typography.emptyStateIcon)
                         .foregroundStyle(.secondary)
                     Text(error)
                         .font(Typography.footnote)

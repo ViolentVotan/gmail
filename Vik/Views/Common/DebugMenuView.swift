@@ -26,6 +26,7 @@ struct DebugMenuView: View {
     private let logger = APILogger.shared
     @State private var viewModel = DebugViewModel()
     @State private var expandedEntryID: UUID?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -140,7 +141,7 @@ struct DebugMenuView: View {
 
             // ── Collapsed header ──
             Button {
-                withAnimation(VikAnimation.springSnappy) {
+                withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                     expandedEntryID = isExpanded ? nil : entry.id
                 }
             } label: {

@@ -429,7 +429,7 @@ final class AppCoordinator {
         mailboxViewModel.accountID = id
         AccountStore.shared.selectedAccountID = id
         compose.loadSignatures(for: id)
-        withAnimation(VikAnimation.folderSwitch) {
+        withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.folderSwitch) {
             navigation.selectedFolder = .inbox
             navigation.selectedInboxCategory = .all
             navigation.selectedLabel = nil

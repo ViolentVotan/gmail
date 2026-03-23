@@ -13,6 +13,7 @@ struct AttachmentPreviewView: View {
 
     @State private var zoomScale: CGFloat = 1.0
     @State private var decodedImage: NSImage?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var fileExtension: String {
         (fileName as NSString).pathExtension.lowercased()
@@ -49,7 +50,7 @@ struct AttachmentPreviewView: View {
             if fileType == .image {
                 HStack(spacing: 4) {
                     Button {
-                        withAnimation(VikAnimation.springSnappy) {
+                        withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                             zoomScale = max(0.25, zoomScale - 0.25)
                         }
                     } label: {
@@ -69,7 +70,7 @@ struct AttachmentPreviewView: View {
                         .frame(minWidth: 36)
 
                     Button {
-                        withAnimation(VikAnimation.springSnappy) {
+                        withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                             zoomScale = min(4.0, zoomScale + 0.25)
                         }
                     } label: {
@@ -84,7 +85,7 @@ struct AttachmentPreviewView: View {
                     .accessibilityLabel("Zoom in")
 
                     Button {
-                        withAnimation(VikAnimation.springSnappy) { zoomScale = 1.0 }
+                        withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) { zoomScale = 1.0 }
                     } label: {
                         Image(systemName: "1.magnifyingglass")
                             .font(Typography.body)
@@ -155,7 +156,7 @@ struct AttachmentPreviewView: View {
                         .resizable()
                         .frame(width: displayW, height: displayH)
                         .padding(24)
-                        .animation(VikAnimation.springSnappy, value: zoomScale)
+                        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: zoomScale)
                 } else {
                     corruptedFileView
                         .frame(width: geo.size.width, height: geo.size.height)
@@ -199,7 +200,7 @@ struct AttachmentPreviewView: View {
                     .fill(.quaternary)
                     .frame(width: 72, height: 72)
                 Image(systemName: fileType.rawValue)
-                    .font(.largeTitle)
+                    .font(Typography.emptyStateMediumIcon)
                     .foregroundStyle(.tertiary)
             }
 
@@ -234,7 +235,7 @@ struct AttachmentPreviewView: View {
         VStack(spacing: 12) {
             Spacer()
             Image(systemName: "exclamationmark.triangle")
-                .font(.largeTitle)
+                .font(Typography.emptyStateIcon)
                 .foregroundStyle(.tertiary)
             Text("Could not render this file")
                 .font(Typography.callout)

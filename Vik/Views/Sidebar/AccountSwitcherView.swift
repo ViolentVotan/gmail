@@ -68,9 +68,14 @@ struct AccountSwitcherView: View {
                 Circle()
                     .strokeBorder(style: StrokeStyle(lineWidth: 1.5, dash: [3, 3]))
                     .foregroundStyle(.secondary)
-                Image(systemName: "plus")
-                    .font(.system(size: size * 0.32, weight: .medium))
-                    .foregroundStyle(.secondary)
+                if isSigningIn {
+                    ProgressView()
+                        .controlSize(.small)
+                } else {
+                    Image(systemName: "plus")
+                        .font(.system(size: size * 0.32, weight: .medium))
+                        .foregroundStyle(.secondary)
+                }
             }
             .frame(width: size, height: size)
             .contentShape(Circle())

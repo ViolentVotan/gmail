@@ -112,6 +112,7 @@ struct SettingsView: View {
                                     try await onReauthorize?(accountID, NSApp.keyWindow)
                                 } catch {
                                     syncDirectoryContacts = false
+                                    ToastManager.shared.show(message: "Failed to enable contact sync", type: .error)
                                 }
                             }
                         }

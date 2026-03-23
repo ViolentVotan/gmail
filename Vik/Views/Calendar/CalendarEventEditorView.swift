@@ -593,8 +593,7 @@ private struct RecurringScopeButton: View {
             }
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
-            .background(isHovered ? Color.primary.opacity(OpacityToken.tag) : Color.clear)
-            .clipShape(.rect(cornerRadius: CornerRadius.md))
+            .glassEffect(isHovered ? .regular.interactive() : .identity, in: .rect(cornerRadius: CornerRadius.md))
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(label), \(subtitle)")

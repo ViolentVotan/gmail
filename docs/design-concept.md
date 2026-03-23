@@ -346,6 +346,41 @@ All animations must be interruptible. If the user clicks rapidly through emails 
 - All interactive elements have `.accessibilityLabel()` and `.help()` (macOS tooltip)
 - Navigation structure uses accessibility rotors for folders, unread, starred, attachments
 - State changes announced via `.accessibilityValue()` (selected, expanded, unread count)
+- Hover-revealed actions (e.g., email row quick actions) remain accessible — never use `.accessibilityHidden(true)` on primary actions
+
+### ViewModel Animations & Reduce Motion
+- ViewModels cannot access `@Environment(\.accessibilityReduceMotion)`. Use `NSWorkspace.reduceMotion` (from `ReduceMotionHelper.swift`) instead.
+- Pattern: `withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.springDefault) { ... }`
+- All `withAnimation` calls in ViewModels and Views must be gated on reduce motion — no exceptions.
+
+---
+
+## Design Tokens
+
+### Z-Index (`ZIndexToken`)
+Layered z-index scale for overlays — prevents magic-number drift:
+
+| Token | Value | Use |
+|-------|-------|-----|
+| `ZIndexToken.toast` | 5 | Toast notifications |
+| `ZIndexToken.panel` | 10 | Slide panels, autocomplete dropdowns |
+| `ZIndexToken.palette` | 11 | Command palette (above panels) |
+| `ZIndexToken.browser` | 20 | Web browser overlay (topmost) |
+
+### Shimmer (`ShimmerColor`)
+Adaptive shimmer highlight — white flash in dark mode, dark flash in light mode. Use instead of `Color.white` or `Color.black` for shimmer overlays:
+```swift
+ShimmerColor.highlight.opacity(OpacityToken.highlight)
+```
+
+### Google Brand (`GoogleBrandColor`)
+Static constants for the Google logo and sign-in UI. Never use raw hex strings:
+```swift
+GoogleBrandColor.blue   // #4285F4
+GoogleBrandColor.red    // #EA4335
+GoogleBrandColor.yellow // #FBBC05
+GoogleBrandColor.green  // #34A853
+```
 
 ---
 
@@ -359,9 +394,16 @@ Do not do these:
 | Decorative animation without purpose | Feels gimmicky | Every animation encodes a state change |
 | Mixing `.easeInOut` with springs | Inconsistent timing feel | Springs everywhere, `.smooth` for crossfades only |
 | Glass on static text/labels | Dilutes the interactive signal | Glass = clickable |
+| Glass on static decorative indicators | Competes with intentional color fill | Remove glass from today circles, avatars |
 | Instant content replacement | Loses spatial context | Always crossfade or directionally transition |
 | Truncating category tabs | Feels unfinished | Scroll or abbreviate |
 | White HTML on dark chrome without blending | Harsh visual hole | Gradient vignette at boundaries |
 | Independent animation timings per view | Feels disconnected | Use `VikAnimation` tokens exclusively |
 | Hover-only affordances | Inaccessible on trackpad | All hover states have a visible resting state equivalent |
 | Multiple primary CTAs per context | Decision paralysis | One primary (compose), rest secondary |
+| `Color.white`/`Color.black` in shimmer | Invisible in opposite mode | Use `ShimmerColor.highlight` (adaptive) |
+| Hardcoded `.background(isHovered ? Color...)` | Breaks glass language | Use `.glassEffect(isHovered ? .regular.interactive() : .identity, ...)` |
+| `withAnimation` without reduce-motion guard | Accessibility violation | Gate on `reduceMotion` / `NSWorkspace.reduceMotion` |
+| `.accessibilityHidden(true)` on actions | Hides primary interactions from VoiceOver | Only hide purely decorative elements |
+| Raw hex strings for brand colors | Drift, inconsistency | Use `GoogleBrandColor` / `BrandColor` tokens |
+| Inline z-index magic numbers | Ordering bugs | Use `ZIndexToken` enum |

@@ -51,7 +51,7 @@ final class SyncProgressManager {
             deferralTask = Task {
                 try? await Task.sleep(for: syncShowDelay)
                 guard !Task.isCancelled, syncPending else { return }
-                withAnimation(VikAnimation.springSnappy) {
+                withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.springSnappy) {
                     phase = .syncing(remaining: nil)
                 }
                 deferralTask = nil
@@ -65,13 +65,13 @@ final class SyncProgressManager {
         if remaining >= 50, syncPending, case .idle = phase {
             deferralTask?.cancel()
             deferralTask = nil
-            withAnimation(VikAnimation.springSnappy) {
+            withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.springSnappy) {
                 phase = .syncing(remaining: remaining)
             }
             return
         }
         guard case .syncing = phase else { return }
-        withAnimation(VikAnimation.springDefault) {
+        withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.springDefault) {
             phase = .syncing(remaining: remaining >= 50 ? remaining : nil)
         }
     }
@@ -83,7 +83,7 @@ final class SyncProgressManager {
         syncPending = false
         lingerTask?.cancel()
         lingerTask = nil
-        withAnimation(VikAnimation.springDefault) {
+        withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.springDefault) {
             phase = .initialSync(synced: synced, estimated: estimated)
         }
     }
@@ -99,7 +99,7 @@ final class SyncProgressManager {
         syncPending = false
         lingerTask?.cancel()
         lingerTask = nil
-        withAnimation(VikAnimation.springDefault) {
+        withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.springDefault) {
             phase = .bodyPrefetch(remaining: remaining)
         }
     }
@@ -116,7 +116,7 @@ final class SyncProgressManager {
             phase = .idle(lastSynced: lastSynced)
             return
         }
-        withAnimation(VikAnimation.springDefault) {
+        withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.springDefault) {
             phase = .success
         }
         scheduleDismiss(after: successLinger)
@@ -132,7 +132,7 @@ final class SyncProgressManager {
             // Spinner was never shown — skip error display for silent failures
             return
         }
-        withAnimation(VikAnimation.springDefault) {
+        withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.springDefault) {
             phase = .error(message)
         }
         scheduleDismiss(after: errorLinger)
@@ -165,7 +165,7 @@ final class SyncProgressManager {
         lingerTask = Task {
             try? await Task.sleep(for: delay)
             guard !Task.isCancelled else { return }
-            withAnimation(VikAnimation.springGentle) {
+            withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.springGentle) {
                 phase = .idle(lastSynced: lastSynced)
             }
         }

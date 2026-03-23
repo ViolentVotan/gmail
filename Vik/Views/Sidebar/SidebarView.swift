@@ -150,7 +150,7 @@ struct SidebarView: View {
         action: @escaping () -> Void
     ) -> some View {
         Button {
-            withAnimation(VikAnimation.contentSwitch) { action() }
+            withAnimation(reduceMotion ? nil : VikAnimation.contentSwitch) { action() }
         } label: {
             HStack(spacing: Spacing.xs) {
                 Image(systemName: icon)
@@ -281,6 +281,7 @@ struct SidebarView: View {
         .help(folder.rawValue)
         .frame(maxWidth: .infinity)
         .accessibilityLabel(folder.rawValue)
+        .accessibilityValue("")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 

@@ -10,6 +10,8 @@ struct MiniAgendaWidget: View {
     @State private var cachedSortedEvents: [CalendarEvent] = []
     @State private var isEvening: Bool = false
     @State private var headerTitle: String = "Today"
+    @State private var hoveredEventID: String?
+    @State private var isHeaderHovered: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.xs) {
@@ -48,6 +50,10 @@ struct MiniAgendaWidget: View {
             }
         }
         .buttonStyle(.plain)
+        .padding(.horizontal, Spacing.xs)
+        .padding(.vertical, 2)
+        .glassEffect(isHeaderHovered ? .regular.interactive() : .identity, in: .rect(cornerRadius: CornerRadius.sm))
+        .onHover { isHeaderHovered = $0 }
         .accessibilityLabel("\(headerTitle) calendar events")
         .accessibilityHint("Opens full calendar view")
     }
@@ -99,6 +105,10 @@ struct MiniAgendaWidget: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .glassEffect(hoveredEventID == event.id ? .regular.interactive() : .identity, in: .rect(cornerRadius: CornerRadius.sm))
+        .onHover { hovering in
+            hoveredEventID = hovering ? event.id : nil
+        }
         .accessibilityLabel("\(event.summary), \(timeLabel)")
         .accessibilityHint("Opens event details")
     }

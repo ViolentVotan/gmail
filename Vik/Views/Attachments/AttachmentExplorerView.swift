@@ -163,6 +163,7 @@ struct AttachmentExplorerView: View {
                 panelCoordinator.previewAttachment(data: data, name: attachment.filename, fileType: fileType)
             } catch {
                 Self.logger.error("Preview failed: \(error, privacy: .public)")
+                ToastManager.shared.show(message: "Could not preview attachment", type: .error)
             }
         }
     }

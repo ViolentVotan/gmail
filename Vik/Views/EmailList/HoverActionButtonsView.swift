@@ -80,7 +80,7 @@ struct HoverActionButtonsView: View {
             }
             .padding(.horizontal, Spacing.sm)
             .padding(.vertical, Spacing.xs)
-            .glassEffect(.regular, in: .capsule)
+            .glassEffect(.regular.interactive(), in: .capsule)
             .symbolEffect(.bounce, value: actionTrigger)
             .sensoryFeedback(.impact(flexibility: .soft), trigger: actionTrigger)
             .padding(.trailing, Spacing.lg)
@@ -88,7 +88,6 @@ struct HoverActionButtonsView: View {
             .scaleEffect(isHovered ? 1 : 0.9, anchor: .trailing)
             .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
             .allowsHitTesting(isHovered)
-            .accessibilityHidden(true)
         }
     }
 

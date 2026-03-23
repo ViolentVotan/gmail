@@ -112,6 +112,7 @@ fileprivate struct UndoProgressBar: View {
     let undoDuration: Int
     let onSecondTick: (Int) -> Void
     fileprivate var undoMgr = UndoActionManager.shared
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     fileprivate init(undoDuration: Int, onSecondTick: @escaping (Int) -> Void) {
         self.undoDuration = undoDuration
@@ -122,9 +123,9 @@ fileprivate struct UndoProgressBar: View {
         ZStack(alignment: .leading) {
             Rectangle().fill(.separator)
             Rectangle()
-                .fill(Color.accentColor.opacity(0.7))
+                .fill(Color.accentColor.opacity(OpacityToken.secondary))
                 .scaleEffect(x: undoMgr.progress, y: 1, anchor: .leading)
-                .animation(VikAnimation.progressBar, value: undoMgr.progress)
+                .animation(reduceMotion ? nil : VikAnimation.progressBar, value: undoMgr.progress)
         }
         .frame(height: 3)
         .onAppear {

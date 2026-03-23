@@ -286,17 +286,17 @@ struct EmailDetailView: View {
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
                             .background(Color.accentColor.opacity(OpacityToken.highlight))
-                            .foregroundStyle(Color.accentColor.opacity(0.7))
+                            .foregroundStyle(Color.accentColor.opacity(OpacityToken.secondary))
                             .clipShape(Capsule())
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Add label: \(suggestion.name)")
                         .transition(
                             .opacity.combined(with: .scale(scale: 0.9))
-                                .animation(VikAnimation.springSnappy.delay(Double(min(index, 8)) * DurationToken.stagger))
+                                .animation(reduceMotion ? nil : VikAnimation.springSnappy.delay(Double(min(index, 8)) * DurationToken.stagger))
                         )
                     }
-                    .animation(VikAnimation.springSnappy, value: labelSuggestions.count)
+                    .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: labelSuggestions.count)
                 }
             }
             .padding(.horizontal, Spacing.xl)
@@ -379,7 +379,7 @@ struct EmailDetailView: View {
                     Spacer()
                     if expandedCount > 1 {
                         Button {
-                            withAnimation(VikAnimation.springSnappy) {
+                            withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                                 userToggledMessageIDs = []
                                 expandedCount = 1
                             }
@@ -434,7 +434,7 @@ struct EmailDetailView: View {
                 let isCurrentlyExpanded = isMessageExpanded(message)
                 let isExpanding = !isCurrentlyExpanded
                 let delay = isExpanding ? Double(min(index, 8)) * DurationToken.stagger : 0
-                withAnimation(VikAnimation.springSnappy.delay(delay)) {
+                withAnimation(reduceMotion ? nil : VikAnimation.springSnappy.delay(delay)) {
                     if userToggledMessageIDs.contains(message.id) {
                         userToggledMessageIDs.remove(message.id)
                     } else {

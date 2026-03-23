@@ -114,7 +114,7 @@ struct LabelEditorView: View {
                     Image(systemName: "plus")
                         .font(Typography.captionSmall)
                         .foregroundStyle(.secondary)
-                        .frame(width: 22, height: 22)
+                        .frame(width: ButtonSize.md, height: ButtonSize.md)
                         .glassOrMaterial(in: .capsule, interactive: true)
                 }
                 .buttonStyle(.plain)

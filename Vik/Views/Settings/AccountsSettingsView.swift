@@ -168,7 +168,7 @@ struct AccountsSettingsView: View {
             } label: {
                 Image(systemName: "chevron.up")
                     .font(.caption2)
-                    .frame(width: 18, height: 18)
+                    .frame(width: ButtonSize.md, height: ButtonSize.md)
             }
             .buttonStyle(.borderless)
             .disabled(index == 0)
@@ -183,7 +183,7 @@ struct AccountsSettingsView: View {
             } label: {
                 Image(systemName: "chevron.down")
                     .font(.caption2)
-                    .frame(width: 18, height: 18)
+                    .frame(width: ButtonSize.md, height: ButtonSize.md)
             }
             .buttonStyle(.borderless)
             .disabled(index == accounts.count - 1)

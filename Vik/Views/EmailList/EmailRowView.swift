@@ -158,7 +158,7 @@ struct EmailRowView: View, Equatable {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 12) {
-                // Unread indicator
+                // Unread indicator: filled accent dot + bold sender text provide dual visual cues
                 Circle()
                     .fill(email.isRead ? Color.clear : Color.accentColor)
                     .frame(width: dotSize, height: dotSize)

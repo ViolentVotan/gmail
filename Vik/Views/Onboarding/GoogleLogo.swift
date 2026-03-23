@@ -19,13 +19,13 @@ struct GoogleLogo: View {
             }
 
             // Blue arc (right / bottom-right) — 315° to 50°
-            context.fill(arcPath(startAngle: -14, endAngle: 50), with: .color(Color(hex: "#4285F4")))
+            context.fill(arcPath(startAngle: -14, endAngle: 50), with: .color(GoogleBrandColor.blue))
             // Green arc (bottom) — 50° to 150°
-            context.fill(arcPath(startAngle: 50, endAngle: 150), with: .color(Color(hex: "#34A853")))
+            context.fill(arcPath(startAngle: 50, endAngle: 150), with: .color(GoogleBrandColor.green))
             // Yellow arc (left / bottom-left) — 150° to 230°
-            context.fill(arcPath(startAngle: 150, endAngle: 230), with: .color(Color(hex: "#FBBC05")))
+            context.fill(arcPath(startAngle: 150, endAngle: 230), with: .color(GoogleBrandColor.yellow))
             // Red arc (top) — 230° to 315°
-            context.fill(arcPath(startAngle: 230, endAngle: 315), with: .color(Color(hex: "#EA4335")))
+            context.fill(arcPath(startAngle: 230, endAngle: 315), with: .color(GoogleBrandColor.red))
 
             // Horizontal bar (the crossbar of the "G") — blue
             let barRect = CGRect(
@@ -34,7 +34,7 @@ struct GoogleLogo: View {
                 width: s * 0.52,
                 height: barHeight
             )
-            context.fill(Path(barRect), with: .color(Color(hex: "#4285F4")))
+            context.fill(Path(barRect), with: .color(GoogleBrandColor.blue))
         }
         .aspectRatio(1, contentMode: .fit)
     }

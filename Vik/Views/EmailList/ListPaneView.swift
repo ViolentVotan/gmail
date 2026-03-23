@@ -73,7 +73,7 @@ struct ListPaneView: View {
             )
                 .id("\(selectedFolder.rawValue)-\((selectedInboxCategory ?? .all).rawValue)")
                 .transition(.asymmetric(
-                    insertion: .opacity,
+                    insertion: .opacity.combined(with: .offset(y: OffsetToken.nudge)),
                     removal: .opacity.combined(with: .offset(y: -OffsetToken.nudge))
                 ))
                 .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: selectedInboxCategory)

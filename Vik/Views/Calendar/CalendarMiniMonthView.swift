@@ -37,7 +37,7 @@ struct CalendarMiniMonthView: View {
             } label: {
                 Image(systemName: "chevron.left")
                     .font(Typography.calendarMiniEventTitle)
-                    .frame(width: 24, height: 24)
+                    .frame(width: ButtonSize.md, height: ButtonSize.md)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.glass)
@@ -61,7 +61,7 @@ struct CalendarMiniMonthView: View {
             } label: {
                 Image(systemName: "chevron.right")
                     .font(Typography.calendarMiniEventTitle)
-                    .frame(width: 24, height: 24)
+                    .frame(width: ButtonSize.md, height: ButtonSize.md)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.glass)
@@ -123,12 +123,14 @@ struct CalendarMiniMonthView: View {
     @ViewBuilder
     private func dayCell(_ date: Date, inSelectedWeek: Bool) -> some View {
         let cal = Calendar.current
+        let hasEvents = !viewModel.eventsForDay(date).isEmpty
         MiniMonthDayCell(
             date: date,
             dayNumber: cal.component(.day, from: date),
             isToday: cal.isDateInToday(date),
             isSelected: cal.isDate(date, inSameDayAs: viewModel.selectedDate),
             isInCurrentMonth: cal.isDate(date, equalTo: viewModel.selectedDate, toGranularity: .month),
+            hasEvents: hasEvents,
             onSelectDate: { viewModel.selectDate($0) }
         )
     }
@@ -194,6 +196,7 @@ private struct MiniMonthDayCell: View {
     let isToday: Bool
     let isSelected: Bool
     let isInCurrentMonth: Bool
+    let hasEvents: Bool
     let onSelectDate: (Date) -> Void
 
     @State private var isHovered = false
@@ -228,7 +231,7 @@ private struct MiniMonthDayCell: View {
             isHovered = hovering
         }
         .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
-        .accessibilityLabel(date.formatted(date: .complete, time: .omitted))
+        .accessibilityLabel("\(date.formatted(date: .complete, time: .omitted))\(hasEvents ? ", has events" : "")")
         .accessibilityAddTraits(isToday ? [.isButton, .isSelected] : .isButton)
         .accessibilityHidden(!isInCurrentMonth)
     }

@@ -63,7 +63,7 @@ final class PanelCoordinator {
         attachmentPreviewName = name
         attachmentPreviewFileType = fileType
         if !showAttachmentPreview {
-            withAnimation(VikAnimation.springDefault) {
+            withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.springDefault) {
                 showAttachmentPreview = true
             }
         }
@@ -79,7 +79,7 @@ final class PanelCoordinator {
         originalMessage = msg
         originalRawSource = nil
         isLoadingOriginal = true
-        withAnimation(VikAnimation.springDefault) {
+        withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.springDefault) {
             showOriginal = true
         }
         originalMessageTask?.cancel()
@@ -98,7 +98,7 @@ final class PanelCoordinator {
     func showEmail(_ email: Email, accountID: String) {
         previewEmail = email
         previewAccountID = accountID
-        withAnimation(VikAnimation.springDefault) {
+        withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.springDefault) {
             showEmailPreview = true
         }
     }
@@ -111,7 +111,7 @@ final class PanelCoordinator {
             return
         }
         webBrowserURL = url
-        withAnimation(VikAnimation.springSnappy) {
+        withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.springSnappy) {
             showWebBrowser = true
         }
     }

@@ -75,7 +75,7 @@ struct OnboardingView: View {
         }
         .onChange(of: reduceMotion) { _, newValue in
             if newValue {
-                withAnimation(.easeOut(duration: 0.3)) {
+                withAnimation(nil) {
                     orb1Offset = .zero
                     orb2Offset = .zero
                     orb3Offset = .zero

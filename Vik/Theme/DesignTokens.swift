@@ -33,6 +33,15 @@ enum CornerRadius {
     static let xxl: CGFloat = 32
 }
 
+// MARK: - Google Brand Colors
+
+enum GoogleBrandColor {
+    static let blue   = Color(red: 0.263, green: 0.522, blue: 0.957)  // #4285F4
+    static let red    = Color(red: 0.918, green: 0.263, blue: 0.208)  // #EA4335
+    static let yellow = Color(red: 0.984, green: 0.737, blue: 0.020)  // #FBBC05
+    static let green  = Color(red: 0.204, green: 0.659, blue: 0.325)  // #34A853
+}
+
 // MARK: - Brand Colors
 
 enum BrandColor {
@@ -158,6 +167,29 @@ enum OpacityToken {
     static let divider: CGFloat = 0.5
     /// Modal/scrim overlays
     static let overlay: CGFloat = 0.45
+}
+
+// MARK: - Shimmer
+
+enum ShimmerColor {
+    /// Adaptive shimmer highlight — white flash in dark mode, dark flash in light mode.
+    static let highlight = Color.adaptive(
+        light: (red: 0.0, green: 0.0, blue: 0.0),
+        dark:  (red: 1.0, green: 1.0, blue: 1.0)
+    )
+}
+
+// MARK: - Z-Index
+
+enum ZIndexToken {
+    /// Toast notifications
+    static let toast: Double = 5
+    /// Slide panels, autocomplete dropdowns
+    static let panel: Double = 10
+    /// Command palette (above panels)
+    static let palette: Double = 11
+    /// Web browser overlay (topmost)
+    static let browser: Double = 20
 }
 
 // MARK: - Scale Tokens

@@ -44,7 +44,7 @@ struct ContentShimmerView: View {
 
     private var shimmerOverlay: some View {
         LinearGradient(
-            colors: [.clear, .white.opacity(0.08), .clear],
+            colors: [.clear, ShimmerColor.highlight.opacity(OpacityToken.highlight), .clear],
             startPoint: .leading,
             endPoint: .trailing
         )

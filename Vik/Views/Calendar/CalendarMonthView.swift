@@ -411,7 +411,6 @@ private struct CalendarMonthDayCell: View {
                     if content.isToday {
                         Circle()
                             .fill(CalendarSemanticColor.todayHeaderCircle)
-                            .glassEffect(.regular, in: .circle)
                     }
                 }
         }

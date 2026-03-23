@@ -26,7 +26,7 @@ struct BulkActionBarView: View {
             Spacer()
 
             Image(systemName: "checkmark.circle.fill")
-                .font(.largeTitle)
+                .font(Typography.emptyStateMediumIcon)
                 .foregroundStyle(.tint)
 
             Text("\(count) emails selected")

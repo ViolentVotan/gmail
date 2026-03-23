@@ -21,7 +21,7 @@ struct LabelChipView: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.caption2.weight(.bold))
-                        .foregroundStyle(chipColor.opacity(0.7))
+                        .foregroundStyle(chipColor.opacity(OpacityToken.secondary))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Remove \(label.name) label")

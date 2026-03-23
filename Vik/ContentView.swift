@@ -171,7 +171,7 @@ struct ContentView: View {
             KeyboardShortcutsView(coordinator: coordinator)
 
             UnifiedToastLayer()
-                .zIndex(5)
+                .zIndex(ZIndexToken.toast)
 
             SlidePanelsWrapper(
                 coordinator: coordinator,
@@ -320,14 +320,14 @@ struct ContentView: View {
                 )
 
                 if commandPalette.isVisible {
-                    Color.black.opacity(OpacityToken.overlay)
+                    Color(nsColor: .windowBackgroundColor).opacity(OpacityToken.overlay)
                         .ignoresSafeArea()
                         .onTapGesture { commandPalette.dismiss() }
-                        .zIndex(10)
+                        .zIndex(ZIndexToken.panel)
 
                     CommandPaletteView(viewModel: commandPalette)
                         .matchedGeometryEffect(id: "commandPalette", in: commandPaletteNamespace)
-                        .zIndex(11)
+                        .zIndex(ZIndexToken.palette)
                         .transition(.opacity.combined(with: .scale(scale: ScaleToken.enterFrom)))
                 }
             }

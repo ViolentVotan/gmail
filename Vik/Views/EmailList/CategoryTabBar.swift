@@ -22,7 +22,7 @@ struct CategoryTabBar: View {
                             reduceMotion: reduceMotion,
                             tabNamespace: tabNamespace
                         ) {
-                            withAnimation(VikAnimation.contentSwitch) {
+                            withAnimation(reduceMotion ? nil : VikAnimation.contentSwitch) {
                                 selectedCategory = category
                             }
                         }

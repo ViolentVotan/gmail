@@ -141,7 +141,7 @@ struct AttachmentCardView: View {
             } else {
                 VStack(spacing: 4) {
                     Image(systemName: fileTypeIcon)
-                        .font(.largeTitle)
+                        .font(Typography.emptyStateMediumIcon)
                         .foregroundStyle(iconForegroundColor)
                     if !formattedSize.isEmpty {
                         Text(formattedSize)

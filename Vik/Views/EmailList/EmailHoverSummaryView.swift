@@ -3,6 +3,7 @@ import SwiftUI
 struct EmailHoverSummaryView: View {
     let email: Email
     @State private var summaryVM = EmailSummaryViewModel()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -69,7 +70,7 @@ struct EmailHoverSummaryView: View {
                     .font(Typography.subheadRegular)
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
-                    .animation(VikAnimation.typewriterReveal, value: summaryVM.displayedText)
+                    .animation(reduceMotion ? nil : VikAnimation.typewriterReveal, value: summaryVM.displayedText)
 
                 #if canImport(FoundationModels)
                 if let insight = summaryVM.insight {

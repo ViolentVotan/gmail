@@ -7,6 +7,7 @@ struct CalendarListSidebarView: View {
     var onNewEvent: () -> Void
 
     @State private var calendarsByAccount: [(accountID: String, calendars: [CalendarInfo])] = []
+    @State private var hoveredCalendarID: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -83,6 +84,10 @@ struct CalendarListSidebarView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .glassEffect(hoveredCalendarID == calendar.id ? .regular.interactive() : .identity, in: .rect(cornerRadius: CornerRadius.sm))
+        .onHover { hovering in
+            hoveredCalendarID = hovering ? calendar.id : nil
+        }
         .accessibilityLabel("\(calendar.summaryOverride ?? calendar.summary), \(calendar.isVisible ? "Visible" : "Hidden")")
         .help(calendar.summaryOverride ?? calendar.summary)
         .contextMenu {

@@ -36,7 +36,7 @@ struct SlidePanelsOverlay: View {
         SlidePanel(isPresented: $panels.showHelp, title: "Keyboard Shortcuts") {
             ShortcutsHelpView()
         }
-        .zIndex(10)
+        .zIndex(ZIndexToken.panel)
     }
 
     // MARK: - Debug
@@ -45,7 +45,7 @@ struct SlidePanelsOverlay: View {
         SlidePanel(isPresented: $panels.showDebug, title: "Debug") {
             DebugMenuView(accountID: selectedAccountID ?? authViewModel.primaryAccount?.id ?? "")
         }
-        .zIndex(10)
+        .zIndex(ZIndexToken.panel)
     }
 
     // MARK: - Original Message
@@ -67,7 +67,7 @@ struct SlidePanelsOverlay: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .zIndex(10)
+        .zIndex(ZIndexToken.panel)
     }
 
     // MARK: - Attachment Preview
@@ -91,7 +91,7 @@ struct SlidePanelsOverlay: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .zIndex(10)
+        .zIndex(ZIndexToken.panel)
     }
 
     // MARK: - Email Preview
@@ -128,7 +128,7 @@ struct SlidePanelsOverlay: View {
                 )
             }
         }
-        .zIndex(10)
+        .zIndex(ZIndexToken.panel)
     }
 
     /// Builds actions for the email preview panel, wiring everything
@@ -163,15 +163,13 @@ struct SlidePanelsOverlay: View {
         Group {
             if panels.showWebBrowser, let url = panels.webBrowserURL {
                 InAppBrowserView(url: url) {
-                    withAnimation(VikAnimation.springSnappy) {
-                        panels.showWebBrowser = false
-                    }
+                    panels.showWebBrowser = false
                 }
                 .onKeyPress(.escape) { panels.showWebBrowser = false; return .handled }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .zIndex(20)
+        .zIndex(ZIndexToken.browser)
         .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: panels.showWebBrowser)
     }
 
