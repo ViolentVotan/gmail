@@ -720,24 +720,84 @@ final class MailboxViewModel {
     /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
     ///   `EmailActionCoordinator.emptyTrashFolder()`.
     func emptyTrash() async {
-        await emptyFolder { [api, accountID] in try await api.emptyTrash(accountID: accountID) }
+        await emptyFolder(labelID: GmailSystemLabel.trash, folderName: "Trash") { [api, accountID] in
+            try await api.emptyTrash(accountID: accountID)
+        }
     }
 
     /// Permanently deletes all messages in Spam.
     /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
     ///   `EmailActionCoordinator.emptySpamFolder()`.
     func emptySpam() async {
-        await emptyFolder { [api, accountID] in try await api.emptySpam(accountID: accountID) }
+        await emptyFolder(labelID: GmailSystemLabel.spam, folderName: "Spam") { [api, accountID] in
+            try await api.emptySpam(accountID: accountID)
+        }
     }
 
-    private func emptyFolder(action: @Sendable () async throws -> Void) async {
+    private func emptyFolder(labelID: String, folderName: String, action: @Sendable () async throws -> Void) async {
+        // 1. Optimistic: remove all messages with this label from local DB immediately.
+        //    ValueObservation picks up the change → UI animates messages out.
+        let deletedCount = await deleteMessagesByLabel(labelID)
+
+        // 2. Call the API to delete on server.
         do {
             try await action()
-            // Sync engine will detect changes on next delta sync; ValueObservation updates UI.
-        } catch GmailAPIError.partialFailure {
-            ToastManager.shared.show(message: "Some messages could not be deleted", type: .error)
+            if deletedCount > 0 {
+                ToastManager.shared.show(
+                    message: "\(deletedCount) message\(deletedCount == 1 ? "" : "s") deleted from \(folderName)"
+                )
+            }
+        } catch GmailAPIError.partialFailure(let failedCount) {
+            ToastManager.shared.show(message: "\(failedCount) messages could not be deleted", type: .error)
         } catch {
-            ToastManager.shared.show(message: "Failed to empty folder", type: .error)
+            ToastManager.shared.show(message: "Failed to empty \(folderName.lowercased())", type: .error)
+            // Messages will reappear on next delta sync if API failed.
+        }
+    }
+
+    /// Deletes all message records that carry the given label from the local database.
+    /// Returns the number of messages deleted.
+    private func deleteMessagesByLabel(_ labelID: String) async -> Int {
+        guard let db = mailDatabase else { return 0 }
+        do {
+            if let syncer = backgroundSyncer {
+                // Use BackgroundSyncer for consistent FTS cleanup and thread count updates.
+                let ids = try await db.dbPool.read { database in
+                    try String.fetchAll(database, sql:
+                        "SELECT message_id FROM message_labels WHERE label_id = ?",
+                        arguments: [labelID]
+                    )
+                }
+                guard !ids.isEmpty else { return 0 }
+                try await syncer.deleteMessages(gmailIds: ids)
+                return ids.count
+            } else {
+                return try await db.dbPool.write { database in
+                    let ids = try String.fetchAll(database, sql:
+                        "SELECT message_id FROM message_labels WHERE label_id = ?",
+                        arguments: [labelID]
+                    )
+                    guard !ids.isEmpty else { return 0 }
+                    // Collect thread IDs before deletion for count updates.
+                    var affectedThreadIds = Set<String>()
+                    let chunkSize = 1000
+                    for chunkStart in stride(from: 0, to: ids.count, by: chunkSize) {
+                        let chunk = Array(ids[chunkStart..<min(chunkStart + chunkSize, ids.count)])
+                        let threadIds = try Set(String.fetchAll(database, sql:
+                            "SELECT DISTINCT thread_id FROM messages WHERE gmail_id IN (\(chunk.sqlPlaceholders))",
+                            arguments: StatementArguments(chunk)
+                        ))
+                        affectedThreadIds.formUnion(threadIds)
+                    }
+                    // CASCADE handles message_labels, email_tags, attachments.
+                    try MessageRecord.deleteAll(database, keys: ids)
+                    try MailDatabaseQueries.updateThreadCounts(for: affectedThreadIds, in: database)
+                    return ids.count
+                }
+            }
+        } catch {
+            Self.logger.error("Failed to delete messages by label \(labelID): \(error)")
+            return 0
         }
     }
 
