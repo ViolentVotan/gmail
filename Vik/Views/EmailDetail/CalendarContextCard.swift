@@ -9,39 +9,41 @@ struct CalendarContextCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "calendar.badge.clock")
-                .font(Typography.subheadSemibold)
-                .foregroundStyle(.tint)
+        Button(action: onNavigate) {
+            HStack(spacing: 10) {
+                Image(systemName: "calendar.badge.clock")
+                    .font(Typography.subheadSemibold)
+                    .foregroundStyle(.tint)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(contextLabel)
-                    .font(Typography.captionRegular)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                Text(event.summary)
-                    .font(Typography.subhead)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(contextLabel)
+                        .font(Typography.captionRegular)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                    Text(event.summary)
+                        .font(Typography.subhead)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                }
+
+                Spacer()
+
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(Typography.captionSmall)
+                        .foregroundStyle(.tertiary)
+                        .frame(width: ButtonSize.sm, height: ButtonSize.sm)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Dismiss")
             }
-
-            Spacer()
-
-            Button(action: onDismiss) {
-                Image(systemName: "xmark")
-                    .font(Typography.captionSmall)
-                    .foregroundStyle(.tertiary)
-                    .frame(width: ButtonSize.sm, height: ButtonSize.sm)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Dismiss")
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
+            .background(.regularMaterial, in: .rect(cornerRadius: CornerRadius.md))
+            .contentShape(.rect(cornerRadius: CornerRadius.md))
         }
-        .padding(.horizontal, Spacing.md)
-        .padding(.vertical, Spacing.sm)
-        .background(.regularMaterial, in: .rect(cornerRadius: CornerRadius.md))
-        .contentShape(.rect(cornerRadius: CornerRadius.md))
-        .onTapGesture(perform: onNavigate)
+        .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(contextLabel + " — " + event.summary)
         .accessibilityAddTraits(.isButton)

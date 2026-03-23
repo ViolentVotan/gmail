@@ -56,7 +56,11 @@ struct CommandPaletteView: View {
     private var commandList: some View {
         Group {
             if viewModel.filteredCommands.isEmpty {
-                ContentUnavailableView("No Results", systemImage: "magnifyingglass", description: Text(viewModel.query.isEmpty ? "Start typing a command" : "No commands match \"\(viewModel.query)\""))
+                ContentUnavailableView(
+                    viewModel.query.isEmpty ? "Commands" : "No Results",
+                    systemImage: "magnifyingglass",
+                    description: Text(viewModel.query.isEmpty ? "Start typing a command" : "No results for \"\(viewModel.query)\"")
+                )
                     .padding()
             } else {
                 ScrollView {
@@ -93,7 +97,7 @@ struct CommandPaletteView: View {
         }
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.sm)
-        .background(isSelected ? Color.accentColor.opacity(OpacityToken.interactive) : .clear)
+        .background(isSelected ? Color.accentColor.opacity(0.25) : .clear)
         .contentShape(Rectangle())
         .accessibilityLabel(command.title)
         .accessibilityAddTraits(.isButton)

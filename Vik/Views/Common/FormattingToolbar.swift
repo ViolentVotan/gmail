@@ -226,7 +226,7 @@ struct FormattingToolbar: View {
                             .fill(Color(nsColor: state.textColor))
                             .frame(width: 12, height: 2)
                     }
-                    .frame(width: ButtonSize.sm, height: ButtonSize.sm)
+                    .frame(width: 32, height: 32)
                 }
                 .buttonStyle(.plain)
                 .help("Text color")
@@ -252,7 +252,7 @@ struct FormattingToolbar: View {
                             .fill(state.highlightColor.map { Color(nsColor: $0) } ?? Color.clear)
                             .frame(width: 12, height: 2)
                     }
-                    .frame(width: ButtonSize.sm, height: ButtonSize.sm)
+                    .frame(width: 32, height: 32)
                 }
                 .buttonStyle(.plain)
                 .help("Highlight color")
@@ -295,7 +295,7 @@ struct FormattingToolbar: View {
                 Image(systemName: icon)
                     .font(isActive ? Typography.subheadBold : Typography.subheadRegular)
                     .foregroundStyle(isActive ? Color.accentColor : .secondary)
-                    .frame(width: ButtonSize.sm, height: ButtonSize.sm)
+                    .frame(width: 32, height: 32)
                     .modifier(ToggleHighlight(isActive: isActive))
                     .contentShape(Rectangle())
             }
@@ -356,7 +356,7 @@ struct FormattingToolbar: View {
                     Image(systemName: "link")
                         .font(Typography.subheadRegular)
                         .foregroundStyle(.secondary)
-                        .frame(width: ButtonSize.sm, height: ButtonSize.sm)
+                        .frame(width: 32, height: 32)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -434,7 +434,7 @@ private func toolbarButton(icon: String, tooltip: String, action: @escaping () -
         Image(systemName: icon)
             .font(Typography.subheadRegular)
             .foregroundStyle(.secondary)
-            .frame(width: ButtonSize.sm, height: ButtonSize.sm)
+            .frame(width: 32, height: 32)
             .contentShape(Rectangle())
     }
     .buttonStyle(.glass)
@@ -447,7 +447,7 @@ private func toggleButton(icon: String, tooltip: String, isActive: Bool, action:
         Image(systemName: icon)
             .font(isActive ? Typography.subheadBold : Typography.subheadRegular)
             .foregroundStyle(isActive ? Color.accentColor : .secondary)
-            .frame(width: ButtonSize.sm, height: ButtonSize.sm)
+            .frame(width: 32, height: 32)
             .modifier(ToggleHighlight(isActive: isActive))
             .contentShape(Rectangle())
     }

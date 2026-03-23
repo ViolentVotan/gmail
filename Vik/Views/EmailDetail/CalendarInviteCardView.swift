@@ -8,6 +8,7 @@ struct CalendarInviteCardView: View {
     var onAccept:  () -> Void
     var onDecline: () -> Void
     var onMaybe:   () -> Void
+    @State private var rsvpHapticTrigger = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Derived
@@ -178,6 +179,7 @@ struct CalendarInviteCardView: View {
             }
         }
         .cardStyle()
+        .sensoryFeedback(.impact(flexibility: .rigid), trigger: rsvpHapticTrigger)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Calendar invite: \(displaySummary)")
     }
@@ -188,7 +190,10 @@ struct CalendarInviteCardView: View {
     private func rsvpButton(_ label: String, icon: String, status: CalendarInvite.RSVPStatus, action: @escaping () -> Void) -> some View {
         let isSelected = currentStatus == status
 
-        Button(action: action) {
+        Button {
+            action()
+            rsvpHapticTrigger.toggle()
+        } label: {
             HStack(spacing: 5) {
                 Image(systemName: isSelected ? "checkmark" : icon)
                     .font(Typography.caption)

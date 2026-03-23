@@ -46,13 +46,16 @@ enum GoogleBrandColor {
 // MARK: - Brand Colors
 
 enum BrandColor {
-    /// Vik coral — warm accent for brand moments and onboarding.
-    static let coral  = Color(red: 0.94, green: 0.44, blue: 0.44)   // #F07070
+    /// Vik coral — warm accent for brand moments, onboarding, and current-time indicator.
+    static let coral = Color.adaptive(
+        light: (red: 0.94, green: 0.44, blue: 0.44),  // #F07070
+        dark:  (red: 1.00, green: 0.55, blue: 0.55)   // Brighter for dark backgrounds
+    )
     /// Vik blue — canonical brand color, matching AccentColor (light).
     static let blue   = Color(red: 0.227, green: 0.435, blue: 0.941) // #3A6FF0
     /// Adaptive blue for text — meets 4.5:1 contrast in both light and dark.
     static let blueText = Color.adaptive(
-        light: (red: 0.227, green: 0.435, blue: 0.941),
+        light: (red: 0.18, green: 0.38, blue: 0.88),
         dark:  (red: 0.42, green: 0.58, blue: 0.98)
     )
     /// Vik violet — onboarding bridge accent between blue and coral.
@@ -94,8 +97,9 @@ enum SemanticColor {
         dark:  (red: 0.92, green: 0.45, blue: 0.45)
     )
     /// Amber — nudge, offline, action needed, urgent.
+    /// Light variant darkened to meet WCAG 4.5:1 on white backgrounds.
     static let warning = Color.adaptive(
-        light: (red: 0.83, green: 0.56, blue: 0.20),
+        light: (red: 0.68, green: 0.44, blue: 0.06),
         dark:  (red: 0.95, green: 0.70, blue: 0.32)
     )
 }
@@ -338,6 +342,7 @@ enum Typography {
 
 struct ElevationModifier: ViewModifier {
     let level: ElevationLevel
+    @Environment(\.colorScheme) private var colorScheme
 
     enum ElevationLevel {
         /// Flat surface, no shadow
@@ -351,15 +356,16 @@ struct ElevationModifier: ViewModifier {
     }
 
     func body(content: Content) -> some View {
+        let isDark = colorScheme == .dark
         switch level {
         case .surface:
             content
         case .raised:
-            content.shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
+            content.shadow(color: (isDark ? Color.white : .black).opacity(isDark ? 0.04 : 0.06), radius: 4, x: 0, y: 2)
         case .transient:
-            content.shadow(color: .black.opacity(0.12), radius: 12, x: 0, y: 4)
+            content.shadow(color: (isDark ? Color.white : .black).opacity(isDark ? 0.08 : 0.12), radius: 12, x: 0, y: 4)
         case .elevated:
-            content.shadow(color: .black.opacity(0.18), radius: 20, x: 0, y: 8)
+            content.shadow(color: (isDark ? Color.white : .black).opacity(isDark ? 0.12 : 0.18), radius: 20, x: 0, y: 8)
         }
     }
 }
@@ -399,13 +405,16 @@ struct ToolbarIconButton: View {
     var useGlass: Bool = false
     let action: () -> Void
 
+    /// Minimum tap target per Apple HIG (44pt).
+    private var hitSize: CGFloat { max(size, 44) }
+
     var body: some View {
         Group {
             if useGlass {
                 Button(action: action) {
                     Image(systemName: icon)
                         .font(font)
-                        .frame(width: size, height: size)
+                        .frame(width: hitSize, height: hitSize)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.glass)
@@ -413,10 +422,11 @@ struct ToolbarIconButton: View {
                 Button(action: action) {
                     Image(systemName: icon)
                         .font(font)
-                        .frame(width: size, height: size)
+                        .frame(width: hitSize, height: hitSize)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .pointingHandCursor()
             }
         }
         .help(label)
@@ -445,12 +455,16 @@ extension View {
 // MARK: - Dropdown Panel Style
 
 struct DropdownPanelStyle: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+
     func body(content: Content) -> some View {
+        let isDark = colorScheme == .dark
+        let shadowBase: Color = isDark ? .white : .black
         content
             .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.md))
             .overlay(RoundedRectangle(cornerRadius: CornerRadius.md).strokeBorder(.separator, lineWidth: 1))
-            .shadow(color: .black.opacity(0.12), radius: 12, y: 6)
-            .shadow(color: .black.opacity(0.04), radius: 3, y: 2)
+            .shadow(color: shadowBase.opacity(isDark ? 0.08 : 0.12), radius: 12, y: 6)
+            .shadow(color: shadowBase.opacity(isDark ? 0.03 : 0.04), radius: 3, y: 2)
     }
 }
 
@@ -584,19 +598,11 @@ enum CalendarColor {
         }
     }
 
-    /// Whether the color is light enough that dark (black) foreground text provides better contrast.
-    /// Based on the light-mode RGB values — banana and flamingo are notably light.
-    static func needsDarkForeground(forId colorId: Int?) -> Bool {
-        switch colorId {
-        case 4:  true // flamingo — light pink
-        case 5:  true // banana — bright yellow
-        default: false
-        }
-    }
-
-    /// Returns `.black` or `.white` depending on which provides better contrast against the calendar color.
+    /// Returns `.black` or `.white` depending on which provides better contrast against the
+    /// resolved calendar color. Uses `NSColor` dynamic resolution so the result adapts to
+    /// the current light/dark appearance automatically.
     static func contrastingForeground(forId colorId: Int?) -> Color {
-        needsDarkForeground(forId: colorId) ? .black : .white
+        Color.contrastingForeground(for: NSColor(color(forId: colorId)))
     }
 }
 
@@ -619,7 +625,7 @@ enum CalendarLayout {
     /// Fixed height for all-day event chips in the header band.
     static let allDayEventHeight: CGFloat = 22
     /// Tap-target size for individual day cells in the mini month picker.
-    static let miniMonthDaySize: CGFloat = 20
+    static let miniMonthDaySize: CGFloat = 28
     /// Maximum number of events shown inline in the mini agenda before a "more" link.
     static let miniAgendaMaxEvents: Int = 5
 
@@ -693,7 +699,7 @@ enum CalendarSemanticColor {
     /// Today header circle — solid brand blue for the date number badge.
     static let todayHeaderCircle = BrandColor.blue
     /// Today header text — contrasting foreground on the today circle.
-    static let todayHeaderText = Color.white
+    static let todayHeaderText = Color.contrastingForeground(for: NSColor(BrandColor.blue))
     /// Event card background — apply `.opacity(0.15)` to the event's calendar color.
     static let eventCardBackgroundOpacity: CGFloat = 0.15
     /// Weekend column dimming opacity — subtle desaturation of Saturday/Sunday columns.
@@ -727,6 +733,21 @@ extension Color {
         let rgb = nsColor.usingColorSpace(.sRGB) ?? nsColor
         let luminance = 0.299 * rgb.redComponent + 0.587 * rgb.greenComponent + 0.114 * rgb.blueComponent
         return luminance > 0.55 ? .black : .white
+    }
+}
+
+// MARK: - Pointer Cursor
+
+extension View {
+    /// Sets the macOS cursor to a pointing hand on hover for clickable elements.
+    func pointingHandCursor() -> some View {
+        onHover { hovering in
+            if hovering {
+                NSCursor.pointingHand.push()
+            } else {
+                NSCursor.pop()
+            }
+        }
     }
 }
 

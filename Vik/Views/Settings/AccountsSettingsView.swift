@@ -168,8 +168,9 @@ struct AccountsSettingsView: View {
             } label: {
                 Image(systemName: "chevron.up")
                     .font(Typography.captionSmallRegular)
-                    .frame(width: ButtonSize.md, height: ButtonSize.md)
+                    .frame(width: 44, height: ButtonSize.md)
             }
+            .contentShape(.rect.inset(by: -8))
             .buttonStyle(.borderless)
             .disabled(index == 0)
             .accessibilityLabel("Move \(account.displayName) up")
@@ -183,8 +184,9 @@ struct AccountsSettingsView: View {
             } label: {
                 Image(systemName: "chevron.down")
                     .font(Typography.captionSmallRegular)
-                    .frame(width: ButtonSize.md, height: ButtonSize.md)
+                    .frame(width: 44, height: ButtonSize.md)
             }
+            .contentShape(.rect.inset(by: -8))
             .buttonStyle(.borderless)
             .disabled(index == accounts.count - 1)
             .accessibilityLabel("Move \(account.displayName) down")

@@ -33,7 +33,7 @@ struct ScheduleSendButton: View {
                 Image(systemName: "chevron.down")
                     .font(Typography.captionSmallRegular)
             }
-            .frame(minWidth: 28, minHeight: 28)
+            .frame(minWidth: 44, minHeight: 44)
             .accessibilityLabel("Schedule send options")
             .accessibilityHint("Opens a picker to schedule when this email will be sent")
             .popover(isPresented: $showSchedulePicker) {

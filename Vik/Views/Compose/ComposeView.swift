@@ -100,7 +100,7 @@ struct ComposeView: View {
                         Divider().padding(.horizontal, Spacing.xl)
                     }
 
-                    composeField(label: "Subject", text: $subject, placeholder: "Subject")
+                    composeField(label: "Subject", text: $subject, placeholder: "Subject", required: true)
                     Divider().padding(.horizontal, Spacing.xl)
                 }
             }
@@ -452,13 +452,20 @@ struct ComposeView: View {
 
     // MARK: - Fields
 
-    private func composeField(label: String, text: Binding<String>, placeholder: String = "") -> some View {
+    private func composeField(label: String, text: Binding<String>, placeholder: String = "", required: Bool = false) -> some View {
         HStack(spacing: 10) {
-            Text(label)
-                .font(Typography.subhead)
-                .foregroundStyle(.tertiary)
-                .frame(width: 50, alignment: .leading)
-                .accessibilityHidden(true)
+            HStack(spacing: 2) {
+                Text(label)
+                    .font(Typography.subhead)
+                    .foregroundStyle(.tertiary)
+                if required {
+                    Text("*")
+                        .foregroundStyle(SemanticColor.error)
+                        .font(Typography.caption)
+                }
+            }
+            .frame(width: 50, alignment: .leading)
+            .accessibilityHidden(true)
 
             TextField(placeholder, text: text)
                 .textFieldStyle(.plain)

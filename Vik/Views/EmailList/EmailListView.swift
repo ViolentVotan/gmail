@@ -645,7 +645,6 @@ struct EmailListView: View {
             await actions.onRefresh?()
         }
         .focusable()
-        .focusEffectDisabled(true)
         .onKeyPress(.upArrow) { navigateToPrevious(); return .handled }
         .onKeyPress(.downArrow) { navigateToNext(); return .handled }
         .onKeyPress(characters: CharacterSet(charactersIn: "e")) { _ in handleKeyE() }
@@ -683,6 +682,7 @@ struct EmailListView: View {
         }
         .frame(width: 0, height: 0)
         .opacity(0)
+        .accessibilityHidden(true)
     }
 
     // MARK: - Key handlers
@@ -785,7 +785,7 @@ private struct EmailSkeletonRowView: View {
                         .clipShape(Circle())
                 }
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     shimmerRect(width: 120, height: 10)
                     Spacer()

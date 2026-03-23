@@ -26,7 +26,8 @@ struct ComposeActionBar: View {
                     Image(systemName: "chevron.down")
                         .font(Typography.caption)
                         .foregroundStyle(.secondary)
-                        .frame(width: ButtonSize.lg, height: ButtonSize.lg)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help("Minimize")
@@ -38,7 +39,8 @@ struct ComposeActionBar: View {
                 Image(systemName: "paperclip")
                     .font(Typography.subheadRegular)
                     .foregroundStyle(.secondary)
-                    .frame(width: ButtonSize.lg, height: ButtonSize.lg)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Attach file")

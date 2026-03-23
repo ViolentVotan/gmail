@@ -245,7 +245,7 @@ private struct AgendaEventRow: View {
         }
         .buttonStyle(.plain)
         .onHover { isHovered = $0 }
-        .accessibilityLabel("\(timeRange), \(event.summary)")
+        .accessibilityLabel("\(timeRange), \(event.summary)\(isPast ? ", past event" : "")")
         .accessibilityAddTraits(.isButton)
         .help(event.summary)
     }

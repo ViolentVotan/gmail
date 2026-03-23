@@ -264,7 +264,7 @@ struct ThreadMessageCardView: View, Equatable {
         }
         .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isExpanded)
         .onChange(of: message.id) { allowRemoteImages = false }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel({
             let senderName = isSentByMe ? "Me" : sender.name
             let dateText = cachedFormattedDate ?? ""
@@ -507,6 +507,7 @@ struct ThreadMessageCardView: View, Equatable {
                 }
                 .padding(.horizontal, Spacing.xl)
                 .padding(.bottom, Spacing.md)
+                .accessibilityAction(named: "Save All Attachments") { onSaveAllAttachments?() }
             }
         }
     }

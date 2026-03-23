@@ -19,6 +19,7 @@ final class EmailHoverActions {
 struct HoverActionButtonsView: View {
     let email: Email
     let isHovered: Bool
+    let isSelected: Bool
     let selectedFolder: Folder
     @Environment(EmailHoverActions.self) private var actions
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -45,6 +46,11 @@ struct HoverActionButtonsView: View {
         ![.sent, .drafts, .scheduled].contains(selectedFolder)
     }
 
+    /// Show buttons when hovered or when the row is selected (keyboard focus).
+    private var isVisible: Bool {
+        isHovered || isSelected
+    }
+
     var body: some View {
         if hasVisibleButtons {
             HStack(spacing: 2) {
@@ -55,7 +61,7 @@ struct HoverActionButtonsView: View {
                 }
 
                 if showDelete {
-                    hoverButton("trash", help: "Move to Trash", role: .destructive) {
+                    hoverButton("trash", help: "Move to Trash. Undo available.", role: .destructive) {
                         actions.onDelete?(email)
                     }
                 }
@@ -84,10 +90,10 @@ struct HoverActionButtonsView: View {
             .symbolEffect(.bounce, value: actionTrigger)
             .sensoryFeedback(.impact(flexibility: .soft), trigger: actionTrigger)
             .padding(.trailing, Spacing.lg)
-            .opacity(isHovered ? 1 : 0)
-            .scaleEffect(isHovered ? 1 : 0.9, anchor: .trailing)
-            .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
-            .allowsHitTesting(isHovered)
+            .opacity(isVisible ? 1 : 0)
+            .scaleEffect(isVisible ? 1 : 0.9, anchor: .trailing)
+            .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isVisible)
+            .allowsHitTesting(isVisible)
         }
     }
 

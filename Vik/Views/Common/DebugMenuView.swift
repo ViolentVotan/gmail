@@ -146,12 +146,13 @@ struct DebugMenuView: View {
                 }
             } label: {
                 HStack(spacing: 6) {
+                    let badgeBackground = entry.fromCache ? Color.secondary : (entry.method == "GET" ? BrandColor.blueText : SemanticColor.warning)
                     Text(entry.fromCache ? "CACHE" : entry.method)
                         .font(.caption2.weight(.bold).monospaced())
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Color.contrastingForeground(for: NSColor(badgeBackground)))
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
-                        .background(entry.fromCache ? Color.secondary : (entry.method == "GET" ? BrandColor.blueText : SemanticColor.warning))
+                        .background(badgeBackground)
                         .clipShape(.rect(cornerRadius: CornerRadius.xs))
 
                     Text(entry.shortPath)

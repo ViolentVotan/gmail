@@ -15,6 +15,12 @@ struct FilterEditorView: View {
     @State private var shouldMarkRead = false
     @State private var isSaving = false
     @State private var error: String?
+    @State private var showDiscardAlert = false
+
+    private var hasChanges: Bool {
+        !from.isEmpty || !to.isEmpty || !subject.isEmpty || !query.isEmpty
+            || hasAttachment || shouldArchive || shouldMarkRead
+    }
 
     var body: some View {
         Form {
@@ -41,9 +47,24 @@ struct FilterEditorView: View {
         .formStyle(.grouped)
         .frame(width: 400, height: 350)
         .task { if !prefillFrom.isEmpty { from = prefillFrom } }
+        .interactiveDismissDisabled(hasChanges)
+        .confirmationDialog(
+            "Discard Changes?",
+            isPresented: $showDiscardAlert,
+            titleVisibility: .visible
+        ) {
+            Button("Discard", role: .destructive) { dismiss() }
+            Button("Keep Editing", role: .cancel) {}
+        }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { dismiss() }
+                Button("Cancel") {
+                    if hasChanges {
+                        showDiscardAlert = true
+                    } else {
+                        dismiss()
+                    }
+                }
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button {

@@ -393,6 +393,8 @@ private struct CalendarMonthDayCell: View {
         .accessibilityLabel(
             "\(content.date.formatted(date: .complete, time: .omitted)), \(content.visibleChips.count + content.overflowCount) events"
         )
+        .accessibilityHint("Double-tap to create a new event")
+        .accessibilityAction(named: "Create event") { onCreateEvent(content.date, 9) }
     }
 
     private var dayNumber: some View {
@@ -416,7 +418,7 @@ private struct CalendarMonthDayCell: View {
                 }
         }
         .buttonStyle(.plain)
-        .frame(width: 32, height: 32)
+        .frame(width: 44, height: 44)
         .contentShape(Circle())
         .accessibilityLabel("\(content.date.formatted(date: .complete, time: .omitted))")
         .accessibilityHint("Switch to day view")

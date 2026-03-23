@@ -32,6 +32,9 @@ struct CalendarListSidebarView: View {
 
     @ViewBuilder
     private var calendarSections: some View {
+        if calendarsByAccount.isEmpty {
+            ContentUnavailableView("No Calendars", systemImage: "calendar.badge.exclamationmark", description: Text("Sign in to see your calendars."))
+        }
         ForEach(calendarsByAccount, id: \.accountID) { group in
             VStack(alignment: .leading, spacing: 2) {
                 Text(group.accountID)

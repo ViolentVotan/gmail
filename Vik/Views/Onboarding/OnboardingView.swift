@@ -321,6 +321,13 @@ struct OnboardingView: View {
     private func handleSignIn() async {
         isSigningIn = true
         signInError = nil
+        if !reduceMotion {
+            withAnimation(.easeOut(duration: 0.5)) {
+                orb1Offset = .zero
+                orb2Offset = .zero
+                orb3Offset = .zero
+            }
+        }
         await authViewModel.signIn()
         isSigningIn = false
         if authViewModel.hasAccounts {

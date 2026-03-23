@@ -22,12 +22,12 @@ struct AttachmentChipView: View {
             if isDownloading {
                 ProgressView()
                     .controlSize(.small)
-                    .transition(.opacity.combined(with: .scale))
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale))
             } else {
                 Image(systemName: attachment.fileType.rawValue)
                     .font(Typography.body)
                     .foregroundStyle(.tint)
-                    .transition(.opacity.combined(with: .scale))
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale))
             }
 
             VStack(alignment: .leading, spacing: 1) {

@@ -12,7 +12,7 @@ struct CalendarMonthEventChip: View {
     private let formattedStartTime: String
 
     @State private var isHovered = false
-    @GestureState private var isPressed = false
+    @State private var isPressed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// 24-hour "HH:mm" formatter matching the previous `.dateTime.hour(.twoDigits(amPM: .omitted)).minute()`.
@@ -29,59 +29,56 @@ struct CalendarMonthEventChip: View {
     }
 
     var body: some View {
-        HStack(spacing: 3) {
-            if !event.isAllDay {
-                // Timed event: colored dot + time + title
-                Circle()
-                    .fill(event.resolvedColor)
-                    .frame(width: 6, height: 6)
-                Text(formattedStartTime)
-                    .font(Typography.calendarEventTime)
-                    .foregroundStyle(.secondary)
-                Text(event.summary)
-                    .font(Typography.calendarEventTime)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-            } else {
-                // All-day event: filled chip
-                Text(event.summary)
-                    .font(Typography.calendarEventTime)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .padding(.horizontal, Spacing.xs)
+        Button { onSelect(event) } label: {
+            HStack(spacing: 3) {
+                if !event.isAllDay {
+                    Circle()
+                        .fill(event.resolvedColor)
+                        .frame(width: 6, height: 6)
+                    Text(formattedStartTime)
+                        .font(Typography.calendarEventTime)
+                        .foregroundStyle(.secondary)
+                    Text(event.summary)
+                        .font(Typography.calendarEventTime)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                } else {
+                    Text(event.summary)
+                        .font(Typography.calendarEventTime)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .padding(.horizontal, Spacing.xs)
+                }
             }
-        }
-        .frame(height: CalendarLayout.monthEventChipHeight)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, event.isAllDay ? 0 : Spacing.xs)
-        .background {
-            if event.isAllDay {
-                RoundedRectangle(cornerRadius: CornerRadius.sm)
-                    .fill(event.resolvedColor.opacity(CalendarSemanticColor.eventCardBackgroundOpacity))
+            .frame(height: CalendarLayout.monthEventChipHeight)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, event.isAllDay ? 0 : Spacing.xs)
+            .background {
+                if event.isAllDay {
+                    RoundedRectangle(cornerRadius: CornerRadius.sm)
+                        .fill(event.resolvedColor.opacity(CalendarSemanticColor.eventCardBackgroundOpacity))
+                }
             }
+            .glassEffect(
+                isHovered ? .regular.interactive() : .identity,
+                in: .rect(cornerRadius: CornerRadius.sm)
+            )
+            .shadow(
+                color: isHovered ? event.resolvedColor.opacity(0.2) : .clear,
+                radius: isHovered ? 4 : 0,
+                y: isHovered ? 2 : 0
+            )
+            .scaleEffect(reduceMotion ? 1.0 : (isPressed ? ScaleToken.press : (isHovered ? ScaleToken.hover : 1.0)))
+            .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isPressed)
+            .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHovered)
         }
-        .glassEffect(
-            isHovered ? .regular.interactive() : .identity,
-            in: .rect(cornerRadius: CornerRadius.sm)
-        )
-        .shadow(
-            color: isHovered ? event.resolvedColor.opacity(0.2) : .clear,
-            radius: isHovered ? 4 : 0,
-            y: isHovered ? 2 : 0
-        )
-        .scaleEffect(reduceMotion ? 1.0 : (isPressed ? ScaleToken.press : (isHovered ? ScaleToken.hover : 1.0)))
-        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isPressed)
-        .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHovered)
-        .gesture(
-            DragGesture(minimumDistance: 0)
-                .updating($isPressed) { _, state, _ in state = true }
-                .onEnded { _ in onSelect(event) }
-        )
+        .buttonStyle(PressTrackingButtonStyle(isPressed: $isPressed))
         .onHover { isHovered = $0 }
         .contentShape(Rectangle())
         .accessibilityLabel(event.isAllDay
             ? event.summary
             : "\(event.startTime.formatted(date: .omitted, time: .shortened)) \(event.summary)")
+        .accessibilityHint("Opens event details")
         .accessibilityAddTraits(.isButton)
         .help(event.summary)
     }
@@ -102,55 +99,54 @@ struct CalendarMonthSpanningBar: View {
     var onSelect: (CalendarEvent) -> Void = { _ in }
 
     @State private var isHovered = false
-    @GestureState private var isPressed = false
+    @State private var isPressed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var leadingRadius: CGFloat { isClippedAtStart ? 0 : CornerRadius.sm }
     private var trailingRadius: CGFloat { isClippedAtEnd ? 0 : CornerRadius.sm }
 
     var body: some View {
-        Text(event.summary)
-            .font(Typography.calendarEventTime)
-            .foregroundStyle(.primary)
-            .lineLimit(1)
-            .padding(.horizontal, Spacing.xs)
-            .frame(height: CalendarLayout.monthSpanningBarHeight)
-            .frame(width: CGFloat(endColumn - startColumn + 1) * columnWidth - 2, alignment: .leading)
-            .background(
-                event.resolvedColor.opacity(CalendarSemanticColor.eventCardBackgroundOpacity),
-                in: .rect(
-                    topLeadingRadius: leadingRadius,
-                    bottomLeadingRadius: leadingRadius,
-                    bottomTrailingRadius: trailingRadius,
-                    topTrailingRadius: trailingRadius
+        Button { onSelect(event) } label: {
+            Text(event.summary)
+                .font(Typography.calendarEventTime)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .padding(.horizontal, Spacing.xs)
+                .frame(height: CalendarLayout.monthSpanningBarHeight)
+                .frame(width: CGFloat(endColumn - startColumn + 1) * columnWidth - 2, alignment: .leading)
+                .background(
+                    event.resolvedColor.opacity(CalendarSemanticColor.eventCardBackgroundOpacity),
+                    in: .rect(
+                        topLeadingRadius: leadingRadius,
+                        bottomLeadingRadius: leadingRadius,
+                        bottomTrailingRadius: trailingRadius,
+                        topTrailingRadius: trailingRadius
+                    )
                 )
-            )
-            .glassEffect(
-                isHovered ? .regular.interactive() : .identity,
-                in: .rect(
-                    topLeadingRadius: leadingRadius,
-                    bottomLeadingRadius: leadingRadius,
-                    bottomTrailingRadius: trailingRadius,
-                    topTrailingRadius: trailingRadius
+                .glassEffect(
+                    isHovered ? .regular.interactive() : .identity,
+                    in: .rect(
+                        topLeadingRadius: leadingRadius,
+                        bottomLeadingRadius: leadingRadius,
+                        bottomTrailingRadius: trailingRadius,
+                        topTrailingRadius: trailingRadius
+                    )
                 )
-            )
-            .shadow(
-                color: isHovered ? event.resolvedColor.opacity(0.2) : .clear,
-                radius: isHovered ? 4 : 0,
-                y: isHovered ? 2 : 0
-            )
-            .scaleEffect(reduceMotion ? 1.0 : (isPressed ? ScaleToken.press : (isHovered ? ScaleToken.hover : 1.0)))
-            .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isPressed)
-            .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHovered)
-            .offset(x: CGFloat(startColumn) * columnWidth + 1)
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .updating($isPressed) { _, state, _ in state = true }
-                    .onEnded { _ in onSelect(event) }
-            )
-            .onHover { isHovered = $0 }
-            .accessibilityLabel(event.summary)
-            .accessibilityAddTraits(.isButton)
-            .help(event.summary)
+                .shadow(
+                    color: isHovered ? event.resolvedColor.opacity(0.2) : .clear,
+                    radius: isHovered ? 4 : 0,
+                    y: isHovered ? 2 : 0
+                )
+                .scaleEffect(reduceMotion ? 1.0 : (isPressed ? ScaleToken.press : (isHovered ? ScaleToken.hover : 1.0)))
+                .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isPressed)
+                .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHovered)
+                .offset(x: CGFloat(startColumn) * columnWidth + 1)
+        }
+        .buttonStyle(PressTrackingButtonStyle(isPressed: $isPressed))
+        .onHover { isHovered = $0 }
+        .accessibilityLabel(event.summary)
+        .accessibilityHint("Opens event details")
+        .accessibilityAddTraits(.isButton)
+        .help(event.summary)
     }
 }

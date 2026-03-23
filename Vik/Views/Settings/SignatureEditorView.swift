@@ -10,7 +10,12 @@ struct SignatureEditorView: View {
     @State private var htmlContent: String = ""
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var showDiscardAlert = false
     @Environment(\.dismiss) private var dismiss
+
+    private var hasChanges: Bool {
+        htmlContent != (alias.signature ?? "")
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,6 +37,15 @@ struct SignatureEditorView: View {
         .onAppear {
             htmlContent = alias.signature ?? ""
         }
+        .interactiveDismissDisabled(hasChanges)
+        .confirmationDialog(
+            "Discard Changes?",
+            isPresented: $showDiscardAlert,
+            titleVisibility: .visible
+        ) {
+            Button("Discard", role: .destructive) { dismiss() }
+            Button("Keep Editing", role: .cancel) {}
+        }
     }
 
     // MARK: - Header
@@ -47,10 +61,16 @@ struct SignatureEditorView: View {
                     .foregroundStyle(.tertiary)
             }
             Spacer()
-            Button("Cancel") { dismiss() }
-                .buttonStyle(.plain)
-                .foregroundStyle(.secondary)
-                .font(Typography.callout)
+            Button("Cancel") {
+                if hasChanges {
+                    showDiscardAlert = true
+                } else {
+                    dismiss()
+                }
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .font(Typography.callout)
             saveButton
         }
         .padding(Spacing.lg)

@@ -43,7 +43,7 @@ struct SearchBarView: View {
         )
         .overlay(
             Capsule()
-                .strokeBorder(Color.accentColor.opacity(isFocused ? 0.4 : 0), lineWidth: 1.5)
+                .strokeBorder(Color.accentColor.opacity(isFocused ? 0.8 : 0), lineWidth: 1.5)
         )
         .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isFocused)
         .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: text.isEmpty)

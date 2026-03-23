@@ -18,6 +18,7 @@ struct CalendarEventEditorView: View {
     let onCancel: () -> Void
 
     @State private var viewModel: CalendarEventEditorViewModel
+    @State private var saveHapticTrigger = false
     @FocusState private var isTitleFocused: Bool
 
     init(
@@ -43,7 +44,6 @@ struct CalendarEventEditorView: View {
             toolbar
 
             Divider()
-                .opacity(OpacityToken.divider)
 
             // Form content
             ScrollView {
@@ -72,6 +72,7 @@ struct CalendarEventEditorView: View {
             viewModel.updateHasChanges(editDraft: editDraft)
             isTitleFocused = true
         }
+        .sensoryFeedback(.success, trigger: saveHapticTrigger)
         .interactiveDismissDisabled(viewModel.hasChanges)
         .confirmationDialog(
             "Discard Changes?",
@@ -100,7 +101,7 @@ struct CalendarEventEditorView: View {
                 }
             }
             .keyboardShortcut(.escape)
-            .buttonStyle(.plain)
+            .buttonStyle(.glass)
             .font(Typography.body)
             .foregroundStyle(.secondary)
 
@@ -114,10 +115,11 @@ struct CalendarEventEditorView: View {
             Spacer()
 
             Button("Save") {
+                saveHapticTrigger.toggle()
                 viewModel.handleSave(editDraft: editDraft, onSave: onSave)
             }
             .keyboardShortcut(.return, modifiers: .command)
-            .buttonStyle(.plain)
+            .buttonStyle(.glass)
             .font(Typography.bodySemibold)
             .foregroundStyle(BrandColor.blueText)
             .disabled(viewModel.summary.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -196,6 +198,7 @@ struct CalendarEventEditorView: View {
             TextField("Location", text: $viewModel.location)
                 .font(Typography.body)
                 .textFieldStyle(.plain)
+                .textContentType(.location)
                 .accessibilityLabel("Location")
                 .onChange(of: viewModel.location) { _, _ in viewModel.updateHasChanges(editDraft: editDraft) }
         }
@@ -269,6 +272,7 @@ struct CalendarEventEditorView: View {
                 TextField("Add attendees by email", text: $viewModel.attendeeInput)
                     .font(Typography.body)
                     .textFieldStyle(.plain)
+                    .textContentType(.emailAddress)
                     .onSubmit {
                         viewModel.addAttendee()
                         viewModel.updateHasChanges(editDraft: editDraft)
@@ -324,6 +328,8 @@ struct CalendarEventEditorView: View {
                     Image(systemName: "plus.circle")
                         .font(.system(size: CalendarLayout.editorActionIconSize))
                         .foregroundStyle(BrandColor.blueText)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .help("Add reminder")
@@ -496,6 +502,8 @@ private struct ReminderRow: View {
                 Image(systemName: "minus.circle")
                     .font(.system(size: CalendarLayout.editorActionIconSize))
                     .foregroundStyle(SemanticColor.error)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .help("Remove reminder")
@@ -521,6 +529,8 @@ private struct AttendeeChip: View {
                     .font(.system(size: CalendarLayout.editorSmallIconSize))
                     .foregroundStyle(.secondary)
                     .symbolRenderingMode(.hierarchical)
+                    .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Remove \(email)")

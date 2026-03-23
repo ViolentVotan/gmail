@@ -161,6 +161,7 @@ struct EmailRowView: View, Equatable {
                 // Unread indicator: filled accent dot + bold sender text provide dual visual cues
                 Circle()
                     .fill(email.isRead ? Color.clear : Color.accentColor)
+                    .overlay(email.isRead ? Circle().strokeBorder(Color.secondary.opacity(0.3), lineWidth: 1) : nil)
                     .frame(width: dotSize, height: dotSize)
                     .animation(reduceMotion ? nil : VikAnimation.microBounce, value: email.isRead)
 
@@ -276,6 +277,7 @@ struct EmailRowView: View, Equatable {
                 HoverActionButtonsView(
                     email: email,
                     isHovered: isHovered,
+                    isSelected: isSelected,
                     selectedFolder: selectedFolder
                 )
             }
@@ -318,6 +320,7 @@ struct EmailRowView: View, Equatable {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(email.sender.name), \(email.subject), \(email.preview), \(formattedDate)")
+        .accessibilityHint("Opens email thread")
         .accessibilityValue("\(email.isRead ? "Read" : "Unread"), \(email.isStarred ? "Starred" : "Not starred")")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .onHover { hovering in

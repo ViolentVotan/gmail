@@ -19,7 +19,7 @@ struct ComposeRecipientFields: View {
                 AutocompleteTextField(label: "Cc", placeholder: "Cc recipients", text: $composeVM.cc, contacts: contacts)
                     .accessibilityLabel("Cc")
                     .accessibilityHint("Enter carbon copy recipient email addresses")
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
                 Divider().padding(.horizontal, compact ? Spacing.lg : Spacing.xl)
             }
 
@@ -27,7 +27,7 @@ struct ComposeRecipientFields: View {
                 AutocompleteTextField(label: "Bcc", placeholder: "Bcc recipients", text: $composeVM.bcc, contacts: contacts)
                     .accessibilityLabel("Bcc")
                     .accessibilityHint("Enter blind carbon copy recipient email addresses")
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
                 Divider().padding(.horizontal, compact ? Spacing.lg : Spacing.xl)
             }
 

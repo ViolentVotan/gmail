@@ -14,6 +14,8 @@ struct CalendarEventDetailView: View {
 
     @State private var isHoveringLocation = false
     @State private var isHoveringConference = false
+    @State private var showDeleteConfirmation = false
+    @State private var rsvpHapticTrigger = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -22,7 +24,6 @@ struct CalendarEventDetailView: View {
             headerSection
 
             Divider()
-                .opacity(OpacityToken.divider)
 
             // MARK: Scrollable body
             ScrollView {
@@ -41,13 +42,17 @@ struct CalendarEventDetailView: View {
             .scrollEdgeEffectStyle(.soft, for: .bottom)
 
             Divider()
-                .opacity(OpacityToken.divider)
 
             // MARK: Actions bar
             actionsBar
         }
         .background(.regularMaterial)
         .clipShape(.rect(cornerRadius: CornerRadius.lg))
+        .alert("Delete Event?", isPresented: $showDeleteConfirmation) {
+            Button("Delete", role: .destructive) { onDelete() }
+            Button("Cancel", role: .cancel) {}
+        }
+        .sensoryFeedback(.success, trigger: rsvpHapticTrigger)
     }
 
     // MARK: - Header
@@ -70,6 +75,8 @@ struct CalendarEventDetailView: View {
                     .font(.system(size: CalendarLayout.detailCloseIconSize))
                     .foregroundStyle(.secondary)
                     .symbolRenderingMode(.hierarchical)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("Dismiss")
@@ -167,10 +174,10 @@ struct CalendarEventDetailView: View {
                 Text(event.conferenceName ?? "Join Meeting")
                     .font(Typography.bodySemibold)
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(Color.contrastingForeground(for: NSColor(BrandColor.blueText)))
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
-            .background(BrandColor.blue)
+            .background(BrandColor.blueText)
             .clipShape(.rect(cornerRadius: CornerRadius.md))
         }
         .buttonStyle(.plain)
@@ -303,7 +310,9 @@ struct CalendarEventDetailView: View {
                     ActionBarButton(icon: "pencil", label: "Edit", action: onEdit)
                 }
 
-                ActionBarButton(icon: "trash", label: "Delete", isDestructive: true, action: onDelete)
+                ActionBarButton(icon: "trash", label: "Delete", isDestructive: true) {
+                    showDeleteConfirmation = true
+                }
 
                 if !event.attendees.isEmpty {
                     ActionBarButton(icon: "envelope", label: "Email Attendees", action: onEmailAttendees)
@@ -352,6 +361,7 @@ struct CalendarEventDetailView: View {
         let isCurrent = event.selfResponseStatus == status
         Button {
             onRSVP(status)
+            rsvpHapticTrigger.toggle()
         } label: {
             HStack(spacing: 4) {
                 Image(systemName: icon)
@@ -359,7 +369,7 @@ struct CalendarEventDetailView: View {
                 Text(label)
                     .font(Typography.captionSemibold)
             }
-            .foregroundStyle(isCurrent ? .white : .primary)
+            .foregroundStyle(isCurrent ? Color.contrastingForeground(for: NSColor(rsvpColor(status))) : .primary)
             .padding(.horizontal, Spacing.sm)
             .padding(.vertical, Spacing.xs)
             .background(isCurrent ? rsvpColor(status) : Color.primary.opacity(OpacityToken.tag))

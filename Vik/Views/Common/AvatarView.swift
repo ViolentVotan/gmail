@@ -42,7 +42,7 @@ struct AvatarView: View {
         if let cached = luminanceCache.withLock({ $0[hexColor] }) { return cached }
         let bgColor = NSColor(Color(hex: hexColor)).usingColorSpace(.sRGB)
         let luminance = bgColor?.relativeLuminance() ?? 0
-        let result = luminance > 0.7
+        let result = luminance > 0.55
         luminanceCache.withLock { $0[hexColor] = result }
         return result
     }
@@ -64,7 +64,7 @@ struct AvatarView: View {
         self.avatarCache = avatarCache
         self.bimiService = bimiService
 
-        self.avatarTextColor = Self.isHighLuminance(for: color) ? .primary : .white
+        self.avatarTextColor = Self.isHighLuminance(for: color) ? .black : .white
     }
 
     var body: some View {

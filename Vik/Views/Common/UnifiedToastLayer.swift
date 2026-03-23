@@ -20,14 +20,14 @@ struct UnifiedToastLayer: View {
             // Priority 2: Offline indicator (persistent status)
             if network.isConnected == false {
                 OfflineToastCard()
-                    .transition(.move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: ScaleToken.enterFrom)))
+                    .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: ScaleToken.enterFrom)))
                     .padding(.bottom, Spacing.xxl)
             }
             // Priority 3: General toasts (ephemeral)
             else if let toast = toastMgr.currentToast {
                 GeneralToastCard(toast: toast)
                     .id(toast.id)
-                    .transition(.move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: ScaleToken.enterFrom)))
+                    .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: ScaleToken.enterFrom)))
                     .padding(.bottom, Spacing.xxl)
             }
         }
@@ -55,7 +55,7 @@ fileprivate struct UndoPresenceView: View {
             if let action = undoMgr.currentAction {
                 UndoToastCard(action: action)
                     .id(action.id)
-                    .transition(.move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: ScaleToken.enterFrom)))
+                    .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity).combined(with: .scale(scale: ScaleToken.enterFrom)))
                     .padding(.bottom, Spacing.xxl)
             }
         }
@@ -203,7 +203,7 @@ private struct GeneralToastCard: View {
         .transientGlass()
         .frame(width: 320)
         .onTapGesture { toastMgr.dismiss(toast) }
-        .accessibilityAddTraits(.updatesFrequently)
+        .accessibilityAddTraits([.isButton, .updatesFrequently])
         .onAppear {
             AccessibilityNotification.Announcement(toast.message).post()
         }
