@@ -121,6 +121,10 @@ private struct HoverActionButton: View {
     @State private var isButtonHovered = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    private var iconColor: Color {
+        role == .destructive ? SemanticColor.error : .primary
+    }
+
     var body: some View {
         Button(role: role) {
             actionTrigger.toggle()
@@ -128,12 +132,13 @@ private struct HoverActionButton: View {
         } label: {
             Image(systemName: icon)
                 .font(Typography.captionSmallMedium)
+                .foregroundStyle(iconColor)
                 .frame(width: 32, height: 32)
                 .contentShape(.rect.inset(by: -6))
         }
         .buttonStyle(.borderless)
         .background(
-            .primary.opacity(isButtonHovered ? OpacityToken.highlight : 0),
+            .primary.opacity(isButtonHovered ? OpacityToken.interactive : 0),
             in: .rect(cornerRadius: CornerRadius.xs)
         )
         .scaleEffect(isButtonHovered ? ScaleToken.hover : 1)
