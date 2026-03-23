@@ -424,7 +424,7 @@ private struct CalendarMonthDayCell: View {
     }
 
     private var dayNumberForeground: Color {
-        if content.isToday { return .white }
+        if content.isToday { return CalendarSemanticColor.todayHeaderText }
         if !content.isInCurrentMonth { return Color(nsColor: .tertiaryLabelColor) }
         return Color(nsColor: .labelColor)
     }

@@ -547,7 +547,7 @@ private struct ColorDot: View {
                 .overlay {
                     if isSelected {
                         Circle()
-                            .strokeBorder(.white, lineWidth: 2)
+                            .strokeBorder(Color(nsColor: .windowBackgroundColor), lineWidth: 2)
                             .padding(2)
                     }
                 }

@@ -319,6 +319,7 @@ All animations must be interruptible. If the user clicks rapidly through emails 
 |---------|-------|--------|-------|
 | Date range header | `Typography.title` | Bold | `.primary` |
 | Day header | `Typography.subheadSemibold` | Semibold | `.primary` |
+| Today header (on circle) | varies | Bold | `CalendarSemanticColor.todayHeaderText` |
 | Time labels | `Typography.caption` | Medium | `.tertiary` |
 | Event title | `Typography.captionSemibold` | Semibold | `.primary` |
 | Event time | `Typography.captionSmall` | Medium | `.secondary` |
@@ -406,4 +407,5 @@ Do not do these:
 | `withAnimation` without reduce-motion guard | Accessibility violation | Gate on `reduceMotion` / `NSWorkspace.reduceMotion` |
 | `.accessibilityHidden(true)` on actions | Hides primary interactions from VoiceOver | Only hide purely decorative elements |
 | Raw hex strings for brand colors | Drift, inconsistency | Use `GoogleBrandColor` / `BrandColor` tokens |
+| Raw `Color.blue`/`.red`/`.green` for semantic meaning | Not brand-consistent across modes | Use `BrandColor.blueText`, `SemanticColor.error`/`.success`/`.warning` |
 | Inline z-index magic numbers | Ordering bugs | Use `ZIndexToken` enum |

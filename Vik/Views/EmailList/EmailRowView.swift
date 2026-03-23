@@ -99,9 +99,9 @@ struct EmailRowView: View, Equatable {
 
     private func tagColor(_ name: String) -> Color {
         switch name {
-        case "blue": return .blue
-        case "red": return .red
-        case "green": return .green
+        case "blue": return BrandColor.blueText
+        case "red": return SemanticColor.error
+        case "green": return SemanticColor.success
         case "gray": return .secondary
         default: return .secondary
         }

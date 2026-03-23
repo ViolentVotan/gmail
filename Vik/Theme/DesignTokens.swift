@@ -691,6 +691,8 @@ enum CalendarSemanticColor {
     static let todayHighlight = BrandColor.blue.opacity(0.03)
     /// Today header circle — solid brand blue for the date number badge.
     static let todayHeaderCircle = BrandColor.blue
+    /// Today header text — contrasting foreground on the today circle.
+    static let todayHeaderText = Color.white
     /// Event card background — apply `.opacity(0.15)` to the event's calendar color.
     static let eventCardBackgroundOpacity: CGFloat = 0.15
     /// Weekend column dimming opacity — subtle desaturation of Saturday/Sunday columns.

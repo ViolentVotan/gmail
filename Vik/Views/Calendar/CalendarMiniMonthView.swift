@@ -237,7 +237,7 @@ private struct MiniMonthDayCell: View {
     }
 
     private func dayTextColor(isToday: Bool, isSelected: Bool, isInMonth: Bool) -> Color {
-        if isToday { return .white }
+        if isToday { return CalendarSemanticColor.todayHeaderText }
         if !isInMonth { return Color(nsColor: .tertiaryLabelColor) }
         return Color(nsColor: .labelColor)
     }

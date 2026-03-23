@@ -170,7 +170,7 @@ struct CalendarWeekView: View {
                 Text("\(dayNumber)")
                     .font(Typography.calendarEventTitle)
                     .fontWeight(isToday ? .bold : .regular)
-                    .foregroundStyle(isToday ? .white : .primary)
+                    .foregroundStyle(isToday ? CalendarSemanticColor.todayHeaderText : .primary)
             }
         }
         .frame(width: width)

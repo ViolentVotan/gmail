@@ -151,7 +151,7 @@ struct DebugMenuView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
-                        .background(entry.fromCache ? Color.gray : (entry.method == "GET" ? Color.blue : Color.orange))
+                        .background(entry.fromCache ? Color.secondary : (entry.method == "GET" ? BrandColor.blueText : SemanticColor.warning))
                         .clipShape(.rect(cornerRadius: CornerRadius.xs))
 
                     Text(entry.shortPath)
@@ -323,9 +323,9 @@ struct DebugMenuView: View {
     private func statusColor(for level: APILogEntry.StatusLevel) -> Color {
         switch level {
         case .success: return .secondary
-        case .cached:  return .gray
-        case .warning: return .blue
-        case .error:   return .red
+        case .cached:  return .secondary
+        case .warning: return SemanticColor.warning
+        case .error:   return SemanticColor.error
         }
     }
 
