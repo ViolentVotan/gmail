@@ -59,12 +59,7 @@ struct ContentView: View {
                     Button("Cancel", role: .cancel) {}
                     Button("Re-authorize") {
                         guard let accountID = calendarScopesAccountID else { return }
-                        Task {
-                            try? await OAuthService.shared.reauthorize(
-                                accountID: accountID,
-                                presentingWindow: NSApp.keyWindow
-                            )
-                        }
+                        Task { await reauthorize(accountID: accountID, feature: "Calendar") }
                     }
                 } message: {
                     Text("Calendar features require additional permissions. Please re-authorize to grant calendar access.")
@@ -73,12 +68,7 @@ struct ContentView: View {
                     Button("Cancel", role: .cancel) {}
                     Button("Re-authorize") {
                         guard let accountID = gmailScopesAccountID else { return }
-                        Task {
-                            try? await OAuthService.shared.reauthorize(
-                                accountID: accountID,
-                                presentingWindow: NSApp.keyWindow
-                            )
-                        }
+                        Task { await reauthorize(accountID: accountID, feature: "Gmail") }
                     }
                 } message: {
                     Text("Gmail features require additional permissions. Please re-authorize to grant access.")
@@ -86,14 +76,8 @@ struct ContentView: View {
                 .alert("Pub/Sub Permissions Required", isPresented: $showPubSubScopesAlert) {
                     Button("Cancel", role: .cancel) {}
                     Button("Re-authorize") {
-                        if let id = pubSubScopesAccountID {
-                            Task {
-                                try? await OAuthService.shared.reauthorize(
-                                    accountID: id,
-                                    presentingWindow: NSApp.keyWindow
-                                )
-                            }
-                        }
+                        guard let id = pubSubScopesAccountID else { return }
+                        Task { await reauthorize(accountID: id, feature: "Notifications") }
                     }
                 } message: {
                     Text("Vik needs permission to receive real-time email notifications. Please re-authorize to enable instant delivery.")
@@ -639,6 +623,20 @@ struct ContentView: View {
                 Text("Select an email to view its contents.")
             }
             .navigationSplitViewColumnWidth(min: 500, ideal: 700)
+        }
+    }
+
+    // MARK: - Reauthorization
+
+    private func reauthorize(accountID: String, feature: String) async {
+        do {
+            try await OAuthService.shared.reauthorize(
+                accountID: accountID,
+                presentingWindow: NSApp.keyWindow
+            )
+            ToastManager.shared.show(message: "\(feature) permissions granted", type: .success)
+        } catch {
+            ToastManager.shared.show(message: "Re-authorization failed — please try again", type: .error)
         }
     }
 

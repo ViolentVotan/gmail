@@ -40,6 +40,10 @@ final class AuthViewModel {
             AccountStore.shared.add(account)
             accounts = AccountStore.shared.accounts
 
+            // Persist sign-in state immediately — not deferred to the view layer.
+            // This survives crashes between token save and UI update.
+            UserDefaults.standard.set(true, forKey: UserDefaultsKey.isSignedIn)
+
         } catch {
             self.error = error.localizedDescription
         }

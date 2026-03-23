@@ -13,6 +13,17 @@ struct VikApp: App {
             UserDefaultsKey.emailDensity: "comfortable",
             UserDefaultsKey.soundEffectsEnabled: true
         ])
+
+        // Reconcile isSignedIn flag with actual account state.
+        // Recovers from: crash before flag was set, flag lost, or accounts removed externally.
+        let hasAccounts = !AccountStore.shared.accounts.isEmpty
+        let flaggedSignedIn = UserDefaults.standard.bool(forKey: UserDefaultsKey.isSignedIn)
+        if hasAccounts && !flaggedSignedIn {
+            UserDefaults.standard.set(true, forKey: UserDefaultsKey.isSignedIn)
+        } else if !hasAccounts && flaggedSignedIn {
+            UserDefaults.standard.set(false, forKey: UserDefaultsKey.isSignedIn)
+        }
+
         NotificationService.shared.setup()
         VikShortcuts.updateAppShortcutParameters()
         NSApplication.shared.activate()
