@@ -617,7 +617,7 @@ struct EmailListView: View {
                 ProgressView()
                     .scaleEffect(0.7)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, Spacing.sm)
                     .listRowSeparator(.hidden)
             }
 

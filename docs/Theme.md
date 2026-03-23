@@ -32,7 +32,7 @@ The UI follows a three-plane model (see `docs/design-concept.md` for the full gl
 
 | Token | Values |
 |-------|--------|
-| `Spacing` | `xs` (4), `sm` (8), `md` (12), `lg` (16), `xl` (24), `xxl` (32) |
+| `Spacing` | `xxxs` (1), `xxs` (2), `xs` (4), `xsm` (6), `sm` (8), `md` (12), `lg` (16), `xl` (24), `xxl` (32) |
 | `CornerRadius` | `xs` (4), `sm` (6), `md` (12), `lg` (16), `xl` (24) |
 | `ButtonSize` | `sm` (26), `md` (28), `lg` (30) |
 | `VikAnimation` | `springDefault` (0.35/0.82), `springSnappy` (0.28/0.78), `springGentle` (0.4/0.88), `contentSwitch` (smooth 0.25), `folderSwitch` (smooth 0.3), `microBounce` (0.25/bounce 0.35) |

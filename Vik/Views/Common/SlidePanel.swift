@@ -31,6 +31,7 @@ struct SlidePanel<Content: View>: View {
                     Text(title)
                         .font(Typography.title)
                         .foregroundStyle(.primary)
+                        .accessibilityAddTraits(.isHeader)
                     Spacer()
                     Button { isPresented = false } label: {
                         Image(systemName: "xmark")

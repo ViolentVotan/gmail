@@ -48,8 +48,8 @@ struct InsightCardView: View {
                             if let sentiment = insight.sentiment {
                                 Text(sentiment.capitalized)
                                     .font(Typography.captionSmallMedium)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
+                                    .padding(.horizontal, Spacing.xsm)
+                                    .padding(.vertical, Spacing.xxs)
                                     .background(sentimentColor(sentiment).opacity(OpacityToken.highlight), in: .capsule)
                                     .foregroundStyle(sentimentColor(sentiment))
                                     .glassEffect(.regular, in: .capsule)

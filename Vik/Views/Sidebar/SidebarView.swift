@@ -344,6 +344,7 @@ struct SidebarView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(label.name)
             }
         }
         .padding(.vertical, Spacing.xs)

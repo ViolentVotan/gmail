@@ -103,6 +103,15 @@ struct SignatureEditorView: View {
                 .foregroundStyle(SemanticColor.error)
             Spacer()
             Button {
+                save()
+            } label: {
+                Text("Retry")
+                    .font(Typography.captionSemibold)
+                    .foregroundStyle(.tint)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Retry saving signature")
+            Button {
                 errorMessage = nil
             } label: {
                 Image(systemName: "xmark")

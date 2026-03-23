@@ -100,6 +100,11 @@ private struct UndoToastCard: View {
         }
         .transientGlass()
         .frame(width: 320)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(action.label). Undo available.")
+        .onAppear {
+            AccessibilityNotification.Announcement("\(action.label). Undo available.").post()
+        }
     }
 }
 
@@ -158,6 +163,11 @@ private struct OfflineToastCard: View {
         .padding(.vertical, Spacing.md)
         .transientGlass()
         .frame(width: 320)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("No internet connection")
+        .onAppear {
+            AccessibilityNotification.Announcement("No internet connection").post()
+        }
     }
 }
 

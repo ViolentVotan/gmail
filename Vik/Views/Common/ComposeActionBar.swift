@@ -13,6 +13,7 @@ struct ComposeActionBar: View {
     let onSchedule: (Date) -> Void
     let onAttach: () -> Void
     @Binding var sendHapticTrigger: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var showSendControls: Bool {
         composeVM.hasUserContent || onMinimize == nil
@@ -52,7 +53,7 @@ struct ComposeActionBar: View {
                 .buttonStyle(.glass)
                 .controlSize(.large)
                 .help("Discard")
-                .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.9)))
 
                 ScheduleSendButton(
                     onSend: onSend,
@@ -60,11 +61,12 @@ struct ComposeActionBar: View {
                     isSending: composeVM.isSending
                 )
                 .disabled(composeVM.isSending)
+                .opacity(composeVM.isSending ? OpacityToken.disabled : 1)
                 .keyboardShortcut(.return, modifiers: .command)
                 .accessibilityLabel("Send")
                 .accessibilityHint("Sends the email. Use the dropdown to schedule.")
                 .sensoryFeedback(.success, trigger: sendHapticTrigger)
-                .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.9)))
             }
         }
         .padding(.horizontal, Spacing.lg)

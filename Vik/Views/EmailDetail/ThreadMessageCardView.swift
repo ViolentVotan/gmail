@@ -364,7 +364,7 @@ struct ThreadMessageCardView: View, Equatable {
     private var expandedContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             Divider()
-                .background(Color(.separatorColor).opacity(0.5))
+                .background(Color(.separatorColor).opacity(OpacityToken.divider))
                 .padding(.horizontal, Spacing.xl)
 
             if hasRemoteImages && !allowRemoteImages && !alwaysLoadRemoteImages {
@@ -384,10 +384,12 @@ struct ThreadMessageCardView: View, Equatable {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.tint)
+                    .accessibilityLabel("Load remote images")
+                    .help("Load blocked remote images")
                 }
                 .padding(.horizontal, Spacing.xl)
                 .padding(.vertical, Spacing.xs)
-                .transition(.opacity.combined(with: .move(edge: .top)))
+                .transition(reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top)))
             }
 
             ZStack {
@@ -433,11 +435,13 @@ struct ThreadMessageCardView: View, Equatable {
                             .font(Typography.captionSmallMedium)
                     }
                     .foregroundStyle(.tertiary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, Spacing.xxs)
                     .glassEffect(.regular.interactive(), in: .capsule)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(showQuoted ? "Hide quoted text" : "Show quoted text")
+                .help(showQuoted ? "Hide quoted text" : "Show quoted text")
                 .padding(.horizontal, Spacing.xl)
                 .padding(.bottom, Spacing.md)
             }

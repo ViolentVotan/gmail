@@ -160,7 +160,7 @@ struct OnboardingView: View {
                 .font(Typography.captionSmallRegular)
                 .foregroundStyle(SemanticColor.error)
                 .multilineTextAlignment(.center)
-                .padding(.top, 12)
+                .padding(.top, Spacing.md)
                 .opacity(showButton ? 1 : 0)
         }
     }

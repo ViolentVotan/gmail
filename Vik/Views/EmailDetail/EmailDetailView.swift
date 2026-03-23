@@ -283,8 +283,8 @@ struct EmailDetailView: View {
                                 Text(suggestion.name)
                                     .font(Typography.captionSmallRegular)
                             }
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
+                            .padding(.horizontal, Spacing.xsm)
+                            .padding(.vertical, Spacing.xxs)
                             .background(Color.accentColor.opacity(OpacityToken.highlight))
                             .foregroundStyle(Color.accentColor.opacity(OpacityToken.secondary))
                             .clipShape(Capsule())

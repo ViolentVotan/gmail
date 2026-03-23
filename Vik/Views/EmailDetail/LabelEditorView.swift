@@ -212,7 +212,7 @@ struct LabelEditorView: View {
                             .id(item.id)
                     }
                 }
-                .padding(4)
+                .padding(Spacing.xs)
             }
             .scrollContentBackground(.hidden)
             .frame(width: 220, height: Self.rowHeight * min(CGFloat(items.count), 5) + 8)

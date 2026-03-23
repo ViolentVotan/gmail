@@ -21,7 +21,7 @@ struct LabelChipView: View {
                     onRemove?()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.caption2.weight(.bold))
+                        .font(Typography.captionSmallBold)
                         .foregroundStyle(textForeground.opacity(OpacityToken.secondary))
                 }
                 .buttonStyle(.plain)

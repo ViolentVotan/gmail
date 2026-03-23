@@ -173,6 +173,7 @@ struct CalendarInviteCardView: View {
                     .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(showOriginalEmail ? "Hide original invite" : "Show original invite")
                 .help(showOriginalEmail ? "Hide original invite" : "Show original invite")
             }
         }

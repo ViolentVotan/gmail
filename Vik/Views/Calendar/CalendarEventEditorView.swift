@@ -109,6 +109,7 @@ struct CalendarEventEditorView: View {
             Text(viewModel.isEditing ? "Edit Event" : "New Event")
                 .font(Typography.bodySemibold)
                 .foregroundStyle(.primary)
+                .accessibilityAddTraits(.isHeader)
 
             Spacer()
 

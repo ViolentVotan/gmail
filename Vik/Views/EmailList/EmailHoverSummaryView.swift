@@ -94,8 +94,8 @@ struct EmailHoverSummaryView: View {
                         if let sentiment = insight.sentiment {
                             Text(sentiment.capitalized)
                                 .font(Typography.captionSmallMedium)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
+                                .padding(.horizontal, Spacing.xsm)
+                                .padding(.vertical, Spacing.xxs)
                                 .background(sentimentColor(sentiment).opacity(OpacityToken.interactive))
                                 .foregroundStyle(sentimentColor(sentiment))
                                 .clipShape(Capsule())
@@ -146,8 +146,8 @@ struct EmailHoverSummaryView: View {
                 .lineLimit(1)
         }
         .foregroundStyle(.tertiary)
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
+        .padding(.horizontal, Spacing.xsm)
+        .padding(.vertical, Spacing.xxs)
         .background(Capsule().fill(.fill.quaternary))
     }
 

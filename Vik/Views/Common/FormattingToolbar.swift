@@ -118,8 +118,8 @@ struct FormattingToolbar: View {
                             .font(Typography.captionSmallRegular)
                     }
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, Spacing.xsm)
+                    .padding(.vertical, Spacing.xs)
                     .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
                 }
                 .buttonStyle(.plain)
@@ -173,8 +173,8 @@ struct FormattingToolbar: View {
                             .font(Typography.captionSmallRegular)
                     }
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, Spacing.xsm)
+                    .padding(.vertical, Spacing.xs)
                     .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
                 }
                 .buttonStyle(.plain)
@@ -425,7 +425,7 @@ private struct ToolbarSeparator: View {
     var body: some View {
         Divider()
             .frame(height: 16)
-            .padding(.horizontal, 6)
+            .padding(.horizontal, Spacing.xsm)
     }
 }
 
@@ -544,7 +544,7 @@ struct ColorPickerPopover: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(12)
+        .padding(Spacing.md)
         .frame(minWidth: 160, idealWidth: 170, maxWidth: 220)
     }
 

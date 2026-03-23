@@ -40,8 +40,8 @@ struct TrackerBannerView: View {
                     Text("Load blocked content")
                         .font(Typography.captionSmallMedium)
                         .foregroundStyle(.secondary)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.vertical, Spacing.xs)
                         .glassOrMaterial(in: .capsule, interactive: true)
                 }
                 .buttonStyle(.plain)
@@ -51,9 +51,9 @@ struct TrackerBannerView: View {
 
             if showDetails {
                 Divider()
-                    .padding(.top, 8)
+                    .padding(.top, Spacing.sm)
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
                     ForEach(groupedTrackers, id: \.name) { group in
                         HStack(spacing: 6) {
                             Image(systemName: group.icon)
@@ -75,7 +75,7 @@ struct TrackerBannerView: View {
                         }
                     }
                 }
-                .padding(.top, 8)
+                .padding(.top, Spacing.sm)
                 .transition(.opacity)
             }
         }

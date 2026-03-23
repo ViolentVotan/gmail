@@ -120,7 +120,7 @@ struct AttachmentCardView: View {
         .background(RoundedRectangle(cornerRadius: CornerRadius.md).fill(.background))
         .overlay(
             RoundedRectangle(cornerRadius: CornerRadius.md)
-                .strokeBorder(isHovered ? iconForegroundColor.opacity(0.5) : Color(.separatorColor), lineWidth: isHovered ? 1.5 : 1)
+                .strokeBorder(isHovered ? iconForegroundColor.opacity(OpacityToken.divider) : Color(.separatorColor), lineWidth: isHovered ? 1.5 : 1)
         )
         .contentShape(Rectangle())
         .scaleEffect(reduceMotion ? 1.0 : (isHovered ? ScaleToken.hover : 1.0))

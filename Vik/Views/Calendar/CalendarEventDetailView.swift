@@ -63,6 +63,7 @@ struct CalendarEventDetailView: View {
                 .foregroundStyle(.primary)
                 .lineLimit(2)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityAddTraits(.isHeader)
 
             Button(action: onDismiss) {
                 Image(systemName: "xmark.circle.fill")
@@ -418,8 +419,8 @@ private struct AttendeeRowView: View {
                 Text("Organizer")
                     .font(Typography.microTag)
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
+                    .padding(.horizontal, Spacing.xs)
+                    .padding(.vertical, Spacing.xxs)
                     .background(Color.secondary.opacity(OpacityToken.tag))
                     .clipShape(.rect(cornerRadius: CornerRadius.xs))
             }
@@ -428,13 +429,24 @@ private struct AttendeeRowView: View {
                 Text("Optional")
                     .font(Typography.microTag)
                     .foregroundStyle(.secondary)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
+                    .padding(.horizontal, Spacing.xs)
+                    .padding(.vertical, Spacing.xxs)
                     .background(Color.secondary.opacity(OpacityToken.tag))
                     .clipShape(.rect(cornerRadius: CornerRadius.xs))
             }
 
             Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(attendee.displayName ?? attendee.email), \(responseStatusLabel)")
+    }
+
+    private var responseStatusLabel: String {
+        switch attendee.responseStatus {
+        case .accepted: "Accepted"
+        case .declined: "Declined"
+        case .tentative: "Tentative"
+        case .needsAction: "Awaiting response"
         }
     }
 

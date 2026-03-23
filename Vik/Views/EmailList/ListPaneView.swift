@@ -118,6 +118,8 @@ private struct OfflineBannerView: View {
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
             .background(SemanticColor.warning.opacity(OpacityToken.highlight))
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("You are offline. Changes will sync when connected.\(offlineQueue.pendingCount > 0 ? " \(offlineQueue.pendingCount) actions pending." : "")")
         }
     }
 }

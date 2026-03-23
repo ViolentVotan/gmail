@@ -139,8 +139,8 @@ struct EmailRowView: View, Equatable {
         case .tag(let label, let color):
             Text(label)
                 .font(Typography.microTag)
-                .padding(.horizontal, 4)
-                .padding(.vertical, 1)
+                .padding(.horizontal, Spacing.xs)
+                .padding(.vertical, Spacing.xxxs)
                 .background(tagColor(color).opacity(OpacityToken.highlight), in: .capsule)
                 .foregroundStyle(tagColor(color))
                 .glassEffect(.regular, in: .capsule)
@@ -228,8 +228,8 @@ struct EmailRowView: View, Equatable {
                                 Text("+\(totalCount - totalVisible)")
                                     .font(Typography.captionSmallMedium)
                                     .foregroundStyle(.tertiary)
-                                    .padding(.horizontal, 5)
-                                    .padding(.vertical, 2)
+                                    .padding(.horizontal, Spacing.xs)
+                                    .padding(.vertical, Spacing.xxs)
                                     .background(Capsule().fill(.fill.quaternary))
                             }
                         }
@@ -267,7 +267,7 @@ struct EmailRowView: View, Equatable {
                         .fill(.tint.opacity(0.03))
                 }
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, Spacing.sm)
             .contentShape(Rectangle())
         }
         .buttonStyle(PressTrackingStyle(isPressed: $isPressed))

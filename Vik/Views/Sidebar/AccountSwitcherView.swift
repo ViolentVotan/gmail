@@ -81,7 +81,7 @@ struct AccountSwitcherView: View {
             .contentShape(Circle())
         }
         .buttonStyle(.plain)
-        .opacity(isSigningIn ? 0.5 : 1)
+        .opacity(isSigningIn ? OpacityToken.disabled : 1)
         .disabled(isSigningIn)
         .help("Add account")
         .accessibilityLabel("Add account")

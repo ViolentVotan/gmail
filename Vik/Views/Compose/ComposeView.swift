@@ -359,10 +359,19 @@ struct ComposeView: View {
             .help("Discard draft")
 
             if let err = sendError {
-                Text(err)
-                    .font(Typography.captionRegular)
-                    .foregroundStyle(SemanticColor.error)
-                    .lineLimit(1)
+                HStack(spacing: Spacing.xsm) {
+                    Text(err)
+                        .font(Typography.captionRegular)
+                        .foregroundStyle(SemanticColor.error)
+                        .lineLimit(1)
+                    Button { sendError = nil } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(Typography.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Dismiss error")
+                }
             }
 
             Spacer()

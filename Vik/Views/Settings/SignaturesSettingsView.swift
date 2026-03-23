@@ -77,8 +77,8 @@ struct SignaturesSettingsView: View {
                             Text("Default")
                                 .font(Typography.captionSmall)
                                 .foregroundStyle(Color.contrastingForeground(for: NSColor.controlAccentColor))
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
+                                .padding(.horizontal, Spacing.xsm)
+                                .padding(.vertical, Spacing.xxs)
                                 .background(Capsule().fill(Color.accentColor))
                         }
                     }
@@ -106,7 +106,7 @@ struct SignaturesSettingsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.vertical, 4)
+        .padding(.vertical, Spacing.xs)
     }
 
     // MARK: - Data Loading
