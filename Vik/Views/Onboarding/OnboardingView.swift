@@ -46,7 +46,7 @@ struct OnboardingView: View {
     var body: some View {
         ZStack {
             // MARK: - Deep black background
-            Color(hex: "#010409")
+            BrandColor.onboardingBackground
                 .ignoresSafeArea()
 
             // Ambient lights — brand colors
@@ -83,7 +83,7 @@ struct OnboardingView: View {
             }
         }
         .onDisappear {
-            withAnimation { orbsVisible = false }
+            withAnimation(VikAnimation.contentSwitch) { orbsVisible = false }
             hideTrafficLights(false)
         }
         .preferredColorScheme(.dark)
@@ -102,7 +102,7 @@ struct OnboardingView: View {
                     .frame(width: 72, height: 72)
                     .foregroundStyle(.white)
                     .frame(width: 120, height: 120)
-                    .glassEffect(.regular, in: .rect(cornerRadius: 32))
+                    .glassEffect(.regular, in: .rect(cornerRadius: CornerRadius.xxl))
                     .opacity(showIcon ? 1 : 0)
                     .scaleEffect(iconScale)
                     .rotationEffect(.degrees(iconRotation))
@@ -114,7 +114,7 @@ struct OnboardingView: View {
             }
             .padding(.horizontal, 64)
             .padding(.vertical, 48)
-            .glassEffect(.regular, in: .rect(cornerRadius: 28))
+            .glassEffect(.regular, in: .rect(cornerRadius: CornerRadius.xl))
             .scaleEffect(showCard ? 1 : 0.8)
             .opacity(showCard ? 1 : 0)
         }
@@ -126,7 +126,7 @@ struct OnboardingView: View {
     private func onboardingInnerContent<B: View>(@ViewBuilder signInButton: () -> B) -> some View {
         // App name
         Text("Vik")
-            .font(.system(size: 52, weight: .bold))
+            .font(Typography.displayHero)
             .tracking(-1)
             .foregroundStyle(.white)
             .opacity(showName ? 1 : 0)
@@ -136,7 +136,7 @@ struct OnboardingView: View {
 
         // Tagline
         Text("CONQUER YOUR INBOX")
-            .font(.system(size: 15, weight: .medium))
+            .font(Typography.onboardingSubtitle)
             .tracking(3)
             .foregroundStyle(.white.opacity(0.75))
             .opacity(showTagline ? 1 : 0)
@@ -157,8 +157,8 @@ struct OnboardingView: View {
     private var errorLabel: some View {
         if let error = signInError {
             Text(error)
-                .font(.system(size: 12))
-                .foregroundStyle(BrandColor.coral)
+                .font(Typography.captionSmallRegular)
+                .foregroundStyle(SemanticColor.error)
                 .multilineTextAlignment(.center)
                 .padding(.top, 12)
                 .opacity(showButton ? 1 : 0)
@@ -195,7 +195,7 @@ struct OnboardingView: View {
             }
             .frame(width: 20, height: 20)
             Text(isSigningIn ? "Signing in\u{2026}" : "Continue with Google")
-                .font(.system(size: 15, weight: .medium))
+                .font(Typography.onboardingSubtitle)
                 .foregroundStyle(.white.opacity(0.9))
         }
         .padding(.horizontal, 28)
@@ -325,7 +325,7 @@ struct OnboardingView: View {
         isSigningIn = false
         if authViewModel.hasAccounts {
             hideTrafficLights(false)
-            withAnimation(VikAnimation.onboardingTransition) {
+            withAnimation(reduceMotion ? nil : VikAnimation.onboardingTransition) {
                 isSignedIn = true
             }
         } else {
@@ -342,7 +342,7 @@ struct OnboardingView: View {
             window.isMovableByWindowBackground = true
             window.titlebarAppearsTransparent = true
             window.titleVisibility = .hidden
-            window.backgroundColor = NSColor(red: 0.031, green: 0.035, blue: 0.047, alpha: 1)
+            window.backgroundColor = NSColor(BrandColor.onboardingBackground)
             window.appearance = NSAppearance(named: .darkAqua)
         } else {
             window.isMovableByWindowBackground = false

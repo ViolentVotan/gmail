@@ -220,7 +220,7 @@ struct CalendarDayView: View {
                 .frame(height: CalendarLayout.currentTimeIndicatorHeight)
         }
         .offset(y: yPos)
-        .animation(VikAnimation.springGentle, value: currentTime)
+        .animation(reduceMotion ? nil : VikAnimation.springGentle, value: currentTime)
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }

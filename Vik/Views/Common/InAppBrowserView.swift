@@ -22,6 +22,7 @@ struct InAppBrowserView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Close")
+                .accessibilityLabel("Close")
                 .keyboardShortcut(.escape, modifiers: [])
 
                 // Navigation
@@ -40,6 +41,7 @@ struct InAppBrowserView: View {
                 .buttonStyle(.plain)
                 .disabled(page.backForwardList.backList.isEmpty)
                 .help("Back")
+                .accessibilityLabel("Go back")
 
                 Button {
                     if let item = page.backForwardList.forwardList.first {
@@ -56,6 +58,7 @@ struct InAppBrowserView: View {
                 .buttonStyle(.plain)
                 .disabled(page.backForwardList.forwardList.isEmpty)
                 .help("Forward")
+                .accessibilityLabel("Go forward")
 
                 // URL bar
                 HStack(spacing: 6) {

@@ -29,6 +29,7 @@ struct ComposeActionBar: View {
                 }
                 .buttonStyle(.plain)
                 .help("Minimize")
+                .accessibilityLabel("Minimize reply")
                 .keyboardShortcut(.escape, modifiers: [])
             }
 
@@ -40,6 +41,7 @@ struct ComposeActionBar: View {
             }
             .buttonStyle(.plain)
             .help("Attach file")
+            .accessibilityLabel("Attach file")
 
             Spacer()
 

@@ -97,7 +97,7 @@ struct AccountsSettingsView: View {
                     .clipShape(Circle())
             } else {
                 Text(String(account.displayName.prefix(1)).uppercased())
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(Typography.captionSmall)
                     .foregroundStyle(.secondary)
             }
 

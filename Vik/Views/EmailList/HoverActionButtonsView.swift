@@ -128,9 +128,9 @@ private struct HoverActionButton: View {
             action()
         } label: {
             Image(systemName: icon)
-                .font(.system(size: 11, weight: .medium))
-                .frame(width: 26, height: 24)
-                .contentShape(.rect)
+                .font(Typography.captionSmallMedium)
+                .frame(width: 32, height: 32)
+                .contentShape(.rect.inset(by: -6))
         }
         .buttonStyle(.borderless)
         .background(

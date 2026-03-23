@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SlidePanelsOverlay: View {
     @Bindable var panels: PanelCoordinator
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var authViewModel: AuthViewModel
     @Binding var selectedAccountID: String?
@@ -171,7 +172,7 @@ struct SlidePanelsOverlay: View {
             }
         }
         .zIndex(20)
-        .animation(VikAnimation.springSnappy, value: panels.showWebBrowser)
+        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: panels.showWebBrowser)
     }
 
     private func saveAttachment(data: Data, name: String) {

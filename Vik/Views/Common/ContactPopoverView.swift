@@ -120,10 +120,10 @@ struct ContactPopoverView: View {
 
     private func shimmerRow(width: CGFloat) -> some View {
         HStack(spacing: Spacing.sm) {
-            RoundedRectangle(cornerRadius: 3)
+            RoundedRectangle(cornerRadius: CornerRadius.xxs)
                 .fill(Color.secondary.opacity(0.1))
                 .frame(width: 16, height: 12)
-            RoundedRectangle(cornerRadius: 3)
+            RoundedRectangle(cornerRadius: CornerRadius.xxs)
                 .fill(Color.secondary.opacity(0.1))
                 .frame(width: width, height: 12)
         }

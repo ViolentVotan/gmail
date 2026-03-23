@@ -39,6 +39,8 @@ struct SlidePanel<Content: View>: View {
                             .frame(width: closeButtonSize, height: closeButtonSize)
                     }
                     .buttonStyle(.glass)
+                    .help("Close")
+                    .accessibilityLabel("Close panel")
                 }
                 .padding(Spacing.xl)
 

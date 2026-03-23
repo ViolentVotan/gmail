@@ -295,6 +295,8 @@ struct ContentView: View {
         let commandPalette: CommandPaletteViewModel
         let commandPaletteNamespace: Namespace.ID
 
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
         var body: some View {
             @Bindable var navigation = coordinator.navigation
             ZStack {
@@ -329,6 +331,7 @@ struct ContentView: View {
                         .transition(.opacity.combined(with: .scale(scale: ScaleToken.enterFrom)))
                 }
             }
+            .animation(reduceMotion ? nil : VikAnimation.springDefault, value: commandPalette.isVisible)
         }
     }
 

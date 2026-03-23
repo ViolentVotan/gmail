@@ -52,10 +52,10 @@ struct SidebarView: View {
         Group {
             if isCollapsed {
                 collapsedSidebar
-                    .transition(.opacity.animation(.smooth(duration: DurationToken.quick)))
+                    .transition(.opacity)
             } else {
                 expandedSidebar
-                    .transition(.opacity.animation(.smooth(duration: DurationToken.deliberate).delay(DurationToken.micro)))
+                    .transition(.opacity)
             }
         }
         .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isCollapsed)
@@ -154,7 +154,7 @@ struct SidebarView: View {
         } label: {
             HStack(spacing: Spacing.xs) {
                 Image(systemName: icon)
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Typography.captionSmallMedium)
                 Text(label)
                     .font(Typography.captionSemibold)
             }
@@ -454,7 +454,7 @@ struct SidebarView: View {
                 .strokeBorder(Color.accentColor.opacity(isDropTarget ? 0.4 : 0), lineWidth: 1.5)
         )
         .scaleEffect(isDropTarget ? ScaleToken.rowHover : 1.0)
-        .animation(VikAnimation.springSnappy, value: isDropTarget)
+        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isDropTarget)
         .dropDestination(for: EmailDragItem.self) { items, _ in
             for item in items {
                 for msgId in item.messageIds {
@@ -528,7 +528,7 @@ struct SidebarView: View {
                 .strokeBorder(Color.accentColor.opacity(isDropTarget ? 0.4 : 0), lineWidth: 1.5)
         )
         .scaleEffect(isDropTarget ? ScaleToken.rowHover : 1.0)
-        .animation(VikAnimation.springSnappy, value: isDropTarget)
+        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isDropTarget)
         .dropDestination(for: EmailDragItem.self) { items, _ in
             for item in items {
                 for msgId in item.messageIds {

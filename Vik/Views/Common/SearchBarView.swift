@@ -30,6 +30,7 @@ struct SearchBarView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear search")
+                .help("Clear search")
                 .transition(.scale.combined(with: .opacity))
             }
         }

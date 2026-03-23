@@ -139,7 +139,7 @@ struct EmailDetailView: View {
                             userToggledMessageIDs = []
                             expandedCount = 1
                             try? await Task.sleep(for: .milliseconds(100))
-                            withAnimation(VikAnimation.springDefault) { proxy.scrollTo(latestID, anchor: .top) }
+                            withAnimation(reduceMotion ? nil : VikAnimation.springDefault) { proxy.scrollTo(latestID, anchor: .top) }
                         }
                     }
                     .animation(VikAnimation.contentSwitch, value: email.id)
@@ -431,8 +431,10 @@ struct EmailDetailView: View {
     private func makeThreadCardActions(for message: GmailMessage, at index: Int) -> ThreadCardActions {
         ThreadCardActions(
             onToggle: {
-                withAnimation(VikAnimation.springSnappy.delay(Double(min(index, 8)) * DurationToken.stagger)) {
-                    let isCurrentlyExpanded = isMessageExpanded(message)
+                let isCurrentlyExpanded = isMessageExpanded(message)
+                let isExpanding = !isCurrentlyExpanded
+                let delay = isExpanding ? Double(min(index, 8)) * DurationToken.stagger : 0
+                withAnimation(VikAnimation.springSnappy.delay(delay)) {
                     if userToggledMessageIDs.contains(message.id) {
                         userToggledMessageIDs.remove(message.id)
                     } else {

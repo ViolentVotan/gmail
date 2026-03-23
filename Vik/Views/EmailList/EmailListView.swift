@@ -177,10 +177,13 @@ struct EmailListView: View {
     @State private var scrollPosition = ScrollPosition(edge: .top)
     @AppStorage("emailDensity") private var density = "comfortable"
     @State private var hoverActions = EmailHoverActions()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var animatedEmailIDs: Set<String> = []
     @State private var showDeletePermanentlyConfirmation = false
     @State private var showSpamConfirmation = false
     @State private var showUnsubscribeAllConfirmation = false
+    @State private var showEmptyTrashConfirmation = false
+    @State private var showEmptySpamConfirmation = false
     @State private var pendingConfirmationEmail: Email?
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
@@ -314,22 +317,36 @@ struct EmailListView: View {
                     .destructiveActionStyle()
             }
             .buttonStyle(.plain)
-        } else if selectedFolder == .trash, !emails.isEmpty, let onEmptyTrash = actions.onEmptyTrash {
+        } else if selectedFolder == .trash, !emails.isEmpty, actions.onEmptyTrash != nil {
             Button {
-                onEmptyTrash()
+                showEmptyTrashConfirmation = true
             } label: {
                 Text("Empty Trash")
                     .destructiveActionStyle()
             }
             .buttonStyle(.plain)
-        } else if selectedFolder == .spam, !emails.isEmpty, let onEmptySpam = actions.onEmptySpam {
+            .confirmationDialog("Empty Trash?", isPresented: $showEmptyTrashConfirmation) {
+                Button("Empty Trash", role: .destructive) {
+                    actions.onEmptyTrash?()
+                }
+            } message: {
+                Text("All messages in Trash will be permanently deleted. This action cannot be undone.")
+            }
+        } else if selectedFolder == .spam, !emails.isEmpty, actions.onEmptySpam != nil {
             Button {
-                onEmptySpam()
+                showEmptySpamConfirmation = true
             } label: {
                 Text("Empty Spam")
                     .destructiveActionStyle()
             }
             .buttonStyle(.plain)
+            .confirmationDialog("Empty Spam?", isPresented: $showEmptySpamConfirmation) {
+                Button("Empty Spam", role: .destructive) {
+                    actions.onEmptySpam?()
+                }
+            } message: {
+                Text("All messages in Spam will be permanently deleted. This action cannot be undone.")
+            }
         }
     }
 
@@ -635,7 +652,7 @@ struct EmailListView: View {
         .onKeyPress(characters: CharacterSet(charactersIn: "u")) { _ in handleKeyU() }
         .onKeyPress(characters: CharacterSet(charactersIn: "r")) { _ in handleKeyR() }
         .scrollEdgeEffectStyle(.soft, for: .top)
-        .animation(VikAnimation.springDefault, value: density)
+        .animation(reduceMotion ? nil : VikAnimation.springDefault, value: density)
         .accessibilityRotor("Unread Emails") {
             ForEach(sortModel.accessibilityCache.unreadEmails) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)
@@ -791,12 +808,12 @@ private struct EmailSkeletonRowView: View {
     }
 
     private func shimmerRect(width: CGFloat? = nil, height: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: 3)
+        RoundedRectangle(cornerRadius: CornerRadius.xxs)
             .fill(.tertiary.opacity(OpacityToken.highlight))
             .frame(width: width, height: height)
             .overlay {
                 shimmerOverlay
-                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.xxs))
             }
     }
 

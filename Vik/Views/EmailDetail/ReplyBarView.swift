@@ -17,6 +17,8 @@ struct ReplyBarView: View {
     @State private var isEditorFocused = false
     @Namespace private var replyBarNamespace
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     init(
         email: Email,
         accountID: String,
@@ -59,7 +61,7 @@ struct ReplyBarView: View {
             composeVM.updateCollapsedPlaceholder(for: email, in: mailStore)
             composeVM.scheduleReplyAutoSaveUnified(email: email, mailStore: mailStore)
         }
-        .animation(VikAnimation.springSnappy, value: composeVM.hasUserContent)
+        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: composeVM.hasUserContent)
         .task {
             try? await Task.sleep(for: ComposeViewModel.autoSaveGuardDelay)
             composeVM.isInitialLoad = false
@@ -92,7 +94,7 @@ struct ReplyBarView: View {
                 composeVM.to = email.sender.email
             }
             composeVM.loadExistingDraftForReply(email: email, mailStore: mailStore, loader: onLoadDraft, editorState: editorState)
-            withAnimation(VikAnimation.springSnappy) {
+            withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                 isExpanded = true
             }
         } label: {
@@ -255,14 +257,14 @@ struct ReplyBarView: View {
     }
 
     private func minimize() {
-        withAnimation(VikAnimation.springSnappy) {
+        withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
             isExpanded = false
         }
     }
 
     private func collapse() {
         composeVM.collapse(email: email, mailStore: mailStore)
-        withAnimation(VikAnimation.springSnappy) {
+        withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
             isExpanded = false
         }
     }

@@ -229,7 +229,7 @@ struct DetailPaneView: View {
     private var emptyState: some View {
         VStack(spacing: Spacing.xl) {
             Image(systemName: emptyStateIcon)
-                .font(.system(size: 56, weight: .ultraLight))
+                .font(Typography.emptyStateIcon)
                 .foregroundStyle(.tint.opacity(OpacityToken.disabled))
                 .symbolEffect(.breathe.plain, isActive: true)
 

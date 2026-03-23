@@ -318,9 +318,8 @@ struct EmailRowView: View, Equatable {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(email.sender.name), \(email.subject), \(email.preview), \(formattedDate)")
-        .accessibilityValue(email.isRead ? "Read" : "Unread")
+        .accessibilityValue("\(email.isRead ? "Read" : "Unread"), \(email.isStarred ? "Starred" : "Not starred")")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .accessibilityValue(email.isStarred ? "Starred" : "Not starred")
         .onHover { hovering in
             isHovered = hovering
             if hovering {

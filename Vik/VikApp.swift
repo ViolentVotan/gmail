@@ -29,7 +29,7 @@ struct VikApp: App {
                         .transition(.opacity)
                 }
             }
-            .animation(VikAnimation.folderSwitch, value: isSignedIn)
+            // Animation driven exclusively by withAnimation in OnboardingView.handleSignIn()
             .task {
                 // Start background monitors
                 SnoozeMonitor.shared.start()

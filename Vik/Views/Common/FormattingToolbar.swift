@@ -222,7 +222,7 @@ struct FormattingToolbar: View {
                         Text("A")
                             .font(.body.bold())
                             .foregroundStyle(Color(nsColor: state.textColor))
-                        RoundedRectangle(cornerRadius: 1)
+                        RoundedRectangle(cornerRadius: CornerRadius.indicator)
                             .fill(Color(nsColor: state.textColor))
                             .frame(width: 12, height: 2)
                     }
@@ -247,7 +247,7 @@ struct FormattingToolbar: View {
                         Image(systemName: "highlighter")
                             .font(Typography.subheadRegular)
                             .foregroundStyle(.secondary)
-                        RoundedRectangle(cornerRadius: 1)
+                        RoundedRectangle(cornerRadius: CornerRadius.indicator)
                             .fill(state.highlightColor.map { Color(nsColor: $0) } ?? Color.clear)
                             .frame(width: 12, height: 2)
                     }

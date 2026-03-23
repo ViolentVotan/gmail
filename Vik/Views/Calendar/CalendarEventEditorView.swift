@@ -130,13 +130,13 @@ struct CalendarEventEditorView: View {
     private var titleField: some View {
         HStack(alignment: .firstTextBaseline, spacing: 2) {
             TextField("Title", text: $viewModel.summary)
-                .font(.system(size: 20, weight: .semibold))
+                .font(Typography.calendarEditorTitle)
                 .foregroundStyle(.primary)
                 .textFieldStyle(.plain)
                 .focused($isTitleFocused)
                 .onChange(of: viewModel.summary) { _, _ in viewModel.updateHasChanges(editDraft: editDraft) }
             Text("*")
-                .font(.system(size: 20, weight: .semibold))
+                .font(Typography.calendarEditorTitle)
                 .foregroundStyle(SemanticColor.error)
                 .accessibilityHidden(true)
         }
@@ -195,6 +195,7 @@ struct CalendarEventEditorView: View {
             TextField("Location", text: $viewModel.location)
                 .font(Typography.body)
                 .textFieldStyle(.plain)
+                .accessibilityLabel("Location")
                 .onChange(of: viewModel.location) { _, _ in viewModel.updateHasChanges(editDraft: editDraft) }
         }
     }
@@ -213,6 +214,7 @@ struct CalendarEventEditorView: View {
                 .font(Typography.body)
                 .frame(minHeight: 80)
                 .scrollContentBackground(.hidden)
+                .accessibilityLabel("Description")
                 .overlay(alignment: .topLeading) {
                     if viewModel.eventDescription.isEmpty {
                         Text("Description")
@@ -248,6 +250,7 @@ struct CalendarEventEditorView: View {
                 }
             }
             .labelsHidden()
+            .accessibilityLabel("Calendar")
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -322,6 +325,8 @@ struct CalendarEventEditorView: View {
                         .foregroundStyle(BrandColor.blue)
                 }
                 .buttonStyle(.plain)
+                .help("Add reminder")
+                .accessibilityLabel("Add reminder")
             }
 
             ForEach($viewModel.reminders) { $reminder in
@@ -348,6 +353,7 @@ struct CalendarEventEditorView: View {
                 }
             }
             .labelsHidden()
+            .accessibilityLabel("Recurrence")
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
@@ -397,6 +403,7 @@ struct CalendarEventEditorView: View {
                     }
                 }
                 .labelsHidden()
+                .accessibilityLabel("Visibility")
             }
 
             HStack(spacing: Spacing.sm) {
@@ -410,6 +417,7 @@ struct CalendarEventEditorView: View {
                     }
                 }
                 .labelsHidden()
+                .accessibilityLabel("Show as")
             }
         }
     }
@@ -489,6 +497,8 @@ private struct ReminderRow: View {
                     .foregroundStyle(SemanticColor.error)
             }
             .buttonStyle(.plain)
+            .help("Remove reminder")
+            .accessibilityLabel("Remove reminder")
         }
     }
 }

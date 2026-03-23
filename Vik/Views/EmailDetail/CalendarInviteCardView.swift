@@ -207,6 +207,7 @@ struct CalendarInviteCardView: View {
             .clipShape(.rect(cornerRadius: CornerRadius.sm))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
         .opacity(hasResponded && !isSelected ? 0.5 : 1)
     }

@@ -218,7 +218,7 @@ struct DebugMenuView: View {
                         if let err = entry.errorMessage {
                             Text(err)
                                 .font(.caption2.weight(.semibold))
-                                .foregroundStyle(.red)
+                                .foregroundStyle(SemanticColor.error)
                         }
                         Spacer()
                         Text("\(entry.responseSize) bytes · \(entry.date.formatted(.dateTime.hour().minute().second()))")
@@ -244,7 +244,7 @@ struct DebugMenuView: View {
                             if entry.bodyTruncated {
                                 Text("Body truncated at 200 KB")
                                     .font(.caption2)
-                                    .foregroundStyle(.orange)
+                                    .foregroundStyle(SemanticColor.warning)
                             }
                             Spacer()
                             Button {

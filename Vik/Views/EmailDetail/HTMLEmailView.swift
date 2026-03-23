@@ -517,13 +517,7 @@ struct HTMLEmailView: NSViewRepresentable {
             else { return }
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                if self.parent.isContentLoaded {
-                    withAnimation(VikAnimation.hoverFeedback) {
-                        self.parent.contentHeight = height
-                    }
-                } else {
-                    self.parent.contentHeight = height
-                }
+                self.parent.contentHeight = height
             }
         }
 

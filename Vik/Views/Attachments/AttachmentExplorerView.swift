@@ -214,6 +214,7 @@ struct AttachmentExplorerView: View {
                                     .foregroundStyle(.tertiary)
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Remove exclusion rule")
                         }
                         .padding(.vertical, 2)
                     }
@@ -242,6 +243,7 @@ struct AttachmentExplorerView: View {
                         .foregroundStyle(.tint)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Add exclusion rule")
                 .disabled(newRuleText.isEmpty)
             }
         }
@@ -268,6 +270,7 @@ struct AttachmentExplorerView: View {
             .modifier(FilterChipBackground(isSelected: isSelected))
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

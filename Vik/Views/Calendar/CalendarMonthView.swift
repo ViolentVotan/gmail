@@ -398,7 +398,7 @@ private struct CalendarMonthDayCell: View {
         let dayText = "\(content.dayNumber)"
 
         return Button {
-            withAnimation(VikAnimation.springSnappy) {
+            withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                 onSwitchToDay(content.date)
             }
         } label: {

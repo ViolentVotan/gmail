@@ -398,6 +398,7 @@ struct ComposeView: View {
             }
             .pickerStyle(.menu)
             .labelsHidden()
+            .accessibilityLabel("From address")
             .font(Typography.body)
             .fixedSize()
 

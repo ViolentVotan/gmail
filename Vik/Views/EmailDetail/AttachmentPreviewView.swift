@@ -61,6 +61,7 @@ struct AttachmentPreviewView: View {
                     }
                     .buttonStyle(.plain)
                     .help("Zoom out")
+                    .accessibilityLabel("Zoom out")
 
                     Text("\(Int(zoomScale * 100))%")
                         .font(Typography.caption)
@@ -80,6 +81,7 @@ struct AttachmentPreviewView: View {
                     }
                     .buttonStyle(.plain)
                     .help("Zoom in")
+                    .accessibilityLabel("Zoom in")
 
                     Button {
                         withAnimation(VikAnimation.springSnappy) { zoomScale = 1.0 }
@@ -92,6 +94,7 @@ struct AttachmentPreviewView: View {
                     }
                     .buttonStyle(.plain)
                     .help("Reset zoom")
+                    .accessibilityLabel("Reset zoom")
 
                     Divider().frame(height: 16).padding(.horizontal, 4)
                 }

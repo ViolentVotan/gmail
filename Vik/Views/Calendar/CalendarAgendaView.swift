@@ -111,7 +111,7 @@ struct CalendarAgendaView: View {
     private var emptyState: some View {
         VStack(spacing: Spacing.md) {
             Image(systemName: "calendar")
-                .font(.system(size: 36, weight: .light))
+                .font(Typography.emptyStateMediumIcon)
                 .foregroundStyle(.tertiary)
             Text("No upcoming events")
                 .font(Typography.subheadRegular)

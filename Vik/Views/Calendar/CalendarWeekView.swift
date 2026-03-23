@@ -15,6 +15,8 @@ struct CalendarWeekView: View {
     @State private var scrollProxy: ScrollViewProxy?
     @State private var dayColumnWidth: CGFloat = 100
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     private struct WeekLayoutCache {
         var weekDays: [Date] = []
         var timedEventsByDay: [[CalendarEvent]] = []
@@ -166,7 +168,8 @@ struct CalendarWeekView: View {
                         .glassEffect(.regular, in: .circle)
                 }
                 Text("\(dayNumber)")
-                    .font(.system(size: 13, weight: isToday ? .bold : .regular))
+                    .font(Typography.calendarEventTitle)
+                    .fontWeight(isToday ? .bold : .regular)
                     .foregroundStyle(isToday ? .white : .primary)
             }
         }
@@ -366,7 +369,7 @@ struct CalendarWeekView: View {
                     .offset(x: xStart)
             }
             .offset(y: yPos - CalendarLayout.currentTimeIndicatorDotSize / 2)
-            .animation(VikAnimation.springGentle, value: currentTime)
+            .animation(reduceMotion ? nil : VikAnimation.springGentle, value: currentTime)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
         }

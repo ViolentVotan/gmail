@@ -55,6 +55,7 @@ struct AccountAvatarBubble: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(account.displayName), \(account.email)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
         .help(account.email)
         .task(id: account.profilePictureURL?.absoluteString) {
             await loader.load(profilePictureURL: account.profilePictureURL)

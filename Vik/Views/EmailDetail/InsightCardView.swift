@@ -5,6 +5,8 @@ import SwiftUI
 struct InsightCardView: View {
     let insight: EmailInsightSnapshot?
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         Group {
             if let insight, hasContent(insight) {
@@ -61,7 +63,7 @@ struct InsightCardView: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.97)))
             }
         }
-        .animation(VikAnimation.springSnappy, value: insight?.summary)
+        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: insight?.summary)
     }
 
     private func hasContent(_ snapshot: EmailInsightSnapshot) -> Bool {

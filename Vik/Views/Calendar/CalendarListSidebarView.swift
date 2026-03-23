@@ -34,7 +34,7 @@ struct CalendarListSidebarView: View {
         ForEach(calendarsByAccount, id: \.accountID) { group in
             VStack(alignment: .leading, spacing: 2) {
                 Text(group.accountID)
-                    .font(.system(size: 11))
+                    .font(Typography.calendarMiniDay)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
                     .truncationMode(.middle)
@@ -71,7 +71,7 @@ struct CalendarListSidebarView: View {
                 Spacer(minLength: 0)
 
                 Image(systemName: calendar.isVisible ? "checkmark.square.fill" : "square")
-                    .font(.system(size: 12))
+                    .font(Typography.calendarAgendaTime)
                     .foregroundStyle(
                         calendar.isVisible
                             ? Color(hex: calendar.backgroundColor)
@@ -83,6 +83,7 @@ struct CalendarListSidebarView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(calendar.summaryOverride ?? calendar.summary), \(calendar.isVisible ? "Visible" : "Hidden")")
         .contextMenu {
             Button {
                 Task { await viewModel.toggleCalendarVisibility(calendar) }

@@ -33,12 +33,12 @@ struct ContentShimmerView: View {
     }
 
     private func shimmerRect(height: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: 3)
+        RoundedRectangle(cornerRadius: CornerRadius.xxs)
             .fill(.tertiary.opacity(OpacityToken.highlight))
             .frame(height: height)
             .overlay {
                 shimmerOverlay
-                    .clipShape(RoundedRectangle(cornerRadius: 3))
+                    .clipShape(RoundedRectangle(cornerRadius: CornerRadius.xxs))
             }
     }
 

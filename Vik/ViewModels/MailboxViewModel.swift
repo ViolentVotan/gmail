@@ -180,7 +180,7 @@ final class MailboxViewModel {
             } catch is CancellationError {
                 // Normal task cancellation (e.g. folder/account switch) — not an error
             } catch {
-                ToastManager.shared.show(message: "Database observation failed", type: .error)
+                ToastManager.shared.show(message: "Database observation failed: \(error.localizedDescription)", type: .error)
             }
         }
     }

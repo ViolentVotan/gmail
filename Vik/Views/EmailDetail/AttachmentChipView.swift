@@ -79,7 +79,7 @@ struct AttachmentChipView: View {
                     .font(Typography.subheadRegular)
                     .foregroundStyle(isDownloadHovered ? AnyShapeStyle(.tint) : AnyShapeStyle(.tertiary))
                     .frame(width: 28, height: 28)
-                    .contentShape(Rectangle())
+                    .contentShape(.rect.inset(by: -8))
             }
             .buttonStyle(.plain)
             .help("Download")

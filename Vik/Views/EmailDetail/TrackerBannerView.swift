@@ -53,7 +53,7 @@ struct TrackerBannerView: View {
                     ForEach(groupedTrackers, id: \.name) { group in
                         HStack(spacing: 6) {
                             Image(systemName: group.icon)
-                                .font(.system(size: 9))
+                                .font(Typography.trackerLabel)
                                 .foregroundStyle(.tertiary)
                                 .frame(width: 12)
                             Text(group.name)
@@ -61,12 +61,12 @@ struct TrackerBannerView: View {
                                 .foregroundStyle(.primary)
                             if group.count > 1 {
                                 Text("×\(group.count)")
-                                    .font(.system(size: 9, weight: .medium))
+                                    .font(Typography.trackerLabelMedium)
                                     .foregroundStyle(.tertiary)
                             }
                             Spacer()
                             Text(group.kindLabel)
-                                .font(.system(size: 9))
+                                .font(Typography.trackerLabel)
                                 .foregroundStyle(.tertiary)
                         }
                     }

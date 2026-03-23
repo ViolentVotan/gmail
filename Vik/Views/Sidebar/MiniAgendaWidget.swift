@@ -115,7 +115,7 @@ struct MiniAgendaWidget: View {
     private var emptyState: some View {
         HStack(spacing: Spacing.sm) {
             Image(systemName: "calendar")
-                .font(.system(size: 14))
+                .font(Typography.subheadRegular)
                 .foregroundStyle(.tertiary)
             Text("No events today")
                 .font(Typography.calendarAgendaTime)

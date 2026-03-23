@@ -365,6 +365,7 @@ struct CalendarEventDetailView: View {
             .clipShape(.rect(cornerRadius: CornerRadius.sm))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
         .accessibilityAddTraits(isCurrent ? [.isSelected] : [])
     }
 
@@ -465,6 +466,7 @@ private struct ActionBarButton: View {
     let action: () -> Void
 
     @State private var isHovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: action) {
@@ -481,8 +483,9 @@ private struct ActionBarButton: View {
             .clipShape(.rect(cornerRadius: CornerRadius.sm))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(label)
         .scaleEffect(isHovered ? ScaleToken.hover : 1.0)
-        .animation(VikAnimation.springDefault, value: isHovered)
+        .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHovered)
         .onHover { isHovered = $0 }
     }
 }

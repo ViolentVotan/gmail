@@ -79,5 +79,6 @@ struct AccountSwitcherView: View {
         .opacity(isSigningIn ? 0.5 : 1)
         .disabled(isSigningIn)
         .help("Add account")
+        .accessibilityLabel("Add account")
     }
 }

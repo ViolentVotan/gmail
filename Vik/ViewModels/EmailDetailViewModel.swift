@@ -110,7 +110,7 @@ final class EmailDetailViewModel {
                 try MailDatabaseQueries.messagesForThread(id, in: db)
             }
             if let records = threadMessages, !records.isEmpty {
-                let allHaveBodies = records.allSatisfy { $0.fullBodyFetched }
+                let allHaveBodies = records.allSatisfy { $0.fullBodyFetched == true }
                 let gmailMessages = records.map { $0.toGmailMessage() }
 
                 // Tier 2: Check preprocessed DB columns — zero regex work
@@ -156,7 +156,7 @@ final class EmailDetailViewModel {
                     // Lazy backfill: write preprocessed columns back to DB
                     if allHaveBodies {
                         let recordsToBackfill = records.filter {
-                            $0.fullBodyFetched && $0.bodyHtml != nil && $0.preprocessedHtml == nil
+                            $0.fullBodyFetched == true && $0.bodyHtml != nil && $0.preprocessedHtml == nil
                         }
                         if !recordsToBackfill.isEmpty {
                             let t = Task<Void, Never>.detached { [db] in

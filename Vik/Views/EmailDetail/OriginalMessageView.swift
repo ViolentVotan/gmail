@@ -97,6 +97,7 @@ struct OriginalMessageView: View {
                     .foregroundStyle(.tint)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Download Original")
                 .disabled(rawSource == nil)
 
                 Spacer()
@@ -125,6 +126,7 @@ struct OriginalMessageView: View {
                     .clipShape(.rect(cornerRadius: CornerRadius.sm))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Copy to Clipboard")
                 .disabled(rawSource == nil)
             }
             .padding(.horizontal, 20)

@@ -36,12 +36,14 @@ struct CalendarMiniMonthView: View {
                 }
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Typography.calendarMiniEventTitle)
                     .frame(width: 24, height: 24)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.glass)
             .foregroundStyle(.secondary)
+            .help("Previous month")
+            .accessibilityLabel("Previous month")
 
             Spacer()
 
@@ -58,12 +60,14 @@ struct CalendarMiniMonthView: View {
                 }
             } label: {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Typography.calendarMiniEventTitle)
                     .frame(width: 24, height: 24)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.glass)
             .foregroundStyle(.secondary)
+            .help("Next month")
+            .accessibilityLabel("Next month")
         }
     }
 

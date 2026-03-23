@@ -4,6 +4,8 @@ import SwiftUI
 // MARK: - Spacing
 
 enum Spacing {
+    static let xxxs: CGFloat = 1
+    static let xxs: CGFloat = 2
     static let xs: CGFloat = 4
     static let sm: CGFloat = 8
     static let md: CGFloat = 12
@@ -21,10 +23,14 @@ enum ButtonSize {
 // MARK: - Corner Radius
 
 enum CornerRadius {
+    static let indicator: CGFloat = 1
+    static let xxs: CGFloat = 2
     static let xs: CGFloat = 4
     static let sm: CGFloat = 6
     static let md: CGFloat = 12
     static let lg: CGFloat = 16
+    static let xl: CGFloat = 24
+    static let xxl: CGFloat = 32
 }
 
 // MARK: - Brand Colors
@@ -36,6 +42,8 @@ enum BrandColor {
     static let blue   = Color(red: 0.227, green: 0.435, blue: 0.941) // #3A6FF0
     /// Vik violet — onboarding bridge accent between blue and coral.
     static let violet = Color(red: 0.639, green: 0.443, blue: 0.969) // #A371F7
+    /// Near-black background for the onboarding window.
+    static let onboardingBackground = Color(red: 0.031, green: 0.035, blue: 0.047) // #080910
 }
 
 // MARK: - Adaptive Color
@@ -114,13 +122,13 @@ enum VikAnimation {
     /// Typewriter reveal — instant text update for character-by-character streaming.
     static let typewriterReveal = Animation.linear(duration: 0.05)
     /// Onboarding entrance — slow fade for ambient background elements.
-    static let onboardingAmbient = Animation.easeIn(duration: 1.8)
+    static let onboardingAmbient = Animation.easeOut(duration: 1.8)
     /// Onboarding reveal — smooth fade-out for text elements appearing in sequence.
     static let onboardingReveal = Animation.easeOut(duration: 0.5)
     /// Onboarding short reveal — quick fade for secondary text elements.
     static let onboardingRevealShort = Animation.easeOut(duration: 0.4)
     /// Onboarding transition — crossfade for post-sign-in view swap.
-    static let onboardingTransition = Animation.easeInOut(duration: 0.5)
+    static let onboardingTransition = Animation.smooth(duration: 0.35)
     /// Onboarding card entrance — heavier spring for the glass card scaling up.
     static let onboardingCardEntrance = Animation.spring(response: 0.7, dampingFraction: 0.8)
     /// Onboarding icon bounce — underdamped spring for dramatic helmet drop-in with rotation.
@@ -259,6 +267,22 @@ enum Typography {
     static let calendarWeekdayAbbrev: Font = .system(size: 11, weight: .medium)
     /// Week view hour label — small regular label for each hour row in the time grid.
     static let calendarWeekHourLabel: Font = .system(size: 10, weight: .regular)
+
+    // Display & Special
+    /// Onboarding hero title — large bold display for app name.
+    static let displayHero: Font = .system(size: 52, weight: .bold)
+    /// Onboarding subtitle — medium weight body text for taglines.
+    static let onboardingSubtitle: Font = .system(size: 15, weight: .medium)
+    /// Empty state large icon — ultralight for decorative empty-state symbols.
+    static let emptyStateIcon: Font = .system(size: 56, weight: .ultraLight)
+    /// Empty state medium icon — light weight for secondary empty-state symbols.
+    static let emptyStateMediumIcon: Font = .system(size: 36, weight: .light)
+    /// Calendar event editor title — semibold heading for the event title field.
+    static let calendarEditorTitle: Font = .system(size: 20, weight: .semibold)
+    /// Tracker domain label — tiny text for blocked tracker names.
+    static let trackerLabel: Font = .system(size: 10, weight: .regular)
+    /// Tracker domain label medium — tiny medium text for tracker group icons.
+    static let trackerLabelMedium: Font = .system(size: 10, weight: .medium)
 }
 
 // MARK: - Elevation
