@@ -177,6 +177,8 @@ final class MailboxViewModel {
                         self.handleDatabaseUpdate(records, from: db)
                     }
                 }
+            } catch is CancellationError {
+                // Normal task cancellation (e.g. folder/account switch) — not an error
             } catch {
                 ToastManager.shared.show(message: "Database observation failed", type: .error)
             }

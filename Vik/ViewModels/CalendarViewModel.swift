@@ -143,6 +143,8 @@ final class CalendarViewModel {
                         self.refreshObservation()
                     }
                 }
+            } catch is CancellationError {
+                // Normal task cancellation — not an error
             } catch {
                 Self.logger.error("Calendar observation failed: \(error.localizedDescription)")
             }
@@ -197,6 +199,8 @@ final class CalendarViewModel {
                         self.recomputeEventCaches()
                     }
                 }
+            } catch is CancellationError {
+                // Normal task cancellation — not an error
             } catch {
                 Self.logger.error("Event observation failed: \(error.localizedDescription)")
             }
