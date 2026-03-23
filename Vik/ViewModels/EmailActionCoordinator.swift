@@ -370,13 +370,13 @@ final class EmailActionCoordinator {
     }
 
     /// Empties the Trash folder (permanent deletion of all trashed messages).
-    func emptyTrashFolder() async {
-        await mailboxViewModel.emptyTrash()
+    func emptyTrashFolder(confirmedCount: Int) async {
+        await mailboxViewModel.emptyTrash(confirmedCount: confirmedCount)
     }
 
     /// Empties the Spam folder (permanent deletion of all spam messages).
-    func emptySpamFolder() async {
-        await mailboxViewModel.emptySpam()
+    func emptySpamFolder(confirmedCount: Int) async {
+        await mailboxViewModel.emptySpam(confirmedCount: confirmedCount)
     }
 
     func printEmail(_ email: Email) async {

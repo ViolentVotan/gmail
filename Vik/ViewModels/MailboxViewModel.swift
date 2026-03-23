@@ -719,8 +719,8 @@ final class MailboxViewModel {
     /// Permanently deletes all messages in Trash.
     /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
     ///   `EmailActionCoordinator.emptyTrashFolder()`.
-    func emptyTrash() async {
-        await emptyFolder(labelID: GmailSystemLabel.trash, folderName: "Trash") { [api, accountID] in
+    func emptyTrash(confirmedCount: Int) async {
+        await emptyFolder(labelID: GmailSystemLabel.trash, folderName: "Trash", confirmedCount: confirmedCount) { [api, accountID] in
             try await api.emptyTrash(accountID: accountID)
         }
     }
@@ -728,25 +728,26 @@ final class MailboxViewModel {
     /// Permanently deletes all messages in Spam.
     /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
     ///   `EmailActionCoordinator.emptySpamFolder()`.
-    func emptySpam() async {
-        await emptyFolder(labelID: GmailSystemLabel.spam, folderName: "Spam") { [api, accountID] in
+    func emptySpam(confirmedCount: Int) async {
+        await emptyFolder(labelID: GmailSystemLabel.spam, folderName: "Spam", confirmedCount: confirmedCount) { [api, accountID] in
             try await api.emptySpam(accountID: accountID)
         }
     }
 
-    private func emptyFolder(labelID: String, folderName: String, action: @Sendable () async throws -> Void) async {
+    private func emptyFolder(labelID: String, folderName: String, confirmedCount: Int, action: @Sendable () async throws -> Void) async {
         // 1. Optimistic: remove all messages with this label from local DB immediately.
         //    ValueObservation picks up the change → UI animates messages out.
-        let deletedCount = await deleteMessagesByLabel(labelID)
+        _ = await deleteMessagesByLabel(labelID)
+        await loadFolderUnreadCounts()
 
         // 2. Call the API to delete on server.
         do {
             try await action()
-            if deletedCount > 0 {
-                ToastManager.shared.show(
-                    message: "\(deletedCount) message\(deletedCount == 1 ? "" : "s") deleted from \(folderName)"
-                )
-            }
+            // Use the server-side count from the confirmation dialog, not the local DB count,
+            // since only a subset of server messages may be synced locally.
+            ToastManager.shared.show(
+                message: "\(confirmedCount) message\(confirmedCount == 1 ? "" : "s") deleted from \(folderName)"
+            )
         } catch GmailAPIError.partialFailure(let failedCount) {
             ToastManager.shared.show(message: "\(failedCount) messages could not be deleted", type: .error)
         } catch {

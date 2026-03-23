@@ -38,8 +38,9 @@ struct ContentView: View {
                 .alert("Empty Trash", isPresented: $dialogs.showEmptyTrashConfirm) {
                     Button("Cancel", role: .cancel) {}
                     Button("Delete All", role: .destructive) {
+                        let count = coordinator.dialogs.trashTotalCount
                         coordinator.selection.selectedEmail = nil
-                        Task { await coordinator.actionCoordinator.emptyTrashFolder() }
+                        Task { await coordinator.actionCoordinator.emptyTrashFolder(confirmedCount: count) }
                     }
                 } message: {
                     Text("This will permanently delete \(coordinator.dialogs.trashTotalCount) message\(coordinator.dialogs.trashTotalCount == 1 ? "" : "s"). This action cannot be undone.")
@@ -47,8 +48,9 @@ struct ContentView: View {
                 .alert("Empty Spam", isPresented: $dialogs.showEmptySpamConfirm) {
                     Button("Cancel", role: .cancel) {}
                     Button("Delete All", role: .destructive) {
+                        let count = coordinator.dialogs.spamTotalCount
                         coordinator.selection.selectedEmail = nil
-                        Task { await coordinator.actionCoordinator.emptySpamFolder() }
+                        Task { await coordinator.actionCoordinator.emptySpamFolder(confirmedCount: count) }
                     }
                 } message: {
                     Text("This will permanently delete \(coordinator.dialogs.spamTotalCount) spam message\(coordinator.dialogs.spamTotalCount == 1 ? "" : "s"). This action cannot be undone.")
