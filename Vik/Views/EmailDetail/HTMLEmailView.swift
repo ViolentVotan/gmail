@@ -130,6 +130,23 @@ struct HTMLEmailView: NSViewRepresentable {
             a { color: #1a73e8; }
             blockquote { border-left: 3px solid #dadce0; color: #5f6368; }
             pre, code { background: rgba(0,0,0,0.06); color: inherit; }
+            /* CSS-first light mode: fix white/near-white text that's invisible
+               on light backgrounds (e.g. LinkedIn dark-themed email sections). */
+            [style*="color: #fff"], [style*="color:#fff"],
+            [style*="color: #FFF"], [style*="color:#FFF"],
+            [style*="color: white"], [style*="color:white"],
+            [style*="color: #ffffff"], [style*="color:#ffffff"],
+            [style*="color: #FFFFFF"], [style*="color:#FFFFFF"],
+            [style*="color: rgb(255, 255, 255)"], [style*="color:rgb(255,255,255)"],
+            [style*="color:#fafafa"], [style*="color: #fafafa"],
+            [style*="color:#FAFAFA"], [style*="color: #FAFAFA"],
+            [style*="color:#f5f5f5"], [style*="color: #f5f5f5"],
+            [style*="color:#eee"], [style*="color: #eee"],
+            [style*="color:#EEE"], [style*="color: #EEE"],
+            [style*="color:#eeeeee"], [style*="color: #eeeeee"],
+            [style*="color:#EEEEEE"], [style*="color: #EEEEEE"] {
+                color: var(--text-color) !important;
+            }
         }
         </style>
         </head>
@@ -464,7 +481,6 @@ struct HTMLEmailView: NSViewRepresentable {
         /// CSP `script-src 'none'` prevents any scripts in the injected HTML from executing.
         func injectContent(_ html: String) {
             guard let webView else { return }
-            let isDarkMode = lastColorScheme == .dark
             Task { @MainActor [weak self] in
                 // Phase 1: inject HTML and measure height — show content immediately
                 _ = try? await webView.callAsyncJavaScript(
@@ -477,8 +493,9 @@ struct HTMLEmailView: NSViewRepresentable {
                 )
                 self?.parent.isContentLoaded = true
 
-                // Phase 2: fix contrast asynchronously (only in dark mode)
-                guard isDarkMode else { return }
+                // Phase 2: fix contrast asynchronously (both light and dark mode).
+                // Emails with inline styles (LinkedIn, marketing) can have white text on
+                // light backgrounds or dark text on dark backgrounds in either mode.
                 _ = try? await webView.callAsyncJavaScript(
                     "if (typeof fixContrastColorsAsync === 'function') { fixContrastColorsAsync(); }",
                     arguments: [:],
@@ -490,15 +507,11 @@ struct HTMLEmailView: NSViewRepresentable {
         /// Updates CSS custom properties and re-runs contrast fix for color scheme changes.
         func updateColorScheme(textHex: String, bgLum: String) {
             guard let webView else { return }
-            let isDarkMode = lastColorScheme == .dark
             Task { @MainActor in
-                let contrastFix = isDarkMode
-                    ? "if (typeof fixContrastColorsAsync === 'function') { fixContrastColorsAsync(); }"
-                    : ""
                 _ = try? await webView.callAsyncJavaScript(
                     "document.documentElement.style.setProperty('--text-color', textHex);"
                     + "PAGE_BG_LUM = parseFloat(bgLum);"
-                    + contrastFix,
+                    + "if (typeof fixContrastColorsAsync === 'function') { fixContrastColorsAsync(); }",
                     arguments: ["textHex": textHex, "bgLum": bgLum],
                     contentWorld: .page
                 )
