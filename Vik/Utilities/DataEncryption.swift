@@ -1,5 +1,6 @@
 import Foundation
 private import CryptoKit
+private import os
 private import Security
 import Synchronization
 
@@ -88,6 +89,8 @@ enum DataEncryption {
         return result as? Data
     }
 
+    private nonisolated static let logger = Logger(category: "DataEncryption")
+
     /// Saves (or updates) a Keychain item with `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`.
     nonisolated static func saveKeychainItem(service: String, account: String, data: Data) {
         let query: [String: Any] = [
@@ -104,10 +107,15 @@ enum DataEncryption {
                 kSecAttrService as String: service,
                 kSecAttrAccount as String: account,
             ]
-            SecItemUpdate(
+            let updateStatus = SecItemUpdate(
                 search as CFDictionary,
                 [kSecValueData as String: data] as CFDictionary
             )
+            if updateStatus != errSecSuccess {
+                logger.error("Keychain update failed (service=\(service), account=\(account)): OSStatus \(updateStatus)")
+            }
+        } else if status != errSecSuccess {
+            logger.error("Keychain add failed (service=\(service), account=\(account)): OSStatus \(status)")
         }
     }
 }

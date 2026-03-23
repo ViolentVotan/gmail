@@ -758,9 +758,24 @@ final class GmailAPIClient {
                     throw GmailAPIError.networkError(error)
                 }
                 guard let token else { throw GmailAPIError.unauthorized }
-                let fresh = try await OAuthService.shared.refreshToken(token)
-                try await TokenStore.shared.save(fresh, for: accountID)
-                return fresh
+                do {
+                    let fresh = try await OAuthService.shared.refreshToken(token)
+                    try await TokenStore.shared.save(fresh, for: accountID)
+                    return fresh
+                } catch {
+                    // On tokenRevoked (invalid_grant), only delete the Keychain
+                    // entry if it still holds the SAME refresh token we tried.
+                    // A concurrent reauthorize may have already saved a fresh
+                    // token — blindly deleting would nuke it and force the user
+                    // to sign in again on next launch.
+                    if case .tokenRevoked = error as? OAuthError {
+                        let current = try? await TokenStore.shared.retrieve(for: accountID)
+                        if current == nil || current?.refreshToken == token.refreshToken {
+                            await TokenStore.shared.delete(for: accountID)
+                        }
+                    }
+                    throw error
+                }
             }
             refreshTasks[accountID] = t
             return (t, true)
@@ -782,9 +797,10 @@ final class GmailAPIClient {
                     refreshTasks[accountID] = nil
                     _ = refreshGeneration.removeValue(forKey: accountID)
                 }
-                // Clear revoked tokens from Keychain so we don't retry stale credentials on next launch
+                // Keychain cleanup for tokenRevoked is handled inside the
+                // detached task (with a refresh-token guard to avoid nuking
+                // a freshly saved reauthorize token). Only clear the cache here.
                 if case .tokenRevoked = error as? OAuthError {
-                    await TokenStore.shared.delete(for: accountID)
                     _ = cachedTokens.withLock { $0.removeValue(forKey: accountID) }
                 }
             }
