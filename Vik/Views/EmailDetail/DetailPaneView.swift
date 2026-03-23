@@ -128,7 +128,7 @@ struct DetailPaneView: View {
             signatureForReply: signatureForReply,
             contacts: contacts,
             onDiscard: { discardDraft(draftId) },
-            onOpenLink: { url in panelCoordinator.openInAppBrowser(url: url) }
+            onOpenLink: { url in panelCoordinator.openInBrowser(url: url) }
         )
         .id(draftId)
     }

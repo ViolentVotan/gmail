@@ -198,8 +198,6 @@ enum ZIndexToken {
     static let panel: Double = 10
     /// Command palette (above panels)
     static let palette: Double = 11
-    /// Web browser overlay (topmost)
-    static let browser: Double = 20
 }
 
 // MARK: - Scale Tokens

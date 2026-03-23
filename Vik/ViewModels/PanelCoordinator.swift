@@ -9,11 +9,6 @@ final class PanelCoordinator {
     var showDebug = false
     var showOriginal = false
     var showAttachmentPreview = false
-    var showWebBrowser = false
-
-    // MARK: - Web browser data
-
-    var webBrowserURL: URL?
 
     // MARK: - Original message data
 
@@ -42,7 +37,7 @@ final class PanelCoordinator {
     }
 
     var isAnyOpen: Bool {
-        showHelp || showDebug || showAttachmentPreview || showOriginal || showWebBrowser || showEmailPreview
+        showHelp || showDebug || showAttachmentPreview || showOriginal || showEmailPreview
     }
 
     func closeAll() {
@@ -54,7 +49,6 @@ final class PanelCoordinator {
         showDebug = false
         showAttachmentPreview = false
         showOriginal = false
-        showWebBrowser = false
         showEmailPreview = false
     }
 
@@ -103,17 +97,8 @@ final class PanelCoordinator {
         }
     }
 
-    func openInAppBrowser(url: URL) {
-        // Only load http/https in the in-app browser; pass other schemes
-        // (mailto:, tel:, maps:, etc.) to the system handler.
-        guard url.scheme == "http" || url.scheme == "https" else {
-            NSWorkspace.shared.open(url)
-            return
-        }
-        webBrowserURL = url
-        withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.springSnappy) {
-            showWebBrowser = true
-        }
+    func openInBrowser(url: URL) {
+        NSWorkspace.shared.open(url)
     }
 
     func downloadMessage(

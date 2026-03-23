@@ -75,7 +75,7 @@ extension EmailDetailActions {
         actions.onDownloadMessage = { msg, acctID in
             panelCoordinator.downloadMessage(message: msg, accountID: acctID)
         }
-        actions.onOpenLink = { url in panelCoordinator.openInAppBrowser(url: url) }
+        actions.onOpenLink = { url in panelCoordinator.openInBrowser(url: url) }
         actions.onUnsubscribe = onUnsubscribe
         actions.checkUnsubscribed = checkUnsubscribed
         actions.extractBodyUnsubscribeURL = extractBodyUnsubscribeURL

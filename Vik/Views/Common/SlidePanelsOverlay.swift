@@ -27,7 +27,6 @@ struct SlidePanelsOverlay: View {
         originalPanel
         attachmentPanel
         emailPreviewPanel
-        webBrowserOverlay
     }
 
     // MARK: - Help
@@ -155,22 +154,6 @@ struct SlidePanelsOverlay: View {
         }
 
         return actions
-    }
-
-    // MARK: - Web Browser
-
-    private var webBrowserOverlay: some View {
-        Group {
-            if panels.showWebBrowser, let url = panels.webBrowserURL {
-                InAppBrowserView(url: url) {
-                    panels.showWebBrowser = false
-                }
-                .onKeyPress(.escape) { panels.showWebBrowser = false; return .handled }
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
-        .zIndex(ZIndexToken.browser)
-        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: panels.showWebBrowser)
     }
 
     private func saveAttachment(data: Data, name: String) {
