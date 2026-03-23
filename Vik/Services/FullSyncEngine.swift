@@ -66,11 +66,16 @@ actor FullSyncEngine {
     /// Checked by the retry loop to avoid retrying auth failures.
     private var isTokenRevoked = false
 
+    /// When true, Pub/Sub is delivering notifications — use 300s backup polling.
+    /// When false, use normal polling (60s default or _pollingOverride).
+    private(set) var pubSubActive: Bool = false
+
     // MARK: - Config
 
-    /// Adaptive polling: 60s (app focused), 300s (background/unfocused)
+    /// Precedence: pubSubActive (300s) > _pollingOverride > default (60s).
+    /// When Pub/Sub is active, backup polling is always 300s regardless of app focus state.
     private var pollingInterval: TimeInterval {
-        _pollingOverride ?? 60
+        pubSubActive ? PubSubConfig.backupPollingInterval : (_pollingOverride ?? 60)
     }
     private var _pollingOverride: TimeInterval?
 
@@ -870,6 +875,19 @@ actor FullSyncEngine {
             _pollingOverride = 300 // 5 minutes when backgrounded/unfocused
         } else {
             _pollingOverride = nil // use default 60s
+        }
+    }
+
+    /// Toggles Pub/Sub-driven backup polling. Cancels and restarts the incremental loop
+    /// so the new polling interval takes effect immediately (without waiting for a sleep to expire).
+    func setPubSubActive(_ active: Bool) {
+        guard pubSubActive != active else { return }
+        pubSubActive = active
+        Self.logger.info("Pub/Sub active: \(active) — polling interval now \(self.pollingInterval)s")
+        // Restart the incremental loop with the new interval
+        if state == .monitoring {
+            incrementalTask?.cancel()
+            startIncrementalLoop()
         }
     }
 
