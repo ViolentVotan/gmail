@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import Synchronization
 private import AppAuth
 
 /// Handles Google OAuth 2.0 using AppAuth (loopback HTTP redirect flow).
@@ -51,6 +52,9 @@ final class OAuthService: NSObject {
             ?? NSApplication.shared.windows.first
             ?? NSWindow()
 
+        // Guards against AppAuth calling the callback more than once (e.g. cancel + timeout).
+        let hasResumed = Mutex(false)
+
         return try await withCheckedThrowingContinuation { continuation in
             // authState(byPresenting:presenting:callback:) opens the system browser
             // via NSWorkspace and waits for the loopback redirect to complete.
@@ -75,6 +79,12 @@ final class OAuthService: NSObject {
                 Task { @MainActor in
                     self?.redirectHandler = nil
                     self?.currentAuthorizationFlow = nil
+
+                    guard hasResumed.withLock({ resumed in
+                        guard !resumed else { return false }
+                        resumed = true
+                        return true
+                    }) else { return }
 
                     if let error {
                         continuation.resume(throwing: error)

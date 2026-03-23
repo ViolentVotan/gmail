@@ -109,11 +109,8 @@ actor AttachmentDatabase {
             throw AttachmentDatabaseError.schemaFailed(msg)
         }
 
-        // 1a. Indexes for frequently queried columns
-        exec("CREATE INDEX IF NOT EXISTS idx_attachments_account_id ON attachments(accountID)", on: db)
-        exec("CREATE INDEX IF NOT EXISTS idx_attachments_status_account ON attachments(indexingStatus, accountID)", on: db)
+        // 1a. Index for non-accountID column (safe to create immediately)
         exec("CREATE INDEX IF NOT EXISTS idx_attachments_message_id ON attachments(messageId)", on: db)
-        exec("CREATE INDEX IF NOT EXISTS idx_attachments_account_date ON attachments(accountID, emailDate DESC)", on: db)
 
         // 1b. Scanned messages tracking table
         sqlite3_exec(db, """
@@ -138,11 +135,18 @@ actor AttachmentDatabase {
         addColumnIfMissing("attachments", column: "retryCount", definition: "INTEGER DEFAULT 0", on: db)
         addColumnIfMissing("attachments", column: "emailBody", definition: "TEXT", on: db)
         addColumnIfMissing("attachments", column: "accountID", definition: "TEXT", on: db)
-        // Clean up pre-migration rows without accountID — they can't be attributed to any account
-        sqlite3_exec(db, "DELETE FROM attachments WHERE accountID IS NULL", nil, nil, nil)
 
-        // 3. FTS migration — rebuild when schema changes
+        // 2a. accountID indexes — must follow addColumnIfMissing("accountID") above
+        exec("CREATE INDEX IF NOT EXISTS idx_attachments_account_id ON attachments(accountID)", on: db)
+        exec("CREATE INDEX IF NOT EXISTS idx_attachments_status_account ON attachments(indexingStatus, accountID)", on: db)
+        exec("CREATE INDEX IF NOT EXISTS idx_attachments_account_date ON attachments(accountID, emailDate DESC)", on: db)
+
+        // 3. FTS migration — rebuild when schema changes; triggers must exist before the DELETE fires
         migrateFTS(db)
+
+        // 4. Clean up pre-migration rows without accountID — done after migrateFTS so FTS triggers
+        //    are in place when the DELETE fires and can propagate the removal to the FTS index
+        sqlite3_exec(db, "DELETE FROM attachments WHERE accountID IS NULL", nil, nil, nil)
     }
 
     /// Called only from `createSchemaOnOpen()` during init — static for the same reason.
@@ -510,7 +514,7 @@ actor AttachmentDatabase {
     /// Persists a batch of scanned message IDs so they are skipped on next launch.
     /// Wraps all inserts in a single transaction for performance.
     func markMessagesScanned(_ ids: [String], accountID: String) {
-        guard !ids.isEmpty else { return }
+        guard !ids.isEmpty, db != nil else { return }
         let sql = "INSERT OR IGNORE INTO scanned_messages (messageID, accountID) VALUES (?, ?)"
         var stmt: OpaquePointer?
         guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
@@ -527,7 +531,7 @@ actor AttachmentDatabase {
 
     /// Inserts multiple attachments in a single transaction for performance.
     func insertAttachments(_ attachments: [IndexedAttachment]) {
-        guard !attachments.isEmpty else { return }
+        guard !attachments.isEmpty, db != nil else { return }
         exec("BEGIN TRANSACTION")
         for attachment in attachments {
             insertAttachment(attachment)

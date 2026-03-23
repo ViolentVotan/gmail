@@ -38,7 +38,7 @@ final class GmailProfileService {
             fields: "sendAs(sendAsEmail,displayName,signature,isDefault,isPrimary)",
             accountID: accountID
         )
-        return response.sendAs
+        return response.sendAs ?? []
     }
 
     /// Updates the signature HTML for a specific send-as alias.

@@ -26,6 +26,7 @@ enum MailDatabaseMigrations {
         registerV19(&migrator)
         registerV20(&migrator)
         registerV21(&migrator)
+        registerV22(&migrator)
         return migrator
     }
 
@@ -581,6 +582,21 @@ enum MailDatabaseMigrations {
                     VALUES (NEW.gmail_id, NEW.subject, NEW.body_plain, NEW.snippet, NEW.sender_name, NEW.sender_email);
                 END
             """)
+        }
+    }
+
+    // MARK: - V22
+
+    private static func registerV22(_ migrator: inout DatabaseMigrator) {
+        migrator.registerMigration("v22_calendarEventStatusIndex") { db in
+            // Partial index covering only active (non-cancelled) events for the primary
+            // calendar query path. Excludes cancelled events to keep the index small
+            // and queries on visible events fast.
+            try db.execute(sql: """
+                CREATE INDEX IF NOT EXISTS idx_events_active_account_time
+                ON calendar_events(account_id, start_time, end_time)
+                WHERE status != 'cancelled'
+                """)
         }
     }
 }

@@ -150,7 +150,7 @@ struct GmailHistoryLabelRemoved: Codable, Sendable {
 // MARK: - Labels
 
 struct GmailLabelListResponse: Codable, Sendable {
-    let labels: [GmailLabel]
+    let labels: [GmailLabel]?
 }
 
 struct GmailLabelColor: Codable, Sendable {
@@ -231,7 +231,7 @@ struct GmailProfile: Codable, Sendable {
 // MARK: - Send As / Signature
 
 struct GmailSendAsListResponse: Codable, Sendable {
-    let sendAs: [GmailSendAs]
+    let sendAs: [GmailSendAs]?
 }
 
 struct GmailSendAs: Codable, Identifiable, Sendable {

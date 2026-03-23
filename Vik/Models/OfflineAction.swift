@@ -112,6 +112,11 @@ struct OfflineAction: Codable, Identifiable, Sendable {
             }
         }
 
+        var isSend: Bool {
+            if case .send = self { return true }
+            return false
+        }
+
         private var stringValue: String {
             switch self {
             case .archive:           "archive"

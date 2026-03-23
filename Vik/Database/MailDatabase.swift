@@ -112,13 +112,11 @@ final class MailDatabase: Sendable {
 
     private static let instances = Mutex<[String: MailDatabase]>([:])
 
-    /// Per-account migration state: tracks whether a migration is in progress
-    /// and holds the result (success or failure) once complete.
+    /// Per-account migration state: tracks whether a migration is in progress.
     /// - `.inProgress`: migration running, waiters accumulate continuations
-    /// - `.failed`: migration failed with this error — late arrivals get the error directly
+    /// Entry is removed on both success (instance cached) and failure (allows retry).
     private enum MigrationEntry {
         case inProgress([CheckedContinuation<MailDatabase, any Error>])
-        case failed(any Error)
     }
 
     private static let migrationState = Mutex<[String: MigrationEntry]>([:])
@@ -139,15 +137,12 @@ final class MailDatabase: Sendable {
         enum ClaimResult {
             case migrate
             case wait
-            case failed(any Error)
         }
         let claim = migrationState.withLock { state -> ClaimResult in
             if let entry = state[accountID] {
                 switch entry {
                 case .inProgress:
                     return .wait
-                case .failed(let error):
-                    return .failed(error)
                 }
             }
             // Claim migration by creating the waiters entry (empty = we own it).
@@ -156,9 +151,6 @@ final class MailDatabase: Sendable {
         }
 
         switch claim {
-        case .failed(let error):
-            throw error
-
         case .wait:
             // Another caller is migrating — suspend until it finishes.
             return try await withCheckedThrowingContinuation { continuation in
@@ -178,15 +170,13 @@ final class MailDatabase: Sendable {
                             waiters.append(continuation)
                             state[accountID] = .inProgress(waiters)
                             return .waiting
-                        case .failed(let error):
-                            return .failed(error)
                         }
                     }
                     // Migration finished between our initial check and here.
                     if let db = cachedInstance {
                         return .cached(db)
                     }
-                    // Should not happen — migration removes entry only after caching or storing error.
+                    // Should not happen — migration removes entry only after caching or removing state.
                     struct MigrationStateError: Error, CustomStringConvertible {
                         let description: String
                     }
@@ -229,10 +219,10 @@ final class MailDatabase: Sendable {
 
             return db
         } catch {
-            // Store the error so late-arriving callers get it directly instead of retrying.
+            // Remove migration entry to allow retry on next call (transient failures are recoverable).
             let waiters: [CheckedContinuation<MailDatabase, any Error>] = migrationState.withLock {
                 let entry = $0[accountID]
-                $0[accountID] = .failed(error)
+                $0.removeValue(forKey: accountID)
                 if case .inProgress(let w) = entry { return w }
                 return []
             }

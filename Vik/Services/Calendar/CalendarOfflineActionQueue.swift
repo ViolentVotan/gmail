@@ -102,7 +102,7 @@ final class CalendarOfflineActionQueue {
 
         guard !processed.isEmpty else { return }
         let processedSet = Set(processed)
-        store.removeAll(accountID: accountID) { processedSet.contains($0.id) }
+        await store.removeAllAndWait(accountID: accountID) { processedSet.contains($0.id) }
     }
 
     /// Removes all queued actions for the given account and deletes its on-disk file.

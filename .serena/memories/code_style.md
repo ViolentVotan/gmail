@@ -83,7 +83,7 @@ Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). Al
 
 ### DatabasePool & Configuration
 - `MailDatabase` is a `final class: Sendable` (not `@Observable`, not an actor) owning a `DatabasePool`
-- `MailDatabase.shared(for:)` is `async throws` — all callers must use `await`
+- `MailDatabase.shared(for:)` is `async throws` — all callers must use `await`. Migration failures are NOT permanently cached — callers can retry on transient errors.
 - Per-account SQLite file: `{accountID}.sqlite` in Application Support
 - WAL mode via `PRAGMA journal_mode = WAL`, `PRAGMA synchronous = NORMAL`, `PRAGMA foreign_keys = ON`, `PRAGMA cache_size = -64000`
 

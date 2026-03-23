@@ -251,7 +251,7 @@ final class GmailAPIClient {
 
         let doRequest = { (accessToken: String) async throws(GmailAPIError) -> (T, String?)? in
             try await self.performWithETag(
-                path: path, etag: etag, fields: fields, accessToken: accessToken
+                path: path, etag: etag, fields: fields, accessToken: accessToken, accountID: accountID
             )
         }
 
@@ -267,7 +267,8 @@ final class GmailAPIClient {
         path: String,
         etag: String?,
         fields: String?,
-        accessToken: String
+        accessToken: String,
+        accountID: String
     ) async throws(GmailAPIError) -> (T, String?)? {
         var fullPath = path
         Self.appendFields(fields, to: &fullPath)
@@ -297,7 +298,7 @@ final class GmailAPIClient {
         case 401:
             throw .unauthorized
         case 403:
-            throw Self.classify403(data: data, accountID: nil)
+            throw Self.classify403(data: data, accountID: accountID)
         default:
             throw .httpError(http.statusCode, data)
         }
@@ -311,7 +312,7 @@ final class GmailAPIClient {
         let token = try await cachedValidToken(for: accountID)
 
         let doRequest = { (accessToken: String) async throws(GmailAPIError) -> T in
-            let data = try await self.performURL(urlString, accessToken: accessToken)
+            let data = try await self.performURL(urlString, accessToken: accessToken, accountID: accountID)
             do {
                 return try Self.jsonDecoder.decode(T.self, from: data)
             } catch {
@@ -344,11 +345,11 @@ final class GmailAPIClient {
         // First attempt + 401 auto-retry (mirrors rawRequest pattern)
         let initialResults: [(id: String, statusCode: Int, data: Data)]
         do {
-            initialResults = try await performBatch(requests: requests, accessToken: activeAccessToken)
+            initialResults = try await performBatch(requests: requests, accessToken: activeAccessToken, accountID: accountID)
         } catch .unauthorized {
             let fresh = try await refreshAndRetry(accountID: accountID)
             activeAccessToken = fresh.accessToken
-            initialResults = try await performBatch(requests: requests, accessToken: activeAccessToken)
+            initialResults = try await performBatch(requests: requests, accessToken: activeAccessToken, accountID: accountID)
         }
 
         // Retry any parts that failed with HTTP 429 (rate limited)
@@ -386,11 +387,11 @@ final class GmailAPIClient {
 
             let retryResults: [(id: String, statusCode: Int, data: Data)]
             do {
-                retryResults = try await performBatch(requests: retryRequests, accessToken: activeToken)
+                retryResults = try await performBatch(requests: retryRequests, accessToken: activeToken, accountID: accountID)
             } catch .unauthorized {
                 let fresh = try await refreshAndRetry(accountID: accountID)
                 activeToken = fresh.accessToken
-                retryResults = try await performBatch(requests: retryRequests, accessToken: activeToken)
+                retryResults = try await performBatch(requests: retryRequests, accessToken: activeToken, accountID: accountID)
             }
 
             // Partition retry results into succeeded and still-rate-limited
@@ -580,7 +581,8 @@ final class GmailAPIClient {
     /// Executes an authenticated GET to any full URL (not limited to Gmail base URL).
     @concurrent private func performURL(
         _ urlString: String,
-        accessToken: String
+        accessToken: String,
+        accountID: String
     ) async throws(GmailAPIError) -> Data {
         guard let url = URL(string: urlString) else { throw .invalidURL }
         guard let host = url.host, host.hasSuffix(".googleapis.com") else { throw .invalidURL }
@@ -597,7 +599,7 @@ final class GmailAPIClient {
         case 401:
             throw .unauthorized
         case 403:
-            throw Self.classify403(data: data, accountID: nil)
+            throw Self.classify403(data: data, accountID: accountID)
         default:
             throw .httpError(http.statusCode, data)
         }
@@ -606,7 +608,8 @@ final class GmailAPIClient {
     /// Executes batch HTTP call off the main actor with retry logic matching `perform()`.
     @concurrent private func performBatch(
         requests: [(id: String, method: String, path: String, body: Data?)],
-        accessToken: String
+        accessToken: String,
+        accountID: String
     ) async throws(GmailAPIError) -> [(id: String, statusCode: Int, data: Data)] {
         let boundary = "batch_vik_\(UUID().uuidString)"
         var bodyParts: [String] = []
@@ -649,7 +652,7 @@ final class GmailAPIClient {
         case 401:
             throw .unauthorized
         case 403:
-            throw Self.classify403(data: data, accountID: nil)
+            throw Self.classify403(data: data, accountID: accountID)
         default:
             throw .httpError(http.statusCode, data)
         }
@@ -744,7 +747,7 @@ final class GmailAPIClient {
 
             // Use Task.detached to avoid inheriting MainActor isolation —
             // the body does network I/O that should not occupy the main actor.
-            let t = Task.detached { [self] in
+            let t = Task.detached {
                 let token: AuthToken?
                 do {
                     token = try await TokenStore.shared.retrieve(for: accountID)

@@ -182,7 +182,7 @@ final class CalendarEventService {
     // MARK: - Patch (private)
 
     /// Sends a partial update (PATCH) with raw JSON fields. Used internally by `respondToEvent`.
-    private func patchEvent(
+    @concurrent private func patchEvent(
         calendarId: String,
         eventId: String,
         fields: Data,

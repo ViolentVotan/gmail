@@ -53,6 +53,7 @@ final class SnoozeMonitor {
         await processExpiredItems(
             items: expired,
             itemID: \.messageId,
+            accountID: \.accountID,
             action: { item throws(GmailAPIError) in
                 try await GmailMessageService.shared.modifyLabels(
                     id: item.messageId,
@@ -78,6 +79,7 @@ final class SnoozeMonitor {
         await processExpiredItems(
             items: due,
             itemID: \.draftId,
+            accountID: \.accountID,
             action: { item throws(GmailAPIError) in
                 try await GmailDraftService.shared.sendDraft(draftId: item.draftId, accountID: item.accountID)
             },
@@ -104,6 +106,7 @@ final class SnoozeMonitor {
     private func processExpiredItems<T>(
         items: [T],
         itemID: KeyPath<T, String>,
+        accountID: KeyPath<T, String>,
         action: (T) async throws(GmailAPIError) -> Void,
         remove: (T) async -> Void,
         onSuccess: ((T) -> Void)? = nil,
@@ -116,27 +119,32 @@ final class SnoozeMonitor {
     ) async {
         for item in items {
             let id = item[keyPath: itemID]
+            let acctID = item[keyPath: accountID]
+            let compoundKey = "\(acctID):\(id)"
             do {
                 try await action(item)
-                removeFailureCount(id)
+                removeFailureCount(compoundKey)
                 await remove(item)
                 onSuccess?(item)
             } catch {
                 if case .httpError(404, _) = error {
                     Self.logger.info("\(logPrefix, privacy: .public) \(id, privacy: .private) deleted (404) — removing entry")
-                    removeFailureCount(id)
+                    removeFailureCount(compoundKey)
                     await remove(item)
                 } else {
                     Self.logger.error("Error processing \(logPrefix, privacy: .public) \(id, privacy: .private): \(error.localizedDescription, privacy: .public)")
-                    let count = getFailureCount(id) + 1
-                    setFailureCount(id, count)
+                    let count = getFailureCount(compoundKey) + 1
+                    setFailureCount(compoundKey, count)
                     if count >= failureNotifyThreshold {
                         ToastManager.shared.show(message: failureToast, type: .error)
-                        removeFailureCount(id)
                         if let onPermanentFailure {
+                            removeFailureCount(compoundKey)
                             onPermanentFailure(item)
                         } else {
-                            await remove(item)
+                            // Keep the item for future retry rather than silently dropping it.
+                            // Reset failure count so the next monitor tick retries.
+                            setFailureCount(compoundKey, 0)
+                            Self.logger.error("Max retries reached for \(id, privacy: .private) — will retry on next tick")
                         }
                     }
                 }

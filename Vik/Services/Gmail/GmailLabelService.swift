@@ -13,7 +13,7 @@ final class GmailLabelService {
             fields: "labels(id,name,type,messagesTotal,messagesUnread,color,labelListVisibility,messageListVisibility)",
             accountID: accountID
         )
-        return response.labels
+        return response.labels ?? []
     }
 
     /// Fetches labels with ETag-based cache validation.
@@ -27,7 +27,7 @@ final class GmailLabelService {
             accountID: accountID
         )
         guard let (response, responseETag) = result else { return nil }
-        return (response.labels, responseETag)
+        return (response.labels ?? [], responseETag)
     }
 
     @concurrent func getLabel(id: String, accountID: String) async throws(GmailAPIError) -> GmailLabel {

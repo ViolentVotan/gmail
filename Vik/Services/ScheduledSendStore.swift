@@ -75,10 +75,10 @@ final class ScheduledSendStore {
     }
 
     func markFailed(draftId: String, accountID: String) {
-        guard var item = store.firstItem(where: { $0.draftId == draftId && $0.accountID == accountID }) else { return }
-        store.removeAll(accountID: accountID) { $0.draftId == draftId }
-        item.failedPermanently = true
-        store.append(item, accountID: accountID)
+        var items = store.itemsByAccount[accountID] ?? []
+        guard let idx = items.firstIndex(where: { $0.draftId == draftId }) else { return }
+        items[idx].failedPermanently = true
+        store.replaceItems(items, accountID: accountID)
     }
 
     /// Removes all in-memory data and the on-disk JSON file for the given account.

@@ -29,7 +29,7 @@ final class EmailActionCoordinator {
         selectNext: (Email?) -> Void,
         offlineType: OfflineAction.ActionType? = nil,
         offlineToast: String,
-        apiAction: @escaping (String) async -> Void
+        apiAction: @escaping (String) async throws -> Void
     ) async {
         guard let msgID = email.gmailMessageID else { return }
         let vm = mailboxViewModel
@@ -53,7 +53,19 @@ final class EmailActionCoordinator {
             onConfirm: { [weak vm] in Task {
                 guard let vm, vm.accountID == expectedAccountID else { return }
                 guard AccountStore.shared.accounts.contains(where: { $0.id == expectedAccountID }) else { return }
-                await apiAction(msgID)
+                do {
+                    try await apiAction(msgID)
+                } catch {
+                    // API failed after undo timer expired — enqueue for retry
+                    if let offlineType {
+                        let action = OfflineAction(
+                            actionType: offlineType,
+                            messageIds: [msgID],
+                            accountID: expectedAccountID
+                        )
+                        await OfflineActionQueue.shared.enqueue(action)
+                    }
+                }
             } },
             onUndo: { [weak vm] in Task {
                 guard let vm, vm.accountID == expectedAccountID else { return }
@@ -99,7 +111,7 @@ final class EmailActionCoordinator {
             selectNext: selectNext,
             offlineType: .archive,
             offlineToast: "Archived (will sync when online)",
-            apiAction: { [mailboxViewModel] msgID in await mailboxViewModel.archive(msgID) }
+            apiAction: { [api, mailboxViewModel] msgID in try await api.archiveMessage(id: msgID, accountID: mailboxViewModel.accountID) }
         )
     }
 
@@ -118,7 +130,7 @@ final class EmailActionCoordinator {
             selectNext: selectNext,
             offlineType: .trash,
             offlineToast: "Moved to Trash (will sync when online)",
-            apiAction: { [mailboxViewModel] msgID in await mailboxViewModel.trash(msgID) }
+            apiAction: { [api, mailboxViewModel] msgID in try await api.trashMessage(id: msgID, accountID: mailboxViewModel.accountID) }
         )
     }
 
@@ -169,7 +181,7 @@ final class EmailActionCoordinator {
             selectNext: selectNext,
             offlineType: .spam,
             offlineToast: "Marked as Spam (will sync when online)",
-            apiAction: { [mailboxViewModel] msgID in await mailboxViewModel.spam(msgID) }
+            apiAction: { [api, mailboxViewModel] msgID in try await api.spamMessage(id: msgID, accountID: mailboxViewModel.accountID) }
         )
     }
 
@@ -197,9 +209,16 @@ final class EmailActionCoordinator {
 
     func moveToInboxEmail(_ email: Email, selectedFolder: Folder, selectNext: (Email?) -> Void) async {
         let removeLabels = selectedFolder == .trash ? [GmailSystemLabel.trash] : [String]()
-        let apiAction: (String) async -> Void = selectedFolder == .trash
-            ? { [mailboxViewModel] msgID in await mailboxViewModel.untrash(msgID) }
-            : { [mailboxViewModel] msgID in await mailboxViewModel.moveToInbox(msgID) }
+        let apiAction: (String) async throws -> Void = selectedFolder == .trash
+            ? { [api, mailboxViewModel] msgID in _ = try await api.untrashMessage(id: msgID, accountID: mailboxViewModel.accountID) }
+            : { [api, mailboxViewModel] msgID in
+                try await api.modifyLabels(
+                    id: msgID,
+                    add: [GmailSystemLabel.inbox],
+                    remove: [],
+                    accountID: mailboxViewModel.accountID
+                )
+            }
         await performUndoableAction(
             email: email,
             label: "Moved to Inbox",
@@ -251,7 +270,14 @@ final class EmailActionCoordinator {
             removeLabels: [GmailSystemLabel.spam],
             selectNext: selectNext,
             offlineToast: "Not Spam requires internet connection",
-            apiAction: { [mailboxViewModel] msgID in await mailboxViewModel.unspam(msgID) }
+            apiAction: { [api, mailboxViewModel] msgID in
+                try await api.modifyLabels(
+                    id: msgID,
+                    add: [GmailSystemLabel.inbox],
+                    remove: [GmailSystemLabel.spam],
+                    accountID: mailboxViewModel.accountID
+                )
+            }
         )
     }
 
@@ -423,9 +449,21 @@ final class EmailActionCoordinator {
             onConfirm: { [weak vm, api] in Task {
                 guard let vm, vm.accountID == expectedAccountID else { return }
                 guard AccountStore.shared.accounts.contains(where: { $0.id == expectedAccountID }) else { return }
-                try? await api.batchModifyLabels(
-                    ids: msgIDs, add: addLabels, remove: removeLabels, accountID: expectedAccountID
-                )
+                do {
+                    try await api.batchModifyLabels(
+                        ids: msgIDs, add: addLabels, remove: removeLabels, accountID: expectedAccountID
+                    )
+                } catch {
+                    // API failed after undo timer expired — enqueue for offline retry
+                    if let offlineType {
+                        let action = OfflineAction(
+                            actionType: offlineType,
+                            messageIds: msgIDs,
+                            accountID: expectedAccountID
+                        )
+                        await OfflineActionQueue.shared.enqueue(action)
+                    }
+                }
             } },
             onUndo: { [weak vm] in Task {
                 guard let vm, vm.accountID == expectedAccountID else { return }

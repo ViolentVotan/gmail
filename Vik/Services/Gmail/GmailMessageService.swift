@@ -170,9 +170,11 @@ final class GmailMessageService {
     /// More efficient than per-message deletion — 50 quota units per batch vs 1 per message.
     @concurrent func batchDelete(ids: [String], accountID: String) async throws(GmailAPIError) {
         guard !ids.isEmpty else { return }
+        let chunkSize = 1000
         var failedIDs: [String] = []
-        for batch in stride(from: 0, to: ids.count, by: 1000) {
-            let chunk = Array(ids[batch..<min(batch + 1000, ids.count)])
+        for batch in stride(from: 0, to: ids.count, by: chunkSize) {
+            let chunk = Array(ids[batch..<min(batch + chunkSize, ids.count)])
+            await QuotaTracker.shared.waitForBudget(min(ids.count, chunkSize))
             do {
                 struct BatchDeleteRequest: Encodable { let ids: [String] }
                 let body = try encoder.encode(BatchDeleteRequest(ids: chunk))
@@ -228,6 +230,7 @@ final class GmailMessageService {
         accountID: String
     ) async throws(GmailAPIError) {
         guard !ids.isEmpty else { return }
+        var failedIDs: [String] = []
         for chunk in stride(from: 0, to: ids.count, by: 1000) {
             let batch = Array(ids[chunk..<min(chunk + 1000, ids.count)])
             struct BatchModifyRequest: Encodable {
@@ -246,11 +249,23 @@ final class GmailMessageService {
             } catch {
                 throw .encodingError(error)
             }
-            _ = try await client.rawRequest(
-                path: "/users/me/messages/batchModify",
-                method: "POST", body: body, contentType: "application/json",
-                accountID: accountID
-            )
+            do {
+                _ = try await client.rawRequest(
+                    path: "/users/me/messages/batchModify",
+                    method: "POST", body: body, contentType: "application/json",
+                    accountID: accountID
+                )
+            } catch {
+                switch error {
+                case .unauthorized, .tokenRevoked, .dailyLimitExceeded, .offline:
+                    throw error
+                default:
+                    failedIDs.append(contentsOf: batch)
+                }
+            }
+        }
+        if !failedIDs.isEmpty {
+            throw GmailAPIError.partialFailure(failedCount: failedIDs.count)
         }
     }
 
@@ -281,11 +296,6 @@ final class GmailMessageService {
             pageToken = response.nextPageToken
         } while pageToken != nil
 
-        // batchDelete processes in chunks of 1000; each chunk is one API call (50 units)
-        let chunkCount = allIDs.isEmpty ? 0 : (allIDs.count + 999) / 1000
-        for _ in 0..<chunkCount {
-            await QuotaTracker.shared.waitForBudget(50)
-        }
         try await batchDelete(ids: allIDs, accountID: accountID)
     }
 

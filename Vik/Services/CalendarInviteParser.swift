@@ -77,7 +77,7 @@ enum CalendarInviteParser {
     }
 
     /// Sends a silent GET to the RSVP URL. Returns true on 2xx.
-    /// Only allows HTTPS requests to calendar.google.com for safety.
+    /// Only allows HTTPS requests to google.com and its subdomains for safety.
     static func sendRSVP(url: URL) async -> Bool {
         guard url.scheme == "https",
               let host = url.host,
@@ -85,7 +85,9 @@ enum CalendarInviteParser {
         else { return false }
 
         do {
-            let (_, response) = try await NetworkConfig.externalSession.data(from: url)
+            let delegate = GoogleRedirectDelegate()
+            let session = URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
+            let (_, response) = try await session.data(from: url)
             if let http = response as? HTTPURLResponse {
                 return (200...299).contains(http.statusCode)
             }
@@ -193,4 +195,26 @@ enum CalendarInviteParser {
         return String(text[r])
     }
 
+}
+
+// MARK: - Redirect Validation
+
+/// URLSession delegate that blocks redirects to non-Google hosts.
+/// Used by `CalendarInviteParser.sendRSVP` to prevent open-redirect exploitation.
+private final class GoogleRedirectDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        guard let host = request.url?.host,
+              host.hasSuffix(".google.com") || host == "google.com"
+        else {
+            completionHandler(nil) // Block non-Google redirects
+            return
+        }
+        completionHandler(request)
+    }
 }

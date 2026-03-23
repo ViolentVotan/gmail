@@ -86,19 +86,26 @@ final class OfflineActionQueue {
             for accountID in accountIDs {
                 guard !Task.isCancelled else { break }
                 while let action = store.itemsByAccount[accountID]?.first {
-                    guard !action.messageIds.isEmpty else { removeAction(action); continue }
+                    guard !action.messageIds.isEmpty || action.actionType.isSend else { await removeAction(action); continue }
                     do {
                         try await executeAction(action)
-                        removeAction(action)
+                        await removeAction(action)
                         succeeded += 1
                     } catch {
                         if case .httpError(404, _) = error as? GmailAPIError {
-                            removeAction(action)
+                            await removeAction(action)
                         } else if case .partialFailure = error as? GmailAPIError {
                             // Partial success: some messages deleted. Remove action to avoid
                             // infinite retry loop (deleted IDs return 404 on next attempt).
                             // Failed deletions will be retried on next full sync.
-                            removeAction(action)
+                            await removeAction(action)
+                        } else if let apiError = error as? GmailAPIError,
+                                  case .httpError(let code, _) = apiError,
+                                  (400..<500).contains(code), code != 429 {
+                            // Permanent client error (bad request, forbidden, not found, gone, etc.)
+                            // Don't retry — remove the action to prevent infinite retry loops.
+                            Self.logger.error("Permanent error \(code) for action \(String(describing: action.actionType)) — removing")
+                            await removeAction(action)
                         } else {
                             Self.logger.warning("Drain error for account \(accountID, privacy: .private): \(error.localizedDescription, privacy: .public), continuing with next account")
                             hitError = true
@@ -118,7 +125,10 @@ final class OfflineActionQueue {
                 retryDelay = min(retryDelay * 2, 60)
                 retryTask = Task {
                     try? await Task.sleep(for: .seconds(delay))
-                    guard !Task.isCancelled else { return }
+                    guard !Task.isCancelled else {
+                        isDraining = false
+                        return
+                    }
                     isDraining = false
                     startDraining()
                 }
@@ -228,20 +238,20 @@ final class OfflineActionQueue {
         for (index, msgId) in action.messageIds.enumerated() {
             try await perform(msgId, action.accountID)
             let remainingIds = Array(action.messageIds[(index + 1)...])
-            persistRemainingIds(remainingIds, for: action)
+            await persistRemainingIds(remainingIds, for: action)
         }
     }
 
     // MARK: - Internal Helpers
 
     /// Removes a completed action from the store and persists.
-    private func removeAction(_ action: OfflineAction) {
-        store.removeAll(accountID: action.accountID) { $0.id == action.id }
+    private func removeAction(_ action: OfflineAction) async {
+        await store.removeAllAndWait(accountID: action.accountID) { $0.id == action.id }
     }
 
     /// Replaces the in-memory action with an updated copy holding only `remainingIds`,
     /// ensuring retries do not re-execute already-completed messages.
-    private func persistRemainingIds(_ remainingIds: [String], for action: OfflineAction) {
+    private func persistRemainingIds(_ remainingIds: [String], for action: OfflineAction) async {
         let accountID = action.accountID
         guard var accountItems = store.itemsByAccount[accountID],
               let idx = accountItems.firstIndex(where: { $0.id == action.id }) else { return }
@@ -254,5 +264,6 @@ final class OfflineActionQueue {
             metadata: action.metadata
         )
         store.replaceItems(accountItems, accountID: accountID)
+        await store.saveAndWait(accountID: accountID)
     }
 }

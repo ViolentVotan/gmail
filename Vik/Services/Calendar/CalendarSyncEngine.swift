@@ -46,6 +46,9 @@ actor CalendarSyncEngine {
     private var postEditRevertTask: Task<Void, Never>?
     private var triggeredSyncTask: Task<Void, Never>?
 
+    /// Pre-tightening polling interval, restored after the post-edit window expires.
+    private var preEditInterval: TimeInterval?
+
     /// Sync token for incremental calendar list sync via `CalendarListService.syncCalendars`.
     private var calendarListSyncToken: String?
 
@@ -75,42 +78,73 @@ actor CalendarSyncEngine {
     func start() async {
         guard syncTask == nil else { return }
 
-        // Restore persisted calendar list sync token
-        calendarListSyncToken = try? await db.dbPool.read { db in
-            try MailDatabaseQueries.syncState(in: db)?.calendarListSyncToken
+        // Capture immutable values for use inside the Task closure
+        let db = self.db
+        let accountID = self.accountID
+
+        // Assign syncTask BEFORE any async work so stop() can cancel it immediately,
+        // including if stop() is called during performInitialSync().
+        // The incremental polling loop runs inside this same task (not via
+        // startIncrementalLoop, which would overwrite syncTask).
+        syncTask = Task {
+            // Restore persisted calendar list sync token
+            self.calendarListSyncToken = try? await db.dbPool.read { db in
+                try MailDatabaseQueries.syncState(in: db)?.calendarListSyncToken
+            }
+
+            let hasTokens = (try? await db.dbPool.read { db in
+                try CalendarRecord
+                    .filter(Column("account_id") == accountID)
+                    .filter(Column("sync_token") != nil)
+                    .fetchCount(db) > 0
+            }) ?? true  // Default to "already synced" on DB read failure — prevents spurious full resync
+
+            if !hasTokens {
+                await self.performInitialSync()
+            }
+
+            guard !Task.isCancelled else { return }
+
+            // Kick off the calendar list loop on its own task
+            self.startCalendarListSyncLoop()
+
+            // Run the incremental polling loop inline so cancellation of syncTask
+            // propagates directly to this loop (rather than being a separate task)
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(self.pollingInterval))
+                guard !Task.isCancelled else { break }
+                await self.syncIncremental()
+            }
         }
-
-        let hasTokens = (try? await db.dbPool.read { db in
-            try CalendarRecord
-                .filter(Column("account_id") == accountID)
-                .filter(Column("sync_token") != nil)
-                .fetchCount(db) > 0
-        }) ?? true  // Default to "already synced" on DB read failure — prevents spurious full resync
-
-        if !hasTokens {
-            await performInitialSync()
-        }
-
-        startIncrementalLoop()
-        startCalendarListSyncLoop()
     }
 
     /// Stops all sync tasks, awaiting in-flight work so that
     /// `CalendarBackgroundSyncer` DB writes complete before the engine is discarded.
     func stop() async {
-        syncTask?.cancel()
-        calendarListSyncTask?.cancel()
-        postEditRevertTask?.cancel()
-        triggeredSyncTask?.cancel()
-        // Wait for in-flight tasks to actually finish before clearing refs
-        await syncTask?.value
-        await calendarListSyncTask?.value
-        await postEditRevertTask?.value
-        await triggeredSyncTask?.value
+        // Snapshot all refs before any await to prevent reentrancy from creating new tasks
+        // between cancel and nil-out (mirrors FullSyncEngine pattern)
+        let snap = (
+            sync: syncTask,
+            calList: calendarListSyncTask,
+            postEdit: postEditRevertTask,
+            triggered: triggeredSyncTask
+        )
         syncTask = nil
         calendarListSyncTask = nil
         postEditRevertTask = nil
         triggeredSyncTask = nil
+
+        snap.sync?.cancel()
+        snap.calList?.cancel()
+        snap.postEdit?.cancel()
+        snap.triggered?.cancel()
+
+        await snap.sync?.value
+        await snap.calList?.value
+        await snap.postEdit?.value
+        await snap.triggered?.value
+
+        state = .idle
     }
 
     /// Triggers an immediate incremental sync (e.g., after an event edit).
@@ -134,14 +168,18 @@ actor CalendarSyncEngine {
     }
 
     /// Temporarily tightens polling after a local edit (RSVP, create, delete).
-    /// Reverts to calendar-active interval after 120 seconds.
+    /// Reverts to the pre-edit polling interval after 120 seconds.
     func temporarilyTightenPolling() {
+        if preEditInterval == nil {
+            preEditInterval = pollingInterval
+        }
         pollingInterval = Self.postEditInterval
         postEditRevertTask?.cancel()
         postEditRevertTask = Task {
             try? await Task.sleep(for: .seconds(120))
             guard !Task.isCancelled else { return }
-            pollingInterval = Self.calendarActiveInterval
+            self.pollingInterval = self.preEditInterval ?? Self.calendarActiveInterval
+            self.preEditInterval = nil
         }
     }
 
@@ -164,7 +202,8 @@ actor CalendarSyncEngine {
             let timeMax = calendar.date(byAdding: .day, value: 90, to: now) ?? now.addingTimeInterval(90 * 86400)
 
             let visibleCalendars = records.filter { $0.isVisible }
-            try await withThrowingTaskGroup(of: Void.self) { group in
+            var failCount = 0
+            try await withThrowingTaskGroup(of: Bool.self) { group in
                 var inFlight = 0
                 let maxConcurrency = 3
 
@@ -172,8 +211,9 @@ actor CalendarSyncEngine {
                     guard !Task.isCancelled else { break }
 
                     if inFlight >= maxConcurrency {
-                        // Wait for one slot to free up before adding more
-                        try await group.next()
+                        if let succeeded = try await group.next() {
+                            if !succeeded { failCount += 1 }
+                        }
                         inFlight -= 1
                     }
 
@@ -188,16 +228,26 @@ actor CalendarSyncEngine {
                                 timeMax: timeMax,
                                 calendarTimeZone: calTZ
                             )
+                            return true
                         } catch {
                             Self.logger.warning("Initial sync failed for calendar \(calId): \(String(describing: error))")
-                            // Continue with other calendars — swallow per-calendar errors
+                            return false
                         }
                     }
                     inFlight += 1
                 }
 
                 // Drain remaining tasks
-                for try await _ in group {}
+                for try await succeeded in group {
+                    if !succeeded { failCount += 1 }
+                }
+            }
+
+            let totalCalendars = visibleCalendars.count
+            if failCount == totalCalendars && totalCalendars > 0 {
+                state = .error(CalendarAPIError.httpError(0, Data()))
+                Self.logger.error("Initial sync failed for all \(totalCalendars) calendars")
+                return
             }
 
             state = .idle
@@ -211,8 +261,8 @@ actor CalendarSyncEngine {
     }
 
     /// Full event fetch for a single calendar with pagination, storing the sync token.
+    /// Writes each page to the DB as it arrives to avoid accumulating all events in memory.
     private func syncFullEvents(calendarId: String, timeMin: Date, timeMax: Date, calendarTimeZone: String? = nil) async throws {
-        var allEvents: [CalendarAPIEvent] = []
         var pageToken: String? = nil
         var syncToken: String? = nil
 
@@ -226,7 +276,14 @@ actor CalendarSyncEngine {
                 maxResults: 250,
                 pageToken: pageToken
             )
-            allEvents.append(contentsOf: response.items ?? [])
+            let pageEvents = response.items ?? []
+            if !pageEvents.isEmpty {
+                let (pageRecords, pageAttendees) = Self.convertToRecords(
+                    events: pageEvents, calendarId: calendarId, accountId: accountID,
+                    calendarTimeZone: calendarTimeZone
+                )
+                try await syncer.upsertEvents(pageRecords, attendees: pageAttendees)
+            }
             pageToken = response.nextPageToken
             if response.nextSyncToken != nil { syncToken = response.nextSyncToken }
             // Pace pagination requests to avoid 429s
@@ -234,12 +291,6 @@ actor CalendarSyncEngine {
                 try? await Task.sleep(for: .milliseconds(100))
             }
         } while pageToken != nil
-
-        let (eventRecords, attendeeRecords) = Self.convertToRecords(
-            events: allEvents, calendarId: calendarId, accountId: accountID,
-            calendarTimeZone: calendarTimeZone
-        )
-        try await syncer.upsertEvents(eventRecords, attendees: attendeeRecords)
 
         if let syncToken {
             try await syncer.updateSyncToken(
@@ -440,16 +491,6 @@ actor CalendarSyncEngine {
         }
     }
 
-    private func startIncrementalLoop() {
-        syncTask = Task {
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(pollingInterval))
-                guard !Task.isCancelled else { break }
-                await syncIncremental()
-            }
-        }
-    }
-
     // MARK: - Calendar List Refresh
 
     private func startCalendarListSyncLoop() {
@@ -467,8 +508,7 @@ actor CalendarSyncEngine {
             if let token = calendarListSyncToken {
                 // Incremental sync — only changed calendars
                 do {
-                    let response = try await listService.syncCalendars(accountID: accountID, syncToken: token)
-                    let items = response.items ?? []
+                    let (items, newSyncToken) = try await listService.syncCalendars(accountID: accountID, syncToken: token)
 
                     // Partition: deleted entries are removed, the rest are upserted
                     let deletedIds = items
@@ -488,13 +528,15 @@ actor CalendarSyncEngine {
                         try await syncer.upsertCalendars(records)
                     }
 
-                    if let newToken = response.nextSyncToken {
-                        await persistCalendarListSyncToken(newToken)
+                    if let newSyncToken {
+                        await persistCalendarListSyncToken(newSyncToken)
                     }
                 } catch CalendarAPIError.gone {
                     await persistCalendarListSyncToken(nil)
-                    // Don't recurse — let the next scheduled poll handle the full fetch.
-                    Self.logger.info("Calendar list sync token expired, cleared for next poll")
+                    Self.logger.info("Calendar list sync token expired, retrying full fetch")
+                    // Retry immediately — token is now nil so the full-fetch path runs,
+                    // which calls listCalendars() (not syncCalendars) and cannot return 410.
+                    await syncCalendarList()
                 }
             } else {
                 // Full fetch — no sync token available yet
