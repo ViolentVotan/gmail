@@ -711,6 +711,16 @@ final class GmailAPIClient {
         _ = cachedTokens.withLock { $0.removeValue(forKey: accountID) }
     }
 
+    /// Cancels any in-flight refresh task for the account and clears its cache
+    /// entry. Call after re-authorization so a stale refresh cannot overwrite
+    /// the newly saved token.
+    func cancelRefreshAndClearCache(for accountID: String) {
+        refreshTasks[accountID]?.cancel()
+        refreshTasks[accountID] = nil
+        _ = refreshGeneration.removeValue(forKey: accountID)
+        _ = cachedTokens.withLock { $0.removeValue(forKey: accountID) }
+    }
+
     /// Fast path: returns the cached token if still valid.
     /// On cache miss, falls back to `validToken(for:)` which reads Keychain off MainActor.
     @concurrent private func cachedValidToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
@@ -760,6 +770,17 @@ final class GmailAPIClient {
                 guard let token else { throw GmailAPIError.unauthorized }
                 do {
                     let fresh = try await OAuthService.shared.refreshToken(token)
+
+                    // Guard against a concurrent reauthorize that saved a new
+                    // token (with new scopes / refresh token) while this refresh
+                    // was in flight. If the stored refresh token has changed,
+                    // the re-auth token wins — don't overwrite it.
+                    let current = try? await TokenStore.shared.retrieve(for: accountID)
+                    if let current, current.refreshToken != token.refreshToken {
+                        // Re-auth happened — return the current token instead.
+                        return current
+                    }
+
                     try await TokenStore.shared.save(fresh, for: accountID)
                     return fresh
                 } catch {

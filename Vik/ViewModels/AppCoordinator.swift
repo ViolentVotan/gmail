@@ -328,6 +328,19 @@ final class AppCoordinator {
         }
     }
 
+    /// Stops Pub/Sub cleanly, then restarts it. Call after re-authorization
+    /// grants the pubsub scope so that watches are re-registered and the
+    /// pull loop starts with the new token.
+    func restartPubSub() {
+        sync.pubSubTask?.cancel()
+        sync.pubSubTask = nil
+        Task {
+            await sync.watchService.stopAll()
+            await sync.pubSubService.stop()
+            startPubSub()
+        }
+    }
+
     // MARK: - Shared Account Setup
 
     private func setupAccount(_ id: String) async {

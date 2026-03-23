@@ -115,10 +115,12 @@ final class OAuthService: NSObject {
     func reauthorize(accountID: String, presentingWindow: NSWindow?) async throws {
         let token = try await authorize(presentingWindow: presentingWindow, forceConsent: true)
         try await TokenStore.shared.save(token, for: accountID)
-        // Flush the in-memory token cache so subsequent API calls use the new
-        // token immediately instead of the stale cached one (which may lack
-        // the newly granted scopes).
-        GmailAPIClient.shared.clearCachedToken(for: accountID)
+        // Cancel any in-flight refresh task AND clear the in-memory cache.
+        // A concurrent refreshAndRetry may have read the OLD token before
+        // re-auth saved the new one — if its save races after ours, it would
+        // overwrite the new token with a stale one (missing new scopes).
+        // Cancelling + clearing prevents that.
+        await GmailAPIClient.shared.cancelRefreshAndClearCache(for: accountID)
     }
 
     /// Uses the stored refresh token to obtain a new access token.

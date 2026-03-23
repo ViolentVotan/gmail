@@ -77,7 +77,14 @@ struct ContentView: View {
                     Button("Cancel", role: .cancel) {}
                     Button("Re-authorize") {
                         guard let id = pubSubScopesAccountID else { return }
-                        Task { await reauthorize(accountID: id, feature: "Notifications") }
+                        Task {
+                            let success = await reauthorize(accountID: id, feature: "Notifications")
+                            if success {
+                                // Restart Pub/Sub so it re-registers watches and starts
+                                // a fresh pull loop with the newly-scoped token.
+                                coordinator.restartPubSub()
+                            }
+                        }
                     }
                 } message: {
                     Text("Vik needs permission to receive real-time email notifications. Please re-authorize to enable instant delivery.")
@@ -628,15 +635,19 @@ struct ContentView: View {
 
     // MARK: - Reauthorization
 
-    private func reauthorize(accountID: String, feature: String) async {
+    /// Re-authorizes the given account and returns `true` on success.
+    @discardableResult
+    private func reauthorize(accountID: String, feature: String) async -> Bool {
         do {
             try await OAuthService.shared.reauthorize(
                 accountID: accountID,
                 presentingWindow: NSApp.keyWindow
             )
             ToastManager.shared.show(message: "\(feature) permissions granted", type: .success)
+            return true
         } catch {
             ToastManager.shared.show(message: "Re-authorization failed — please try again", type: .error)
+            return false
         }
     }
 
