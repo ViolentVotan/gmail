@@ -475,6 +475,48 @@ extension GmailMessagePart {
     }
 }
 
+// MARK: - Watch
+
+struct GmailWatchResponse: Codable, Sendable {
+    let historyId: String
+    let expiration: String  // int64 as string — epoch milliseconds
+}
+
+// MARK: - Pub/Sub
+
+struct PubSubNotification: Codable, Sendable {
+    let emailAddress: String
+    let historyId: String
+}
+
+struct PubSubPullResponse: Codable, Sendable {
+    let receivedMessages: [PubSubReceivedMessage]?
+}
+
+struct PubSubReceivedMessage: Codable, Sendable {
+    let ackId: String
+    let message: PubSubMessage
+}
+
+struct PubSubMessage: Codable, Sendable {
+    let data: String  // base64-encoded JSON → PubSubNotification
+    let messageId: String
+    let publishTime: String
+}
+
+enum PubSubConfig {
+    static let projectID = "gws-cli-votan"
+    static let topicName = "projects/gws-cli-votan/topics/gmail-notifications"
+    static let subscriptionName = "projects/gws-cli-votan/subscriptions/gmail-notifications-sub"
+    static let baseURL = "https://pubsub.googleapis.com/v1"
+    static let pullTimeout: TimeInterval = 5.0
+    static let debounceInterval: TimeInterval = 1.0
+    static let retryDelay: TimeInterval = 2.0
+    static let backupPollingInterval: TimeInterval = 300.0
+    static let watchRenewalInterval: TimeInterval = 86_400  // 24 hours
+    static let maxPullFailures = 3
+}
+
 // MARK: - Test Fixtures
 
 #if DEBUG
