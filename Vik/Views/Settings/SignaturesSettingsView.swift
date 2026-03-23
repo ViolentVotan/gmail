@@ -32,6 +32,13 @@ struct SignaturesSettingsView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding()
+            } else if aliases.isEmpty {
+                ContentUnavailableView(
+                    "No Email Aliases",
+                    systemImage: "at",
+                    description: Text("No email aliases found for this account.")
+                )
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List(aliases) { alias in
                     aliasRow(alias)

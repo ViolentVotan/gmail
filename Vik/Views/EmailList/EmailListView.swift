@@ -637,7 +637,7 @@ struct EmailListView: View {
         .onChange(of: selectedFolder) {
             syncHoverActions()
             animatedEmailIDs.removeAll()
-            withAnimation(VikAnimation.folderSwitch) {
+            withAnimation(reduceMotion ? nil : VikAnimation.folderSwitch) {
                 scrollPosition.scrollTo(edge: .top)
             }
         }

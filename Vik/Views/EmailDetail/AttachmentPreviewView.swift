@@ -106,14 +106,14 @@ struct AttachmentPreviewView: View {
             } label: {
                 Label("Save", systemImage: "arrow.down.circle")
                     .font(Typography.subhead)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.xs)
             }
             .buttonStyle(.borderedProminent)
             .help("Save to disk")
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.horizontal, Spacing.xl)
+        .padding(.vertical, Spacing.md)
     }
 
     // MARK: - Content router
@@ -155,7 +155,7 @@ struct AttachmentPreviewView: View {
                     Image(nsImage: nsImage)
                         .resizable()
                         .frame(width: displayW, height: displayH)
-                        .padding(24)
+                        .padding(Spacing.xl)
                         .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: zoomScale)
                 } else {
                     corruptedFileView
@@ -178,11 +178,11 @@ struct AttachmentPreviewView: View {
         ScrollView {
             if let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1) {
                 Text(text)
-                    .font(.subheadline.monospaced())
+                    .font(Typography.subheadMonospaced)
                     .foregroundStyle(.primary)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(24)
+                    .padding(Spacing.xl)
             } else {
                 corruptedFileView
             }
@@ -217,8 +217,8 @@ struct AttachmentPreviewView: View {
             } label: {
                 Label("Download file", systemImage: "arrow.down.circle.fill")
                     .font(Typography.bodyMedium)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, Spacing.xl)
+                    .padding(.vertical, Spacing.md)
             }
             .buttonStyle(.borderedProminent)
             .clipShape(Capsule())

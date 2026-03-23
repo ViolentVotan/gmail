@@ -5,6 +5,9 @@ struct CalendarContextCard: View {
     var onNavigate: () -> Void
     var onDismiss: () -> Void
 
+    @State private var isHovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "calendar.badge.clock")
@@ -43,6 +46,9 @@ struct CalendarContextCard: View {
         .accessibilityLabel(contextLabel + " — " + event.summary)
         .accessibilityAddTraits(.isButton)
         .accessibilityHint("Open in Calendar")
+        .onHover { isHovered = $0 }
+        .scaleEffect(reduceMotion ? 1.0 : (isHovered ? ScaleToken.rowHover : 1.0))
+        .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
     }
 
     // MARK: - Helpers

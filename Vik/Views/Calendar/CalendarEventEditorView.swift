@@ -118,7 +118,7 @@ struct CalendarEventEditorView: View {
             .keyboardShortcut(.return, modifiers: .command)
             .buttonStyle(.plain)
             .font(Typography.bodySemibold)
-            .foregroundStyle(BrandColor.blue)
+            .foregroundStyle(BrandColor.blueText)
             .disabled(viewModel.summary.trimmingCharacters(in: .whitespaces).isEmpty)
         }
         .padding(.horizontal, Spacing.lg)
@@ -283,7 +283,7 @@ struct CalendarEventEditorView: View {
                         }
                     }
                 }
-                .padding(.leading, 26)
+                .padding(.leading, Spacing.xl + Spacing.xxs)
             }
         }
     }
@@ -322,7 +322,7 @@ struct CalendarEventEditorView: View {
                 } label: {
                     Image(systemName: "plus.circle")
                         .font(.system(size: CalendarLayout.editorActionIconSize))
-                        .foregroundStyle(BrandColor.blue)
+                        .foregroundStyle(BrandColor.blueText)
                 }
                 .buttonStyle(.plain)
                 .help("Add reminder")
@@ -333,7 +333,7 @@ struct CalendarEventEditorView: View {
                 ReminderRow(reminder: $reminder) {
                     viewModel.reminders.removeAll { $0.id == reminder.id }
                 }
-                .padding(.leading, 26)
+                .padding(.leading, Spacing.xl + Spacing.xxs)
             }
         }
     }

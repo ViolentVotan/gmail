@@ -26,7 +26,7 @@ struct EmailDetailSkeletonView: View {
                 // Subject
                 bar(width: 260, height: 16)
                     .padding(.horizontal, Spacing.xl)
-                    .padding(.bottom, 28)
+                    .padding(.bottom, Spacing.xxl)
 
                 // Body lines
                 VStack(alignment: .leading, spacing: 10) {

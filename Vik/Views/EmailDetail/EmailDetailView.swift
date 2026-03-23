@@ -270,7 +270,7 @@ struct EmailDetailView: View {
                     onRemoveLabel: actions.onRemoveLabel,
                     onCreateAndAddLabel: actions.onCreateAndAddLabel
                 )
-                .zIndex(1)
+                .zIndex(ZIndexToken.toast)
 
                 if !labelSuggestions.isEmpty {
                     ForEach(Array(labelSuggestions.enumerated()), id: \.element.name) { index, suggestion in
@@ -330,7 +330,7 @@ struct EmailDetailView: View {
                         calendarContextDismissed = true
                     },
                     onDismiss: {
-                        withAnimation(VikAnimation.springSnappy) {
+                        withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                             calendarContextDismissed = true
                         }
                     }
@@ -376,6 +376,7 @@ struct EmailDetailView: View {
                         .font(Typography.captionRegular)
                         .foregroundStyle(.tertiary)
                         .accessibilityLabel("\(allMessages.count) messages in thread")
+                        .accessibilityAddTraits(.isHeader)
                     Spacer()
                     if expandedCount > 1 {
                         Button {

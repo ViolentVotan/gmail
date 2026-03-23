@@ -58,8 +58,8 @@ struct FormattingToolbar: View {
                     linkText: $linkText
                 )
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.xs)
         }
         .onChange(of: state.linkPopoverRequest?.text) { _, _ in
             if let request = state.linkPopoverRequest {
@@ -230,6 +230,7 @@ struct FormattingToolbar: View {
                 }
                 .buttonStyle(.plain)
                 .help("Text color")
+                .accessibilityLabel("Text color")
                 .popover(isPresented: $showColorPopover, arrowEdge: .bottom) {
                     ColorPickerPopover(
                         selectedColor: state.textColor,
@@ -255,6 +256,7 @@ struct FormattingToolbar: View {
                 }
                 .buttonStyle(.plain)
                 .help("Highlight color")
+                .accessibilityLabel("Highlight color")
                 .popover(isPresented: $showHighlightPopover, arrowEdge: .bottom) {
                     ColorPickerPopover(
                         selectedColor: state.highlightColor,
@@ -299,6 +301,7 @@ struct FormattingToolbar: View {
             }
             .buttonStyle(.glass)
             .help(tooltip)
+            .accessibilityLabel(tooltip)
         }
     }
 
@@ -358,6 +361,7 @@ struct FormattingToolbar: View {
                 }
                 .buttonStyle(.plain)
                 .help("Insert link (Cmd+K)")
+                .accessibilityLabel("Insert link")
                 .popover(isPresented: $showLinkPopover, arrowEdge: .bottom) {
                     VStack(spacing: 10) {
                         HStack(spacing: 6) {
@@ -399,7 +403,7 @@ struct FormattingToolbar: View {
                                       linkURL == "https://")
                         }
                     }
-                    .padding(12)
+                    .padding(Spacing.md)
                     .frame(minWidth: 260, idealWidth: 280, maxWidth: 340)
                 }
             }

@@ -213,7 +213,7 @@ struct EmailLabel: Identifiable, Equatable, Sendable {
     let color: String
     let textColor: String
 
-    init(id: UUID = UUID(), name: String, color: String, textColor: String = "#333333") {
+    init(id: UUID = UUID(), name: String, color: String, textColor: String = "") {
         self.id = id
         self.name = name
         self.color = color

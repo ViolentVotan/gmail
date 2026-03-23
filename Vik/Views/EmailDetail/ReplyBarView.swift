@@ -146,7 +146,7 @@ struct ReplyBarView: View {
 
                 Divider().padding(.horizontal, Spacing.lg)
             }
-            .zIndex(10)
+            .zIndex(ZIndexToken.panel)
 
             WebRichTextEditor(
                 state: editorState,

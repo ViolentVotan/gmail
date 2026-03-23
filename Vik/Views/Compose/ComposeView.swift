@@ -104,7 +104,7 @@ struct ComposeView: View {
                     Divider().padding(.horizontal, Spacing.xl)
                 }
             }
-            .zIndex(10)
+            .zIndex(ZIndexToken.panel)
 
             WebRichTextEditor(
                 state: editorState,
@@ -115,7 +115,7 @@ struct ComposeView: View {
                 onOpenLink: onOpenLink
             )
             .padding(.horizontal, Spacing.xl)
-            .padding(.top, 4)
+            .padding(.top, Spacing.xs)
 
             AttachmentChipRow(attachments: $attachments)
 
@@ -458,6 +458,6 @@ struct ComposeView: View {
                 .accessibilityLabel(label)
         }
         .padding(.horizontal, Spacing.xl)
-        .padding(.vertical, 10)
+        .padding(.vertical, Spacing.md)
     }
 }

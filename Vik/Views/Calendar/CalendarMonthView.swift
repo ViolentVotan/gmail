@@ -209,6 +209,7 @@ struct CalendarMonthView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Spacing.xs)
                     .accessibilityLabel(index < orderedFullSymbols.count ? orderedFullSymbols[index] : symbol)
+                    .accessibilityAddTraits(.isHeader)
             }
         }
         .padding(.horizontal, 1)

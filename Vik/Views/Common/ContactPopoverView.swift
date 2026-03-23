@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContactPopoverView: View {
     @Bindable var viewModel: ContactPopoverViewModel
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -127,8 +128,8 @@ struct ContactPopoverView: View {
                 .fill(Color.secondary.opacity(0.1))
                 .frame(width: width, height: 12)
         }
-        .phaseAnimator([0.15, 0.3]) { content, phase in
-            content.opacity(phase)
+        .phaseAnimator(reduceMotion ? [0.2] : [0.15, 0.3]) { content, phase in
+            content.opacity(reduceMotion ? 0.2 : phase)
         }
         .accessibilityHidden(true)
     }

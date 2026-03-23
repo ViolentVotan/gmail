@@ -488,10 +488,13 @@ struct SidebarView: View {
     @ViewBuilder
     private var labelsSection: some View {
         if !userLabels.isEmpty {
-            Section("Labels") {
+            Section {
                 ForEach(userLabels) { label in
                     labelButton(label: label)
                 }
+            } header: {
+                Text("Labels")
+                    .accessibilityAddTraits(.isHeader)
             }
         }
     }

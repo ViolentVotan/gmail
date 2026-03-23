@@ -59,7 +59,7 @@ struct AccountsSettingsView: View {
 
                     if index == 0 {
                         Text("Default")
-                            .font(.caption2)
+                            .font(Typography.captionSmallRegular)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 5)
                             .padding(.vertical, 1)
@@ -167,7 +167,7 @@ struct AccountsSettingsView: View {
                 refresh()
             } label: {
                 Image(systemName: "chevron.up")
-                    .font(.caption2)
+                    .font(Typography.captionSmallRegular)
                     .frame(width: ButtonSize.md, height: ButtonSize.md)
             }
             .buttonStyle(.borderless)
@@ -182,7 +182,7 @@ struct AccountsSettingsView: View {
                 refresh()
             } label: {
                 Image(systemName: "chevron.down")
-                    .font(.caption2)
+                    .font(Typography.captionSmallRegular)
                     .frame(width: ButtonSize.md, height: ButtonSize.md)
             }
             .buttonStyle(.borderless)

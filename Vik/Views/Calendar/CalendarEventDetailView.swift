@@ -134,13 +134,13 @@ struct CalendarEventDetailView: View {
             HStack(alignment: .top, spacing: Spacing.sm) {
                 Image(systemName: "mappin")
                     .font(.system(size: CalendarLayout.editorIconSize))
-                    .foregroundStyle(BrandColor.blue)
+                    .foregroundStyle(BrandColor.blueText)
                     .frame(width: 18)
                     .padding(.top, 2)
 
                 Text(event.location ?? "")
                     .font(Typography.body)
-                    .foregroundStyle(BrandColor.blue)
+                    .foregroundStyle(BrandColor.blueText)
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -360,7 +360,7 @@ struct CalendarEventDetailView: View {
             }
             .foregroundStyle(isCurrent ? .white : .primary)
             .padding(.horizontal, Spacing.sm)
-            .padding(.vertical, 5)
+            .padding(.vertical, Spacing.xs)
             .background(isCurrent ? rsvpColor(status) : Color.primary.opacity(OpacityToken.tag))
             .clipShape(.rect(cornerRadius: CornerRadius.sm))
         }
@@ -478,7 +478,7 @@ private struct ActionBarButton: View {
             }
             .foregroundStyle(isDestructive ? SemanticColor.error : Color.primary)
             .padding(.horizontal, Spacing.sm)
-            .padding(.vertical, 5)
+            .padding(.vertical, Spacing.xs)
             .glassEffect(isHovered ? .regular.interactive() : .identity, in: .rect(cornerRadius: CornerRadius.sm))
         }
         .buttonStyle(.plain)

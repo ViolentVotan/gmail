@@ -140,5 +140,6 @@ private struct HoverActionButton: View {
         .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isButtonHovered)
         .onHover { isButtonHovered = $0 }
         .help(help)
+        .accessibilityLabel(help)
     }
 }

@@ -2,6 +2,17 @@ import SwiftUI
 
 /// Shared context menu for account items — used in both the sidebar account switcher
 /// and the accounts settings list for consistency.
+private let accentColorNames: [String: String] = [
+    "#FF6B6B": "Red",
+    "#4ECDC4": "Teal",
+    "#45B7D1": "Blue",
+    "#F7DC6F": "Yellow",
+    "#BB8FCE": "Purple",
+    "#82E0AA": "Green",
+    "#F0B27A": "Orange",
+    "#85C1E9": "Sky",
+]
+
 struct AccountContextMenu: View {
     let account: GmailAccount
     let isDefault: Bool
@@ -33,6 +44,7 @@ struct AccountContextMenu: View {
                         HStack {
                             Image(systemName: "circle.fill")
                                 .foregroundStyle(Color(hex: hex))
+                            Text(accentColorNames[hex] ?? hex)
                             if account.accentColor == hex {
                                 Image(systemName: "checkmark")
                             }

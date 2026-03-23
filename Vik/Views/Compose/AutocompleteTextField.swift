@@ -11,6 +11,7 @@ struct AutocompleteTextField: View {
     @State private var highlightedIndex = 0
     @State private var suggestions: [StoredContact] = []
     @State private var fieldHeight: CGFloat = 34
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var currentSegment: String {
         let parts = text.components(separatedBy: ",")
@@ -79,8 +80,8 @@ struct AutocompleteTextField: View {
             }
         }
         .padding(.horizontal, Spacing.xl)
-        .padding(.vertical, 10)
-        .zIndex(10)
+        .padding(.vertical, Spacing.md)
+        .zIndex(ZIndexToken.panel)
         .onAppear { recomputeSuggestions() }
     }
 
@@ -126,8 +127,8 @@ struct AutocompleteTextField: View {
 
                 Spacer(minLength: 0)
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.sm)
                     .fill(isHighlighted ? Color.accentColor.opacity(0.1) : Color.clear)
@@ -154,13 +155,13 @@ struct AutocompleteTextField: View {
                             .id(contact.id)
                     }
                 }
-                .padding(4)
+                .padding(Spacing.xs)
             }
             .scrollContentBackground(.hidden)
             .frame(width: 300, height: Self.rowHeight * min(CGFloat(suggestions.count), 5) + 8)
             .onChange(of: highlightedIndex) { _, _ in
                 if highlightedIndex < suggestions.count {
-                    withAnimation(VikAnimation.springSnappy) {
+                    withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                         proxy.scrollTo(suggestions[highlightedIndex].id, anchor: .center)
                     }
                 }

@@ -132,7 +132,7 @@ struct AttachmentExplorerView: View {
                             )
                         }
                     }
-                    .padding(20)
+                    .padding(Spacing.xl)
                 }
             }
         }
@@ -179,8 +179,8 @@ struct AttachmentExplorerView: View {
                     .font(Typography.caption)
             }
             .foregroundStyle(.secondary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.xs)
             .glassOrMaterial(in: Capsule(), interactive: true)
         }
         .buttonStyle(.plain)
@@ -267,8 +267,8 @@ struct AttachmentExplorerView: View {
                     .font(Typography.caption)
             }
             .foregroundStyle(isSelected ? Color.primary : Color.secondary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.xs)
             .contentShape(.rect)
             .modifier(FilterChipBackground(isSelected: isSelected))
         }

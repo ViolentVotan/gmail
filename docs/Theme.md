@@ -9,7 +9,7 @@ System-integrated appearance management and centralized design token system foll
 - **System** (default): defers to macOS appearance (passes `nil` to `.preferredColorScheme()`)
 - **Light / Dark**: forces the corresponding color scheme
 
-All views use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`, `Color.accentColor`), materials, and Liquid Glass (`.glassEffect(.regular)`). The `AccentColor` asset catalog entry provides four appearance-specific variants (light, dark, high-contrast light, high-contrast dark) for proper Liquid Glass adaptivity per Apple HIG. Data-driven colors (Gmail API labels, avatar hex colors) are contrast-checked at runtime via utilities in `Color+Contrast.swift` (see `docs/Utilities.md`).
+All views use SwiftUI semantic colors (`.primary`, `.secondary`, `.tertiary`, `Color.accentColor`), materials, and Liquid Glass (`.glassEffect(.regular)`). `BrandColor.blueText` is the adaptive blue for text/icon foreground (meets 4.5:1 contrast in both light and dark); `BrandColor.blue` is reserved for backgrounds/fills. The `AccentColor` asset catalog entry provides four appearance-specific variants (light, dark, high-contrast light, high-contrast dark) for proper Liquid Glass adaptivity per Apple HIG. Data-driven colors (Gmail API labels, avatar hex colors) are contrast-checked at runtime via utilities in `Color+Contrast.swift` (see `docs/Utilities.md`). `LabelChipView` uses `label.textColor` for foreground, falling back to `.primary` when empty.
 
 ## Spatial Hierarchy
 
@@ -40,7 +40,7 @@ The UI follows a three-plane model (see `docs/design-concept.md` for the full gl
 | `ScaleToken` | `hover` (1.03), `rowHover` (1.01), `press` (0.97), `emphasis` (1.04), `minimize` (0.5), `enterFrom` (0.95) |
 | `OffsetToken` | `nudge` (4), `small` (12), `medium` (24), `large` (40) |
 | `DurationToken` | `micro` (0.12), `quick` (0.2), `standard` (0.25), `deliberate` (0.3), `stagger` (0.04), `slow` (0.5) |
-| `Typography` | `titleLarge`, `title`, `headline`, `subhead`, `subheadRegular`, `subheadSemibold`, `body`, `bodyMedium`, `bodySemibold`, `callout`, `calloutMedium`, `calloutSemibold`, `footnote`, `caption`, `captionRegular`, `captionSemibold`, `captionSmall`, `captionSmallMedium`, `captionSmallRegular`, `microTag` |
+| `Typography` | `titleLarge`, `title`, `headline`, `subhead`, `subheadRegular`, `subheadSemibold`, `subheadMonospaced`, `body`, `bodyMedium`, `bodySemibold`, `callout`, `calloutMedium`, `calloutSemibold`, `footnote`, `caption`, `captionRegular`, `captionSemibold`, `captionMonospaced`, `captionSemiboldMonospaced`, `captionSmall`, `captionSmallMedium`, `captionSmallRegular`, `captionSmallMediumMonospaced`, `captionSmallBold`, `microTag` |
 
 **Calendar tokens** (also in `DesignTokens.swift`):
 

@@ -7,12 +7,13 @@ struct LabelChipView: View {
     var onRemove: (() -> Void)? = nil
 
     private var chipColor: Color { Color(hex: label.color) }
+    private var textForeground: Color { label.textColor.isEmpty ? Color.primary : Color(hex: label.textColor) }
 
     var body: some View {
         HStack(spacing: 3) {
             Text(label.name)
                 .font(Typography.captionSmallMedium)
-                .foregroundStyle(chipColor)
+                .foregroundStyle(textForeground)
                 .lineLimit(1)
 
             if isRemovable {
@@ -21,7 +22,7 @@ struct LabelChipView: View {
                 } label: {
                     Image(systemName: "xmark")
                         .font(.caption2.weight(.bold))
-                        .foregroundStyle(chipColor.opacity(OpacityToken.secondary))
+                        .foregroundStyle(textForeground.opacity(OpacityToken.secondary))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Remove \(label.name) label")

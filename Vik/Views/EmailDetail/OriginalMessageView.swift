@@ -77,7 +77,7 @@ struct OriginalMessageView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             metadataTable
-                .padding(20)
+                .padding(Spacing.xl)
 
             Divider().background(Color(.separatorColor))
 
@@ -120,17 +120,17 @@ struct OriginalMessageView: View {
                             .font(Typography.subhead)
                     }
                     .foregroundStyle(.tint)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(Color.accentColor.opacity(0.1))
+                    .padding(.horizontal, Spacing.md)
+                    .padding(.vertical, Spacing.xs)
+                    .background(Color.accentColor.opacity(OpacityToken.highlight))
                     .clipShape(.rect(cornerRadius: CornerRadius.sm))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Copy to Clipboard")
                 .disabled(rawSource == nil)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
+            .padding(.horizontal, Spacing.xl)
+            .padding(.vertical, Spacing.md)
 
             Divider().background(Color(.separatorColor))
 
@@ -149,10 +149,10 @@ struct OriginalMessageView: View {
             } else if let source = rawSource {
                 ScrollView(.horizontal, showsIndicators: true) {
                     Text(source)
-                        .font(.caption.monospaced())
+                        .font(Typography.captionMonospaced)
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)
-                        .padding(20)
+                        .padding(Spacing.xl)
                 }
             } else {
                 VStack {
@@ -188,7 +188,7 @@ struct OriginalMessageView: View {
             authRow(label: "DMARC", value: dmarcValue)
         }
         .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm))
-        .overlay(RoundedRectangle(cornerRadius: CornerRadius.md).stroke(Color(.separatorColor), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: CornerRadius.sm).stroke(Color(.separatorColor), lineWidth: 1))
     }
 
     private func metadataRow(label: String, value: String) -> some View {
@@ -197,15 +197,15 @@ struct OriginalMessageView: View {
                 .font(Typography.subhead)
                 .foregroundStyle(.tertiary)
                 .frame(width: 100, alignment: .leading)
-                .padding(.vertical, 10)
-                .padding(.leading, 14)
+                .padding(.vertical, Spacing.md)
+                .padding(.leading, Spacing.lg)
 
             Text(value)
                 .font(Typography.subheadRegular)
                 .foregroundStyle(.primary)
                 .textSelection(.enabled)
-                .padding(.vertical, 10)
-                .padding(.trailing, 14)
+                .padding(.vertical, Spacing.md)
+                .padding(.trailing, Spacing.lg)
 
             Spacer()
         }
@@ -217,12 +217,12 @@ struct OriginalMessageView: View {
                 .font(Typography.subhead)
                 .foregroundStyle(.tertiary)
                 .frame(width: 100, alignment: .leading)
-                .padding(.vertical, 10)
-                .padding(.leading, 14)
+                .padding(.vertical, Spacing.md)
+                .padding(.leading, Spacing.lg)
 
             HStack(spacing: 6) {
                 Text(authStatusLabel(value))
-                    .font(.caption.weight(.semibold).monospaced())
+                    .font(Typography.captionSemiboldMonospaced)
                     .foregroundStyle(authStatusColor(value))
 
                 if let v = value {
@@ -232,8 +232,8 @@ struct OriginalMessageView: View {
                         .lineLimit(2)
                 }
             }
-            .padding(.vertical, 10)
-            .padding(.trailing, 14)
+            .padding(.vertical, Spacing.md)
+            .padding(.trailing, Spacing.lg)
 
             Spacer()
         }

@@ -83,7 +83,7 @@ struct OnboardingView: View {
             }
         }
         .onDisappear {
-            withAnimation(VikAnimation.contentSwitch) { orbsVisible = false }
+            withAnimation(reduceMotion ? nil : VikAnimation.contentSwitch) { orbsVisible = false }
             hideTrafficLights(false)
         }
         .preferredColorScheme(.dark)
@@ -112,8 +112,8 @@ struct OnboardingView: View {
 
                 onboardingInnerContent { glassSignInButton }
             }
-            .padding(.horizontal, 64)
-            .padding(.vertical, 48)
+            .padding(.horizontal, Spacing.xxl * 2)
+            .padding(.vertical, Spacing.xxl + Spacing.lg)
             .glassEffect(.regular, in: .rect(cornerRadius: CornerRadius.xl))
             .scaleEffect(showCard ? 1 : 0.8)
             .opacity(showCard ? 1 : 0)
@@ -176,8 +176,8 @@ struct OnboardingView: View {
         }
         .buttonStyle(.glass)
         .disabled(isSigningIn)
-        .scaleEffect(isButtonHovered ? ScaleToken.emphasis : 1.0)
-        .animation(VikAnimation.springSnappy, value: isButtonHovered)
+        .scaleEffect(reduceMotion ? 1.0 : (isButtonHovered ? ScaleToken.emphasis : 1.0))
+        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isButtonHovered)
         .onHover { isButtonHovered = $0 }
     }
 
@@ -198,8 +198,8 @@ struct OnboardingView: View {
                 .font(Typography.onboardingSubtitle)
                 .foregroundStyle(.white.opacity(0.9))
         }
-        .padding(.horizontal, 28)
-        .padding(.vertical, 14)
+        .padding(.horizontal, Spacing.xxl)
+        .padding(.vertical, Spacing.lg)
         .frame(minWidth: 260)
     }
 

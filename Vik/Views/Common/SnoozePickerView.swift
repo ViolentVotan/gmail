@@ -61,8 +61,8 @@ struct SnoozePickerView: View {
             Text(title)
                 .font(Typography.subheadSemibold)
                 .foregroundStyle(.secondary)
-                .padding(.horizontal, 8)
-                .padding(.top, 4)
+                .padding(.horizontal, Spacing.sm)
+                .padding(.top, Spacing.xs)
 
             GlassEffectContainer {
                 ForEach(presets) { preset in
@@ -76,8 +76,8 @@ struct SnoozePickerView: View {
                                 .font(Typography.captionRegular)
                                 .foregroundStyle(.secondary)
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, Spacing.sm)
+                        .padding(.vertical, Spacing.xs)
                         .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
@@ -93,7 +93,7 @@ struct SnoozePickerView: View {
             if showCustomPicker {
                 DatePicker("Pick a date", selection: $customDate, in: Date()..., displayedComponents: [.date, .hourAndMinute])
                     .datePickerStyle(.graphical)
-                    .padding(.horizontal, 8)
+                    .padding(.horizontal, Spacing.sm)
 
                 Button("Confirm") {
                     onSelect(customDate)
@@ -102,16 +102,16 @@ struct SnoozePickerView: View {
                 .controlSize(.small)
                 .accessibilityLabel("Confirm snooze time")
                 .help("Confirm snooze time")
-                .padding(.horizontal, 8)
-                .padding(.bottom, 8)
+                .padding(.horizontal, Spacing.sm)
+                .padding(.bottom, Spacing.sm)
             } else {
                 GlassEffectContainer {
                     Button {
                         showCustomPicker = true
                     } label: {
                         Label("Pick Date & Time", systemImage: "calendar")
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
+                            .padding(.horizontal, Spacing.sm)
+                            .padding(.vertical, Spacing.xs)
                             .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
@@ -123,7 +123,7 @@ struct SnoozePickerView: View {
             }
         }
         .frame(width: 260)
-        .padding(.vertical, 4)
+        .padding(.vertical, Spacing.xs)
     }
 
 }

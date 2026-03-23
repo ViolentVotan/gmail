@@ -8,6 +8,7 @@ struct AttachmentCardView: View {
     var onAddExclusionRule: ((String) -> Void)?
     var onViewMessage: (() -> Void)?
     @State private var isHovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let thumbCache = ThumbnailCache.shared
 
     private let thumbHeight: CGFloat = 80
@@ -113,7 +114,7 @@ struct AttachmentCardView: View {
             metadataArea
             if isSearchActive { scoreArea }
         }
-        .padding(12)
+        .padding(Spacing.md)
         .frame(maxWidth: .infinity)
         .frame(height: 190)
         .background(RoundedRectangle(cornerRadius: CornerRadius.md).fill(.background))
@@ -122,8 +123,8 @@ struct AttachmentCardView: View {
                 .strokeBorder(isHovered ? iconForegroundColor.opacity(0.5) : Color(.separatorColor), lineWidth: isHovered ? 1.5 : 1)
         )
         .contentShape(Rectangle())
-        .scaleEffect(isHovered ? ScaleToken.hover : 1.0)
-        .animation(VikAnimation.springSnappy, value: isHovered)
+        .scaleEffect(reduceMotion ? 1.0 : (isHovered ? ScaleToken.hover : 1.0))
+        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isHovered)
     }
 
     // MARK: - Subviews
@@ -145,7 +146,7 @@ struct AttachmentCardView: View {
                         .foregroundStyle(iconForegroundColor)
                     if !formattedSize.isEmpty {
                         Text(formattedSize)
-                            .font(.caption2.weight(.medium).monospaced())
+                            .font(Typography.captionSmallMediumMonospaced)
                             .foregroundStyle(.tertiary)
                     }
                 }
@@ -187,7 +188,7 @@ struct AttachmentCardView: View {
                 .frame(width: 6, height: 6)
                 .accessibilityHidden(true)
             Text("\(Int(result.score * 100))%")
-                .font(.caption2.weight(.medium).monospaced())
+                .font(Typography.captionSmallMediumMonospaced)
                 .foregroundStyle(.secondary)
         }
         .frame(height: 14)

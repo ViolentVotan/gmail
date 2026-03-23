@@ -116,7 +116,7 @@ struct MiniAgendaWidget: View {
     private var nowBadge: some View {
         Text("Now")
             .font(Typography.captionSmall)
-            .foregroundStyle(.white)
+            .foregroundStyle(Color.contrastingForeground(for: NSColor(BrandColor.blue)))
             .padding(.horizontal, 5)
             .padding(.vertical, 1)
             .background(BrandColor.blue, in: Capsule())

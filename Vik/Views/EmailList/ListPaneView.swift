@@ -108,6 +108,7 @@ private struct OfflineBannerView: View {
                 Text("You're offline. Changes will sync when connected.")
                 if offlineQueue.pendingCount > 0 {
                     Text("(\(offlineQueue.pendingCount) pending)")
+                        .font(Typography.captionRegular)
                         .fontWeight(.medium)
                 }
                 Spacer()

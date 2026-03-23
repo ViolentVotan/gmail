@@ -91,7 +91,7 @@ struct CalendarAgendaView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(relativeDayLabel(date, isToday: isToday, isTomorrow: isTomorrow))
                     .font(isToday ? Typography.captionSemibold : Typography.captionRegular)
-                    .foregroundStyle(isToday ? BrandColor.blue : .primary)
+                    .foregroundStyle(isToday ? BrandColor.blueText : .primary)
                 Text(fullDateLabel(date))
                     .font(Typography.captionSmallRegular)
                     .foregroundStyle(.secondary)
@@ -104,6 +104,7 @@ struct CalendarAgendaView: View {
         .background(.regularMaterial)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(relativeDayLabel(date, isToday: isToday, isTomorrow: isTomorrow)), \(fullDateLabel(date))")
+        .accessibilityAddTraits(.isHeader)
     }
 
     // MARK: - Empty state

@@ -77,8 +77,8 @@ struct InAppBrowserView: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
+                .padding(.horizontal, Spacing.md)
+                .padding(.vertical, Spacing.xs)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm))
                 .overlay(
@@ -110,8 +110,8 @@ struct InAppBrowserView: View {
                 .buttonStyle(.plain)
                 .help("Open in default browser")
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
+                .padding(.horizontal, Spacing.lg)
+                .padding(.vertical, Spacing.md)
             }
 
             Divider()

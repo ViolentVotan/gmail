@@ -57,13 +57,13 @@ private struct CategoryTabButton: View {
                         .font(Typography.captionSmall)
                         .foregroundStyle(isSelected ? .primary : .tertiary)
                         .contentTransition(.numericText())
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 1)
+                        .padding(.horizontal, Spacing.xs)
+                        .padding(.vertical, Spacing.xxxs)
                         .background(Capsule().fill(.fill.quaternary))
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.xs)
             .contentShape(.rect)
         }
         .buttonStyle(.plain)

@@ -231,7 +231,7 @@ struct ContentView: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .navigation) {
             Button {
-                withAnimation(VikAnimation.springDefault) {
+                withAnimation(reduceMotion ? nil : VikAnimation.springDefault) {
                     isSidebarCollapsed.toggle()
                 }
             } label: {

@@ -32,6 +32,7 @@ struct BulkActionBarView: View {
             Text("\(count) emails selected")
                 .font(Typography.title)
                 .foregroundStyle(.primary)
+                .accessibilityAddTraits(.isHeader)
 
             GlassEffectContainer {
                 actionRow

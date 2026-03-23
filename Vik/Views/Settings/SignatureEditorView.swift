@@ -19,8 +19,8 @@ struct SignatureEditorView: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 FormattingToolbar(state: editorState)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .padding(.horizontal, Spacing.sm)
+            .padding(.vertical, Spacing.xs)
             Divider()
             editorArea
             if let error = errorMessage {
@@ -71,8 +71,8 @@ struct SignatureEditorView: View {
                 Text(isSaving ? "Saving…" : "Save")
                     .font(Typography.callout)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 6)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.xs)
         }
         .buttonStyle(.borderedProminent)
         .clipShape(Capsule())
@@ -87,8 +87,8 @@ struct SignatureEditorView: View {
             htmlContent: $htmlContent,
             placeholder: "Enter your signature…"
         )
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.horizontal, Spacing.sm)
+        .padding(.vertical, Spacing.xs)
     }
 
     // MARK: - Error
@@ -110,9 +110,10 @@ struct SignatureEditorView: View {
                     .foregroundStyle(.tertiary)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss error")
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.sm)
         .background(SemanticColor.error.opacity(OpacityToken.highlight))
     }
 

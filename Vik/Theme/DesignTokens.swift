@@ -49,6 +49,11 @@ enum BrandColor {
     static let coral  = Color(red: 0.94, green: 0.44, blue: 0.44)   // #F07070
     /// Vik blue — canonical brand color, matching AccentColor (light).
     static let blue   = Color(red: 0.227, green: 0.435, blue: 0.941) // #3A6FF0
+    /// Adaptive blue for text — meets 4.5:1 contrast in both light and dark.
+    static let blueText = Color.adaptive(
+        light: (red: 0.227, green: 0.435, blue: 0.941),
+        dark:  (red: 0.42, green: 0.58, blue: 0.98)
+    )
     /// Vik violet — onboarding bridge accent between blue and coral.
     static let violet = Color(red: 0.639, green: 0.443, blue: 0.969) // #A371F7
     /// Near-black background for the onboarding window.
@@ -269,6 +274,14 @@ enum Typography {
     static let captionSmall: Font = .caption2.weight(.semibold)
     static let captionSmallMedium: Font = .caption2.weight(.medium)
     static let captionSmallRegular: Font = .caption2
+    /// Caption monospaced — for raw source display.
+    static let captionMonospaced: Font = .caption.monospaced()
+    /// Caption semibold monospaced — for header labels in raw views.
+    static let captionSemiboldMonospaced: Font = .caption.weight(.semibold).monospaced()
+    /// Caption2 medium monospaced — for file size displays.
+    static let captionSmallMediumMonospaced: Font = .caption2.weight(.medium).monospaced()
+    /// Caption2 bold — for label chips and tags.
+    static let captionSmallBold: Font = .caption2.weight(.bold)
 
     // Micro — AI classification tags, tiny badges
     static let microTag: Font = .system(size: 10, weight: .medium)

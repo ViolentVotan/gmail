@@ -83,6 +83,7 @@ struct AttachmentChipView: View {
             }
             .buttonStyle(.plain)
             .help("Download")
+            .accessibilityLabel("Download \(attachment.name)")
             .opacity(isHovered && !isDownloading ? 1 : 0)
             .disabled(isDownloading)
             .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isHovered)
