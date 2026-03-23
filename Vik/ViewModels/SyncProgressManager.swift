@@ -124,14 +124,9 @@ final class SyncProgressManager {
 
     /// Call when sync fails with a transient error.
     func syncFailed(_ message: String = "Sync failed") {
-        let wasDeferred = syncPending && deferralTask != nil
         deferralTask?.cancel()
         deferralTask = nil
         syncPending = false
-        if wasDeferred, case .idle = phase {
-            // Spinner was never shown — skip error display for silent failures
-            return
-        }
         withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.springDefault) {
             phase = .error(message)
         }

@@ -538,7 +538,11 @@ actor FullSyncEngine {
                 guard !Task.isCancelled else { return }
                 // Pause when offline
                 guard NetworkMonitor.isReachable else { continue }
-                await syncIncremental()
+                let ok = await syncIncremental()
+                // Surface persistent failures so the user knows sync is broken
+                if !ok && consecutiveFailures >= 3 {
+                    await reportProgress(.failed("Sync failing — tap to retry"))
+                }
             }
         }
     }
@@ -550,7 +554,10 @@ actor FullSyncEngine {
         defer { isSyncingIncrementally = false }
 
         guard let syncState = await readSyncState(),
-              let startHistoryId = syncState.lastHistoryId else { return true }
+              let startHistoryId = syncState.lastHistoryId else {
+            Self.logger.warning("syncIncremental: no sync state or historyId — returning true without syncing")
+            return true
+        }
 
         do {
             var allAdded: Set<String> = []
@@ -594,6 +601,8 @@ actor FullSyncEngine {
                     }
                 }
             } while pageToken != nil
+
+            Self.logger.info("syncIncremental: added=\(allAdded.count) deleted=\(allDeleted.count) labelChanges=\(labelChanges.count)")
 
             // Separate truly new messages (not in local DB) from existing ones.
             // For existing messages that appear in messagesAdded (e.g. label changes),
@@ -677,7 +686,35 @@ actor FullSyncEngine {
                 }
             }
 
+            // Filter label updates to messages that exist locally.
+            // The initial sync excludes spam/trash, but the History API returns
+            // events for ALL messages. Label updates for non-local messages would
+            // violate the message_labels FK constraint.
+            if !labelUpdates.isEmpty {
+                let updateIDs = Array(Set(labelUpdates.map(\.gmailId)))
+                let localIDs = try await db.dbPool.read { db in
+                    var result = Set<String>()
+                    let chunkSize = 1000
+                    for chunkStart in stride(from: 0, to: updateIDs.count, by: chunkSize) {
+                        let chunk = Array(updateIDs[chunkStart..<min(chunkStart + chunkSize, updateIDs.count)])
+                        let placeholders = chunk.sqlPlaceholders
+                        let found = try Set(String.fetchAll(db, sql:
+                            "SELECT gmail_id FROM messages WHERE gmail_id IN (\(placeholders))",
+                            arguments: StatementArguments(chunk)
+                        ))
+                        result.formUnion(found)
+                    }
+                    return result
+                }
+                let before = labelUpdates.count
+                labelUpdates = labelUpdates.filter { localIDs.contains($0.gmailId) }
+                if labelUpdates.count < before {
+                    Self.logger.info("syncIncremental: filtered \(before - labelUpdates.count) label updates for non-local messages")
+                }
+            }
+
             // Apply delta to DB
+            Self.logger.info("syncIncremental: applying delta — new=\(newMessages.count) deleted=\(allDeleted.count) labelUpdates=\(labelUpdates.count)")
             try await syncer.applyDelta(
                 newMessages: newMessages,
                 deletedIds: Array(allDeleted),
@@ -705,6 +742,7 @@ actor FullSyncEngine {
             return true
 
         } catch {
+            Self.logger.error("syncIncremental failed (failures=\(self.consecutiveFailures)): \(error)")
             if case .tokenRevoked = error as? GmailAPIError {
                 // Refresh token permanently revoked (Google returned invalid_grant).
                 // Cancel all tasks directly — can't use stop() here because we're
