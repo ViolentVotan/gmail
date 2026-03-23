@@ -12,6 +12,9 @@ final class SyncCoordinator {
     private(set) var mailDatabase: MailDatabase?
     private(set) var backgroundSyncer: BackgroundSyncer?
     @ObservationIgnored private(set) var syncEngine: FullSyncEngine?
+    @ObservationIgnored let pubSubService = PubSubService()
+    @ObservationIgnored let watchService = GmailWatchService()
+    @ObservationIgnored var pubSubTask: Task<Void, Never>?
     var attachmentIndexer: AttachmentIndexer?
     @ObservationIgnored let contactsStore = ContactsStore()
 

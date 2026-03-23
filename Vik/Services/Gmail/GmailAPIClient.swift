@@ -8,6 +8,9 @@ extension Notification.Name {
     /// Posted when the Gmail API returns 403 `insufficientPermissions`.
     /// `userInfo` contains `[GmailAPIClient.accountIDKey: String]`.
     static let gmailScopesInsufficient = Notification.Name("GmailAPIClient.gmailScopesInsufficient")
+    /// Posted when Pub/Sub pull returns 403 (missing pubsub scope).
+    /// `userInfo` contains `[GmailAPIClient.accountIDKey: String]`.
+    static let pubSubScopesInsufficient = Notification.Name("GmailAPIClient.pubSubScopesInsufficient")
 }
 
 /// Result of a batch fetch containing successfully decoded items and IDs that failed.
@@ -923,6 +926,19 @@ final class GmailAPIClient {
 
     /// Forces a token refresh for use by `CalendarAPIClient` on 401.
     func refreshCalendarToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
+        try await refreshAndRetry(accountID: accountID)
+    }
+
+    // MARK: - Pub/Sub token bridge
+
+    /// Returns a valid cached or refreshed token for use by `PubSubService`.
+    /// Avoids duplicating token infrastructure — Pub/Sub delegates auth here.
+    func validPubSubToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
+        try await cachedValidToken(for: accountID)
+    }
+
+    /// Forces a token refresh for use by `PubSubService` on 401.
+    func refreshPubSubToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
         try await refreshAndRetry(accountID: accountID)
     }
 
