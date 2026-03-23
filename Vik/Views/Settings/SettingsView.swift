@@ -22,6 +22,7 @@ struct SettingsView: View {
     @AppStorage("syncDirectoryContacts") private var syncDirectoryContacts = false
     @AppStorage("emailDensity") private var emailDensity = "comfortable"
     @AppStorage("soundEffectsEnabled") private var soundEffectsEnabled = true
+    @AppStorage("alwaysLoadRemoteImages") private var alwaysLoadRemoteImages = false
 
     /// Reactive account ID — reads from UserDefaults via @AppStorage,
     /// falling back to the first connected account.
@@ -100,6 +101,11 @@ struct SettingsView: View {
                     Text("20 seconds").tag(20)
                     Text("30 seconds").tag(30)
                 }
+            }
+
+            Section("Privacy") {
+                Toggle("Always load remote images", isOn: $alwaysLoadRemoteImages)
+                    .help("When enabled, remote images are loaded automatically in all emails. When disabled, you must click \"Load Images\" per email.")
             }
 
             Section("Google Workspace") {

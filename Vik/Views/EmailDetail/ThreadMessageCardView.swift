@@ -44,6 +44,7 @@ struct ThreadMessageCardView: View, Equatable {
     @State private var isHTMLLoaded = false
     @State private var isHovering = false
     @State private var allowRemoteImages = false
+    @AppStorage("alwaysLoadRemoteImages") private var alwaysLoadRemoteImages = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let sender: Contact
@@ -366,7 +367,7 @@ struct ThreadMessageCardView: View, Equatable {
                 .background(Color(.separatorColor).opacity(0.5))
                 .padding(.horizontal, Spacing.xl)
 
-            if hasRemoteImages && !allowRemoteImages {
+            if hasRemoteImages && !allowRemoteImages && !alwaysLoadRemoteImages {
                 HStack(spacing: 6) {
                     Image(systemName: "photo.badge.exclamationmark")
                         .font(Typography.captionSmallRegular)
@@ -402,7 +403,7 @@ struct ThreadMessageCardView: View, Equatable {
                     html: renderedHTML,
                     contentHeight: $contentHeight,
                     isContentLoaded: $isHTMLLoaded,
-                    allowRemoteImages: allowRemoteImages,
+                    allowRemoteImages: allowRemoteImages || alwaysLoadRemoteImages,
                     onOpenLink: onOpenLink
                 )
                 .frame(height: contentHeight)

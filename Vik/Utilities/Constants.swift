@@ -49,6 +49,7 @@ enum UserDefaultsKey {
     static let dismissedLabelSuggestions = "dismissedLabelSuggestions"
     static let emailDensity = "emailDensity"
     static let soundEffectsEnabled = "soundEffectsEnabled"
+    static let alwaysLoadRemoteImages = "alwaysLoadRemoteImages"
 
     static func signatureForNew(_ accountID: String) -> String {
         "signatureForNew.\(accountID)"
