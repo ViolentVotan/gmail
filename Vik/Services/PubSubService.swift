@@ -21,6 +21,7 @@ actor PubSubService {
     private var activeEngine: FullSyncEngine?
     private(set) var tokenAccountID: String?
     private var debounceTask: Task<Void, Never>?
+    private var scopeAlertPosted = false
 
     // MARK: - Account Management
 
@@ -72,6 +73,7 @@ actor PubSubService {
 
                 // Reset failures on successful pull (even if no messages)
                 consecutiveFailures = 0
+                scopeAlertPosted = false
 
                 // If we were failing and just recovered, re-enable Pub/Sub backup polling
                 if wasFailing {
@@ -95,13 +97,20 @@ actor PubSubService {
                 consecutiveFailures += 1
                 if case .insufficientScope(let accountID) = error {
                     Self.logger.error("Pub/Sub pull 403 — missing scope for \(accountID)")
-                    await MainActor.run {
-                        NotificationCenter.default.post(
-                            name: .pubSubScopesInsufficient,
-                            object: nil,
-                            userInfo: [GmailAPIClient.accountIDKey: accountID]
-                        )
+                    if !scopeAlertPosted {
+                        scopeAlertPosted = true
+                        await MainActor.run {
+                            NotificationCenter.default.post(
+                                name: .pubSubScopesInsufficient,
+                                object: nil,
+                                userInfo: [GmailAPIClient.accountIDKey: accountID]
+                            )
+                        }
                     }
+                    // Stop retrying rapidly on scope errors — wait 60s for re-auth
+                    await activeEngine?.setPubSubActive(false)
+                    try? await Task.sleep(for: .seconds(60))
+                    continue
                 }
                 if consecutiveFailures >= PubSubConfig.maxPullFailures {
                     Self.logger.error("Pub/Sub pull failing — reverting to normal polling")
@@ -139,6 +148,8 @@ actor PubSubService {
 
         if let httpResponse = response as? HTTPURLResponse {
             if httpResponse.statusCode == 403 {
+                let body = String(data: data, encoding: .utf8) ?? "<no body>"
+                Self.logger.error("Pub/Sub 403 response: \(body)")
                 throw PubSubError.insufficientScope(accountID: accountID)
             }
             guard (200...299).contains(httpResponse.statusCode) else {
