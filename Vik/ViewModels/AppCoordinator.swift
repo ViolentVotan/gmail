@@ -290,12 +290,22 @@ final class AppCoordinator {
     }
 
     /// One-time Pub/Sub initialization on app launch.
-    /// Stores the task in SyncCoordinator for lifecycle management.
+    /// Skips entirely when the stored token lacks the `pubsub` scope (the token
+    /// was issued before the scope was added — polling covers sync until the user
+    /// reauthorizes for any reason).
     func startPubSub() {
         sync.pubSubTask = Task { [weak self] in
             guard let self else { return }
             let accounts = AccountStore.shared.accounts
             guard let first = accounts.first else { return }
+
+            // Check that the token has the pubsub scope before making any API calls.
+            // Tokens issued before the scope was added will not have it; refreshing
+            // does not grant new scopes. Skip Pub/Sub silently — polling works fine.
+            guard let token = try? await TokenStore.shared.retrieve(for: first.id),
+                  token.hasScope("https://www.googleapis.com/auth/pubsub") else {
+                return
+            }
 
             // Register watches for ALL accounts
             for account in accounts {
@@ -356,10 +366,13 @@ final class AppCoordinator {
             await engine.start()
 
             // Wire Pub/Sub: set active engine and enable backup polling
-            if let email = AccountStore.shared.accounts.first(where: { $0.id == id })?.email {
-                await sync.pubSubService.setActiveEngine(email: email, engine: engine)
+            // Only enable if PubSub actually started (token had the pubsub scope).
+            if await sync.pubSubService.tokenAccountID != nil {
+                if let email = AccountStore.shared.accounts.first(where: { $0.id == id })?.email {
+                    await sync.pubSubService.setActiveEngine(email: email, engine: engine)
+                }
+                await engine.setPubSubActive(true)
             }
-            await engine.setPubSubActive(true)
         }
         guard !Task.isCancelled, navigation.selectedAccountID == id else { return }
         await indexer.setProgressUpdate { [weak self] in

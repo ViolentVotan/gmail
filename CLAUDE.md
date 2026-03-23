@@ -104,7 +104,7 @@ For full codebase audits, reviews, health checks, or multi-dimensional code qual
 
 ## Design Decisions
 
-- **Polling over push:** We use polling-based sync (60s foreground / 300s background) intentionally. No Gmail `users.watch` / Cloud Pub/Sub push notifications — the complexity of server-side Pub/Sub infrastructure isn't worth it for a native desktop client. Don't suggest or implement push notifications.
+- **Hybrid sync — Pub/Sub + polling fallback:** Primary: Google Cloud Pub/Sub (`PubSubService` pull loop + `GmailWatchService` registration). Fallback: polling (60s foreground / 300s background) when Pub/Sub is unavailable (e.g. token lacks `pubsub` scope). `startPubSub()` checks `AuthToken.hasScope()` before starting — tokens issued before the scope was added silently skip Pub/Sub until the user reauthorizes. GCP project: `gws-cli-votan`, subscription: `gmail-notifications-sub`.
 
 ## Gotchas
 
