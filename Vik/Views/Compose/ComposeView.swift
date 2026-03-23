@@ -307,7 +307,7 @@ struct ComposeView: View {
         HStack(spacing: 12) {
             Spacer()
 
-            ToolbarIconButton(icon: "paperclip", label: "Attach") { attachFiles() }
+            ToolbarIconButton(icon: "paperclip", label: "Attach", useGlass: true) { attachFiles() }
 
             Button {
                 showCc.toggle()
@@ -337,7 +337,7 @@ struct ComposeView: View {
 
             Divider().frame(height: 16)
 
-            ToolbarIconButton(icon: "trash", label: "Discard") {
+            ToolbarIconButton(icon: "trash", label: "Discard", useGlass: true) {
                 showDiscardAlert = true
             }
         }
@@ -373,6 +373,7 @@ struct ComposeView: View {
                 isSending: composeVM.isSending
             )
             .disabled(composeVM.isSending || to.isEmpty)
+            .opacity(composeVM.isSending || to.isEmpty ? OpacityToken.disabled : 1.0)
             .keyboardShortcut(.return, modifiers: .command)
             .accessibilityLabel("Send")
             .accessibilityHint("Sends the email. Use the dropdown to schedule.")

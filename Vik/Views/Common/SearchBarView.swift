@@ -4,6 +4,7 @@ struct SearchBarView: View {
     @Binding var text: String
     @Binding var focusTrigger: Bool
     @State private var isFocused = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(text: Binding<String>, focusTrigger: Binding<Bool> = .constant(false)) {
         self._text = text
@@ -31,7 +32,7 @@ struct SearchBarView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear search")
                 .help("Clear search")
-                .transition(.scale.combined(with: .opacity))
+                .transition(reduceMotion ? .opacity : .scale.combined(with: .opacity))
             }
         }
         .padding(.horizontal, Spacing.md)
@@ -44,8 +45,8 @@ struct SearchBarView: View {
             Capsule()
                 .strokeBorder(Color.accentColor.opacity(isFocused ? 0.4 : 0), lineWidth: 1.5)
         )
-        .animation(VikAnimation.springSnappy, value: isFocused)
-        .animation(VikAnimation.springSnappy, value: text.isEmpty)
+        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isFocused)
+        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: text.isEmpty)
     }
 }
 

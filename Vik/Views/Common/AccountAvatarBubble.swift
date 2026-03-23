@@ -51,7 +51,7 @@ struct AccountAvatarBubble: View {
             }
             .frame(width: size, height: size)
             .clipShape(Circle())
-            .glassEffect(.regular, in: .circle)
+            .glassEffect(isSelected ? .regular.interactive() : .identity, in: .circle)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(account.displayName), \(account.email)")

@@ -16,11 +16,14 @@ struct FiltersSettingsView: View {
             if viewModel.isLoading {
                 ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if viewModel.filters.isEmpty {
-                ContentUnavailableView(
-                    "No Filters",
-                    systemImage: "line.3.horizontal.decrease.circle",
-                    description: Text("Create filters to automatically organize incoming mail.")
-                )
+                ContentUnavailableView {
+                    Label("No Filters", systemImage: "line.3.horizontal.decrease.circle")
+                } description: {
+                    Text("Create filters to automatically organize incoming mail.")
+                } actions: {
+                    Button("Create Filter") { showEditor = true }
+                        .buttonStyle(.bordered)
+                }
             } else {
                 List {
                     ForEach(viewModel.filters) { filter in

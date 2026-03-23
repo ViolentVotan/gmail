@@ -6,6 +6,7 @@ struct TrackerBannerView: View {
     let onAllow: () -> Void
 
     @State private var showDetails = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,7 +20,7 @@ struct TrackerBannerView: View {
                     .foregroundStyle(.primary)
 
                 Button {
-                    withAnimation(VikAnimation.springDefault) {
+                    withAnimation(reduceMotion ? nil : VikAnimation.springDefault) {
                         showDetails.toggle()
                     }
                 } label: {
@@ -29,6 +30,7 @@ struct TrackerBannerView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(showDetails ? "Hide tracker details" : "Show tracker details")
+                .help(showDetails ? "Hide tracker details" : "Show tracker details")
 
                 Spacer()
 
@@ -43,6 +45,8 @@ struct TrackerBannerView: View {
                         .glassOrMaterial(in: .capsule, interactive: true)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Load blocked content")
+                .help("Load blocked content")
             }
 
             if showDetails {

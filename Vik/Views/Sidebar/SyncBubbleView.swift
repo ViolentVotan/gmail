@@ -5,6 +5,7 @@ struct SyncBubbleView: View {
     var isCompact = false
     var onRefresh: () -> Void = {}
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isHovered = false
 
     private var isTappable: Bool {
@@ -53,7 +54,7 @@ struct SyncBubbleView: View {
         .glassEffect(.regular.interactive(), in: .capsule)
         .disabled(!isTappable)
         .onHover { hovering in
-            withAnimation(VikAnimation.springSnappy) {
+            withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                 isHovered = hovering
             }
         }

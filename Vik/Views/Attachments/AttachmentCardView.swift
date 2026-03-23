@@ -69,6 +69,8 @@ struct AttachmentCardView: View {
             cardContent
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(result.attachment.filename)
+        .help(result.attachment.filename)
         .onHover { hovering in isHovered = hovering }
         .task(id: result.attachment.id) { thumbCache.loadIfNeeded(attachment: result.attachment, accountID: accountID) }
         .onDisappear {
@@ -183,6 +185,7 @@ struct AttachmentCardView: View {
             Circle()
                 .fill(scoreColor)
                 .frame(width: 6, height: 6)
+                .accessibilityHidden(true)
             Text("\(Int(result.score * 100))%")
                 .font(.caption2.weight(.medium).monospaced())
                 .foregroundStyle(.secondary)

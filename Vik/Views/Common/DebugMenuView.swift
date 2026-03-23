@@ -109,7 +109,7 @@ struct DebugMenuView: View {
             }
 
         }
-        .padding(20)
+        .padding(Spacing.xl)
         .frame(maxWidth: .infinity, alignment: .leading)
         .task {
             await viewModel.refreshIndexingStats(accountID: accountID)
@@ -298,7 +298,7 @@ struct DebugMenuView: View {
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(8)
+                .padding(Spacing.sm)
         }
         .frame(maxHeight: maxHeight)
         .clipShape(.rect(cornerRadius: CornerRadius.xs))

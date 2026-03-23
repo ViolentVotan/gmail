@@ -45,17 +45,17 @@ struct AttachmentChipView: View {
 
             Color.clear.frame(width: 28)
         }
-        .padding(.leading, 12)
-        .padding(.trailing, 4)
-        .padding(.vertical, 8)
+        .padding(.leading, Spacing.md)
+        .padding(.trailing, Spacing.xs)
+        .padding(.vertical, Spacing.sm)
         .glassEffect(
             isHovered ? .regular.interactive() : .identity,
             in: .rect(cornerRadius: CornerRadius.sm)
         )
-        .opacity(isDownloading ? 0.7 : 1.0)
+        .opacity(isDownloading ? OpacityToken.disabled : 1.0)
         .scaleEffect(reduceMotion ? 1.0 : (isHovered ? ScaleToken.hover : 1.0))
-        .animation(VikAnimation.springSnappy, value: isHovered)
-        .animation(VikAnimation.springSnappy, value: isDownloading)
+        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isHovered)
+        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isDownloading)
         .contentShape(Rectangle())
         .onTapGesture(count: 2) {
             onOpen?()
@@ -85,7 +85,7 @@ struct AttachmentChipView: View {
             .help("Download")
             .opacity(isHovered && !isDownloading ? 1 : 0)
             .disabled(isDownloading)
-            .animation(VikAnimation.springSnappy, value: isHovered)
+            .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isHovered)
             .onHover { isDownloadHovered = $0 }
             .padding(.trailing, 4)
         }

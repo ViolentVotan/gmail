@@ -176,6 +176,16 @@ private struct GeneralToastCard: View {
                 .foregroundStyle(.primary)
                 .lineLimit(2)
             Spacer()
+            Button {
+                toastMgr.dismiss(toast)
+            } label: {
+                Image(systemName: "xmark")
+                    .font(Typography.captionSmall)
+                    .foregroundStyle(.tertiary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Dismiss")
+            .help("Dismiss")
         }
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.md)

@@ -258,7 +258,7 @@ struct SidebarView: View {
             selectedInboxCategory = folder == .inbox ? .all : nil
         } label: {
             Image(systemName: folder.icon)
-                .font(.system(size: 15))
+                .font(Typography.subheadRegular)
                 .frame(width: 34, height: 34)
                 .foregroundStyle(isSelected ? .primary : isHovered ? .primary : .secondary)
                 .contentShape(.rect)
@@ -291,7 +291,7 @@ struct SidebarView: View {
             showLabelsPopover.toggle()
         } label: {
             Image(systemName: "tag")
-                .font(.system(size: 15))
+                .font(Typography.subheadRegular)
                 .frame(width: 34, height: 34)
                 .foregroundStyle(selectedFolder == .labels ? .primary : .secondary)
                 .contentShape(.rect)
@@ -446,7 +446,7 @@ struct SidebarView: View {
         .accessibilityLabel(folder.rawValue)
         .accessibilityAddTraits(selectedFolder == folder ? .isSelected : [])
         .glassEffect(
-            isDropTarget ? .regular.interactive() : .identity,
+            (selectedFolder == folder || isDropTarget) ? .regular.interactive() : .identity,
             in: .rect(cornerRadius: CornerRadius.sm)
         )
         .overlay(
@@ -520,7 +520,7 @@ struct SidebarView: View {
         .accessibilityLabel(label.name)
         .accessibilityAddTraits(isLabelSelected ? .isSelected : [])
         .glassEffect(
-            isDropTarget ? .regular.interactive() : .identity,
+            (isLabelSelected || isDropTarget) ? .regular.interactive() : .identity,
             in: .rect(cornerRadius: CornerRadius.sm)
         )
         .overlay(

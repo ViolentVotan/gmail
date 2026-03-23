@@ -58,9 +58,9 @@ struct AttachmentExplorerView: View {
 
             SearchBarView(text: $store.searchQuery)
         }
-        .padding(.horizontal, 16)
-        .padding(.top, 20)
-        .padding(.bottom, 12)
+        .padding(.horizontal, Spacing.lg)
+        .padding(.top, Spacing.xl)
+        .padding(.bottom, Spacing.md)
     }
 
     // MARK: - Filter Bar
@@ -102,8 +102,8 @@ struct AttachmentExplorerView: View {
 
                 rulesChip
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.horizontal, Spacing.lg)
+            .padding(.vertical, Spacing.sm)
         }
     }
 
@@ -183,6 +183,8 @@ struct AttachmentExplorerView: View {
             .glassOrMaterial(in: Capsule(), interactive: true)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Exclusion rules")
+        .help("Manage exclusion rules")
         .popover(isPresented: $showRulesPopover, arrowEdge: .bottom) {
             rulesPopoverContent
         }
@@ -203,7 +205,7 @@ struct AttachmentExplorerView: View {
                     ForEach(store.exclusionRules, id: \.self) { rule in
                         HStack {
                             Text(rule)
-                                .font(.subheadline.monospaced())
+                                .font(Typography.subheadMonospaced)
                                 .foregroundStyle(.primary)
                             Spacer()
                             Button {
@@ -247,7 +249,7 @@ struct AttachmentExplorerView: View {
                 .disabled(newRuleText.isEmpty)
             }
         }
-        .padding(14)
+        .padding(Spacing.lg)
         .frame(width: 260)
     }
 
@@ -271,6 +273,7 @@ struct AttachmentExplorerView: View {
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .help(label)
     }
 }
 
@@ -278,10 +281,6 @@ private struct FilterChipBackground: ViewModifier {
     let isSelected: Bool
 
     func body(content: Content) -> some View {
-        if isSelected {
-            content.glassEffect(.regular.interactive(), in: .capsule)
-        } else {
-            content
-        }
+        content.glassEffect(isSelected ? .regular.interactive() : .identity, in: .capsule)
     }
 }

@@ -11,6 +11,7 @@ struct LabelEditorView: View {
     @State private var labelSearchText = ""
     @State private var isLabelFieldFocused = false
     @State private var highlightedIndex: Int = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Comma-separated label IDs that the user has dismissed from suggestions.
     @AppStorage("dismissedLabelSuggestions") private var dismissedLabelSuggestionsRaw = ""
@@ -217,7 +218,7 @@ struct LabelEditorView: View {
             .frame(width: 220, height: Self.rowHeight * min(CGFloat(items.count), 5) + 8)
             .onChange(of: highlightedIndex) { _, _ in
                 if highlightedIndex < items.count {
-                    withAnimation(VikAnimation.springSnappy) {
+                    withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                         proxy.scrollTo(items[highlightedIndex].id, anchor: .center)
                     }
                 }

@@ -6,6 +6,7 @@ struct CalendarHeaderView: View {
     @Bindable var viewModel: CalendarViewModel
     var onNewEvent: () -> Void
     @Namespace private var viewModeNamespace
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var cachedDateRangeText: String = ""
 
@@ -40,7 +41,7 @@ struct CalendarHeaderView: View {
         let modeLabel = viewModel.viewMode.label.lowercased()
         return HStack(spacing: Spacing.xs) {
             Button {
-                withAnimation(VikAnimation.springSnappy) {
+                withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                     viewModel.navigateBackward()
                 }
             } label: {
@@ -54,7 +55,7 @@ struct CalendarHeaderView: View {
             .accessibilityLabel("Previous \(modeLabel)")
 
             Button {
-                withAnimation(VikAnimation.springSnappy) {
+                withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                     viewModel.navigateForward()
                 }
             } label: {
@@ -78,7 +79,7 @@ struct CalendarHeaderView: View {
 
     private var todayButton: some View {
         Button {
-            withAnimation(VikAnimation.springSnappy) {
+            withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                 viewModel.goToToday()
             }
         } label: {
@@ -99,7 +100,7 @@ struct CalendarHeaderView: View {
                 ForEach([CalendarViewMode.month, .week, .day, .agenda], id: \.self) { mode in
                     let isSelected = viewModel.viewMode == mode
                     Button {
-                        withAnimation(VikAnimation.contentSwitch) {
+                        withAnimation(reduceMotion ? nil : VikAnimation.contentSwitch) {
                             viewModel.viewMode = mode
                         }
                     } label: {
@@ -139,6 +140,7 @@ struct CalendarHeaderView: View {
             .frame(height: ButtonSize.md)
         }
         .buttonStyle(.glass)
+        .accessibilityLabel("New Event")
         .help("Create new event")
     }
 

@@ -417,11 +417,11 @@ struct ThreadMessageCardView: View, Equatable {
                     .strokeBorder(.separator, lineWidth: 0.5)
             )
             .padding(.horizontal, Spacing.md)
-            .animation(VikAnimation.contentSwitch, value: isHTMLLoaded)
+            .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: isHTMLLoaded)
 
             if cachedHTMLParts.quoted != nil {
                 Button {
-                    withAnimation(VikAnimation.springSnappy) {
+                    withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                         showQuoted.toggle()
                     }
                 } label: {
@@ -461,7 +461,7 @@ struct ThreadMessageCardView: View, Equatable {
                             .buttonStyle(.glass)
                             .opacity(isHovering ? 1 : 0)
                             .accessibilityHidden(!isHovering)
-                            .animation(VikAnimation.springSnappy, value: isHovering)
+                            .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isHovering)
                         }
                     }
                     .foregroundStyle(.secondary)
@@ -479,7 +479,7 @@ struct ThreadMessageCardView: View, Equatable {
                                 .foregroundStyle(.secondary)
                         }
                         .transition(.opacity.combined(with: .scale(scale: 0.95)))
-                        .animation(VikAnimation.springSnappy, value: progress)
+                        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: progress)
                     }
 
                     GlassEffectContainer(spacing: 8) {

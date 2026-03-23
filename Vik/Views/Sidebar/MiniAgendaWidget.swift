@@ -66,7 +66,7 @@ struct MiniAgendaWidget: View {
             onSelectEvent(event)
         } label: {
             HStack(spacing: Spacing.xs) {
-                RoundedRectangle(cornerRadius: 1.5)
+                RoundedRectangle(cornerRadius: CornerRadius.xxs)
                     .fill(event.resolvedColor)
                     .frame(width: 3)
                     .frame(height: 32)

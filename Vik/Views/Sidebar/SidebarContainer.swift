@@ -6,6 +6,8 @@ struct SidebarContainer: View {
     var appFocus: FocusState<AppFocus?>.Binding
     let sidebarWidth: CGFloat
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         @Bindable var navigation = coordinator.navigation
         SidebarView(
@@ -45,7 +47,7 @@ struct SidebarContainer: View {
             onSetAsDefault: { id in AccountStore.shared.setAsDefault(id: id) },
             onSetAccentColor: { id, hex in AccountStore.shared.setAccentColor(id: id, hex: hex) },
             onToggleSidebar: {
-                withAnimation(VikAnimation.springDefault) {
+                withAnimation(reduceMotion ? nil : VikAnimation.springDefault) {
                     isSidebarCollapsed.toggle()
                 }
             },

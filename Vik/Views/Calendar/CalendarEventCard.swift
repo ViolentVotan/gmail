@@ -45,7 +45,7 @@ struct CalendarEventCard: View {
             isHovered ? .regular.interactive() : .identity,
             in: .rect(cornerRadius: CornerRadius.sm)
         )
-        .scaleEffect(reduceMotion ? 1.0 : (isPressed ? ScaleToken.press : (isHovered ? ScaleToken.rowHover : 1.0)))
+        .scaleEffect(reduceMotion ? 1.0 : (isPressed ? ScaleToken.press : (isHovered ? ScaleToken.hover : 1.0)))
         .shadow(
             color: isHovered ? event.resolvedColor.opacity(0.2) : .clear,
             radius: isHovered ? 4 : 0,
@@ -61,6 +61,7 @@ struct CalendarEventCard: View {
         .onHover { isHovered = $0 }
         .accessibilityLabel("\(event.summary), \(timeRangeText)")
         .accessibilityAddTraits(.isButton)
+        .help(event.summary)
     }
 
     // MARK: - Private

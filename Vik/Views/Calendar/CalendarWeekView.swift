@@ -127,6 +127,7 @@ struct CalendarWeekView: View {
             )
         }
         .accessibilityLabel("\(event.summary), all day\(dayLabel)")
+        .help(event.summary)
     }
 
     // MARK: - Day Header Row
@@ -265,6 +266,7 @@ struct CalendarWeekView: View {
                 .contentShape(Rectangle())
                 .accessibilityLabel(hour == 0 ? "Create event at midnight" : "Create event at \(hourLabel(for: hour))")
                 .accessibilityAddTraits(.isButton)
+                .help("Create event")
                 .onTapGesture { [hour] in
                     onCreateEvent(dateForTap(hour: hour), hour)
                 }

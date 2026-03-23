@@ -53,7 +53,7 @@ struct SignatureEditorView: View {
                 .font(Typography.callout)
             saveButton
         }
-        .padding(16)
+        .padding(Spacing.lg)
     }
 
     // MARK: - Save Button

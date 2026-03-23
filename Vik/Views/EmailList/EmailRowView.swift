@@ -162,7 +162,7 @@ struct EmailRowView: View, Equatable {
                 Circle()
                     .fill(email.isRead ? Color.clear : Color.accentColor)
                     .frame(width: dotSize, height: dotSize)
-                    .animation(VikAnimation.microBounce, value: email.isRead)
+                    .animation(reduceMotion ? nil : VikAnimation.microBounce, value: email.isRead)
 
                 // Avatar
                 AvatarView(
@@ -177,7 +177,7 @@ struct EmailRowView: View, Equatable {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
                         Text(email.isDraft && email.recipients.isEmpty ? "Draft" : email.sender.name)
-                            .font(.callout.weight(email.isRead ? .regular : .semibold))
+                            .font(email.isRead ? Typography.callout : Typography.calloutSemibold)
                             .foregroundStyle(email.isDraft && email.recipients.isEmpty ? .tertiary : .primary)
                             .lineLimit(1)
 
@@ -233,7 +233,7 @@ struct EmailRowView: View, Equatable {
                                     .background(Capsule().fill(.fill.quaternary))
                             }
                         }
-                        .animation(VikAnimation.springSnappy, value: showTags)
+                        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: showTags)
                     }
                 }
 
@@ -259,7 +259,7 @@ struct EmailRowView: View, Equatable {
                 }
                 .sensoryFeedback(.impact(flexibility: .soft), trigger: email.isStarred)
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, Spacing.lg)
             .padding(.vertical, verticalPadding)
             .background {
                 if !email.isRead && !isSelected {

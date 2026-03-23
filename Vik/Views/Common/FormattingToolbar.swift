@@ -220,7 +220,7 @@ struct FormattingToolbar: View {
                 } label: {
                     VStack(spacing: 1) {
                         Text("A")
-                            .font(.body.bold())
+                            .font(Typography.bodyBold)
                             .foregroundStyle(Color(nsColor: state.textColor))
                         RoundedRectangle(cornerRadius: CornerRadius.indicator)
                             .fill(Color(nsColor: state.textColor))
@@ -291,13 +291,13 @@ struct FormattingToolbar: View {
                 state.setAlignment(alignment)
             } label: {
                 Image(systemName: icon)
-                    .font(.subheadline.weight(isActive ? .bold : .regular))
+                    .font(isActive ? Typography.subheadBold : Typography.subheadRegular)
                     .foregroundStyle(isActive ? Color.accentColor : .secondary)
                     .frame(width: ButtonSize.sm, height: ButtonSize.sm)
                     .modifier(ToggleHighlight(isActive: isActive))
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.glass)
             .help(tooltip)
         }
     }
@@ -433,7 +433,7 @@ private func toolbarButton(icon: String, tooltip: String, action: @escaping () -
             .frame(width: ButtonSize.sm, height: ButtonSize.sm)
             .contentShape(Rectangle())
     }
-    .buttonStyle(.plain)
+    .buttonStyle(.glass)
     .accessibilityLabel(tooltip)
     .help(tooltip)
 }
@@ -441,13 +441,13 @@ private func toolbarButton(icon: String, tooltip: String, action: @escaping () -
 private func toggleButton(icon: String, tooltip: String, isActive: Bool, action: @escaping () -> Void) -> some View {
     Button(action: action) {
         Image(systemName: icon)
-            .font(.subheadline.weight(isActive ? .bold : .regular))
+            .font(isActive ? Typography.subheadBold : Typography.subheadRegular)
             .foregroundStyle(isActive ? Color.accentColor : .secondary)
             .frame(width: ButtonSize.sm, height: ButtonSize.sm)
             .modifier(ToggleHighlight(isActive: isActive))
             .contentShape(Rectangle())
     }
-    .buttonStyle(.plain)
+    .buttonStyle(.glass)
     .accessibilityLabel(tooltip)
     .accessibilityAddTraits(isActive ? [.isSelected] : [])
     .help(tooltip)

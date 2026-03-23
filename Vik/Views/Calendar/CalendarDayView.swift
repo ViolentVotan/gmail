@@ -112,6 +112,7 @@ struct CalendarDayView: View {
             )
         }
         .accessibilityLabel("\(event.summary), all day")
+        .help(event.summary)
     }
 
     // MARK: - Time grid
@@ -377,6 +378,7 @@ private struct DayEventCardView: View {
         .onHover { isHovered = $0 }
         .accessibilityLabel("\(event.summary), \(event.formattedTimeRangeCompact)")
         .accessibilityAddTraits(.isButton)
+        .help(event.summary)
     }
 
 }

@@ -168,8 +168,8 @@ struct ReplyBarView: View {
                         .transition(.opacity)
                 }
             }
-            .animation(VikAnimation.contentSwitch, value: composeVM.isLoadingDraft)
-            .animation(VikAnimation.springSnappy, value: isEditorFocused)
+            .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: composeVM.isLoadingDraft)
+            .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isEditorFocused)
             .padding(.horizontal, Spacing.lg)
             .padding(.top, Spacing.lg)
             .padding(.bottom, Spacing.sm)

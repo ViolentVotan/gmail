@@ -115,6 +115,8 @@ struct SnoozePickerView: View {
                             .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Pick Date & Time")
+                    .help("Pick a custom date and time")
                     .glassEffect(isPickDateHovered ? .regular.interactive() : .identity, in: .rect(cornerRadius: CornerRadius.sm))
                     .onHover { isPickDateHovered = $0 }
                 }

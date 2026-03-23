@@ -83,7 +83,7 @@ struct CalendarAgendaView: View {
         HStack(spacing: Spacing.sm) {
             // Today accent line
             if isToday {
-                RoundedRectangle(cornerRadius: 1.5)
+                RoundedRectangle(cornerRadius: CornerRadius.xxs)
                     .fill(BrandColor.blue)
                     .frame(width: CalendarLayout.eventCardBorderWidth, height: 16)
             }
@@ -109,21 +109,19 @@ struct CalendarAgendaView: View {
     // MARK: - Empty state
 
     private var emptyState: some View {
-        VStack(spacing: Spacing.md) {
-            Image(systemName: "calendar")
-                .font(Typography.emptyStateMediumIcon)
-                .foregroundStyle(.tertiary)
-            Text("No upcoming events")
-                .font(Typography.subheadRegular)
-                .foregroundStyle(.secondary)
+        ContentUnavailableView {
+            Label("No Upcoming Events", systemImage: "calendar")
+        } description: {
+            Text("No events in the next 30 days starting from the selected date.")
+        } actions: {
             Button {
                 onCreateEvent(viewModel.selectedDate, 9)
             } label: {
                 Label("Create Event", systemImage: "plus")
-                    .font(Typography.body)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(BrandColor.blue)
+            .buttonStyle(.bordered)
+            .accessibilityLabel("Create Event")
+            .help("Create a new event")
         }
         .frame(maxWidth: .infinity)
         .padding(.top, Spacing.xxl * 2)
@@ -248,6 +246,7 @@ private struct AgendaEventRow: View {
         .onHover { isHovered = $0 }
         .accessibilityLabel("\(timeRange), \(event.summary)")
         .accessibilityAddTraits(.isButton)
+        .help(event.summary)
     }
 
 }

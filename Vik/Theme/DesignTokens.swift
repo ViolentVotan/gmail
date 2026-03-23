@@ -212,11 +212,14 @@ enum Typography {
     // Subhead
     static let subhead: Font = .subheadline.weight(.medium)
     static let subheadRegular: Font = .subheadline
+    static let subheadBold: Font = .subheadline.bold()
     static let subheadSemibold: Font = .subheadline.weight(.semibold)
+    static let subheadMonospaced: Font = .subheadline.monospaced()
 
     // Body
     static let body: Font = .body
     static let bodyMedium: Font = .body.weight(.medium)
+    static let bodyBold: Font = .body.bold()
     static let bodySemibold: Font = .body.weight(.semibold)
 
     // Callout

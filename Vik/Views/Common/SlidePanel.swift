@@ -58,7 +58,7 @@ struct SlidePanel<Content: View>: View {
             .modifier(SlidePanelBackground())
             .elevation(.elevated)
             .offset(x: isPresented ? 0 : -(panelWidth + 60))
-            .animation(reduceMotion ? .easeInOut(duration: 0.15) : VikAnimation.springDefault, value: isPresented)
+            .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isPresented)
             .onKeyPress(.escape) { if isPresented { isPresented = false; return .handled }; return .ignored }
 
             // Tap outside to dismiss

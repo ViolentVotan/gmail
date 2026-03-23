@@ -460,6 +460,7 @@ struct MonthOverflowButton: View {
         .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHovered)
         .onHover { isHovered = $0 }
         .accessibilityLabel("\(count) more events")
+        .help("\(count) more events")
         .accessibilityAddTraits(.isButton)
     }
 }

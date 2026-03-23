@@ -597,6 +597,8 @@ private struct RecurringScopeButton: View {
             .clipShape(.rect(cornerRadius: CornerRadius.md))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(label), \(subtitle)")
+        .help(label)
         .onHover { isHovered = $0 }
     }
 }

@@ -142,7 +142,7 @@ struct EmailDetailView: View {
                             withAnimation(reduceMotion ? nil : VikAnimation.springDefault) { proxy.scrollTo(latestID, anchor: .top) }
                         }
                     }
-                    .animation(VikAnimation.contentSwitch, value: email.id)
+                    .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: email.id)
                     .safeAreaInset(edge: .bottom) {
                         ReplyBarView(
                             email: email,
@@ -361,7 +361,7 @@ struct EmailDetailView: View {
                 for: email,
                 existingLabels: allLabels
             )
-            withAnimation(VikAnimation.contentSwitch) { labelSuggestions = suggestions }
+            withAnimation(reduceMotion ? nil : VikAnimation.contentSwitch) { labelSuggestions = suggestions }
         }
     }
 
@@ -578,7 +578,7 @@ struct EmailDetailView: View {
     }
 
     private func applyLabelSuggestion(_ suggestion: LabelSuggestion) {
-        withAnimation(VikAnimation.contentSwitch) { labelSuggestions.removeAll { $0.name == suggestion.name } }
+        withAnimation(reduceMotion ? nil : VikAnimation.contentSwitch) { labelSuggestions.removeAll { $0.name == suggestion.name } }
         detailVM.applyLabelSuggestion(
             suggestion,
             allLabels: allLabels,

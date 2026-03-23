@@ -25,6 +25,7 @@ struct ListPaneView: View {
     let clearSelection: () -> Void
 
     @State private var filterEmail: Email?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var navigationTitleText: String {
         if selectedFolder == .labels {
@@ -75,15 +76,15 @@ struct ListPaneView: View {
                     insertion: .opacity,
                     removal: .opacity.combined(with: .offset(y: -OffsetToken.nudge))
                 ))
-                .animation(VikAnimation.contentSwitch, value: selectedInboxCategory)
-                .animation(VikAnimation.folderSwitch, value: selectedFolder)
+                .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: selectedInboxCategory)
+                .animation(reduceMotion ? nil : VikAnimation.folderSwitch, value: selectedFolder)
         }
         .navigationSplitViewColumnWidth(min: 300, ideal: 380, max: 480)
         .navigationTitle(navigationTitleText)
         .toolbar(removing: .sidebarToggle)
         .safeAreaPadding(.leading, isSidebarCollapsed ? 8 : 0)
         .safeAreaPadding(.top, isSidebarCollapsed ? 6 : 0)
-        .animation(VikAnimation.springDefault, value: isSidebarCollapsed)
+        .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isSidebarCollapsed)
         .sheet(item: $filterEmail) { email in
             FilterEditorView(
                 viewModel: FiltersViewModel(accountID: mailboxViewModel.accountID),
@@ -113,8 +114,8 @@ private struct OfflineBannerView: View {
             }
             .font(Typography.captionRegular)
             .foregroundStyle(.secondary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
             .background(SemanticColor.warning.opacity(OpacityToken.highlight))
         }
     }

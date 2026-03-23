@@ -57,7 +57,7 @@ struct AccountSwitcherView: View {
                 Spacer()
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, Spacing.lg)
     }
 
     private func addAccountButton(size: CGFloat) -> some View {

@@ -54,20 +54,29 @@ struct CommandPaletteView: View {
     }
 
     private var commandList: some View {
-        ScrollView {
-            ScrollViewReader { proxy in
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(viewModel.filteredCommands.enumerated()), id: \.element.id) { index, command in
-                        commandRow(command, isSelected: index == viewModel.selectedIndex)
-                            .id(index)
-                            .onTapGesture {
-                                viewModel.selectedIndex = index
-                                viewModel.executeSelected()
+        Group {
+            if viewModel.filteredCommands.isEmpty {
+                ContentUnavailableView("No Results", systemImage: "magnifyingglass", description: Text(viewModel.query.isEmpty ? "Start typing a command" : "No commands match \"\(viewModel.query)\""))
+                    .padding()
+            } else {
+                ScrollView {
+                    ScrollViewReader { proxy in
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(viewModel.filteredCommands.enumerated()), id: \.element.id) { index, command in
+                                Button {
+                                    viewModel.selectedIndex = index
+                                    viewModel.executeSelected()
+                                } label: {
+                                    commandRow(command, isSelected: index == viewModel.selectedIndex)
+                                }
+                                .buttonStyle(.plain)
+                                .id(index)
                             }
+                        }
+                        .onChange(of: viewModel.selectedIndex) { _, newIndex in
+                            proxy.scrollTo(newIndex, anchor: .center)
+                        }
                     }
-                }
-                .onChange(of: viewModel.selectedIndex) { _, newIndex in
-                    proxy.scrollTo(newIndex, anchor: .center)
                 }
             }
         }

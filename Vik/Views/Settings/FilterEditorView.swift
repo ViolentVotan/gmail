@@ -60,6 +60,7 @@ struct FilterEditorView: View {
                     }
                 }
                 .disabled(isSaving || (from.isEmpty && to.isEmpty && subject.isEmpty && query.isEmpty))
+                .opacity((isSaving || (from.isEmpty && to.isEmpty && subject.isEmpty && query.isEmpty)) ? OpacityToken.disabled : 1.0)
             }
         }
     }

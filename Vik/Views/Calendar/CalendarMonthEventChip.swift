@@ -69,7 +69,7 @@ struct CalendarMonthEventChip: View {
             radius: isHovered ? 4 : 0,
             y: isHovered ? 2 : 0
         )
-        .scaleEffect(reduceMotion ? 1.0 : (isPressed ? ScaleToken.press : (isHovered ? ScaleToken.rowHover : 1.0)))
+        .scaleEffect(reduceMotion ? 1.0 : (isPressed ? ScaleToken.press : (isHovered ? ScaleToken.hover : 1.0)))
         .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isPressed)
         .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHovered)
         .gesture(
@@ -83,6 +83,7 @@ struct CalendarMonthEventChip: View {
             ? event.summary
             : "\(event.startTime.formatted(date: .omitted, time: .shortened)) \(event.summary)")
         .accessibilityAddTraits(.isButton)
+        .help(event.summary)
     }
 }
 
@@ -138,7 +139,7 @@ struct CalendarMonthSpanningBar: View {
                 radius: isHovered ? 4 : 0,
                 y: isHovered ? 2 : 0
             )
-            .scaleEffect(reduceMotion ? 1.0 : (isPressed ? ScaleToken.press : (isHovered ? ScaleToken.rowHover : 1.0)))
+            .scaleEffect(reduceMotion ? 1.0 : (isPressed ? ScaleToken.press : (isHovered ? ScaleToken.hover : 1.0)))
             .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isPressed)
             .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHovered)
             .offset(x: CGFloat(startColumn) * columnWidth + 1)
@@ -150,5 +151,6 @@ struct CalendarMonthSpanningBar: View {
             .onHover { isHovered = $0 }
             .accessibilityLabel(event.summary)
             .accessibilityAddTraits(.isButton)
+            .help(event.summary)
     }
 }

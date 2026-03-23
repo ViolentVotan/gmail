@@ -68,7 +68,7 @@ struct AccountsSettingsView: View {
                 }
 
                 Text(account.email)
-                    .font(.caption)
+                    .font(Typography.captionRegular)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }

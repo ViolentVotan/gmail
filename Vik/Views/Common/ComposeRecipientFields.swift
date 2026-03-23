@@ -5,6 +5,7 @@ struct ComposeRecipientFields: View {
     @Bindable var composeVM: ComposeViewModel
     let contacts: [StoredContact]
     var compact: Bool = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,7 +35,7 @@ struct ComposeRecipientFields: View {
                 Spacer()
 
                 Button {
-                    withAnimation(VikAnimation.springSnappy) { composeVM.showCc.toggle() }
+                    withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) { composeVM.showCc.toggle() }
                 } label: {
                     Text("Cc")
                         .font(Typography.caption)
@@ -48,7 +49,7 @@ struct ComposeRecipientFields: View {
                 .accessibilityHint(composeVM.showCc ? "Hides the Cc field" : "Shows the Cc field")
 
                 Button {
-                    withAnimation(VikAnimation.springSnappy) { composeVM.showBcc.toggle() }
+                    withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) { composeVM.showBcc.toggle() }
                 } label: {
                     Text("Bcc")
                         .font(Typography.caption)

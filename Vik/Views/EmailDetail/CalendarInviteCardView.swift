@@ -8,6 +8,7 @@ struct CalendarInviteCardView: View {
     var onAccept:  () -> Void
     var onDecline: () -> Void
     var onMaybe:   () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - Derived
 
@@ -161,7 +162,7 @@ struct CalendarInviteCardView: View {
                 Spacer()
 
                 Button {
-                    withAnimation(VikAnimation.springSnappy) { showOriginalEmail.toggle() }
+                    withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) { showOriginalEmail.toggle() }
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: showOriginalEmail ? "chevron.up" : "chevron.down")
@@ -172,6 +173,7 @@ struct CalendarInviteCardView: View {
                     .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
+                .help(showOriginalEmail ? "Hide original invite" : "Show original invite")
             }
         }
         .cardStyle()
@@ -192,8 +194,8 @@ struct CalendarInviteCardView: View {
                 Text(label)
                     .font(Typography.subhead)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 7)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
             .background(
                 isSelected
                     ? Color.accentColor
@@ -208,6 +210,7 @@ struct CalendarInviteCardView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(label)
+        .help(label)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
         .opacity(hasResponded && !isSelected ? 0.5 : 1)
     }

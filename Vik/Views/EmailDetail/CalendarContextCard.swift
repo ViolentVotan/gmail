@@ -41,7 +41,8 @@ struct CalendarContextCard: View {
         .onTapGesture(perform: onNavigate)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(contextLabel + " — " + event.summary)
-        .accessibilityHint("Tap to open in Calendar")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Open in Calendar")
     }
 
     // MARK: - Helpers

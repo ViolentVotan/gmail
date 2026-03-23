@@ -25,6 +25,7 @@ struct LabelChipView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Remove \(label.name) label")
+                .help("Remove \(label.name)")
             }
         }
         .padding(.horizontal, Spacing.sm)

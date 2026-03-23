@@ -54,11 +54,11 @@ struct CalendarListSidebarView: View {
             Task { await viewModel.toggleCalendarVisibility(calendar) }
         } label: {
             HStack(spacing: Spacing.sm) {
-                RoundedRectangle(cornerRadius: 2)
+                RoundedRectangle(cornerRadius: CornerRadius.xxs)
                     .fill(Color(hex: calendar.backgroundColor))
                     .frame(width: 10, height: 10)
                     .overlay(
-                        RoundedRectangle(cornerRadius: 2)
+                        RoundedRectangle(cornerRadius: CornerRadius.xxs)
                             .strokeBorder(Color(hex: calendar.backgroundColor).opacity(0.3), lineWidth: 0.5)
                     )
 
@@ -84,6 +84,7 @@ struct CalendarListSidebarView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(calendar.summaryOverride ?? calendar.summary), \(calendar.isVisible ? "Visible" : "Hidden")")
+        .help(calendar.summaryOverride ?? calendar.summary)
         .contextMenu {
             Button {
                 Task { await viewModel.toggleCalendarVisibility(calendar) }
@@ -117,6 +118,8 @@ struct CalendarListSidebarView: View {
         }
         .buttonStyle(.plain)
         .glassEffect(.regular.interactive(), in: .rect(cornerRadius: CornerRadius.md))
+        .accessibilityLabel("New Event")
+        .help("New Event")
     }
 }
 
