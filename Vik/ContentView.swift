@@ -15,6 +15,8 @@ struct ContentView: View {
     @State private var calendarScopesAccountID: String?
     @State private var showGmailScopesAlert = false
     @State private var gmailScopesAccountID: String?
+    @State private var showPubSubScopesAlert = false
+    @State private var pubSubScopesAccountID: String?
 
     @FocusState private var appFocus: AppFocus?
     @Namespace private var commandPaletteNamespace
@@ -78,6 +80,21 @@ struct ContentView: View {
                     }
                 } message: {
                     Text("Gmail features require additional permissions. Please re-authorize to grant access.")
+                }
+                .alert("Pub/Sub Permissions Required", isPresented: $showPubSubScopesAlert) {
+                    Button("Cancel", role: .cancel) {}
+                    Button("Re-authorize") {
+                        if let id = pubSubScopesAccountID {
+                            Task {
+                                try? await OAuthService.shared.reauthorize(
+                                    accountID: id,
+                                    presentingWindow: NSApp.keyWindow
+                                )
+                            }
+                        }
+                    }
+                } message: {
+                    Text("Vik needs permission to receive real-time email notifications. Please re-authorize to enable instant delivery.")
                 }
         )
     }
@@ -646,6 +663,12 @@ struct ContentView: View {
                 for await notification in NotificationCenter.default.notifications(named: .gmailScopesInsufficient) {
                     gmailScopesAccountID = notification.userInfo?[GmailAPIClient.accountIDKey] as? String
                     showGmailScopesAlert = true
+                }
+            }
+            .task {
+                for await notification in NotificationCenter.default.notifications(named: .pubSubScopesInsufficient) {
+                    pubSubScopesAccountID = notification.userInfo?[GmailAPIClient.accountIDKey] as? String
+                    showPubSubScopesAlert = true
                 }
             }
             .task {
