@@ -201,13 +201,14 @@ struct ReplyBarView: View {
                             .contentShape(Circle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("Dismiss error")
                 }
                 .foregroundStyle(SemanticColor.error)
                 .padding(.horizontal, Spacing.lg)
                 .padding(.vertical, Spacing.sm)
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
                 .accessibilityAddTraits(.isStaticText)
-                .accessibilityElement(children: .combine)
+                .accessibilityElement(children: .contain)
             }
 
             ComposeActionBar(

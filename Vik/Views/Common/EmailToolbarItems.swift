@@ -3,6 +3,8 @@ import SwiftUI
 struct EmailToolbarItems: ToolbarContent {
     let coordinator: AppCoordinator
     @Binding var showSnoozePicker: Bool
+    @State private var showDeletePermanentlyConfirmation = false
+    @State private var showSpamConfirmation = false
 
     var body: some ToolbarContent {
         if !coordinator.panelCoordinator.isAnyOpen {
@@ -111,19 +113,29 @@ struct EmailToolbarItems: ToolbarContent {
                             } label: { Label("Not Spam", systemImage: "tray.and.arrow.down") }
                         } else {
                             Button(role: .destructive) {
-                                Task { await coordinator.actionCoordinator.markSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
+                                showSpamConfirmation = true
                             } label: { Label("Report as Spam", systemImage: "exclamationmark.shield") }
                         }
 
                         if coordinator.navigation.selectedFolder == .trash {
                             Button(role: .destructive) {
-                                Task { await coordinator.actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
+                                showDeletePermanentlyConfirmation = true
                             } label: { Label("Delete Permanently", systemImage: "trash.slash") }
                         }
                     } label: {
                         Label("More", systemImage: "ellipsis.circle")
                     }
                     .help("More actions")
+                    .confirmationDialog("Permanently delete this email? This cannot be undone.", isPresented: $showDeletePermanentlyConfirmation, titleVisibility: .visible) {
+                        Button("Delete Permanently", role: .destructive) {
+                            Task { await coordinator.actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
+                        }
+                    }
+                    .confirmationDialog("Report this email as spam?", isPresented: $showSpamConfirmation, titleVisibility: .visible) {
+                        Button("Report as Spam", role: .destructive) {
+                            Task { await coordinator.actionCoordinator.markSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
+                        }
+                    }
                 }
             }
         }

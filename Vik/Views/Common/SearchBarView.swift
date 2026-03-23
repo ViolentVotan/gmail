@@ -29,6 +29,7 @@ struct SearchBarView: View {
                         .foregroundStyle(.tertiary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
                 .transition(.scale.combined(with: .opacity))
             }
         }

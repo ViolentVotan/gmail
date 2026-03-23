@@ -97,6 +97,7 @@ struct AttachmentChipView: View {
         .contextMenu { contextMenuContent }
         .accessibilityLabel("Attachment: \(attachment.name), \(attachment.size)")
         .accessibilityHint(attachment.fileType.isPreviewable ? "Click to preview, double-click to open" : "Click to download, double-click to open")
+        .accessibilityAction(named: "Open in default app") { onOpen?() }
     }
 
     // MARK: - Context Menu

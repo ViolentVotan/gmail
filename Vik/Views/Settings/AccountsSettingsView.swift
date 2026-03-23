@@ -77,7 +77,7 @@ struct AccountsSettingsView: View {
 
             accentColorButton(account)
 
-            reorderButtons(index: index)
+            reorderButtons(account: account, index: index)
         }
         .padding(.vertical, 2)
         .contextMenu { contextMenu(for: account, index: index) }
@@ -114,6 +114,17 @@ struct AccountsSettingsView: View {
 
     // MARK: - Accent Color
 
+    private static let accentColorNames: [String: String] = [
+        "#FF6B6B": "Red",
+        "#4ECDC4": "Teal",
+        "#45B7D1": "Blue",
+        "#F7DC6F": "Yellow",
+        "#BB8FCE": "Purple",
+        "#F0932B": "Orange",
+        "#6C5CE7": "Indigo",
+        "#A3CB38": "Green",
+    ]
+
     private func accentColorButton(_ account: GmailAccount) -> some View {
         Menu {
             ForEach(AccountStore.accentPalette, id: \.self) { hex in
@@ -124,7 +135,7 @@ struct AccountsSettingsView: View {
                     HStack {
                         Image(systemName: "circle.fill")
                             .foregroundStyle(Color(hex: hex))
-                        Text(hex)
+                        Text(Self.accentColorNames[hex] ?? hex)
                         if account.accentColor == hex {
                             Spacer()
                             Image(systemName: "checkmark")
@@ -137,6 +148,8 @@ struct AccountsSettingsView: View {
                 .fill(Color(hex: account.accentColor ?? "#888888"))
                 .frame(width: 14, height: 14)
                 .overlay(Circle().strokeBorder(.separator, lineWidth: 0.5))
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
@@ -145,7 +158,7 @@ struct AccountsSettingsView: View {
 
     // MARK: - Reorder Buttons
 
-    private func reorderButtons(index: Int) -> some View {
+    private func reorderButtons(account: GmailAccount, index: Int) -> some View {
         HStack(spacing: 2) {
             Button {
                 guard index > 0 else { return }
@@ -159,6 +172,7 @@ struct AccountsSettingsView: View {
             }
             .buttonStyle(.borderless)
             .disabled(index == 0)
+            .accessibilityLabel("Move \(account.displayName) up")
             .help("Move up")
 
             Button {
@@ -173,6 +187,7 @@ struct AccountsSettingsView: View {
             }
             .buttonStyle(.borderless)
             .disabled(index == accounts.count - 1)
+            .accessibilityLabel("Move \(account.displayName) down")
             .help("Move down")
         }
     }

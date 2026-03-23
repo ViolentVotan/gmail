@@ -20,6 +20,7 @@ struct SlidePanel<Content: View>: View {
 
     @State private var panelWidth: CGFloat = 0
     @ScaledMetric(relativeTo: .subheadline) private var closeButtonSize: CGFloat = 24
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 0) {
@@ -55,7 +56,8 @@ struct SlidePanel<Content: View>: View {
             .modifier(SlidePanelBackground())
             .elevation(.elevated)
             .offset(x: isPresented ? 0 : -(panelWidth + 60))
-            .animation(VikAnimation.springDefault, value: isPresented)
+            .animation(reduceMotion ? .easeInOut(duration: 0.15) : VikAnimation.springDefault, value: isPresented)
+            .onKeyPress(.escape) { if isPresented { isPresented = false; return .handled }; return .ignored }
 
             // Tap outside to dismiss
             Color.clear

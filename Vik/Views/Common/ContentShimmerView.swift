@@ -4,6 +4,7 @@ import SwiftUI
 /// Displays animated bars that simulate text layout while content loads.
 struct ContentShimmerView: View {
     @State private var shimmerPhase: CGFloat = -1
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -23,8 +24,10 @@ struct ContentShimmerView: View {
         .fixedSize(horizontal: false, vertical: true)
         .drawingGroup()
         .task {
-            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
-                shimmerPhase = 1
+            if !reduceMotion {
+                withAnimation(VikAnimation.shimmer) {
+                    shimmerPhase = 1
+                }
             }
         }
     }

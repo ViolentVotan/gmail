@@ -12,7 +12,7 @@ struct LabelChipView: View {
         HStack(spacing: 3) {
             Text(label.name)
                 .font(Typography.captionSmallMedium)
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(chipColor)
                 .lineLimit(1)
 
             if isRemovable {
@@ -24,6 +24,7 @@ struct LabelChipView: View {
                         .foregroundStyle(chipColor.opacity(0.7))
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("Remove \(label.name) label")
             }
         }
         .padding(.horizontal, Spacing.sm)

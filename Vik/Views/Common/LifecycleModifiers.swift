@@ -7,6 +7,7 @@ struct LifecycleStateModifier: ViewModifier {
     let coordinator: AppCoordinator
     let commandPalette: CommandPaletteViewModel
     @Binding var showSnoozePicker: Bool
+    var appFocus: FocusState<AppFocus?>.Binding
     let snoozeCount: Int
     let scheduledCount: Int
 
@@ -35,6 +36,9 @@ struct LifecycleStateModifier: ViewModifier {
             }
             .onChange(of: coordinator.selection.selectedEmail) { oldValue, newValue in
                 showSnoozePicker = false
+                if newValue != nil {
+                    appFocus.wrappedValue = .detail
+                }
                 // Track direction for directional detail pane transitions
                 if let newEmail = newValue, let oldEmail = oldValue {
                     if let newIdx = coordinator.selection.emailIndex(for: newEmail.id),

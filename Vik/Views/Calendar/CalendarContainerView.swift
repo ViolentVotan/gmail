@@ -65,6 +65,7 @@ struct CalendarContainerView: View {
                     CalendarAgendaView(
                         viewModel: viewModel,
                         onSelectEvent: onSelectEvent,
+                        onCreateEvent: onCreateEvent,
                         onEdit: onEdit,
                         onDelete: onDelete,
                         onRSVP: onRSVP,
@@ -92,7 +93,7 @@ struct CalendarContainerView: View {
                 composeTo: composeTo,
                 searchSender: searchSender
             )
-            .frame(minWidth: 420, maxWidth: 420, minHeight: 300, maxHeight: 600)
+            .frame(minWidth: 420, idealWidth: 420, maxWidth: 560, minHeight: 300, maxHeight: 600)
         }
     }
 

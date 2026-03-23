@@ -73,6 +73,15 @@ struct OnboardingView: View {
                 hideTrafficLights(true)
             }
         }
+        .onChange(of: reduceMotion) { _, newValue in
+            if newValue {
+                withAnimation(.easeOut(duration: 0.3)) {
+                    orb1Offset = .zero
+                    orb2Offset = .zero
+                    orb3Offset = .zero
+                }
+            }
+        }
         .onDisappear {
             withAnimation { orbsVisible = false }
             hideTrafficLights(false)
@@ -129,7 +138,7 @@ struct OnboardingView: View {
         Text("CONQUER YOUR INBOX")
             .font(.system(size: 15, weight: .medium))
             .tracking(3)
-            .foregroundStyle(.white.opacity(OpacityToken.overlay))
+            .foregroundStyle(.white.opacity(0.75))
             .opacity(showTagline ? 1 : 0)
 
         Spacer().frame(height: 36)

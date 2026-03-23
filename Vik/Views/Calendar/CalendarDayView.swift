@@ -21,6 +21,7 @@ struct CalendarDayView: View {
     @State private var cachedAllDayEvents: [CalendarEvent] = []
     @State private var cachedTimedEvents: [CalendarEvent] = []
     @State private var cachedOverlapGroups: [[CalendarEvent]] = []
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let hours = Array(0..<24)
     private let calendar: Calendar = .current
@@ -93,7 +94,7 @@ struct CalendarDayView: View {
         } label: {
             Text(event.summary)
                 .font(Typography.captionSemibold)
-                .foregroundStyle(.white)
+                .foregroundStyle(CalendarColor.contrastingForeground(forId: Int(event.colorId ?? "")))
                 .lineLimit(1)
                 .padding(.horizontal, Spacing.sm)
                 .frame(height: CalendarLayout.allDayEventHeight)
@@ -110,7 +111,7 @@ struct CalendarDayView: View {
                 onEmailAttendees: onEmailAttendees
             )
         }
-        .accessibilityLabel(event.summary)
+        .accessibilityLabel("\(event.summary), all day")
     }
 
     // MARK: - Time grid
@@ -234,7 +235,7 @@ struct CalendarDayView: View {
         guard calendar.isDateInToday(viewModel.selectedDate) else { return }
         let hour = calendar.component(.hour, from: .now)
         let scrollHour = max(0, hour - 1)
-        withAnimation(VikAnimation.springGentle) {
+        withAnimation(reduceMotion ? nil : VikAnimation.springGentle) {
             proxy.scrollTo("hour-\(scrollHour)", anchor: .top)
         }
     }
@@ -295,6 +296,7 @@ private struct DayEventCardView: View {
 
     @State private var isHovered = false
     @GestureState private var isPressed = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         HStack(spacing: 0) {
@@ -364,9 +366,9 @@ private struct DayEventCardView: View {
             radius: isHovered ? 4 : 0,
             y: isHovered ? 2 : 0
         )
-        .scaleEffect(isPressed ? ScaleToken.press : (isHovered ? ScaleToken.hover : 1.0))
-        .animation(VikAnimation.springSnappy, value: isPressed)
-        .animation(VikAnimation.springSnappy, value: isHovered)
+        .scaleEffect(reduceMotion ? 1.0 : (isPressed ? ScaleToken.press : (isHovered ? ScaleToken.hover : 1.0)))
+        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isPressed)
+        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isHovered)
         .gesture(
             DragGesture(minimumDistance: 0)
                 .updating($isPressed) { _, state, _ in state = true }

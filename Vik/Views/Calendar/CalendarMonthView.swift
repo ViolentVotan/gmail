@@ -433,37 +433,34 @@ private struct CalendarMonthDayCell: View {
 // MARK: - MonthOverflowButton
 
 /// Overflow button with hover/press feedback matching the chip interaction pattern.
+/// Uses a proper Button so keyboard users can activate it with Space/Return.
 struct MonthOverflowButton: View {
     let count: Int
     var action: () -> Void = {}
 
     @State private var isHovered = false
-    @GestureState private var isPressed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Text("+\(count) more")
-            .font(Typography.calendarEventTime)
-            .foregroundStyle(isHovered ? .primary : .secondary)
-            .padding(.horizontal, Spacing.xs)
-            .frame(height: CalendarLayout.monthEventChipHeight)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .glassEffect(
-                isHovered ? .regular.interactive() : .identity,
-                in: .rect(cornerRadius: CornerRadius.sm)
-            )
-            .scaleEffect(reduceMotion ? 1.0 : (isPressed ? ScaleToken.press : (isHovered ? ScaleToken.rowHover : 1.0)))
-            .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isPressed)
-            .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHovered)
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .updating($isPressed) { _, state, _ in state = true }
-                    .onEnded { _ in action() }
-            )
-            .onHover { isHovered = $0 }
-            .contentShape(Rectangle())
-            .accessibilityLabel("\(count) more events")
-            .accessibilityAddTraits(.isButton)
+        Button(action: action) {
+            Text("+\(count) more")
+                .font(Typography.calendarEventTime)
+                .foregroundStyle(isHovered ? .primary : .secondary)
+                .padding(.horizontal, Spacing.xs)
+                .frame(height: CalendarLayout.monthEventChipHeight)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .glassEffect(
+                    isHovered ? .regular.interactive() : .identity,
+                    in: .rect(cornerRadius: CornerRadius.sm)
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(reduceMotion ? 1.0 : (isHovered ? ScaleToken.rowHover : 1.0))
+        .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHovered)
+        .onHover { isHovered = $0 }
+        .accessibilityLabel("\(count) more events")
+        .accessibilityAddTraits(.isButton)
     }
 }
 

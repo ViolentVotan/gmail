@@ -71,12 +71,11 @@ struct SignatureEditorView: View {
                 Text(isSaving ? "Saving…" : "Save")
                     .font(Typography.callout)
             }
-            .foregroundStyle(.white)
             .padding(.horizontal, 14)
             .padding(.vertical, 6)
-            .background(Capsule().fill(Color.accentColor))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.borderedProminent)
+        .clipShape(Capsule())
         .disabled(isSaving)
     }
 

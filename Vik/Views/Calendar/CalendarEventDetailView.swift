@@ -14,6 +14,7 @@ struct CalendarEventDetailView: View {
 
     @State private var isHoveringLocation = false
     @State private var isHoveringConference = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
@@ -145,8 +146,10 @@ struct CalendarEventDetailView: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Open location: \(event.location ?? "")")
+        .accessibilityHint("Opens in Maps")
         .scaleEffect(isHoveringLocation ? 1.02 : 1.0)
-        .animation(VikAnimation.springDefault, value: isHoveringLocation)
+        .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHoveringLocation)
         .onHover { isHoveringLocation = $0 }
     }
 
@@ -170,8 +173,10 @@ struct CalendarEventDetailView: View {
             .clipShape(.rect(cornerRadius: CornerRadius.md))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Join meeting")
+        .accessibilityHint("Opens in browser")
         .scaleEffect(isHoveringConference ? ScaleToken.hover : 1.0)
-        .animation(VikAnimation.springDefault, value: isHoveringConference)
+        .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHoveringConference)
         .onHover { isHoveringConference = $0 }
     }
 
@@ -360,6 +365,7 @@ struct CalendarEventDetailView: View {
             .clipShape(.rect(cornerRadius: CornerRadius.sm))
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isCurrent ? [.isSelected] : [])
     }
 
     private func rsvpColor(_ status: CalendarRSVPStatus) -> Color {

@@ -81,6 +81,8 @@ struct SnoozePickerView: View {
                         .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("\(preset.title), \(preset.date.formattedTime)")
+                    .accessibilityHint("Snooze until this time")
                     .glassEffect(hoveredPresetID == preset.id ? .regular.interactive() : .identity, in: .rect(cornerRadius: CornerRadius.sm))
                     .onHover { hoveredPresetID = $0 ? preset.id : nil }
                 }
@@ -98,6 +100,8 @@ struct SnoozePickerView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
+                .accessibilityLabel("Confirm snooze time")
+                .help("Confirm snooze time")
                 .padding(.horizontal, 8)
                 .padding(.bottom, 8)
             } else {

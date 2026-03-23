@@ -207,7 +207,7 @@ struct ThreadMessageCardView: View, Equatable {
             if isExpanded {
                 expandedContent
                     .clipped()
-                    .transition(.opacity.animation(VikAnimation.springSnappy.delay(0.05)))
+                    .transition(.opacity.animation(reduceMotion ? nil : VikAnimation.springSnappy.delay(0.05)))
             }
 
             if !isLast {
@@ -261,7 +261,7 @@ struct ThreadMessageCardView: View, Equatable {
                 Label("Copy Message Text", systemImage: "doc.on.doc")
             }
         }
-        .animation(VikAnimation.springDefault, value: isExpanded)
+        .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isExpanded)
         .onChange(of: message.id) { allowRemoteImages = false }
         .accessibilityElement(children: .combine)
         .accessibilityLabel({
@@ -460,6 +460,7 @@ struct ThreadMessageCardView: View, Equatable {
                             }
                             .buttonStyle(.glass)
                             .opacity(isHovering ? 1 : 0)
+                            .accessibilityHidden(!isHovering)
                             .animation(VikAnimation.springSnappy, value: isHovering)
                         }
                     }

@@ -33,8 +33,8 @@ final class AppearanceManager {
             UserDefaults.standard.removeObject(forKey: "themeOverrides")
             UserDefaults.standard.set(preference.rawValue, forKey: UserDefaultsKey.appearancePreference)
         } else {
-            // Fresh install: default to dark
-            self.preference = .dark
+            // Fresh install: default to system appearance
+            self.preference = .system
             UserDefaults.standard.set(preference.rawValue, forKey: UserDefaultsKey.appearancePreference)
         }
     }

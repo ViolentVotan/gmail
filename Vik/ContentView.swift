@@ -628,6 +628,7 @@ struct ContentView: View {
                 coordinator: coordinator,
                 commandPalette: commandPalette,
                 showSnoozePicker: $showSnoozePicker,
+                appFocus: $appFocus,
                 snoozeCount: SnoozeStore.shared.count,
                 scheduledCount: ScheduledSendStore.shared.count
             ))

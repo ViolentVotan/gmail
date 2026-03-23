@@ -6,6 +6,8 @@ struct CalendarContainer: View {
     @Binding var showNewCalendarEvent: Bool
     @Binding var newCalendarEventDraft: EventEditDraft?
     @Binding var newEventStartTime: Date?
+    @State private var showDeleteConfirmation = false
+    @State private var pendingDeleteEvent: CalendarEvent?
 
     var body: some View {
         CalendarContainerView(
@@ -32,8 +34,8 @@ struct CalendarContainer: View {
                 showNewCalendarEvent = true
             },
             onDelete: { event in
-                calendarVM.selectedEvent = nil
-                Task { try? await calendarVM.deleteEvent(event) }
+                pendingDeleteEvent = event
+                showDeleteConfirmation = true
             },
             onRSVP: { event, status in
                 Task { try? await calendarVM.respondToEvent(event, status: status) }
@@ -51,5 +53,28 @@ struct CalendarContainer: View {
             }
         )
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .confirmationDialog(
+            pendingDeleteEvent?.isRecurring == true
+                ? "Delete this recurring event?"
+                : "Delete this event?",
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Delete", role: .destructive) {
+                guard let event = pendingDeleteEvent else { return }
+                calendarVM.selectedEvent = nil
+                Task {
+                    do {
+                        try await calendarVM.deleteEvent(event)
+                    } catch {
+                        ToastManager.shared.show(message: "Failed to delete event: \(error.localizedDescription)", type: .error)
+                    }
+                }
+            }
+        } message: {
+            if pendingDeleteEvent?.isRecurring == true {
+                Text("This will delete only this occurrence of the recurring event.")
+            }
+        }
     }
 }

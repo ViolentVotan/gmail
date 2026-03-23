@@ -84,9 +84,10 @@ struct CalendarWeekView: View {
                 GlassEffectContainer {
                     ForEach(weekCache.weekDays.indices, id: \.self) { index in
                         let allDayEvents = weekCache.allDayEventsByDay[index]
+                        let dayDate = weekCache.weekDays[index]
                         VStack(spacing: 2) {
                             ForEach(allDayEvents) { event in
-                                allDayChip(event: event, width: dayColumnWidth)
+                                allDayChip(event: event, width: dayColumnWidth, dayDate: dayDate)
                             }
                         }
                         .frame(width: dayColumnWidth)
@@ -98,13 +99,14 @@ struct CalendarWeekView: View {
         }
     }
 
-    private func allDayChip(event: CalendarEvent, width: CGFloat) -> some View {
-        Button {
+    private func allDayChip(event: CalendarEvent, width: CGFloat, dayDate: Date? = nil) -> some View {
+        let dayLabel = dayDate.map { ", \($0.formattedWeekdayFull)" } ?? ""
+        return Button {
             onSelectEvent(event)
         } label: {
             Text(event.summary)
                 .font(Typography.calendarWeekAllDayEvent)
-                .foregroundStyle(.white)
+                .foregroundStyle(CalendarColor.contrastingForeground(forId: Int(event.colorId ?? "")))
                 .lineLimit(1)
                 .padding(.horizontal, Spacing.xs)
                 .frame(height: CalendarLayout.allDayEventHeight)
@@ -122,7 +124,7 @@ struct CalendarWeekView: View {
                 onEmailAttendees: onEmailAttendees
             )
         }
-        .accessibilityLabel("\(event.summary), all day")
+        .accessibilityLabel("\(event.summary), all day\(dayLabel)")
     }
 
     // MARK: - Day Header Row

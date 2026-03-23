@@ -153,6 +153,11 @@ struct ComposeView: View {
         .onChange(of: composeVM.error) { _, err in
             sendError = err
         }
+        .onChange(of: sendError) { _, newError in
+            if let error = newError {
+                AccessibilityNotification.Announcement(error).post()
+            }
+        }
         .onChange(of: to)       { _, _ in scheduleAutoSave() }
         .onChange(of: cc)       { _, _ in scheduleAutoSave() }
         .onChange(of: bcc)      { _, _ in scheduleAutoSave() }
@@ -315,6 +320,7 @@ struct ComposeView: View {
             }
             .buttonStyle(.plain)
             .help("Show Cc")
+            .accessibilityLabel(showCc ? "Hide Cc field" : "Show Cc field")
 
             Button {
                 showBcc.toggle()
@@ -327,6 +333,7 @@ struct ComposeView: View {
             }
             .buttonStyle(.plain)
             .help("Show Bcc")
+            .accessibilityLabel(showBcc ? "Hide Bcc field" : "Show Bcc field")
 
             Divider().frame(height: 16)
 
@@ -349,6 +356,7 @@ struct ComposeView: View {
             }
             .buttonStyle(.glass)
             .controlSize(.large)
+            .help("Discard draft")
 
             if let err = sendError {
                 Text(err)

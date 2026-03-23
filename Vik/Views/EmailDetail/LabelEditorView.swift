@@ -118,6 +118,7 @@ struct LabelEditorView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Add label")
+                .accessibilityLabel("Add label")
             }
 
             Spacer()

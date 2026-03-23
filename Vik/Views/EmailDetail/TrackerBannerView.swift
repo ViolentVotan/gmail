@@ -28,6 +28,7 @@ struct TrackerBannerView: View {
                         .foregroundStyle(.secondary)
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(showDetails ? "Hide tracker details" : "Show tracker details")
 
                 Spacer()
 

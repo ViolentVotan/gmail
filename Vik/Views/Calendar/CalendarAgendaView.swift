@@ -8,6 +8,7 @@ struct CalendarAgendaView: View {
 
     @Bindable var viewModel: CalendarViewModel
     let onSelectEvent: (CalendarEvent) -> Void
+    var onCreateEvent: (Date, Int) -> Void = { _, _ in }
     var onEdit: (CalendarEvent) -> Void = { _ in }
     var onDelete: (CalendarEvent) -> Void = { _ in }
     var onRSVP: (CalendarEvent, CalendarRSVPStatus) -> Void = { _, _ in }
@@ -52,6 +53,12 @@ struct CalendarAgendaView: View {
                             sectionHeader(for: group.date, isToday: group.isToday, isTomorrow: group.isTomorrow)
                         }
                     }
+
+                    Text("Showing events for the next 30 days")
+                        .font(Typography.captionRegular)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, Spacing.md)
                 }
             }
             .id(viewModel.selectedDate)
@@ -109,6 +116,14 @@ struct CalendarAgendaView: View {
             Text("No upcoming events")
                 .font(Typography.subheadRegular)
                 .foregroundStyle(.secondary)
+            Button {
+                onCreateEvent(viewModel.selectedDate, 9)
+            } label: {
+                Label("Create Event", systemImage: "plus")
+                    .font(Typography.body)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(BrandColor.blue)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, Spacing.xxl * 2)

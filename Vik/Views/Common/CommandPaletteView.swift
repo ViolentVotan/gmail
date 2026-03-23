@@ -2,6 +2,7 @@ import SwiftUI
 
 struct CommandPaletteView: View {
     @Bindable var viewModel: CommandPaletteViewModel
+    @FocusState private var isSearchFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
@@ -45,20 +46,28 @@ struct CommandPaletteView: View {
             TextField("Type a command...", text: $viewModel.query)
                 .textFieldStyle(.plain)
                 .font(Typography.title)
+                .focused($isSearchFocused)
                 .onSubmit { viewModel.executeSelected() }
         }
         .padding(Spacing.md)
+        .onAppear { isSearchFocused = true }
     }
 
     private var commandList: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(viewModel.filteredCommands.enumerated()), id: \.element.id) { index, command in
-                    commandRow(command, isSelected: index == viewModel.selectedIndex)
-                        .onTapGesture {
-                            viewModel.selectedIndex = index
-                            viewModel.executeSelected()
-                        }
+            ScrollViewReader { proxy in
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(Array(viewModel.filteredCommands.enumerated()), id: \.element.id) { index, command in
+                        commandRow(command, isSelected: index == viewModel.selectedIndex)
+                            .id(index)
+                            .onTapGesture {
+                                viewModel.selectedIndex = index
+                                viewModel.executeSelected()
+                            }
+                    }
+                }
+                .onChange(of: viewModel.selectedIndex) { _, newIndex in
+                    proxy.scrollTo(newIndex, anchor: .center)
                 }
             }
         }

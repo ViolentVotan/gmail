@@ -434,6 +434,7 @@ private func toolbarButton(icon: String, tooltip: String, action: @escaping () -
             .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
+    .accessibilityLabel(tooltip)
     .help(tooltip)
 }
 
@@ -447,6 +448,8 @@ private func toggleButton(icon: String, tooltip: String, isActive: Bool, action:
             .contentShape(Rectangle())
     }
     .buttonStyle(.plain)
+    .accessibilityLabel(tooltip)
+    .accessibilityAddTraits(isActive ? [.isSelected] : [])
     .help(tooltip)
 }
 
@@ -496,8 +499,11 @@ struct ColorPickerPopover: View {
                                                 lineWidth: isSelected(color) ? 2 : 1
                                             )
                                     )
+                                    .frame(width: 44, height: 44)
+                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Text color: \(colorName(for: color))")
                         }
                     }
                 }
@@ -544,5 +550,26 @@ struct ColorPickerPopover: View {
         return abs(c1.redComponent - c2.redComponent) < 0.05
             && abs(c1.greenComponent - c2.greenComponent) < 0.05
             && abs(c1.blueComponent - c2.blueComponent) < 0.05
+    }
+
+    private func colorName(for color: NSColor) -> String {
+        let nameMap: [(NSColor, String)] = [
+            (.white, "White"), (.black, "Black"),
+            (.systemRed, "Red"), (.systemOrange, "Orange"),
+            (.systemYellow, "Yellow"), (.systemGreen, "Green"),
+            (.systemTeal, "Teal"), (.systemBlue, "Blue"),
+            (.systemIndigo, "Indigo"), (.systemPurple, "Purple"),
+            (.systemPink, "Pink"), (.systemBrown, "Brown"),
+        ]
+        for (knownColor, name) in nameMap {
+            let c1 = color.usingColorSpace(.deviceRGB) ?? color
+            let c2 = knownColor.usingColorSpace(.deviceRGB) ?? knownColor
+            if abs(c1.redComponent - c2.redComponent) < 0.05
+                && abs(c1.greenComponent - c2.greenComponent) < 0.05
+                && abs(c1.blueComponent - c2.blueComponent) < 0.05 {
+                return name
+            }
+        }
+        return "Gray"
     }
 }

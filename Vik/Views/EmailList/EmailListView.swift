@@ -178,6 +178,10 @@ struct EmailListView: View {
     @AppStorage("emailDensity") private var density = "comfortable"
     @State private var hoverActions = EmailHoverActions()
     @State private var animatedEmailIDs: Set<String> = []
+    @State private var showDeletePermanentlyConfirmation = false
+    @State private var showSpamConfirmation = false
+    @State private var showUnsubscribeAllConfirmation = false
+    @State private var pendingConfirmationEmail: Email?
 
     private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
 
@@ -199,6 +203,24 @@ struct EmailListView: View {
                 .padding(.horizontal, Spacing.xl)
             emailListSection
             hiddenButtons
+        }
+        .confirmationDialog("Permanently delete this email? This cannot be undone.", isPresented: $showDeletePermanentlyConfirmation, titleVisibility: .visible) {
+            Button("Delete Permanently", role: .destructive) {
+                guard let target = pendingConfirmationEmail else { return }
+                actions.onDeletePermanently?(target)
+            }
+        }
+        .confirmationDialog("Report this email as spam?", isPresented: $showSpamConfirmation, titleVisibility: .visible) {
+            Button("Report as Spam", role: .destructive) {
+                guard let target = pendingConfirmationEmail else { return }
+                actions.onMarkSpam?(target)
+            }
+        }
+        .confirmationDialog("Unsubscribe from \(sortModel.accessibilityCache.unsubscribableEmails.count) senders? This will send unsubscribe requests.", isPresented: $showUnsubscribeAllConfirmation, titleVisibility: .visible) {
+            Button("Unsubscribe All", role: .destructive) {
+                guard let onUnsubscribe = actions.onUnsubscribe else { return }
+                sortModel.accessibilityCache.unsubscribableEmails.forEach { onUnsubscribe($0) }
+            }
         }
         .task { recomputeSortedEmails() }
         .onChange(of: emails) { _, _ in recomputeSortedEmails() }
@@ -284,9 +306,9 @@ struct EmailListView: View {
 
     @ViewBuilder
     private var folderActionButton: some View {
-        if selectedFolder == .subscriptions, !sortModel.accessibilityCache.unsubscribableEmails.isEmpty, let onUnsubscribe = actions.onUnsubscribe {
+        if selectedFolder == .subscriptions, !sortModel.accessibilityCache.unsubscribableEmails.isEmpty, actions.onUnsubscribe != nil {
             Button {
-                sortModel.accessibilityCache.unsubscribableEmails.forEach { onUnsubscribe($0) }
+                showUnsubscribeAllConfirmation = true
             } label: {
                 Text("Unsubscribe All (\(sortModel.accessibilityCache.unsubscribableEmails.count))")
                     .destructiveActionStyle()
@@ -341,6 +363,7 @@ struct EmailListView: View {
                 .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Sort emails")
     }
 
     // MARK: - Email list
@@ -427,6 +450,7 @@ struct EmailListView: View {
                 ForEach(0..<9, id: \.self) { _ in
                     EmailSkeletonRowView()
                         .listRowSeparator(.hidden)
+                        .accessibilityHidden(true)
                 }
             }
             .listStyle(.plain)
@@ -494,10 +518,16 @@ struct EmailListView: View {
                 onToggleStar: actions.onToggleStar,
                 onMarkRead: actions.onMarkRead,
                 onMarkUnread: actions.onMarkUnread,
-                onMarkSpam: actions.onMarkSpam,
+                onMarkSpam: actions.onMarkSpam != nil ? { target in
+                    pendingConfirmationEmail = target
+                    showSpamConfirmation = true
+                } : nil,
                 onUnsubscribe: actions.onUnsubscribe,
                 onMoveToInbox: actions.onMoveToInbox,
-                onDeletePermanently: actions.onDeletePermanently,
+                onDeletePermanently: actions.onDeletePermanently != nil ? { target in
+                    pendingConfirmationEmail = target
+                    showDeletePermanentlyConfirmation = true
+                } : nil,
                 onMarkNotSpam: actions.onMarkNotSpam,
                 onSnooze: actions.onSnooze,
                 onCreateFilter: actions.onCreateFilter,

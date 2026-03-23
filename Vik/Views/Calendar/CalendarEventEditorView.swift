@@ -70,6 +70,7 @@ struct CalendarEventEditorView: View {
         .task {
             viewModel.populateFromDraft(editDraft, defaultStartTime: defaultStartTime)
             viewModel.updateHasChanges(editDraft: editDraft)
+            isTitleFocused = true
         }
         .interactiveDismissDisabled(viewModel.hasChanges)
         .confirmationDialog(
@@ -98,6 +99,7 @@ struct CalendarEventEditorView: View {
                     onCancel()
                 }
             }
+            .keyboardShortcut(.escape)
             .buttonStyle(.plain)
             .font(Typography.body)
             .foregroundStyle(.secondary)
@@ -113,6 +115,7 @@ struct CalendarEventEditorView: View {
             Button("Save") {
                 viewModel.handleSave(editDraft: editDraft, onSave: onSave)
             }
+            .keyboardShortcut(.return, modifiers: .command)
             .buttonStyle(.plain)
             .font(Typography.bodySemibold)
             .foregroundStyle(BrandColor.blue)
@@ -125,13 +128,18 @@ struct CalendarEventEditorView: View {
     // MARK: - Title Field
 
     private var titleField: some View {
-        TextField("Title", text: $viewModel.summary)
-            .font(.system(size: 20, weight: .semibold))
-            .foregroundStyle(.primary)
-            .textFieldStyle(.plain)
-            .focused($isTitleFocused)
-            .onAppear { isTitleFocused = true }
-            .onChange(of: viewModel.summary) { _, _ in viewModel.updateHasChanges(editDraft: editDraft) }
+        HStack(alignment: .firstTextBaseline, spacing: 2) {
+            TextField("Title", text: $viewModel.summary)
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(.primary)
+                .textFieldStyle(.plain)
+                .focused($isTitleFocused)
+                .onChange(of: viewModel.summary) { _, _ in viewModel.updateHasChanges(editDraft: editDraft) }
+            Text("*")
+                .font(.system(size: 20, weight: .semibold))
+                .foregroundStyle(SemanticColor.error)
+                .accessibilityHidden(true)
+        }
     }
 
     // MARK: - Timing Section
@@ -355,14 +363,15 @@ struct CalendarEventEditorView: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: Spacing.xs) {
-                    ColorDot(color: .secondary.opacity(0.4), isSelected: viewModel.colorId == nil) {
+                    ColorDot(color: .secondary.opacity(0.4), isSelected: viewModel.colorId == nil, colorName: "Calendar default") {
                         viewModel.colorId = nil
                         viewModel.updateHasChanges(editDraft: editDraft)
                     }
                     ForEach(1...11, id: \.self) { id in
                         ColorDot(
                             color: CalendarColor.color(forId: id),
-                            isSelected: viewModel.colorId == String(id)
+                            isSelected: viewModel.colorId == String(id),
+                            colorName: CalendarColor.name(forId: id)
                         ) {
                             viewModel.colorId = String(id)
                             viewModel.updateHasChanges(editDraft: editDraft)
@@ -462,6 +471,7 @@ private struct ReminderRow: View {
                 .textFieldStyle(.plain)
                 .frame(width: 50)
                 .multilineTextAlignment(.trailing)
+                .accessibilityLabel("Minutes before event")
                 .onAppear { minutesText = String(reminder.minutes) }
                 .onChange(of: minutesText) { _, val in
                     if let n = Int(val) { reminder.minutes = n }
@@ -502,6 +512,7 @@ private struct AttendeeChip: View {
                     .symbolRenderingMode(.hierarchical)
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Remove \(email)")
         }
         .padding(.horizontal, Spacing.xs)
         .padding(.vertical, 3)
@@ -515,6 +526,7 @@ private struct AttendeeChip: View {
 private struct ColorDot: View {
     let color: Color
     let isSelected: Bool
+    let colorName: String
     let onTap: () -> Void
 
     var body: some View {
@@ -535,8 +547,12 @@ private struct ColorDot: View {
                             .strokeBorder(color, lineWidth: 2)
                     }
                 }
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Event color: \(colorName)")
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }
 

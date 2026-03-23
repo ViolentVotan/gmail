@@ -3,6 +3,7 @@ import SwiftUI
 struct BulkActionBarView: View {
     let count: Int
     let selectedFolder: Folder
+    let emails: [Email]
     let onArchive: () -> Void
     let onDelete: () -> Void
     let onMarkUnread: () -> Void
@@ -10,6 +11,10 @@ struct BulkActionBarView: View {
     let onToggleStar: () -> Void
     let onMoveToInbox: () -> Void
     let onDeselectAll: () -> Void
+
+    private var allStarred: Bool {
+        !emails.isEmpty && emails.allSatisfy(\.isStarred)
+    }
 
     @ScaledMetric(relativeTo: .title3) private var tileWidth: CGFloat = 64
     @ScaledMetric(relativeTo: .title3) private var tileHeight: CGFloat = 56
@@ -67,7 +72,7 @@ struct BulkActionBarView: View {
             }
             actionButton(icon: "envelope.badge", label: "Unread", action: onMarkUnread)
             actionButton(icon: "envelope.open", label: "Read", action: onMarkRead)
-            actionButton(icon: "star", label: "Star", action: onToggleStar)
+            actionButton(icon: allStarred ? "star.fill" : "star", label: allStarred ? "Unstar" : "Star", action: onToggleStar)
             if selectedFolder == .archive || selectedFolder == .trash {
                 actionButton(icon: "tray.and.arrow.down", label: "Inbox", action: onMoveToInbox)
             }

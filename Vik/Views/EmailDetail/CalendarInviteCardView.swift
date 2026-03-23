@@ -175,7 +175,7 @@ struct CalendarInviteCardView: View {
             }
         }
         .cardStyle()
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityLabel("Calendar invite: \(displaySummary)")
     }
 
@@ -207,6 +207,7 @@ struct CalendarInviteCardView: View {
             .clipShape(.rect(cornerRadius: CornerRadius.sm))
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
         .opacity(hasResponded && !isSelected ? 0.5 : 1)
     }
 }

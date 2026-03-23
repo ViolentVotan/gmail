@@ -54,6 +54,7 @@ struct AccountAvatarBubble: View {
             .glassEffect(.regular, in: .circle)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(account.displayName), \(account.email)")
         .help(account.email)
         .task(id: account.profilePictureURL?.absoluteString) {
             await loader.load(profilePictureURL: account.profilePictureURL)

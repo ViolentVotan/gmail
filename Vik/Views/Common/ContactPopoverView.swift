@@ -130,6 +130,7 @@ struct ContactPopoverView: View {
         .phaseAnimator([0.15, 0.3]) { content, phase in
             content.opacity(phase)
         }
+        .accessibilityHidden(true)
     }
 
     // MARK: - Actions

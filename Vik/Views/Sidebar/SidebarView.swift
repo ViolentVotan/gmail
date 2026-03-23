@@ -150,7 +150,7 @@ struct SidebarView: View {
         action: @escaping () -> Void
     ) -> some View {
         Button {
-            withAnimation(.smooth) { action() }
+            withAnimation(VikAnimation.contentSwitch) { action() }
         } label: {
             HStack(spacing: Spacing.xs) {
                 Image(systemName: icon)

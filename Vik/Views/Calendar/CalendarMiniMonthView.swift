@@ -9,6 +9,7 @@ struct CalendarMiniMonthView: View {
     @State private var cachedMonth: Int = -1
     @State private var cachedYear: Int = -1
     @State private var selectedWeekIndex: Int? = nil
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let dayColumns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
     private static let daySymbols: [String] = {
@@ -30,7 +31,7 @@ struct CalendarMiniMonthView: View {
     private var monthHeader: some View {
         HStack {
             Button {
-                withAnimation(VikAnimation.springSnappy) {
+                withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                     viewModel.navigateBackward()
                 }
             } label: {
@@ -52,7 +53,7 @@ struct CalendarMiniMonthView: View {
             Spacer()
 
             Button {
-                withAnimation(VikAnimation.springSnappy) {
+                withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                     viewModel.navigateForward()
                 }
             } label: {
@@ -192,11 +193,12 @@ private struct MiniMonthDayCell: View {
     let onSelectDate: (Date) -> Void
 
     @State private var isHovered = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
 
         Button {
-            withAnimation(VikAnimation.springSnappy) {
+            withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                 onSelectDate(date)
             }
         } label: {
@@ -221,7 +223,7 @@ private struct MiniMonthDayCell: View {
         .onHover { hovering in
             isHovered = hovering
         }
-        .animation(VikAnimation.hoverFeedback, value: isHovered)
+        .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
         .accessibilityLabel(date.formatted(date: .complete, time: .omitted))
         .accessibilityAddTraits(isToday ? [.isButton, .isSelected] : .isButton)
         .accessibilityHidden(!isInCurrentMonth)

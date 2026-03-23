@@ -48,6 +48,8 @@ struct MiniAgendaWidget: View {
             }
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(headerTitle) calendar events")
+        .accessibilityHint("Opens full calendar view")
     }
 
     private var eventsList: some View {
@@ -59,7 +61,8 @@ struct MiniAgendaWidget: View {
     }
 
     private func eventRow(_ event: CalendarEvent) -> some View {
-        Button {
+        let timeLabel = event.isAllDay ? "All day" : eventTimeText(event)
+        return Button {
             onSelectEvent(event)
         } label: {
             HStack(spacing: Spacing.xs) {
@@ -96,6 +99,8 @@ struct MiniAgendaWidget: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(event.summary), \(timeLabel)")
+        .accessibilityHint("Opens event details")
     }
 
     private var nowBadge: some View {

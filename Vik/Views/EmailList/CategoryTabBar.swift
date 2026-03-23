@@ -22,7 +22,7 @@ struct CategoryTabBar: View {
                             reduceMotion: reduceMotion,
                             tabNamespace: tabNamespace
                         ) {
-                            withAnimation(.smooth) {
+                            withAnimation(VikAnimation.contentSwitch) {
                                 selectedCategory = category
                             }
                         }
@@ -80,7 +80,7 @@ private struct CategoryTabButton: View {
             isHovered = hovering
         }
         .foregroundStyle(isSelected ? Color.accentColor : .secondary)
-        .accessibilityLabel(category.displayName)
+        .accessibilityLabel(unreadCount > 0 ? "\(category.displayName), \(unreadCount) unread" : category.displayName)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .help(category.displayName)
     }

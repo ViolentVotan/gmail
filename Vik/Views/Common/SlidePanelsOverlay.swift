@@ -166,6 +166,7 @@ struct SlidePanelsOverlay: View {
                         panels.showWebBrowser = false
                     }
                 }
+                .onKeyPress(.escape) { panels.showWebBrowser = false; return .handled }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }

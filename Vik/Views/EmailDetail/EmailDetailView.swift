@@ -28,6 +28,7 @@ struct EmailDetailView: View {
     @State private var calendarContextDismissed = false
     @AppStorage("aiLabelSuggestions") private var aiLabelSuggestionsEnabled = true
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Best available unsubscribe URL: header-based (from full thread) or body-scanned.
     private var resolvedUnsubscribeURL: URL? {
@@ -165,14 +166,22 @@ struct EmailDetailView: View {
             // mailDatabase MUST be set before any await — loadThread() reads it synchronously.
             detailVM.mailDatabase = mailDatabase
 
-            withAnimation(VikAnimation.springDefault) {
+            if reduceMotion {
                 showMetadata = true
+            } else {
+                withAnimation(VikAnimation.springDefault) {
+                    showMetadata = true
+                }
             }
 
             await loadThread()
 
-            withAnimation(VikAnimation.springDefault.delay(0.08)) {
+            if reduceMotion {
                 showConversation = true
+            } else {
+                withAnimation(VikAnimation.springDefault.delay(0.08)) {
+                    showConversation = true
+                }
             }
         }
         .userActivity(UserActivityManager.viewEmailActivityType) { activity in
@@ -246,6 +255,7 @@ struct EmailDetailView: View {
                 }
                 .buttonStyle(.plain)
                 .help("Message options")
+                .accessibilityLabel("More message options")
             }
             .padding(.horizontal, Spacing.xl)
             .padding(.top, Spacing.xl)
@@ -280,6 +290,7 @@ struct EmailDetailView: View {
                             .clipShape(Capsule())
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel("Add label: \(suggestion.name)")
                         .transition(
                             .opacity.combined(with: .scale(scale: 0.9))
                                 .animation(VikAnimation.springSnappy.delay(Double(min(index, 8)) * DurationToken.stagger))

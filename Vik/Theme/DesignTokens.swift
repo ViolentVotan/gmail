@@ -347,6 +347,7 @@ struct ToolbarIconButton: View {
             }
         }
         .help(label)
+        .accessibilityLabel(label)
     }
 }
 
@@ -491,6 +492,39 @@ enum CalendarColor {
         default: BrandColor.blue
         }
     }
+
+    /// Human-readable name for a given Google Calendar API `colorId` (1–11).
+    static func name(forId colorId: Int?) -> String {
+        switch colorId {
+        case 1:  "Lavender"
+        case 2:  "Sage"
+        case 3:  "Grape"
+        case 4:  "Flamingo"
+        case 5:  "Banana"
+        case 6:  "Tangerine"
+        case 7:  "Peacock"
+        case 8:  "Graphite"
+        case 9:  "Blueberry"
+        case 10: "Basil"
+        case 11: "Tomato"
+        default: "Default"
+        }
+    }
+
+    /// Whether the color is light enough that dark (black) foreground text provides better contrast.
+    /// Based on the light-mode RGB values — banana and flamingo are notably light.
+    static func needsDarkForeground(forId colorId: Int?) -> Bool {
+        switch colorId {
+        case 4:  true // flamingo — light pink
+        case 5:  true // banana — bright yellow
+        default: false
+        }
+    }
+
+    /// Returns `.black` or `.white` depending on which provides better contrast against the calendar color.
+    static func contrastingForeground(forId colorId: Int?) -> Color {
+        needsDarkForeground(forId: colorId) ? .black : .white
+    }
 }
 
 // MARK: - Calendar Layout
@@ -608,5 +642,16 @@ enum VikHaptic {
 
     static func generic() { perform(.generic) }
     static func levelChange() { perform(.levelChange) }
+}
+
+// MARK: - Contrast-Aware Foreground
+
+extension Color {
+    /// Returns a foreground color (white or black) that contrasts well with this background.
+    static func contrastingForeground(for nsColor: NSColor) -> Color {
+        let rgb = nsColor.usingColorSpace(.sRGB) ?? nsColor
+        let luminance = 0.299 * rgb.redComponent + 0.587 * rgb.greenComponent + 0.114 * rgb.blueComponent
+        return luminance > 0.55 ? .black : .white
+    }
 }
 

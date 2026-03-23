@@ -181,6 +181,7 @@ private struct GeneralToastCard: View {
         .padding(.vertical, Spacing.md)
         .transientGlass()
         .frame(width: 320)
+        .onTapGesture { toastMgr.dismiss(toast) }
         .accessibilityAddTraits(.updatesFrequently)
         .onAppear {
             AccessibilityNotification.Announcement(toast.message).post()

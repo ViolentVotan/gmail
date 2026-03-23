@@ -32,4 +32,10 @@ final class ToastManager {
             currentToast = nil
         }
     }
+
+    func dismiss(_ toast: ToastMessage) {
+        guard currentToast?.id == toast.id else { return }
+        dismissTask?.cancel()
+        currentToast = nil
+    }
 }

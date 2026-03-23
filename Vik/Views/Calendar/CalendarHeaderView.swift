@@ -99,7 +99,7 @@ struct CalendarHeaderView: View {
                 ForEach([CalendarViewMode.month, .week, .day, .agenda], id: \.self) { mode in
                     let isSelected = viewModel.viewMode == mode
                     Button {
-                        withAnimation(.smooth) {
+                        withAnimation(VikAnimation.contentSwitch) {
                             viewModel.viewMode = mode
                         }
                     } label: {

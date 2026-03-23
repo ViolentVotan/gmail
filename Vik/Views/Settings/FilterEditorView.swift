@@ -30,7 +30,12 @@ struct FilterEditorView: View {
                 Toggle("Mark as Read", isOn: $shouldMarkRead)
             }
             if let error {
-                Text(error).foregroundStyle(SemanticColor.error).font(Typography.captionRegular)
+                Text(error)
+                    .foregroundStyle(SemanticColor.error)
+                    .font(Typography.captionRegular)
+                    .onAppear {
+                        AccessibilityNotification.Announcement(error).post()
+                    }
             }
         }
         .formStyle(.grouped)
@@ -41,8 +46,20 @@ struct FilterEditorView: View {
                 Button("Cancel") { dismiss() }
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Create") { Task { await save() } }
-                    .disabled(isSaving || (from.isEmpty && to.isEmpty && subject.isEmpty && query.isEmpty))
+                Button {
+                    Task { await save() }
+                } label: {
+                    if isSaving {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .controlSize(.small)
+                            Text("Creating\u{2026}")
+                        }
+                    } else {
+                        Text("Create")
+                    }
+                }
+                .disabled(isSaving || (from.isEmpty && to.isEmpty && subject.isEmpty && query.isEmpty))
             }
         }
     }

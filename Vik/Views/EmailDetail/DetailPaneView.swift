@@ -103,6 +103,7 @@ struct DetailPaneView: View {
         BulkActionBarView(
             count: selectedEmailIDs.count,
             selectedFolder: selectedFolder,
+            emails: selectedEmails,
             onArchive:     { Task { await actionCoordinator.bulkArchive(selectedEmails, onClear: clearSelection) } },
             onDelete:      { Task { await actionCoordinator.bulkDelete(selectedEmails, onClear: clearSelection) } },
             onMarkUnread:  { Task { await actionCoordinator.bulkMarkUnread(selectedEmails, onClear: deselectAll) } },

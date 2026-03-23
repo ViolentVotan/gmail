@@ -69,7 +69,7 @@ struct SignaturesSettingsView: View {
                         if alias.isDefault == true {
                             Text("Default")
                                 .font(Typography.captionSmall)
-                                .foregroundStyle(.white)
+                                .foregroundStyle(Color.contrastingForeground(for: NSColor.controlAccentColor))
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
                                 .background(Capsule().fill(Color.accentColor))

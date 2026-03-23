@@ -19,6 +19,8 @@ struct ScheduleSendButton: View {
                 }
             }
             .help("Send")
+            .accessibilityLabel(isSending ? "Sending email" : "Send email")
+            .accessibilityValue(isSending ? "In progress" : "")
             .disabled(isSending)
 
             Divider()

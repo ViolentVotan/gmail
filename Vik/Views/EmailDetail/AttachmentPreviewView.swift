@@ -102,12 +102,10 @@ struct AttachmentPreviewView: View {
             } label: {
                 Label("Save", systemImage: "arrow.down.circle")
                     .font(Typography.subhead)
-                    .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Capsule().fill(Color.accentColor))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderedProminent)
             .help("Save to disk")
         }
         .padding(.horizontal, 20)
@@ -215,12 +213,11 @@ struct AttachmentPreviewView: View {
             } label: {
                 Label("Download file", systemImage: "arrow.down.circle.fill")
                     .font(Typography.bodyMedium)
-                    .foregroundStyle(.white)
                     .padding(.horizontal, 20)
                     .padding(.vertical, 10)
-                    .background(Capsule().fill(Color.accentColor))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderedProminent)
+            .clipShape(Capsule())
             .padding(.top, 4)
 
             Spacer()
