@@ -116,6 +116,51 @@ final class GmailMessageService {
         )
     }
 
+    // MARK: - Watch (Pub/Sub push notifications)
+
+    /// Registers a watch on the user's mailbox. Google will publish notifications to the Pub/Sub topic.
+    /// Must be renewed at least every 7 days (daily recommended).
+    @concurrent func watch(
+        accountID: String,
+        topicName: String,
+        labelIds: [String]? = nil
+    ) async throws(GmailAPIError) -> GmailWatchResponse {
+        struct WatchRequest: Encodable {
+            let topicName: String
+            var labelIds: [String]?
+            var labelFilterBehavior: String?
+        }
+        var payload = WatchRequest(topicName: topicName)
+        if let labelIds {
+            payload.labelIds = labelIds
+            payload.labelFilterBehavior = "INCLUDE"
+        }
+        let jsonData: Data
+        do {
+            jsonData = try encoder.encode(payload)
+        } catch {
+            throw .encodingError(error)
+        }
+        return try await client.request(
+            path: "/users/me/watch",
+            method: "POST",
+            body: jsonData,
+            contentType: "application/json",
+            accountID: accountID
+        )
+    }
+
+    /// Stops receiving push notifications for the user's mailbox.
+    @concurrent func stopWatch(
+        accountID: String
+    ) async throws(GmailAPIError) {
+        _ = try await client.rawRequest(
+            path: "/users/me/stop",
+            method: "POST",
+            accountID: accountID
+        )
+    }
+
     // MARK: - Mutations
 
     @concurrent func markAsRead(id: String, accountID: String) async throws(GmailAPIError) {
