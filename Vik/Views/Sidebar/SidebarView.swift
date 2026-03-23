@@ -8,6 +8,7 @@ struct SidebarView: View {
     var authViewModel: AuthViewModel
     var isCollapsed = false
     var userLabels: [GmailLabel] = []
+    var folderUnreadCounts: [Folder: Int] = [:]
     var viewMode: AppViewMode
     var calendarViewModel: CalendarViewModel?
     var miniAgendaEvents: [CalendarEvent]
@@ -252,6 +253,7 @@ struct SidebarView: View {
     private func collapsedFolderButton(_ folder: Folder) -> some View {
         let isSelected = selectedFolder == folder
         let isHovered = hoveredFolder == folder
+        let unread = folderUnreadCounts[folder] ?? 0
 
         return Button {
             selectedFolder = folder
@@ -262,6 +264,14 @@ struct SidebarView: View {
                 .frame(width: 34, height: 34)
                 .foregroundStyle(isSelected ? .primary : isHovered ? .primary : .secondary)
                 .contentShape(.rect)
+                .overlay(alignment: .topTrailing) {
+                    if unread > 0 {
+                        Circle()
+                            .fill(Color.accentColor)
+                            .frame(width: 8, height: 8)
+                            .offset(x: 2, y: -2)
+                    }
+                }
         }
         .buttonStyle(.plain)
         .glassEffect(
@@ -278,10 +288,9 @@ struct SidebarView: View {
                 hoveredFolder = nil
             }
         }
-        .help(folder.rawValue)
+        .help(unread > 0 ? "\(folder.rawValue) (\(unread) unread)" : folder.rawValue)
         .frame(maxWidth: .infinity)
-        .accessibilityLabel(folder.rawValue)
-        .accessibilityValue("")
+        .accessibilityLabel(unread > 0 ? "\(folder.rawValue), \(unread) unread" : folder.rawValue)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
@@ -433,19 +442,29 @@ struct SidebarView: View {
 
     private func folderButton(folder: Folder) -> some View {
         let isDropTarget = dropTargetFolder == folder
+        let unread = folderUnreadCounts[folder] ?? 0
 
         return Button {
             selectedFolder = folder
             selectedInboxCategory = folder == .inbox ? .all : nil
         } label: {
             Label {
-                Text(folder.rawValue)
+                HStack {
+                    Text(folder.rawValue)
+                    Spacer()
+                    if unread > 0 {
+                        Text("\(unread)")
+                            .font(Typography.captionSmall)
+                            .foregroundStyle(.secondary)
+                            .contentTransition(.numericText())
+                    }
+                }
             } icon: {
                 Image(systemName: folder.icon)
                     .frame(width: 20)
             }
         }
-        .accessibilityLabel(folder.rawValue)
+        .accessibilityLabel(unread > 0 ? "\(folder.rawValue), \(unread) unread" : folder.rawValue)
         .accessibilityAddTraits(selectedFolder == folder ? .isSelected : [])
         .glassEffect(
             (selectedFolder == folder || isDropTarget) ? .regular.interactive() : .identity,

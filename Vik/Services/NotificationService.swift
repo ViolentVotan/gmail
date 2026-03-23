@@ -18,6 +18,10 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
 
     private var badgeTask: Task<Void, Never>?
 
+    private var isSoundEnabled: Bool {
+        UserDefaults.standard.object(forKey: UserDefaultsKey.soundEffectsEnabled) as? Bool ?? true
+    }
+
     func setup() {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
@@ -76,6 +80,11 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             "accountID": accountID
         ]
 
+        // System notification sound for background delivery; foreground handled by SoundManager.
+        if isSoundEnabled {
+            content.sound = .default
+        }
+
         // Apple Intelligence uses interruption level to determine notification
         // summarization priority and whether to surface in notification stacks.
         switch priority {
@@ -90,13 +99,16 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             content.relevanceScore = 0.1
         }
 
+        // Grouped notification summary: "3 more messages from John"
+        content.summaryArgument = senderName
+
         let request = UNNotificationRequest(
             identifier: messageId,
             content: content,
             trigger: nil
         )
         UNUserNotificationCenter.current().add(request)
-        // Play sound only when app is in foreground (system notifications handle background sound)
+        // Play in-app sound only when focused; system handles background sound via content.sound.
         if NSApplication.shared.isActive {
             SoundManager.play(.newMail)
         }
@@ -155,6 +167,10 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
                 if let location = event.location { bodyParts.append(location) }
                 content.body = bodyParts.joined(separator: " · ")
                 content.categoryIdentifier = "CALENDAR_REMINDER"
+                if isSoundEnabled {
+                    content.sound = .default
+                }
+                content.interruptionLevel = .timeSensitive
                 content.userInfo = [
                     "eventId": event.googleEventId,
                     "calendarId": event.calendarId,
@@ -202,7 +218,29 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
+    // MARK: - Notification Lifecycle
+
+    /// Removes a delivered notification from Notification Center (e.g. when the user reads the email in-app).
+    func removeDeliveredNotification(messageId: String) {
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [messageId])
+    }
+
+    /// Removes delivered notifications for multiple messages at once.
+    func removeDeliveredNotifications(messageIds: [String]) {
+        guard !messageIds.isEmpty else { return }
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: messageIds)
+    }
+
     // MARK: - UNUserNotificationCenterDelegate
+
+    /// Present notification banners even when the app is in the foreground.
+    /// Foreground sound is handled by `SoundManager` — suppress system sound here to avoid double-play.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .list]
+    }
 
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
@@ -253,6 +291,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
             case "ARCHIVE":
                 // Unstructured Task: bridges MainActor sync context → async API call.
                 // Idempotent — OfflineActionQueue deduplicates on replay.
+                removeDeliveredNotification(messageId: messageId)
                 Task {
                     do {
                         try await GmailMessageService.shared.archiveMessage(id: messageId, accountID: accountID)
@@ -261,10 +300,12 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
                             OfflineAction(actionType: .archive, messageIds: [messageId], accountID: accountID)
                         )
                     }
+                    await NotificationService.updateDockBadge()
                 }
             case "MARK_READ":
                 // Unstructured Task: bridges MainActor sync context → async API call.
                 // Idempotent — OfflineActionQueue deduplicates on replay.
+                removeDeliveredNotification(messageId: messageId)
                 Task {
                     do {
                         try await GmailMessageService.shared.markAsRead(id: messageId, accountID: accountID)
@@ -273,6 +314,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
                             OfflineAction(actionType: .markRead, messageIds: [messageId], accountID: accountID)
                         )
                     }
+                    await NotificationService.updateDockBadge()
                 }
             case "REPLY":
                 if let text = replyText {

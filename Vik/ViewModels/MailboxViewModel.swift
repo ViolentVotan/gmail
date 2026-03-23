@@ -54,6 +54,7 @@ final class MailboxViewModel {
     private(set) var userLabels: [GmailLabel] = []
     var sendAsAliases:         [GmailSendAs] = []
     var categoryUnreadCounts:  [InboxCategory: Int] = [:]
+    var folderUnreadCounts:    [Folder: Int] = [:]
     /// Set by `restoreLabelsInDatabase` so the UI can re-select the restored email.
     var lastRestoredMessageID: String?
     private(set) var emails: [Email] = [] {
@@ -430,6 +431,7 @@ final class MailboxViewModel {
                     return result
                 }
                 categoryUnreadCounts = counts
+                await loadFolderUnreadCounts()
                 await Self.updateDockBadge()
                 return
             } catch {
@@ -440,6 +442,26 @@ final class MailboxViewModel {
             categoryUnreadCounts = counts
         }
         await Self.updateDockBadge()
+        await loadFolderUnreadCounts()
+    }
+
+    /// Loads unread counts for sidebar folders that have a Gmail label ID.
+    func loadFolderUnreadCounts() async {
+        guard let db = mailDatabase else { return }
+        do {
+            let counts = try await db.dbPool.read { database in
+                var result: [Folder: Int] = [:]
+                for folder in Folder.mainFolders {
+                    guard let labelId = folder.gmailLabelID else { continue }
+                    let count = try MailDatabaseQueries.unreadCount(forLabel: labelId, in: database)
+                    if count > 0 { result[folder] = count }
+                }
+                return result
+            }
+            folderUnreadCounts = counts
+        } catch {
+            // Non-critical — keep stale counts rather than clearing
+        }
     }
 
     /// Sums inbox unread counts across all accounts and updates the dock badge.
@@ -487,12 +509,27 @@ final class MailboxViewModel {
         failureToast: String
     ) async -> Bool {
         let original = await updateLabelsInDatabase(messageID, addLabelIds: addLabelIDs, removeLabelIds: removeLabelIDs)
+
+        // Clear delivered notification & refresh badge when marking read or removing from inbox
+        let affectsUnread = removeLabelIDs.contains(GmailSystemLabel.unread)
+            || removeLabelIDs.contains(GmailSystemLabel.inbox)
+        if affectsUnread {
+            NotificationService.shared.removeDeliveredNotification(messageId: messageID)
+            await Self.updateDockBadge()
+            await loadFolderUnreadCounts()
+        }
+
         do {
             try await apiCall()
             return true
         } catch {
             if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
             ToastManager.shared.show(message: failureToast, type: .error)
+            // Revert badge on failure
+            if affectsUnread {
+                await Self.updateDockBadge()
+                await loadFolderUnreadCounts()
+            }
             return false
         }
     }
@@ -523,6 +560,10 @@ final class MailboxViewModel {
                     }
                 }
             }
+            // Clear delivered notifications for messages marked read and refresh badge
+            NotificationService.shared.removeDeliveredNotifications(messageIds: messageIDs)
+            await Self.updateDockBadge()
+            await loadFolderUnreadCounts()
         } catch {
             Self.logger.error("Batch applyReadLocally failed: \(error.localizedDescription, privacy: .public)")
         }

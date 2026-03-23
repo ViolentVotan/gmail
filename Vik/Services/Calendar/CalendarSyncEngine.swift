@@ -430,6 +430,8 @@ actor CalendarSyncEngine {
             }
 
             state = .idle
+            // Refresh calendar reminder notifications after successful sync
+            await NotificationService.shared.refreshCalendarReminders(db: db, accountID: accountID)
         } catch {
             state = .error(CalendarAPIError.wrap(error))
             Self.logger.error("Incremental calendar sync failed: \(String(describing: error))")

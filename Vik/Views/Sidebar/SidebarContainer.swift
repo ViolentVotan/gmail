@@ -18,6 +18,7 @@ struct SidebarContainer: View {
             authViewModel: coordinator.authViewModel,
             isCollapsed: isSidebarCollapsed,
             userLabels: coordinator.mailboxViewModel.userLabels,
+            folderUnreadCounts: coordinator.mailboxViewModel.folderUnreadCounts,
             viewMode: coordinator.calendar.viewMode,
             calendarViewModel: coordinator.calendar.calendarViewModel,
             miniAgendaEvents: coordinator.calendar.miniAgendaEvents,
