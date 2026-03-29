@@ -1,4 +1,5 @@
 import Foundation
+private import os
 private import Security
 
 /// Persists OAuth tokens encrypted with AES-256-GCM.
@@ -11,6 +12,7 @@ final class TokenStore {
         migrateTokensFromUserDefaultsIfNeeded()
     }
 
+    private nonisolated let logger = Logger(category: "TokenStore")
     private let defaults      = UserDefaults.standard
     private let keyPrefix     = "com.vikingz.vik.token."
     private let accountsKey   = "com.vikingz.vik.token.accounts"
@@ -48,15 +50,21 @@ final class TokenStore {
 
     nonisolated private func loadTokenData(for accountID: String) -> Data? {
         let query: [String: Any] = [
-            kSecClass as String:            kSecClassGenericPassword,
-            kSecAttrService as String:      keychainService,
-            kSecAttrAccount as String:      tokenKeychainAccount(for: accountID),
-            kSecReturnData as String:       true,
-            kSecMatchLimit as String:       kSecMatchLimitOne,
+            kSecClass as String:                        kSecClassGenericPassword,
+            kSecAttrService as String:                  keychainService,
+            kSecAttrAccount as String:                  tokenKeychainAccount(for: accountID),
+            kSecReturnData as String:                   true,
+            kSecMatchLimit as String:                   kSecMatchLimitOne,
+            kSecUseDataProtectionKeychain as String:     true,
         ]
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess else { return nil }
+        guard status == errSecSuccess else {
+            if status != errSecItemNotFound {
+                logger.error("Keychain read failed (account=\(accountID)): OSStatus \(status)")
+            }
+            return nil
+        }
         return result as? Data
     }
 
@@ -70,9 +78,10 @@ final class TokenStore {
 
     nonisolated private func deleteTokenData(for accountID: String) {
         let query: [String: Any] = [
-            kSecClass as String:            kSecClassGenericPassword,
-            kSecAttrService as String:      keychainService,
-            kSecAttrAccount as String:      tokenKeychainAccount(for: accountID),
+            kSecClass as String:                        kSecClassGenericPassword,
+            kSecAttrService as String:                  keychainService,
+            kSecAttrAccount as String:                  tokenKeychainAccount(for: accountID),
+            kSecUseDataProtectionKeychain as String:     true,
         ]
         SecItemDelete(query as CFDictionary)
     }

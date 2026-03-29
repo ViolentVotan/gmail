@@ -77,15 +77,21 @@ enum DataEncryption {
     /// Loads raw key bytes from the Keychain. Returns `nil` if not found.
     nonisolated static func loadKeyFromKeychain(service: String, account: String) -> Data? {
         let query: [String: Any] = [
-            kSecClass as String:       kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account,
-            kSecReturnData as String:  true,
-            kSecMatchLimit as String:  kSecMatchLimitOne,
+            kSecClass as String:                        kSecClassGenericPassword,
+            kSecAttrService as String:                  service,
+            kSecAttrAccount as String:                  account,
+            kSecReturnData as String:                   true,
+            kSecMatchLimit as String:                   kSecMatchLimitOne,
+            kSecUseDataProtectionKeychain as String:    true,
         ]
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess else { return nil }
+        guard status == errSecSuccess else {
+            if status != errSecItemNotFound {
+                logger.error("Keychain read failed (service=\(service), account=\(account)): OSStatus \(status)")
+            }
+            return nil
+        }
         return result as? Data
     }
 
@@ -94,18 +100,20 @@ enum DataEncryption {
     /// Saves (or updates) a Keychain item with `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`.
     nonisolated static func saveKeychainItem(service: String, account: String, data: Data) {
         let query: [String: Any] = [
-            kSecClass as String:            kSecClassGenericPassword,
-            kSecAttrService as String:      service,
-            kSecAttrAccount as String:      account,
-            kSecValueData as String:        data,
-            kSecAttrAccessible as String:   kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+            kSecClass as String:                        kSecClassGenericPassword,
+            kSecAttrService as String:                  service,
+            kSecAttrAccount as String:                  account,
+            kSecValueData as String:                    data,
+            kSecAttrAccessible as String:                kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+            kSecUseDataProtectionKeychain as String:     true,
         ]
         let status = SecItemAdd(query as CFDictionary, nil)
         if status == errSecDuplicateItem {
             let search: [String: Any] = [
-                kSecClass as String:       kSecClassGenericPassword,
-                kSecAttrService as String: service,
-                kSecAttrAccount as String: account,
+                kSecClass as String:                        kSecClassGenericPassword,
+                kSecAttrService as String:                  service,
+                kSecAttrAccount as String:                  account,
+                kSecUseDataProtectionKeychain as String:     true,
             ]
             let updateStatus = SecItemUpdate(
                 search as CFDictionary,

@@ -123,7 +123,7 @@ final class OAuthService: NSObject {
         // re-auth saved the new one — if its save races after ours, it would
         // overwrite the new token with a stale one (missing new scopes).
         // Cancelling + clearing prevents that.
-        await GmailAPIClient.shared.cancelRefreshAndClearCache(for: accountID)
+        GmailAPIClient.shared.cancelRefreshAndClearCache(for: accountID)
     }
 
     /// Uses the stored refresh token to obtain a new access token.
