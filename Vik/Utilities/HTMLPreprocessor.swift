@@ -168,9 +168,26 @@ enum HTMLPreprocessor {
 
         guard !rangesToRemove.isEmpty else { return html }
 
+        // Merge overlapping/nested ranges (e.g. hidden div inside another hidden div).
+        // Ranges are already sorted by location (regex matches left-to-right).
+        var merged: [NSRange] = []
+        for range in rangesToRemove {
+            if let last = merged.last {
+                let lastEnd = last.location + last.length
+                let rangeEnd = range.location + range.length
+                if range.location < lastEnd {
+                    // Overlapping or nested — extend the previous range if needed
+                    let newEnd = max(lastEnd, rangeEnd)
+                    merged[merged.count - 1] = NSRange(location: last.location, length: newEnd - last.location)
+                    continue
+                }
+            }
+            merged.append(range)
+        }
+
         // Apply removals in reverse order so earlier ranges stay valid
         let mutable = NSMutableString(string: html)
-        for range in rangesToRemove.reversed() {
+        for range in merged.reversed() {
             mutable.replaceCharacters(in: range, with: "")
         }
         return mutable as String
