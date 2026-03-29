@@ -17,6 +17,7 @@ xcodebuild \
   -scheme "$SCHEME" \
   -configuration Release \
   -derivedDataPath "$DERIVED_DATA" \
+  -allowProvisioningUpdates \
   CODE_SIGN_STYLE=Automatic \
   build 2>&1 | tail -5
 
