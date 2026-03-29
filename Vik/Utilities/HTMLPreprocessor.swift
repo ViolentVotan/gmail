@@ -137,13 +137,14 @@ enum HTMLPreprocessor {
     }()
 
     private static func removeHiddenElements(_ html: String) -> String {
-        // Find opening tags with style attributes containing hidden patterns
-        var result = html
-        let nsString = result as NSString
-        let matches = hiddenTagRegex.matches(in: result, range: NSRange(location: 0, length: nsString.length))
+        // Find opening tags with style attributes containing hidden patterns.
+        // Use NSMutableString and process in reverse so earlier ranges stay valid
+        // after removing later ranges (all ranges are computed from the same string).
+        let nsString = html as NSString
+        let matches = hiddenTagRegex.matches(in: html, range: NSRange(location: 0, length: nsString.length))
 
-        // Process in reverse so ranges stay valid
-        for match in matches.reversed() {
+        var rangesToRemove: [NSRange] = []
+        for match in matches {
             let styleValue = nsString.substring(with: match.range(at: 2))
             let tagName = nsString.substring(with: match.range(at: 1)).lowercased()
             let styleRange = NSRange(location: 0, length: (styleValue as NSString).length)
@@ -154,7 +155,6 @@ enum HTMLPreprocessor {
 
             guard isHidden else { continue }
 
-            // Find matching close tag
             let openTagEnd = match.range.location + match.range.length
             let closeTag = "</\(tagName)>"
             let searchRange = NSRange(location: openTagEnd, length: nsString.length - openTagEnd)
@@ -162,11 +162,18 @@ enum HTMLPreprocessor {
 
             if closeRange.location != NSNotFound {
                 let removeEnd = closeRange.location + closeRange.length
-                let removeRange = NSRange(location: match.range.location, length: removeEnd - match.range.location)
-                result = (result as NSString).replacingCharacters(in: removeRange, with: "")
+                rangesToRemove.append(NSRange(location: match.range.location, length: removeEnd - match.range.location))
             }
         }
-        return result
+
+        guard !rangesToRemove.isEmpty else { return html }
+
+        // Apply removals in reverse order so earlier ranges stay valid
+        let mutable = NSMutableString(string: html)
+        for range in rangesToRemove.reversed() {
+            mutable.replaceCharacters(in: range, with: "")
+        }
+        return mutable as String
     }
 
     // MARK: - Pass 5: data-* Attributes
