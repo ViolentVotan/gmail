@@ -27,7 +27,6 @@ final class SelectionCoordinator {
 
     @ObservationIgnored private var emailIndexMap: [UUID: Int] = [:]
     @ObservationIgnored private var markReadTask: Task<Void, Never>?
-    @ObservationIgnored private var lastEmailIDs: [String] = []
     @ObservationIgnored private var lastFolder: Folder = .inbox
 
     // MARK: - Init
@@ -102,10 +101,8 @@ final class SelectionCoordinator {
                 ? mailboxViewModel.emails.filter { $0.gmailLabelIDs.contains(GmailSystemLabel.important) }
                 : mailboxViewModel.emails
         }
-        let newIDs = newEmails.map { $0.id.uuidString }
-        guard folder != lastFolder || newIDs != lastEmailIDs else { return }
+        guard folder != lastFolder || newEmails != displayedEmails else { return }
         lastFolder = folder
-        lastEmailIDs = newIDs
         displayedEmails = newEmails
         // Rebuild O(1) lookup index for arrow-key navigation.
         emailIndexMap = Dictionary(uniqueKeysWithValues: displayedEmails.enumerated().map { ($1.id, $0) })
