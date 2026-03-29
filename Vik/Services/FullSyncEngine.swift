@@ -118,7 +118,11 @@ actor FullSyncEngine {
     // MARK: - Lifecycle
 
     func start() {
-        guard syncTask == nil else { return }
+        guard syncTask == nil else {
+            Self.logger.warning("start() skipped — syncTask already exists, state=\(String(describing: self.state))")
+            return
+        }
+        Self.logger.info("start() — launching sync lifecycle")
         state = .idle
         isTokenRevoked = false
         syncTask = Task { await runSyncLifecycle() }
@@ -220,6 +224,7 @@ actor FullSyncEngine {
     /// Request an immediate incremental sync (e.g., user tapped sync bubble).
     /// Also accepts `.error` state to restart the full sync lifecycle after failure.
     func triggerIncrementalSync() {
+        Self.logger.info("triggerIncrementalSync() called — state=\(String(describing: self.state))")
         if case .error = state {
             // Restart full lifecycle. syncTask already completed (returned after
             // setting error state), so cancel is a no-op — just clean the ref.
@@ -227,7 +232,10 @@ actor FullSyncEngine {
             start()
             return
         }
-        guard state == .monitoring else { return }
+        guard state == .monitoring else {
+            Self.logger.warning("triggerIncrementalSync() skipped — state is \(String(describing: self.state)), not .monitoring")
+            return
+        }
         triggeredSyncTask?.cancel()
         triggeredSyncTask = Task {
             await reportProgress(.started)
@@ -307,10 +315,12 @@ actor FullSyncEngine {
     private func runSyncLifecycle() async {
         // Read sync state from DB
         let syncState = await readSyncState()
+        Self.logger.info("runSyncLifecycle: initialSyncComplete=\(syncState?.initialSyncComplete ?? false), lastHistoryId=\(syncState?.lastHistoryId ?? "nil", privacy: .private)")
 
         if syncState?.initialSyncComplete == true {
             // Resume monitoring mode
             state = .monitoring
+            Self.logger.info("runSyncLifecycle: entering monitoring mode, running immediate incremental sync")
             await reportProgress(.started)
 
             // Immediate incremental sync to catch up
@@ -554,7 +564,10 @@ actor FullSyncEngine {
 
     @discardableResult
     private func syncIncremental() async -> Bool {
-        guard !isSyncingIncrementally else { return false }
+        guard !isSyncingIncrementally else {
+            Self.logger.info("syncIncremental: skipped — already syncing incrementally")
+            return false
+        }
         isSyncingIncrementally = true
         defer { isSyncingIncrementally = false }
 
@@ -563,6 +576,7 @@ actor FullSyncEngine {
             Self.logger.warning("syncIncremental: no sync state or historyId — returning true without syncing")
             return true
         }
+        Self.logger.info("syncIncremental: starting with historyId=\(startHistoryId, privacy: .private)")
 
         do {
             var allAdded: Set<String> = []
@@ -749,15 +763,16 @@ actor FullSyncEngine {
         } catch {
             Self.logger.error("syncIncremental failed (failures=\(self.consecutiveFailures)): \(error)")
             if case .tokenRevoked = error as? GmailAPIError {
-                // Refresh token permanently revoked (Google returned invalid_grant).
-                // Cancel all tasks directly — can't use stop() here because we're
-                // running inside incrementalTask/triggeredSyncTask, and stop() awaits
-                // our own task's .value, causing actor self-deadlock.
-                Self.logger.error("Token revoked for \(self.accountID, privacy: .private), stopping sync")
-                // cancelAllTasks() cancels and nils all task refs but does not await them.
-                // Invariant: this engine is removed from activeEngines immediately after,
-                // so start() will never be called on this instance again — the cancelled
-                // tasks will drain on their own without causing a registry lifecycle gap.
+                Self.logger.error("Auth failure for \(self.accountID, privacy: .private): tokenRevoked, stopping sync")
+                cancelAllTasks()
+                Self.activeEngines.withLock { _ = $0.removeValue(forKey: accountID) }
+                state = .error("Session expired — please sign in again")
+                await reportProgress(.failed("Session expired — please sign in again"))
+                return false
+            } else if case .unauthorized = error as? GmailAPIError {
+                // Unauthorized after refresh was already attempted by GmailAPIClient.
+                // The user must re-authenticate — stop the engine.
+                Self.logger.error("Auth failure for \(self.accountID, privacy: .private): unauthorized, stopping sync")
                 cancelAllTasks()
                 Self.activeEngines.withLock { _ = $0.removeValue(forKey: accountID) }
                 state = .error("Session expired — please sign in again")

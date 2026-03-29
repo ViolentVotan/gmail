@@ -122,16 +122,14 @@ final class SyncProgressManager {
         scheduleDismiss(after: successLinger)
     }
 
-    /// Call when sync fails with a transient error.
+    /// Call when sync fails.
+    /// Unlike `syncCompleted()`, errors are ALWAYS shown even if the spinner was
+    /// never displayed — a silent failure leaves the user with no indication that
+    /// sync is broken (e.g. expired auth token).
     func syncFailed(_ message: String = "Sync failed") {
-        let wasDeferred = syncPending && deferralTask != nil
         deferralTask?.cancel()
         deferralTask = nil
         syncPending = false
-        // Spinner was never shown — suppress the error flash (same logic as syncCompleted)
-        if wasDeferred, case .idle = phase {
-            return
-        }
         withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.springDefault) {
             phase = .error(message)
         }

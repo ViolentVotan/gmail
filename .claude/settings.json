@@ -5,6 +5,8 @@
       "Bash(xcodebuild *)",
       "Bash(swift *)",
       "Bash(open *.xcodeproj)",
+      "Bash(log show *)",
+      "Edit(Vik/**)",
       "Read(docs/**)",
       "Read(Vik/**)",
       "Read(VikTests/**)"

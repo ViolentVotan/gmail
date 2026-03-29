@@ -76,15 +76,18 @@ final class OAuthService: NSObject {
                 let tokenType    = authState?.lastTokenResponse?.tokenType
                 let scope        = authState?.lastTokenResponse?.scope
 
+                // Check-and-set before hopping to MainActor so the Mutex
+                // stays in the @Sendable closure's isolation domain (avoids
+                // "sending 'hasResumed' risks data races" in Swift 6.2).
+                guard hasResumed.withLock({ resumed in
+                    guard !resumed else { return false }
+                    resumed = true
+                    return true
+                }) else { return }
+
                 Task { @MainActor in
                     self?.redirectHandler = nil
                     self?.currentAuthorizationFlow = nil
-
-                    guard hasResumed.withLock({ resumed in
-                        guard !resumed else { return false }
-                        resumed = true
-                        return true
-                    }) else { return }
 
                     if let error {
                         continuation.resume(throwing: error)
