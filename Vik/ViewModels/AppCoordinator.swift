@@ -341,6 +341,12 @@ final class AppCoordinator {
         }
     }
 
+    /// Re-creates the sync engine for the current account after re-authorization.
+    func restartSync(for accountID: String) async {
+        guard navigation.selectedAccountID == accountID else { return }
+        await setupAccount(accountID)
+    }
+
     // MARK: - Shared Account Setup
 
     private func setupAccount(_ id: String) async {

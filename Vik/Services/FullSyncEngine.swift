@@ -3,6 +3,12 @@ internal import GRDB
 private import os
 import Synchronization
 
+extension Notification.Name {
+    /// Posted when the sync engine encounters a fatal auth error (.unauthorized / .tokenRevoked).
+    /// `userInfo` contains `["accountID": String]`.
+    static let syncSessionExpired = Notification.Name("FullSyncEngine.syncSessionExpired")
+}
+
 /// Orchestrates complete offline sync for a single Gmail account.
 /// Manages: initial full sync, incremental History API polling,
 /// body pre-fetch, label refresh, and contact refresh.
@@ -248,6 +254,20 @@ actor FullSyncEngine {
                 }
             }
         }
+    }
+
+    /// Stops the engine and posts a notification so the UI can auto-trigger re-auth.
+    private func handleFatalAuthError() async {
+        let id = accountID
+        cancelAllTasks()
+        Self.activeEngines.withLock { _ = $0.removeValue(forKey: id) }
+        state = .error("Session expired — signing in…")
+        await reportProgress(.failed("Session expired — signing in…"))
+        NotificationCenter.default.post(
+            name: .syncSessionExpired,
+            object: nil,
+            userInfo: ["accountID": id]
+        )
     }
 
     /// Fetches messages for a specific label if the local DB has none.
@@ -519,8 +539,13 @@ actor FullSyncEngine {
             if case .tokenRevoked = error as? GmailAPIError {
                 Self.logger.error("Token revoked during initial sync for \(self.accountID, privacy: .private)")
                 isTokenRevoked = true
-                state = .error("Session expired — please sign in again")
-                await reportProgress(.failed("Session expired — please sign in again"))
+                state = .error("Session expired — signing in…")
+                await reportProgress(.failed("Session expired — signing in…"))
+                NotificationCenter.default.post(
+                    name: .syncSessionExpired,
+                    object: nil,
+                    userInfo: ["accountID": accountID]
+                )
                 return false
             }
             // Retryable error — log but don't call syncFailed (the retry loop in
@@ -764,19 +789,11 @@ actor FullSyncEngine {
             Self.logger.error("syncIncremental failed (failures=\(self.consecutiveFailures)): \(error)")
             if case .tokenRevoked = error as? GmailAPIError {
                 Self.logger.error("Auth failure for \(self.accountID, privacy: .private): tokenRevoked, stopping sync")
-                cancelAllTasks()
-                Self.activeEngines.withLock { _ = $0.removeValue(forKey: accountID) }
-                state = .error("Session expired — please sign in again")
-                await reportProgress(.failed("Session expired — please sign in again"))
+                await handleFatalAuthError()
                 return false
             } else if case .unauthorized = error as? GmailAPIError {
-                // Unauthorized after refresh was already attempted by GmailAPIClient.
-                // The user must re-authenticate — stop the engine.
                 Self.logger.error("Auth failure for \(self.accountID, privacy: .private): unauthorized, stopping sync")
-                cancelAllTasks()
-                Self.activeEngines.withLock { _ = $0.removeValue(forKey: accountID) }
-                state = .error("Session expired — please sign in again")
-                await reportProgress(.failed("Session expired — please sign in again"))
+                await handleFatalAuthError()
                 return false
             } else if case .httpError(let code, _) = error as? GmailAPIError, code == 404 || code == 410 {
                 // 404 or 410 from history.list means the startHistoryId is expired/invalid.

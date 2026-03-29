@@ -690,6 +690,15 @@ struct ContentView: View {
                     coordinator.stopPubSub()
                 }
             }
+            .task {
+                for await notification in NotificationCenter.default.notifications(named: .syncSessionExpired) {
+                    guard let accountID = notification.userInfo?["accountID"] as? String else { continue }
+                    let success = await reauthorize(accountID: accountID, feature: "Gmail")
+                    if success {
+                        await coordinator.restartSync(for: accountID)
+                    }
+                }
+            }
     }
 
 }
