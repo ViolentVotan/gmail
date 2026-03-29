@@ -43,7 +43,6 @@ Vik/
 │   ├── MailDatabase.swift          # DatabasePool owner, WAL config, integrity
 │   ├── MailDatabaseMigrations.swift # Schema migrations
 │   ├── MailDatabaseQueries.swift   # Centralized read queries
-│   ├── FTSManager.swift            # FTS5 full-text search maintenance
 │   └── CacheMigration.swift        # One-time JSON→GRDB migration
 ├── Services/           # Business logic & API
 │   ├── Auth/           # OAuth & token management
@@ -100,7 +99,7 @@ All skills target **macOS 26+ / Swift 6.2+ exclusively** — no legacy patterns.
 
 ## Codebase Audit
 
-For full codebase audits, reviews, health checks, or multi-dimensional code quality sweeps, **invoke the `audit-swift` skill** (`/audit-swift`). It dispatches 5 parallel Opus agents across concurrency, SwiftUI, architecture/wiring, database, and security — then fixes all CRITICAL/HIGH/MEDIUM issues and verifies the build.
+For full codebase audits, reviews, health checks, or multi-dimensional code quality sweeps, **invoke the `audit` skill** (`/audit`). It dispatches 5 parallel Opus agents across concurrency, SwiftUI, architecture/wiring, database, and security — then fixes all CRITICAL/HIGH/MEDIUM issues and verifies the build.
 
 ## Design Decisions
 
