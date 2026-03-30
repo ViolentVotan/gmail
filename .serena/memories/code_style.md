@@ -120,6 +120,11 @@ Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). Al
 - `ValueObservation` in `MailboxViewModel` and `CalendarViewModel` for reactive UI — observes DB changes, SwiftUI re-renders automatically
 - Use `dbPool.read` for reads; `dbPool.write` for writes — never hold database connections across `await`
 
+## Swift/SwiftUI Conventions
+- Follow Swift 6.2 concurrency best practices: check MainActor isolation, Sendable conformance, and actor init isolation (`nonisolated init`) after every edit; remember nonisolated async functions default to caller's actor (`nonisolated(nonsending)`) — use `@concurrent` only when explicitly opting into global-executor switching
+- When fixing SwiftUI view issues, prefer derived state over manual state timing; prefer ZStack+opacity over if/else for view transitions to preserve view identity and animation performance — use if/else only for genuinely different views (e.g. login vs dashboard), not different states of the same view
+- After parallel agent fixes, always do a sequential build verification pass — parallel fixes commonly introduce cross-file concurrency conflicts
+
 ## Performance
 - Use `LazyVStack`/`LazyHStack` in `ScrollView` for large collections
 - `.task { }` over `.onAppear` for async work (auto-cancellation)

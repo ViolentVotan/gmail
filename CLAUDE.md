@@ -101,9 +101,20 @@ All skills target **macOS 26+ / Swift 6.2+ exclusively** — no legacy patterns.
 
 For full codebase audits, reviews, health checks, or multi-dimensional code quality sweeps, **invoke the `audit` skill** (`/audit`). It dispatches 5 parallel Opus agents across concurrency, SwiftUI, architecture/wiring, database, and security — then fixes all CRITICAL/HIGH/MEDIUM issues and verifies the build.
 
+## Code Audits
+
+- When performing codebase reviews, use parallel agents for discovery but sequential fixes to avoid cross-file conflicts
+- After parallel fix agents complete, always run a full build — expect 1-3 build failures from concurrency/isolation issues
+- Check for orphaned functions: verify any new functions are actually wired into call sites
+
 ## Design Decisions
 
 - **Hybrid sync — Pub/Sub + polling fallback:** Primary: Google Cloud Pub/Sub (`PubSubService` pull loop + `GmailWatchService` registration). Fallback: polling (60s foreground / 300s background) when Pub/Sub is unavailable (e.g. token lacks `pubsub` scope). `startPubSub()` checks `AuthToken.hasScope()` before starting — tokens issued before the scope was added silently skip Pub/Sub until the user reauthorizes. GCP project: `gws-cli-votan`, subscription: `gmail-notifications-sub`.
+
+## Caution
+
+- Do NOT remove or modify code that appears unused without verifying — check PubSub, background syncers, and plugin systems before treating as dead code
+- Do NOT change field optionality on database record types without checking all runtime consumers
 
 ## Gotchas
 

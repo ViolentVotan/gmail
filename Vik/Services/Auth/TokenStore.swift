@@ -55,7 +55,6 @@ final class TokenStore {
             kSecAttrAccount as String:                  tokenKeychainAccount(for: accountID),
             kSecReturnData as String:                   true,
             kSecMatchLimit as String:                   kSecMatchLimitOne,
-            kSecUseDataProtectionKeychain as String:     true,
         ]
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
@@ -81,7 +80,6 @@ final class TokenStore {
             kSecClass as String:                        kSecClassGenericPassword,
             kSecAttrService as String:                  keychainService,
             kSecAttrAccount as String:                  tokenKeychainAccount(for: accountID),
-            kSecUseDataProtectionKeychain as String:     true,
         ]
         SecItemDelete(query as CFDictionary)
     }
@@ -117,7 +115,7 @@ final class TokenStore {
         }
     }
 
-    @concurrent func retrieve(for accountID: String) async throws -> AuthToken? {
+    @concurrent func retrieve(for accountID: String) async -> AuthToken? {
         // Primary path: read from Keychain (nonisolated — no MainActor hop)
         let combined: Data
         if let keychainData = loadTokenData(for: accountID) {
@@ -133,10 +131,18 @@ final class TokenStore {
             await MainActor.run { defaults.removeObject(forKey: udKey) }
             combined = udData
         }
-        let plaintext = try DataEncryption.decrypt(
-            combined, service: keychainService, account: keychainAccount
-        )
-        return try JSONDecoder().decode(AuthToken.self, from: plaintext)
+        do {
+            let plaintext = try DataEncryption.decrypt(
+                combined, service: keychainService, account: keychainAccount
+            )
+            return try JSONDecoder().decode(AuthToken.self, from: plaintext)
+        } catch {
+            // Encryption key changed or token data corrupted — unrecoverable.
+            // Delete the unusable entry so the caller sees nil → .unauthorized → re-auth.
+            logger.error("Token unreadable for \(accountID), deleting corrupt entry: \(error)")
+            deleteTokenData(for: accountID)
+            return nil
+        }
     }
 
     func delete(for accountID: String) {

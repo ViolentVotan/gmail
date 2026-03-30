@@ -302,7 +302,7 @@ final class AppCoordinator {
             // Check that the token has the pubsub scope before making any API calls.
             // Tokens issued before the scope was added will not have it; refreshing
             // does not grant new scopes. Skip Pub/Sub silently — polling works fine.
-            guard let token = try? await TokenStore.shared.retrieve(for: first.id),
+            guard let token = await TokenStore.shared.retrieve(for: first.id),
                   token.hasScope("https://www.googleapis.com/auth/pubsub") else {
                 return
             }

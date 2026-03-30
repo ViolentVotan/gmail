@@ -34,6 +34,7 @@ enum DataEncryption {
             if let data = loadKeyFromKeychain(service: service, account: account) {
                 key = SymmetricKey(data: data)
             } else {
+                logger.warning("No encryption key found for \(service):\(account) — generating new key. Existing encrypted data will be unreadable.")
                 key = SymmetricKey(size: .bits256)
                 saveKeychainItem(
                     service: service,
@@ -82,7 +83,6 @@ enum DataEncryption {
             kSecAttrAccount as String:                  account,
             kSecReturnData as String:                   true,
             kSecMatchLimit as String:                   kSecMatchLimitOne,
-            kSecUseDataProtectionKeychain as String:    true,
         ]
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)
@@ -105,7 +105,6 @@ enum DataEncryption {
             kSecAttrAccount as String:                  account,
             kSecValueData as String:                    data,
             kSecAttrAccessible as String:                kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
-            kSecUseDataProtectionKeychain as String:     true,
         ]
         let status = SecItemAdd(query as CFDictionary, nil)
         if status == errSecDuplicateItem {
@@ -113,7 +112,6 @@ enum DataEncryption {
                 kSecClass as String:                        kSecClassGenericPassword,
                 kSecAttrService as String:                  service,
                 kSecAttrAccount as String:                  account,
-                kSecUseDataProtectionKeychain as String:     true,
             ]
             let updateStatus = SecItemUpdate(
                 search as CFDictionary,

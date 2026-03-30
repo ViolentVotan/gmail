@@ -731,13 +731,9 @@ final class GmailAPIClient {
     }
 
     @concurrent private func validToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
-        let token: AuthToken?
-        do {
-            token = try await TokenStore.shared.retrieve(for: accountID)
-        } catch {
-            throw .networkError(error)
+        guard let token = await TokenStore.shared.retrieve(for: accountID) else {
+            throw .unauthorized
         }
-        guard let token else { throw .unauthorized }
         guard token.isExpired else {
             cachedTokens.withLock { $0[accountID] = token }
             return token
@@ -761,13 +757,9 @@ final class GmailAPIClient {
             // Use Task.detached to avoid inheriting MainActor isolation —
             // the body does network I/O that should not occupy the main actor.
             let t = Task.detached {
-                let token: AuthToken?
-                do {
-                    token = try await TokenStore.shared.retrieve(for: accountID)
-                } catch {
-                    throw GmailAPIError.networkError(error)
+                guard let token = await TokenStore.shared.retrieve(for: accountID) else {
+                    throw GmailAPIError.unauthorized
                 }
-                guard let token else { throw GmailAPIError.unauthorized }
                 do {
                     let fresh = try await OAuthService.shared.refreshToken(token)
 
@@ -775,7 +767,7 @@ final class GmailAPIClient {
                     // token (with new scopes / refresh token) while this refresh
                     // was in flight. If the stored refresh token has changed,
                     // the re-auth token wins — don't overwrite it.
-                    let current = try? await TokenStore.shared.retrieve(for: accountID)
+                    let current = await TokenStore.shared.retrieve(for: accountID)
                     if let current, current.refreshToken != token.refreshToken {
                         // Re-auth happened — return the current token instead.
                         return current
@@ -790,7 +782,7 @@ final class GmailAPIClient {
                     // token — blindly deleting would nuke it and force the user
                     // to sign in again on next launch.
                     if case .tokenRevoked = error as? OAuthError {
-                        let current = try? await TokenStore.shared.retrieve(for: accountID)
+                        let current = await TokenStore.shared.retrieve(for: accountID)
                         if current == nil || current?.refreshToken == token.refreshToken {
                             await TokenStore.shared.delete(for: accountID)
                         }

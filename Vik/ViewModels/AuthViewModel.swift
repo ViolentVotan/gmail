@@ -57,7 +57,7 @@ final class AuthViewModel {
         // fall back to the access token if no refresh token is stored.
         let accountID = account.id
         Task {
-            let storedToken = try? await TokenStore.shared.retrieve(for: accountID)
+            let storedToken = await TokenStore.shared.retrieve(for: accountID)
             if let tokenToRevoke = storedToken?.refreshToken ?? storedToken?.accessToken {
                 await OAuthService.shared.revokeToken(token: tokenToRevoke)
             }
