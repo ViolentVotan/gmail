@@ -145,8 +145,16 @@ final class SyncCoordinator {
     }
 
     func cancelAllTasks() {
+        pubSubTask?.cancel()
         lifecycleTask?.cancel()
         contactsStore.cancelLoad()
+        cleanupTask?.cancel()
+        accountSwitchTask?.cancel()
+    }
+
+    isolated deinit {
+        pubSubTask?.cancel()
+        lifecycleTask?.cancel()
         cleanupTask?.cancel()
         accountSwitchTask?.cancel()
     }

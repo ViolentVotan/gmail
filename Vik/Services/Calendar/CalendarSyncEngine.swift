@@ -59,6 +59,13 @@ actor CalendarSyncEngine {
     /// synchronously (no `await` between check and set), so it's actor-safe.
     private var isSyncingIncrementally = false
 
+    deinit {
+        syncTask?.cancel()
+        calendarListSyncTask?.cancel()
+        postEditRevertTask?.cancel()
+        triggeredSyncTask?.cancel()
+    }
+
     // MARK: - Init
 
     /// - Note: `@MainActor` required because `eventService` and `listService`

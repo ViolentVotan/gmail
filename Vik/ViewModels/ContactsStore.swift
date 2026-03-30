@@ -12,6 +12,8 @@ final class ContactsStore {
 
     @ObservationIgnored private var loadTask: Task<Void, Never>?
 
+    isolated deinit { loadTask?.cancel() }
+
     /// Load contacts for the given account from the database.
     /// Caps at 5 000 entries to bound memory and SwiftUI diff cost.
     func load(accountID: String, database: MailDatabase) {

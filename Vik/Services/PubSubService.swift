@@ -26,6 +26,11 @@ actor PubSubService {
     private var debounceTask: Task<Void, Never>?
     private var scopeAlertPosted = false
 
+    deinit {
+        pullTask?.cancel()
+        debounceTask?.cancel()
+    }
+
     // MARK: - Account Management
 
     /// Sets the currently active engine (called on account switch).

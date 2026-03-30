@@ -15,6 +15,10 @@ actor GmailWatchService {
     private var renewalTask: Task<Void, Never>?
     private let api: GmailMessageService
 
+    deinit {
+        renewalTask?.cancel()
+    }
+
     // MARK: - Init
 
     @MainActor

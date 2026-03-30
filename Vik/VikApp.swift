@@ -56,17 +56,23 @@ struct VikApp: App {
                 // Drain any pending offline actions if already online at launch
                 OfflineActionQueue.shared.startDraining()
 
-                // Periodically clean up stale temporary files (every 10 minutes)
-                Task {
-                    while !Task.isCancelled {
-                        try? await Task.sleep(for: .seconds(600))
-                        await TemporaryFileManager.shared.cleanupStale()
+                // Run two infinite loops concurrently within structured concurrency
+                // so both auto-cancel when the .task modifier is torn down.
+                await withDiscardingTaskGroup { group in
+                    // Periodically clean up stale temporary files (every 10 minutes)
+                    group.addTask {
+                        while !Task.isCancelled {
+                            try? await Task.sleep(for: .seconds(600))
+                            await TemporaryFileManager.shared.cleanupStale()
+                        }
                     }
-                }
 
-                // Clean up stale files whenever the app resigns active
-                for await _ in NotificationCenter.default.notifications(named: NSApplication.willResignActiveNotification) {
-                    await TemporaryFileManager.shared.cleanupStale()
+                    // Clean up stale files whenever the app resigns active
+                    group.addTask {
+                        for await _ in NotificationCenter.default.notifications(named: NSApplication.willResignActiveNotification) {
+                            await TemporaryFileManager.shared.cleanupStale()
+                        }
+                    }
                 }
             }
         }

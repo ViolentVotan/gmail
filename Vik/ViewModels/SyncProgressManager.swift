@@ -33,6 +33,11 @@ final class SyncProgressManager {
         self.syncShowDelay = syncShowDelay
     }
 
+    isolated deinit {
+        lingerTask?.cancel()
+        deferralTask?.cancel()
+    }
+
     // MARK: - Public API
 
     /// Call when a sync operation begins.
