@@ -281,8 +281,7 @@ struct CalendarEventDetailView: View {
                 .padding(.top, 2)
 
             VStack(alignment: .leading, spacing: 4) {
-                ForEach(event.reminders.indices, id: \.self) { idx in
-                    let reminder = event.reminders[idx]
+                ForEach(Array(event.reminders.enumerated()), id: \.offset) { _, reminder in
                     Text(reminderLabel(reminder))
                         .font(Typography.callout)
                         .foregroundStyle(.secondary)

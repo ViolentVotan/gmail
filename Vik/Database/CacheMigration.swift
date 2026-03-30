@@ -14,7 +14,7 @@ enum CacheMigration {
     private static let migrationKeyPrefix = "com.vikingz.vik.dbMigrationCompleted"
     private static let logger = Logger(category: "CacheMigration")
 
-    static func needsMigration(accountID: String) -> Bool {
+    nonisolated static func needsMigration(accountID: String) -> Bool {
         !UserDefaults.standard.bool(forKey: "\(migrationKeyPrefix).\(accountID)")
     }
 
@@ -23,7 +23,7 @@ enum CacheMigration {
     /// still migrate. If a critical write error propagates (disk full, etc.), the
     /// completion flag is NOT set so the migration will retry on next launch.
     /// Deletes only this account's cache subdirectory after migration.
-    static func migrateIfNeeded(db: MailDatabase, accountID: String) async throws {
+    @concurrent static func migrateIfNeeded(db: MailDatabase, accountID: String) async throws {
         guard needsMigration(accountID: accountID) else { return }
 
         let syncer = BackgroundSyncer(db: db)
@@ -63,7 +63,7 @@ enum CacheMigration {
             .appendingPathComponent("\(safe).json")
     }
 
-    private static func migrateLabels(syncer: BackgroundSyncer, accountID: String) async {
+    @concurrent private static func migrateLabels(syncer: BackgroundSyncer, accountID: String) async {
         let url = cacheFileURL(accountID: accountID, folderKey: "_labels")
         guard let data = try? Data(contentsOf: url),
               let labels = try? JSONDecoder().decode([GmailLabel].self, from: data),
@@ -73,7 +73,7 @@ enum CacheMigration {
         try? await syncer.syncLabels(labels)
     }
 
-    private static func migrateMessages(syncer: BackgroundSyncer, accountID: String) async {
+    @concurrent private static func migrateMessages(syncer: BackgroundSyncer, accountID: String) async {
         let accountDir = cacheBaseDir.appendingPathComponent(accountID, isDirectory: true)
         guard let entries = try? FileManager.default.contentsOfDirectory(
             at: accountDir,
@@ -115,7 +115,7 @@ enum CacheMigration {
     /// (i.e., all per-account subdirectories have already been cleaned up by migrateIfNeeded).
     /// Safe to call after any single account finishes migration — it will not delete
     /// cache data for accounts whose migration has not yet run.
-    static func cleanupOldCache() {
+    nonisolated static func cleanupOldCache() {
         let contents = try? FileManager.default.contentsOfDirectory(
             at: cacheBaseDir,
             includingPropertiesForKeys: nil
@@ -125,7 +125,7 @@ enum CacheMigration {
         }
     }
 
-    private static func migrateTags(db: MailDatabase, accountID: String) async throws {
+    @concurrent private static func migrateTags(db: MailDatabase, accountID: String) async throws {
         let url = cacheFileURL(accountID: accountID, folderKey: "_tags")
         guard let data = try? Data(contentsOf: url),
               let tags = try? JSONDecoder().decode([String: EmailTags].self, from: data),

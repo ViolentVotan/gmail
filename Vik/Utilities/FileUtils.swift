@@ -14,8 +14,10 @@ enum FileUtils {
         panel.nameFieldStringValue = suggestedName
         panel.canCreateDirectories = true
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        try? data.write(to: url)
-        setQuarantine(on: url)
+        Task.detached {
+            try? data.write(to: url)
+            Self.setQuarantine(on: url)
+        }
     }
 
     /// Sets com.apple.quarantine xattr on a file so Gatekeeper checks apply when opened.

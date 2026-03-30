@@ -5,10 +5,16 @@ import AppKit
 @MainActor
 final class AvatarCache {
     static let shared = AvatarCache()
+    private var directoryCreated = false
     private init() {
-        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
         memoryCache.countLimit = 200
         negativeCacheKeys.countLimit = 500
+    }
+
+    private func ensureCacheDirectory() {
+        guard !directoryCreated else { return }
+        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+        directoryCreated = true
     }
 
     private let ttl: TimeInterval = 90 * 24 * 60 * 60 // 90 days
@@ -38,6 +44,7 @@ final class AvatarCache {
     private var pendingQueue: [(key: String, url: URL, fileURL: URL)] = []
 
     func image(for urlString: String) async -> NSImage? {
+        ensureCacheDirectory()
         let key = cacheKey(for: urlString) as NSString
 
         // 1. In-memory hit

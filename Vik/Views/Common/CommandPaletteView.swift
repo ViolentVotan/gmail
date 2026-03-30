@@ -74,11 +74,12 @@ struct CommandPaletteView: View {
                                     commandRow(command, isSelected: index == viewModel.selectedIndex)
                                 }
                                 .buttonStyle(.plain)
-                                .id(index)
+                                .id(command.id)
                             }
                         }
                         .onChange(of: viewModel.selectedIndex) { _, newIndex in
-                            proxy.scrollTo(newIndex, anchor: .center)
+                            guard newIndex >= 0, newIndex < viewModel.filteredCommands.count else { return }
+                            proxy.scrollTo(viewModel.filteredCommands[newIndex].id, anchor: .center)
                         }
                     }
                 }

@@ -61,18 +61,30 @@ final class MailStore {
         let sanitized = replyDrafts.mapValues { draft in
             ReplyDraftInfo(gmailDraftID: draft.gmailDraftID, preview: "", lastModified: draft.lastModified)
         }
-        guard let data = try? JSONEncoder().encode(sanitized) else { return }
-        UserDefaults.standard.set(data, forKey: Self.replyDraftsKeyPrefix + accountID)
+        let key = Self.replyDraftsKeyPrefix + accountID
+        Task.detached {
+            guard let data = try? JSONEncoder().encode(sanitized) else { return }
+            UserDefaults.standard.set(data, forKey: key)
+        }
     }
 
     private func loadReplyDrafts() {
         guard !accountID.isEmpty else { return }
-        guard let data = UserDefaults.standard.data(forKey: Self.replyDraftsKeyPrefix + accountID),
-              let decoded = try? JSONDecoder().decode([String: ReplyDraftInfo].self, from: data) else {
+        let key = Self.replyDraftsKeyPrefix + accountID
+        guard let data = UserDefaults.standard.data(forKey: key) else {
             replyDrafts = [:]
             return
         }
-        replyDrafts = decoded
+        let currentAccountID = accountID
+        Task.detached { @MainActor [weak self] in
+            guard let decoded = try? JSONDecoder().decode([String: ReplyDraftInfo].self, from: data) else {
+                self?.replyDrafts = [:]
+                return
+            }
+            // Only apply if account hasn't changed while decoding
+            guard self?.accountID == currentAccountID else { return }
+            self?.replyDrafts = decoded
+        }
     }
 
     func emails(for folder: Folder) -> [Email] {

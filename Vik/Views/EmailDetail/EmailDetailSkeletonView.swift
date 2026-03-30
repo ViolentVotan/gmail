@@ -38,6 +38,7 @@ struct EmailDetailSkeletonView: View {
                 }
                 .padding(.horizontal, Spacing.xl)
             }
+            .drawingGroup()
         }
         .task {
             guard !reduceMotion else { return }

@@ -84,9 +84,9 @@ struct CalendarWeekView: View {
 
                 // All-day chips per day — shared container so glass effects merge
                 GlassEffectContainer {
-                    ForEach(weekCache.weekDays.indices, id: \.self) { index in
+                    ForEach(Array(weekCache.weekDays.enumerated()), id: \.element) { index, day in
                         let allDayEvents = weekCache.allDayEventsByDay[index]
-                        let dayDate = weekCache.weekDays[index]
+                        let dayDate = day
                         VStack(spacing: 2) {
                             ForEach(allDayEvents) { event in
                                 allDayChip(event: event, width: dayColumnWidth, dayDate: dayDate)
@@ -141,8 +141,8 @@ struct CalendarWeekView: View {
 
             // Shared container so today-circle glass merges with siblings
             GlassEffectContainer {
-                ForEach(weekCache.weekDays.indices, id: \.self) { index in
-                    dayHeader(for: weekCache.weekDays[index], index: index, width: dayColumnWidth)
+                ForEach(Array(weekCache.weekDays.enumerated()), id: \.element) { index, day in
+                    dayHeader(for: day, index: index, width: dayColumnWidth)
                 }
             }
         }
@@ -278,10 +278,10 @@ struct CalendarWeekView: View {
     private func eventsOverlay(dayColumnWidth: CGFloat) -> some View {
         GlassEffectContainer {
             ZStack(alignment: .topLeading) {
-                ForEach(weekCache.weekDays.indices, id: \.self) { dayIndex in
+                ForEach(Array(weekCache.weekDays.enumerated()), id: \.element) { dayIndex, day in
                     dayEventsOverlay(
                         dayIndex: dayIndex,
-                        day: weekCache.weekDays[dayIndex],
+                        day: day,
                         timedEvents: dayIndex < weekCache.timedEventsByDay.count ? weekCache.timedEventsByDay[dayIndex] : [],
                         dayColumnWidth: dayColumnWidth
                     )
@@ -298,7 +298,7 @@ struct CalendarWeekView: View {
         dayColumnWidth: CGFloat
     ) -> some View {
         let groups = dayIndex < weekCache.overlapGroupsByDay.count ? weekCache.overlapGroupsByDay[dayIndex] : []
-        ForEach(Array(groups.enumerated()), id: \.element.first?.id) { groupIndex, group in
+        ForEach(Array(groups.enumerated()), id: \.offset) { groupIndex, group in
             ForEach(Array(group.enumerated()), id: \.element.id) { colIndex, event in
                 eventCard(
                     event: event,

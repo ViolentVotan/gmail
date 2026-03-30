@@ -90,8 +90,8 @@ struct CalendarMiniMonthView: View {
     private var daysGrid: some View {
         GlassEffectContainer {
             VStack(spacing: 2) {
-                ForEach(cachedWeeks.indices, id: \.self) { weekIndex in
-                    weekRow(cachedWeeks[weekIndex], isSelectedWeek: weekIndex == selectedWeekIndex)
+                ForEach(Array(cachedWeeks.enumerated()), id: \.offset) { weekIndex, week in
+                    weekRow(week, isSelectedWeek: weekIndex == selectedWeekIndex)
                 }
             }
         }

@@ -54,10 +54,9 @@ struct SyncBubbleView: View {
         .glassEffect(.regular.interactive(), in: .capsule)
         .disabled(!isTappable)
         .onHover { hovering in
-            withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
-                isHovered = hovering
-            }
+            isHovered = hovering
         }
+        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isHovered)
         .help(isTappable ? "Click to sync" : "")
         .accessibilityLabel(accessibilityText)
         .accessibilityHint(isTappable ? "Double-tap to sync mail" : "")

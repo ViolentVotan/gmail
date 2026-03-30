@@ -56,10 +56,15 @@ final class ThumbnailCache {
         #else
         let name = "com.vikingz.vik.thumbnails"
         #endif
-        let dir = caches.appendingPathComponent(name, isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        return dir
+        return caches.appendingPathComponent(name, isDirectory: true)
     }()
+    private var cacheDirectoryCreated = false
+
+    private func ensureCacheDirectory() {
+        guard !cacheDirectoryCreated else { return }
+        try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+        cacheDirectoryCreated = true
+    }
 
     func clearAll() {
         fetchTasks.values.forEach { $0.cancel() }
@@ -90,6 +95,7 @@ final class ThumbnailCache {
 
     /// Request a thumbnail for an attachment. Loads from disk cache first, then network.
     func loadIfNeeded(attachment: IndexedAttachment, accountID: String) {
+        ensureCacheDirectory()
         let id = attachment.id
         guard thumbnailCache.object(forKey: id as NSString) == nil, !loading.contains(id) else { return }
 

@@ -105,6 +105,7 @@ struct MonthDayCellContent: Identifiable {
     let isInCurrentMonth: Bool
     let isToday: Bool
     let isWeekend: Bool
+    let accessibilityDateLabel: String
 }
 
 // MARK: - CalendarMonthView
@@ -331,7 +332,8 @@ struct CalendarMonthView: View {
                 overflowCount: chipOverflow + spanOverflow,
                 isInCurrentMonth: cal.component(.month, from: date) == currentMonth,
                 isToday: cal.isDateInToday(date),
-                isWeekend: cal.isDateInWeekend(date)
+                isWeekend: cal.isDateInWeekend(date),
+                accessibilityDateLabel: date.formatted(date: .complete, time: .omitted)
             )
         }
     }
@@ -382,16 +384,15 @@ private struct CalendarMonthDayCell: View {
         )
         .contentShape(Rectangle())
         .onHover { hovering in
-            withAnimation(reduceMotion ? nil : VikAnimation.springDefault) {
-                isHovered = hovering
-            }
+            isHovered = hovering
         }
+        .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHovered)
         .onTapGesture {
             onCreateEvent(content.date, 9)
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(
-            "\(content.date.formatted(date: .complete, time: .omitted)), \(content.visibleChips.count + content.overflowCount) events"
+            "\(content.accessibilityDateLabel), \(content.visibleChips.count + content.overflowCount) events"
         )
         .accessibilityHint("Double-tap to create a new event")
         .accessibilityAction(named: "Create event") { onCreateEvent(content.date, 9) }
@@ -420,7 +421,7 @@ private struct CalendarMonthDayCell: View {
         .buttonStyle(.plain)
         .frame(width: 44, height: 44)
         .contentShape(Circle())
-        .accessibilityLabel("\(content.date.formatted(date: .complete, time: .omitted))")
+        .accessibilityLabel(content.accessibilityDateLabel)
         .accessibilityHint("Switch to day view")
         .accessibilityAddTraits(content.isToday ? [.isButton, .isSelected] : .isButton)
     }

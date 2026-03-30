@@ -276,6 +276,7 @@ final class MailboxViewModel {
 
     /// Cancels any in-flight fetch and starts a new search.
     func search(query: String) async {
+        observationDebounceTask?.cancel()
         let newQuery = query.isEmpty ? nil : query
         currentQuery = newQuery
 

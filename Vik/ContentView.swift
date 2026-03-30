@@ -34,7 +34,7 @@ struct ContentView: View {
                 .frame(minWidth: 1100, minHeight: 600)
                 .focusedSceneValue(\.appCoordinator, coordinator)
                 .focusedSceneValue(\.commandPalette, commandPalette)
-                .toolbar { toolbarContent }
+                .toolbar { ToolbarWrapper(coordinator: coordinator, isSidebarCollapsed: $isSidebarCollapsed, reduceMotion: reduceMotion, showSnoozePicker: $showSnoozePicker) }
                 .alert("Empty Trash", isPresented: $dialogs.showEmptyTrashConfirm) {
                     Button("Cancel", role: .cancel) {}
                     Button("Delete All", role: .destructive) {
@@ -141,24 +141,11 @@ struct ContentView: View {
                 }
                 return .handled
             }
-            .userActivity(UserActivityManager.viewEmailActivityType, isActive: coordinator.selection.selectedEmail != nil) { activity in
-                guard let email = coordinator.selection.selectedEmail else { return }
-                activity.title = email.subject
-                activity.isEligibleForSearch = true
-                activity.isEligibleForHandoff = false
-                activity.targetContentIdentifier = email.gmailMessageID
-                let attributes = CSSearchableItemAttributeSet(contentType: .emailMessage)
-                attributes.subject = email.subject
-                attributes.authorNames = [email.sender.name]
-                attributes.authorEmailAddresses = [email.sender.email]
-                attributes.contentDescription = String(email.preview.prefix(300))
-                attributes.contentCreationDate = email.date
-                if !email.recipients.isEmpty {
-                    attributes.recipientNames = email.recipients.map(\.name)
-                    attributes.recipientEmailAddresses = email.recipients.map(\.email)
-                }
-                activity.contentAttributeSet = attributes
-                activity.userInfo = ["messageId": email.gmailMessageID ?? "", "accountID": coordinator.navigation.accountID]
+            .background {
+                UserActivityBoundary(
+                    selection: coordinator.selection,
+                    accountID: coordinator.navigation.accountID
+                )
             }
             .onContinueUserActivity("com.vikingz.vik.viewEmail") { activity in
                 if let accountID = activity.userInfo?["accountID"] as? String,
@@ -229,47 +216,87 @@ struct ContentView: View {
         )
     }
 
-    // MARK: - Toolbar
+    // MARK: - Toolbar (Observation Boundary)
 
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            Button {
-                withAnimation(reduceMotion ? nil : VikAnimation.springDefault) {
-                    isSidebarCollapsed.toggle()
+    /// Isolates toolbar reads (`selectedEmail`, `selectedFolder`, `isAnyOpen`)
+    /// so changes to these properties don't invalidate all of ContentView.body.
+    private struct ToolbarWrapper: ToolbarContent {
+        let coordinator: AppCoordinator
+        @Binding var isSidebarCollapsed: Bool
+        let reduceMotion: Bool
+        @Binding var showSnoozePicker: Bool
+
+        var body: some ToolbarContent {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    withAnimation(reduceMotion ? nil : VikAnimation.springDefault) {
+                        isSidebarCollapsed.toggle()
+                    }
+                } label: {
+                    Label("Toggle Sidebar", systemImage: "sidebar.leading")
                 }
-            } label: {
-                Label("Toggle Sidebar", systemImage: "sidebar.leading")
+                .buttonStyle(.glass)
+                .help("Toggle Sidebar (\u{2318}\\)")
+                .keyboardShortcut("\\", modifiers: .command)
+                .sensoryFeedback(.impact(flexibility: .soft), trigger: isSidebarCollapsed)
             }
-            .buttonStyle(.glass)
-            .help("Toggle Sidebar (\u{2318}\\)")
-            .keyboardShortcut("\\", modifiers: .command)
-            .sensoryFeedback(.impact(flexibility: .soft), trigger: isSidebarCollapsed)
-        }
 
-        EmailToolbarItems(
-            selectedEmail: coordinator.selection.selectedEmail,
-            selectedFolder: coordinator.navigation.selectedFolder,
-            isAnyPanelOpen: coordinator.panelCoordinator.isAnyOpen,
-            showSnoozePicker: $showSnoozePicker,
-            onCompose: { coordinator.composeNewEmail() },
-            onReply: { email in coordinator.startCompose(mode: EmailDetailViewModel.replyMode(for: email)) },
-            onArchive: { email in Task { await coordinator.actionCoordinator.archiveEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
-            onDelete: { email in Task { await coordinator.actionCoordinator.deleteEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
-            onSnooze: { email, date in Task { await coordinator.actionCoordinator.snoozeEmail(email, until: date, selectNext: { coordinator.selection.selectNext($0) }) } },
-            onReplyAll: { email in coordinator.startCompose(mode: EmailDetailViewModel.replyAllMode(for: email)) },
-            onForward: { email in coordinator.startCompose(mode: EmailDetailViewModel.forwardMode(for: email)) },
-            onToggleStar: { email in Task { await coordinator.actionCoordinator.toggleStarEmail(email) } },
-            onMarkUnread: { email in Task { await coordinator.actionCoordinator.markUnreadEmail(email) } },
-            onMoveToInbox: { email in Task { await coordinator.actionCoordinator.moveToInboxEmail(email, selectedFolder: coordinator.navigation.selectedFolder, selectNext: { coordinator.selection.selectNext($0) }) } },
-            onPrint: { email in Task { await coordinator.actionCoordinator.printEmail(email) } },
-            onMarkNotSpam: { email in Task { await coordinator.actionCoordinator.markNotSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
-            onMarkSpam: { email in Task { await coordinator.actionCoordinator.markSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
-            onDeletePermanently: { email in Task { await coordinator.actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } }
-        )
+            EmailToolbarItems(
+                selectedEmail: coordinator.selection.selectedEmail,
+                selectedFolder: coordinator.navigation.selectedFolder,
+                isAnyPanelOpen: coordinator.panelCoordinator.isAnyOpen,
+                showSnoozePicker: $showSnoozePicker,
+                onCompose: { coordinator.composeNewEmail() },
+                onReply: { email in coordinator.startCompose(mode: EmailDetailViewModel.replyMode(for: email)) },
+                onArchive: { email in Task { await coordinator.actionCoordinator.archiveEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
+                onDelete: { email in Task { await coordinator.actionCoordinator.deleteEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
+                onSnooze: { email, date in Task { await coordinator.actionCoordinator.snoozeEmail(email, until: date, selectNext: { coordinator.selection.selectNext($0) }) } },
+                onReplyAll: { email in coordinator.startCompose(mode: EmailDetailViewModel.replyAllMode(for: email)) },
+                onForward: { email in coordinator.startCompose(mode: EmailDetailViewModel.forwardMode(for: email)) },
+                onToggleStar: { email in Task { await coordinator.actionCoordinator.toggleStarEmail(email) } },
+                onMarkUnread: { email in Task { await coordinator.actionCoordinator.markUnreadEmail(email) } },
+                onMoveToInbox: { email in Task { await coordinator.actionCoordinator.moveToInboxEmail(email, selectedFolder: coordinator.navigation.selectedFolder, selectNext: { coordinator.selection.selectNext($0) }) } },
+                onPrint: { email in Task { await coordinator.actionCoordinator.printEmail(email) } },
+                onMarkNotSpam: { email in Task { await coordinator.actionCoordinator.markNotSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
+                onMarkSpam: { email in Task { await coordinator.actionCoordinator.markSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
+                onDeletePermanently: { email in Task { await coordinator.actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } }
+            )
+        }
     }
 
     // MARK: - Observation Boundary Views
+
+    /// Isolates `.userActivity` reads (`selectedEmail`) from `mainLayout` so
+    /// selection changes don't invalidate the entire ContentView.body.
+    private struct UserActivityBoundary: View {
+        let selection: SelectionCoordinator
+        let accountID: String
+
+        var body: some View {
+            Color.clear
+                .frame(width: 0, height: 0)
+                .userActivity(UserActivityManager.viewEmailActivityType,
+                              isActive: selection.selectedEmail != nil) { activity in
+                    guard let email = selection.selectedEmail else { return }
+                    activity.title = email.subject
+                    activity.isEligibleForSearch = true
+                    activity.isEligibleForHandoff = false
+                    activity.targetContentIdentifier = email.gmailMessageID
+                    let attributes = CSSearchableItemAttributeSet(contentType: .emailMessage)
+                    attributes.subject = email.subject
+                    attributes.authorNames = [email.sender.name]
+                    attributes.authorEmailAddresses = [email.sender.email]
+                    attributes.contentDescription = String(email.preview.prefix(300))
+                    attributes.contentCreationDate = email.date
+                    if !email.recipients.isEmpty {
+                        attributes.recipientNames = email.recipients.map(\.name)
+                        attributes.recipientEmailAddresses = email.recipients.map(\.email)
+                    }
+                    activity.contentAttributeSet = attributes
+                    activity.userInfo = ["messageId": email.gmailMessageID ?? "", "accountID": accountID]
+                }
+        }
+    }
 
     /// Isolates the calendar/mail mode switch so `viewMode` changes
     /// don't invalidate the rest of `mainLayout`.

@@ -180,7 +180,7 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
     func deleteAccount(_ accountID: String) {
         itemsByAccount.removeValue(forKey: accountID)
         let url = fileURL(accountID)
-        try? FileManager.default.removeItem(at: url)
+        Task.detached { try? FileManager.default.removeItem(at: url) }
     }
 
     /// Loads items from disk and filters by account ID using the given key path,

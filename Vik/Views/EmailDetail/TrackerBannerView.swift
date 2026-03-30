@@ -54,7 +54,7 @@ struct TrackerBannerView: View {
                     .padding(.top, Spacing.sm)
 
                 VStack(alignment: .leading, spacing: Spacing.xs) {
-                    ForEach(groupedTrackers, id: \.name) { group in
+                    ForEach(groupedTrackers) { group in
                         HStack(spacing: 6) {
                             Image(systemName: group.icon)
                                 .font(Typography.trackerLabel)
@@ -85,10 +85,11 @@ struct TrackerBannerView: View {
 
     // MARK: - Grouped trackers
 
-    struct TrackerGroup: Hashable {
+    struct TrackerGroup: Hashable, Identifiable {
         let name: String
         let kind: TrackerKind
         let count: Int
+        var id: String { "\(name)-\(kind.rawValue)" }
         var icon: String {
             switch kind {
             case .pixel:        return "circle.fill"

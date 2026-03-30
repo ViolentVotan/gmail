@@ -7,9 +7,18 @@ struct CalendarEventCard: View {
     let height: CGFloat
     let onSelect: (CalendarEvent) -> Void
 
+    private let timeRangeText: String
+
     @State private var isHovered = false
     @State private var isPressed = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    init(event: CalendarEvent, height: CGFloat, onSelect: @escaping (CalendarEvent) -> Void) {
+        self.event = event
+        self.height = height
+        self.onSelect = onSelect
+        self.timeRangeText = event.isAllDay ? "All day" : "\(event.startTime.formattedTime) – \(event.endTime.formattedTime)"
+    }
 
     var body: some View {
         Button { onSelect(event) } label: {
@@ -63,14 +72,6 @@ struct CalendarEventCard: View {
         .help(event.summary)
     }
 
-    // MARK: - Private
-
-    private var timeRangeText: String {
-        if event.isAllDay {
-            return "All day"
-        }
-        return "\(event.startTime.formattedTime) – \(event.endTime.formattedTime)"
-    }
 }
 
 // MARK: - PressTrackingButtonStyle

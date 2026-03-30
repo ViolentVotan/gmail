@@ -6,8 +6,16 @@ struct LabelChipView: View {
     var isRemovable: Bool = false
     var onRemove: (() -> Void)? = nil
 
-    private var chipColor: Color { Color(hex: label.color) }
-    private var textForeground: Color { label.textColor.isEmpty ? Color.primary : Color(hex: label.textColor) }
+    private let chipColor: Color
+    private let textForeground: Color
+
+    init(label: EmailLabel, isRemovable: Bool = false, onRemove: (() -> Void)? = nil) {
+        self.label = label
+        self.isRemovable = isRemovable
+        self.onRemove = onRemove
+        self.chipColor = Color(hex: label.color)
+        self.textForeground = label.textColor.isEmpty ? Color.primary : Color(hex: label.textColor)
+    }
 
     var body: some View {
         HStack(spacing: 3) {

@@ -77,7 +77,7 @@ struct CalendarMonthEventChip: View {
         .contentShape(Rectangle())
         .accessibilityLabel(event.isAllDay
             ? event.summary
-            : "\(event.startTime.formatted(date: .omitted, time: .shortened)) \(event.summary)")
+            : "\(formattedStartTime) \(event.summary)")
         .accessibilityHint("Opens event details")
         .accessibilityAddTraits(.isButton)
         .help(event.summary)
