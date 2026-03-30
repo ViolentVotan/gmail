@@ -74,7 +74,14 @@ final class OAuthService: NSObject {
                 let refreshToken = authState?.refreshToken
                 let expiresAt    = authState?.lastTokenResponse?.accessTokenExpirationDate
                 let tokenType    = authState?.lastTokenResponse?.tokenType
+                // Per RFC 6749 §5.1, the token response MAY omit `scope` when the
+                // granted scopes are identical to those requested. AppAuth returns
+                // nil in that case. Fall back to the authorization response scope
+                // (which Google always includes in the redirect), then to the
+                // requested scopes.
                 let scope        = authState?.lastTokenResponse?.scope
+                                ?? authState?.lastAuthorizationResponse.scope
+                                ?? GoogleCredentials.scopes.joined(separator: " ")
 
                 // Check-and-set before hopping to MainActor so the Mutex
                 // stays in the @Sendable closure's isolation domain (avoids
@@ -105,7 +112,7 @@ final class OAuthService: NSObject {
                         refreshToken: refreshToken,
                         expiresIn:    max(expiresIn, 1),
                         tokenType:    tokenType ?? "Bearer",
-                        scope:        scope ?? ""
+                        scope:        scope
                     )
                     continuation.resume(returning: token)
                 }
@@ -115,15 +122,25 @@ final class OAuthService: NSObject {
 
     /// Re-authorizes the user with the full scope set.
     /// Needed when new scopes are added after the user already signed in.
+    ///
+    /// Verifies the returned token belongs to the expected account (prevents
+    /// cross-account token miswrite if the user switches accounts in the browser).
     func reauthorize(accountID: String, presentingWindow: NSWindow?) async throws {
-        let token = try await authorize(presentingWindow: presentingWindow, forceConsent: true)
-        try await TokenStore.shared.save(token, for: accountID)
-        // Cancel any in-flight refresh task AND clear the in-memory cache.
-        // A concurrent refreshAndRetry may have read the OLD token before
-        // re-auth saved the new one — if its save races after ours, it would
-        // overwrite the new token with a stale one (missing new scopes).
-        // Cancelling + clearing prevents that.
+        // Cancel in-flight refreshes BEFORE saving the new token to prevent
+        // a race where the refresh completes between our save and cancel,
+        // overwriting the new token with a stale one (especially when Google
+        // reuses the same refresh token string).
         GmailAPIClient.shared.cancelRefreshAndClearCache(for: accountID)
+
+        let token = try await authorize(presentingWindow: presentingWindow, forceConsent: true)
+
+        // Verify the returned token belongs to the expected account.
+        let userInfo = try await GmailProfileService.shared.getUserInfo(accessToken: token.accessToken)
+        guard userInfo.email == accountID else {
+            throw OAuthError.accountMismatch(expected: accountID, got: userInfo.email)
+        }
+
+        try await TokenStore.shared.save(token, for: accountID)
     }
 
     /// Uses the stored refresh token to obtain a new access token.
@@ -254,6 +271,8 @@ enum OAuthError: Error, LocalizedError {
     case tokenRevoked
     /// A network-level error (e.g. `URLError`) occurred during an OAuth request.
     case networkError(any Error)
+    /// Re-authorization completed for a different account than expected.
+    case accountMismatch(expected: String, got: String)
 
     var errorDescription: String? {
         switch self {
@@ -264,6 +283,7 @@ enum OAuthError: Error, LocalizedError {
         case .httpError(let code, _):       return "OAuth request failed with HTTP \(code)"
         case .tokenRevoked:                 return "Session expired — please sign in again"
         case .networkError(let error):      return "Network error during OAuth request: \(error.localizedDescription)"
+        case .accountMismatch(_, let got):  return "Signed in as \(got) — expected a different account"
         }
     }
 }

@@ -4,7 +4,10 @@ private import os
 /// Custom error for Pub/Sub HTTP failures, carrying the status code.
 enum PubSubError: Error, Sendable {
     case httpError(statusCode: Int, data: Data)
+    /// OAuth token lacks the `pubsub` scope — re-authorization can fix this.
     case insufficientScope(accountID: String)
+    /// IAM permission denied or API disabled — re-authorization will NOT fix this.
+    case permissionDenied(accountID: String, reason: String)
 }
 
 /// Pulls Gmail change notifications from a Google Cloud Pub/Sub subscription
@@ -48,6 +51,8 @@ actor PubSubService {
     func start(tokenAccountID: String) {
         self.tokenAccountID = tokenAccountID
         guard pullTask == nil else { return }
+        scopeAlertPosted = false
+        consecutiveFailures = 0
         pullTask = Task { await pullLoop() }
         Self.logger.info("PubSubService started with token account \(tokenAccountID)")
     }
@@ -95,7 +100,8 @@ actor PubSubService {
                 return
             } catch let error as PubSubError {
                 consecutiveFailures += 1
-                if case .insufficientScope(let accountID) = error {
+                switch error {
+                case .insufficientScope(let accountID):
                     Self.logger.error("Pub/Sub pull 403 — missing scope for \(accountID)")
                     if !scopeAlertPosted {
                         scopeAlertPosted = true
@@ -111,6 +117,16 @@ actor PubSubService {
                     await activeEngine?.setPubSubActive(false)
                     try? await Task.sleep(for: .seconds(60))
                     continue
+
+                case .permissionDenied(let accountID, let reason):
+                    // IAM or API-disabled — re-auth won't fix this. Fall back to
+                    // polling permanently for this session and don't pester the user.
+                    Self.logger.error("Pub/Sub 403 (non-scope) for \(accountID): \(reason)")
+                    await activeEngine?.setPubSubActive(false)
+                    return  // Exit pull loop — polling covers sync
+
+                case .httpError:
+                    break  // Fall through to generic failure handling below
                 }
                 if consecutiveFailures >= PubSubConfig.maxPullFailures {
                     Self.logger.error("Pub/Sub pull failing — reverting to normal polling")
@@ -150,7 +166,7 @@ actor PubSubService {
             if httpResponse.statusCode == 403 {
                 let body = String(data: data, encoding: .utf8) ?? "<no body>"
                 Self.logger.error("Pub/Sub 403 response: \(body)")
-                throw PubSubError.insufficientScope(accountID: accountID)
+                throw Self.classify403(data: data, accountID: accountID)
             }
             guard (200...299).contains(httpResponse.statusCode) else {
                 throw PubSubError.httpError(statusCode: httpResponse.statusCode, data: data)
@@ -179,6 +195,39 @@ actor PubSubService {
             Self.logger.warning("Acknowledge failed for \(ackIds.count) messages")
             return
         }
+    }
+
+    // MARK: - Error Classification
+
+    /// Parses a Google Cloud API 403 response to distinguish OAuth scope errors
+    /// from IAM permission errors. Only scope errors are fixable via re-authorization.
+    private nonisolated static func classify403(data: Data, accountID: String) -> PubSubError {
+        // Google Cloud API errors include details[].reason:
+        //   ACCESS_TOKEN_SCOPE_INSUFFICIENT → OAuth scope issue (re-auth can fix)
+        //   IAM_PERMISSION_DENIED → IAM role missing (re-auth cannot fix)
+        //   SERVICE_DISABLED → API not enabled (re-auth cannot fix)
+        struct CloudError: Decodable {
+            struct Detail: Decodable {
+                let reason: String?
+            }
+            struct ErrorBody: Decodable {
+                let message: String?
+                let details: [Detail]?
+            }
+            let error: ErrorBody?
+        }
+
+        if let parsed = try? JSONDecoder().decode(CloudError.self, from: data) {
+            let reason = parsed.error?.details?.first?.reason ?? ""
+            if reason == "ACCESS_TOKEN_SCOPE_INSUFFICIENT" {
+                return .insufficientScope(accountID: accountID)
+            }
+            let message = parsed.error?.message ?? reason
+            return .permissionDenied(accountID: accountID, reason: message)
+        }
+        // Unparseable body — conservatively treat as permission denied (not scope)
+        // to avoid a re-auth loop when the error can't be fixed by re-auth.
+        return .permissionDenied(accountID: accountID, reason: "unknown 403")
     }
 
     // MARK: - Notification Handling
