@@ -1,15 +1,33 @@
 import SwiftUI
 
 struct EmailToolbarItems: ToolbarContent {
-    let coordinator: AppCoordinator
+    let selectedEmail: Email?
+    let selectedFolder: Folder
+    let isAnyPanelOpen: Bool
     @Binding var showSnoozePicker: Bool
+
+    let onCompose: () -> Void
+    let onReply: (Email) -> Void
+    let onArchive: (Email) -> Void
+    let onDelete: (Email) -> Void
+    let onSnooze: (Email, Date) -> Void
+    let onReplyAll: (Email) -> Void
+    let onForward: (Email) -> Void
+    let onToggleStar: (Email) -> Void
+    let onMarkUnread: (Email) -> Void
+    let onMoveToInbox: (Email) -> Void
+    let onPrint: (Email) -> Void
+    let onMarkNotSpam: (Email) -> Void
+    let onMarkSpam: (Email) -> Void
+    let onDeletePermanently: (Email) -> Void
+
     @State private var showDeletePermanentlyConfirmation = false
     @State private var showSpamConfirmation = false
 
     var body: some ToolbarContent {
-        if !coordinator.panelCoordinator.isAnyOpen {
+        if !isAnyPanelOpen {
             ToolbarItem(placement: .primaryAction) {
-                Button { coordinator.composeNewEmail() } label: {
+                Button { onCompose() } label: {
                     Label("Compose", systemImage: "square.and.pencil")
                 }
                 .buttonStyle(.borderedProminent)
@@ -19,19 +37,19 @@ struct EmailToolbarItems: ToolbarContent {
 
             ToolbarSpacer(.fixed, placement: .primaryAction)
 
-            if let email = coordinator.selection.selectedEmail {
+            if let email = selectedEmail {
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button {
-                        coordinator.startCompose(mode: EmailDetailViewModel.replyMode(for: email))
+                        onReply(email)
                     } label: {
                         Label("Reply", systemImage: "arrowshape.turn.up.left")
                     }
                     .buttonStyle(.glass)
                     .help("Reply")
 
-                    if coordinator.navigation.selectedFolder != .archive {
+                    if selectedFolder != .archive {
                         Button {
-                            Task { await coordinator.actionCoordinator.archiveEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
+                            onArchive(email)
                         } label: {
                             Label("Archive", systemImage: "archivebox")
                         }
@@ -39,9 +57,9 @@ struct EmailToolbarItems: ToolbarContent {
                         .help("Archive (\u{2318}E)")
                     }
 
-                    if coordinator.navigation.selectedFolder != .trash {
+                    if selectedFolder != .trash {
                         Button {
-                            Task { await coordinator.actionCoordinator.deleteEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
+                            onDelete(email)
                         } label: {
                             Label("Delete", systemImage: "trash")
                         }
@@ -59,7 +77,7 @@ struct EmailToolbarItems: ToolbarContent {
                     .popover(isPresented: $showSnoozePicker) {
                         SnoozePickerView { date in
                             showSnoozePicker = false
-                            Task { await coordinator.actionCoordinator.snoozeEmail(email, until: date, selectNext: { coordinator.selection.selectNext($0) }) }
+                            onSnooze(email, date)
                         }
                     }
                 }
@@ -67,39 +85,39 @@ struct EmailToolbarItems: ToolbarContent {
 
             ToolbarSpacer(.fixed, placement: .primaryAction)
 
-            if let email = coordinator.selection.selectedEmail {
+            if let email = selectedEmail {
                 ToolbarItem(placement: .automatic) {
                     Menu {
                         Button {
-                            coordinator.startCompose(mode: EmailDetailViewModel.replyAllMode(for: email))
+                            onReplyAll(email)
                         } label: { Label("Reply All", systemImage: "arrowshape.turn.up.left.2") }
 
                         Button {
-                            coordinator.startCompose(mode: EmailDetailViewModel.forwardMode(for: email))
+                            onForward(email)
                         } label: { Label("Forward", systemImage: "arrowshape.turn.up.right") }
 
                         Divider()
 
                         Button {
-                            Task { await coordinator.actionCoordinator.toggleStarEmail(email) }
+                            onToggleStar(email)
                         } label: {
                             Label(email.isStarred ? "Remove from Favorites" : "Add to Favorites", systemImage: email.isStarred ? "star.slash" : "star")
                         }
 
                         Button {
-                            Task { await coordinator.actionCoordinator.markUnreadEmail(email) }
+                            onMarkUnread(email)
                         } label: { Label("Mark as Unread", systemImage: "envelope.badge") }
 
-                        if coordinator.navigation.selectedFolder == .archive || coordinator.navigation.selectedFolder == .trash {
+                        if selectedFolder == .archive || selectedFolder == .trash {
                             Button {
-                                Task { await coordinator.actionCoordinator.moveToInboxEmail(email, selectedFolder: coordinator.navigation.selectedFolder, selectNext: { coordinator.selection.selectNext($0) }) }
+                                onMoveToInbox(email)
                             } label: { Label("Move to Inbox", systemImage: "tray.and.arrow.down") }
                         }
 
                         Divider()
 
                         Button {
-                            Task { await coordinator.actionCoordinator.printEmail(email) }
+                            onPrint(email)
                         } label: {
                             Label("Print", systemImage: "printer")
                         }
@@ -107,9 +125,9 @@ struct EmailToolbarItems: ToolbarContent {
 
                         Divider()
 
-                        if coordinator.navigation.selectedFolder == .spam {
+                        if selectedFolder == .spam {
                             Button {
-                                Task { await coordinator.actionCoordinator.markNotSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
+                                onMarkNotSpam(email)
                             } label: { Label("Not Spam", systemImage: "tray.and.arrow.down") }
                         } else {
                             Button(role: .destructive) {
@@ -117,7 +135,7 @@ struct EmailToolbarItems: ToolbarContent {
                             } label: { Label("Report as Spam", systemImage: "exclamationmark.shield") }
                         }
 
-                        if coordinator.navigation.selectedFolder == .trash {
+                        if selectedFolder == .trash {
                             Button(role: .destructive) {
                                 showDeletePermanentlyConfirmation = true
                             } label: { Label("Delete Permanently", systemImage: "trash.slash") }
@@ -128,12 +146,12 @@ struct EmailToolbarItems: ToolbarContent {
                     .help("More actions")
                     .confirmationDialog("Permanently delete this email? This cannot be undone.", isPresented: $showDeletePermanentlyConfirmation, titleVisibility: .visible) {
                         Button("Delete Permanently", role: .destructive) {
-                            Task { await coordinator.actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
+                            onDeletePermanently(email)
                         }
                     }
                     .confirmationDialog("Report this email as spam?", isPresented: $showSpamConfirmation, titleVisibility: .visible) {
                         Button("Report as Spam", role: .destructive) {
-                            Task { await coordinator.actionCoordinator.markSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
+                            onMarkSpam(email)
                         }
                     }
                 }

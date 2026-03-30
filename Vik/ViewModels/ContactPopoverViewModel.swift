@@ -114,9 +114,7 @@ final class ContactPopoverViewModel: Identifiable {
 
         if let details {
             Self.cachePersonDetails(details, forEmail: email, accountID: accountID)
-            withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.springSnappy) {
-                applyDetails(details)
-            }
+            applyDetails(details)
         }
     }
 

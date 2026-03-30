@@ -189,12 +189,6 @@ struct ContentView: View {
                 commandPaletteNamespace: commandPaletteNamespace
             )
         }
-        .onChange(of: coordinator.calendar.calendarNewEventTrigger) { _, triggered in
-            guard triggered else { return }
-            coordinator.calendar.calendarNewEventTrigger = false
-            newCalendarEventDraft = nil
-            showNewCalendarEvent = true
-        }
         .sheet(isPresented: $showNewCalendarEvent) {
             if let calendarVM = coordinator.calendar.calendarViewModel {
                 CalendarEventEditorView(
@@ -254,8 +248,24 @@ struct ContentView: View {
         }
 
         EmailToolbarItems(
-            coordinator: coordinator,
-            showSnoozePicker: $showSnoozePicker
+            selectedEmail: coordinator.selection.selectedEmail,
+            selectedFolder: coordinator.navigation.selectedFolder,
+            isAnyPanelOpen: coordinator.panelCoordinator.isAnyOpen,
+            showSnoozePicker: $showSnoozePicker,
+            onCompose: { coordinator.composeNewEmail() },
+            onReply: { email in coordinator.startCompose(mode: EmailDetailViewModel.replyMode(for: email)) },
+            onArchive: { email in Task { await coordinator.actionCoordinator.archiveEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
+            onDelete: { email in Task { await coordinator.actionCoordinator.deleteEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
+            onSnooze: { email, date in Task { await coordinator.actionCoordinator.snoozeEmail(email, until: date, selectNext: { coordinator.selection.selectNext($0) }) } },
+            onReplyAll: { email in coordinator.startCompose(mode: EmailDetailViewModel.replyAllMode(for: email)) },
+            onForward: { email in coordinator.startCompose(mode: EmailDetailViewModel.forwardMode(for: email)) },
+            onToggleStar: { email in Task { await coordinator.actionCoordinator.toggleStarEmail(email) } },
+            onMarkUnread: { email in Task { await coordinator.actionCoordinator.markUnreadEmail(email) } },
+            onMoveToInbox: { email in Task { await coordinator.actionCoordinator.moveToInboxEmail(email, selectedFolder: coordinator.navigation.selectedFolder, selectNext: { coordinator.selection.selectNext($0) }) } },
+            onPrint: { email in Task { await coordinator.actionCoordinator.printEmail(email) } },
+            onMarkNotSpam: { email in Task { await coordinator.actionCoordinator.markNotSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
+            onMarkSpam: { email in Task { await coordinator.actionCoordinator.markSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
+            onDeletePermanently: { email in Task { await coordinator.actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } }
         )
     }
 
@@ -296,6 +306,12 @@ struct ContentView: View {
                 }
             }
             .animation(reduceMotion ? nil : VikAnimation.folderSwitch, value: coordinator.calendar.viewMode)
+            .onChange(of: coordinator.calendar.calendarNewEventTrigger) { _, triggered in
+                guard triggered else { return }
+                coordinator.calendar.calendarNewEventTrigger = false
+                newCalendarEventDraft = nil
+                showNewCalendarEvent = true
+            }
         }
     }
 
@@ -655,14 +671,13 @@ struct ContentView: View {
 
     private func withLifecycle<V: View>(_ view: V) -> some View {
         view
-            .modifier(LifecycleStateModifier(
-                coordinator: coordinator,
-                commandPalette: commandPalette,
-                showSnoozePicker: $showSnoozePicker,
-                appFocus: $appFocus,
-                snoozeCount: SnoozeStore.shared.count,
-                scheduledCount: ScheduledSendStore.shared.count
-            ))
+            .modifier(LifecycleStartupModifier(coordinator: coordinator, commandPalette: commandPalette))
+            .modifier(NavigationLifecycleModifier(coordinator: coordinator))
+            .modifier(AccountLifecycleModifier(coordinator: coordinator))
+            .modifier(NetworkLifecycleModifier(coordinator: coordinator))
+            .modifier(SelectionLifecycleModifier(coordinator: coordinator, showSnoozePicker: $showSnoozePicker, appFocus: $appFocus))
+            .modifier(ComposeLifecycleModifier(coordinator: coordinator))
+            .modifier(MailboxLifecycleModifier(coordinator: coordinator, snoozeCount: SnoozeStore.shared.count, scheduledCount: ScheduledSendStore.shared.count))
             .modifier(LifecycleNotificationModifier(coordinator: coordinator))
             .task {
                 for await notification in NotificationCenter.default.notifications(named: .calendarScopesInsufficient) {

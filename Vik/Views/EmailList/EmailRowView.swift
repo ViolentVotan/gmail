@@ -292,8 +292,7 @@ struct EmailRowView: View, Equatable {
         )
         .sensoryFeedback(.selection, trigger: isSelected)
         .scaleEffect(isPressed ? ScaleToken.press : (isHovered && !isSelected ? ScaleToken.rowHover : 1.0), anchor: .center)
-        .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
-        .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isSelected)
+        .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered || isSelected)
         .draggable(EmailDragItem(
             messageIds: [email.gmailMessageID ?? ""],
             accountID: accountID

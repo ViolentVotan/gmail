@@ -1,15 +1,11 @@
 import SwiftUI
 
-// MARK: - LifecycleStateModifier
+// MARK: - LifecycleStartupModifier
 
-/// State-change observers split out to help the type-checker.
-struct LifecycleStateModifier: ViewModifier {
+/// Handles the initial `.task` for command palette build and coordinator appearance.
+struct LifecycleStartupModifier: ViewModifier {
     let coordinator: AppCoordinator
     let commandPalette: CommandPaletteViewModel
-    @Binding var showSnoozePicker: Bool
-    var appFocus: FocusState<AppFocus?>.Binding
-    let snoozeCount: Int
-    let scheduledCount: Int
 
     func body(content: Content) -> some View {
         content
@@ -17,11 +13,49 @@ struct LifecycleStateModifier: ViewModifier {
                 commandPalette.buildCommands(coordinator: coordinator)
                 await coordinator.handleAppear()
             }
-            .onChange(of: coordinator.navigation.selectedFolder) { _, newValue in coordinator.handleFolderChange(newValue) }
+    }
+}
+
+// MARK: - NavigationLifecycleModifier
+
+/// Observes only NavigationCoordinator properties.
+struct NavigationLifecycleModifier: ViewModifier {
+    let coordinator: AppCoordinator
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: coordinator.navigation.selectedFolder) { _, newValue in
+                coordinator.handleFolderChange(newValue)
+                coordinator.updateListIsLoading()
+            }
             .onChange(of: coordinator.navigation.selectedInboxCategory) { _, newValue in coordinator.handleCategoryChange(newValue) }
             .onChange(of: coordinator.navigation.selectedLabel?.id) { _, _ in coordinator.handleLabelChange() }
             .onChange(of: coordinator.navigation.selectedAccountID) { _, newValue in coordinator.handleAccountChange(newValue) }
-            .onChange(of: coordinator.authViewModel.accounts) { oldValue, newValue in coordinator.handleAccountsChange(old: oldValue, new: newValue) }
+    }
+}
+
+// MARK: - AccountLifecycleModifier
+
+/// Observes only AuthViewModel.accounts changes.
+struct AccountLifecycleModifier: ViewModifier {
+    let coordinator: AppCoordinator
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: coordinator.authViewModel.accounts) { oldValue, newValue in
+                coordinator.handleAccountsChange(old: oldValue, new: newValue)
+            }
+    }
+}
+
+// MARK: - NetworkLifecycleModifier
+
+/// Observes only NetworkMonitor.shared.isConnected.
+struct NetworkLifecycleModifier: ViewModifier {
+    let coordinator: AppCoordinator
+
+    func body(content: Content) -> some View {
+        content
             .onChange(of: NetworkMonitor.shared.isConnected) { _, connected in
                 if connected {
                     OfflineActionQueue.shared.startDraining()
@@ -34,6 +68,19 @@ struct LifecycleStateModifier: ViewModifier {
                     }
                 }
             }
+    }
+}
+
+// MARK: - SelectionLifecycleModifier
+
+/// Observes only SelectionCoordinator.selectedEmail changes.
+struct SelectionLifecycleModifier: ViewModifier {
+    let coordinator: AppCoordinator
+    @Binding var showSnoozePicker: Bool
+    var appFocus: FocusState<AppFocus?>.Binding
+
+    func body(content: Content) -> some View {
+        content
             .onChange(of: coordinator.selection.selectedEmail) { oldValue, newValue in
                 showSnoozePicker = false
                 if newValue != nil {
@@ -48,13 +95,55 @@ struct LifecycleStateModifier: ViewModifier {
                 }
                 coordinator.handleSelectedEmailChange(newValue)
             }
-            .onChange(of: coordinator.compose.signatureForNew) { _, _ in if !coordinator.navigation.accountID.isEmpty { coordinator.compose.saveSignatures(for: coordinator.navigation.accountID) } }
-            .onChange(of: coordinator.compose.signatureForReply) { _, _ in if !coordinator.navigation.accountID.isEmpty { coordinator.compose.saveSignatures(for: coordinator.navigation.accountID) } }
+    }
+}
+
+// MARK: - ComposeLifecycleModifier
+
+/// Observes only ComposeCoordinator signature properties.
+struct ComposeLifecycleModifier: ViewModifier {
+    let coordinator: AppCoordinator
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: coordinator.compose.signatureForNew) { _, _ in
+                if !coordinator.navigation.accountID.isEmpty {
+                    coordinator.compose.saveSignatures(for: coordinator.navigation.accountID)
+                }
+            }
+            .onChange(of: coordinator.compose.signatureForReply) { _, _ in
+                if !coordinator.navigation.accountID.isEmpty {
+                    coordinator.compose.saveSignatures(for: coordinator.navigation.accountID)
+                }
+            }
+    }
+}
+
+// MARK: - MailboxLifecycleModifier
+
+/// Observes snooze/scheduled counts, lastRestoredMessageID, and loading flags
+/// so `listIsLoading` stays in sync when loading states change.
+struct MailboxLifecycleModifier: ViewModifier {
+    let coordinator: AppCoordinator
+    let snoozeCount: Int
+    let scheduledCount: Int
+
+    func body(content: Content) -> some View {
+        content
             .onChange(of: snoozeCount) { _, _ in
                 coordinator.refreshSnoozedCacheIfNeeded()
             }
             .onChange(of: scheduledCount) { _, _ in
                 coordinator.refreshScheduledCacheIfNeeded()
+            }
+            .onChange(of: coordinator.mailboxViewModel.isLoading) { _, _ in
+                coordinator.updateListIsLoading()
+            }
+            .onChange(of: coordinator.mailStore.isLoadingGmailDrafts) { _, _ in
+                coordinator.updateListIsLoading()
+            }
+            .onChange(of: SubscriptionsStore.shared.isAnalyzing) { _, _ in
+                coordinator.updateListIsLoading()
             }
             .onChange(of: coordinator.mailboxViewModel.lastRestoredMessageID) { _, msgID in
                 guard let msgID else { return }

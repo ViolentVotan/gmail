@@ -473,11 +473,14 @@ struct EmailListView: View {
             }
             .listStyle(.plain)
             .scrollEdgeEffectStyle(.soft, for: .top)
+            .transition(.opacity)
         } else if !isLoading && emails.isEmpty {
             emptyListState
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(.opacity)
         } else {
             emailScrollView
+                .transition(.opacity)
         }
     }
 
@@ -631,7 +634,6 @@ struct EmailListView: View {
         .listStyle(.plain)
         .environment(hoverActions)
         .scrollPosition($scrollPosition)
-        .id(selectedFolder)
         .onAppear { syncHoverActions() }
         .onChange(of: accountID) { syncHoverActions() }
         .onChange(of: selectedFolder) {
@@ -652,7 +654,6 @@ struct EmailListView: View {
         .onKeyPress(characters: CharacterSet(charactersIn: "u")) { _ in handleKeyU() }
         .onKeyPress(characters: CharacterSet(charactersIn: "r")) { _ in handleKeyR() }
         .scrollEdgeEffectStyle(.soft, for: .top)
-        .animation(reduceMotion ? nil : VikAnimation.springDefault, value: density)
         .accessibilityRotor("Unread Emails") {
             ForEach(sortModel.accessibilityCache.unreadEmails) { email in
                 AccessibilityRotorEntry(email.subject, id: email.id)

@@ -24,10 +24,9 @@ struct ContentShimmerView: View {
         .fixedSize(horizontal: false, vertical: true)
         .drawingGroup()
         .task {
-            if !reduceMotion {
-                withAnimation(VikAnimation.shimmer) {
-                    shimmerPhase = 1
-                }
+            guard !reduceMotion, shimmerPhase < 0 else { return }
+            withAnimation(VikAnimation.shimmer) {
+                shimmerPhase = 1
             }
         }
     }

@@ -90,7 +90,7 @@ struct MiniAgendaWidget: View {
                             .foregroundStyle(.secondary)
                     } else {
                         HStack(spacing: 4) {
-                            Text(eventTimeText(event))
+                            Text(timeLabel)
                                 .font(Typography.calendarMiniEventTime)
                                 .foregroundStyle(.secondary)
 

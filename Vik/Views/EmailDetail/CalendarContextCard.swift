@@ -9,14 +9,15 @@ struct CalendarContextCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        Button(action: onNavigate) {
+        let label = contextLabel
+        return Button(action: onNavigate) {
             HStack(spacing: 10) {
                 Image(systemName: "calendar.badge.clock")
                     .font(Typography.subheadSemibold)
                     .foregroundStyle(.tint)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(contextLabel)
+                    Text(label)
                         .font(Typography.captionRegular)
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
@@ -45,7 +46,7 @@ struct CalendarContextCard: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(contextLabel + " — " + event.summary)
+        .accessibilityLabel(label + " — " + event.summary)
         .accessibilityAddTraits(.isButton)
         .accessibilityHint("Open in Calendar")
         .onHover { isHovered = $0 }

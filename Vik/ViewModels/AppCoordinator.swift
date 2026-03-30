@@ -80,12 +80,17 @@ final class AppCoordinator {
 
     // MARK: - Cross-Domain Computed Properties
 
-    var listIsLoading: Bool {
-        switch navigation.selectedFolder {
+    var listIsLoading = false
+
+    /// Recomputes `listIsLoading` from the currently selected folder's loading state.
+    /// Call whenever the folder changes or a relevant loading flag changes.
+    func updateListIsLoading() {
+        let newValue: Bool = switch navigation.selectedFolder {
         case .subscriptions: SubscriptionsStore.shared.isAnalyzing
         case .drafts:        mailStore.isLoadingGmailDrafts
         default:             mailboxViewModel.isLoading
         }
+        if listIsLoading != newValue { listIsLoading = newValue }
     }
 
     var isComposeActive: Bool {
@@ -194,7 +199,7 @@ final class AppCoordinator {
         compose.composeMode = .new
         let draft = mailStore.createDraft()
         if let recipient, !recipient.isEmpty {
-            mailStore.updateDraft(id: draft.id, subject: "", body: "", to: recipient, cc: "")
+            Task { await mailStore.updateDraft(id: draft.id, subject: "", body: "", to: recipient, cc: "") }
         }
         if navigation.selectedFolder == .drafts {
             selection.selectedEmail = draft
@@ -496,13 +501,13 @@ final class AppCoordinator {
         mailboxViewModel.accountID = id
         AccountStore.shared.selectedAccountID = id
         compose.loadSignatures(for: id)
+        selection.selectedEmail = nil
+        selection.selectedEmailIDs = []
+        navigation.selectedInboxCategory = .all
+        navigation.selectedLabel = nil
+        navigation.searchResetTrigger += 1
         withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.folderSwitch) {
             navigation.selectedFolder = .inbox
-            navigation.selectedInboxCategory = .all
-            navigation.selectedLabel = nil
-            selection.selectedEmail = nil
-            selection.selectedEmailIDs = []
-            navigation.searchResetTrigger += 1
         }
         navigationTask?.cancel()
         ThumbnailCache.shared.clearAll()

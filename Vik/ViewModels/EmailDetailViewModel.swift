@@ -525,6 +525,7 @@ final class EmailDetailViewModel {
     /// Skips messages whose input HTML hasn't changed since last computation.
     private func precomputeHTMLParts() {
         guard let messages = thread?.messages else { return }
+        var workItems: [(id: String, html: String)] = []
         for message in messages {
             let inputHTML = resolvedMessageHTML[message.id] ?? message.htmlBody ?? ""
             if lastPrecomputedInput[message.id] == inputHTML,
@@ -534,13 +535,27 @@ final class EmailDetailViewModel {
                 resolvedHTML: resolvedMessageHTML[message.id]
             )
             guard !html.isEmpty else { continue }
-            let parts = GmailThreadMessageView.stripQuotedHTML(html)
-            precomputedHTMLParts[message.id] = PrecomputedMessageHTML(
-                fullHTML: html,
+            workItems.append((id: message.id, html: html))
+            lastPrecomputedInput[message.id] = inputHTML
+        }
+        guard !workItems.isEmpty else { return }
+        let t = Task {
+            let results = await Self.computeHTMLParts(workItems)
+            for result in results {
+                precomputedHTMLParts[result.id] = result.result
+            }
+        }
+        backgroundTasks.withLock { $0.append(t) }
+    }
+
+    @concurrent private static func computeHTMLParts(_ workItems: [(id: String, html: String)]) async -> [(id: String, result: PrecomputedMessageHTML)] {
+        workItems.map { item in
+            let parts = GmailThreadMessageView.stripQuotedHTML(item.html)
+            return (id: item.id, result: PrecomputedMessageHTML(
+                fullHTML: item.html,
                 originalHTML: parts.original,
                 quotedHTML: parts.quoted
-            )
-            lastPrecomputedInput[message.id] = inputHTML
+            ))
         }
     }
 

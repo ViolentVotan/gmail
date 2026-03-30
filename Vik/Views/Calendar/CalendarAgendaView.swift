@@ -61,7 +61,6 @@ struct CalendarAgendaView: View {
                         .padding(.top, Spacing.md)
                 }
             }
-            .id(viewModel.selectedDate)
             .padding(.bottom, Spacing.xxl)
         }
         .task(id: viewModel.selectedDate) {

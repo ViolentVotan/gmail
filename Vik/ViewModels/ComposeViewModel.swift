@@ -326,7 +326,7 @@ final class ComposeViewModel {
         if let gid = gmailDraftID {
             mailStore.setGmailDraftID(gid, for: draftId)
             if let threadID, mailStore.replyDrafts[threadID] != nil {
-                let plain = bodyHTML.strippingHTML.trimmingCharacters(in: .whitespacesAndNewlines)
+                let plain = await Self.stripHTML(bodyHTML)
                 mailStore.replyDrafts[threadID] = .init(
                     gmailDraftID: gid,
                     preview: String(plain.prefix(50))
@@ -725,7 +725,7 @@ final class ComposeViewModel {
 
         // Local-first: persist draft preview immediately
         if let threadID = email.gmailThreadID {
-            let plain = (cachedStrippedText.isEmpty ? body.strippingHTML : cachedStrippedText).trimmingCharacters(in: .whitespacesAndNewlines)
+            let plain = (cachedStrippedText.isEmpty ? body : cachedStrippedText).trimmingCharacters(in: .whitespacesAndNewlines)
             let draftID = gmailDraftID ?? mailStore.replyDrafts[threadID]?.gmailDraftID ?? ""
             mailStore.replyDrafts[threadID] = .init(
                 gmailDraftID: draftID,

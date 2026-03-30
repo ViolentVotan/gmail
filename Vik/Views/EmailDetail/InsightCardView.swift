@@ -63,7 +63,7 @@ struct InsightCardView: View {
                 .transition(.opacity.combined(with: .scale(scale: 0.97)))
             }
         }
-        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: insight?.summary)
+        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: insight?.summary != nil)
     }
 
     private func hasContent(_ snapshot: EmailInsightSnapshot) -> Bool {

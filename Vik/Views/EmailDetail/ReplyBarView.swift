@@ -61,7 +61,6 @@ struct ReplyBarView: View {
             composeVM.updateCollapsedPlaceholder(for: email, in: mailStore)
             composeVM.scheduleReplyAutoSaveUnified(email: email, mailStore: mailStore)
         }
-        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: composeVM.hasUserContent)
         .task {
             try? await Task.sleep(for: ComposeViewModel.autoSaveGuardDelay)
             composeVM.isInitialLoad = false

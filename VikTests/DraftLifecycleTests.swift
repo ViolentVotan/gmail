@@ -36,7 +36,7 @@ import Foundation
 
     // MARK: - MailStore: draft operations on gmailDrafts array
 
-    @Test func updateDraftWorksForGmailDrafts() {
+    @Test func updateDraftWorksForGmailDrafts() async {
         let store = MailStore()
         let draftID = GmailDataTransformer.deterministicUUID(from: "gmail_draft_1")
         let gmailDraft = Email(
@@ -52,7 +52,7 @@ import Foundation
         )
         store.gmailDrafts = [gmailDraft]
 
-        store.updateDraft(id: draftID, subject: "New Subject", body: "New Body", to: "to@test.com", cc: "")
+        await store.updateDraft(id: draftID, subject: "New Subject", body: "New Body", to: "to@test.com", cc: "")
 
         #expect(store.gmailDrafts.first?.subject == "New Subject")
         #expect(store.gmailDrafts.first?.body == "New Body")
@@ -232,11 +232,11 @@ import Foundation
 
     // MARK: - Preview strips HTML tags
 
-    @Test func updateDraftStripsHTMLFromPreview() {
+    @Test func updateDraftStripsHTMLFromPreview() async {
         let store = MailStore()
         let draft = store.createDraft()
 
-        store.updateDraft(
+        await store.updateDraft(
             id: draft.id,
             subject: "Test",
             body: "<div>Hello <b>world</b></div>",

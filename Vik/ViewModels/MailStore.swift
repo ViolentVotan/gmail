@@ -175,19 +175,22 @@ final class MailStore {
         return draft
     }
 
-    func updateDraft(id: UUID, subject: String, body: String, to: String, cc: String) {
+    func updateDraft(id: UUID, subject: String, body: String, to: String, cc: String) async {
+        let preview: String? = body.isEmpty ? nil : await Task.detached {
+            String(body.strippingHTML.prefix(120))
+        }.value
         // Try local drafts first, then Gmail drafts
         if let index = emails.firstIndex(where: { $0.id == id }) {
-            applyDraftFields(&emails[index], subject: subject, body: body, to: to, cc: cc)
+            applyDraftFields(&emails[index], subject: subject, body: body, to: to, cc: cc, preview: preview)
         } else if let index = gmailDrafts.firstIndex(where: { $0.id == id }) {
-            applyDraftFields(&gmailDrafts[index], subject: subject, body: body, to: to, cc: cc)
+            applyDraftFields(&gmailDrafts[index], subject: subject, body: body, to: to, cc: cc, preview: preview)
         }
     }
 
-    private func applyDraftFields(_ email: inout Email, subject: String, body: String, to: String, cc: String) {
+    private func applyDraftFields(_ email: inout Email, subject: String, body: String, to: String, cc: String, preview: String? = nil) {
         email.subject    = subject.isEmpty ? "(No subject)" : subject
         email.body       = body
-        email.preview    = body.isEmpty ? "New draft" : String(body.strippingHTML.prefix(120))
+        email.preview    = preview ?? (body.isEmpty ? "New draft" : String(body.prefix(120)))
         email.date       = Date()
         email.recipients = to.isEmpty ? [] : GmailDataTransformer.parseContacts(to)
         email.cc         = cc.isEmpty ? [] : GmailDataTransformer.parseContacts(cc)

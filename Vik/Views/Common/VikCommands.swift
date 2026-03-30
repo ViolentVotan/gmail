@@ -32,13 +32,8 @@ struct VikCommands: Commands {
     private var hasSelection: Bool { selectedEmail != nil }
     private var isInbox: Bool { coordinator?.navigation.selectedFolder == .inbox }
 
-    /// Live state from the `emails` array driven by DB observation.
-    private var liveEmail: Email? {
-        guard let msgID = selectedEmail?.gmailMessageID else { return nil }
-        return coordinator?.mailboxViewModel.emails.first { $0.gmailMessageID == msgID }
-    }
-    private var isStarred: Bool { liveEmail?.isStarred ?? selectedEmail?.isStarred ?? false }
-    private var isRead: Bool { liveEmail?.isRead ?? selectedEmail?.isRead ?? true }
+    private var isStarred: Bool { selectedEmail?.isStarred ?? false }
+    private var isRead: Bool { selectedEmail?.isRead ?? true }
 
     var body: some Commands {
         messageMenu

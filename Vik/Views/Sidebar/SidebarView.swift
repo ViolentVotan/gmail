@@ -36,7 +36,6 @@ struct SidebarView: View {
     var onRefresh: (() -> Void)?
     var onNewEvent: (() -> Void)?
 
-    @Environment(SyncProgressManager.self) private var syncProgress
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("showDebugMenu") private var showDebugMenu = false
 
@@ -50,14 +49,13 @@ struct SidebarView: View {
     @Namespace private var modeNamespace
 
     var body: some View {
-        Group {
-            if isCollapsed {
-                collapsedSidebar
-                    .transition(.opacity)
-            } else {
-                expandedSidebar
-                    .transition(.opacity)
-            }
+        ZStack {
+            expandedSidebar
+                .opacity(isCollapsed ? 0 : 1)
+                .allowsHitTesting(!isCollapsed)
+            collapsedSidebar
+                .opacity(isCollapsed ? 1 : 0)
+                .allowsHitTesting(isCollapsed)
         }
         .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isCollapsed)
         .alert("Rename Label", isPresented: Binding(
@@ -243,9 +241,7 @@ struct SidebarView: View {
 
             Spacer(minLength: 0)
 
-            SyncBubbleView(phase: syncProgress.phase, isCompact: true) {
-                onRefresh?()
-            }
+            SyncBubbleWrapper(isCompact: true, onRefresh: onRefresh)
             .padding(Spacing.sm)
         }
     }
@@ -417,9 +413,7 @@ struct SidebarView: View {
                     )
                     .padding(.horizontal, Spacing.sm)
                 }
-                SyncBubbleView(phase: syncProgress.phase) {
-                    onRefresh?()
-                }
+                SyncBubbleWrapper(onRefresh: onRefresh)
                 .padding(Spacing.sm)
             }
         }
@@ -575,6 +569,20 @@ struct SidebarView: View {
             } label: {
                 Label("Delete", systemImage: "trash")
             }
+        }
+    }
+}
+
+// MARK: - Sync Bubble Wrapper
+
+private struct SyncBubbleWrapper: View {
+    @Environment(SyncProgressManager.self) private var syncProgress
+    var isCompact = false
+    let onRefresh: (() -> Void)?
+
+    var body: some View {
+        SyncBubbleView(phase: syncProgress.phase, isCompact: isCompact) {
+            onRefresh?()
         }
     }
 }

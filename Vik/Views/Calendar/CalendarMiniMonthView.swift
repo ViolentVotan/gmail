@@ -9,6 +9,7 @@ struct CalendarMiniMonthView: View {
     @State private var cachedMonth: Int = -1
     @State private var cachedYear: Int = -1
     @State private var selectedWeekIndex: Int? = nil
+    @State private var daysWithEvents: Set<Date> = []
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let dayColumns = Array(repeating: GridItem(.flexible(), spacing: 0), count: 7)
@@ -100,6 +101,9 @@ struct CalendarMiniMonthView: View {
         .onChange(of: viewModel.selectedDate) {
             recomputeWeeksIfNeeded()
         }
+        .onChange(of: viewModel.events) {
+            recomputeWeeksIfNeeded()
+        }
     }
 
     private func weekRow(_ days: [Date?], isSelectedWeek: Bool) -> some View {
@@ -123,7 +127,7 @@ struct CalendarMiniMonthView: View {
     @ViewBuilder
     private func dayCell(_ date: Date, inSelectedWeek: Bool) -> some View {
         let cal = Calendar.current
-        let hasEvents = !viewModel.eventsForDay(date).isEmpty
+        let hasEvents = daysWithEvents.contains(cal.startOfDay(for: date))
         MiniMonthDayCell(
             date: date,
             dayNumber: cal.component(.day, from: date),
@@ -151,6 +155,13 @@ struct CalendarMiniMonthView: View {
             cachedYear = year
             cachedWeeks = weeksInMonth()
         }
+        var eventDays: Set<Date> = []
+        for date in cachedWeeks.flatMap({ $0 }).compactMap({ $0 }) {
+            if !viewModel.eventsForDay(date).isEmpty {
+                eventDays.insert(cal.startOfDay(for: date))
+            }
+        }
+        daysWithEvents = eventDays
         selectedWeekIndex = cachedWeeks.firstIndex { days in
             days.compactMap { $0 }.contains { cal.isDate($0, equalTo: viewModel.selectedDate, toGranularity: .weekOfYear) }
         }

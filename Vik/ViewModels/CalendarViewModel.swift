@@ -195,8 +195,19 @@ final class CalendarViewModel {
                     self.debounceTask = Task { @MainActor [weak self] in
                         try? await Task.sleep(for: .milliseconds(50))
                         guard !Task.isCancelled, let self else { return }
-                        self.events = self.enrichRecords(records)
-                        self.recomputeEventCaches()
+                        let colorMap = self.calendarColorMap
+                        let capturedRecords = records
+                        let enriched = await Task.detached {
+                            Self.enrichRecordsOffActor(capturedRecords, colorMap: colorMap)
+                        }.value
+                        guard !Task.isCancelled else { return }
+                        let caches = await Task.detached {
+                            Self.computeEventCaches(enriched)
+                        }.value
+                        guard !Task.isCancelled else { return }
+                        self.events = enriched
+                        self.eventsByDay = caches.eventsByDay
+                        self.multiDayEvents = caches.multiDay
                     }
                 }
             } catch is CancellationError {
@@ -576,5 +587,51 @@ final class CalendarViewModel {
                 calendarColor: calendarColor
             )
         }
+    }
+
+    // MARK: - Off-Actor Computation
+
+    nonisolated private static func enrichRecordsOffActor(_ records: [EventWithAttendees], colorMap: [String: Color]) -> [CalendarEvent] {
+        guard !records.isEmpty else { return [] }
+        return records.compactMap { item in
+            let calendarColor = colorMap[item.calendarEventRecord.calendarId] ?? BrandColor.blue
+            return item.calendarEventRecord.toCalendarEvent(
+                attendees: item.attendees,
+                calendarColor: calendarColor
+            )
+        }
+    }
+
+    nonisolated private static func computeEventCaches(_ events: [CalendarEvent]) -> (eventsByDay: [Date: [CalendarEvent]], multiDay: [CalendarEvent]) {
+        let cal = Calendar.current
+        var dict: [Date: [CalendarEvent]] = [:]
+        var multiDay: [CalendarEvent] = []
+        for event in events {
+            var day = cal.startOfDay(for: event.startTime)
+            let startDay = day
+            let rawEndDay = cal.startOfDay(for: event.endTime)
+            let endDay: Date
+            if event.endTime == rawEndDay && rawEndDay > startDay {
+                guard let adjusted = cal.date(byAdding: .day, value: -1, to: rawEndDay) else { continue }
+                endDay = adjusted
+            } else {
+                endDay = rawEndDay
+            }
+            while day <= endDay {
+                dict[day, default: []].append(event)
+                guard let nextDay = cal.date(byAdding: .day, value: 1, to: day) else { break }
+                day = nextDay
+            }
+            if event.isAllDay || cal.startOfDay(for: event.startTime) != cal.startOfDay(for: event.endTime) {
+                multiDay.append(event)
+            }
+        }
+        for key in dict.keys {
+            dict[key]?.sort { lhs, rhs in
+                if lhs.isAllDay != rhs.isAllDay { return lhs.isAllDay }
+                return lhs.startTime < rhs.startTime
+            }
+        }
+        return (eventsByDay: dict, multiDay: multiDay)
     }
 }

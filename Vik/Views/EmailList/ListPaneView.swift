@@ -47,7 +47,7 @@ struct ListPaneView: View {
         VStack(spacing: 0) {
             OfflineBannerView()
             CategoryTabBarSection(
-                mailboxViewModel: mailboxViewModel,
+                categoryUnreadCounts: mailboxViewModel.categoryUnreadCounts,
                 selectedFolder: selectedFolder,
                 selectedCategory: categoryBinding
             )
@@ -56,7 +56,11 @@ struct ListPaneView: View {
                 isLoading: isLoading,
                 selectedFolder: selectedFolder,
                 searchResetTrigger: searchResetTrigger,
-                mailboxViewModel: mailboxViewModel,
+                accountID: mailboxViewModel.accountID,
+                hasMoreEmails: mailboxViewModel.hasMoreEmails,
+                isLoadingMore: mailboxViewModel.isLoadingMore,
+                onSearch: { query in await mailboxViewModel.search(query: query) },
+                onLoadMore: { mailboxViewModel.loadMore() },
                 actionCoordinator: actionCoordinator,
                 selectNext: selectNext,
                 startCompose: startCompose,
@@ -76,8 +80,7 @@ struct ListPaneView: View {
                     insertion: .opacity.combined(with: .offset(y: OffsetToken.nudge)),
                     removal: .opacity.combined(with: .offset(y: -OffsetToken.nudge))
                 ))
-                .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: selectedInboxCategory)
-                .animation(reduceMotion ? nil : VikAnimation.folderSwitch, value: selectedFolder)
+                .animation(reduceMotion ? nil : VikAnimation.folderSwitch, value: "\(selectedFolder.rawValue)-\((selectedInboxCategory ?? .all).rawValue)")
         }
         .navigationSplitViewColumnWidth(min: 300, ideal: 380, max: 480)
         .navigationTitle(navigationTitleText)
@@ -98,10 +101,9 @@ struct ListPaneView: View {
 // MARK: - Offline Banner (Issue 5)
 
 private struct OfflineBannerView: View {
-    @State private var network = NetworkMonitor.shared
-    @State private var offlineQueue = OfflineActionQueue.shared
-
     var body: some View {
+        let network = NetworkMonitor.shared
+        let offlineQueue = OfflineActionQueue.shared
         if !network.isConnected {
             HStack {
                 Image(systemName: "wifi.slash")
@@ -127,7 +129,7 @@ private struct OfflineBannerView: View {
 // MARK: - Category Tab Bar (Issue 6)
 
 private struct CategoryTabBarSection: View {
-    let mailboxViewModel: MailboxViewModel
+    let categoryUnreadCounts: [InboxCategory: Int]
     let selectedFolder: Folder
     @Binding var selectedCategory: InboxCategory
 
@@ -135,7 +137,7 @@ private struct CategoryTabBarSection: View {
         if selectedFolder == .inbox {
             CategoryTabBar(
                 selectedCategory: $selectedCategory,
-                unreadCounts: mailboxViewModel.categoryUnreadCounts
+                unreadCounts: categoryUnreadCounts
             )
             Divider()
         }
@@ -149,7 +151,11 @@ private struct EmailListSection: View {
     let isLoading: Bool
     let selectedFolder: Folder
     let searchResetTrigger: Int
-    let mailboxViewModel: MailboxViewModel
+    let accountID: String
+    let hasMoreEmails: Bool
+    let isLoadingMore: Bool
+    let onSearch: (String) async -> Void
+    let onLoadMore: () -> Void
     let actionCoordinator: EmailActionCoordinator
     let selectNext: (Email?) -> Void
     let startCompose: (ComposeMode) -> Void
@@ -168,7 +174,7 @@ private struct EmailListSection: View {
         EmailListView(
             emails: emails,
             isLoading: isLoading,
-            accountID: mailboxViewModel.accountID,
+            accountID: accountID,
             actions: EmailListActions(
                 onArchive:           { email in Task { await actionCoordinator.archiveEmail(email, selectNext: selectNext) } },
                 onDelete:            { email in Task { await actionCoordinator.deleteEmail(email, selectNext: selectNext) } },
@@ -181,7 +187,7 @@ private struct EmailListSection: View {
                 onDeletePermanently: { email in Task { await actionCoordinator.deletePermanentlyEmail(email, selectNext: selectNext) } },
                 onMarkNotSpam:       { email in Task { await actionCoordinator.markNotSpamEmail(email, selectNext: selectNext) } },
                 onSnooze:            { email, date in Task { await actionCoordinator.snoozeEmail(email, until: date, selectNext: selectNext) } },
-                onUnsnooze:          selectedFolder == .snoozed ? { email in actionCoordinator.unsnoozeEmail(messageId: email.gmailMessageID ?? "", accountID: mailboxViewModel.accountID) } : nil,
+                onUnsnooze:          selectedFolder == .snoozed ? { email in actionCoordinator.unsnoozeEmail(messageId: email.gmailMessageID ?? "", accountID: accountID) } : nil,
                 onReply: { email in
                     startCompose(EmailDetailViewModel.replyMode(for: email))
                 },
@@ -198,12 +204,12 @@ private struct EmailListSection: View {
                 onBulkMarkRead:   { Task { await actionCoordinator.bulkMarkRead(selectedEmails) { selectedEmailIDs = [] } } },
                 onBulkToggleStar: { Task { for e in selectedEmails { await actionCoordinator.toggleStarEmail(e) } } },
                 onEmptyTrash: {
-                    actionCoordinator.emptyTrash(accountID: mailboxViewModel.accountID) { count in
+                    actionCoordinator.emptyTrash(accountID: accountID) { count in
                         emptyTrashRequested(count)
                     }
                 },
                 onEmptySpam: {
-                    actionCoordinator.emptySpam(accountID: mailboxViewModel.accountID) { count in
+                    actionCoordinator.emptySpam(accountID: accountID) { count in
                         emptySpamRequested(count)
                     }
                 },
@@ -212,15 +218,15 @@ private struct EmailListSection: View {
                     if query.isEmpty {
                         Task { await loadCurrentFolder() }
                     } else {
-                        Task { await mailboxViewModel.search(query: query) }
+                        Task { await onSearch(query) }
                     }
                 },
                 onRefresh: { await loadCurrentFolder() },
-                onLoadMore: { mailboxViewModel.loadMore() }
+                onLoadMore: { onLoadMore() }
             ),
             searchResetTrigger: searchResetTrigger,
-            hasMoreEmails: mailboxViewModel.hasMoreEmails,
-            isLoadingMore: mailboxViewModel.isLoadingMore,
+            hasMoreEmails: hasMoreEmails,
+            isLoadingMore: isLoadingMore,
             searchFocusTrigger: $searchFocusTrigger,
             selectedEmail: $selectedEmail,
             selectedEmailIDs: $selectedEmailIDs,
