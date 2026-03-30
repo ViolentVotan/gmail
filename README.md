@@ -43,7 +43,8 @@ A native macOS Gmail client. No Electron. No web wrapper. Just Swift, SwiftUI, a
 | ⏰ **Snooze** | Snooze emails to reappear at a time that works for you |
 | 📤 **Schedule send** | Write now, send later — schedule messages for the perfect moment |
 | 📴 **Offline queue** | Archive, trash, star, label, and more — actions sync when connectivity returns |
-| 📅 **Calendar invites** | Event cards with one-click RSVP — accept, decline, maybe |
+| 📅 **Google Calendar** | Full month/week/day/agenda views, event CRUD, offline queue, deep email↔calendar integration |
+| 📩 **Calendar invites** | Event cards with one-click RSVP — accept, decline, maybe |
 | ✉️ **One-click unsubscribe** | RFC 8058 compliant. See all your subscriptions in one view |
 | 🏷️ **Labels & filters** | Full Gmail label management + filter creation and sync |
 | 📎 **Attachment browser** | Browse, search, and preview all attachments with thumbnail caching |
@@ -65,7 +66,7 @@ A native macOS Gmail client. No Electron. No web wrapper. Just Swift, SwiftUI, a
 git clone https://github.com/ViolentVotan/gmail.git
 ```
 
-1. Create a Google Cloud project with **Gmail API** and **People API** enabled, plus an OAuth 2.0 Desktop client
+1. Create a Google Cloud project with **Gmail API**, **People API**, **Google Calendar API**, and **Cloud Pub/Sub API** enabled, plus an OAuth 2.0 Desktop client
 2. Create `Vik/Configuration/GoogleCredentials.swift` with your OAuth client ID and secret (gitignored)
 3. Open `Vik.xcodeproj` in **Xcode 26.3+**, build and run
 
