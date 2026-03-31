@@ -85,6 +85,7 @@ fixed_tools: []
 
 # Inherit from global (interactive + editing)
 base_modes:
+- no-onboarding
 
 # list of mode names that are to be activated by default.
 # The full set of modes to be activated is base_modes + default_modes.
@@ -94,9 +95,17 @@ base_modes:
 default_modes:
 
 # Context for LLM on project activation
-initial_prompt: "Swift/SwiftUI macOS Gmail client (Vik). MVVM: Services → ViewModels
-  → Views. Read code_style memory before editing Swift code. Multi-account: all persistence
-  keyed by accountID."
+initial_prompt: >
+  Vik — native macOS Gmail + Calendar client.
+  Swift 6.2 / SwiftUI / macOS 26+ / GRDB (SQLite, WAL).
+  MVVM: AppCoordinator owns 7 sub-coordinators (Navigation, Selection, Compose,
+  Calendar, Dialog, Sync, Panel). Services → ViewModels → Views.
+  Multi-account: all DB tables and stores keyed by accountID.
+  Sync: Gmail REST + Google Calendar API v3, Pub/Sub primary with polling fallback.
+  LS routing: Serena for symbol navigation/editing; Claude Code LSP tool for
+  call hierarchy (incomingCalls/outgoingCalls), protocol implementations
+  (goToImplementation), and type hover. Both share sourcekit-lsp.
+  Read code_style memory before editing Swift code.
 
 # time budget (seconds) per tool call for the retrieval of additional symbol information
 # such as docstrings or parameter information.
@@ -123,6 +132,6 @@ ignored_memory_patterns: []
 
 # advanced configuration option allowing to configure language server-specific options.
 # Maps the language key to the options.
-# Have a look at the docstring of the constructors of the LS implementations within solidlsp (e.g., for C# or PHP) to see which options are available.
-# No documentation on options means no options are available.
+# Note: SourceKitLSP has no configurable options — binary is resolved from PATH.
+# SDK/toolchain selection is handled by `xcrun` and Xcode's `xcode-select` path.
 ls_specific_settings: {}
