@@ -46,9 +46,9 @@ struct HoverActionButtonsView: View {
         ![.sent, .drafts, .scheduled].contains(selectedFolder)
     }
 
-    /// Show buttons when hovered or when the row is selected (keyboard focus).
+    /// Show buttons on hover only — keyboard users use shortcuts (E/S/U/R/Delete).
     private var isVisible: Bool {
-        isHovered || isSelected
+        isHovered
     }
 
     var body: some View {
@@ -84,12 +84,12 @@ struct HoverActionButtonsView: View {
                     }
                 }
             }
-            .padding(.horizontal, Spacing.sm)
-            .padding(.vertical, Spacing.xs)
+            .padding(.horizontal, Spacing.xs)
+            .padding(.vertical, Spacing.xxs)
             .glassEffect(.regular.interactive(), in: .capsule)
             .symbolEffect(.bounce, value: actionTrigger)
             .sensoryFeedback(.impact(flexibility: .soft), trigger: actionTrigger)
-            .padding(.trailing, Spacing.lg)
+            .padding(.trailing, Spacing.sm)
             .opacity(isVisible ? 1 : 0)
             .scaleEffect(isVisible ? 1 : 0.9, anchor: .trailing)
             .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isVisible)
@@ -139,8 +139,8 @@ private struct HoverActionButton: View {
             Image(systemName: icon)
                 .font(Typography.captionSmallMedium)
                 .foregroundStyle(iconColor)
-                .frame(width: 32, height: 32)
-                .contentShape(.rect.inset(by: -6))
+                .frame(width: 24, height: 24)
+                .contentShape(.rect.inset(by: -4))
         }
         .buttonStyle(.borderless)
         .background(

@@ -273,7 +273,7 @@ struct EmailRowView: View, Equatable {
             .contentShape(Rectangle())
         }
         .buttonStyle(PressTrackingStyle(isPressed: $isPressed))
-        .overlay(alignment: .trailing) {
+        .overlay(alignment: .topTrailing) {
             if !isMultiSelect {
                 HoverActionButtonsView(
                     email: email,
@@ -281,6 +281,7 @@ struct EmailRowView: View, Equatable {
                     isSelected: isSelected,
                     selectedFolder: selectedFolder
                 )
+                .padding(.top, verticalPadding)
             }
         }
         .glassEffect(
