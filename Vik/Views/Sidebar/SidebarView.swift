@@ -520,8 +520,15 @@ struct SidebarView: View {
                     labelButton(label: label)
                 }
             } header: {
-                Text("Labels")
-                    .accessibilityAddTraits(.isHeader)
+                Button {
+                    withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
+                        labelsExpanded.toggle()
+                    }
+                } label: {
+                    Text("Labels")
+                        .accessibilityAddTraits(.isHeader)
+                }
+                .buttonStyle(.plain)
             }
         }
     }
