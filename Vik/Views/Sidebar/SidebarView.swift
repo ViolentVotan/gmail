@@ -38,6 +38,7 @@ struct SidebarView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("showDebugMenu") private var showDebugMenu = false
+    @AppStorage("labelsExpanded") private var labelsExpanded = true
 
     @State private var labelToRename: GmailLabel?
     @State private var labelToDelete: GmailLabel?
@@ -514,7 +515,7 @@ struct SidebarView: View {
     @ViewBuilder
     private var labelsSection: some View {
         if !userLabels.isEmpty {
-            Section {
+            Section(isExpanded: $labelsExpanded) {
                 ForEach(userLabels) { label in
                     labelButton(label: label)
                 }
