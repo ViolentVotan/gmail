@@ -43,6 +43,7 @@ struct SidebarView: View {
     @State private var labelToDelete: GmailLabel?
     @State private var renameText = ""
     @State private var hoveredFolder: Folder?
+    @State private var hoveredLabel: String?
     @State private var dropTargetFolder: Folder?
     @State private var dropTargetLabel: String?
     @State private var showLabelsPopover = false
@@ -435,6 +436,8 @@ struct SidebarView: View {
     }
 
     private func folderButton(folder: Folder) -> some View {
+        let isSelected = selectedFolder == folder
+        let isHovered = hoveredFolder == folder
         let isDropTarget = dropTargetFolder == folder
         let unread = folderUnreadCounts[folder] ?? 0
 
@@ -457,11 +460,12 @@ struct SidebarView: View {
                 Image(systemName: folder.icon)
                     .frame(width: 20)
             }
+            .foregroundStyle(isSelected ? .primary : isHovered ? .primary : .secondary)
         }
         .accessibilityLabel(unread > 0 ? "\(folder.rawValue), \(unread) unread" : folder.rawValue)
-        .accessibilityAddTraits(selectedFolder == folder ? .isSelected : [])
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
         .glassEffect(
-            (selectedFolder == folder || isDropTarget) ? .regular.interactive() : .identity,
+            (isSelected || isDropTarget || isHovered) ? .regular.interactive() : .identity,
             in: .rect(cornerRadius: CornerRadius.sm)
         )
         .overlay(
@@ -469,7 +473,15 @@ struct SidebarView: View {
                 .strokeBorder(Color.accentColor.opacity(isDropTarget ? 0.4 : 0), lineWidth: 1.5)
         )
         .scaleEffect(isDropTarget ? ScaleToken.rowHover : 1.0)
+        .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
         .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isDropTarget)
+        .onHover { hovering in
+            if hovering {
+                hoveredFolder = folder
+            } else if hoveredFolder == folder {
+                hoveredFolder = nil
+            }
+        }
         .dropDestination(for: EmailDragItem.self) { items, _ in
             for item in items {
                 for msgId in item.messageIds {
@@ -515,6 +527,7 @@ struct SidebarView: View {
 
     private func labelButton(label: GmailLabel) -> some View {
         let isLabelSelected = selectedLabel?.id == label.id && selectedFolder == .labels
+        let isHovered = hoveredLabel == label.id
         let isDropTarget = dropTargetLabel == label.id
         let labelColor = Color(hex: label.color?.backgroundColor ?? "#888888")
 
@@ -533,12 +546,13 @@ struct SidebarView: View {
                     .frame(width: 20)
                     .accessibilityHidden(true)
             }
+            .foregroundStyle(isLabelSelected ? .primary : isHovered ? .primary : .secondary)
         }
         .fontWeight(isLabelSelected ? .medium : .regular)
         .accessibilityLabel(label.name)
         .accessibilityAddTraits(isLabelSelected ? .isSelected : [])
         .glassEffect(
-            (isLabelSelected || isDropTarget) ? .regular.interactive() : .identity,
+            (isLabelSelected || isDropTarget || isHovered) ? .regular.interactive() : .identity,
             in: .rect(cornerRadius: CornerRadius.sm)
         )
         .overlay(
@@ -546,7 +560,15 @@ struct SidebarView: View {
                 .strokeBorder(Color.accentColor.opacity(isDropTarget ? 0.4 : 0), lineWidth: 1.5)
         )
         .scaleEffect(isDropTarget ? ScaleToken.rowHover : 1.0)
+        .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
         .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isDropTarget)
+        .onHover { hovering in
+            if hovering {
+                hoveredLabel = label.id
+            } else if hoveredLabel == label.id {
+                hoveredLabel = nil
+            }
+        }
         .dropDestination(for: EmailDragItem.self) { items, _ in
             for item in items {
                 for msgId in item.messageIds {
