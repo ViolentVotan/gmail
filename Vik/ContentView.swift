@@ -184,20 +184,24 @@ struct ContentView: View {
                     defaultStartTime: newEventStartTime,
                     onSave: { input, calendarId, scope in
                         Task {
-                            if let draft = newCalendarEventDraft {
-                                try? await calendarVM.updateEvent(
-                                    calendarId: draft.calendarId,
-                                    eventId: draft.googleEventId,
-                                    accountID: draft.accountID,
-                                    etag: draft.etag,
-                                    input: input
-                                )
-                            } else {
-                                let id = calendarId ?? "primary"
-                                try? await calendarVM.createEvent(input, calendarId: id, accountID: coordinator.navigation.accountID)
+                            do {
+                                if let draft = newCalendarEventDraft {
+                                    try await calendarVM.updateEvent(
+                                        calendarId: draft.calendarId,
+                                        eventId: draft.googleEventId,
+                                        accountID: draft.accountID,
+                                        etag: draft.etag,
+                                        input: input
+                                    )
+                                } else {
+                                    let id = calendarId ?? "primary"
+                                    try await calendarVM.createEvent(input, calendarId: id, accountID: coordinator.navigation.accountID)
+                                }
+                                showNewCalendarEvent = false
+                            } catch {
+                                ToastManager.shared.show(message: "Failed to save event", type: .error)
                             }
                         }
-                        showNewCalendarEvent = false
                     },
                     onCancel: { showNewCalendarEvent = false }
                 )

@@ -19,6 +19,7 @@ final class CalendarCoordinator {
         if calendarViewModel == nil, let db {
             calendarViewModel = CalendarViewModel(db: db)
             calendarViewModel?.onEventMutated = { [weak self] in
+                await self?.calendarSyncEngine?.triggerSync()
                 await self?.calendarSyncEngine?.temporarilyTightenPolling()
             }
             calendarViewModel?.startObserving()
