@@ -97,7 +97,7 @@ struct AttachmentPreviewView: View {
                     .help("Reset zoom")
                     .accessibilityLabel("Reset zoom")
 
-                    Divider().frame(height: 16).padding(.horizontal, 4)
+                    Divider().frame(height: 16).padding(.horizontal, Spacing.xs)
                 }
             }
 
@@ -222,7 +222,7 @@ struct AttachmentPreviewView: View {
             }
             .buttonStyle(.borderedProminent)
             .clipShape(Capsule())
-            .padding(.top, 4)
+            .padding(.top, Spacing.xs)
 
             Spacer()
         }

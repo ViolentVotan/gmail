@@ -55,7 +55,7 @@ struct ComposeActionBar: View {
                 .buttonStyle(.glass)
                 .controlSize(.large)
                 .help("Discard")
-                .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.9)))
+                .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: ScaleToken.exitTo)))
 
                 ScheduleSendButton(
                     onSend: onSend,
@@ -68,7 +68,7 @@ struct ComposeActionBar: View {
                 .accessibilityLabel("Send")
                 .accessibilityHint("Sends the email. Use the dropdown to schedule.")
                 .sensoryFeedback(.success, trigger: sendHapticTrigger)
-                .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: 0.9)))
+                .transition(reduceMotion ? .opacity : .opacity.combined(with: .scale(scale: ScaleToken.exitTo)))
             }
         }
         .padding(.horizontal, Spacing.lg)

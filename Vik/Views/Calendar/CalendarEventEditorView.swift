@@ -212,7 +212,7 @@ struct CalendarEventEditorView: View {
                 .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
-                .padding(.top, 4)
+                .padding(.top, Spacing.xs)
 
             TextEditor(text: $viewModel.eventDescription)
                 .font(Typography.body)
@@ -224,7 +224,7 @@ struct CalendarEventEditorView: View {
                         Text("Description")
                             .font(Typography.body)
                             .foregroundStyle(.tertiary)
-                            .padding(.top, 4)
+                            .padding(.top, Spacing.xs)
                             .allowsHitTesting(false)
                     }
                 }
@@ -559,7 +559,7 @@ private struct ColorDot: View {
                     if isSelected {
                         Circle()
                             .strokeBorder(Color(nsColor: .windowBackgroundColor), lineWidth: 2)
-                            .padding(2)
+                            .padding(Spacing.xxs)
                     }
                 }
                 .overlay {

@@ -322,7 +322,7 @@ struct OnboardingView: View {
         isSigningIn = true
         signInError = nil
         if !reduceMotion {
-            withAnimation(.easeOut(duration: 0.5)) {
+            withAnimation(VikAnimation.onboardingOrbConverge) {
                 orb1Offset = .zero
                 orb2Offset = .zero
                 orb3Offset = .zero

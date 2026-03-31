@@ -62,7 +62,7 @@ struct AccountsSettingsView: View {
                             .font(Typography.captionSmallRegular)
                             .foregroundStyle(.secondary)
                             .padding(.horizontal, 5)
-                            .padding(.vertical, 1)
+                            .padding(.vertical, Spacing.xxxs)
                             .background(.quaternary, in: RoundedRectangle(cornerRadius: CornerRadius.xs))
                     }
                 }
@@ -79,7 +79,7 @@ struct AccountsSettingsView: View {
 
             reorderButtons(account: account, index: index)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, Spacing.xxs)
         .contextMenu { contextMenu(for: account, index: index) }
     }
 

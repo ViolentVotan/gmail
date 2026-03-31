@@ -88,7 +88,7 @@ struct AttachmentChipView: View {
             .disabled(isDownloading)
             .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isHovered)
             .onHover { isDownloadHovered = $0 }
-            .padding(.trailing, 4)
+            .padding(.trailing, Spacing.xs)
         }
         .background {
             ShareSheetAnchor { view in shareAnchorView = view }

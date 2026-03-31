@@ -142,7 +142,7 @@ struct OriginalMessageView: View {
                     Text("Loading original message…")
                         .font(Typography.subheadRegular)
                         .foregroundStyle(.tertiary)
-                        .padding(.top, 8)
+                        .padding(.top, Spacing.sm)
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, minHeight: 200)

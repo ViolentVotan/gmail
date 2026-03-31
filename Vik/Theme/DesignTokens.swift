@@ -154,6 +154,8 @@ enum VikAnimation {
     static let onboardingIconBounce = Animation.spring(response: 0.7, dampingFraction: 0.55)
     /// Onboarding button entrance — snappier spring for the sign-in button appearing.
     static let onboardingButtonEntrance = Animation.spring(response: 0.5, dampingFraction: 0.8)
+    /// Onboarding orb convergence — smooth ease-out for orbs returning to center during sign-in.
+    static let onboardingOrbConverge = Animation.easeOut(duration: 0.5)
     /// Orb drift — long looping ease for ambient floating orb movement.
     static func orbDrift(duration: Double, delay: Double = 0) -> Animation {
         .easeInOut(duration: duration).repeatForever(autoreverses: true).delay(delay)
@@ -211,6 +213,8 @@ enum ScaleToken {
     static let emphasis: CGFloat = 1.04
     /// Content entering view (scale-up from)
     static let enterFrom: CGFloat = 0.95
+    /// Content exiting view (scale-down to)
+    static let exitTo: CGFloat = 0.9
     /// Subtle hover lift on email rows (gentler than cards)
     static let rowHover: CGFloat = 1.01
 }

@@ -56,6 +56,7 @@ struct SignatureEditorView: View {
                 Text("Edit Signature")
                     .font(Typography.headline)
                     .foregroundStyle(.primary)
+                    .accessibilityAddTraits(.isHeader)
                 Text(alias.sendAsEmail)
                     .font(Typography.footnote)
                     .foregroundStyle(.tertiary)

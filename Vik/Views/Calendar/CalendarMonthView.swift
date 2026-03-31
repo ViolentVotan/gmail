@@ -213,7 +213,7 @@ struct CalendarMonthView: View {
                     .accessibilityAddTraits(.isHeader)
             }
         }
-        .padding(.horizontal, 1)
+        .padding(.horizontal, Spacing.xxxs)
         .background(.bar)
     }
 
@@ -369,8 +369,8 @@ private struct CalendarMonthDayCell: View {
 
             Spacer(minLength: 0)
         }
-        .padding(.horizontal, 2)
-        .padding(.vertical, 2)
+        .padding(.horizontal, Spacing.xxs)
+        .padding(.vertical, Spacing.xxs)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(content.isToday ? CalendarSemanticColor.todayHighlight : Color.clear)
         .background(

@@ -45,31 +45,31 @@ struct DebugMenuView: View {
                             : 0
                         ProgressView(value: progress)
                             .tint(.accentColor)
-                            .padding(.top, 4)
-                            .padding(.horizontal, 12)
+                            .padding(.top, Spacing.xs)
+                            .padding(.horizontal, Spacing.md)
                     }
 
                     if !viewModel.unsupportedTypes.isEmpty {
-                        Divider().padding(.horizontal, 12).padding(.vertical, 4)
+                        Divider().padding(.horizontal, Spacing.md).padding(.vertical, Spacing.xs)
                         Text("Unsupported MIME types")
-                            .font(.caption2.weight(.semibold))
+                            .font(Typography.captionSmall)
                             .foregroundStyle(.tertiary)
-                            .padding(.horizontal, 12)
+                            .padding(.horizontal, Spacing.md)
                         ForEach(viewModel.unsupportedTypes, id: \.mimeType) { entry in
                             HStack {
                                 Text(entry.mimeType)
-                                    .font(.caption.monospaced())
+                                    .font(Typography.captionMonospaced)
                                     .foregroundStyle(.secondary)
                                 Spacer()
                                 Text("×\(entry.count)")
                                     .font(.caption.weight(.medium).monospaced())
                                     .foregroundStyle(.tertiary)
                             }
-                            .padding(.horizontal, 12)
+                            .padding(.horizontal, Spacing.md)
                         }
                     }
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, Spacing.xs)
 
                 debugButton(icon: "arrow.clockwise", label: "Refresh Stats") {
                     Task { await viewModel.refreshIndexingStats(accountID: accountID) }
@@ -87,10 +87,10 @@ struct DebugMenuView: View {
             debugSection(title: "API Request Log (\(logger.entries.count))") {
                 if logger.entries.isEmpty {
                     Text("No requests yet")
-                        .font(.subheadline)
+                        .font(Typography.subheadRegular)
                         .foregroundStyle(.tertiary)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, Spacing.md)
+                        .padding(.vertical, Spacing.sm)
                 } else {
                     LazyVStack(spacing: 0) {
                         ForEach(logger.entries) { entry in
@@ -122,14 +122,14 @@ struct DebugMenuView: View {
     private func indexerStatRow(_ label: String, value: Int, color: Color) -> some View {
         HStack {
             Text(label)
-                .font(.subheadline)
+                .font(Typography.subheadRegular)
                 .foregroundStyle(.secondary)
             Spacer()
             Text("\(value)")
                 .font(.subheadline.weight(.semibold).monospaced())
                 .foregroundStyle(color)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, Spacing.md)
     }
 
     // MARK: - Log Entry Row
@@ -151,12 +151,12 @@ struct DebugMenuView: View {
                         .font(.caption2.weight(.bold).monospaced())
                         .foregroundStyle(Color.contrastingForeground(for: NSColor(badgeBackground)))
                         .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
+                        .padding(.vertical, Spacing.xxs)
                         .background(badgeBackground)
                         .clipShape(.rect(cornerRadius: CornerRadius.xs))
 
                     Text(entry.shortPath)
-                        .font(.caption.monospaced())
+                        .font(Typography.captionMonospaced)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.middle)
@@ -165,7 +165,7 @@ struct DebugMenuView: View {
 
                     if !entry.fromCache {
                         Text("\(entry.durationMs)ms")
-                            .font(.caption2)
+                            .font(Typography.captionSmallRegular)
                             .foregroundStyle(.tertiary)
                     }
 
@@ -175,7 +175,7 @@ struct DebugMenuView: View {
                         .frame(width: 40, alignment: .trailing)
 
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.caption2)
+                        .font(Typography.captionSmallRegular)
                         .foregroundStyle(.tertiary)
                 }
                 .padding(.horizontal, 10)
@@ -219,12 +219,12 @@ struct DebugMenuView: View {
                         detailSectionLabel("RESPONSE")
                         if let err = entry.errorMessage {
                             Text(err)
-                                .font(.caption2.weight(.semibold))
+                                .font(Typography.captionSmall)
                                 .foregroundStyle(SemanticColor.error)
                         }
                         Spacer()
                         Text("\(entry.responseSize) bytes · \(entry.date.formatted(.dateTime.hour().minute().second()))")
-                            .font(.caption2)
+                            .font(Typography.captionSmallRegular)
                             .foregroundStyle(.tertiary)
                     }
 
@@ -245,7 +245,7 @@ struct DebugMenuView: View {
                         HStack {
                             if entry.bodyTruncated {
                                 Text("Body truncated at 200 KB")
-                                    .font(.caption2)
+                                    .font(Typography.captionSmallRegular)
                                     .foregroundStyle(SemanticColor.warning)
                             }
                             Spacer()
@@ -254,18 +254,18 @@ struct DebugMenuView: View {
                                 NSPasteboard.general.setString(entry.responseBody, forType: .string)
                             } label: {
                                 Label("Copy body", systemImage: "doc.on.doc")
-                                    .font(.caption2)
+                                    .font(Typography.captionSmallRegular)
                                     .foregroundStyle(.tint)
                             }
                             .buttonStyle(.plain)
                         }
                         .padding(.horizontal, 10)
-                        .padding(.top, 4)
+                        .padding(.top, Spacing.xs)
 
                         scrollableMonoBlock(entry.responseBody, maxHeight: 360)
                     }
                 }
-                .padding(.bottom, 8)
+                .padding(.bottom, Spacing.sm)
                 .background(.opacity(0.6))
             }
         }
@@ -279,8 +279,8 @@ struct DebugMenuView: View {
             .foregroundStyle(.tertiary)
             .tracking(1)
             .padding(.horizontal, 10)
-            .padding(.top, 8)
-            .padding(.bottom, 2)
+            .padding(.top, Spacing.sm)
+            .padding(.bottom, Spacing.xxs)
     }
 
     private func monoBlock<Content: View>(@ViewBuilder content: () -> Content) -> some View {
@@ -290,7 +290,7 @@ struct DebugMenuView: View {
         .font(.caption2.monospaced())
         .textSelection(.enabled)
         .padding(.horizontal, 10)
-        .padding(.vertical, 4)
+        .padding(.vertical, Spacing.xs)
     }
 
     private func scrollableMonoBlock(_ text: String, maxHeight: CGFloat) -> some View {
@@ -305,7 +305,7 @@ struct DebugMenuView: View {
         .frame(maxHeight: maxHeight)
         .clipShape(.rect(cornerRadius: CornerRadius.xs))
         .padding(.horizontal, 10)
-        .padding(.bottom, 4)
+        .padding(.bottom, Spacing.xs)
     }
 
     // MARK: - Helpers
@@ -313,7 +313,7 @@ struct DebugMenuView: View {
     private func debugSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.caption.weight(.semibold))
+                .font(Typography.captionSemibold)
                 .foregroundStyle(.tertiary)
                 .textCase(.uppercase)
                 .tracking(0.5)
@@ -334,16 +334,16 @@ struct DebugMenuView: View {
         Button(action: action) {
             HStack(spacing: 10) {
                 Image(systemName: icon)
-                    .font(.body)
+                    .font(Typography.body)
                     .foregroundStyle(.tint)
                     .frame(width: 20)
                 Text(label)
-                    .font(.body)
+                    .font(Typography.body)
                     .foregroundStyle(.secondary)
                 Spacer()
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
             .glassOrMaterial(in: .rect(cornerRadius: CornerRadius.sm), interactive: true)
         }
         .buttonStyle(.plain)

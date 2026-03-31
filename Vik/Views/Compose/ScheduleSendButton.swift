@@ -25,7 +25,7 @@ struct ScheduleSendButton: View {
 
             Divider()
                 .frame(height: 20)
-                .padding(.horizontal, 2)
+                .padding(.horizontal, Spacing.xxs)
 
             Button {
                 showSchedulePicker = true

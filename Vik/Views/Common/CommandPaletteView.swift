@@ -15,7 +15,7 @@ struct CommandPaletteView: View {
         .transition(
             .asymmetric(
                 insertion: .opacity.combined(with: .scale(scale: ScaleToken.enterFrom)),
-                removal: .opacity.combined(with: .scale(scale: 0.9))
+                removal: .opacity.combined(with: .scale(scale: ScaleToken.exitTo))
             )
         )
         .frame(width: 500)

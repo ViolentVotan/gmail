@@ -43,6 +43,7 @@ struct AttachmentExplorerView: View {
                 Text("Attachments")
                     .font(Typography.titleLarge)
                     .foregroundStyle(.primary)
+                    .accessibilityAddTraits(.isHeader)
 
                 Spacer()
 
@@ -86,7 +87,7 @@ struct AttachmentExplorerView: View {
 
                 Divider()
                     .frame(height: 16)
-                    .padding(.horizontal, 4)
+                    .padding(.horizontal, Spacing.xs)
 
                 // Direction filters
                 filterChip(label: "Received", isSelected: store.filterDirection == .received) {
@@ -98,7 +99,7 @@ struct AttachmentExplorerView: View {
 
                 Divider()
                     .frame(height: 16)
-                    .padding(.horizontal, 4)
+                    .padding(.horizontal, Spacing.xs)
 
                 rulesChip
             }
@@ -196,6 +197,7 @@ struct AttachmentExplorerView: View {
             Text("Exclusion Rules")
                 .font(Typography.bodySemibold)
                 .foregroundStyle(.primary)
+                .accessibilityAddTraits(.isHeader)
 
             if store.exclusionRules.isEmpty {
                 Text("Right-click an attachment to add a rule")
@@ -219,7 +221,7 @@ struct AttachmentExplorerView: View {
                             .buttonStyle(.plain)
                             .accessibilityLabel("Remove exclusion rule")
                         }
-                        .padding(.vertical, 2)
+                        .padding(.vertical, Spacing.xxs)
                     }
                 }
             }

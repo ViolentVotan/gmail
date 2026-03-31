@@ -93,7 +93,7 @@ struct CalendarEventDetailView: View {
                 .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
-                .padding(.top, 2)
+                .padding(.top, Spacing.xxs)
 
             VStack(alignment: .leading, spacing: 2) {
                 if event.isAllDay {
@@ -124,7 +124,7 @@ struct CalendarEventDetailView: View {
                             .font(Typography.caption)
                     }
                     .foregroundStyle(.secondary)
-                    .padding(.top, 2)
+                    .padding(.top, Spacing.xxs)
                 }
             }
         }
@@ -144,7 +144,7 @@ struct CalendarEventDetailView: View {
                     .font(.system(size: CalendarLayout.editorIconSize))
                     .foregroundStyle(BrandColor.blueText)
                     .frame(width: 18)
-                    .padding(.top, 2)
+                    .padding(.top, Spacing.xxs)
 
                 Text(event.location ?? "")
                     .font(Typography.body)
@@ -196,7 +196,7 @@ struct CalendarEventDetailView: View {
                 .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
-                .padding(.top, 2)
+                .padding(.top, Spacing.xxs)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text("Organizer")
@@ -260,7 +260,7 @@ struct CalendarEventDetailView: View {
                 .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
-                .padding(.top, 2)
+                .padding(.top, Spacing.xxs)
 
             Text(event.description ?? "")
                 .font(Typography.body)
@@ -278,7 +278,7 @@ struct CalendarEventDetailView: View {
                 .font(.system(size: CalendarLayout.editorIconSize))
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
-                .padding(.top, 2)
+                .padding(.top, Spacing.xxs)
 
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(Array(event.reminders.enumerated()), id: \.offset) { _, reminder in
@@ -302,7 +302,7 @@ struct CalendarEventDetailView: View {
                     rsvpButton(.declined, icon: "xmark", label: "Decline")
                     Divider()
                         .frame(height: 20)
-                        .padding(.horizontal, 2)
+                        .padding(.horizontal, Spacing.xxs)
                 }
 
                 if event.canEdit {

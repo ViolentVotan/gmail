@@ -44,6 +44,7 @@ struct ShortcutsHelpView: View {
                         .foregroundStyle(.tertiary)
                         .textCase(.uppercase)
                         .tracking(0.5)
+                        .accessibilityAddTraits(.isHeader)
 
                     VStack(spacing: 2) {
                         ForEach(section.shortcuts, id: \.keys) { shortcut in

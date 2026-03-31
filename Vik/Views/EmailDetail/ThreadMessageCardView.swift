@@ -305,7 +305,7 @@ struct ThreadMessageCardView: View, Equatable {
                     .font(message.isUnread ? Typography.calloutSemibold : Typography.callout)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
-                    .padding(.leading, 8)
+                    .padding(.leading, Spacing.sm)
             }
             .contactPopover(
                 contact: sender,

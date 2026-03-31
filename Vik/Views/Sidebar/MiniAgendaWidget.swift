@@ -51,7 +51,7 @@ struct MiniAgendaWidget: View {
         }
         .buttonStyle(.plain)
         .padding(.horizontal, Spacing.xs)
-        .padding(.vertical, 2)
+        .padding(.vertical, Spacing.xxs)
         .glassEffect(isHeaderHovered ? .regular.interactive() : .identity, in: .rect(cornerRadius: CornerRadius.sm))
         .onHover { isHeaderHovered = $0 }
         .accessibilityLabel("\(headerTitle) calendar events")
@@ -118,7 +118,7 @@ struct MiniAgendaWidget: View {
             .font(Typography.captionSmall)
             .foregroundStyle(Color.contrastingForeground(for: NSColor(BrandColor.blue)))
             .padding(.horizontal, 5)
-            .padding(.vertical, 1)
+            .padding(.vertical, Spacing.xxxs)
             .background(BrandColor.blue, in: Capsule())
     }
 
@@ -132,7 +132,7 @@ struct MiniAgendaWidget: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.top, 2)
+        .padding(.top, Spacing.xxs)
     }
 
     // MARK: - Helpers

@@ -187,7 +187,7 @@ struct LabelEditorView: View {
                 }
             }
             .padding(.horizontal, 10)
-            .padding(.vertical, 8)
+            .padding(.vertical, Spacing.sm)
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.sm)
                     .fill(isHighlighted ? Color.accentColor.opacity(OpacityToken.interactive) : Color.clear)

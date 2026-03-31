@@ -43,7 +43,7 @@ struct CalendarEventCard: View {
                     }
                 }
                 .padding(.horizontal, Spacing.xs)
-                .padding(.vertical, 2)
+                .padding(.vertical, Spacing.xxs)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .frame(height: max(height, CalendarLayout.eventCardMinHeight))
