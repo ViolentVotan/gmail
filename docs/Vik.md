@@ -1,6 +1,6 @@
 # Vik — Architecture Overview
 
-macOS Gmail client built with Swift/SwiftUI. `NavigationSplitView` 3-column layout (sidebar, email list, email detail) with Liquid Glass chrome. Dual-mode: Mail and Calendar, switchable via sidebar segmented control (⌘1/⌘2).
+macOS Gmail client built with Swift/SwiftUI. Custom 3-column layout (sidebar `HStack`, email list + detail `HStack`) with Liquid Glass chrome. Dual-mode: Mail and Calendar, switchable via sidebar segmented control (⌘1/⌘2). Mode-aware toolbar: unified `ToolbarWrapper` at window level conditionally shows `EmailToolbarItems` (mail) or `CalendarToolbarItems` (calendar) for consistent positioning across modes.
 
 ## Folder Structure
 
@@ -32,7 +32,7 @@ macOS Gmail client built with Swift/SwiftUI. `NavigationSplitView` 3-column layo
 
 `VikApp.swift` -> registers `UserDefaults` defaults (notifications, undo duration, AI labels) in `init()`, then routes to `OnboardingView` or `ContentView` based on `@AppStorage("isSignedIn")`. Also registers the `Settings` scene (Cmd+,) with `SettingsView`.
 
-`ContentView.swift` is the main orchestrator: owns ViewModels, wires callbacks, manages navigation state. Uses `NavigationSplitView` for the three-column layout with `@FocusState` pane cycling (Opt+Tab). Sidebar collapse (`⌘\`) toggles between 220pt expanded and 52pt icon-only mode; the built-in sidebar toggle is suppressed (`.toolbar(removing: .sidebarToggle)`) in favor of a custom toggle. `columnVisibility` is locked to `.all` — collapse is managed via `isSidebarCollapsed` state, not NavigationSplitView's visibility system. Advertises `NSUserActivity` for Handoff when viewing an email.
+`ContentView.swift` is the main orchestrator: owns ViewModels, wires callbacks, manages navigation state. Uses custom `HStack`-based layouts for both sidebar and list/detail splits (no `NavigationSplitView` — avoids macOS toolbar coordinate-space interference between mail and calendar modes). `@FocusState` pane cycling (Opt+Tab). Sidebar collapse (`⌘\`) toggles between 220pt expanded and 52pt icon-only mode via `isSidebarCollapsed` state. Mode-aware `ToolbarWrapper` at window level renders `EmailToolbarItems` in mail mode or `CalendarToolbarItems` in calendar mode, ensuring consistent toolbar positioning across modes. Advertises `NSUserActivity` for Handoff when viewing an email.
 
 ## Key Patterns
 

@@ -34,7 +34,7 @@ struct ContentView: View {
                 .frame(minWidth: 1100, minHeight: 600)
                 .focusedSceneValue(\.appCoordinator, coordinator)
                 .focusedSceneValue(\.commandPalette, commandPalette)
-                .toolbar { ToolbarWrapper(coordinator: coordinator, isSidebarCollapsed: $isSidebarCollapsed, reduceMotion: reduceMotion, showSnoozePicker: $showSnoozePicker) }
+                .toolbar { ToolbarWrapper(coordinator: coordinator, isSidebarCollapsed: $isSidebarCollapsed, reduceMotion: reduceMotion, showSnoozePicker: $showSnoozePicker, showNewCalendarEvent: $showNewCalendarEvent) }
                 .alert("Empty Trash", isPresented: $dialogs.showEmptyTrashConfirm) {
                     Button("Cancel", role: .cancel) {}
                     Button("Delete All", role: .destructive) {
@@ -218,13 +218,14 @@ struct ContentView: View {
 
     // MARK: - Toolbar (Observation Boundary)
 
-    /// Isolates toolbar reads (`selectedEmail`, `selectedFolder`, `isAnyOpen`)
-    /// so changes to these properties don't invalidate all of ContentView.body.
+    /// Unified toolbar — mode-aware, but all items in a single coordinate space
+    /// so positions stay consistent between mail and calendar modes.
     private struct ToolbarWrapper: ToolbarContent {
         let coordinator: AppCoordinator
         @Binding var isSidebarCollapsed: Bool
         let reduceMotion: Bool
         @Binding var showSnoozePicker: Bool
+        @Binding var showNewCalendarEvent: Bool
 
         var body: some ToolbarContent {
             ToolbarItem(placement: .navigation) {
@@ -241,26 +242,32 @@ struct ContentView: View {
                 .sensoryFeedback(.impact(flexibility: .soft), trigger: isSidebarCollapsed)
             }
 
-            EmailToolbarItems(
-                selectedEmail: coordinator.selection.selectedEmail,
-                selectedFolder: coordinator.navigation.selectedFolder,
-                isAnyPanelOpen: coordinator.panelCoordinator.isAnyOpen,
-                showSnoozePicker: $showSnoozePicker,
-                onCompose: { coordinator.composeNewEmail() },
-                onReply: { email in coordinator.startCompose(mode: EmailDetailViewModel.replyMode(for: email)) },
-                onArchive: { email in Task { await coordinator.actionCoordinator.archiveEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
-                onDelete: { email in Task { await coordinator.actionCoordinator.deleteEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
-                onSnooze: { email, date in Task { await coordinator.actionCoordinator.snoozeEmail(email, until: date, selectNext: { coordinator.selection.selectNext($0) }) } },
-                onReplyAll: { email in coordinator.startCompose(mode: EmailDetailViewModel.replyAllMode(for: email)) },
-                onForward: { email in coordinator.startCompose(mode: EmailDetailViewModel.forwardMode(for: email)) },
-                onToggleStar: { email in Task { await coordinator.actionCoordinator.toggleStarEmail(email) } },
-                onMarkUnread: { email in Task { await coordinator.actionCoordinator.markUnreadEmail(email) } },
-                onMoveToInbox: { email in Task { await coordinator.actionCoordinator.moveToInboxEmail(email, selectedFolder: coordinator.navigation.selectedFolder, selectNext: { coordinator.selection.selectNext($0) }) } },
-                onPrint: { email in Task { await coordinator.actionCoordinator.printEmail(email) } },
-                onMarkNotSpam: { email in Task { await coordinator.actionCoordinator.markNotSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
-                onMarkSpam: { email in Task { await coordinator.actionCoordinator.markSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
-                onDeletePermanently: { email in Task { await coordinator.actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } }
-            )
+            if coordinator.calendar.viewMode == .calendar {
+                CalendarToolbarItems(
+                    onNewEvent: { showNewCalendarEvent = true }
+                )
+            } else {
+                EmailToolbarItems(
+                    selectedEmail: coordinator.selection.selectedEmail,
+                    selectedFolder: coordinator.navigation.selectedFolder,
+                    isAnyPanelOpen: coordinator.panelCoordinator.isAnyOpen,
+                    showSnoozePicker: $showSnoozePicker,
+                    onCompose: { coordinator.composeNewEmail() },
+                    onReply: { email in coordinator.startCompose(mode: EmailDetailViewModel.replyMode(for: email)) },
+                    onArchive: { email in Task { await coordinator.actionCoordinator.archiveEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
+                    onDelete: { email in Task { await coordinator.actionCoordinator.deleteEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
+                    onSnooze: { email, date in Task { await coordinator.actionCoordinator.snoozeEmail(email, until: date, selectNext: { coordinator.selection.selectNext($0) }) } },
+                    onReplyAll: { email in coordinator.startCompose(mode: EmailDetailViewModel.replyAllMode(for: email)) },
+                    onForward: { email in coordinator.startCompose(mode: EmailDetailViewModel.forwardMode(for: email)) },
+                    onToggleStar: { email in Task { await coordinator.actionCoordinator.toggleStarEmail(email) } },
+                    onMarkUnread: { email in Task { await coordinator.actionCoordinator.markUnreadEmail(email) } },
+                    onMoveToInbox: { email in Task { await coordinator.actionCoordinator.moveToInboxEmail(email, selectedFolder: coordinator.navigation.selectedFolder, selectNext: { coordinator.selection.selectNext($0) }) } },
+                    onPrint: { email in Task { await coordinator.actionCoordinator.printEmail(email) } },
+                    onMarkNotSpam: { email in Task { await coordinator.actionCoordinator.markNotSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
+                    onMarkSpam: { email in Task { await coordinator.actionCoordinator.markSpamEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } },
+                    onDeletePermanently: { email in Task { await coordinator.actionCoordinator.deletePermanentlyEmail(email, selectNext: { coordinator.selection.selectNext($0) }) } }
+                )
+            }
         }
     }
 
@@ -390,6 +397,8 @@ struct ContentView: View {
 
     /// Isolates list/detail navigation reads from `mainLayout` so changes
     /// to list-specific coordinator properties don't invalidate the parent.
+    /// Uses manual HSplitView instead of NavigationSplitView to avoid
+    /// toolbar coordinate-space interference between mail and calendar modes.
     private struct ListDetailSplitView: View {
         let coordinator: AppCoordinator
         @Binding var columnVisibility: NavigationSplitViewVisibility
@@ -399,7 +408,7 @@ struct ContentView: View {
         var body: some View {
             @Bindable var navigation = coordinator.navigation
             @Bindable var selection = coordinator.selection
-            NavigationSplitView(columnVisibility: $columnVisibility) {
+            HStack(spacing: 0) {
                 if coordinator.navigation.selectedFolder == .attachments {
                     AttachmentExplorerView(
                         store: coordinator.attachmentStore,
@@ -410,8 +419,6 @@ struct ContentView: View {
                         },
                         onDownloadAttachment: coordinator.downloadAttachment
                     )
-                    .navigationTitle("Attachments")
-                    .toolbar(removing: .sidebarToggle)
                 } else {
                     ListPaneView(
                         emails: coordinator.selection.displayedEmails,
@@ -434,13 +441,16 @@ struct ContentView: View {
                         selectedEmails: coordinator.selection.selectedEmails,
                         clearSelection: { coordinator.selection.clearSelection() }
                     )
+                    .frame(width: 360)
                     .focused(appFocus, equals: .list)
+
+                    Divider()
                 }
-            } detail: {
+
                 DetailPaneContainer(coordinator: coordinator)
+                    .frame(maxWidth: .infinity)
                     .focused(appFocus, equals: .detail)
             }
-            .navigationSplitViewStyle(.balanced)
         }
     }
 
