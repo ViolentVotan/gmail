@@ -53,7 +53,7 @@ struct HoverActionButtonsView: View {
 
     var body: some View {
         if hasVisibleButtons {
-            HStack(spacing: 2) {
+            HStack(spacing: Spacing.xxs) {
                 if showArchive {
                     hoverButton("archivebox", help: "Archive") {
                         actions.onArchive?(email)

@@ -99,7 +99,7 @@ private struct UndoToastCard: View {
             })
         }
         .transientGlass()
-        .frame(width: 320)
+        .frame(maxWidth: 320)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(action.label). Undo available.")
         .onAppear {
@@ -162,7 +162,7 @@ private struct OfflineToastCard: View {
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.md)
         .transientGlass()
-        .frame(width: 320)
+        .frame(maxWidth: 320)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("No internet connection")
         .onAppear {
@@ -201,7 +201,7 @@ private struct GeneralToastCard: View {
         .padding(.horizontal, Spacing.lg)
         .padding(.vertical, Spacing.md)
         .transientGlass()
-        .frame(width: 320)
+        .frame(maxWidth: 320)
         .onTapGesture { toastMgr.dismiss(toast) }
         .accessibilityAddTraits([.isButton, .updatesFrequently])
         .onAppear {

@@ -267,13 +267,13 @@ private struct CalendarDayHourRow: View {
             // Tappable slot area
             Rectangle()
                 .fill(isHovered
-                    ? Color.primary.opacity(0.04)
+                    ? Color.primary.opacity(OpacityToken.subtle)
                     : Color.clear)
                 .frame(maxWidth: .infinity)
                 .frame(height: CalendarLayout.hourRowHeight)
                 .overlay(alignment: .top) {
                     Divider()
-                        .opacity(0.04)
+                        .opacity(OpacityToken.subtle)
                 }
                 .contentShape(Rectangle())
                 .onHover { isHovered = $0 }

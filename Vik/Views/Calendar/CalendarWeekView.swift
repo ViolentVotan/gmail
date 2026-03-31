@@ -212,7 +212,7 @@ struct CalendarWeekView: View {
         let dayCount = weekCache.weekDays.count
         let todayFill = CalendarSemanticColor.todayHighlight
         let weekendFill = Color.primary.opacity(CalendarSemanticColor.weekendColumnOpacity * 0.02)
-        let dividerColor = Color.primary.opacity(0.04)
+        let dividerColor = Color.primary.opacity(OpacityToken.subtle)
 
         return LazyVStack(spacing: 0) {
             ForEach(hours, id: \.self) { hour in
@@ -223,7 +223,7 @@ struct CalendarWeekView: View {
                         .foregroundStyle(.tertiary)
                         .frame(width: CalendarLayout.timeColumnWidth, alignment: .trailing)
                         .padding(.trailing, Spacing.xs)
-                        .offset(y: -7)
+                        .offset(y: CalendarLayout.hourLabelVerticalOffset)
                         .accessibilityHidden(true)
 
                     // Day columns drawn via Canvas — replaces 7 Rectangles + ~13 Dividers per row

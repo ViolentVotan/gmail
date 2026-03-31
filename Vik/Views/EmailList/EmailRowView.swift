@@ -210,6 +210,7 @@ struct EmailRowView: View, Equatable {
                         Text(nudge)
                             .font(Typography.captionSmallRegular)
                             .foregroundStyle(SemanticColor.warning)
+                            .lineLimit(1)
                     }
 
                     if !labelBadges.isEmpty || (showTags && !tagBadges.isEmpty) {
@@ -265,7 +266,7 @@ struct EmailRowView: View, Equatable {
             .background {
                 if !email.isRead && !isSelected {
                     RoundedRectangle(cornerRadius: CornerRadius.sm)
-                        .fill(.tint.opacity(0.03))
+                        .fill(.tint.opacity(OpacityToken.tint))
                 }
             }
             .padding(.horizontal, Spacing.sm)
@@ -287,7 +288,7 @@ struct EmailRowView: View, Equatable {
             in: .rect(cornerRadius: CornerRadius.sm)
         )
         .background(
-            Color.primary.opacity(isHovered && !isSelected ? 0.06 : 0),
+            Color.primary.opacity(isHovered && !isSelected ? OpacityToken.hoverFill : 0),
             in: .rect(cornerRadius: CornerRadius.sm)
         )
         .sensoryFeedback(.selection, trigger: isSelected)

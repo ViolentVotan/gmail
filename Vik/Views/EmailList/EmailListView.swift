@@ -823,7 +823,7 @@ private struct EmailSkeletonRowView: View {
         LinearGradient(
             stops: [
                 .init(color: .clear, location: max(0, shimmerPhase - 0.2)),
-                .init(color: ShimmerColor.highlight.opacity(0.06), location: shimmerPhase),
+                .init(color: ShimmerColor.highlight.opacity(OpacityToken.hoverFill), location: shimmerPhase),
                 .init(color: .clear, location: min(1, shimmerPhase + 0.2))
             ],
             startPoint: .leading,

@@ -64,7 +64,7 @@ struct CalendarMonthEventChip: View {
                 in: .rect(cornerRadius: CornerRadius.sm)
             )
             .shadow(
-                color: isHovered ? event.resolvedColor.opacity(0.2) : .clear,
+                color: isHovered ? event.resolvedColor.opacity(OpacityToken.accent) : .clear,
                 radius: isHovered ? 4 : 0,
                 y: isHovered ? 2 : 0
             )
@@ -133,7 +133,7 @@ struct CalendarMonthSpanningBar: View {
                     )
                 )
                 .shadow(
-                    color: isHovered ? event.resolvedColor.opacity(0.2) : .clear,
+                    color: isHovered ? event.resolvedColor.opacity(OpacityToken.accent) : .clear,
                     radius: isHovered ? 4 : 0,
                     y: isHovered ? 2 : 0
                 )

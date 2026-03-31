@@ -57,7 +57,7 @@ struct CalendarEventCard: View {
             )
             .scaleEffect(reduceMotion ? 1.0 : (isPressed ? ScaleToken.press : (isHovered ? ScaleToken.hover : 1.0)))
             .shadow(
-                color: isHovered ? event.resolvedColor.opacity(0.2) : .clear,
+                color: isHovered ? event.resolvedColor.opacity(OpacityToken.accent) : .clear,
                 radius: isHovered ? 4 : 0,
                 y: isHovered ? 2 : 0
             )

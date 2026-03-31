@@ -328,7 +328,7 @@ struct ComposeView: View {
                 Text("Bcc")
                     .font(Typography.subhead)
                     .foregroundStyle(showBcc ? Color.accentColor : Color.secondary)
-                    .frame(height: 28)
+                    .frame(width: ButtonSize.md, height: ButtonSize.md)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -453,8 +453,8 @@ struct ComposeView: View {
     // MARK: - Fields
 
     private func composeField(label: String, text: Binding<String>, placeholder: String = "", required: Bool = false) -> some View {
-        HStack(spacing: 10) {
-            HStack(spacing: 2) {
+        HStack(spacing: Spacing.sm) {
+            HStack(spacing: Spacing.xxs) {
                 Text(label)
                     .font(Typography.subhead)
                     .foregroundStyle(.tertiary)

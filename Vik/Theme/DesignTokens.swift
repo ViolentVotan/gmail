@@ -165,18 +165,28 @@ enum VikAnimation {
 // MARK: - Opacity Tokens
 
 enum OpacityToken {
-    /// Disabled controls, inactive elements
-    static let disabled: CGFloat = 0.5
-    /// Secondary foregrounds, muted icons
-    static let secondary: CGFloat = 0.7
+    /// Barely visible tint — unread row accent, today column highlight
+    static let tint: CGFloat = 0.03
+    /// Ultra-subtle grid lines, canvas dividers
+    static let subtle: CGFloat = 0.04
+    /// Hover background, subtle surface emphasis
+    static let hoverFill: CGFloat = 0.06
     /// Subtle background tints, hover highlights
     static let highlight: CGFloat = 0.08
     /// Badge/chip/tag backgrounds
     static let tag: CGFloat = 0.12
     /// Selection tint, interactive element backgrounds
     static let interactive: CGFloat = 0.15
+    /// Calendar event chip accents, accent color backgrounds
+    static let accent: CGFloat = 0.2
+    /// Muted foregrounds, faded elements, placeholder text
+    static let muted: CGFloat = 0.3
+    /// Disabled controls, inactive elements
+    static let disabled: CGFloat = 0.5
     /// Divider lines, subtle borders
     static let divider: CGFloat = 0.5
+    /// Secondary foregrounds, muted icons
+    static let secondary: CGFloat = 0.7
     /// Modal/scrim overlays
     static let overlay: CGFloat = 0.45
 }
@@ -630,6 +640,9 @@ enum CalendarLayout {
     static let miniMonthDaySize: CGFloat = 28
     /// Maximum number of events shown inline in the mini agenda before a "more" link.
     static let miniAgendaMaxEvents: Int = 5
+
+    /// Vertical offset to center hour labels on the hour divider line in week/day views.
+    static let hourLabelVerticalOffset: CGFloat = -7
 
     // MARK: - Icon sizes (editor & detail views)
 

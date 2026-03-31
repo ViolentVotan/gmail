@@ -85,8 +85,8 @@ struct ListPaneView: View {
         .navigationSplitViewColumnWidth(min: 300, ideal: 380, max: 480)
         .navigationTitle(navigationTitleText)
         .toolbar(removing: .sidebarToggle)
-        .safeAreaPadding(.leading, isSidebarCollapsed ? 8 : 0)
-        .safeAreaPadding(.top, isSidebarCollapsed ? 6 : 0)
+        .safeAreaPadding(.leading, isSidebarCollapsed ? Spacing.sm : 0)
+        .safeAreaPadding(.top, isSidebarCollapsed ? Spacing.xsm : 0)
         .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isSidebarCollapsed)
         .sheet(item: $filterEmail) { email in
             FilterEditorView(

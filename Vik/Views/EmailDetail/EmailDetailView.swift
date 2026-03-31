@@ -109,7 +109,7 @@ struct EmailDetailView: View {
                                 .overlay(alignment: .top) {
                                     if colorScheme == .dark {
                                         LinearGradient(
-                                            colors: [Color(nsColor: .windowBackgroundColor).opacity(0.3), .clear],
+                                            colors: [Color(nsColor: .windowBackgroundColor).opacity(OpacityToken.muted), .clear],
                                             startPoint: .top,
                                             endPoint: .bottom
                                         )
@@ -120,7 +120,7 @@ struct EmailDetailView: View {
                                 .overlay(alignment: .bottom) {
                                     if colorScheme == .dark {
                                         LinearGradient(
-                                            colors: [.clear, Color(nsColor: .windowBackgroundColor).opacity(0.3)],
+                                            colors: [.clear, Color(nsColor: .windowBackgroundColor).opacity(OpacityToken.muted)],
                                             startPoint: .top,
                                             endPoint: .bottom
                                         )
@@ -261,7 +261,7 @@ struct EmailDetailView: View {
             .padding(.top, Spacing.xl)
             .padding(.bottom, Spacing.sm)
 
-            HStack(spacing: 6) {
+            HStack(spacing: Spacing.xsm) {
                 LabelEditorView(
                     currentLabelIDs: currentLabelIDs,
                     allLabels: allLabels,
