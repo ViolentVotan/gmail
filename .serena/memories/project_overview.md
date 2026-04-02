@@ -10,7 +10,7 @@ Native macOS Gmail client. Swift 6.2 / SwiftUI. 3-column layout (sidebar, email 
 ## Key Features
 - Multi-account Gmail via OAuth 2.0
 - Delta sync (Gmail History API)
-- Full Google Calendar integration (week/day/agenda views, deep email↔calendar integration, offline queue with etag conflict resolution)
+- Full Google Calendar integration (month/week/day/agenda views, deep email↔calendar integration, offline queue with etag conflict resolution)
 - Tracker blocking (pixels, domains, CSS)
 - Optimistic UI with undo system
 - Draft auto-save with 2s debounce

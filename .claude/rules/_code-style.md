@@ -1,7 +1,7 @@
 ---
 paths:
   - "**/*.swift"
-# hash: bebd5422f42b03b74d823b87686e1126
+# hash: 802635a437b02d584c89448d17a0b4cd
 ---
 
 <!-- Auto-synced from .serena/memories/code_style.md by PostCompact hook.
@@ -38,16 +38,16 @@ Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). Al
 
 ## Architecture (MVVM)
 - **Services**: Singletons via `static let shared` + `private init()`. `@MainActor` when touching UI state; `@concurrent` on I/O-bound methods. Dependency injection via initializer params for testability.
-- **ViewModels**: `@Observable @MainActor final class` — 21 VMs/coordinators follow this pattern (incl. `MailStore`, `SyncProgressManager`, `FiltersViewModel`, `CalendarViewModel`, `AttachmentStore`, `EmailSummaryViewModel`, `CommandPaletteViewModel`, `PanelCoordinator`). No `@Published`, no `ObservableObject`. Properties are plain `var` tracked by `@Observable` macro.
+- **ViewModels**: `@Observable @MainActor final class` — all VMs/coordinators in ViewModels/ follow this pattern (23 types: AppCoordinator + 7 sub-coordinators, domain VMs, stores). No `@Published`, no `ObservableObject`. Properties are plain `var` tracked by `@Observable` macro.
 - **Views**: Pure SwiftUI rendering. No business logic. Access data via ViewModels only.
 - **Models**: Value types (struct). Never reference services.
 - **No exceptions**: All classes use `@Observable` — zero remaining `ObservableObject` conformances.
 
 ## SwiftUI Patterns
-- **`@Observable`** macro on all 21 VMs/coordinators (incl. `MailStore`, `SyncProgressManager`, `CalendarViewModel`, `AttachmentStore`, `PanelCoordinator`, `EmailSummaryViewModel`, `CommandPaletteViewModel`, `ContactPopoverViewModel`), `AppearanceManager`, and services (`OfflineActionQueue`, `CalendarOfflineActionQueue`, `SubscriptionsStore`, `SnoozeMonitor`, `ToastManager`, `UndoActionManager`, `ScheduledSendStore`, `SnoozeStore`, `APILogger`, `ThumbnailCache`, `NetworkMonitor`, `PerAccountFileStore`)
+- **`@Observable`** macro on all 23 VMs/coordinators in ViewModels/, plus `AppearanceManager` (Theme), view-local state helpers (e.g. `WebRichTextEditorState`), and reactive services (`OfflineActionQueue`, `CalendarOfflineActionQueue`, `SubscriptionsStore`, `SnoozeMonitor`, `ToastManager`, `UndoActionManager`, `ScheduledSendStore`, `SnoozeStore`, `APILogger`, `ThumbnailCache`, `NetworkMonitor`, `PerAccountFileStore`)
 - **`@State`** for ViewModel ownership in views (not `@StateObject`)
 - **`@Bindable`** for child views needing two-way bindings to `@Observable` objects
-- **Theming**: `AppearanceManager` (`@Observable @MainActor final class`) owns light/dark preference; `DesignTokens.swift` provides static enums (`Spacing`, `ButtonSize`, `CornerRadius`, `VikAnimation`, `Typography`, `CalendarColor`, `CalendarLayout`, `CalendarSemanticColor`) and view modifiers (`elevation`, `destructiveActionStyle`, `floatingPanelStyle`, `glassOrMaterial`). `CalendarLayout` includes `yPosition(for:)` and `eventHeight(start:end:clampToMinHeight:)` shared methods for calendar grid positioning. Use standard `@Environment(\.colorScheme)` for light/dark — there is no custom theme environment key.
+- **Theming**: `AppearanceManager` (`@Observable @MainActor final class`) owns light/dark preference; `DesignTokens.swift` provides 20+ enums covering spacing, sizing, colors, animation, typography, calendar layout, and semantic tokens — plus view modifiers (`elevation`, `destructiveActionStyle`, `floatingPanelStyle`, `dropdownPanelStyle`, `glassOrMaterial`, `pointingHandCursor`). Run `get_symbols_overview` on `Theme/DesignTokens.swift` for the full list. Key conventions: `BrandColor.blueText` for text/icon foreground (4.5:1 contrast in both light/dark); `BrandColor.blue` for backgrounds/fills only. `Spacing` scale: `xxxs(1)` through `xxl(32)` — use `xsm(6)` for chip/pill internal padding. `CalendarLayout` includes `yPosition(for:)` and `eventHeight(start:end:clampToMinHeight:)` shared methods. Use standard `@Environment(\.colorScheme)` for light/dark — there is no custom theme environment key.
 - No `@StateObject` or `@EnvironmentObject` anywhere — fully migrated away
 - `@State` for local view state, `@Binding` for parent-child communication
 - `.task { }` for async loading (auto-cancels on disappear)

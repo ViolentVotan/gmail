@@ -21,18 +21,26 @@ Vik/                      # Main app
 │   └── Protocols/           # Service protocols (MessageFetching)
 ├── ViewModels/              # @Observable state management
 │   ├── AppCoordinator       # App-level state coordination (mail + calendar modes)
+│   │   ├── NavigationCoordinator   # Folder/account/label/category selection
+│   │   ├── SelectionCoordinator    # Email selection + displayedEmails cache
+│   │   ├── ComposeCoordinator      # Compose mode + signatures
+│   │   ├── CalendarCoordinator     # viewMode + CalendarViewModel + CalendarSyncEngine
+│   │   ├── DialogCoordinator       # Confirmation dialogs
+│   │   ├── SyncCoordinator         # mailDatabase + syncEngine + backgroundSyncer + contacts
+│   │   └── PanelCoordinator        # Help panel, email detail panel visibility
 │   ├── MailboxViewModel     # Email list for account+folder
 │   ├── CalendarViewModel    # Calendar UI state + CRUD + reactive DB observation (default: month view)
-
+│   ├── CalendarEventEditorViewModel # Calendar event create/edit form
 │   ├── EmailDetailViewModel # Single email display + calendar context detection
 │   ├── EmailSummaryViewModel # AI email summaries
 │   ├── ComposeViewModel     # Email composition
 │   ├── CommandPaletteViewModel # Command palette search/actions (mail + calendar commands)
 │   ├── FiltersViewModel       # Gmail filters management
 │   ├── EmailActionCoordinator # Email action dispatch
-│   ├── PanelCoordinator     # Panel state management
 │   ├── AuthViewModel        # Authentication flow
 │   ├── AttachmentStore      # Attachment state
+│   ├── ContactPopoverViewModel # Contact details popover
+│   ├── ContactsStore        # Current account's contacts store
 │   ├── SyncProgressManager  # Always-visible sync bubble (manual sync trigger + progress)
 │   ├── MailStore            # Account/folder state management
 │   └── ComposeModeInitializer # Compose mode helpers (structs)
@@ -69,13 +77,14 @@ Views never call Services directly. ViewModels are the single bridge.
 - `TrackerBlockerService` — Strips tracking pixels/domains
 - `UndoActionManager` — Queued destructive actions with countdown
 - `BackgroundSyncer` — Actor for bulk API sync → DB writes
-- `FullSyncEngine` — @MainActor class orchestrating email sync: initial full sync, incremental delta sync (History API), body pre-fetch, label refresh, contact refresh
+- `FullSyncEngine` — Actor orchestrating email sync: initial full sync, incremental delta sync (History API), body pre-fetch, label refresh, contact refresh
 - `CalendarSyncEngine` — Actor (peer to FullSyncEngine) for Google Calendar sync: adaptive polling (15-300s), syncToken incremental (events + calendar list), 410 Gone recovery, post-edit tightening via `temporarilyTightenPolling`
 - `CalendarBackgroundSyncer` — Actor for bulk calendar DB writes (upsert events/calendars/attendees)
 - `CalendarOfflineActionQueue` — Queues calendar mutations when offline, replays on reconnect with etag conflict detection and automatic 409 conflict resolution (re-fetch + retry)
 - `CalendarIntegrationService` — Cross-feature email↔calendar coordination (find events for invites, upcoming meetings with participants)
-- `CalendarEventService.rfc3339(_:)` — Shared RFC 3339 date formatter using lightweight `Date.ISO8601FormatStyle` (used by CalendarEventEditorView, CalendarIntents)
-- `CalendarEventService` / `CalendarListService` / `CalendarFreeBusyService` — Google Calendar API v3 services
+- `Date.rfc3339String` (extension in `DateFormatting.swift`) — Shared RFC 3339 formatter using `Date.ISO8601FormatStyle`. Used directly by CalendarEventEditorViewModel, CalendarIntents, and wrapped by `CalendarEventService.rfc3339(_:)` for API calls
+- `CalendarEventService` / `CalendarListService` — Google Calendar API v3 services
+- `CalendarAPIClient` — Base HTTP client for Calendar API
 - `LabelSyncService` — Label sync with etag-based caching
 - `OfflineActionQueue` — Queues actions when offline, replays on reconnect
 - `NetworkMonitor` — Observes network reachability
@@ -95,4 +104,13 @@ Views never call Services directly. ViewModels are the single bridge.
 - `EmailPrintService` — Email printing
 - `SoundManager` — UI sound effects
 - `CPUMonitor` — CPU usage monitoring
+- `PubSubService` — Google Cloud Pub/Sub pull loop for real-time Gmail notifications
+- `GmailWatchService` — Registers/renews Gmail push notification watches
+- `AccountStore` — Multi-account management and persistence
+- `CalendarInviteParser` — Extracts calendar invites from email content
+- `HTMLPreprocessingPipeline` — Shared preprocessing used by sync + display
+- `AttachmentDatabase` — Attachment metadata persistence
+- `AttachmentSearchService` — Attachment search functionality
+- `EmailContentCache` / `EmailContentPrefetcher` — Email body caching and prefetch
+- `LabelSuggestionService` — Label suggestions
 - Gmail API layer: `GmailAPIClient` (base), `GmailMessageService`, `GmailLabelService`, `GmailSendService`, `GmailDraftService`, `GmailFilterService`, `GmailProfileService`
