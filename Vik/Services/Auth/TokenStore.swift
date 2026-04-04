@@ -13,7 +13,6 @@ final class TokenStore {
     }
 
     private nonisolated let logger = Logger(category: "TokenStore")
-    private let defaults      = UserDefaults.standard
     private let keyPrefix     = "com.vikingz.vik.token."
     private let accountsKey   = "com.vikingz.vik.token.accounts"
     private let keychainService: String = {
@@ -29,6 +28,7 @@ final class TokenStore {
     // MARK: - Symmetric key migration (Keychain)
 
     private func migrateKeyFromUserDefaultsIfNeeded() {
+        let defaults = UserDefaults.standard
         guard let legacyData = defaults.data(forKey: legacyKeyUD) else { return }
         guard DataEncryption.loadKeyFromKeychain(
             service: keychainService, account: keychainAccount
@@ -86,6 +86,7 @@ final class TokenStore {
 
     /// Migrates encrypted token data from UserDefaults to Keychain (one-time).
     private func migrateTokensFromUserDefaultsIfNeeded() {
+        let defaults = UserDefaults.standard
         for accountID in allAccountIDs() {
             let udKey = keyPrefix + accountID
             guard let data = defaults.data(forKey: udKey) else { continue }
@@ -110,7 +111,7 @@ final class TokenStore {
             var ids = allAccountIDs()
             if !ids.contains(accountID) {
                 ids.append(accountID)
-                defaults.set(ids, forKey: accountsKey)
+                UserDefaults.standard.set(ids, forKey: accountsKey)
             }
         }
     }
@@ -121,14 +122,17 @@ final class TokenStore {
         if let keychainData = loadTokenData(for: accountID) {
             combined = keychainData
         } else {
-            // Legacy fallback: check UserDefaults for unmigrated tokens (requires MainActor)
+            // Legacy fallback: check UserDefaults for unmigrated tokens
             let udKey = keyPrefix + accountID
-            guard let udData = await MainActor.run(body: { defaults.data(forKey: udKey) }) else {
-                return nil
+            let udData = await MainActor.run {
+                UserDefaults.standard.data(forKey: udKey)
             }
+            guard let udData else { return nil }
             // Migrate to Keychain and clean up UserDefaults
             saveTokenData(udData, for: accountID)
-            await MainActor.run { defaults.removeObject(forKey: udKey) }
+            await MainActor.run {
+                UserDefaults.standard.removeObject(forKey: udKey)
+            }
             combined = udData
         }
         do {
@@ -147,13 +151,13 @@ final class TokenStore {
 
     func delete(for accountID: String) {
         deleteTokenData(for: accountID)
-        defaults.removeObject(forKey: keyPrefix + accountID) // Clean up any legacy entry
+        UserDefaults.standard.removeObject(forKey: keyPrefix + accountID) // Clean up any legacy entry
         var ids = allAccountIDs()
         ids.removeAll { $0 == accountID }
-        defaults.set(ids, forKey: accountsKey)
+        UserDefaults.standard.set(ids, forKey: accountsKey)
     }
 
     func allAccountIDs() -> [String] {
-        defaults.stringArray(forKey: accountsKey) ?? []
+        UserDefaults.standard.stringArray(forKey: accountsKey) ?? []
     }
 }

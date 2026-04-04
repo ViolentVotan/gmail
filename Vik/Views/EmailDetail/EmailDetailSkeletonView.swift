@@ -8,7 +8,7 @@ struct EmailDetailSkeletonView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 // Sender header
-                HStack(spacing: 12) {
+                HStack(spacing: Spacing.md) {
                     Circle()
                         .fill(.tertiary.opacity(animate ? 0.1 : 0.2))
                         .frame(width: 40, height: 40)
@@ -29,7 +29,7 @@ struct EmailDetailSkeletonView: View {
                     .padding(.bottom, Spacing.xxl)
 
                 // Body lines
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: Spacing.smd) {
                     ForEach(0..<3, id: \.self) { _ in bar(height: 11) }
                     bar(width: 220, height: 11)
                     Spacer().frame(height: 6)

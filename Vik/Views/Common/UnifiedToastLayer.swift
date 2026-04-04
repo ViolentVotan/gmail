@@ -150,7 +150,7 @@ fileprivate struct UndoProgressBar: View {
 
 private struct OfflineToastCard: View {
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Spacing.smd) {
             Image(systemName: "wifi.slash")
                 .font(Typography.bodyMedium)
                 .foregroundStyle(SemanticColor.warning)
@@ -178,7 +178,7 @@ private struct GeneralToastCard: View {
     var toastMgr = ToastManager.shared
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Spacing.smd) {
             Image(systemName: iconName(toast.type))
                 .font(Typography.bodyMedium)
                 .foregroundStyle(iconColor(toast.type))

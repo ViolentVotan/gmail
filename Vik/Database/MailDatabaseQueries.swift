@@ -24,10 +24,11 @@ enum MailDatabaseQueries {
     }
 
     /// All messages in a thread, oldest first (for conversation display).
-    static func messagesForThread(_ threadId: String, in db: Database) throws -> [MessageRecord] {
+    static func messagesForThread(_ threadId: String, limit: Int = 200, in db: Database) throws -> [MessageRecord] {
         try MessageRecord
             .filter(Column("thread_id") == threadId)
             .order(Column("internal_date").asc)
+            .limit(limit)
             .fetchAll(db)
     }
 
@@ -42,16 +43,22 @@ enum MailDatabaseQueries {
 
     /// Messages needing body pre-fetch, newest first.
     /// Excludes messages in Spam or Trash to avoid unnecessary API calls.
+    /// Shared WHERE clause for messages without fetched bodies (excludes Spam/Trash).
+    /// Expects two SQL arguments: spam label ID and trash label ID.
+    private static let messagesWithoutBodiesSQL = """
+        FROM messages m
+        WHERE m.full_body_fetched = 0
+        AND m.body_fetch_attempts < 3
+        AND NOT EXISTS (
+            SELECT 1 FROM message_labels ml
+            WHERE ml.message_id = m.gmail_id
+            AND ml.label_id IN (?, ?)
+        )
+    """
+
     static func messagesNeedingBodies(limit: Int = 50, in db: Database) throws -> [MessageRecord] {
         try MessageRecord.fetchAll(db, sql: """
-            SELECT m.* FROM messages m
-            WHERE m.full_body_fetched = 0
-            AND m.body_fetch_attempts < 3
-            AND NOT EXISTS (
-                SELECT 1 FROM message_labels ml
-                WHERE ml.message_id = m.gmail_id
-                AND ml.label_id IN (?, ?)
-            )
+            SELECT m.* \(messagesWithoutBodiesSQL)
             ORDER BY m.internal_date DESC
             LIMIT ?
         """, arguments: [GmailSystemLabel.spam, GmailSystemLabel.trash, limit])
@@ -89,14 +96,7 @@ enum MailDatabaseQueries {
     /// Excludes spam/trash and messages that exceeded retry limit.
     static func messagesWithoutBodiesCount(in db: Database) throws -> Int {
         try Int.fetchOne(db, sql: """
-            SELECT COUNT(*) FROM messages m
-            WHERE m.full_body_fetched = 0
-            AND m.body_fetch_attempts < 3
-            AND NOT EXISTS (
-                SELECT 1 FROM message_labels ml
-                WHERE ml.message_id = m.gmail_id
-                AND ml.label_id IN (?, ?)
-            )
+            SELECT COUNT(*) \(messagesWithoutBodiesSQL)
         """, arguments: [GmailSystemLabel.spam, GmailSystemLabel.trash]) ?? 0
     }
 
@@ -281,6 +281,7 @@ enum MailDatabaseQueries {
         calendarIds: [String],
         start: Double,
         end: Double,
+        limit: Int = 1000,
         in db: Database
     ) throws -> [CalendarEventRecord] {
         guard !calendarIds.isEmpty else { return [] }
@@ -291,6 +292,7 @@ enum MailDatabaseQueries {
             .filter(Column("start_time") < end)
             .filter(Column("end_time") > start)
             .order(Column("start_time").asc)
+            .limit(limit)
             .fetchAll(db)
     }
 
@@ -302,6 +304,7 @@ enum MailDatabaseQueries {
         calendarKeys: [(calendarId: String, accountId: String)],
         start: Double,
         end: Double,
+        limit: Int = 1000,
         in db: Database
     ) throws -> [CalendarEventRecord] {
         guard !calendarKeys.isEmpty else { return [] }
@@ -313,6 +316,7 @@ enum MailDatabaseQueries {
             .filter(Column("start_time") < end)
             .filter(Column("end_time") > start)
             .order(Column("start_time").asc)
+            .limit(limit)
             .fetchAll(db)
     }
 
@@ -323,6 +327,7 @@ enum MailDatabaseQueries {
         calendarKeys: [(calendarId: String, accountId: String)],
         start: Double,
         end: Double,
+        limit: Int = 1000,
         in db: Database
     ) throws -> [EventWithAttendees] {
         guard !calendarKeys.isEmpty else { return [] }
@@ -335,13 +340,14 @@ enum MailDatabaseQueries {
             .filter(Column("end_time") > start)
             .including(all: CalendarEventRecord.attendees)
             .order(Column("start_time").asc)
+            .limit(limit)
             .asRequest(of: EventWithAttendees.self)
             .fetchAll(db)
     }
 
     /// Events for today (midnight to midnight in the system's local time zone), optionally scoped to an account.
     /// Only returns events from visible/selected calendars.
-    static func eventsForToday(accountId: String?, in db: Database) throws -> [CalendarEventRecord] {
+    static func eventsForToday(accountId: String?, limit: Int = 50, in db: Database) throws -> [CalendarEventRecord] {
         let calendar = Calendar(identifier: .gregorian)
         let startOfToday = calendar.startOfDay(for: Date())
         let todayStart = startOfToday.timeIntervalSince1970
@@ -361,6 +367,8 @@ enum MailDatabaseQueries {
             args.append(accountId)
         }
         sql += "\nORDER BY ce.start_time ASC"
+        sql += "\nLIMIT ?"
+        args.append(limit)
         return try CalendarEventRecord.fetchAll(db, sql: sql, arguments: StatementArguments(args))
     }
 
@@ -410,6 +418,34 @@ enum MailDatabaseQueries {
         try db.execute(
             sql: "UPDATE calendars SET sync_token = ?, last_synced_at = ? WHERE calendar_id = ? AND account_id = ?",
             arguments: [token, Date().timeIntervalSince1970, calendarId, accountId]
+        )
+    }
+
+    /// Deletes a single calendar event by its composite primary key.
+    /// Cascading foreign keys handle related attendees automatically.
+    static func deleteCalendarEvent(
+        eventId: String,
+        calendarId: String,
+        accountId: String,
+        in db: Database
+    ) throws {
+        try db.execute(
+            sql: "DELETE FROM calendar_events WHERE event_id = ? AND calendar_id = ? AND account_id = ?",
+            arguments: [eventId, calendarId, accountId]
+        )
+    }
+
+    /// Updates the RSVP self-response status for a single calendar event.
+    static func updateCalendarEventRSVP(
+        eventId: String,
+        calendarId: String,
+        accountId: String,
+        status: String,
+        in db: Database
+    ) throws {
+        try db.execute(
+            sql: "UPDATE calendar_events SET self_response_status = ? WHERE event_id = ? AND calendar_id = ? AND account_id = ?",
+            arguments: [status, eventId, calendarId, accountId]
         )
     }
 

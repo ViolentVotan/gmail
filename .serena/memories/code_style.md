@@ -1,6 +1,6 @@
 # Code Style — Vik (Swift 6.2 / SwiftUI / macOS 26)
 
-Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). All Swift 6.2 concurrency features fully adopted: `@Observable`, typed throws (`throws(GmailAPIError)`), `@concurrent`, approachable concurrency with explicit `@MainActor` on VMs/services and `@concurrent` on I/O-bound service methods.
+Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). All Swift 6.2 concurrency features fully adopted: `@Observable`, typed throws (`throws(GoogleAPIError)`), `@concurrent`, approachable concurrency with explicit `@MainActor` on VMs/services and `@concurrent` on I/O-bound service methods.
 
 ## Formatting
 - 4-space indentation (no tabs)
@@ -49,14 +49,14 @@ Target: macOS 26+, Xcode 26.3. SWIFT_VERSION = 6.2 (Swift 6.2 language mode). Al
 - `@MainActor` on all ViewModels and UI-touching services (explicit, not via `defaultIsolation`)
 - `@concurrent` on service methods that do network I/O (Gmail API calls, OAuth token refresh)
 - `NetworkMonitor.isReachable` (static, nonisolated, `Mutex<Bool>`) for connectivity checks in `@concurrent`/actor contexts — avoids MainActor hop. `NetworkMonitor.shared.isConnected` for UI-reactive `@Observable` tracking.
-- Typed throws: `throws(GmailAPIError)` on Gmail services, `throws(CalendarAPIError)` on Calendar services — callers get exhaustive error handling
+- Typed throws: `throws(GoogleAPIError)` on all API services (Gmail, Calendar, Pub/Sub) — callers get exhaustive error handling
 - `async/await` throughout (no completion handlers)
 - Prefer structured concurrency: `async let` for fixed concurrent work, `TaskGroup`/`withThrowingTaskGroup` for dynamic parallel tasks
 - `Task { }` only for bridging sync → async (button actions, `.onAppear`); document why if unstructured
 - Avoid `@unchecked Sendable` — restructure to use actors or value types instead
 
 ## Error Handling
-- Typed throws (`throws(GmailAPIError)` / `throws(CalendarAPIError)`) for API layers — callers get exhaustive error handling
+- Typed throws (`throws(GoogleAPIError)`) for all API layers — callers get exhaustive error handling
 - `do/catch` for operations that need error recovery
 - `try?` when error details don't matter (fire-and-forget API calls)
 - No `Result` type (async/await handles it)

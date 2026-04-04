@@ -32,7 +32,7 @@ final class GmailDraftService {
         accountID: String,
         pageToken: String? = nil,
         maxResults: Int = 50
-    ) async throws(GmailAPIError) -> GmailDraftListResponse {
+    ) async throws(GoogleAPIError) -> GmailDraftListResponse {
         var path = "/users/me/drafts?maxResults=\(maxResults)"
         appendPageToken(pageToken, to: &path)
         return try await client.request(
@@ -45,7 +45,7 @@ final class GmailDraftService {
     // MARK: - Get Draft
 
     /// Fetches a single draft with its full message payload.
-    @concurrent func getDraft(id: String, accountID: String, format: String = "metadata") async throws(GmailAPIError) -> GmailDraft {
+    @concurrent func getDraft(id: String, accountID: String, format: String = "metadata") async throws(GoogleAPIError) -> GmailDraft {
         return try await client.request(
             path: "/users/me/drafts/\(id)?format=\(format)",
             fields: DraftFields.fields(for: format),
@@ -56,7 +56,7 @@ final class GmailDraftService {
     // MARK: - Send Draft
 
     /// Sends an existing draft immediately via the Gmail Drafts/send endpoint.
-    @concurrent func sendDraft(draftId: String, accountID: String) async throws(GmailAPIError) {
+    @concurrent func sendDraft(draftId: String, accountID: String) async throws(GoogleAPIError) {
         struct SendDraftRequest: Encodable { let id: String }
         let body: Data
         do {
@@ -84,7 +84,7 @@ final class GmailDraftService {
         inlineImages: [InlineImageAttachment] = [],
         threadID: String? = nil,
         accountID: String
-    ) async throws(GmailAPIError) -> GmailDraft {
+    ) async throws(GoogleAPIError) -> GmailDraft {
         try await saveDraft(
             draftID: nil, from: from, to: to, cc: cc, bcc: bcc,
             subject: subject, body: body, isHTML: isHTML,
@@ -101,7 +101,7 @@ final class GmailDraftService {
         inlineImages: [InlineImageAttachment] = [],
         threadID: String? = nil,
         accountID: String
-    ) async throws(GmailAPIError) -> GmailDraft {
+    ) async throws(GoogleAPIError) -> GmailDraft {
         try await saveDraft(
             draftID: draftID, from: from, to: to, cc: cc, bcc: bcc,
             subject: subject, body: body, isHTML: isHTML,
@@ -119,7 +119,7 @@ final class GmailDraftService {
         inlineImages: [InlineImageAttachment],
         threadID: String?,
         accountID: String
-    ) async throws(GmailAPIError) -> GmailDraft {
+    ) async throws(GoogleAPIError) -> GmailDraft {
         let raw = try GmailSendService.buildRawMessage(
             from: from, to: to, cc: cc, bcc: bcc,
             subject: subject, body: body, isHTML: isHTML,
@@ -146,7 +146,7 @@ final class GmailDraftService {
         )
     }
 
-    @concurrent func deleteDraft(draftID: String, accountID: String) async throws(GmailAPIError) {
+    @concurrent func deleteDraft(draftID: String, accountID: String) async throws(GoogleAPIError) {
         _ = try await client.rawRequest(
             path: "/users/me/drafts/\(draftID)",
             method: "DELETE",
@@ -159,7 +159,7 @@ final class GmailDraftService {
     /// Fetches a batch of drafts using Gmail's batch API (up to 50 per request).
     /// Returns successfully fetched drafts and IDs that failed (non-2xx or decode error).
     /// Callers should retry failed IDs on a subsequent sync cycle.
-    @concurrent func getDrafts(ids: [String], accountID: String, format: String = "metadata") async throws(GmailAPIError) -> (drafts: [GmailDraft], failedIDs: [String]) {
+    @concurrent func getDrafts(ids: [String], accountID: String, format: String = "metadata") async throws(GoogleAPIError) -> (drafts: [GmailDraft], failedIDs: [String]) {
         let fieldsParam = DraftFields.fields(for: format)
             .map { "&fields=\($0.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0)" } ?? ""
         let result: BatchFetchResult<GmailDraft> = try await client.batchFetch(

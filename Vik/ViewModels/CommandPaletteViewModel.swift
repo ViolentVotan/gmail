@@ -34,16 +34,11 @@ final class CommandPaletteViewModel {
                     return
                 }
                 Task {
-                    do {
-                        try await calendarVM.quickAddEvent(
-                            text: text,
-                            calendarId: "primary",
-                            accountID: coordinator.navigation.accountID
-                        )
-                        ToastManager.shared.show(message: "Event created")
-                    } catch {
-                        ToastManager.shared.show(message: "Could not create event", type: .error)
-                    }
+                    await calendarVM.quickAddEvent(
+                        text: text,
+                        calendarId: "primary",
+                        accountID: coordinator.navigation.accountID
+                    )
                 }
             }
             matched = Array((matched + [dynamic]).prefix(10))

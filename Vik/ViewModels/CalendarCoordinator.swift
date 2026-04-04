@@ -72,7 +72,13 @@ final class CalendarCoordinator {
     }
 
     /// Clears calendar state synchronously without awaiting engine stop.
-    /// Used during account switches where the old engine is stopped separately.
+    ///
+    /// **Caller contract:** The caller **must** capture `calendarSyncEngine` before
+    /// calling this method and `await engine.stop()` afterward. Nilling the engine
+    /// without stopping it risks in-flight DB writes hitting a closed database.
+    ///
+    /// Both call sites in `AppCoordinator` (`handleAccountChange`, `handleAccountsChange`)
+    /// follow this pattern: capture → clearState → await stop.
     func clearState() {
         calendarSyncEngine = nil
         calendarViewModel = nil

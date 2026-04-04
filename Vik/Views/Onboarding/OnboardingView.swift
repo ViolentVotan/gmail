@@ -182,7 +182,7 @@ struct OnboardingView: View {
     }
 
     private var signInLabel: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.md) {
             Group {
                 if isSigningIn {
                     ProgressView()

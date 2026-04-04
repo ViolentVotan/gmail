@@ -498,7 +498,7 @@ final class EmailDetailViewModel {
 
     func downloadAttachment(messageID: String, part: GmailMessagePart) async throws -> Data {
         guard let attachmentID = part.body?.attachmentId else {
-            throw GmailAPIError.decodingError(URLError(.badServerResponse))
+            throw GoogleAPIError.decodingError(URLError(.badServerResponse))
         }
         return try await api.getAttachment(
             messageID:    messageID,

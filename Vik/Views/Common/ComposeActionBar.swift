@@ -20,7 +20,7 @@ struct ComposeActionBar: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.md) {
             if let onMinimize {
                 Button(action: onMinimize) {
                     Image(systemName: "chevron.down")

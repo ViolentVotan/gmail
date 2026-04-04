@@ -138,7 +138,7 @@ struct MailboxLifecycleModifier: ViewModifier {
             .onChange(of: SubscriptionsStore.shared.isAnalyzing) { _, _ in
                 coordinator.updateListIsLoading()
             }
-            .onChange(of: coordinator.mailboxViewModel.lastRestoredMessageID) { _, msgID in
+            .onChange(of: coordinator.mailboxViewModel.labelMutations.lastRestoredMessageID) { _, msgID in
                 guard let msgID else { return }
                 coordinator.handleRestoredMessage(msgID)
             }

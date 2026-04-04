@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @AppStorage("com.vikingz.vik.selectedAccountID") private var selectedAccountID: String = ""
+    @AppStorage(UserDefaultsKey.selectedAccountID) private var selectedAccountID: String = ""
     @Bindable var appearanceManager: AppearanceManager
     var onReauthorize: ((String, NSWindow?) async throws -> Void)?
     var loadSendAs: ((String) async throws -> [GmailSendAs])?
@@ -15,14 +15,14 @@ struct SettingsView: View {
     var onReorder: ((IndexSet, Int) -> Void)?
 
     // Use the same @AppStorage keys as AppCoordinator and UndoActionManager
-    @AppStorage("notificationsEnabled") private var notificationsEnabled = true
-    @AppStorage("undoDuration") private var undoDuration = 5
-    @AppStorage("showDebugMenu") private var showDebugMenu = false
-    @AppStorage("aiLabelSuggestions") private var aiLabelSuggestions = true
-    @AppStorage("syncDirectoryContacts") private var syncDirectoryContacts = false
-    @AppStorage("emailDensity") private var emailDensity = "comfortable"
-    @AppStorage("soundEffectsEnabled") private var soundEffectsEnabled = true
-    @AppStorage("alwaysLoadRemoteImages") private var alwaysLoadRemoteImages = false
+    @AppStorage(UserDefaultsKey.notificationsEnabled) private var notificationsEnabled = true
+    @AppStorage(UserDefaultsKey.undoDuration) private var undoDuration = 5
+    @AppStorage(UserDefaultsKey.showDebugMenu) private var showDebugMenu = false
+    @AppStorage(UserDefaultsKey.aiLabelSuggestions) private var aiLabelSuggestions = true
+    @AppStorage(UserDefaultsKey.syncDirectoryContacts) private var syncDirectoryContacts = false
+    @AppStorage(UserDefaultsKey.emailDensity) private var emailDensity: EmailDensity = .comfortable
+    @AppStorage(UserDefaultsKey.soundEffectsEnabled) private var soundEffectsEnabled = true
+    @AppStorage(UserDefaultsKey.alwaysLoadRemoteImages) private var alwaysLoadRemoteImages = false
 
     /// Reactive account ID — reads from UserDefaults via @AppStorage,
     /// falling back to the first connected account.
@@ -84,9 +84,9 @@ struct SettingsView: View {
 
             Section("Display") {
                 Picker("Email density", selection: $emailDensity) {
-                    Text("Compact").tag("compact")
-                    Text("Comfortable").tag("comfortable")
-                    Text("Spacious").tag("spacious")
+                    ForEach(EmailDensity.allCases, id: \.self) { density in
+                        Text(density.rawValue.capitalized).tag(density)
+                    }
                 }
                 .pickerStyle(.segmented)
             }

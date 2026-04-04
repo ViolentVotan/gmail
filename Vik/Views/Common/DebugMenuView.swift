@@ -22,7 +22,7 @@ private final class DebugViewModel {
 struct DebugMenuView: View {
     let accountID: String
 
-    @AppStorage("isSignedIn") private var isSignedIn: Bool = false
+    @AppStorage(UserDefaultsKey.isSignedIn) private var isSignedIn: Bool = false
     private let logger = APILogger.shared
     @State private var viewModel = DebugViewModel()
     @State private var expandedEntryID: UUID?
@@ -332,7 +332,7 @@ struct DebugMenuView: View {
 
     private func debugButton(icon: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 10) {
+            HStack(spacing: Spacing.smd) {
                 Image(systemName: icon)
                     .font(Typography.body)
                     .foregroundStyle(.tint)

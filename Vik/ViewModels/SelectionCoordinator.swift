@@ -20,7 +20,7 @@ final class SelectionCoordinator {
     var selectionDirection: Edge = .bottom
     private(set) var displayedEmails: [Email] = []
     /// Derived from `displayedEmails` filtered by `selectedEmailIDs`. Single source of truth
-    /// for both ListPaneView and DetailPaneView (avoids duplicate @State + transient disagreement).
+    /// for both ListPaneView and the detail pane views (avoids duplicate @State + transient disagreement).
     private(set) var selectedEmails: [Email] = []
 
     // MARK: - Private State
@@ -143,7 +143,7 @@ final class SelectionCoordinator {
         markReadTask?.cancel()
         markReadTask = Task { [weak self] in
             guard let self else { return }
-            await self.mailboxViewModel.markAsRead(msgID)
+            await self.mailboxViewModel.labelMutations.markAsRead(msgID)
             guard !Task.isCancelled else { return }
             await self.mailboxViewModel.loadCategoryUnreadCounts()
         }

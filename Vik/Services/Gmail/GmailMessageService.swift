@@ -34,7 +34,7 @@ final class GmailMessageService {
         query: String? = nil,
         pageToken: String? = nil,
         maxResults: Int = 50
-    ) async throws(GmailAPIError) -> GmailMessageListResponse {
+    ) async throws(GoogleAPIError) -> GmailMessageListResponse {
         var path = "/users/me/messages?maxResults=\(maxResults)"
         for label in labelIDs { path += GmailPathBuilder.labelQueryParam(label) }
         if let q = query, !q.isEmpty {
@@ -51,7 +51,7 @@ final class GmailMessageService {
     // MARK: - Fetch single message
 
     /// Fetches a single message. Use format "full" for detail view, "metadata" for list.
-    @concurrent func getMessage(id: String, accountID: String, format: String = "full") async throws(GmailAPIError) -> GmailMessage {
+    @concurrent func getMessage(id: String, accountID: String, format: String = "full") async throws(GoogleAPIError) -> GmailMessage {
         return try await client.request(
             path: "/users/me/messages/\(id)?format=\(format)",
             fields: MessageFields.fields(for: format),
@@ -60,7 +60,7 @@ final class GmailMessageService {
     }
 
     /// Fetches the raw RFC 2822 source of a message.
-    @concurrent func getRawMessage(id: String, accountID: String) async throws(GmailAPIError) -> GmailMessage {
+    @concurrent func getRawMessage(id: String, accountID: String) async throws(GoogleAPIError) -> GmailMessage {
         try await client.request(
             path: "/users/me/messages/\(id)?format=raw",
             fields: "id,threadId,raw",
@@ -71,7 +71,7 @@ final class GmailMessageService {
     /// Fetches a batch of messages using Gmail's batch API (up to 50 per request).
     /// Returns successfully fetched messages and IDs that failed (non-2xx or decode error).
     /// Callers should retry failed IDs on a subsequent sync cycle.
-    @concurrent func getMessages(ids: [String], accountID: String, format: String = "metadata") async throws(GmailAPIError) -> (messages: [GmailMessage], failedIDs: [String]) {
+    @concurrent func getMessages(ids: [String], accountID: String, format: String = "metadata") async throws(GoogleAPIError) -> (messages: [GmailMessage], failedIDs: [String]) {
         let fieldsParam = MessageFields.fields(for: format)
             .map { "&fields=\($0.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0)" } ?? ""
         let result: BatchFetchResult<GmailMessage> = try await client.batchFetch(
@@ -85,7 +85,7 @@ final class GmailMessageService {
 
     // MARK: - Threads
 
-    @concurrent func getThread(id: String, accountID: String) async throws(GmailAPIError) -> GmailThread {
+    @concurrent func getThread(id: String, accountID: String) async throws(GoogleAPIError) -> GmailThread {
         try await client.request(
             path: "/users/me/threads/\(id)?format=full",
             fields: "id,historyId,messages(id,threadId,labelIds,snippet,payload,internalDate,historyId)",
@@ -103,7 +103,7 @@ final class GmailMessageService {
         labelId: String? = nil,
         pageToken: String? = nil,
         maxResults: Int = 500
-    ) async throws(GmailAPIError) -> GmailHistoryListResponse {
+    ) async throws(GoogleAPIError) -> GmailHistoryListResponse {
         var path = "/users/me/history?startHistoryId=\(startHistoryId)&maxResults=\(maxResults)"
         path += "&historyTypes=messageAdded&historyTypes=messageDeleted"
         path += "&historyTypes=labelAdded&historyTypes=labelRemoved"
@@ -124,7 +124,7 @@ final class GmailMessageService {
         accountID: String,
         topicName: String,
         labelIds: [String]? = nil
-    ) async throws(GmailAPIError) -> GmailWatchResponse {
+    ) async throws(GoogleAPIError) -> GmailWatchResponse {
         struct WatchRequest: Encodable {
             let topicName: String
             var labelIds: [String]?
@@ -153,7 +153,7 @@ final class GmailMessageService {
     /// Stops receiving push notifications for the user's mailbox.
     @concurrent func stopWatch(
         accountID: String
-    ) async throws(GmailAPIError) {
+    ) async throws(GoogleAPIError) {
         _ = try await client.rawRequest(
             path: "/users/me/stop",
             method: "POST",
@@ -163,11 +163,11 @@ final class GmailMessageService {
 
     // MARK: - Mutations
 
-    @concurrent func markAsRead(id: String, accountID: String) async throws(GmailAPIError) {
+    @concurrent func markAsRead(id: String, accountID: String) async throws(GoogleAPIError) {
         try await modifyLabels(id: id, add: [], remove: [GmailSystemLabel.unread], accountID: accountID)
     }
 
-    @concurrent func setStarred(_ starred: Bool, id: String, accountID: String) async throws(GmailAPIError) {
+    @concurrent func setStarred(_ starred: Bool, id: String, accountID: String) async throws(GoogleAPIError) {
         if starred {
             try await modifyLabels(id: id, add: [GmailSystemLabel.starred], remove: [], accountID: accountID)
         } else {
@@ -176,7 +176,7 @@ final class GmailMessageService {
     }
 
     @discardableResult
-    @concurrent func trashMessage(id: String, accountID: String) async throws(GmailAPIError) -> GmailMessage {
+    @concurrent func trashMessage(id: String, accountID: String) async throws(GoogleAPIError) -> GmailMessage {
         try await client.request(
             path: "/users/me/messages/\(id)/trash",
             method: "POST",
@@ -185,16 +185,16 @@ final class GmailMessageService {
         )
     }
 
-    @concurrent func archiveMessage(id: String, accountID: String) async throws(GmailAPIError) {
+    @concurrent func archiveMessage(id: String, accountID: String) async throws(GoogleAPIError) {
         try await modifyLabels(id: id, add: [], remove: [GmailSystemLabel.inbox], accountID: accountID)
     }
 
-    @concurrent func markAsUnread(id: String, accountID: String) async throws(GmailAPIError) {
+    @concurrent func markAsUnread(id: String, accountID: String) async throws(GoogleAPIError) {
         try await modifyLabels(id: id, add: [GmailSystemLabel.unread], remove: [], accountID: accountID)
     }
 
     @discardableResult
-    @concurrent func untrashMessage(id: String, accountID: String) async throws(GmailAPIError) -> GmailMessage {
+    @concurrent func untrashMessage(id: String, accountID: String) async throws(GoogleAPIError) -> GmailMessage {
         try await client.request(
             path: "/users/me/messages/\(id)/untrash",
             method: "POST",
@@ -203,7 +203,7 @@ final class GmailMessageService {
         )
     }
 
-    @concurrent func deleteMessagePermanently(id: String, accountID: String) async throws(GmailAPIError) {
+    @concurrent func deleteMessagePermanently(id: String, accountID: String) async throws(GoogleAPIError) {
         _ = try await client.rawRequest(
             path: "/users/me/messages/\(id)",
             method: "DELETE",
@@ -213,7 +213,7 @@ final class GmailMessageService {
 
     /// Permanently deletes multiple messages in a single batch request (up to 1000 per batch).
     /// More efficient than per-message deletion — 50 quota units per batch vs 1 per message.
-    @concurrent func batchDelete(ids: [String], accountID: String) async throws(GmailAPIError) {
+    @concurrent func batchDelete(ids: [String], accountID: String) async throws(GoogleAPIError) {
         guard !ids.isEmpty else { return }
         let chunkSize = 1000
         var failedIDs: [String] = []
@@ -228,7 +228,7 @@ final class GmailMessageService {
                     method: "POST", body: body, contentType: "application/json",
                     accountID: accountID
                 )
-            } catch let apiError as GmailAPIError {
+            } catch let apiError as GoogleAPIError {
                 switch apiError {
                 case .unauthorized, .tokenRevoked, .dailyLimitExceeded, .offline:
                     throw apiError
@@ -245,12 +245,12 @@ final class GmailMessageService {
         }
     }
 
-    @concurrent func spamMessage(id: String, accountID: String) async throws(GmailAPIError) {
+    @concurrent func spamMessage(id: String, accountID: String) async throws(GoogleAPIError) {
         try await modifyLabels(id: id, add: [GmailSystemLabel.spam], remove: [GmailSystemLabel.inbox], accountID: accountID)
     }
 
     @discardableResult
-    @concurrent func modifyLabels(id: String, add: [String], remove: [String], accountID: String) async throws(GmailAPIError) -> GmailMessage {
+    @concurrent func modifyLabels(id: String, add: [String], remove: [String], accountID: String) async throws(GoogleAPIError) -> GmailMessage {
         struct ModifyRequest: Encodable { let addLabelIds: [String]; let removeLabelIds: [String] }
         let body: Data
         do {
@@ -273,7 +273,7 @@ final class GmailMessageService {
         add addLabelIds: [String],
         remove removeLabelIds: [String],
         accountID: String
-    ) async throws(GmailAPIError) {
+    ) async throws(GoogleAPIError) {
         guard !ids.isEmpty else { return }
         var failedIDs: [String] = []
         for chunk in stride(from: 0, to: ids.count, by: 1000) {
@@ -310,23 +310,23 @@ final class GmailMessageService {
             }
         }
         if !failedIDs.isEmpty {
-            throw GmailAPIError.partialFailure(failedCount: failedIDs.count)
+            throw GoogleAPIError.partialFailure(failedCount: failedIDs.count)
         }
     }
 
     /// Permanently deletes all messages in Trash.
     /// Continues through all batches even if some fail, then reports partial failure.
-    @concurrent func emptyTrash(accountID: String) async throws(GmailAPIError) {
+    @concurrent func emptyTrash(accountID: String) async throws(GoogleAPIError) {
         try await emptyFolder(labelID: GmailSystemLabel.trash, accountID: accountID)
     }
 
     /// Permanently deletes all messages in Spam.
     /// Continues through all batches even if some fail, then reports partial failure.
-    @concurrent func emptySpam(accountID: String) async throws(GmailAPIError) {
+    @concurrent func emptySpam(accountID: String) async throws(GoogleAPIError) {
         try await emptyFolder(labelID: GmailSystemLabel.spam, accountID: accountID)
     }
 
-    @concurrent private func emptyFolder(labelID: String, accountID: String) async throws(GmailAPIError) {
+    @concurrent private func emptyFolder(labelID: String, accountID: String) async throws(GoogleAPIError) {
         var pageToken: String? = nil
         var allIDs: [String] = []
         repeat {
@@ -347,7 +347,7 @@ final class GmailMessageService {
     // MARK: - Attachments
 
     /// Downloads raw attachment data by attachment ID.
-    @concurrent func getAttachment(messageID: String, attachmentID: String, accountID: String) async throws(GmailAPIError) -> Data {
+    @concurrent func getAttachment(messageID: String, attachmentID: String, accountID: String) async throws(GoogleAPIError) -> Data {
         let response: GmailAttachmentResponse = try await client.request(
             path: "/users/me/messages/\(messageID)/attachments/\(attachmentID)",
             fields: "data,size",

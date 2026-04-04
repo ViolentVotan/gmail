@@ -34,7 +34,7 @@ final class CalendarAPIClient {
         queryItems: [URLQueryItem]? = nil,
         extraHeaders: [String: String]? = nil,
         accountID: String
-    ) async throws(CalendarAPIError) -> T {
+    ) async throws(GoogleAPIError) -> T {
         let data = try await requestData(path: path, method: method, body: body, queryItems: queryItems, extraHeaders: extraHeaders, accountID: accountID)
         do {
             return try Self.jsonDecoder.decode(T.self, from: data)
@@ -51,7 +51,7 @@ final class CalendarAPIClient {
         body: Data? = nil,
         queryItems: [URLQueryItem]? = nil,
         accountID: String
-    ) async throws(CalendarAPIError) {
+    ) async throws(GoogleAPIError) {
         _ = try await requestData(path: path, method: method, body: body, queryItems: queryItems, extraHeaders: nil, accountID: accountID)
     }
 
@@ -64,7 +64,7 @@ final class CalendarAPIClient {
         queryItems: [URLQueryItem]?,
         extraHeaders: [String: String]?,
         accountID: String
-    ) async throws(CalendarAPIError) -> Data {
+    ) async throws(GoogleAPIError) -> Data {
         guard NetworkMonitor.isReachable else { throw .offline }
 
         // Delegate token management to GmailAPIClient — no token duplication.
@@ -72,18 +72,18 @@ final class CalendarAPIClient {
         do {
             token = try await GmailAPIClient.shared.validCalendarToken(for: accountID)
         } catch {
-            throw CalendarAPIError.wrap(error)
+            throw GoogleAPIError.wrap(error)
         }
 
         do {
             return try await perform(path: path, method: method, body: body, queryItems: queryItems, extraHeaders: extraHeaders, accessToken: token.accessToken, accountID: accountID)
-        } catch CalendarAPIError.unauthorized {
+        } catch GoogleAPIError.unauthorized {
             // 401: force refresh via GmailAPIClient, then retry once
             let fresh: AuthToken
             do {
                 fresh = try await GmailAPIClient.shared.refreshCalendarToken(for: accountID)
             } catch {
-                throw CalendarAPIError.wrap(error)
+                throw GoogleAPIError.wrap(error)
             }
             return try await perform(path: path, method: method, body: body, queryItems: queryItems, extraHeaders: extraHeaders, accessToken: fresh.accessToken, accountID: accountID)
         }
@@ -99,7 +99,7 @@ final class CalendarAPIClient {
         extraHeaders: [String: String]?,
         accessToken: String,
         accountID: String
-    ) async throws(CalendarAPIError) -> Data {
+    ) async throws(GoogleAPIError) -> Data {
         guard var components = URLComponents(string: baseURL + path) else { throw .invalidURL }
         if let queryItems, !queryItems.isEmpty {
             components.queryItems = (components.queryItems ?? []) + queryItems
@@ -124,7 +124,7 @@ final class CalendarAPIClient {
                 try await GmailAPIClient.sharedSession.data(for: request)
             }
         } catch {
-            throw CalendarAPIError.wrap(error)
+            throw GoogleAPIError.wrap(error)
         }
 
         switch http.statusCode {

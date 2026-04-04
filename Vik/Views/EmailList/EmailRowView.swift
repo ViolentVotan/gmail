@@ -14,7 +14,7 @@ struct EmailRowView: View, Equatable {
     @State private var isPressed = false
     @State private var hasAppeared = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    let density: String
+    let density: EmailDensity
     @State private var showTags = false
     @State private var tagRevealTask: Task<Void, Never>?
     @State private var hoverTask: Task<Void, Never>?
@@ -49,7 +49,7 @@ struct EmailRowView: View, Equatable {
         accountID: String,
         selectedFolder: Folder,
         isMultiSelect: Bool = false,
-        density: String = "comfortable",
+        density: EmailDensity = .comfortable,
         action: @escaping () -> Void,
         entranceIndex: Int = 0,
         hasAlreadyAnimated: Bool = false,
@@ -121,14 +121,14 @@ struct EmailRowView: View, Equatable {
 
     private var verticalPadding: CGFloat {
         switch density {
-        case "compact":  return 6
-        case "spacious": return 14
-        default:         return 10
+        case .compact:   return 6
+        case .spacious:  return 14
+        case .comfortable: return 10
         }
     }
 
     private var showPreview: Bool {
-        density != "compact"
+        density != .compact
     }
 
     @ViewBuilder
@@ -157,7 +157,7 @@ struct EmailRowView: View, Equatable {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 12) {
+            HStack(spacing: Spacing.md) {
                 // Unread indicator: filled accent dot + bold sender text provide dual visual cues
                 Circle()
                     .fill(email.isRead ? Color.clear : Color.accentColor)

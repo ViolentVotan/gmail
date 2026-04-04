@@ -44,7 +44,7 @@ struct ThreadMessageCardView: View, Equatable {
     @State private var isHTMLLoaded = false
     @State private var isHovering = false
     @State private var allowRemoteImages = false
-    @AppStorage("alwaysLoadRemoteImages") private var alwaysLoadRemoteImages = false
+    @AppStorage(UserDefaultsKey.alwaysLoadRemoteImages) private var alwaysLoadRemoteImages = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let sender: Contact
@@ -447,7 +447,7 @@ struct ThreadMessageCardView: View, Equatable {
             }
 
             if !attachmentPairs.isEmpty {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: Spacing.smd) {
                     HStack(spacing: Spacing.xsm) {
                         Image(systemName: "paperclip")
                             .font(Typography.subheadRegular)

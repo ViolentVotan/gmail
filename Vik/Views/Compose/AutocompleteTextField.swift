@@ -31,7 +31,7 @@ struct AutocompleteTextField: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Spacing.smd) {
             Text(label)
                 .font(Typography.subhead)
                 .foregroundStyle(.tertiary)
@@ -105,7 +105,7 @@ struct AutocompleteTextField: View {
         Button {
             selectContact(contact)
         } label: {
-            HStack(spacing: 10) {
+            HStack(spacing: Spacing.smd) {
                 AvatarView(
                     initials: contactInitials(contact),
                     color: contactColor(contact),

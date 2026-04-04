@@ -162,7 +162,7 @@ final class PeopleAPIService {
                 } while pageToken != nil
                 Self.logger.info("\(config.label) incremental sync completed")
             } catch {
-                let isGone = if case GmailAPIError.httpError(410, _) = error { true } else { false }
+                let isGone = if case GoogleAPIError.httpError(410, _) = error { true } else { false }
                 if isGone {
                     Self.logger.warning("\(config.label) sync token expired, performing full re-fetch")
                     do {
@@ -397,7 +397,7 @@ final class PeopleAPIService {
                 }
             }
         } catch {
-            if case GmailAPIError.httpError(403, _) = error {
+            if case GoogleAPIError.httpError(403, _) = error {
                 Self.logger.info("Directory contacts skipped — scope not granted")
             } else {
                 Self.logger.error("Directory contacts error: \(error, privacy: .public)")

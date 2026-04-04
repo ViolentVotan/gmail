@@ -11,37 +11,6 @@ private struct MessageWithAssociations: Decodable, FetchableRecord {
     var attachments: [AttachmentRecord]
 }
 
-/// Per-message label mutation logic: reads current labels, applies a transform, writes results,
-/// and syncs denormalized `is_read`/`is_starred` columns via `MailDatabaseQueries.rebuildLabels`.
-/// Called inside an existing write transaction — does **not** open one itself.
-/// Returns the **original** label IDs (before the transform) for undo.
-///
-/// File-scope to avoid `@MainActor` isolation inheritance from `MailboxViewModel`.
-private func mutateLabels(
-    for messageID: String,
-    in database: Database,
-    transform: (inout Set<String>) -> Void
-) throws -> [String] {
-    // 1. Read current labels
-    let currentLabels = try String.fetchAll(database, sql:
-        "SELECT label_id FROM message_labels WHERE message_id = ?",
-        arguments: [messageID]
-    )
-    var labels = Set(currentLabels)
-
-    // 2. Apply transform
-    transform(&labels)
-
-    // 3. Rebuild labels + sync denormalized columns via shared helper
-    try MailDatabaseQueries.rebuildLabels(
-        forMessageID: messageID,
-        newLabelIDs: Array(labels),
-        in: database
-    )
-
-    return currentLabels
-}
-
 /// Drives the email list for a given account and folder.
 ///
 /// DB-only architecture: folder loads start a `ValueObservation` on the label;
@@ -55,8 +24,6 @@ final class MailboxViewModel {
     var sendAsAliases:         [GmailSendAs] = []
     var categoryUnreadCounts:  [InboxCategory: Int] = [:]
     var folderUnreadCounts:    [Folder: Int] = [:]
-    /// Set by `restoreLabelsInDatabase` so the UI can re-select the restored email.
-    var lastRestoredMessageID: String?
     private(set) var emails: [Email] = [] {
         didSet { onEmailsChanged?() }
     }
@@ -76,15 +43,21 @@ final class MailboxViewModel {
 
     // MARK: - Services
 
+    /// Database label mutations and API mutation proxying. Callers that need to modify
+    /// email labels or perform optimistic actions should go through this service.
+    let labelMutations: LabelMutationService
+
     @ObservationIgnored private(set) var mailDatabase: MailDatabase?
     @ObservationIgnored private(set) var backgroundSyncer: BackgroundSyncer?
 
     func setMailDatabase(_ db: MailDatabase?) {
         self.mailDatabase = db
+        labelMutations.setMailDatabase(db)
     }
 
     func setBackgroundSyncer(_ syncer: BackgroundSyncer?) {
         self.backgroundSyncer = syncer
+        labelMutations.setBackgroundSyncer(syncer)
     }
 
     @ObservationIgnored private(set) var syncProgressManager: SyncProgressManager?
@@ -110,6 +83,10 @@ final class MailboxViewModel {
         self.accountID = accountID
         self.api = api
         self.labelService = LabelSyncService.shared
+        self.labelMutations = LabelMutationService(accountID: accountID, api: api)
+        self.labelMutations.onUnreadCountsChanged = { [weak self] in
+            await self?.loadFolderUnreadCounts()
+        }
     }
 
     isolated deinit {
@@ -363,6 +340,13 @@ final class MailboxViewModel {
         }
     }
 
+    /// Appends a new label and recomputes the user labels list.
+    /// Used by `LabelMutationService.createAndAddLabel` via its `appendLabel` callback.
+    func appendLabel(_ label: GmailLabel) {
+        labels.append(label)
+        recomputeUserLabels()
+    }
+
     private func recomputeUserLabels() {
         userLabels = labels.filter { !$0.isSystemLabel }
     }
@@ -451,11 +435,26 @@ final class MailboxViewModel {
         guard let db = mailDatabase else { return }
         do {
             let counts = try await db.dbPool.read { database in
+                let folderLabelPairs: [(Folder, String)] = Folder.mainFolders.compactMap { folder in
+                    guard let labelId = folder.gmailLabelID else { return nil }
+                    return (folder, labelId)
+                }
+                guard !folderLabelPairs.isEmpty else { return [Folder: Int]() }
+                let labelIds = folderLabelPairs.map(\.1)
+                let placeholders = labelIds.sqlPlaceholders
+                let rows = try Row.fetchAll(database, sql: """
+                    SELECT ml.label_id, COUNT(*) AS cnt FROM messages m
+                    JOIN message_labels ml ON ml.message_id = m.gmail_id
+                    WHERE m.is_read = 0 AND ml.label_id IN (\(placeholders))
+                    GROUP BY ml.label_id
+                """, arguments: StatementArguments(labelIds))
                 var result: [Folder: Int] = [:]
-                for folder in Folder.mainFolders {
-                    guard let labelId = folder.gmailLabelID else { continue }
-                    let count = try MailDatabaseQueries.unreadCount(forLabel: labelId, in: database)
-                    if count > 0 { result[folder] = count }
+                for row in rows {
+                    let labelId: String = row["label_id"]
+                    let count: Int = row["cnt"]
+                    if let folder = folderLabelPairs.first(where: { $0.1 == labelId })?.0 {
+                        result[folder] = count
+                    }
                 }
                 return result
             }
@@ -481,476 +480,11 @@ final class MailboxViewModel {
         observationDebounceTask = nil
         lastObservedFingerprint = 0
         accountID = id
+        labelMutations.accountID = id
         emails    = []
         displayLimit = 200
         hasMoreEmails = false
         isLoadingMore = false
-    }
-
-    // MARK: - Mutations (internal — use EmailActionCoordinator for user-facing actions)
-
-    /// Shared optimistic-update flow: write labels to DB, call API, revert on failure.
-    ///
-    /// 1. Applies `addLabelIDs` / `removeLabelIDs` to the message's labels in the DB.
-    /// 2. Calls `apiCall` (which may also reconcile server labels on success).
-    /// 3. On failure: reverts to original labels, sets `self.error`, shows a toast.
-    ///
-    /// - Parameters:
-    ///   - messageID: The Gmail message ID.
-    ///   - addLabelIDs: Labels to add optimistically.
-    ///   - removeLabelIDs: Labels to remove optimistically.
-    ///   - apiCall: The API operation. May perform post-success reconciliation.
-    ///   - failureToast: The toast message shown on failure.
-    @discardableResult
-    private func performOptimisticAction(
-        _ messageID: String,
-        addLabelIDs: [String] = [],
-        removeLabelIDs: [String] = [],
-        apiCall: () async throws -> Void,
-        failureToast: String
-    ) async -> Bool {
-        let original = await updateLabelsInDatabase(messageID, addLabelIds: addLabelIDs, removeLabelIds: removeLabelIDs)
-
-        // Clear delivered notification & refresh badge when marking read or removing from inbox
-        let affectsUnread = removeLabelIDs.contains(GmailSystemLabel.unread)
-            || removeLabelIDs.contains(GmailSystemLabel.inbox)
-        if affectsUnread {
-            NotificationService.shared.removeDeliveredNotification(messageId: messageID)
-            await Self.updateDockBadge()
-            await loadFolderUnreadCounts()
-        }
-
-        do {
-            try await apiCall()
-            return true
-        } catch {
-            if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            ToastManager.shared.show(message: failureToast, type: .error)
-            // Revert badge on failure
-            if affectsUnread {
-                await Self.updateDockBadge()
-                await loadFolderUnreadCounts()
-            }
-            return false
-        }
-    }
-
-    /// Marks a message as read. Optimistic DB write → API call → revert on failure.
-    /// - Note: Called by `SelectionCoordinator` (auto-mark-read) and `EmailActionCoordinator`.
-    ///   Views should use `EmailActionCoordinator.markReadEmail(_:)` for user-initiated actions.
-    func markAsRead(_ messageID: String) async {
-        await performOptimisticAction(
-            messageID,
-            removeLabelIDs: [GmailSystemLabel.unread],
-            apiCall: { [api, accountID] in
-                try await api.markAsRead(id: messageID, accountID: accountID)
-            },
-            failureToast: "Failed to mark as read"
-        )
-    }
-
-    /// Updates DB read state for messages already marked as read by another component (e.g. EmailDetailVM).
-    /// Batches all updates in a single write transaction to avoid N separate ValueObservation notifications.
-    func applyReadLocally(_ messageIDs: [String]) async {
-        guard let db = mailDatabase, !messageIDs.isEmpty else { return }
-        do {
-            try await db.dbPool.write { database in
-                for id in messageIDs {
-                    try mutateLabels(for: id, in: database) { labels in
-                        labels.remove(GmailSystemLabel.unread)
-                    }
-                }
-            }
-            // Clear delivered notifications for messages marked read and refresh badge
-            NotificationService.shared.removeDeliveredNotifications(messageIds: messageIDs)
-            await Self.updateDockBadge()
-            await loadFolderUnreadCounts()
-        } catch {
-            Self.logger.error("Batch applyReadLocally failed: \(error.localizedDescription, privacy: .public)")
-        }
-    }
-
-    /// Marks a message as unread. Optimistic DB write → API call → revert on failure.
-    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
-    ///   `EmailActionCoordinator.markUnreadEmail(_:)`.
-    func markAsUnread(_ messageID: String) async {
-        await performOptimisticAction(
-            messageID,
-            addLabelIDs: [GmailSystemLabel.unread],
-            apiCall: { [api, accountID] in
-                try await api.markAsUnread(id: messageID, accountID: accountID)
-            },
-            failureToast: "Failed to mark as unread"
-        )
-    }
-
-    /// Toggles star on a message. Optimistic DB write → API call → revert on failure.
-    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
-    ///   `EmailActionCoordinator.toggleStarEmail(_:)`.
-    func toggleStar(_ messageID: String, isStarred: Bool) async {
-        await performOptimisticAction(
-            messageID,
-            addLabelIDs: isStarred ? [] : [GmailSystemLabel.starred],
-            removeLabelIDs: isStarred ? [GmailSystemLabel.starred] : [],
-            apiCall: { [api, accountID] in
-                try await api.setStarred(!isStarred, id: messageID, accountID: accountID)
-            },
-            failureToast: "Failed to toggle star"
-        )
-    }
-
-    /// Trashes a message. Optimistic DB write → API call → reconcile or revert.
-    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
-    ///   `EmailActionCoordinator.deleteEmail(_:selectNext:)`.
-    func trash(_ messageID: String) async {
-        await performOptimisticAction(
-            messageID,
-            addLabelIDs: [GmailSystemLabel.trash],
-            removeLabelIDs: [GmailSystemLabel.inbox],
-            apiCall: { [api, accountID, weak self] in
-                let updated = try await api.trashMessage(id: messageID, accountID: accountID)
-                await self?.reconcileLabelsInDatabase(messageID, serverLabelIds: updated.labelIds ?? [])
-            },
-            failureToast: "Failed to trash message"
-        )
-    }
-
-    /// Archives a message. Optimistic DB write → API call → revert on failure.
-    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
-    ///   `EmailActionCoordinator.archiveEmail(_:selectNext:)`.
-    @discardableResult
-    func archive(_ messageID: String) async -> Bool {
-        await performOptimisticAction(
-            messageID,
-            removeLabelIDs: [GmailSystemLabel.inbox],
-            apiCall: { [api, accountID] in
-                try await api.archiveMessage(id: messageID, accountID: accountID)
-            },
-            failureToast: "Failed to archive"
-        )
-    }
-
-    // MARK: - Label mutation helper
-
-    /// Core label-mutation helper. Reads current labels, applies a transform, writes results,
-    /// and syncs denormalized `is_read`/`is_starred` columns — all in a single write transaction.
-    /// Returns the **original** label IDs (before the transform) for undo, or `nil` on failure.
-    ///
-    /// - Parameters:
-    ///   - messageID: The Gmail message ID.
-    ///   - transform: Mutates the current label set in place.
-    @discardableResult
-    private func writeLabels(
-        _ messageID: String,
-        transform: @Sendable (inout Set<String>) -> Void
-    ) async -> [String]? {
-        guard let db = mailDatabase else { return nil }
-        do {
-            return try await db.dbPool.write { database in
-                try mutateLabels(
-                    for: messageID,
-                    in: database,
-                    transform: transform
-                )
-            }
-        } catch {
-            Self.logger.error("DB label mutation failed for \(messageID, privacy: .private): \(error.localizedDescription, privacy: .public)")
-            return nil
-        }
-    }
-
-    /// Optimistically updates labels in the database so ValueObservation reflects the change.
-    /// Returns the original label IDs for undo.
-    @discardableResult
-    func updateLabelsInDatabase(_ messageID: String, addLabelIds: [String], removeLabelIds: [String]) async -> [String]? {
-        await writeLabels(messageID) { labels in
-            labels.subtract(removeLabelIds)
-            labels.formUnion(addLabelIds)
-        }
-    }
-
-    /// Batch-updates labels for multiple messages in a single write transaction.
-    /// Returns a map of messageID -> original label IDs for undo.
-    @discardableResult
-    func updateLabelsInDatabaseBatch(_ messageIDs: [String], addLabelIds: [String], removeLabelIds: [String]) async -> [String: [String]] {
-        guard let db = mailDatabase else { return [:] }
-        do {
-            return try await db.dbPool.write { database in
-                var originalLabelsMap: [String: [String]] = [:]
-                for msgID in messageIDs {
-                    let original = try mutateLabels(
-                        for: msgID,
-                        in: database
-                    ) { labels in
-                        labels.subtract(removeLabelIds)
-                        labels.formUnion(addLabelIds)
-                    }
-                    originalLabelsMap[msgID] = original
-                }
-                return originalLabelsMap
-            }
-        } catch {
-            Self.logger.error("Batch DB label mutation failed: \(error.localizedDescription, privacy: .public)")
-            return [:]
-        }
-    }
-
-    /// Removes all labels from a message in the database. Returns the original labels for undo.
-    func removeAllLabelsInDatabase(_ messageID: String) async -> [String]? {
-        await writeLabels(messageID) { labels in
-            labels.removeAll()
-        }
-    }
-
-    /// Restores the original labels in the database (undo path).
-    func restoreLabelsInDatabase(_ messageID: String, originalLabelIds: [String]) async {
-        await writeLabels(messageID) { labels in
-            labels = Set(originalLabelIds)
-        }
-    }
-
-    /// Reconciles DB labels with the server's authoritative label set after an API mutation.
-    /// Corrects any drift between our optimistic update and what the server actually applied.
-    private func reconcileLabelsInDatabase(_ messageID: String, serverLabelIds: [String]) async {
-        await writeLabels(messageID) { labels in
-            labels = Set(serverLabelIds)
-        }
-    }
-
-    /// Permanently deletes all messages in Trash.
-    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
-    ///   `EmailActionCoordinator.emptyTrashFolder()`.
-    func emptyTrash(confirmedCount: Int) async {
-        await emptyFolder(labelID: GmailSystemLabel.trash, folderName: "Trash", confirmedCount: confirmedCount) { [api, accountID] in
-            try await api.emptyTrash(accountID: accountID)
-        }
-    }
-
-    /// Permanently deletes all messages in Spam.
-    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
-    ///   `EmailActionCoordinator.emptySpamFolder()`.
-    func emptySpam(confirmedCount: Int) async {
-        await emptyFolder(labelID: GmailSystemLabel.spam, folderName: "Spam", confirmedCount: confirmedCount) { [api, accountID] in
-            try await api.emptySpam(accountID: accountID)
-        }
-    }
-
-    private func emptyFolder(labelID: String, folderName: String, confirmedCount: Int, action: @Sendable () async throws -> Void) async {
-        // 1. Optimistic: remove all messages with this label from local DB immediately.
-        //    ValueObservation picks up the change → UI animates messages out.
-        _ = await deleteMessagesByLabel(labelID)
-        await loadFolderUnreadCounts()
-
-        // 2. Call the API to delete on server.
-        do {
-            try await action()
-            // Use the server-side count from the confirmation dialog, not the local DB count,
-            // since only a subset of server messages may be synced locally.
-            ToastManager.shared.show(
-                message: "\(confirmedCount) message\(confirmedCount == 1 ? "" : "s") deleted from \(folderName)"
-            )
-        } catch GmailAPIError.partialFailure(let failedCount) {
-            ToastManager.shared.show(message: "\(failedCount) messages could not be deleted", type: .error)
-        } catch {
-            ToastManager.shared.show(message: "Failed to empty \(folderName.lowercased())", type: .error)
-            // Messages will reappear on next delta sync if API failed.
-        }
-    }
-
-    /// Deletes all message records that carry the given label from the local database.
-    /// Returns the number of messages deleted.
-    private func deleteMessagesByLabel(_ labelID: String) async -> Int {
-        guard let db = mailDatabase else { return 0 }
-        do {
-            if let syncer = backgroundSyncer {
-                // Use BackgroundSyncer for consistent FTS cleanup and thread count updates.
-                let ids = try await db.dbPool.read { database in
-                    try String.fetchAll(database, sql:
-                        "SELECT message_id FROM message_labels WHERE label_id = ?",
-                        arguments: [labelID]
-                    )
-                }
-                guard !ids.isEmpty else { return 0 }
-                try await syncer.deleteMessages(gmailIds: ids)
-                return ids.count
-            } else {
-                return try await db.dbPool.write { database in
-                    let ids = try String.fetchAll(database, sql:
-                        "SELECT message_id FROM message_labels WHERE label_id = ?",
-                        arguments: [labelID]
-                    )
-                    guard !ids.isEmpty else { return 0 }
-                    // Collect thread IDs before deletion for count updates.
-                    var affectedThreadIds = Set<String>()
-                    let chunkSize = 1000
-                    for chunkStart in stride(from: 0, to: ids.count, by: chunkSize) {
-                        let chunk = Array(ids[chunkStart..<min(chunkStart + chunkSize, ids.count)])
-                        let threadIds = try Set(String.fetchAll(database, sql:
-                            "SELECT DISTINCT thread_id FROM messages WHERE gmail_id IN (\(chunk.sqlPlaceholders))",
-                            arguments: StatementArguments(chunk)
-                        ))
-                        affectedThreadIds.formUnion(threadIds)
-                    }
-                    // CASCADE handles message_labels, email_tags, attachments.
-                    try MessageRecord.deleteAll(database, keys: ids)
-                    try MailDatabaseQueries.updateThreadCounts(for: affectedThreadIds, in: database)
-                    return ids.count
-                }
-            }
-        } catch {
-            Self.logger.error("Failed to delete messages by label \(labelID): \(error)")
-            return 0
-        }
-    }
-
-    /// Moves a message to inbox. Optimistic DB write → API call → revert on failure.
-    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
-    ///   `EmailActionCoordinator.moveToInboxEmail(_:selectedFolder:selectNext:)`.
-    func moveToInbox(_ messageID: String) async {
-        await performOptimisticAction(
-            messageID,
-            addLabelIDs: [GmailSystemLabel.inbox],
-            apiCall: { [api, accountID] in
-                try await api.modifyLabels(
-                    id: messageID, add: [GmailSystemLabel.inbox], remove: [], accountID: accountID
-                )
-            },
-            failureToast: "Failed to move to inbox"
-        )
-    }
-
-    /// Untrashes a message. Optimistic DB write → API call → reconcile or revert.
-    /// - Note: Internal — called by `EmailActionCoordinator`.
-    func untrash(_ messageID: String) async {
-        await performOptimisticAction(
-            messageID,
-            removeLabelIDs: [GmailSystemLabel.trash],
-            apiCall: { [api, accountID, weak self] in
-                let updated = try await api.untrashMessage(id: messageID, accountID: accountID)
-                await self?.reconcileLabelsInDatabase(messageID, serverLabelIds: updated.labelIds ?? [])
-            },
-            failureToast: "Failed to untrash"
-        )
-    }
-
-    /// Permanently deletes a message. Removes all labels from DB optimistically,
-    /// then deletes the message record itself after a successful API call.
-    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
-    ///   `EmailActionCoordinator.deletePermanentlyEmail(_:selectNext:)`.
-    ///
-    /// - Parameters:
-    ///   - messageID: The Gmail message ID.
-    ///   - originalLabelIds: When provided (e.g. from the coordinator's earlier optimistic write),
-    ///     skips the redundant `removeAllLabelsInDatabase` and uses these labels for rollback.
-    func deletePermanently(_ messageID: String, originalLabelIds: [String]? = nil) async {
-        let original: [String]?
-        if let originalLabelIds {
-            original = originalLabelIds
-        } else {
-            original = await removeAllLabelsInDatabase(messageID)
-        }
-        do {
-            try await api.deleteMessagePermanently(id: messageID, accountID: accountID)
-            // Delete the message record (CASCADE handles message_labels, email_tags, attachments).
-            // Use BackgroundSyncer when available for FTS cleanup; fall back to direct delete.
-            if let syncer = backgroundSyncer {
-                try? await syncer.deleteMessages(gmailIds: [messageID])
-            } else {
-                _ = try? await mailDatabase?.dbPool.write { db in
-                    try MessageRecord.deleteOne(db, key: messageID)
-                }
-            }
-        } catch {
-            if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            ToastManager.shared.show(message: "Failed to delete permanently", type: .error)
-        }
-    }
-
-    /// Marks a message as not spam. Optimistic DB write → API call → revert on failure.
-    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
-    ///   `EmailActionCoordinator.markNotSpamEmail(_:selectNext:)`.
-    func unspam(_ messageID: String) async {
-        await performOptimisticAction(
-            messageID,
-            addLabelIDs: [GmailSystemLabel.inbox],
-            removeLabelIDs: [GmailSystemLabel.spam],
-            apiCall: { [api, accountID] in
-                try await api.modifyLabels(
-                    id: messageID, add: [GmailSystemLabel.inbox], remove: [GmailSystemLabel.spam], accountID: accountID
-                )
-            },
-            failureToast: "Failed to remove spam"
-        )
-    }
-
-    /// Marks a message as spam. Optimistic DB write → API call → revert on failure.
-    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
-    ///   `EmailActionCoordinator.markSpamEmail(_:selectNext:)`.
-    func spam(_ messageID: String) async {
-        await performOptimisticAction(
-            messageID,
-            addLabelIDs: [GmailSystemLabel.spam],
-            removeLabelIDs: [GmailSystemLabel.inbox],
-            apiCall: { [api, accountID] in
-                try await api.spamMessage(id: messageID, accountID: accountID)
-            },
-            failureToast: "Failed to mark as spam"
-        )
-    }
-
-    /// Adds a user label to a message. Handles optimistic DB update, offline queue, and API call.
-    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
-    ///   `EmailActionCoordinator.addLabelToEmail(_:to:)`.
-    func addLabel(_ labelID: String, to messageID: String) async {
-        await modifyLabel(labelID, on: messageID, isAdding: true)
-    }
-
-    /// Creates a new label and adds it to a message.
-    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
-    ///   `EmailActionCoordinator.createAndAddLabelToEmail(name:to:)`.
-    @discardableResult
-    func createAndAddLabel(name: String, to messageID: String) async -> String? {
-        do {
-            let newLabel = try await GmailLabelService.shared.createLabel(name: name, accountID: accountID)
-            labels.append(newLabel)
-            userLabels = labels.filter { !$0.isSystemLabel }
-            await addLabel(newLabel.id, to: messageID)
-            return newLabel.id
-        } catch {
-            ToastManager.shared.show(message: "Failed to create label", type: .error)
-            return nil
-        }
-    }
-
-    /// Removes a user label from a message. Handles optimistic DB update, offline queue, and API call.
-    /// - Note: Internal — called by `EmailActionCoordinator`. Views should use
-    ///   `EmailActionCoordinator.removeLabelFromEmail(_:from:)`.
-    func removeLabel(_ labelID: String, from messageID: String) async {
-        await modifyLabel(labelID, on: messageID, isAdding: false)
-    }
-
-    private func modifyLabel(_ labelID: String, on messageID: String, isAdding: Bool) async {
-        let addIDs    = isAdding ? [labelID] : []
-        let removeIDs = isAdding ? [] : [labelID]
-        let original  = await updateLabelsInDatabase(messageID, addLabelIds: addIDs, removeLabelIds: removeIDs)
-        guard NetworkMonitor.shared.isConnected else {
-            await OfflineActionQueue.shared.enqueue(OfflineAction(
-                actionType: isAdding ? .addLabel : .removeLabel,
-                messageIds: [messageID],
-                accountID: accountID,
-                metadata: ["labelId": labelID]
-            ))
-            ToastManager.shared.show(message: isAdding ? "Label added (will sync when online)" : "Label removed (will sync when online)")
-            return
-        }
-        do {
-            try await api.modifyLabels(
-                id: messageID, add: addIDs, remove: removeIDs, accountID: accountID
-            )
-        } catch {
-            if let original { await restoreLabelsInDatabase(messageID, originalLabelIds: original) }
-            ToastManager.shared.show(message: isAdding ? "Failed to add label" : "Failed to remove label", type: .error)
-        }
     }
 
     // MARK: - GmailMessage → Email conversion

@@ -136,6 +136,73 @@ actor CalendarBackgroundSyncer {
         }
     }
 
+    // MARK: - Optimistic Writes
+
+    /// Snapshots and deletes an event atomically in a single write transaction.
+    /// Returns the snapshot (event record + attendees) for rollback, or `nil` if the event was not found.
+    func optimisticDeleteEvent(
+        eventId: String,
+        calendarId: String,
+        accountId: String
+    ) async throws -> (CalendarEventRecord, [CalendarAttendeeRecord])? {
+        try await db.dbPool.write { db in
+            guard let eventRecord = try CalendarEventRecord
+                .filter(Column("event_id") == eventId
+                    && Column("calendar_id") == calendarId
+                    && Column("account_id") == accountId)
+                .fetchOne(db)
+            else { return nil }
+            let attendees = try CalendarAttendeeRecord
+                .filter(Column("event_id") == eventId
+                    && Column("calendar_id") == calendarId
+                    && Column("account_id") == accountId)
+                .fetchAll(db)
+            try MailDatabaseQueries.deleteCalendarEvent(
+                eventId: eventId, calendarId: calendarId, accountId: accountId, in: db
+            )
+            return (eventRecord, attendees)
+        }
+    }
+
+    /// Re-inserts a previously deleted event and its attendees (rollback after API failure).
+    func rollbackDeleteEvent(
+        _ eventRecord: CalendarEventRecord,
+        attendees: [CalendarAttendeeRecord]
+    ) async throws {
+        try await db.dbPool.write { db in
+            try eventRecord.insert(db)
+            for attendee in attendees { try attendee.insert(db) }
+        }
+    }
+
+    /// Optimistically updates the RSVP status for an event in the database.
+    func optimisticUpdateRSVP(
+        eventId: String,
+        calendarId: String,
+        accountId: String,
+        status: String
+    ) async throws {
+        try await db.dbPool.write { db in
+            try MailDatabaseQueries.updateCalendarEventRSVP(
+                eventId: eventId, calendarId: calendarId, accountId: accountId, status: status, in: db
+            )
+        }
+    }
+
+    /// Restores the original RSVP status for an event (rollback after API failure).
+    func rollbackRSVP(
+        eventId: String,
+        calendarId: String,
+        accountId: String,
+        originalStatus: String
+    ) async throws {
+        try await db.dbPool.write { db in
+            try MailDatabaseQueries.updateCalendarEventRSVP(
+                eventId: eventId, calendarId: calendarId, accountId: accountId, status: originalStatus, in: db
+            )
+        }
+    }
+
     // MARK: - Private Types
 
     /// Hashable key for deduplicating events by their composite primary key.

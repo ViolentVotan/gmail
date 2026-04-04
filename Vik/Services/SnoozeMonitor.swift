@@ -54,7 +54,7 @@ final class SnoozeMonitor {
             items: expired,
             itemID: \.messageId,
             accountID: \.accountID,
-            action: { item throws(GmailAPIError) in
+            action: { item throws(GoogleAPIError) in
                 try await GmailMessageService.shared.modifyLabels(
                     id: item.messageId,
                     add: item.originalLabelIds.isEmpty ? [GmailSystemLabel.inbox] : item.originalLabelIds,
@@ -80,7 +80,7 @@ final class SnoozeMonitor {
             items: due,
             itemID: \.draftId,
             accountID: \.accountID,
-            action: { item throws(GmailAPIError) in
+            action: { item throws(GoogleAPIError) in
                 try await GmailDraftService.shared.sendDraft(draftId: item.draftId, accountID: item.accountID)
             },
             remove: { item in
@@ -107,7 +107,7 @@ final class SnoozeMonitor {
         items: [T],
         itemID: KeyPath<T, String>,
         accountID: KeyPath<T, String>,
-        action: (T) async throws(GmailAPIError) -> Void,
+        action: (T) async throws(GoogleAPIError) -> Void,
         remove: (T) async -> Void,
         onSuccess: ((T) -> Void)? = nil,
         onPermanentFailure: ((T) -> Void)? = nil,

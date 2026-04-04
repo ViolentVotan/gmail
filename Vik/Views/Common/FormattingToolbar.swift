@@ -363,7 +363,7 @@ struct FormattingToolbar: View {
                 .help("Insert link (Cmd+K)")
                 .accessibilityLabel("Insert link")
                 .popover(isPresented: $showLinkPopover, arrowEdge: .bottom) {
-                    VStack(spacing: 10) {
+                    VStack(spacing: Spacing.smd) {
                         HStack(spacing: Spacing.xsm) {
                             Text("URL")
                                 .font(Typography.captionRegular)
@@ -483,7 +483,7 @@ struct ColorPickerPopover: View {
     @State private var customColor: Color = .white
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: Spacing.md) {
             VStack(spacing: Spacing.xsm) {
                 ForEach(0..<colorGrid.count, id: \.self) { row in
                     HStack(spacing: Spacing.xsm) {

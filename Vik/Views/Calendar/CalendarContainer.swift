@@ -39,7 +39,7 @@ struct CalendarContainer: View {
                     showDeleteConfirmation = true
                 },
                 onRSVP: { event, status in
-                    Task { try? await calendarVM.respondToEvent(event, status: status) }
+                    Task { await calendarVM.respondToEvent(event, status: status) }
                 },
                 onEmailAttendees: { event in
                     CalendarEventQuickActions.emailAttendees(event: event) { mode in
@@ -65,13 +65,7 @@ struct CalendarContainer: View {
             Button("Delete", role: .destructive) {
                 guard let event = pendingDeleteEvent else { return }
                 calendarVM.selectedEvent = nil
-                Task {
-                    do {
-                        try await calendarVM.deleteEvent(event)
-                    } catch {
-                        ToastManager.shared.show(message: "Failed to delete event: \(error.localizedDescription)", type: .error)
-                    }
-                }
+                Task { await calendarVM.deleteEvent(event) }
             }
         } message: {
             if pendingDeleteEvent?.isRecurring == true {

@@ -11,7 +11,7 @@ struct CalendarContextCard: View {
     var body: some View {
         let label = contextLabel
         return Button(action: onNavigate) {
-            HStack(spacing: 10) {
+            HStack(spacing: Spacing.smd) {
                 Image(systemName: "calendar.badge.clock")
                     .font(Typography.subheadSemibold)
                     .foregroundStyle(.tint)

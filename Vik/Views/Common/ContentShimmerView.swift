@@ -7,7 +7,7 @@ struct ContentShimmerView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Spacing.smd) {
             shimmerRect(height: 10)
                 .padding(.trailing, 40)
             shimmerRect(height: 10)

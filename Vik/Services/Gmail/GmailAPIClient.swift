@@ -68,7 +68,7 @@ final class GmailAPIClient {
     /// Classifies a 403 response body and returns the matching error.
     /// Posts the `gmailScopesInsufficient` notification when `insufficientPermissions`
     /// is detected and an `accountID` is available.
-    private nonisolated static func classify403(data: Data, accountID: String?) -> GmailAPIError {
+    private nonisolated static func classify403(data: Data, accountID: String?) -> GoogleAPIError {
         guard let body = String(data: data, encoding: .utf8) else {
             return .httpError(403, data)
         }
@@ -98,7 +98,7 @@ final class GmailAPIClient {
         contentType: String? = nil,
         fields: String? = nil,
         accountID: String
-    ) async throws(GmailAPIError) -> T {
+    ) async throws(GoogleAPIError) -> T {
         let data = try await rawRequest(path: path, method: method, body: body, contentType: contentType, fields: fields, accountID: accountID)
         do {
             return try Self.jsonDecoder.decode(T.self, from: data)
@@ -115,7 +115,7 @@ final class GmailAPIClient {
         contentType: String? = nil,
         fields: String? = nil,
         accountID: String
-    ) async throws(GmailAPIError) -> Data {
+    ) async throws(GoogleAPIError) -> Data {
         guard NetworkMonitor.isReachable else { throw .offline }
         let token = try await cachedValidToken(for: accountID)
 
@@ -140,7 +140,7 @@ final class GmailAPIClient {
         mimeData: Data,
         threadID: String?,
         accountID: String
-    ) async throws(GmailAPIError) -> GmailMessage {
+    ) async throws(GoogleAPIError) -> GmailMessage {
         guard NetworkMonitor.isReachable else { throw .offline }
         let token = try await cachedValidToken(for: accountID)
 
@@ -157,7 +157,7 @@ final class GmailAPIClient {
         mimeData: Data,
         threadID: String?,
         accessToken: String
-    ) async throws(GmailAPIError) -> GmailMessage {
+    ) async throws(GoogleAPIError) -> GmailMessage {
         // Step 1: Initiate the resumable upload session
         let uploadURI = try await initiateResumableUpload(
             mimeData: mimeData, threadID: threadID, accessToken: accessToken
@@ -172,7 +172,7 @@ final class GmailAPIClient {
         mimeData: Data,
         threadID: String?,
         accessToken: String
-    ) async throws(GmailAPIError) -> URL {
+    ) async throws(GoogleAPIError) -> URL {
         let endpoint = "https://www.googleapis.com/upload/gmail/v1/users/me/messages/send?uploadType=resumable"
         guard let url = URL(string: endpoint) else { throw .invalidURL }
 
@@ -213,7 +213,7 @@ final class GmailAPIClient {
     @concurrent private func putResumableData(
         mimeData: Data,
         uploadURI: URL
-    ) async throws(GmailAPIError) -> GmailMessage {
+    ) async throws(GoogleAPIError) -> GmailMessage {
         var request = URLRequest(url: uploadURI)
         request.httpMethod = "PUT"
         request.setValue("message/rfc822", forHTTPHeaderField: "Content-Type")
@@ -248,11 +248,11 @@ final class GmailAPIClient {
         etag: String?,
         fields: String? = nil,
         accountID: String
-    ) async throws(GmailAPIError) -> (T, String?)? {
+    ) async throws(GoogleAPIError) -> (T, String?)? {
         guard NetworkMonitor.isReachable else { throw .offline }
         let token = try await cachedValidToken(for: accountID)
 
-        let doRequest = { (accessToken: String) async throws(GmailAPIError) -> (T, String?)? in
+        let doRequest = { (accessToken: String) async throws(GoogleAPIError) -> (T, String?)? in
             try await self.performWithETag(
                 path: path, etag: etag, fields: fields, accessToken: accessToken, accountID: accountID
             )
@@ -272,7 +272,7 @@ final class GmailAPIClient {
         fields: String?,
         accessToken: String,
         accountID: String
-    ) async throws(GmailAPIError) -> (T, String?)? {
+    ) async throws(GoogleAPIError) -> (T, String?)? {
         var fullPath = path
         Self.appendFields(fields, to: &fullPath)
         guard let url = URL(string: baseURL + fullPath) else { throw .invalidURL }
@@ -310,16 +310,16 @@ final class GmailAPIClient {
     // MARK: - Authenticated request to any Google API URL
 
     /// Makes an authenticated GET request to any Google API (not limited to the Gmail base URL).
-    @concurrent func requestURL<T: Decodable>(_ urlString: String, accountID: String) async throws(GmailAPIError) -> T {
+    @concurrent func requestURL<T: Decodable>(_ urlString: String, accountID: String) async throws(GoogleAPIError) -> T {
         guard NetworkMonitor.isReachable else { throw .offline }
         let token = try await cachedValidToken(for: accountID)
 
-        let doRequest = { (accessToken: String) async throws(GmailAPIError) -> T in
+        let doRequest = { (accessToken: String) async throws(GoogleAPIError) -> T in
             let data = try await self.performURL(urlString, accessToken: accessToken, accountID: accountID)
             do {
                 return try Self.jsonDecoder.decode(T.self, from: data)
             } catch {
-                throw GmailAPIError.decodingError(error)
+                throw GoogleAPIError.decodingError(error)
             }
         }
 
@@ -340,7 +340,7 @@ final class GmailAPIClient {
     @concurrent func batchRequest(
         requests: [(id: String, method: String, path: String, body: Data?)],
         accountID: String
-    ) async throws(GmailAPIError) -> [(id: String, statusCode: Int, data: Data)] {
+    ) async throws(GoogleAPIError) -> [(id: String, statusCode: Int, data: Data)] {
         guard NetworkMonitor.isReachable else { throw .offline }
         let token = try await cachedValidToken(for: accountID)
         var activeAccessToken = token.accessToken
@@ -372,7 +372,7 @@ final class GmailAPIClient {
         originalRequests: [(id: String, method: String, path: String, body: Data?)],
         accessToken: String,
         accountID: String
-    ) async throws(GmailAPIError) -> [(id: String, statusCode: Int, data: Data)] {
+    ) async throws(GoogleAPIError) -> [(id: String, statusCode: Int, data: Data)] {
         let maxPartRetries = 3
         let requestsByID = Dictionary(uniqueKeysWithValues: originalRequests.map { ($0.id, $0) })
         var finalResults = allResults.filter { $0.statusCode != 429 }
@@ -428,7 +428,7 @@ final class GmailAPIClient {
         ids: [String],
         pathBuilder: @escaping @Sendable (String) -> String,
         accountID: String
-    ) async throws(GmailAPIError) -> BatchFetchResult<T> {
+    ) async throws(GoogleAPIError) -> BatchFetchResult<T> {
         guard !ids.isEmpty else { return BatchFetchResult(items: [], failedIDs: []) }
         let batchSize = 50
         // Reduced from 3 to 2 to avoid hitting Gmail's undocumented per-user
@@ -448,11 +448,11 @@ final class GmailAPIClient {
         // Multiple chunks — run up to maxConcurrentBatches in parallel.
         // Use non-throwing TaskGroup with Result to satisfy typed throws.
         // Track which chunk indices failed for logging.
-        let (allItems, allFailedIDs, firstError, failedChunkCount): ([T], [String], GmailAPIError?, Int) = await withTaskGroup(of: (Int, Result<BatchFetchResult<T>, GmailAPIError>).self) { group in
+        let (allItems, allFailedIDs, firstError, failedChunkCount): ([T], [String], GoogleAPIError?, Int) = await withTaskGroup(of: (Int, Result<BatchFetchResult<T>, GoogleAPIError>).self) { group in
             var chunkIterator = chunks.enumerated().makeIterator()
             var collected: [T] = []
             var failedIDs: [String] = []
-            var error: GmailAPIError?
+            var error: GoogleAPIError?
             var failedChunks = 0
 
             // Seed initial batch
@@ -462,7 +462,7 @@ final class GmailAPIClient {
                         do {
                             let result: BatchFetchResult<T> = try await self.fetchSingleBatch(chunk: chunk, pathBuilder: pathBuilder, accountID: accountID)
                             return (index, .success(result))
-                        } catch let err as GmailAPIError {
+                        } catch let err as GoogleAPIError {
                             return (index, .failure(err))
                         } catch {
                             return (index, .failure(.networkError(error)))
@@ -489,7 +489,7 @@ final class GmailAPIClient {
                         do {
                             let result: BatchFetchResult<T> = try await self.fetchSingleBatch(chunk: nextChunk, pathBuilder: pathBuilder, accountID: accountID)
                             return (nextIndex, .success(result))
-                        } catch let err as GmailAPIError {
+                        } catch let err as GoogleAPIError {
                             return (nextIndex, .failure(err))
                         } catch {
                             return (nextIndex, .failure(.networkError(error)))
@@ -521,7 +521,7 @@ final class GmailAPIClient {
         chunk: [String],
         pathBuilder: @Sendable (String) -> String,
         accountID: String
-    ) async throws(GmailAPIError) -> BatchFetchResult<T> {
+    ) async throws(GoogleAPIError) -> BatchFetchResult<T> {
         let requests = chunk.map { id in
             (id: id, method: "GET", path: pathBuilder(id), body: nil as Data?)
         }
@@ -553,7 +553,7 @@ final class GmailAPIClient {
     @concurrent nonisolated static func requestWithToken<T: Decodable>(
         url urlString: String,
         token: String
-    ) async throws(GmailAPIError) -> T {
+    ) async throws(GoogleAPIError) -> T {
         guard let url = URL(string: urlString) else { throw .invalidURL }
         guard let host = url.host, host.hasSuffix(".googleapis.com") else { throw .invalidURL }
 
@@ -586,7 +586,7 @@ final class GmailAPIClient {
         _ urlString: String,
         accessToken: String,
         accountID: String
-    ) async throws(GmailAPIError) -> Data {
+    ) async throws(GoogleAPIError) -> Data {
         guard let url = URL(string: urlString) else { throw .invalidURL }
         guard let host = url.host, host.hasSuffix(".googleapis.com") else { throw .invalidURL }
 
@@ -613,7 +613,7 @@ final class GmailAPIClient {
         requests: [(id: String, method: String, path: String, body: Data?)],
         accessToken: String,
         accountID: String
-    ) async throws(GmailAPIError) -> [(id: String, statusCode: Int, data: Data)] {
+    ) async throws(GoogleAPIError) -> [(id: String, statusCode: Int, data: Data)] {
         let boundary = "batch_vik_\(UUID().uuidString)"
         var bodyParts: [String] = []
 
@@ -661,7 +661,7 @@ final class GmailAPIClient {
         }
     }
 
-    nonisolated private static func parseBatchResponse(data: Data, boundary: String) throws(GmailAPIError) -> [(id: String, statusCode: Int, data: Data)] {
+    nonisolated private static func parseBatchResponse(data: Data, boundary: String) throws(GoogleAPIError) -> [(id: String, statusCode: Int, data: Data)] {
         guard let responseString = String(data: data, encoding: .utf8) else {
             throw .decodingError(URLError(.cannotParseResponse))
         }
@@ -723,14 +723,14 @@ final class GmailAPIClient {
 
     /// Fast path: returns the cached token if still valid.
     /// On cache miss, falls back to `validToken(for:)` which reads Keychain off MainActor.
-    @concurrent private func cachedValidToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
+    @concurrent private func cachedValidToken(for accountID: String) async throws(GoogleAPIError) -> AuthToken {
         if let cached = cachedTokens.withLock({ $0[accountID] }), !cached.isExpired {
             return cached
         }
         return try await validToken(for: accountID)
     }
 
-    @concurrent private func validToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
+    @concurrent private func validToken(for accountID: String) async throws(GoogleAPIError) -> AuthToken {
         guard let token = await TokenStore.shared.retrieve(for: accountID) else {
             throw .unauthorized
         }
@@ -744,7 +744,7 @@ final class GmailAPIClient {
     /// Forces a token refresh (invalidates cached token). Used for 401 auto-retry.
     /// If a refresh is already in flight, awaits it instead of starting a new one
     /// (avoids double-refresh when concurrent 401s race).
-    @concurrent private func refreshAndRetry(accountID: String) async throws(GmailAPIError) -> AuthToken {
+    @concurrent private func refreshAndRetry(accountID: String) async throws(GoogleAPIError) -> AuthToken {
         // Single atomic check-or-create on MainActor — prevents TOCTOU race
         // where two concurrent callers both see nil and create duplicate refresh tasks.
         let (task, isNew): (Task<AuthToken, Error>, Bool) = await MainActor.run {
@@ -758,7 +758,7 @@ final class GmailAPIClient {
             // the body does network I/O that should not occupy the main actor.
             let t = Task.detached {
                 guard let token = await TokenStore.shared.retrieve(for: accountID) else {
-                    throw GmailAPIError.unauthorized
+                    throw GoogleAPIError.unauthorized
                 }
                 do {
                     let fresh = try await OAuthService.shared.refreshToken(token)
@@ -832,7 +832,7 @@ final class GmailAPIClient {
         fields: String?,
         accessToken: String,
         accountID: String
-    ) async throws(GmailAPIError) -> Data {
+    ) async throws(GoogleAPIError) -> Data {
         #if DEBUG
         let reqHeaders: [String: String] = {
             var h = ["Authorization": "Bearer [hidden]"]
@@ -897,13 +897,13 @@ final class GmailAPIClient {
     /// handle status-specific logic (401, 304, success parsing, non-rate-limit 403s).
     @concurrent private nonisolated static func retryingRequest(
         _ request: URLRequest
-    ) async throws(GmailAPIError) -> (Data, HTTPURLResponse) {
+    ) async throws(GoogleAPIError) -> (Data, HTTPURLResponse) {
         do {
             return try await RetryPolicy.retryingHTTP {
                 try await sharedSession.data(for: request)
             }
         } catch {
-            throw GmailAPIError.wrap(error)
+            throw GoogleAPIError.wrap(error)
         }
     }
 
@@ -916,7 +916,7 @@ final class GmailAPIClient {
         fields: String?,
         accessToken: String,
         accountID: String
-    ) async throws(GmailAPIError) -> (Data, Int, [String: String]) {
+    ) async throws(GoogleAPIError) -> (Data, Int, [String: String]) {
         var fullPath = path
         Self.appendFields(fields, to: &fullPath)
         guard let url = URL(string: baseURL + fullPath) else { throw .invalidURL }
@@ -949,12 +949,12 @@ final class GmailAPIClient {
 
     /// Returns a valid cached or refreshed token for use by `CalendarAPIClient`.
     /// Avoids duplicating token infrastructure — Calendar delegates auth here.
-    func validCalendarToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
+    func validCalendarToken(for accountID: String) async throws(GoogleAPIError) -> AuthToken {
         try await cachedValidToken(for: accountID)
     }
 
     /// Forces a token refresh for use by `CalendarAPIClient` on 401.
-    func refreshCalendarToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
+    func refreshCalendarToken(for accountID: String) async throws(GoogleAPIError) -> AuthToken {
         try await refreshAndRetry(accountID: accountID)
     }
 
@@ -962,64 +962,15 @@ final class GmailAPIClient {
 
     /// Returns a valid cached or refreshed token for use by `PubSubService`.
     /// Avoids duplicating token infrastructure — Pub/Sub delegates auth here.
-    func validPubSubToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
+    func validPubSubToken(for accountID: String) async throws(GoogleAPIError) -> AuthToken {
         try await cachedValidToken(for: accountID)
     }
 
     /// Forces a token refresh for use by `PubSubService` on 401.
-    func refreshPubSubToken(for accountID: String) async throws(GmailAPIError) -> AuthToken {
+    func refreshPubSubToken(for accountID: String) async throws(GoogleAPIError) -> AuthToken {
         try await refreshAndRetry(accountID: accountID)
     }
 
-}
-
-// MARK: - Errors
-
-enum GmailAPIError: Error, LocalizedError {
-    case invalidURL
-    case unauthorized
-    case offline
-    case tokenRevoked
-    case httpError(Int, Data)
-    case decodingError(Error)
-    case encodingError(Error)
-    case partialFailure(failedCount: Int)
-    case networkError(Error)
-    case attachmentReadFailed([String])
-    case dailyLimitExceeded
-    case domainPolicy
-    case insufficientPermissions
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidURL:                      return "Invalid API URL"
-        case .unauthorized:                    return "Unauthorized — please sign in again"
-        case .offline:                         return "You're offline — please check your connection"
-        case .tokenRevoked:                    return "Session expired — please sign in again"
-        case .httpError(let c, _):             return "HTTP \(c)"
-        case .decodingError:                   return "Failed to process server response"
-        case .encodingError:                   return "Failed to prepare request"
-        case .partialFailure(let count):       return "Failed to delete \(count) messages"
-        case .networkError(let e):             return "Network error: \(e.localizedDescription)"
-        case .attachmentReadFailed(let names): return "Could not read attachments: \(names.joined(separator: ", "))"
-        case .dailyLimitExceeded:              return "Gmail daily API limit exceeded — try again tomorrow"
-        case .domainPolicy:                    return "Blocked by domain policy — contact your administrator"
-        case .insufficientPermissions:         return "Insufficient permissions — please reauthorize Gmail access"
-        }
-    }
-
-    /// Wraps an arbitrary error into a `GmailAPIError`, passing through if already one.
-    /// Maps `OAuthError.tokenRevoked` to `.tokenRevoked` so callers get a clear signal.
-    static func wrap(_ error: Error) -> GmailAPIError {
-        if let apiError = error as? GmailAPIError { return apiError }
-        if let oauthError = error as? OAuthError {
-            switch oauthError {
-            case .tokenRevoked, .noRefreshToken: return .tokenRevoked
-            default: break
-            }
-        }
-        return .networkError(error)
-    }
 }
 
 // MARK: - Retry Policy

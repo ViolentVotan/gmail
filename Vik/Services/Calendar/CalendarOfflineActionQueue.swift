@@ -75,7 +75,7 @@ final class CalendarOfflineActionQueue {
             do {
                 try await execute(action)
                 processed.append(action.id)
-            } catch CalendarAPIError.conflict(_) where action.actionType.isUpdate {
+            } catch GoogleAPIError.conflict(_) where action.actionType.isUpdate {
                 // 409 Conflict on update — re-fetch fresh etag and retry once
                 let resolved = await resolveConflict(for: action)
                 if resolved {
@@ -87,7 +87,7 @@ final class CalendarOfflineActionQueue {
                     )
                     break  // leave in queue for retry
                 }
-            } catch CalendarAPIError.rateLimited(let retryAfter) {
+            } catch GoogleAPIError.rateLimited(let retryAfter) {
                 Self.logger.warning("Calendar offline queue rate-limited — backing off \(max(retryAfter, 2))s")
                 try? await Task.sleep(for: .seconds(max(retryAfter, 2)))
                 break
@@ -112,7 +112,7 @@ final class CalendarOfflineActionQueue {
 
     // MARK: - Execution
 
-    private func execute(_ action: CalendarOfflineAction) async throws(CalendarAPIError) {
+    private func execute(_ action: CalendarOfflineAction) async throws(GoogleAPIError) {
         let service = CalendarEventService.shared
         switch action.actionType {
         case .createEvent(let calendarId, let input, let sendUpdates):

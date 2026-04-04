@@ -6,7 +6,7 @@ struct EmailHoverSummaryView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Spacing.smd) {
             // Header
             HStack(spacing: Spacing.sm) {
                 AvatarView(

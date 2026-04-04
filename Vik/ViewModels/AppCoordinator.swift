@@ -68,14 +68,6 @@ final class AppCoordinator {
     isolated deinit {
         navigationTask?.cancel()
         sync.cancelAllTasks()
-        let engine = sync.syncEngine
-        let calEngine = calendar.calendarSyncEngine
-        if engine != nil || calEngine != nil {
-            Task {
-                await engine?.stop()
-                await calEngine?.stop()
-            }
-        }
     }
 
     // MARK: - Cross-Domain Computed Properties
@@ -293,7 +285,7 @@ final class AppCoordinator {
     /// Handles a message restored from undo (e.g. un-archive/un-delete).
     /// Clears the trigger and selects the restored email if found.
     func handleRestoredMessage(_ msgID: String) {
-        mailboxViewModel.lastRestoredMessageID = nil
+        mailboxViewModel.labelMutations.lastRestoredMessageID = nil
         if let restoredEmail = mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgID }) {
             selection.selectedEmail = restoredEmail
             selection.selectedEmailIDs = [restoredEmail.id.uuidString]

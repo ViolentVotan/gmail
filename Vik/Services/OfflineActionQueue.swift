@@ -92,14 +92,14 @@ final class OfflineActionQueue {
                         await removeAction(action)
                         succeeded += 1
                     } catch {
-                        if case .httpError(404, _) = error as? GmailAPIError {
+                        if case .httpError(404, _) = error as? GoogleAPIError {
                             await removeAction(action)
-                        } else if case .partialFailure = error as? GmailAPIError {
+                        } else if case .partialFailure = error as? GoogleAPIError {
                             // Partial success: some messages deleted. Remove action to avoid
                             // infinite retry loop (deleted IDs return 404 on next attempt).
                             // Failed deletions will be retried on next full sync.
                             await removeAction(action)
-                        } else if let apiError = error as? GmailAPIError,
+                        } else if let apiError = error as? GoogleAPIError,
                                   case .httpError(let code, _) = apiError,
                                   (400..<500).contains(code), code != 429 {
                             // Permanent client error (bad request, forbidden, not found, gone, etc.)
@@ -140,15 +140,15 @@ final class OfflineActionQueue {
 
     // MARK: - Execution
 
-    private func executeAction(_ action: OfflineAction) async throws(GmailAPIError) {
+    private func executeAction(_ action: OfflineAction) async throws(GoogleAPIError) {
         switch action.actionType {
         case .trash:
             // Trash uses a per-message API endpoint — must loop sequentially.
-            try await executeSequentially(action) { msgId, accountID throws(GmailAPIError) in
+            try await executeSequentially(action) { msgId, accountID throws(GoogleAPIError) in
                 try await GmailMessageService.shared.trashMessage(id: msgId, accountID: accountID)
             }
         case .untrash:
-            try await executeSequentially(action) { msgId, accountID throws(GmailAPIError) in
+            try await executeSequentially(action) { msgId, accountID throws(GoogleAPIError) in
                 try await GmailMessageService.shared.untrashMessage(id: msgId, accountID: accountID)
             }
         case .deletePermanently:
@@ -233,8 +233,8 @@ final class OfflineActionQueue {
     /// (e.g. trash, untrash, deletePermanently). Prunes completed message IDs so retries skip finished work.
     private func executeSequentially(
         _ action: OfflineAction,
-        perform: (String, String) async throws(GmailAPIError) -> Void
-    ) async throws(GmailAPIError) {
+        perform: (String, String) async throws(GoogleAPIError) -> Void
+    ) async throws(GoogleAPIError) {
         for (index, msgId) in action.messageIds.enumerated() {
             try await perform(msgId, action.accountID)
             let remainingIds = Array(action.messageIds[(index + 1)...])

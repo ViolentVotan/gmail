@@ -21,7 +21,7 @@ final class GmailSendService {
         inlineImages: [InlineImageAttachment] = [],
         attachments: [URL]? = nil,
         accountID: String
-    ) async throws(GmailAPIError) -> GmailMessage {
+    ) async throws(GoogleAPIError) -> GmailMessage {
         let raw = try Self.buildRawMessage(
             from: from, to: to, cc: cc, bcc: bcc,
             subject: subject, body: body, isHTML: isHTML,
@@ -68,7 +68,7 @@ final class GmailSendService {
         base64url: String,
         threadID: String?,
         accountID: String
-    ) async throws(GmailAPIError) {
+    ) async throws(GoogleAPIError) {
         var payload: [String: Any] = ["raw": base64url]
         if let threadID { payload["threadId"] = threadID }
         let body: Data
@@ -137,7 +137,7 @@ final class GmailSendService {
         references: String? = nil,
         inlineImages: [InlineImageAttachment] = [],
         attachments: [URL] = []
-    ) throws(GmailAPIError) -> String {
+    ) throws(GoogleAPIError) -> String {
         if !attachments.isEmpty || !inlineImages.isEmpty {
             return try buildRawMultipart(
                 from: from, to: to, cc: cc, bcc: bcc,
@@ -197,7 +197,7 @@ final class GmailSendService {
         isHTML: Bool,
         inReplyTo: String? = nil,
         references: String? = nil
-    ) throws(GmailAPIError) -> String {
+    ) throws(GoogleAPIError) -> String {
         if isHTML {
             // multipart/alternative: text/plain + text/html
             let boundary = "BA_\(mimeBoundaryID())"
@@ -258,7 +258,7 @@ final class GmailSendService {
         references: String? = nil,
         inlineImages: [InlineImageAttachment] = [],
         attachments: [URL]
-    ) throws(GmailAPIError) -> String {
+    ) throws(GoogleAPIError) -> String {
         let boundaryMixed = "BM_\(mimeBoundaryID())"
         let boundaryRelated = "BR_\(mimeBoundaryID())"
         let boundaryAlt = "BA_\(mimeBoundaryID())"
@@ -359,7 +359,7 @@ final class GmailSendService {
     }
 
     /// Encodes file attachments as MIME parts. Throws if any file cannot be read.
-    nonisolated private static func encodeFileAttachments(_ urls: [URL], boundary: String) throws(GmailAPIError) -> String {
+    nonisolated private static func encodeFileAttachments(_ urls: [URL], boundary: String) throws(GoogleAPIError) -> String {
         var mime = ""
         var failedFilenames: [String] = []
         for url in urls {
@@ -411,7 +411,7 @@ final class GmailSendService {
         addresses.map { mimeEncodeAddress($0) }.joined(separator: ", ")
     }
 
-    nonisolated private static func base64URLEncode(_ string: String) throws(GmailAPIError) -> String {
+    nonisolated private static func base64URLEncode(_ string: String) throws(GoogleAPIError) -> String {
         guard let data = string.data(using: .utf8) else {
             throw .encodingError(URLError(.cannotParseResponse))
         }

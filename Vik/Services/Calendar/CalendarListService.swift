@@ -20,7 +20,7 @@ final class CalendarListService {
     /// Lists all calendars for the given account, paginating through all results.
     @concurrent func listCalendars(
         accountID: String
-    ) async throws(CalendarAPIError) -> (entries: [CalendarAPICalendarListEntry], syncToken: String?) {
+    ) async throws(GoogleAPIError) -> (entries: [CalendarAPICalendarListEntry], syncToken: String?) {
         var all: [CalendarAPICalendarListEntry] = []
         var pageToken: String? = nil
         var lastSyncToken: String? = nil
@@ -52,7 +52,7 @@ final class CalendarListService {
     @concurrent func syncCalendars(
         accountID: String,
         syncToken: String
-    ) async throws(CalendarAPIError) -> (entries: [CalendarAPICalendarListEntry], syncToken: String?) {
+    ) async throws(GoogleAPIError) -> (entries: [CalendarAPICalendarListEntry], syncToken: String?) {
         var allEntries: [CalendarAPICalendarListEntry] = []
         var pageToken: String? = nil
         var latestSyncToken: String? = nil

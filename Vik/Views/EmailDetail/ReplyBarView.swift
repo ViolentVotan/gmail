@@ -102,7 +102,7 @@ struct ReplyBarView: View {
                 isExpanded = true
             }
         } label: {
-            HStack(spacing: 10) {
+            HStack(spacing: Spacing.smd) {
                 Text(replyBarVM.collapsedPlaceholderText)
                     .font(Typography.body)
                     .foregroundStyle(.tertiary)

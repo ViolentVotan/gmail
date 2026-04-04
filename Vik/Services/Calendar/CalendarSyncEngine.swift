@@ -16,7 +16,7 @@ actor CalendarSyncEngine {
         case idle
         case initialSync
         case syncing
-        case error(CalendarAPIError)
+        case error(GoogleAPIError)
     }
 
     private(set) var state: State = .idle
@@ -26,8 +26,8 @@ actor CalendarSyncEngine {
 
     private let db: MailDatabase
     private let syncer: CalendarBackgroundSyncer
-    private let eventService: CalendarEventService
-    private let listService: CalendarListService
+    private let eventService: any CalendarEventFetching
+    private let listService: any CalendarListReading
 
     nonisolated private static let logger = Logger(category: "CalendarSyncEngine")
 
@@ -57,6 +57,7 @@ actor CalendarSyncEngine {
     /// `syncIncremental()` — actor reentrancy allows the second call to start
     /// while the first is suspended at an `await`. This flag is set/cleared
     /// synchronously (no `await` between check and set), so it's actor-safe.
+    // Shared reentrancy guard pattern — also in FullSyncEngine
     private var isSyncingIncrementally = false
 
     deinit {
@@ -70,12 +71,17 @@ actor CalendarSyncEngine {
 
     /// - Note: `@MainActor` required because `eventService` and `listService`
     /// are `@MainActor` singletons accessed via `.shared` in the init body.
-    @MainActor init(accountID: String, db: MailDatabase) {
+    @MainActor init(
+        accountID: String,
+        db: MailDatabase,
+        eventService: any CalendarEventFetching = CalendarEventService.shared,
+        listService: any CalendarListReading = CalendarListService.shared
+    ) {
         self.accountID = accountID
         self.db = db
         self.syncer = CalendarBackgroundSyncer(db: db)
-        self.eventService = .shared
-        self.listService = .shared
+        self.eventService = eventService
+        self.listService = listService
     }
 
     // MARK: - Lifecycle
@@ -254,13 +260,13 @@ actor CalendarSyncEngine {
 
             let totalCalendars = visibleCalendars.count
             if failCount == totalCalendars && totalCalendars > 0 {
-                state = .error(CalendarAPIError.httpError(0, Data()))
+                state = .error(GoogleAPIError.httpError(0, Data()))
                 Self.logger.error("Initial sync failed for all \(totalCalendars) calendars")
                 return
             }
 
             state = .idle
-        } catch let error as CalendarAPIError {
+        } catch let error as GoogleAPIError {
             state = .error(error)
             Self.logger.error("Initial calendar sync failed: \(String(describing: error))")
         } catch {
@@ -442,7 +448,7 @@ actor CalendarSyncEngine {
             // Refresh calendar reminder notifications after successful sync
             await NotificationService.shared.refreshCalendarReminders(db: db, accountID: accountID)
         } catch {
-            state = .error(CalendarAPIError.wrap(error))
+            state = .error(GoogleAPIError.wrap(error))
             Self.logger.error("Incremental calendar sync failed: \(String(describing: error))")
         }
     }
@@ -454,7 +460,7 @@ actor CalendarSyncEngine {
         calendarTimeZone: String?,
         syncToken: String,
         accountID: String,
-        eventService: CalendarEventService
+        eventService: any CalendarEventFetching
     ) async -> IncrementalFetchResult {
         do {
             var allCancelled: [CalendarAPIEvent] = []
@@ -495,7 +501,7 @@ actor CalendarSyncEngine {
                 active: allActive,
                 syncToken: finalSyncToken
             )
-        } catch CalendarAPIError.gone {
+        } catch GoogleAPIError.gone {
             return .gone(calendarId: calendarId, calendarTimeZone: calendarTimeZone)
         } catch {
             return .failed(calendarId: calendarId, errorDescription: String(describing: error))
@@ -542,7 +548,7 @@ actor CalendarSyncEngine {
                     if let newSyncToken {
                         await persistCalendarListSyncToken(newSyncToken)
                     }
-                } catch CalendarAPIError.gone {
+                } catch GoogleAPIError.gone {
                     await persistCalendarListSyncToken(nil)
                     Self.logger.info("Calendar list sync token expired, retrying full fetch")
                     // Retry immediately — token is now nil so the full-fetch path runs,

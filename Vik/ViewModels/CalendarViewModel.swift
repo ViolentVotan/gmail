@@ -14,7 +14,6 @@ final class CalendarViewModel {
     var events: [CalendarEvent] = []
     var calendars: [CalendarInfo] = []
     var isLoading = false
-    var error: CalendarAPIError?
     var selectedEvent: CalendarEvent?
 
     /// Set of composite IDs ("\(accountID)\u{001F}\(calendarId)") using Unit Separator for unified multi-account view.
@@ -40,8 +39,9 @@ final class CalendarViewModel {
     // MARK: - Dependencies
 
     let db: MailDatabase
-    private let eventService = CalendarEventService.shared
-    private let listService = CalendarListService.shared
+    private let calendarSyncer: CalendarBackgroundSyncer
+    private let eventService: any CalendarEventFetching
+    private let listService: any CalendarListReading
     nonisolated private static let logger = Logger(category: "CalendarViewModel")
 
     // MARK: - Reactive Observation
@@ -56,8 +56,15 @@ final class CalendarViewModel {
 
     // MARK: - Init
 
-    init(db: MailDatabase) {
+    init(
+        db: MailDatabase,
+        eventService: any CalendarEventFetching = CalendarEventService.shared,
+        listService: any CalendarListReading = CalendarListService.shared
+    ) {
         self.db = db
+        self.calendarSyncer = CalendarBackgroundSyncer(db: db)
+        self.eventService = eventService
+        self.listService = listService
     }
 
     isolated deinit {
@@ -289,34 +296,55 @@ final class CalendarViewModel {
 
     // MARK: - CRUD
 
-    func createEvent(_ input: CalendarAPIEventInput, calendarId: String, accountID: String) async throws {
-        error = nil
+    /// Executes a calendar mutation with unified loading state, offline queuing, and error toast handling.
+    ///
+    /// - Parameters:
+    ///   - offlineAction: If provided, enqueued when a ``GoogleAPIError/offline`` is caught.
+    ///   - operation: The async throwing work to perform.
+    /// - Returns: `true` if the operation succeeded or was queued offline, `false` on error.
+    @discardableResult
+    private func performCalendarMutation(
+        offlineAction: CalendarOfflineActionQueue.CalendarOfflineAction? = nil,
+        _ operation: () async throws -> Void
+    ) async -> Bool {
         isLoading = true
         defer { isLoading = false }
         do {
+            try await operation()
+        } catch GoogleAPIError.offline {
+            if let action = offlineAction {
+                await CalendarOfflineActionQueue.shared.enqueue(action)
+            }
+            ToastManager.shared.show(message: "Event queued (will sync when online)")
+            return true
+        } catch {
+            Self.logger.error("Calendar mutation failed: \(error.localizedDescription)")
+            ToastManager.shared.show(message: error.localizedDescription, type: .error)
+            return false
+        }
+        await onEventMutated?()
+        return true
+    }
+
+    func createEvent(_ input: CalendarAPIEventInput, calendarId: String, accountID: String) async {
+        await performCalendarMutation(
+            offlineAction: .init(
+                id: UUID(),
+                accountID: accountID,
+                createdAt: .now,
+                actionType: .createEvent(calendarId: calendarId, input: input)
+            )
+        ) {
             _ = try await eventService.insertEvent(
                 calendarId: calendarId,
                 event: input,
                 accountID: accountID
             )
-            // Sync engine will pick up the new event via incremental sync.
-        } catch CalendarAPIError.offline {
-            await CalendarOfflineActionQueue.shared.enqueue(.init(
-                id: UUID(),
-                accountID: accountID,
-                createdAt: .now,
-                actionType: .createEvent(calendarId: calendarId, input: input)
-            ))
-            ToastManager.shared.show(message: "Event queued (will sync when online)")
-        } catch {
-            self.error = error
-            throw error
         }
-        await onEventMutated?()
     }
 
-    func updateEvent(_ event: CalendarEvent, input: CalendarAPIEventInput) async throws {
-        try await updateEvent(
+    func updateEvent(_ event: CalendarEvent, input: CalendarAPIEventInput) async {
+        await updateEvent(
             calendarId: event.calendarId,
             eventId: event.googleEventId,
             accountID: event.accountID,
@@ -325,20 +353,9 @@ final class CalendarViewModel {
         )
     }
 
-    func updateEvent(calendarId: String, eventId: String, accountID: String, etag: String?, input: CalendarAPIEventInput) async throws {
-        error = nil
-        isLoading = true
-        defer { isLoading = false }
-        do {
-            _ = try await eventService.updateEvent(
-                calendarId: calendarId,
-                eventId: eventId,
-                event: input,
-                accountID: accountID,
-                etag: etag
-            )
-        } catch CalendarAPIError.offline {
-            await CalendarOfflineActionQueue.shared.enqueue(.init(
+    func updateEvent(calendarId: String, eventId: String, accountID: String, etag: String?, input: CalendarAPIEventInput) async {
+        await performCalendarMutation(
+            offlineAction: .init(
                 id: UUID(),
                 accountID: accountID,
                 createdAt: .now,
@@ -348,150 +365,121 @@ final class CalendarViewModel {
                     input: input,
                     etag: etag ?? ""
                 )
-            ))
-            ToastManager.shared.show(message: "Event queued (will sync when online)")
-        } catch {
-            self.error = error
-            throw error
+            )
+        ) {
+            _ = try await eventService.updateEvent(
+                calendarId: calendarId,
+                eventId: eventId,
+                event: input,
+                accountID: accountID,
+                etag: etag
+            )
         }
-        await onEventMutated?()
     }
 
-    func deleteEvent(_ event: CalendarEvent) async throws {
-        error = nil
-        isLoading = true
-        defer { isLoading = false }
-
-        // Snapshot and delete atomically in one write transaction.
+    func deleteEvent(_ event: CalendarEvent) async {
+        // Optimistic delete: snapshot + remove from DB before API call.
         let snapshot: (CalendarEventRecord, [CalendarAttendeeRecord])?
         do {
-            snapshot = try await db.dbPool.write { db in
-                guard let eventRecord = try CalendarEventRecord
-                    .filter(Column("event_id") == event.googleEventId
-                        && Column("calendar_id") == event.calendarId
-                        && Column("account_id") == event.accountID)
-                    .fetchOne(db)
-                else { return nil }
-                let attendees = try CalendarAttendeeRecord
-                    .filter(Column("event_id") == event.googleEventId
-                        && Column("calendar_id") == event.calendarId
-                        && Column("account_id") == event.accountID)
-                    .fetchAll(db)
-                // Delete event — attendees cascade automatically via ON DELETE CASCADE.
-                try db.execute(
-                    sql: "DELETE FROM calendar_events WHERE event_id = ? AND calendar_id = ? AND account_id = ?",
-                    arguments: [event.googleEventId, event.calendarId, event.accountID]
-                )
-                return (eventRecord, attendees)
-            }
+            snapshot = try await calendarSyncer.optimisticDeleteEvent(
+                eventId: event.googleEventId,
+                calendarId: event.calendarId,
+                accountId: event.accountID
+            )
         } catch {
-            self.error = CalendarAPIError.wrap(error)
+            Self.logger.error("Optimistic delete failed: \(error.localizedDescription)")
+            ToastManager.shared.show(message: GoogleAPIError.wrap(error).localizedDescription, type: .error)
             return
         }
 
-        do {
-            try await eventService.deleteEvent(
-                calendarId: event.calendarId,
-                eventId: event.googleEventId,
-                accountID: event.accountID
-            )
-        } catch CalendarAPIError.offline {
-            await CalendarOfflineActionQueue.shared.enqueue(.init(
+        await performCalendarMutation(
+            offlineAction: .init(
                 id: UUID(),
                 accountID: event.accountID,
                 createdAt: .now,
                 actionType: .deleteEvent(calendarId: event.calendarId, eventId: event.googleEventId)
-            ))
-            ToastManager.shared.show(message: "Event queued (will sync when online)")
-        } catch {
-            // Rollback: re-insert the deleted records.
-            if let (eventRecord, attendees) = snapshot {
-                do {
-                    try await db.dbPool.write { db in
-                        try eventRecord.insert(db)
-                        for attendee in attendees { try attendee.insert(db) }
+            )
+        ) { [calendarSyncer] in
+            do {
+                try await eventService.deleteEvent(
+                    calendarId: event.calendarId,
+                    eventId: event.googleEventId,
+                    accountID: event.accountID
+                )
+            } catch GoogleAPIError.offline {
+                throw GoogleAPIError.offline
+            } catch {
+                // Rollback: re-insert the deleted records.
+                if let (eventRecord, attendees) = snapshot {
+                    do {
+                        try await calendarSyncer.rollbackDeleteEvent(eventRecord, attendees: attendees)
+                    } catch {
+                        Self.logger.error("Rollback re-insert failed after deleteEvent API error: \(error.localizedDescription)")
                     }
-                } catch {
-                    Self.logger.error("Rollback re-insert failed after deleteEvent API error: \(error.localizedDescription)")
                 }
+                throw error
             }
-            self.error = error
-            throw error
         }
-        await onEventMutated?()
     }
 
-    func respondToEvent(_ event: CalendarEvent, status: CalendarRSVPStatus) async throws {
-        error = nil
-        isLoading = true
-        defer { isLoading = false }
+    func respondToEvent(_ event: CalendarEvent, status: CalendarRSVPStatus) async {
         // Save original status for rollback.
         let previousStatus = event.selfResponseStatus
+
         // Optimistic local update regardless of connectivity.
         do {
-            try await db.dbPool.write { db in
-                try db.execute(
-                    sql: """
-                        UPDATE calendar_events SET self_response_status = ?
-                        WHERE event_id = ? AND calendar_id = ? AND account_id = ?
-                        """,
-                    arguments: [status.rawValue, event.googleEventId, event.calendarId, event.accountID]
-                )
-            }
+            try await calendarSyncer.optimisticUpdateRSVP(
+                eventId: event.googleEventId,
+                calendarId: event.calendarId,
+                accountId: event.accountID,
+                status: status.rawValue
+            )
         } catch {
             Self.logger.error("Optimistic RSVP update failed: \(error.localizedDescription)")
         }
-        do {
-            _ = try await eventService.respondToEvent(
-                calendarId: event.calendarId,
-                eventId: event.googleEventId,
-                accountID: event.accountID,
-                status: status.rawValue
-            )
-        } catch CalendarAPIError.offline {
-            await CalendarOfflineActionQueue.shared.enqueue(.init(
+
+        await performCalendarMutation(
+            offlineAction: .init(
                 id: UUID(),
                 accountID: event.accountID,
                 createdAt: .now,
                 actionType: .rsvpEvent(calendarId: event.calendarId, eventId: event.googleEventId, status: status.rawValue)
-            ))
-            ToastManager.shared.show(message: "Event queued (will sync when online)")
-        } catch {
-            // Rollback: restore previous RSVP status.
+            )
+        ) { [calendarSyncer] in
             do {
-                try await db.dbPool.write { db in
-                    try db.execute(
-                        sql: """
-                            UPDATE calendar_events SET self_response_status = ?
-                            WHERE event_id = ? AND calendar_id = ? AND account_id = ?
-                            """,
-                        arguments: [previousStatus.rawValue, event.googleEventId, event.calendarId, event.accountID]
-                    )
-                }
+                _ = try await eventService.respondToEvent(
+                    calendarId: event.calendarId,
+                    eventId: event.googleEventId,
+                    accountID: event.accountID,
+                    status: status.rawValue
+                )
+            } catch GoogleAPIError.offline {
+                throw GoogleAPIError.offline
             } catch {
-                Self.logger.error("Rollback of RSVP status failed: \(error.localizedDescription)")
+                // Rollback: restore previous RSVP status.
+                do {
+                    try await calendarSyncer.rollbackRSVP(
+                        eventId: event.googleEventId,
+                        calendarId: event.calendarId,
+                        accountId: event.accountID,
+                        originalStatus: previousStatus.rawValue
+                    )
+                } catch {
+                    Self.logger.error("Rollback of RSVP status failed: \(error.localizedDescription)")
+                }
+                throw error
             }
-            self.error = error
-            throw error
         }
-        await onEventMutated?()
     }
 
-    func quickAddEvent(text: String, calendarId: String, accountID: String) async throws {
-        error = nil
-        isLoading = true
-        defer { isLoading = false }
-        do {
+    func quickAddEvent(text: String, calendarId: String, accountID: String) async {
+        await performCalendarMutation {
             _ = try await eventService.quickAdd(
                 calendarId: calendarId,
                 text: text,
                 accountID: accountID
             )
-        } catch {
-            self.error = error
-            throw error
         }
-        await onEventMutated?()
     }
 
     // MARK: - Helpers

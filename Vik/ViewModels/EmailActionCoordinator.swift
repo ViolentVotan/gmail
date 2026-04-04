@@ -32,48 +32,81 @@ final class EmailActionCoordinator {
         apiAction: @escaping (String) async throws -> Void
     ) async {
         guard let msgID = email.gmailMessageID else { return }
-        let vm = mailboxViewModel
+        let mutations = mailboxViewModel.labelMutations
         // Connectivity-required actions bail out before any DB mutation
         if offlineType == nil, !NetworkMonitor.shared.isConnected {
             ToastManager.shared.show(message: offlineToast, type: .error)
             return
         }
-        let originalLabels = await vm.updateLabelsInDatabase(msgID, addLabelIds: addLabels, removeLabelIds: removeLabels)
+        let originalLabels = await mutations.updateLabelsInDatabase(msgID, addLabelIds: addLabels, removeLabelIds: removeLabels)
         selectNext(nil)
+        await performUndoableCore(
+            messageIDs: [msgID],
+            offlineType: offlineType,
+            offlineToast: offlineToast,
+            undoLabel: label,
+            apiAction: { [weak mailboxViewModel] expectedAccountID in
+                guard let vm = mailboxViewModel, vm.accountID == expectedAccountID else { return }
+                try await apiAction(msgID)
+            },
+            undoAction: { [weak mailboxViewModel] expectedAccountID in
+                guard let vm = mailboxViewModel, vm.accountID == expectedAccountID else { return }
+                if let labels = originalLabels {
+                    await vm.labelMutations.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
+                    vm.labelMutations.lastRestoredMessageID = msgID
+                }
+            }
+        )
+    }
+
+    /// Unified core for single and bulk undoable email actions.
+    /// Handles offline enqueue fallback and undo scheduling — callers provide
+    /// the already-executed optimistic DB mutation and the closures for API confirm / undo.
+    ///
+    /// - Parameters:
+    ///   - messageIDs: Gmail message IDs involved (used for offline action).
+    ///   - offlineType: When non-nil, enqueues an offline action if disconnected after DB mutation.
+    ///   - offlineToast: Toast shown when the action is enqueued offline.
+    ///   - undoLabel: Label shown on the undo toast.
+    ///   - apiAction: Closure invoked on confirm — receives the expected account ID.
+    ///   - undoAction: Closure invoked on undo — receives the expected account ID.
+    private func performUndoableCore(
+        messageIDs: [String],
+        offlineType: OfflineAction.ActionType?,
+        offlineToast: String,
+        undoLabel: String,
+        apiAction: @escaping (String) async throws -> Void,
+        undoAction: @escaping (String) async -> Void
+    ) async {
+        let vm = mailboxViewModel
         if let offlineType, !NetworkMonitor.shared.isConnected {
             await OfflineActionQueue.shared.enqueue(OfflineAction(
-                actionType: offlineType, messageIds: [msgID], accountID: vm.accountID
+                actionType: offlineType, messageIds: messageIDs, accountID: vm.accountID
             ))
             ToastManager.shared.show(message: offlineToast)
             return
         }
         let expectedAccountID = vm.accountID
         UndoActionManager.shared.schedule(
-            label: label,
-            onConfirm: { [weak vm] in Task {
-                guard let vm, vm.accountID == expectedAccountID else { return }
+            label: undoLabel,
+            onConfirm: { Task {
                 guard AccountStore.shared.accounts.contains(where: { $0.id == expectedAccountID }) else { return }
                 do {
-                    try await apiAction(msgID)
+                    try await apiAction(expectedAccountID)
                 } catch {
-                    // API failed after undo timer expired — enqueue for retry
                     if let offlineType {
                         let action = OfflineAction(
                             actionType: offlineType,
-                            messageIds: [msgID],
+                            messageIds: messageIDs,
                             accountID: expectedAccountID
                         )
                         await OfflineActionQueue.shared.enqueue(action)
                     }
                 }
             } },
-            onUndo: { [weak vm] in Task {
-                guard let vm, vm.accountID == expectedAccountID else { return }
+            onUndo: { Task {
                 guard AccountStore.shared.accounts.contains(where: { $0.id == expectedAccountID }) else { return }
-                if let labels = originalLabels {
-                    await vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
-                    vm.lastRestoredMessageID = msgID
-                }
+                await undoAction(expectedAccountID)
             } }
         )
     }
@@ -89,11 +122,11 @@ final class EmailActionCoordinator {
         toastMessage: String
     ) async -> Bool {
         guard NetworkMonitor.shared.isConnected else {
-            let vm = mailboxViewModel
+            let mutations = mailboxViewModel.labelMutations
             await OfflineActionQueue.shared.enqueue(OfflineAction(
-                actionType: offlineActionType, messageIds: [messageID], accountID: vm.accountID
+                actionType: offlineActionType, messageIds: [messageID], accountID: mailboxViewModel.accountID
             ))
-            _ = await vm.updateLabelsInDatabase(messageID, addLabelIds: addLabelIds, removeLabelIds: removeLabelIds)
+            _ = await mutations.updateLabelsInDatabase(messageID, addLabelIds: addLabelIds, removeLabelIds: removeLabelIds)
             ToastManager.shared.show(message: toastMessage)
             return false
         }
@@ -145,7 +178,7 @@ final class EmailActionCoordinator {
             offlineActionType: email.isStarred ? .unstar : .star,
             toastMessage: email.isStarred ? "Unstarred (will sync when online)" : "Starred (will sync when online)"
         ) else { return }
-        await mailboxViewModel.toggleStar(msgID, isStarred: email.isStarred)
+        await mailboxViewModel.labelMutations.toggleStar(msgID, isStarred: email.isStarred)
     }
 
     func markReadEmail(_ email: Email) async {
@@ -157,7 +190,7 @@ final class EmailActionCoordinator {
             offlineActionType: .markRead,
             toastMessage: "Marked read (will sync when online)"
         ) else { return }
-        await mailboxViewModel.markAsRead(msgID)
+        await mailboxViewModel.labelMutations.markAsRead(msgID)
     }
 
     func markUnreadEmail(_ email: Email) async {
@@ -169,7 +202,7 @@ final class EmailActionCoordinator {
             offlineActionType: .markUnread,
             toastMessage: "Marked unread (will sync when online)"
         ) else { return }
-        await mailboxViewModel.markAsUnread(msgID)
+        await mailboxViewModel.labelMutations.markAsUnread(msgID)
     }
 
     func markSpamEmail(_ email: Email, selectNext: @escaping (Email?) -> Void) async {
@@ -235,28 +268,28 @@ final class EmailActionCoordinator {
     /// invokes `deletePermanently` which deletes the message record itself.
     func deletePermanentlyEmail(_ email: Email, selectNext: (Email?) -> Void) async {
         guard let msgID = email.gmailMessageID else { return }
-        let vm = mailboxViewModel
+        let mutations = mailboxViewModel.labelMutations
         guard NetworkMonitor.shared.isConnected else {
             ToastManager.shared.show(message: "Permanent delete requires internet connection", type: .error)
             return
         }
         // Remove all labels from DB so ValueObservation won't bring it back
-        let originalLabels = await vm.removeAllLabelsInDatabase(msgID)
+        let originalLabels = await mutations.removeAllLabelsInDatabase(msgID)
         selectNext(nil)
-        let expectedAccountID = vm.accountID
+        let expectedAccountID = mailboxViewModel.accountID
         UndoActionManager.shared.schedule(
             label: "Deleted permanently",
-            onConfirm: { [weak vm] in Task {
-                guard let vm, vm.accountID == expectedAccountID else { return }
+            onConfirm: { [weak mailboxViewModel] in Task {
+                guard let vm = mailboxViewModel, vm.accountID == expectedAccountID else { return }
                 guard AccountStore.shared.accounts.contains(where: { $0.id == expectedAccountID }) else { return }
-                await vm.deletePermanently(msgID, originalLabelIds: originalLabels)
+                await vm.labelMutations.deletePermanently(msgID, originalLabelIds: originalLabels)
             } },
-            onUndo: { [weak vm] in Task {
-                guard let vm, vm.accountID == expectedAccountID else { return }
+            onUndo: { [weak mailboxViewModel] in Task {
+                guard let vm = mailboxViewModel, vm.accountID == expectedAccountID else { return }
                 guard AccountStore.shared.accounts.contains(where: { $0.id == expectedAccountID }) else { return }
                 if let labels = originalLabels {
-                    await vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
-                    vm.lastRestoredMessageID = msgID
+                    await vm.labelMutations.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
+                    vm.labelMutations.lastRestoredMessageID = msgID
                 }
             } }
         )
@@ -285,13 +318,13 @@ final class EmailActionCoordinator {
     /// performs SnoozeStore operations and an archive — not a simple label API call.
     func snoozeEmail(_ email: Email, until date: Date, selectNext: (Email?) -> Void) async {
         guard let msgID = email.gmailMessageID else { return }
-        let vm = mailboxViewModel
+        let mutations = mailboxViewModel.labelMutations
         guard NetworkMonitor.shared.isConnected else {
             ToastManager.shared.show(message: "Snooze requires internet connection", type: .error)
             return
         }
         // Optimistic DB write: remove from inbox so ValueObservation hides it
-        let originalLabels = await vm.updateLabelsInDatabase(
+        let originalLabels = await mutations.updateLabelsInDatabase(
             msgID,
             addLabelIds: [],
             removeLabelIds: [GmailSystemLabel.inbox]
@@ -301,33 +334,33 @@ final class EmailActionCoordinator {
         let item = SnoozedItem(
             messageId: msgID,
             threadId: email.gmailThreadID,
-            accountID: vm.accountID,
+            accountID: mailboxViewModel.accountID,
             snoozeUntil: date,
             originalLabelIds: email.gmailLabelIDs,
             subject: email.subject,
             senderName: email.sender.name
         )
 
-        let expectedAccountID = vm.accountID
+        let expectedAccountID = mailboxViewModel.accountID
         UndoActionManager.shared.schedule(
             label: "Snoozed",
-            onConfirm: { [weak vm] in
-                Task { @MainActor [weak vm] in
-                    guard let vm, vm.accountID == expectedAccountID else { return }
+            onConfirm: { [weak mailboxViewModel] in
+                Task { @MainActor [weak mailboxViewModel] in
+                    guard let vm = mailboxViewModel, vm.accountID == expectedAccountID else { return }
                     guard AccountStore.shared.accounts.contains(where: { $0.id == expectedAccountID }) else { return }
                     // Archive first; only register in SnoozeStore after a successful archive
                     // so a failed archive doesn't leave the email in both inbox and snoozed list.
-                    let success = await vm.archive(msgID)
+                    let success = await vm.labelMutations.archive(msgID)
                     guard success else { return }
                     await SnoozeStore.shared.add(item)
                 }
             },
-            onUndo: { [weak vm] in Task {
-                guard let vm, vm.accountID == expectedAccountID else { return }
+            onUndo: { [weak mailboxViewModel] in Task {
+                guard let vm = mailboxViewModel, vm.accountID == expectedAccountID else { return }
                 guard AccountStore.shared.accounts.contains(where: { $0.id == expectedAccountID }) else { return }
                 if let labels = originalLabels {
-                    await vm.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
-                    vm.lastRestoredMessageID = msgID
+                    await vm.labelMutations.restoreLabelsInDatabase(msgID, originalLabelIds: labels)
+                    vm.labelMutations.lastRestoredMessageID = msgID
                 }
             } }
         )
@@ -351,32 +384,34 @@ final class EmailActionCoordinator {
         }
     }
 
-    /// Adds a user label to a message. Delegates to MailboxViewModel which handles
+    /// Adds a user label to a message. Delegates to LabelMutationService which handles
     /// optimistic DB update, offline queue, and API call.
     func addLabelToEmail(_ labelID: String, to messageID: String) async {
-        await mailboxViewModel.addLabel(labelID, to: messageID)
+        await mailboxViewModel.labelMutations.addLabel(labelID, to: messageID)
     }
 
-    /// Removes a user label from a message. Delegates to MailboxViewModel which handles
+    /// Removes a user label from a message. Delegates to LabelMutationService which handles
     /// optimistic DB update, offline queue, and API call.
     func removeLabelFromEmail(_ labelID: String, from messageID: String) async {
-        await mailboxViewModel.removeLabel(labelID, from: messageID)
+        await mailboxViewModel.labelMutations.removeLabel(labelID, from: messageID)
     }
 
     /// Creates a new label and adds it to the message.
     @discardableResult
     func createAndAddLabelToEmail(name: String, to messageID: String) async -> String? {
-        await mailboxViewModel.createAndAddLabel(name: name, to: messageID)
+        await mailboxViewModel.labelMutations.createAndAddLabel(name: name, to: messageID) { [mailboxViewModel] newLabel in
+            mailboxViewModel.appendLabel(newLabel)
+        }
     }
 
     /// Empties the Trash folder (permanent deletion of all trashed messages).
     func emptyTrashFolder(confirmedCount: Int) async {
-        await mailboxViewModel.emptyTrash(confirmedCount: confirmedCount)
+        await mailboxViewModel.labelMutations.emptyTrash(confirmedCount: confirmedCount)
     }
 
     /// Empties the Spam folder (permanent deletion of all spam messages).
     func emptySpamFolder(confirmedCount: Int) async {
-        await mailboxViewModel.emptySpam(confirmedCount: confirmedCount)
+        await mailboxViewModel.labelMutations.emptySpam(confirmedCount: confirmedCount)
     }
 
     func printEmail(_ email: Email) async {
@@ -432,46 +467,27 @@ final class EmailActionCoordinator {
             ToastManager.shared.show(message: offlineToast, type: .error)
             return
         }
-        let vm = mailboxViewModel
+        let mutations = mailboxViewModel.labelMutations
         let msgIDs = emails.compactMap(\.gmailMessageID)
-        let originalLabelsMap = await vm.updateLabelsInDatabaseBatch(msgIDs, addLabelIds: addLabels, removeLabelIds: removeLabels)
+        let originalLabelsMap = await mutations.updateLabelsInDatabaseBatch(msgIDs, addLabelIds: addLabels, removeLabelIds: removeLabels)
         onClear()
-        if let offlineType, !NetworkMonitor.shared.isConnected {
-            await OfflineActionQueue.shared.enqueue(OfflineAction(
-                actionType: offlineType, messageIds: msgIDs, accountID: vm.accountID
-            ))
-            ToastManager.shared.show(message: offlineToast)
-            return
-        }
-        let expectedAccountID = vm.accountID
-        UndoActionManager.shared.schedule(
-            label: undoLabel,
-            onConfirm: { [weak vm, api] in Task {
-                guard let vm, vm.accountID == expectedAccountID else { return }
-                guard AccountStore.shared.accounts.contains(where: { $0.id == expectedAccountID }) else { return }
-                do {
-                    try await api.batchModifyLabels(
-                        ids: msgIDs, add: addLabels, remove: removeLabels, accountID: expectedAccountID
-                    )
-                } catch {
-                    // API failed after undo timer expired — enqueue for offline retry
-                    if let offlineType {
-                        let action = OfflineAction(
-                            actionType: offlineType,
-                            messageIds: msgIDs,
-                            accountID: expectedAccountID
-                        )
-                        await OfflineActionQueue.shared.enqueue(action)
-                    }
-                }
-            } },
-            onUndo: { [weak vm] in Task {
-                guard let vm, vm.accountID == expectedAccountID else { return }
-                guard AccountStore.shared.accounts.contains(where: { $0.id == expectedAccountID }) else { return }
+        await performUndoableCore(
+            messageIDs: msgIDs,
+            offlineType: offlineType,
+            offlineToast: offlineToast,
+            undoLabel: undoLabel,
+            apiAction: { [weak mailboxViewModel, api] expectedAccountID in
+                guard let vm = mailboxViewModel, vm.accountID == expectedAccountID else { return }
+                try await api.batchModifyLabels(
+                    ids: msgIDs, add: addLabels, remove: removeLabels, accountID: expectedAccountID
+                )
+            },
+            undoAction: { [weak mailboxViewModel] expectedAccountID in
+                guard let vm = mailboxViewModel, vm.accountID == expectedAccountID else { return }
                 for (id, labels) in originalLabelsMap {
-                    await vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
+                    await vm.labelMutations.restoreLabelsInDatabase(id, originalLabelIds: labels)
                 }
-            } }
+            }
         )
     }
 
@@ -527,12 +543,12 @@ final class EmailActionCoordinator {
         removeLabelIDs: [String],
         onClear: () -> Void
     ) async {
-        let vm = mailboxViewModel
+        let mutations = mailboxViewModel.labelMutations
         let msgIDs = emails.compactMap(\.gmailMessageID)
         guard !msgIDs.isEmpty else { return }
-        let originalLabelsMap = await vm.updateLabelsInDatabaseBatch(msgIDs, addLabelIds: addLabelIDs, removeLabelIds: removeLabelIDs)
+        let originalLabelsMap = await mutations.updateLabelsInDatabaseBatch(msgIDs, addLabelIds: addLabelIDs, removeLabelIds: removeLabelIDs)
         onClear()
-        let accountID = vm.accountID
+        let accountID = mailboxViewModel.accountID
         do {
             if msgIDs.count == 1 {
                 try await api.modifyLabels(id: msgIDs[0], add: addLabelIDs, remove: removeLabelIDs, accountID: accountID)
@@ -541,7 +557,7 @@ final class EmailActionCoordinator {
             }
         } catch {
             for (id, labels) in originalLabelsMap {
-                await vm.restoreLabelsInDatabase(id, originalLabelIds: labels)
+                await mutations.restoreLabelsInDatabase(id, originalLabelIds: labels)
             }
             ToastManager.shared.show(message: "Failed to update labels", type: .error)
         }

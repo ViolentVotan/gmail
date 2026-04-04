@@ -46,7 +46,7 @@ final class CalendarEventService {
         singleEvents: Bool = true,
         maxResults: Int = 250,
         pageToken: String? = nil
-    ) async throws(CalendarAPIError) -> CalendarEventListResponse {
+    ) async throws(GoogleAPIError) -> CalendarEventListResponse {
         var queryItems: [URLQueryItem] = [
             URLQueryItem(name: "timeMin", value: Self.rfc3339(timeMin)),
             URLQueryItem(name: "timeMax", value: Self.rfc3339(timeMax)),
@@ -74,7 +74,7 @@ final class CalendarEventService {
         accountID: String,
         syncToken: String? = nil,
         pageToken: String? = nil
-    ) async throws(CalendarAPIError) -> CalendarEventListResponse {
+    ) async throws(GoogleAPIError) -> CalendarEventListResponse {
         var queryItems = [
             URLQueryItem(name: "fields", value: Self.eventFieldMask),
         ]
@@ -98,7 +98,7 @@ final class CalendarEventService {
         calendarId: String,
         eventId: String,
         accountID: String
-    ) async throws(CalendarAPIError) -> CalendarAPIEvent {
+    ) async throws(GoogleAPIError) -> CalendarAPIEvent {
         let queryItems = [URLQueryItem(name: "fields", value: Self.singleEventFieldMask)]
         return try await client.request(
             path: "/calendars/\(Self.encodePath(calendarId))/events/\(Self.encodePath(eventId))",
@@ -116,7 +116,7 @@ final class CalendarEventService {
         accountID: String,
         conferenceDataVersion: Int? = nil,
         sendUpdates: String? = "all"
-    ) async throws(CalendarAPIError) -> CalendarAPIEvent {
+    ) async throws(GoogleAPIError) -> CalendarAPIEvent {
         let body: Data
         do {
             body = try Self.jsonEncoder.encode(event)
@@ -151,7 +151,7 @@ final class CalendarEventService {
         etag: String?,
         conferenceDataVersion: Int? = nil,
         sendUpdates: String? = "all"
-    ) async throws(CalendarAPIError) -> CalendarAPIEvent {
+    ) async throws(GoogleAPIError) -> CalendarAPIEvent {
         let body: Data
         do {
             body = try Self.jsonEncoder.encode(event)
@@ -189,7 +189,7 @@ final class CalendarEventService {
         accountID: String,
         etag: String?,
         sendUpdates: String? = "all"
-    ) async throws(CalendarAPIError) -> CalendarAPIEvent {
+    ) async throws(GoogleAPIError) -> CalendarAPIEvent {
         var headers: [String: String]? = nil
         if let etag {
             headers = ["If-Match": etag]
@@ -216,7 +216,7 @@ final class CalendarEventService {
         eventId: String,
         accountID: String,
         sendUpdates: String? = "all"
-    ) async throws(CalendarAPIError) {
+    ) async throws(GoogleAPIError) {
         var queryItems: [URLQueryItem] = []
         if let sendUpdates {
             queryItems.append(URLQueryItem(name: "sendUpdates", value: sendUpdates))
@@ -236,7 +236,7 @@ final class CalendarEventService {
         calendarId: String,
         text: String,
         accountID: String
-    ) async throws(CalendarAPIError) -> CalendarAPIEvent {
+    ) async throws(GoogleAPIError) -> CalendarAPIEvent {
         let queryItems = [
             URLQueryItem(name: "text", value: text),
             URLQueryItem(name: "fields", value: Self.singleEventFieldMask),
@@ -259,7 +259,7 @@ final class CalendarEventService {
         accountID: String,
         status: String,
         sendUpdates: String? = "all"
-    ) async throws(CalendarAPIError) -> CalendarAPIEvent {
+    ) async throws(GoogleAPIError) -> CalendarAPIEvent {
         let event = try await getEvent(calendarId: calendarId, eventId: eventId, accountID: accountID)
 
         // Rebuild the full attendees list, preserving all metadata and only updating

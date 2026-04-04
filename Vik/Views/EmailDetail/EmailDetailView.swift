@@ -26,7 +26,7 @@ struct EmailDetailView: View {
     @State private var showMetadata = false
     @State private var showConversation = false
     @State private var calendarContextDismissed = false
-    @AppStorage("aiLabelSuggestions") private var aiLabelSuggestionsEnabled = true
+    @AppStorage(UserDefaultsKey.aiLabelSuggestions) private var aiLabelSuggestionsEnabled = true
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 

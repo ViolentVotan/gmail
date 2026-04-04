@@ -38,7 +38,7 @@ struct AttachmentExplorerView: View {
     // MARK: - Header
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
             HStack {
                 Text("Attachments")
                     .font(Typography.titleLarge)
@@ -193,7 +193,7 @@ struct AttachmentExplorerView: View {
     }
 
     private var rulesPopoverContent: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: Spacing.smd) {
             Text("Exclusion Rules")
                 .font(Typography.bodySemibold)
                 .foregroundStyle(.primary)

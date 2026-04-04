@@ -122,7 +122,7 @@ final class ComposeViewModel {
                         sendSucceeded = true
                         SoundManager.play(.sent)
                         VikHaptic.levelChange()
-                    } catch let apiError as GmailAPIError {
+                    } catch let apiError as GoogleAPIError {
                         if case .offline = apiError {
                             // Offline — build the raw MIME payload and queue for later
                             do {

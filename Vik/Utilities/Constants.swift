@@ -50,6 +50,9 @@ enum UserDefaultsKey {
     static let emailDensity = "emailDensity"
     static let soundEffectsEnabled = "soundEffectsEnabled"
     static let alwaysLoadRemoteImages = "alwaysLoadRemoteImages"
+    static let labelsExpanded = "labelsExpanded"
+    static let selectedAccountID = "com.vikingz.vik.selectedAccountID"
+    static let accounts = "com.vikingz.vik.accounts"
 
     static func signatureForNew(_ accountID: String) -> String {
         "signatureForNew.\(accountID)"

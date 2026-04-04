@@ -7,7 +7,7 @@ final class GmailLabelService {
     nonisolated private static let encoder = JSONEncoder()
     private init() {}
 
-    @concurrent func listLabels(accountID: String) async throws(GmailAPIError) -> [GmailLabel] {
+    @concurrent func listLabels(accountID: String) async throws(GoogleAPIError) -> [GmailLabel] {
         let response: GmailLabelListResponse = try await client.request(
             path: "/users/me/labels",
             fields: "labels(id,name,type,messagesTotal,messagesUnread,color,labelListVisibility,messageListVisibility)",
@@ -19,7 +19,7 @@ final class GmailLabelService {
     /// Fetches labels with ETag-based cache validation.
     /// Returns `nil` if the server responds 304 Not Modified (labels unchanged).
     /// Returns `(labels, etag)` on a fresh 200 response.
-    @concurrent func listLabels(etag: String?, accountID: String) async throws(GmailAPIError) -> ([GmailLabel], String?)? {
+    @concurrent func listLabels(etag: String?, accountID: String) async throws(GoogleAPIError) -> ([GmailLabel], String?)? {
         let result: (GmailLabelListResponse, String?)? = try await client.requestWithETag(
             path: "/users/me/labels",
             etag: etag,
@@ -30,7 +30,7 @@ final class GmailLabelService {
         return (response.labels ?? [], responseETag)
     }
 
-    @concurrent func getLabel(id: String, accountID: String) async throws(GmailAPIError) -> GmailLabel {
+    @concurrent func getLabel(id: String, accountID: String) async throws(GoogleAPIError) -> GmailLabel {
         return try await client.request(
             path: "/users/me/labels/\(id)",
             fields: "id,name,type,messagesTotal,messagesUnread,color",
@@ -38,7 +38,7 @@ final class GmailLabelService {
         )
     }
 
-    @concurrent func updateLabel(id: String, newName: String, accountID: String) async throws(GmailAPIError) -> GmailLabel {
+    @concurrent func updateLabel(id: String, newName: String, accountID: String) async throws(GoogleAPIError) -> GmailLabel {
         struct UpdateRequest: Encodable { let name: String }
         let body: Data
         do {
@@ -54,7 +54,7 @@ final class GmailLabelService {
         )
     }
 
-    @concurrent func deleteLabel(id: String, accountID: String) async throws(GmailAPIError) {
+    @concurrent func deleteLabel(id: String, accountID: String) async throws(GoogleAPIError) {
         _ = try await client.rawRequest(
             path: "/users/me/labels/\(id)",
             method: "DELETE",
@@ -62,7 +62,7 @@ final class GmailLabelService {
         )
     }
 
-    @concurrent func createLabel(name: String, accountID: String) async throws(GmailAPIError) -> GmailLabel {
+    @concurrent func createLabel(name: String, accountID: String) async throws(GoogleAPIError) -> GmailLabel {
         struct CreateRequest: Encodable {
             let name: String
             let labelListVisibility: String

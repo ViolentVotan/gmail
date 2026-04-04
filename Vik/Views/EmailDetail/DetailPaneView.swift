@@ -1,105 +1,20 @@
 import SwiftUI
 
-struct DetailPaneView: View {
-    let selectedEmail: Email?
+// MARK: - Bulk Action Detail View
+
+/// Focused detail pane view for multi-selection bulk actions.
+/// Only accepts the parameters needed for bulk operations.
+struct BulkActionDetailView: View {
     let selectedEmailIDs: Set<String>
     let selectedFolder: Folder
     let selectedEmails: [Email]
-
-    // MARK: - Extracted from AppCoordinator (H8)
-
     let actionCoordinator: EmailActionCoordinator
-    let mailboxViewModel: MailboxViewModel
-    let allLabels: [GmailLabel]
-    let mailStore: MailStore
-    let accountID: String
-    let fromAddress: String
-    let composeMode: ComposeMode
-    let signatureForNew: String
-    let signatureForReply: String
-    let panelCoordinator: PanelCoordinator
-    let attachmentIndexer: AttachmentIndexer?
-    let contacts: [StoredContact]
-    let mailDatabase: MailDatabase?
-    let selectNext: (Email?) -> Void
     let clearSelection: () -> Void
     let deselectAll: () -> Void
-    let startCompose: (ComposeMode) -> Void
-    let discardDraft: (UUID) -> Void
-    let selectionDirection: Edge
-    let navigatePrevious: () -> Void
-    let navigateNext: () -> Void
-    var switchToCalendar: ((CalendarEvent) -> Void)?
-
-    /// Resolves the best send-as alias for the given email, falling back to the primary account address.
-    /// For outgoing folders (Sent), recipients are outbound contacts — no alias will match, so this
-    /// safely falls back to the primary address.
-    private func resolvedFromAddress(for email: Email) -> String {
-        mailboxViewModel.sendAsAliases.bestAlias(
-            toRecipients: email.recipients.map(\.email),
-            ccRecipients: email.cc.map(\.email)
-        ) ?? fromAddress
-    }
-
-    /// Resolves the from address for compose mode by looking up the original thread's email.
-    /// Note: mailboxViewModel.emails contains thread representatives for the current folder only.
-    /// If the original thread is not loaded (e.g., editing a draft from the Drafts folder),
-    /// alias resolution falls back to the primary address.
-    private func resolvedFromAddressForCompose() -> String {
-        switch composeMode {
-        case .reply(_, _, _, _, let threadID, _, _),
-             .replyAll(_, _, _, _, _, let threadID, _, _):
-            if let original = mailboxViewModel.emails.first(where: { $0.gmailThreadID == threadID }) {
-                return resolvedFromAddress(for: original)
-            }
-            return fromAddress
-        default:
-            return fromAddress
-        }
-    }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    private var isMultiSelect: Bool { selectedEmailIDs.count > 1 }
-
-    private func softDirectionalTransition(from edge: Edge) -> AnyTransition {
-        guard !reduceMotion else { return .opacity }
-        let yOffset: CGFloat = edge == .bottom ? OffsetToken.small : -OffsetToken.small
-        return .asymmetric(
-            insertion: .opacity.combined(with: .offset(y: yOffset)),
-            removal: .opacity.combined(with: .offset(y: -yOffset))
-        )
-    }
-
-    private var isEditingDraft: Bool {
-        guard let email = selectedEmail else { return false }
-        return email.isDraft
-    }
-
     var body: some View {
-        Group {
-            if isMultiSelect {
-                bulkActionView
-                    .transition(.opacity.combined(with: .scale(scale: ScaleToken.enterFrom)))
-                    .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: isMultiSelect)
-            } else if isEditingDraft, let draftId = selectedEmail?.id {
-                composeView(draftId: draftId)
-            } else if let email = selectedEmail {
-                emailDetailView(email: email)
-                    .transition(softDirectionalTransition(from: selectionDirection))
-                    .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: selectedEmail?.id)
-            } else {
-                emptyState
-                    .transition(.opacity.combined(with: .scale(scale: ScaleToken.enterFrom)))
-                    .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: selectedEmail?.id)
-            }
-        }
-        .navigationSplitViewColumnWidth(min: 500, ideal: 700)
-    }
-
-    // MARK: - Bulk Actions
-
-    private var bulkActionView: some View {
         BulkActionBarView(
             count: selectedEmailIDs.count,
             selectedFolder: selectedFolder,
@@ -112,18 +27,37 @@ struct DetailPaneView: View {
             onMoveToInbox: { Task { await actionCoordinator.bulkMoveToInbox(selectedEmails, selectedFolder: selectedFolder, onClear: clearSelection) } },
             onDeselectAll: deselectAll
         )
+        .transition(.opacity.combined(with: .scale(scale: ScaleToken.enterFrom)))
+        .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: selectedEmailIDs.count > 1)
+        .navigationSplitViewColumnWidth(min: 500, ideal: 700)
     }
+}
 
-    // MARK: - Compose
+// MARK: - Compose Detail View
 
-    private func composeView(draftId: UUID) -> some View {
+/// Focused detail pane view for draft editing / compose mode.
+/// Only accepts the parameters needed for composing emails.
+struct ComposeDetailView: View {
+    let draftId: UUID
+    let mailStore: MailStore
+    let accountID: String
+    let fromAddress: String
+    let composeMode: ComposeMode
+    let sendAsAliases: [GmailSendAs]
+    let signatureForNew: String
+    let signatureForReply: String
+    let panelCoordinator: PanelCoordinator
+    let contacts: [StoredContact]
+    let discardDraft: (UUID) -> Void
+
+    var body: some View {
         ComposeView(
             mailStore: mailStore,
             draftId: draftId,
             accountID: accountID,
-            fromAddress: resolvedFromAddressForCompose(),
+            fromAddress: fromAddress,
             mode: composeMode,
-            sendAsAliases: mailboxViewModel.sendAsAliases,
+            sendAsAliases: sendAsAliases,
             signatureForNew: signatureForNew,
             signatureForReply: signatureForReply,
             contacts: contacts,
@@ -131,13 +65,58 @@ struct DetailPaneView: View {
             onOpenLink: { url in panelCoordinator.openInBrowser(url: url) }
         )
         .id(draftId)
+        .navigationSplitViewColumnWidth(min: 500, ideal: 700)
+    }
+}
+
+// MARK: - Email Read Detail View
+
+/// Focused detail pane view for reading a single email.
+/// Only accepts the parameters needed for email detail display and actions.
+struct EmailReadDetailView: View {
+    let email: Email
+    let selectedFolder: Folder
+    let actionCoordinator: EmailActionCoordinator
+    let mailboxViewModel: MailboxViewModel
+    let allLabels: [GmailLabel]
+    let mailStore: MailStore
+    let accountID: String
+    let fromAddress: String
+    let panelCoordinator: PanelCoordinator
+    let attachmentIndexer: AttachmentIndexer?
+    let contacts: [StoredContact]
+    let mailDatabase: MailDatabase?
+    let selectionDirection: Edge
+    let selectNext: (Email?) -> Void
+    let startCompose: (ComposeMode) -> Void
+    let navigatePrevious: () -> Void
+    let navigateNext: () -> Void
+    var switchToCalendar: ((CalendarEvent) -> Void)?
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Resolves the best send-as alias for the given email, falling back to the primary account address.
+    /// For outgoing folders (Sent), recipients are outbound contacts — no alias will match, so this
+    /// safely falls back to the primary address.
+    private func resolvedFromAddress(for email: Email) -> String {
+        mailboxViewModel.sendAsAliases.bestAlias(
+            toRecipients: email.recipients.map(\.email),
+            ccRecipients: email.cc.map(\.email)
+        ) ?? fromAddress
     }
 
-    // MARK: - Email Detail
+    private func softDirectionalTransition(from edge: Edge) -> AnyTransition {
+        guard !reduceMotion else { return .opacity }
+        let yOffset: CGFloat = edge == .bottom ? OffsetToken.small : -OffsetToken.small
+        return .asymmetric(
+            insertion: .opacity.combined(with: .offset(y: yOffset)),
+            removal: .opacity.combined(with: .offset(y: -yOffset))
+        )
+    }
 
-    private func emailDetailView(email: Email) -> some View {
+    var body: some View {
         let actions = buildActions(for: email)
-        return EmailDetailView(
+        EmailDetailView(
             email: email,
             accountID: accountID,
             mailStore: mailStore,
@@ -149,6 +128,9 @@ struct DetailPaneView: View {
             contacts: contacts
         )
         .id(email.id)
+        .transition(softDirectionalTransition(from: selectionDirection))
+        .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: email.id)
+        .navigationSplitViewColumnWidth(min: 500, ideal: 700)
     }
 
     /// Builds the actions struct for the given email. Separated from the view builder
@@ -216,72 +198,11 @@ struct DetailPaneView: View {
         actions.onSearchSender = { email in Task { await mailboxViewModel.search(query: "from:\(email)") } }
 
         // Email-specific content overrides
-        actions.onMessagesRead = { messageIDs in Task { await mailboxViewModel.applyReadLocally(messageIDs) } }
+        actions.onMessagesRead = { messageIDs in Task { await mailboxViewModel.labelMutations.applyReadLocally(messageIDs) } }
 
         // Calendar context navigation
         actions.onNavigateToCalendar = { event in switchToCalendar?(event) }
 
         return actions
-    }
-
-    // MARK: - Empty State
-
-    private var emptyState: some View {
-        VStack(spacing: Spacing.xl) {
-            Image(systemName: emptyStateIcon)
-                .font(Typography.emptyStateIcon)
-                .foregroundStyle(.tint.opacity(OpacityToken.disabled))
-                .symbolEffect(.breathe.plain, isActive: true)
-
-            VStack(spacing: Spacing.sm) {
-                Text(emptyStateTitle)
-                    .font(Typography.title)
-                    .foregroundStyle(.secondary)
-
-                Text(emptyStateDescription)
-                    .font(Typography.subheadRegular)
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityElement(children: .combine)
-    }
-
-    private var emptyStateIcon: String {
-        switch selectedFolder {
-        case .drafts:        "doc.text"
-        case .sent:          "paperplane"
-        case .trash:         "trash"
-        case .spam:          "exclamationmark.shield"
-        case .starred:       "star"
-        case .archive:       "archivebox"
-        case .attachments:   "paperclip"
-        case .subscriptions: "newspaper"
-        default:             "envelope.open"
-        }
-    }
-
-    private var emptyStateTitle: String {
-        switch selectedFolder {
-        case .drafts:        "No Draft Selected"
-        case .sent:          "No Email Selected"
-        case .starred:       "No Email Selected"
-        case .archive:       "No Email Selected"
-        case .attachments:   "No Email Selected"
-        case .subscriptions: "No Subscription Selected"
-        default:             "No Email Selected"
-        }
-    }
-
-    private var emptyStateDescription: String {
-        switch selectedFolder {
-        case .drafts:        "Pick a draft to continue writing"
-        case .sent:          "Pick a sent email to view"
-        case .starred:       "Pick a starred email to read"
-        case .archive:       "Pick an archived email to read"
-        case .attachments:   "Pick an email to view its attachments"
-        case .subscriptions: "Pick a subscription to view"
-        default:             "Pick an email from the left to start reading"
-        }
     }
 }

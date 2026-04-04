@@ -59,6 +59,7 @@ actor FullSyncEngine {
     /// can both call `syncIncremental()` — actor reentrancy allows the second call
     /// to start while the first is suspended at an `await`. This flag is set/cleared
     /// synchronously (no `await` between check and set), so it's actor-safe.
+    // Shared reentrancy guard pattern — also in CalendarSyncEngine
     private var isSyncingIncrementally = false
 
     /// Reentrancy guard: prevents concurrent `syncFolderIfEmpty` calls for the same folder.
@@ -103,6 +104,20 @@ actor FullSyncEngine {
         await old?.stop()
     }
 
+    /// Stops all active engines and clears the registry.
+    /// Call from app lifecycle (e.g. `applicationWillTerminate`) to ensure
+    /// in-flight sync tasks complete before process exit.
+    static func cleanupAll() async {
+        let engines = activeEngines.withLock { engines in
+            let copy = engines
+            engines.removeAll()
+            return copy
+        }
+        for (_, engine) in engines {
+            await engine.stop()
+        }
+    }
+
     // MARK: - Init
 
     init(
@@ -119,6 +134,10 @@ actor FullSyncEngine {
         self.api = api
         self.quota = quota
         self.onProgress = onProgress
+    }
+
+    isolated deinit {
+        Self.activeEngines.withLock { $0.removeValue(forKey: accountID) }
     }
 
     // MARK: - Lifecycle
@@ -540,7 +559,7 @@ actor FullSyncEngine {
             // Token revoked: set non-retryable flag and report error. Cannot call
             // stop() here — we're inside syncTask, and stop() awaits syncTask.value
             // which would deadlock. The retry loop checks isTokenRevoked to bail.
-            if case .tokenRevoked = error as? GmailAPIError {
+            if case .tokenRevoked = error as? GoogleAPIError {
                 Self.logger.error("Token revoked during initial sync for \(self.accountID, privacy: .private)")
                 isTokenRevoked = true
                 state = .error("Session expired — signing in…")
@@ -793,15 +812,15 @@ actor FullSyncEngine {
 
         } catch {
             Self.logger.error("syncIncremental failed (failures=\(self.consecutiveFailures)): \(error)")
-            if case .tokenRevoked = error as? GmailAPIError {
+            if case .tokenRevoked = error as? GoogleAPIError {
                 Self.logger.error("Auth failure for \(self.accountID, privacy: .private): tokenRevoked, stopping sync")
                 await handleFatalAuthError()
                 return false
-            } else if case .unauthorized = error as? GmailAPIError {
+            } else if case .unauthorized = error as? GoogleAPIError {
                 Self.logger.error("Auth failure for \(self.accountID, privacy: .private): unauthorized, stopping sync")
                 await handleFatalAuthError()
                 return false
-            } else if case .httpError(let code, _) = error as? GmailAPIError, code == 404 || code == 410 {
+            } else if case .httpError(let code, _) = error as? GoogleAPIError, code == 404 || code == 410 {
                 // 404 or 410 from history.list means the startHistoryId is expired/invalid.
                 // Gmail returns 404 for stale history IDs and 410 (Gone) in some cases.
                 // Note: this catch only fires for errors from history.list — getMessages

@@ -184,23 +184,19 @@ struct ContentView: View {
                     defaultStartTime: newEventStartTime,
                     onSave: { input, calendarId, scope in
                         Task {
-                            do {
-                                if let draft = newCalendarEventDraft {
-                                    try await calendarVM.updateEvent(
-                                        calendarId: draft.calendarId,
-                                        eventId: draft.googleEventId,
-                                        accountID: draft.accountID,
-                                        etag: draft.etag,
-                                        input: input
-                                    )
-                                } else {
-                                    let id = calendarId ?? "primary"
-                                    try await calendarVM.createEvent(input, calendarId: id, accountID: coordinator.navigation.accountID)
-                                }
-                                showNewCalendarEvent = false
-                            } catch {
-                                ToastManager.shared.show(message: "Failed to save event", type: .error)
+                            if let draft = newCalendarEventDraft {
+                                await calendarVM.updateEvent(
+                                    calendarId: draft.calendarId,
+                                    eventId: draft.googleEventId,
+                                    accountID: draft.accountID,
+                                    etag: draft.etag,
+                                    input: input
+                                )
+                            } else {
+                                let id = calendarId ?? "primary"
+                                await calendarVM.createEvent(input, calendarId: id, accountID: coordinator.navigation.accountID)
                             }
+                            showNewCalendarEvent = false
                         }
                     },
                     onCancel: { showNewCalendarEvent = false }
@@ -379,7 +375,7 @@ struct ContentView: View {
                         coordinator.previewMarkUnread(messageID: msgID, accountID: accountID)
                     },
                     onMessagesRead: { [coordinator] messageIDs in
-                        Task { await coordinator.mailboxViewModel.applyReadLocally(messageIDs) }
+                        Task { await coordinator.mailboxViewModel.labelMutations.applyReadLocally(messageIDs) }
                     }
                 )
 
@@ -476,17 +472,12 @@ struct ContentView: View {
                         selectedFolder: selectedFolder,
                         selectedEmails: coordinator.selection.selectedEmails,
                         actionCoordinator: coordinator.actionCoordinator,
-                        mailboxViewModel: coordinator.mailboxViewModel,
-                        mailStore: coordinator.mailStore,
-                        panelCoordinator: coordinator.panelCoordinator,
                         clearSelection: { coordinator.selection.clearSelection() },
                         deselectAll: { coordinator.selection.deselectAll() }
                     )
                 } else if let email = selectedEmail, email.isDraft {
                     DetailComposeSection(
                         selectedEmail: email,
-                        selectedFolder: selectedFolder,
-                        actionCoordinator: coordinator.actionCoordinator,
                         mailboxViewModel: coordinator.mailboxViewModel,
                         mailStore: coordinator.mailStore,
                         accountID: coordinator.navigation.accountID,
@@ -496,12 +487,11 @@ struct ContentView: View {
                         signatureForReply: coordinator.compose.signatureForReply,
                         panelCoordinator: coordinator.panelCoordinator,
                         contacts: coordinator.sync.contactsStore.contacts,
-                        startCompose: { coordinator.startCompose(mode: $0) },
                         discardDraft: { coordinator.discardDraft(id: $0) }
                     )
-                } else if selectedEmail != nil {
+                } else if let email = selectedEmail {
                     DetailEmailSection(
-                        selectedEmail: selectedEmail,
+                        selectedEmail: email,
                         selectedFolder: selectedFolder,
                         actionCoordinator: coordinator.actionCoordinator,
                         mailboxViewModel: coordinator.mailboxViewModel,
@@ -514,8 +504,6 @@ struct ContentView: View {
                         mailDatabase: coordinator.sync.mailDatabase,
                         selectionDirection: coordinator.selection.selectionDirection,
                         selectNext: { coordinator.selection.selectNext($0) },
-                        clearSelection: { coordinator.selection.clearSelection() },
-                        deselectAll: { coordinator.selection.deselectAll() },
                         startCompose: { coordinator.startCompose(mode: $0) },
                         navigatePrevious: { coordinator.selection.selectPrevious() },
                         navigateNext: { coordinator.selection.selectNextEmail() },
@@ -535,40 +523,17 @@ struct ContentView: View {
         let selectedFolder: Folder
         let selectedEmails: [Email]
         let actionCoordinator: EmailActionCoordinator
-        let mailboxViewModel: MailboxViewModel
-        let mailStore: MailStore
-        let panelCoordinator: PanelCoordinator
         let clearSelection: () -> Void
         let deselectAll: () -> Void
 
         var body: some View {
-            DetailPaneView(
-                selectedEmail: nil,
+            BulkActionDetailView(
                 selectedEmailIDs: selectedEmailIDs,
                 selectedFolder: selectedFolder,
                 selectedEmails: selectedEmails,
                 actionCoordinator: actionCoordinator,
-                mailboxViewModel: mailboxViewModel,
-                allLabels: mailboxViewModel.labels,
-                mailStore: mailStore,
-                accountID: "",
-                fromAddress: "",
-                composeMode: .new,
-                signatureForNew: "",
-                signatureForReply: "",
-                panelCoordinator: panelCoordinator,
-                attachmentIndexer: nil,
-                contacts: [],
-                mailDatabase: nil,
-                selectNext: { _ in },
                 clearSelection: clearSelection,
-                deselectAll: deselectAll,
-                startCompose: { _ in },
-                discardDraft: { _ in },
-                selectionDirection: .bottom,
-                navigatePrevious: {},
-                navigateNext: {},
-                switchToCalendar: nil
+                deselectAll: deselectAll
             )
         }
     }
@@ -576,9 +541,7 @@ struct ContentView: View {
     /// Observation-scoped view for compose mode.
     /// Accepts only the extracted values it needs — no coordinator reference.
     private struct DetailComposeSection: View {
-        let selectedEmail: Email?
-        let selectedFolder: Folder
-        let actionCoordinator: EmailActionCoordinator
+        let selectedEmail: Email
         let mailboxViewModel: MailboxViewModel
         let mailStore: MailStore
         let accountID: String
@@ -588,37 +551,40 @@ struct ContentView: View {
         let signatureForReply: String
         let panelCoordinator: PanelCoordinator
         let contacts: [StoredContact]
-        let startCompose: (ComposeMode) -> Void
         let discardDraft: (UUID) -> Void
 
+        /// Resolves the best send-as alias for compose mode.
+        /// For reply/replyAll, looks up the original thread to match an alias;
+        /// otherwise falls back to the primary account address.
+        private var resolvedFromAddress: String {
+            switch composeMode {
+            case .reply(_, _, _, _, let threadID, _, _),
+                 .replyAll(_, _, _, _, _, let threadID, _, _):
+                if let original = mailboxViewModel.emails.first(where: { $0.gmailThreadID == threadID }) {
+                    return mailboxViewModel.sendAsAliases.bestAlias(
+                        toRecipients: original.recipients.map(\.email),
+                        ccRecipients: original.cc.map(\.email)
+                    ) ?? fromAddress
+                }
+                return fromAddress
+            default:
+                return fromAddress
+            }
+        }
+
         var body: some View {
-            DetailPaneView(
-                selectedEmail: selectedEmail,
-                selectedEmailIDs: [],
-                selectedFolder: selectedFolder,
-                selectedEmails: [],
-                actionCoordinator: actionCoordinator,
-                mailboxViewModel: mailboxViewModel,
-                allLabels: mailboxViewModel.labels,
+            ComposeDetailView(
+                draftId: selectedEmail.id,
                 mailStore: mailStore,
                 accountID: accountID,
-                fromAddress: fromAddress,
+                fromAddress: resolvedFromAddress,
                 composeMode: composeMode,
+                sendAsAliases: mailboxViewModel.sendAsAliases,
                 signatureForNew: signatureForNew,
                 signatureForReply: signatureForReply,
                 panelCoordinator: panelCoordinator,
-                attachmentIndexer: nil,
                 contacts: contacts,
-                mailDatabase: nil,
-                selectNext: { _ in },
-                clearSelection: {},
-                deselectAll: {},
-                startCompose: startCompose,
-                discardDraft: discardDraft,
-                selectionDirection: .bottom,
-                navigatePrevious: {},
-                navigateNext: {},
-                switchToCalendar: nil
+                discardDraft: discardDraft
             )
         }
     }
@@ -626,7 +592,7 @@ struct ContentView: View {
     /// Observation-scoped view for email detail.
     /// Accepts only the extracted values it needs — no coordinator reference.
     private struct DetailEmailSection: View {
-        let selectedEmail: Email?
+        let selectedEmail: Email
         let selectedFolder: Folder
         let actionCoordinator: EmailActionCoordinator
         let mailboxViewModel: MailboxViewModel
@@ -639,38 +605,28 @@ struct ContentView: View {
         let mailDatabase: MailDatabase?
         let selectionDirection: Edge
         let selectNext: (Email?) -> Void
-        let clearSelection: () -> Void
-        let deselectAll: () -> Void
         let startCompose: (ComposeMode) -> Void
         let navigatePrevious: () -> Void
         let navigateNext: () -> Void
         let switchToCalendar: (CalendarEvent) -> Void
 
         var body: some View {
-            DetailPaneView(
-                selectedEmail: selectedEmail,
-                selectedEmailIDs: [],
+            EmailReadDetailView(
+                email: selectedEmail,
                 selectedFolder: selectedFolder,
-                selectedEmails: [],
                 actionCoordinator: actionCoordinator,
                 mailboxViewModel: mailboxViewModel,
                 allLabels: mailboxViewModel.labels,
                 mailStore: mailStore,
                 accountID: accountID,
                 fromAddress: fromAddress,
-                composeMode: .new,
-                signatureForNew: "",
-                signatureForReply: "",
                 panelCoordinator: panelCoordinator,
                 attachmentIndexer: attachmentIndexer,
                 contacts: contacts,
                 mailDatabase: mailDatabase,
-                selectNext: selectNext,
-                clearSelection: clearSelection,
-                deselectAll: deselectAll,
-                startCompose: startCompose,
-                discardDraft: { _ in },
                 selectionDirection: selectionDirection,
+                selectNext: selectNext,
+                startCompose: startCompose,
                 navigatePrevious: navigatePrevious,
                 navigateNext: navigateNext,
                 switchToCalendar: switchToCalendar

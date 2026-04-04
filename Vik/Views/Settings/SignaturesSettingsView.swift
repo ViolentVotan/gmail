@@ -67,7 +67,7 @@ struct SignaturesSettingsView: View {
         Button {
             selectedAlias = alias
         } label: {
-            HStack(spacing: 12) {
+            HStack(spacing: Spacing.md) {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: Spacing.xsm) {
                         Text(alias.displayName ?? alias.sendAsEmail)

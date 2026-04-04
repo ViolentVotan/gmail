@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct VikApp: App {
-    @AppStorage("isSignedIn") private var isSignedIn: Bool = false
+    @AppStorage(UserDefaultsKey.isSignedIn) private var isSignedIn: Bool = false
     @State private var appearanceManager = AppearanceManager()
 
     init() {
@@ -10,7 +10,7 @@ struct VikApp: App {
             UserDefaultsKey.notificationsEnabled: true,
             UserDefaultsKey.undoDuration: 5,
             UserDefaultsKey.aiLabelSuggestions: true,
-            UserDefaultsKey.emailDensity: "comfortable",
+            UserDefaultsKey.emailDensity: EmailDensity.comfortable.rawValue,
             UserDefaultsKey.soundEffectsEnabled: true
         ])
 

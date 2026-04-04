@@ -34,7 +34,7 @@ struct AttachmentPreviewView: View {
     // MARK: - Toolbar
 
     private var previewToolbar: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.md) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(fileName)
                     .font(Typography.calloutSemibold)
@@ -232,7 +232,7 @@ struct AttachmentPreviewView: View {
     // MARK: - Error state
 
     private var corruptedFileView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: Spacing.md) {
             Spacer()
             Image(systemName: "exclamationmark.triangle")
                 .font(Typography.emptyStateIcon)

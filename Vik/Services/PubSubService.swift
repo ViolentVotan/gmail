@@ -1,20 +1,12 @@
 import Foundation
 private import os
 
-/// Custom error for Pub/Sub HTTP failures, carrying the status code.
-enum PubSubError: Error, Sendable {
-    case httpError(statusCode: Int, data: Data)
-    /// OAuth token lacks the `pubsub` scope — re-authorization can fix this.
-    case insufficientScope(accountID: String)
-    /// IAM permission denied or API disabled — re-authorization will NOT fix this.
-    case permissionDenied(accountID: String, reason: String)
-}
-
 /// Pulls Gmail change notifications from a Google Cloud Pub/Sub subscription
 /// and triggers incremental sync on the active `FullSyncEngine`.
 actor PubSubService {
 
     nonisolated private static let logger = Logger(category: "PubSub")
+    nonisolated private static let userAgent = "Vik/1.0 (gzip)"
 
     // MARK: - State
 
@@ -103,7 +95,7 @@ actor PubSubService {
                 }
             } catch is CancellationError {
                 return
-            } catch let error as PubSubError {
+            } catch let error as GoogleAPIError {
                 consecutiveFailures += 1
                 switch error {
                 case .insufficientScope(let accountID):
@@ -130,7 +122,7 @@ actor PubSubService {
                     await activeEngine?.setPubSubActive(false)
                     return  // Exit pull loop — polling covers sync
 
-                case .httpError:
+                default:
                     break  // Fall through to generic failure handling below
                 }
                 if consecutiveFailures >= PubSubConfig.maxPullFailures {
@@ -152,65 +144,113 @@ actor PubSubService {
 
     // MARK: - REST API
 
-    private func pullMessages() async throws -> [PubSubReceivedMessage] {
-        guard let accountID = tokenAccountID else { return [] }
+    /// Performs an authenticated Pub/Sub HTTP request with reachability check,
+    /// proper headers (User-Agent, gzip), retry via `RetryPolicy.retryingHTTP`,
+    /// and automatic 401 token refresh.
+    private func performRequest(
+        url: URL,
+        body: Data,
+        accountID: String
+    ) async throws(GoogleAPIError) -> Data {
+        guard NetworkMonitor.isReachable else { throw .offline }
 
         let token = try await GmailAPIClient.shared.validPubSubToken(for: accountID)
-        let url = URL(string: "\(PubSubConfig.baseURL)/\(PubSubConfig.subscriptionName):pull")!
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(token.accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["maxMessages": 10])
-        request.timeoutInterval = PubSubConfig.pullTimeout
-
-        let (data, response) = try await GmailAPIClient.sharedSession.data(for: request)
-
-        if let httpResponse = response as? HTTPURLResponse {
-            if httpResponse.statusCode == 403 {
-                let body = String(data: data, encoding: .utf8) ?? "<no body>"
-                Self.logger.error("Pub/Sub 403 response: \(body)")
-                throw Self.classify403(data: data, accountID: accountID)
-            }
-            guard (200...299).contains(httpResponse.statusCode) else {
-                throw PubSubError.httpError(statusCode: httpResponse.statusCode, data: data)
-            }
+        do {
+            return try await doPerformRequest(url: url, body: body, accessToken: token.accessToken, accountID: accountID)
+        } catch .unauthorized {
+            // 401: force refresh via GmailAPIClient, then retry once
+            let fresh = try await GmailAPIClient.shared.refreshPubSubToken(for: accountID)
+            return try await doPerformRequest(url: url, body: body, accessToken: fresh.accessToken, accountID: accountID)
         }
-
-        let pullResponse = try JSONDecoder().decode(PubSubPullResponse.self, from: data)
-        return pullResponse.receivedMessages ?? []
     }
 
-    private func acknowledge(ackIds: [String]) async throws {
-        guard let accountID = tokenAccountID, !ackIds.isEmpty else { return }
-
-        let token = try await GmailAPIClient.shared.validPubSubToken(for: accountID)
-        let url = URL(string: "\(PubSubConfig.baseURL)/\(PubSubConfig.subscriptionName):acknowledge")!
-
+    /// Low-level HTTP execution with retry, headers, and status classification.
+    private nonisolated func doPerformRequest(
+        url: URL,
+        body: Data,
+        accessToken: String,
+        accountID: String
+    ) async throws(GoogleAPIError) -> Data {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue("Bearer \(token.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue(Self.userAgent, forHTTPHeaderField: "User-Agent")
+        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: ["ackIds": ackIds])
+        request.httpBody = body
+        request.timeoutInterval = PubSubConfig.pullTimeout
 
-        let (_, response) = try await GmailAPIClient.sharedSession.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse,
-              (200...299).contains(httpResponse.statusCode) else {
-            Self.logger.warning("Acknowledge failed for \(ackIds.count) messages")
-            return
+        let data: Data
+        let http: HTTPURLResponse
+        do {
+            (data, http) = try await RetryPolicy.retryingHTTP {
+                try await GmailAPIClient.sharedSession.data(for: request)
+            }
+        } catch {
+            throw GoogleAPIError.wrap(error)
         }
+
+        switch http.statusCode {
+        case 200...299:
+            return data
+        case 401:
+            throw .unauthorized
+        case 403:
+            throw Self.classify403(data: data, accountID: accountID)
+        default:
+            throw .httpError(http.statusCode, data)
+        }
+    }
+
+    private func pullMessages() async throws(GoogleAPIError) -> [PubSubReceivedMessage] {
+        guard let accountID = tokenAccountID else { return [] }
+        guard let url = URL(string: "\(PubSubConfig.baseURL)/\(PubSubConfig.subscriptionName):pull") else {
+            throw .invalidURL
+        }
+
+        let body: Data
+        do {
+            body = try JSONSerialization.data(withJSONObject: ["maxMessages": 10])
+        } catch {
+            throw .encodingError(error)
+        }
+
+        let data = try await performRequest(url: url, body: body, accountID: accountID)
+
+        do {
+            let pullResponse = try JSONDecoder().decode(PubSubPullResponse.self, from: data)
+            return pullResponse.receivedMessages ?? []
+        } catch {
+            throw .decodingError(error)
+        }
+    }
+
+    private func acknowledge(ackIds: [String]) async throws(GoogleAPIError) {
+        guard let accountID = tokenAccountID, !ackIds.isEmpty else { return }
+        guard let url = URL(string: "\(PubSubConfig.baseURL)/\(PubSubConfig.subscriptionName):acknowledge") else {
+            throw .invalidURL
+        }
+
+        let body: Data
+        do {
+            body = try JSONSerialization.data(withJSONObject: ["ackIds": ackIds])
+        } catch {
+            throw .encodingError(error)
+        }
+
+        _ = try await performRequest(url: url, body: body, accountID: accountID)
     }
 
     // MARK: - Error Classification
 
     /// Parses a Google Cloud API 403 response to distinguish OAuth scope errors
     /// from IAM permission errors. Only scope errors are fixable via re-authorization.
-    private nonisolated static func classify403(data: Data, accountID: String) -> PubSubError {
+    private nonisolated static func classify403(data: Data, accountID: String) -> GoogleAPIError {
         // Google Cloud API errors include details[].reason:
-        //   ACCESS_TOKEN_SCOPE_INSUFFICIENT → OAuth scope issue (re-auth can fix)
-        //   IAM_PERMISSION_DENIED → IAM role missing (re-auth cannot fix)
-        //   SERVICE_DISABLED → API not enabled (re-auth cannot fix)
+        //   ACCESS_TOKEN_SCOPE_INSUFFICIENT -> OAuth scope issue (re-auth can fix)
+        //   IAM_PERMISSION_DENIED -> IAM role missing (re-auth cannot fix)
+        //   SERVICE_DISABLED -> API not enabled (re-auth cannot fix)
         struct CloudError: Decodable {
             struct Detail: Decodable {
                 let reason: String?
@@ -230,7 +270,7 @@ actor PubSubService {
             let message = parsed.error?.message ?? reason
             return .permissionDenied(accountID: accountID, reason: message)
         }
-        // Unparseable body — conservatively treat as permission denied (not scope)
+        // Unparseable body -- conservatively treat as permission denied (not scope)
         // to avoid a re-auth loop when the error can't be fixed by re-auth.
         return .permissionDenied(accountID: accountID, reason: "unknown 403")
     }
@@ -250,7 +290,7 @@ actor PubSubService {
         }
     }
 
-    /// Debounces notifications per email address — coalesces burst within 1s.
+    /// Debounces notifications per email address -- coalesces burst within 1s.
     private func handleNotification(emailAddress: String) {
         guard emailAddress == activeEmail, let engine = activeEngine else {
             Self.logger.debug("Notification for non-active account \(emailAddress) — discarding")

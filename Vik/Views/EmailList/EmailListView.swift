@@ -175,7 +175,7 @@ struct EmailListView: View {
     @State private var sortModel = EmailListSortModel()
     @State private var isSearching = false
     @State private var scrollPosition = ScrollPosition(edge: .top)
-    @AppStorage("emailDensity") private var density = "comfortable"
+    @AppStorage(UserDefaultsKey.emailDensity) private var density: EmailDensity = .comfortable
     @State private var hoverActions = EmailHoverActions()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var animatedEmailIDs: Set<String> = []
@@ -773,7 +773,7 @@ private struct EmailSkeletonRowView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.md) {
             Circle()
                 .fill(.tertiary.opacity(OpacityToken.tag))
                 .frame(width: 6, height: 6)

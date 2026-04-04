@@ -153,7 +153,7 @@ struct CalendarInviteCardView: View {
                     ProgressView()
                         .controlSize(.small)
                 } else {
-                    HStack(spacing: 10) {
+                    HStack(spacing: Spacing.smd) {
                         rsvpButton("Accept", icon: "checkmark", status: .accepted, action: onAccept)
                         rsvpButton("Decline", icon: "xmark", status: .declined, action: onDecline)
                         rsvpButton("Maybe", icon: "questionmark", status: .maybe, action: onMaybe)

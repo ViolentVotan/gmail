@@ -304,7 +304,7 @@ struct ComposeView: View {
     // MARK: - Toolbar
 
     private var composeToolbar: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.md) {
             Spacer()
 
             ToolbarIconButton(icon: "paperclip", label: "Attach", useGlass: true) { attachFiles() }
@@ -348,7 +348,7 @@ struct ComposeView: View {
     // MARK: - Bottom actions
 
     private var composeActions: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Spacing.md) {
             Button {
                 showDiscardAlert = true
             } label: {
@@ -395,7 +395,7 @@ struct ComposeView: View {
     // MARK: - From field
 
     private var fromField: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: Spacing.smd) {
             Text("From")
                 .font(Typography.subhead)
                 .foregroundStyle(.tertiary)

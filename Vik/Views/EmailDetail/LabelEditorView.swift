@@ -14,7 +14,7 @@ struct LabelEditorView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Comma-separated label IDs that the user has dismissed from suggestions.
-    @AppStorage("dismissedLabelSuggestions") private var dismissedLabelSuggestionsRaw = ""
+    @AppStorage(UserDefaultsKey.dismissedLabelSuggestions) private var dismissedLabelSuggestionsRaw = ""
 
     /// The set of label IDs the user has dismissed so they are not re-shown.
     @State private var dismissedLabelSuggestions: Set<String> = []

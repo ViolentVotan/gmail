@@ -37,8 +37,8 @@ struct SidebarView: View {
     var onNewEvent: (() -> Void)?
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @AppStorage("showDebugMenu") private var showDebugMenu = false
-    @AppStorage("labelsExpanded") private var labelsExpanded = true
+    @AppStorage(UserDefaultsKey.showDebugMenu) private var showDebugMenu = false
+    @AppStorage(UserDefaultsKey.labelsExpanded) private var labelsExpanded = true
 
     @State private var labelToRename: GmailLabel?
     @State private var labelToDelete: GmailLabel?
