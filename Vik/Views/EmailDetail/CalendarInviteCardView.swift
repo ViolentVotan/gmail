@@ -62,7 +62,7 @@ struct CalendarInviteCardView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.md) {
             // Title
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.sm) {
                 Image(systemName: "calendar")
                     .font(Typography.subheadSemibold)
                     .foregroundStyle(.tint)
@@ -74,7 +74,7 @@ struct CalendarInviteCardView: View {
 
             // Date & time (from invite HTML parse; real event uses startTime/endTime)
             if let event = calendarEvent {
-                HStack(spacing: 8) {
+                HStack(spacing: Spacing.sm) {
                     Image(systemName: "clock")
                         .font(Typography.subheadRegular)
                         .foregroundStyle(.tertiary)
@@ -84,7 +84,7 @@ struct CalendarInviteCardView: View {
                         .foregroundStyle(.secondary)
                 }
             } else if !invite.dateText.isEmpty {
-                HStack(spacing: 8) {
+                HStack(spacing: Spacing.sm) {
                     Image(systemName: "clock")
                         .font(Typography.subheadRegular)
                         .foregroundStyle(.tertiary)
@@ -97,7 +97,7 @@ struct CalendarInviteCardView: View {
 
             // Location
             if let location = displayLocation, !location.isEmpty {
-                HStack(spacing: 8) {
+                HStack(spacing: Spacing.sm) {
                     Image(systemName: "mappin.and.ellipse")
                         .font(Typography.subheadRegular)
                         .foregroundStyle(.tertiary)
@@ -112,7 +112,7 @@ struct CalendarInviteCardView: View {
             // Conference link (only when real event data available)
             if let url = conferenceURL, let name = calendarEvent?.conferenceName {
                 Link(destination: url) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: Spacing.sm) {
                         Image(systemName: "video")
                             .font(Typography.subheadRegular)
                             .foregroundStyle(.tertiary)
@@ -127,7 +127,7 @@ struct CalendarInviteCardView: View {
             }
 
             // Organizer + attendee count
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.sm) {
                 Image(systemName: "person")
                     .font(Typography.subheadRegular)
                     .foregroundStyle(.tertiary)
@@ -165,7 +165,7 @@ struct CalendarInviteCardView: View {
                 Button {
                     withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) { showOriginalEmail.toggle() }
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: Spacing.xs) {
                         Image(systemName: showOriginalEmail ? "chevron.up" : "chevron.down")
                             .font(Typography.captionSmallMedium)
                         Text(showOriginalEmail ? "Hide original" : "Show original")

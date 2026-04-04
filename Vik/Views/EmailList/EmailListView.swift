@@ -786,7 +786,7 @@ private struct EmailSkeletonRowView: View {
                         .clipShape(Circle())
                 }
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
                 HStack {
                     shimmerRect(width: 120, height: 10)
                     Spacer()

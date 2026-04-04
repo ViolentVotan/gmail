@@ -71,7 +71,7 @@ struct FilterEditorView: View {
                     Task { await save() }
                 } label: {
                     if isSaving {
-                        HStack(spacing: 6) {
+                        HStack(spacing: Spacing.xsm) {
                             ProgressView()
                                 .controlSize(.small)
                             Text("Creating\u{2026}")

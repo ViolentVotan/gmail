@@ -16,6 +16,7 @@ final class AccountStore {
 
     private init() { migrateColors() }
 
+    // Profile metadata only (no tokens/content) — UserDefaults acceptable for quick access
     private let key = "com.vikingz.vik.accounts"
     private let selectedAccountIDKey = "com.vikingz.vik.selectedAccountID"
     private var _cachedAccounts: [GmailAccount]?

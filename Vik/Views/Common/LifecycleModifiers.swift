@@ -58,14 +58,7 @@ struct NetworkLifecycleModifier: ViewModifier {
         content
             .onChange(of: NetworkMonitor.shared.isConnected) { _, connected in
                 if connected {
-                    OfflineActionQueue.shared.startDraining()
-                    Task { await coordinator.sync.syncEngine?.triggerIncrementalSync() }
-                    if let calendarEngine = coordinator.calendar.calendarSyncEngine {
-                        Task {
-                            await CalendarOfflineActionQueue.shared.processQueue(accountID: calendarEngine.accountID)
-                            await calendarEngine.triggerSync()
-                        }
-                    }
+                    coordinator.handleNetworkReconnection()
                 }
             }
     }
@@ -147,11 +140,7 @@ struct MailboxLifecycleModifier: ViewModifier {
             }
             .onChange(of: coordinator.mailboxViewModel.lastRestoredMessageID) { _, msgID in
                 guard let msgID else { return }
-                coordinator.mailboxViewModel.lastRestoredMessageID = nil
-                if let restoredEmail = coordinator.mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgID }) {
-                    coordinator.selection.selectedEmail = restoredEmail
-                    coordinator.selection.selectedEmailIDs = [restoredEmail.id.uuidString]
-                }
+                coordinator.handleRestoredMessage(msgID)
             }
     }
 }

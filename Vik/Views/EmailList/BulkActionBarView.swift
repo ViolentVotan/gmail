@@ -85,7 +85,7 @@ struct BulkActionBarView: View {
         Button {
             action()
         } label: {
-            VStack(spacing: 6) {
+            VStack(spacing: Spacing.xsm) {
                 Image(systemName: icon)
                     .font(Typography.title)
                 Text(label)

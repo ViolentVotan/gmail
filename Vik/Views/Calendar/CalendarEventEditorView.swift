@@ -519,7 +519,7 @@ private struct AttendeeChip: View {
     let onRemove: () -> Void
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: Spacing.xs) {
             Text(email)
                 .font(Typography.caption)
                 .foregroundStyle(.primary)

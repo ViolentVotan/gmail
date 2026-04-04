@@ -224,7 +224,7 @@ struct SidebarView: View {
                 .padding(.horizontal, Spacing.sm)
 
             // Folder + label icons with glass hover
-            GlassEffectContainer(spacing: 4) {
+            GlassEffectContainer(spacing: Spacing.xs) {
                 VStack(spacing: 2) {
                     ForEach(Folder.mainFolders) { folder in
                         collapsedFolderButton(folder)
@@ -465,42 +465,38 @@ struct SidebarView: View {
         }
         .accessibilityLabel(unread > 0 ? "\(folder.rawValue), \(unread) unread" : folder.rawValue)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-        .glassEffect(
-            (isSelected || isDropTarget || isHovered) ? .regular.interactive() : .identity,
-            in: .rect(cornerRadius: CornerRadius.sm)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: CornerRadius.sm)
-                .strokeBorder(Color.accentColor.opacity(isDropTarget ? 0.4 : 0), lineWidth: 1.5)
-        )
-        .scaleEffect(isDropTarget ? ScaleToken.rowHover : 1.0)
-        .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
-        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isDropTarget)
-        .onHover { hovering in
-            if hovering {
-                hoveredFolder = folder
-            } else if hoveredFolder == folder {
-                hoveredFolder = nil
-            }
-        }
-        .dropDestination(for: EmailDragItem.self) { items, _ in
-            for item in items {
-                for msgId in item.messageIds {
-                    switch folder {
-                    case .trash:
-                        onDropToTrash?(msgId, item.accountID)
-                    case .archive:
-                        onDropToArchive?(msgId, item.accountID)
-                    case .spam:
-                        onDropToSpam?(msgId, item.accountID)
-                    default: break
+        .modifier(SidebarItemModifier(
+            isSelected: isSelected,
+            isHovered: isHovered,
+            isDropTarget: isDropTarget,
+            reduceMotion: reduceMotion,
+            onHoverChanged: { hovering in
+                if hovering {
+                    hoveredFolder = folder
+                } else if hoveredFolder == folder {
+                    hoveredFolder = nil
+                }
+            },
+            onDrop: { items in
+                for item in items {
+                    for msgId in item.messageIds {
+                        switch folder {
+                        case .trash:
+                            onDropToTrash?(msgId, item.accountID)
+                        case .archive:
+                            onDropToArchive?(msgId, item.accountID)
+                        case .spam:
+                            onDropToSpam?(msgId, item.accountID)
+                        default: break
+                        }
                     }
                 }
+                return true
+            },
+            onDropTargeted: { targeted in
+                dropTargetFolder = targeted ? folder : nil
             }
-            return true
-        } isTargeted: { targeted in
-            dropTargetFolder = targeted ? folder : nil
-        }
+        ))
         .contextMenu {
             Button {
                 onRefresh?()
@@ -559,34 +555,30 @@ struct SidebarView: View {
         .fontWeight(isLabelSelected ? .medium : .regular)
         .accessibilityLabel(label.name)
         .accessibilityAddTraits(isLabelSelected ? .isSelected : [])
-        .glassEffect(
-            (isLabelSelected || isDropTarget || isHovered) ? .regular.interactive() : .identity,
-            in: .rect(cornerRadius: CornerRadius.sm)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: CornerRadius.sm)
-                .strokeBorder(Color.accentColor.opacity(isDropTarget ? 0.4 : 0), lineWidth: 1.5)
-        )
-        .scaleEffect(isDropTarget ? ScaleToken.rowHover : 1.0)
-        .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
-        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isDropTarget)
-        .onHover { hovering in
-            if hovering {
-                hoveredLabel = label.id
-            } else if hoveredLabel == label.id {
-                hoveredLabel = nil
-            }
-        }
-        .dropDestination(for: EmailDragItem.self) { items, _ in
-            for item in items {
-                for msgId in item.messageIds {
-                    onDropToLabel?(msgId, label.id, item.accountID)
+        .modifier(SidebarItemModifier(
+            isSelected: isLabelSelected,
+            isHovered: isHovered,
+            isDropTarget: isDropTarget,
+            reduceMotion: reduceMotion,
+            onHoverChanged: { hovering in
+                if hovering {
+                    hoveredLabel = label.id
+                } else if hoveredLabel == label.id {
+                    hoveredLabel = nil
                 }
+            },
+            onDrop: { items in
+                for item in items {
+                    for msgId in item.messageIds {
+                        onDropToLabel?(msgId, label.id, item.accountID)
+                    }
+                }
+                return true
+            },
+            onDropTargeted: { targeted in
+                dropTargetLabel = targeted ? label.id : nil
             }
-            return true
-        } isTargeted: { targeted in
-            dropTargetLabel = targeted ? label.id : nil
-        }
+        ))
         .contextMenu {
             Button {
                 labelToRename = label
@@ -600,6 +592,41 @@ struct SidebarView: View {
                 Label("Delete", systemImage: "trash")
             }
         }
+    }
+}
+
+// MARK: - Sidebar Item Modifier
+
+/// Shared modifier encapsulating the glass effect, drop-target border, scale, hover animation,
+/// hover tracking, and drop destination used by both `folderButton` and `labelButton`.
+private struct SidebarItemModifier: ViewModifier {
+    let isSelected: Bool
+    let isHovered: Bool
+    let isDropTarget: Bool
+    let reduceMotion: Bool
+    let onHoverChanged: (Bool) -> Void
+    let onDrop: ([EmailDragItem]) -> Bool
+    let onDropTargeted: (Bool) -> Void
+
+    func body(content: Content) -> some View {
+        content
+            .glassEffect(
+                (isSelected || isDropTarget || isHovered) ? .regular.interactive() : .identity,
+                in: .rect(cornerRadius: CornerRadius.sm)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: CornerRadius.sm)
+                    .strokeBorder(Color.accentColor.opacity(isDropTarget ? 0.4 : 0), lineWidth: 1.5)
+            )
+            .scaleEffect(isDropTarget ? ScaleToken.rowHover : 1.0)
+            .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
+            .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isDropTarget)
+            .onHover { hovering in onHoverChanged(hovering) }
+            .dropDestination(for: EmailDragItem.self) { items, _ in
+                onDrop(items)
+            } isTargeted: { targeted in
+                onDropTargeted(targeted)
+            }
     }
 }
 

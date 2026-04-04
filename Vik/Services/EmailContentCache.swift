@@ -15,7 +15,7 @@ final class EmailContentCache: Sendable {
 
     private struct Storage {
         var entries: [String: ThreadContent] = [:]
-        var accessOrder: [String] = []  // most recent at end
+        var accessOrder: [String] = []  // most recent at end; O(n) firstIndex acceptable at maxEntries=50 — consider SendableLRUCache if limit grows
         let maxEntries: Int
     }
 

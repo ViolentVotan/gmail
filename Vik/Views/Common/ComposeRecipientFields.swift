@@ -31,7 +31,7 @@ struct ComposeRecipientFields: View {
                 Divider().padding(.horizontal, compact ? Spacing.lg : Spacing.xl)
             }
 
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.sm) {
                 Spacer()
 
                 Button {

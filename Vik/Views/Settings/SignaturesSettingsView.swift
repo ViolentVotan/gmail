@@ -16,7 +16,7 @@ struct SignaturesSettingsView: View {
                 ProgressView("Loading signatures…")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let error = errorMessage {
-                VStack(spacing: 8) {
+                VStack(spacing: Spacing.sm) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(Typography.emptyStateIcon)
                         .foregroundStyle(.secondary)
@@ -69,7 +69,7 @@ struct SignaturesSettingsView: View {
         } label: {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: Spacing.xsm) {
                         Text(alias.displayName ?? alias.sendAsEmail)
                             .font(Typography.callout)
                             .foregroundStyle(.primary)

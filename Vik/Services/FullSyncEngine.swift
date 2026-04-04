@@ -232,8 +232,10 @@ actor FullSyncEngine {
     func triggerIncrementalSync() {
         Self.logger.info("triggerIncrementalSync() called — state=\(String(describing: self.state))")
         if case .error = state {
-            // Restart full lifecycle. syncTask already completed (returned after
-            // setting error state), so cancel is a no-op — just clean the ref.
+            // Restart full lifecycle. Cancel any orphaned task before clearing
+            // the ref — rapid double-invocation can leave a running task that
+            // would otherwise be unreachable and uncancel-able.
+            syncTask?.cancel()
             syncTask = nil
             start()
             return
@@ -263,11 +265,13 @@ actor FullSyncEngine {
         Self.activeEngines.withLock { _ = $0.removeValue(forKey: id) }
         state = .error("Session expired — signing in…")
         await reportProgress(.failed("Session expired — signing in…"))
-        NotificationCenter.default.post(
-            name: .syncSessionExpired,
-            object: nil,
-            userInfo: ["accountID": id]
-        )
+        await MainActor.run {
+            NotificationCenter.default.post(
+                name: .syncSessionExpired,
+                object: nil,
+                userInfo: ["accountID": id]
+            )
+        }
     }
 
     /// Fetches messages for a specific label if the local DB has none.
@@ -541,11 +545,13 @@ actor FullSyncEngine {
                 isTokenRevoked = true
                 state = .error("Session expired — signing in…")
                 await reportProgress(.failed("Session expired — signing in…"))
-                NotificationCenter.default.post(
-                    name: .syncSessionExpired,
-                    object: nil,
-                    userInfo: ["accountID": accountID]
-                )
+                await MainActor.run {
+                    NotificationCenter.default.post(
+                        name: .syncSessionExpired,
+                        object: nil,
+                        userInfo: ["accountID": accountID]
+                    )
+                }
                 return false
             }
             // Retryable error — log but don't call syncFailed (the retry loop in

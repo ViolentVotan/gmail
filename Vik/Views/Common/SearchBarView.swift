@@ -12,7 +12,7 @@ struct SearchBarView: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Spacing.sm) {
             Image(systemName: "magnifyingglass")
                 .font(Typography.bodyMedium)
                 .foregroundStyle(isFocused ? .secondary : .tertiary)

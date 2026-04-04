@@ -57,7 +57,7 @@ struct SnoozePickerView: View {
     @State private var isPickDateHovered = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(title)
                 .font(Typography.subheadSemibold)
                 .foregroundStyle(.secondary)

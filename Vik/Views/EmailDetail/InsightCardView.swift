@@ -10,8 +10,8 @@ struct InsightCardView: View {
     var body: some View {
         Group {
             if let insight, hasContent(insight) {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
+                    HStack(spacing: Spacing.xsm) {
                         Label("Apple Intelligence", systemImage: "apple.intelligence")
                             .font(Typography.captionSmallMedium)
                             .foregroundStyle(.tertiary)
@@ -26,9 +26,9 @@ struct InsightCardView: View {
                     }
 
                     if insight.actionNeeded != nil || insight.deadline != nil || insight.sentiment != nil {
-                        HStack(spacing: 8) {
+                        HStack(spacing: Spacing.sm) {
                             if let action = insight.actionNeeded {
-                                HStack(spacing: 4) {
+                                HStack(spacing: Spacing.xs) {
                                     Image(systemName: "exclamationmark.circle.fill")
                                         .foregroundStyle(SemanticColor.warning)
                                     Text(action)
@@ -37,7 +37,7 @@ struct InsightCardView: View {
                                 }
                             }
                             if let deadline = insight.deadline {
-                                HStack(spacing: 4) {
+                                HStack(spacing: Spacing.xs) {
                                     Image(systemName: "calendar.badge.clock")
                                         .foregroundStyle(SemanticColor.warning)
                                     Text(deadline)

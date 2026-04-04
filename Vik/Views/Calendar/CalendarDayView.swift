@@ -7,12 +7,7 @@ import SwiftUI
 struct CalendarDayView: View {
 
     @Bindable var viewModel: CalendarViewModel
-    let onSelectEvent: (CalendarEvent) -> Void
-    let onCreateEvent: (Date, Int) -> Void
-    var onEdit: (CalendarEvent) -> Void = { _ in }
-    var onDelete: (CalendarEvent) -> Void = { _ in }
-    var onRSVP: (CalendarEvent, CalendarRSVPStatus) -> Void = { _, _ in }
-    var onEmailAttendees: (CalendarEvent) -> Void = { _ in }
+    var actions: CalendarEventActions = CalendarEventActions()
 
     // MARK: - Private state
 
@@ -89,30 +84,7 @@ struct CalendarDayView: View {
     }
 
     private func allDayChip(_ event: CalendarEvent) -> some View {
-        Button {
-            onSelectEvent(event)
-        } label: {
-            Text(event.summary)
-                .font(Typography.captionSemibold)
-                .foregroundStyle(CalendarColor.contrastingForeground(forId: Int(event.colorId ?? "")))
-                .lineLimit(1)
-                .padding(.horizontal, Spacing.sm)
-                .frame(height: CalendarLayout.allDayEventHeight)
-                .background(event.resolvedColor.opacity(0.8), in: RoundedRectangle(cornerRadius: CornerRadius.xs))
-                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: CornerRadius.xs))
-        }
-        .buttonStyle(.plain)
-        .contextMenu {
-            CalendarEventContextMenu(
-                event: event,
-                onEdit: onEdit,
-                onDelete: onDelete,
-                onRSVP: onRSVP,
-                onEmailAttendees: onEmailAttendees
-            )
-        }
-        .accessibilityLabel("\(event.summary), all day")
-        .help(event.summary)
+        CalendarAllDayChip(event: event, actions: actions)
     }
 
     // MARK: - Time grid
@@ -168,9 +140,9 @@ struct CalendarDayView: View {
     private func hourRow(hour: Int) -> some View {
         CalendarDayHourRow(
             hour: hour,
-            label: hourLabel(hour),
+            label: CalendarLayout.hourLabels[hour],
             selectedDate: viewModel.selectedDate,
-            onCreateEvent: onCreateEvent
+            onCreateEvent: actions.onCreateEvent
         )
     }
 
@@ -189,14 +161,14 @@ struct CalendarDayView: View {
         let colWidth = (columnWidth - 4) / CGFloat(colCount)
         let xOffset = CalendarLayout.timeColumnWidth + CGFloat(colIndex) * colWidth + 2
 
-        return DayEventCardView(event: event, onSelect: onSelectEvent)
+        return CalendarEventCard(event: event, style: .detailed, onSelect: actions.onSelectEvent)
             .contextMenu {
                 CalendarEventContextMenu(
                     event: event,
-                    onEdit: onEdit,
-                    onDelete: onDelete,
-                    onRSVP: onRSVP,
-                    onEmailAttendees: onEmailAttendees
+                    onEdit: actions.onEdit,
+                    onDelete: actions.onDelete,
+                    onRSVP: actions.onRSVP,
+                    onEmailAttendees: actions.onEmailAttendees
                 )
             }
             .frame(width: colWidth - 1)
@@ -227,9 +199,7 @@ struct CalendarDayView: View {
 
     // MARK: - Helpers
 
-    private func hourLabel(_ hour: Int) -> String {
-        CalendarLayout.hourLabels[hour]
-    }
+
 
     private func scrollToCurrentTime(proxy: ScrollViewProxy) {
         guard calendar.isDateInToday(viewModel.selectedDate) else { return }
@@ -287,109 +257,12 @@ private struct CalendarDayHourRow: View {
     }
 }
 
-// MARK: - DayEventCardView
 
-/// Rich event card for the day view — shows title, time range, description preview, attendee count.
-private struct DayEventCardView: View {
-    let event: CalendarEvent
-    let onSelect: (CalendarEvent) -> Void
-
-    @State private var isHovered = false
-    @GestureState private var isPressed = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        HStack(spacing: 0) {
-            // Left color bar
-            RoundedRectangle(cornerRadius: CalendarLayout.eventCardBorderWidth / 2)
-                .fill(event.resolvedColor)
-                .frame(width: CalendarLayout.eventCardBorderWidth)
-
-            VStack(alignment: .leading, spacing: 2) {
-                // Title
-                Text(event.summary)
-                    .font(Typography.calendarEventTitle)
-                    .foregroundStyle(.primary)
-                    .lineLimit(2)
-
-                // Time range
-                Text(event.formattedTimeRangeCompact)
-                    .font(Typography.calendarEventTime)
-                    .foregroundStyle(.secondary)
-
-                // Description preview
-                if let description = event.description, !description.isEmpty {
-                    Text(description)
-                        .font(Typography.calendarEventTime)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                }
-
-                // Badges row
-                if event.attendees.count > 0 || event.conferenceLink != nil {
-                    HStack(spacing: Spacing.sm) {
-                        if event.attendees.count > 0 {
-                            Label("\(event.attendees.count)", systemImage: "person.2")
-                                .font(Typography.calendarEventTime)
-                                .foregroundStyle(.secondary)
-                        }
-                        if event.conferenceLink != nil {
-                            Image(systemName: "video")
-                                .font(Typography.calendarEventTime)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, Spacing.xs)
-            .padding(.vertical, Spacing.xs)
-
-            Spacer(minLength: 0)
-        }
-        .background(
-            event.resolvedColor.opacity(CalendarSemanticColor.eventCardBackgroundOpacity),
-            in: RoundedRectangle(cornerRadius: CornerRadius.xs)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: CornerRadius.xs)
-                .strokeBorder(
-                    event.resolvedColor.opacity(isHovered ? 0.4 : 0.2),
-                    lineWidth: 0.5
-                )
-        )
-        .glassEffect(
-            isHovered ? .regular.interactive() : .identity,
-            in: .rect(cornerRadius: CornerRadius.xs)
-        )
-        .shadow(
-            color: isHovered ? event.resolvedColor.opacity(0.2) : .clear,
-            radius: isHovered ? 4 : 0,
-            y: isHovered ? 2 : 0
-        )
-        .scaleEffect(reduceMotion ? 1.0 : (isPressed ? ScaleToken.press : (isHovered ? ScaleToken.hover : 1.0)))
-        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isPressed)
-        .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isHovered)
-        .gesture(
-            DragGesture(minimumDistance: 0)
-                .updating($isPressed) { _, state, _ in state = true }
-                .onEnded { _ in onSelect(event) }
-        )
-        .onHover { isHovered = $0 }
-        .accessibilityLabel("\(event.summary), \(event.formattedTimeRangeCompact)")
-        .accessibilityAddTraits(.isButton)
-        .help(event.summary)
-    }
-
-}
 
 // MARK: - Preview
 
 #Preview {
     @Previewable @State var vm = CalendarViewModel(db: try! MailDatabase(accountID: "preview"))
-    CalendarDayView(
-        viewModel: vm,
-        onSelectEvent: { _ in },
-        onCreateEvent: { _, _ in }
-    )
+    CalendarDayView(viewModel: vm)
     .frame(width: 600, height: 700)
 }

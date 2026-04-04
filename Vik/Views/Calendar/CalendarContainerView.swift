@@ -5,13 +5,7 @@ import SwiftUI
 struct CalendarContainerView: View {
     @Bindable var viewModel: CalendarViewModel
     var onNewEvent: () -> Void = {}
-    var onSelectEvent: (CalendarEvent) -> Void = { _ in }
-    var onCreateEvent: (Date, Int) -> Void = { _, _ in }
-
-    var onEdit: (CalendarEvent) -> Void = { _ in }
-    var onDelete: (CalendarEvent) -> Void = { _ in }
-    var onRSVP: (CalendarEvent, CalendarRSVPStatus) -> Void = { _, _ in }
-    var onEmailAttendees: (CalendarEvent) -> Void = { _ in }
+    var actions: CalendarEventActions = CalendarEventActions()
     var composeTo: ((String) -> Void)?
     var searchSender: ((String) -> Void)?
 
@@ -26,52 +20,20 @@ struct CalendarContainerView: View {
             ZStack {
                 switch viewModel.viewMode {
                 case .month:
-                    CalendarMonthView(
-                        viewModel: viewModel,
-                        onSelectEvent: onSelectEvent,
-                        onCreateEvent: onCreateEvent,
-                        onEdit: onEdit,
-                        onDelete: onDelete,
-                        onRSVP: onRSVP,
-                        onEmailAttendees: onEmailAttendees
-                    )
-                    .transition(directionalTransition(for: .month))
+                    CalendarMonthView(viewModel: viewModel, actions: actions)
+                        .transition(directionalTransition(for: .month))
 
                 case .week:
-                    CalendarWeekView(
-                        viewModel: viewModel,
-                        onSelectEvent: onSelectEvent,
-                        onCreateEvent: onCreateEvent,
-                        onEdit: onEdit,
-                        onDelete: onDelete,
-                        onRSVP: onRSVP,
-                        onEmailAttendees: onEmailAttendees
-                    )
-                    .transition(directionalTransition(for: .week))
+                    CalendarWeekView(viewModel: viewModel, actions: actions)
+                        .transition(directionalTransition(for: .week))
 
                 case .day:
-                    CalendarDayView(
-                        viewModel: viewModel,
-                        onSelectEvent: onSelectEvent,
-                        onCreateEvent: onCreateEvent,
-                        onEdit: onEdit,
-                        onDelete: onDelete,
-                        onRSVP: onRSVP,
-                        onEmailAttendees: onEmailAttendees
-                    )
-                    .transition(directionalTransition(for: .day))
+                    CalendarDayView(viewModel: viewModel, actions: actions)
+                        .transition(directionalTransition(for: .day))
 
                 case .agenda:
-                    CalendarAgendaView(
-                        viewModel: viewModel,
-                        onSelectEvent: onSelectEvent,
-                        onCreateEvent: onCreateEvent,
-                        onEdit: onEdit,
-                        onDelete: onDelete,
-                        onRSVP: onRSVP,
-                        onEmailAttendees: onEmailAttendees
-                    )
-                    .transition(directionalTransition(for: .agenda))
+                    CalendarAgendaView(viewModel: viewModel, actions: actions)
+                        .transition(directionalTransition(for: .agenda))
                 }
             }
             .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: viewModel.viewMode)
@@ -85,10 +47,10 @@ struct CalendarContainerView: View {
         .sheet(item: $viewModel.selectedEvent) { event in
             CalendarEventDetailView(
                 event: event,
-                onEdit: { onEdit(event) },
-                onDelete: { onDelete(event) },
-                onRSVP: { status in onRSVP(event, status) },
-                onEmailAttendees: { onEmailAttendees(event) },
+                onEdit: { actions.onEdit(event) },
+                onDelete: { actions.onDelete(event) },
+                onRSVP: { status in actions.onRSVP(event, status) },
+                onEmailAttendees: { actions.onEmailAttendees(event) },
                 onDismiss: { viewModel.selectedEvent = nil },
                 composeTo: composeTo,
                 searchSender: searchSender

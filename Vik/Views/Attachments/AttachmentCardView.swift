@@ -140,7 +140,7 @@ struct AttachmentCardView: View {
                     .aspectRatio(contentMode: .fill)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                VStack(spacing: 4) {
+                VStack(spacing: Spacing.xs) {
                     Image(systemName: fileTypeIcon)
                         .font(Typography.emptyStateMediumIcon)
                         .foregroundStyle(iconForegroundColor)
@@ -182,7 +182,7 @@ struct AttachmentCardView: View {
     }
 
     private var scoreArea: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: Spacing.xs) {
             Circle()
                 .fill(scoreColor)
                 .frame(width: 6, height: 6)

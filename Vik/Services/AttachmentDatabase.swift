@@ -213,7 +213,8 @@ actor AttachmentDatabase {
 
     // MARK: - Insert
 
-    func insertAttachment(_ attachment: IndexedAttachment) {
+    @discardableResult
+    func insertAttachment(_ attachment: IndexedAttachment) -> Bool {
         let sql = """
         INSERT OR IGNORE INTO attachments
             (id, messageId, attachmentId, filename, mimeType, fileType, size,
@@ -222,7 +223,7 @@ actor AttachmentDatabase {
         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """
         var stmt: OpaquePointer?
-        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return false }
         defer { sqlite3_finalize(stmt) }
 
         bindText(stmt, 1, attachment.id)
@@ -251,7 +252,7 @@ actor AttachmentDatabase {
         bindTextOrNull(stmt, 16, attachment.emailBody)
         bindText(stmt, 17, attachment.accountID)
 
-        sqlite3_step(stmt)
+        return sqlite3_step(stmt) == SQLITE_DONE
     }
 
     // MARK: - Update indexed content
@@ -524,7 +525,11 @@ actor AttachmentDatabase {
             sqlite3_reset(stmt)
             bindText(stmt, 1, id)
             bindText(stmt, 2, accountID)
-            sqlite3_step(stmt)
+            let rc = sqlite3_step(stmt)
+            if rc != SQLITE_DONE && rc != SQLITE_ROW {
+                exec("ROLLBACK")
+                return
+            }
         }
         exec("COMMIT")
     }
@@ -534,37 +539,52 @@ actor AttachmentDatabase {
         guard !attachments.isEmpty, db != nil else { return }
         exec("BEGIN TRANSACTION")
         for attachment in attachments {
-            insertAttachment(attachment)
+            if !insertAttachment(attachment) {
+                exec("ROLLBACK")
+                return
+            }
         }
         exec("COMMIT")
     }
 
-    /// Delete all rows for a specific account, rebuild FTS, and reclaim disk space.
+    /// Delete all rows for a specific account and rebuild FTS.
     func deleteByAccountID(_ accountID: String) {
+        exec("BEGIN TRANSACTION")
+
         let sql = "DELETE FROM attachments WHERE accountID = ?"
         var stmt: OpaquePointer?
-        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else { return }
+        guard sqlite3_prepare_v2(db, sql, -1, &stmt, nil) == SQLITE_OK else {
+            exec("ROLLBACK")
+            return
+        }
         defer { sqlite3_finalize(stmt) }
         bindText(stmt, 1, accountID)
         sqlite3_step(stmt)
+
         // Also clean scanned_messages for this account
         let sql2 = "DELETE FROM scanned_messages WHERE accountID = ?"
         var stmt2: OpaquePointer?
-        if sqlite3_prepare_v2(db, sql2, -1, &stmt2, nil) == SQLITE_OK {
-            defer { sqlite3_finalize(stmt2) }
-            bindText(stmt2, 1, accountID)
-            sqlite3_step(stmt2)
+        guard sqlite3_prepare_v2(db, sql2, -1, &stmt2, nil) == SQLITE_OK else {
+            exec("ROLLBACK")
+            return
         }
+        defer { sqlite3_finalize(stmt2) }
+        bindText(stmt2, 1, accountID)
+        sqlite3_step(stmt2)
+
         // Also clean scan_state for this account
         let sql3 = "DELETE FROM scan_state WHERE accountID = ?"
         var stmt3: OpaquePointer?
-        if sqlite3_prepare_v2(db, sql3, -1, &stmt3, nil) == SQLITE_OK {
-            defer { sqlite3_finalize(stmt3) }
-            bindText(stmt3, 1, accountID)
-            sqlite3_step(stmt3)
+        guard sqlite3_prepare_v2(db, sql3, -1, &stmt3, nil) == SQLITE_OK else {
+            exec("ROLLBACK")
+            return
         }
+        defer { sqlite3_finalize(stmt3) }
+        bindText(stmt3, 1, accountID)
+        sqlite3_step(stmt3)
+
+        exec("COMMIT")
         exec("INSERT INTO attachments_fts(attachments_fts) VALUES('rebuild')")
-        exec("VACUUM")
     }
 
     /// Delete attachment and scanned_messages rows for the given Gmail message IDs.

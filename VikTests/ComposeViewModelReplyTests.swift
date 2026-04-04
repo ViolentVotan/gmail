@@ -2,14 +2,17 @@ import Foundation
 import Testing
 @testable import Vik
 
-@Suite("ComposeViewModel — Reply Bar")
+@Suite("ReplyBarViewModel — Reply Bar")
 @MainActor
 struct ComposeViewModelReplyTests {
 
     // MARK: - Helpers
 
-    private func makeVM(threadID: String? = "thread-456") -> ComposeViewModel {
-        ComposeViewModel(accountID: "test-account", fromAddress: "me@example.com", threadID: threadID)
+    private func makeVMs(threadID: String? = "thread-456") -> (ComposeViewModel, ReplyBarViewModel) {
+        let compose = ComposeViewModel(accountID: "test-account", fromAddress: "me@example.com", threadID: threadID)
+        let replyBar = ReplyBarViewModel(compose: compose)
+        compose.replyBar = replyBar
+        return (compose, replyBar)
     }
 
     private func makeEmail(
@@ -30,122 +33,122 @@ struct ComposeViewModelReplyTests {
 
     @Test("collapsedPlaceholder shows sender name when empty")
     func collapsedPlaceholderShowsSender() {
-        let vm = makeVM()
+        let (_, replyBar) = makeVMs()
         let email = makeEmail(senderName: "Jane Doe")
         let mailStore = makeMailStore()
 
-        vm.updateCollapsedPlaceholder(for: email, in: mailStore)
+        replyBar.updateCollapsedPlaceholder(for: email, in: mailStore)
 
-        #expect(vm.collapsedPlaceholderText == "Reply to Jane Doe\u{2026}")
+        #expect(replyBar.collapsedPlaceholderText == "Reply to Jane Doe\u{2026}")
     }
 
     @Test("collapsedPlaceholder shows Draft: when saved draft exists")
     func collapsedPlaceholderShowsDraft() {
-        let vm = makeVM()
+        let (_, replyBar) = makeVMs()
         let email = makeEmail()
         let mailStore = makeMailStore()
         mailStore.replyDrafts["thread-456"] = .init(gmailDraftID: "draft-1", preview: "Hello there")
 
-        vm.updateCollapsedPlaceholder(for: email, in: mailStore)
+        replyBar.updateCollapsedPlaceholder(for: email, in: mailStore)
 
-        #expect(vm.collapsedPlaceholderText == "Draft: Hello there")
+        #expect(replyBar.collapsedPlaceholderText == "Draft: Hello there")
     }
 
     // MARK: - hasUserContent
 
     @Test("hasUserContent detects attachments")
     func hasUserContentWithAttachments() {
-        let vm = makeVM()
-        #expect(!vm.hasUserContent)
+        let (compose, replyBar) = makeVMs()
+        #expect(!replyBar.hasUserContent)
 
-        vm.attachments = [URL(fileURLWithPath: "/tmp/test.pdf")]
-        #expect(vm.hasUserContent)
+        compose.attachments = [URL(fileURLWithPath: "/tmp/test.pdf")]
+        #expect(replyBar.hasUserContent)
     }
 
     @Test("hasUserContent detects cc recipients")
     func hasUserContentWithCc() {
-        let vm = makeVM()
-        #expect(!vm.hasUserContent)
+        let (compose, replyBar) = makeVMs()
+        #expect(!replyBar.hasUserContent)
 
-        vm.cc = "someone@example.com"
-        #expect(vm.hasUserContent)
+        compose.cc = "someone@example.com"
+        #expect(replyBar.hasUserContent)
     }
 
     // MARK: - Collapse
 
     @Test("collapse resets all business state")
     func collapseResetsState() {
-        let vm = makeVM()
+        let (compose, replyBar) = makeVMs()
         let email = makeEmail()
         let mailStore = makeMailStore()
 
         // Set up some state
-        vm.to = "someone@example.com"
-        vm.cc = "cc@example.com"
-        vm.bcc = "bcc@example.com"
-        vm.body = "<p>Hello</p>"
-        vm.attachments = [URL(fileURLWithPath: "/tmp/file.pdf")]
-        vm.showCc = true
-        vm.showBcc = true
-        vm.sendError = "Some error"
-        vm.subjectOverride = "Custom subject"
+        compose.to = "someone@example.com"
+        compose.cc = "cc@example.com"
+        compose.bcc = "bcc@example.com"
+        compose.body = "<p>Hello</p>"
+        compose.attachments = [URL(fileURLWithPath: "/tmp/file.pdf")]
+        compose.showCc = true
+        compose.showBcc = true
+        replyBar.sendError = "Some error"
+        replyBar.subjectOverride = "Custom subject"
 
-        vm.collapse(email: email, mailStore: mailStore)
+        replyBar.collapse(email: email, mailStore: mailStore)
 
-        #expect(vm.to.isEmpty)
-        #expect(vm.cc.isEmpty)
-        #expect(vm.bcc.isEmpty)
-        #expect(vm.body.isEmpty)
-        #expect(vm.attachments.isEmpty)
-        #expect(!vm.showCc)
-        #expect(!vm.showBcc)
-        #expect(vm.sendError == nil)
-        #expect(vm.subjectOverride == nil)
-        #expect(vm.collapsedPlaceholderText == "Write a reply...")
+        #expect(compose.to.isEmpty)
+        #expect(compose.cc.isEmpty)
+        #expect(compose.bcc.isEmpty)
+        #expect(compose.body.isEmpty)
+        #expect(compose.attachments.isEmpty)
+        #expect(!compose.showCc)
+        #expect(!compose.showBcc)
+        #expect(replyBar.sendError == nil)
+        #expect(replyBar.subjectOverride == nil)
+        #expect(replyBar.collapsedPlaceholderText == "Write a reply...")
     }
 
     // MARK: - Discard Alert
 
     @Test("shouldShowDiscardAlert when draft exists in mailStore")
     func discardAlertWithSavedDraft() {
-        let vm = makeVM()
+        let (_, replyBar) = makeVMs()
         let email = makeEmail()
         let mailStore = makeMailStore()
 
-        #expect(!vm.shouldShowDiscardAlert(email: email, mailStore: mailStore))
+        #expect(!replyBar.shouldShowDiscardAlert(email: email, mailStore: mailStore))
 
         mailStore.replyDrafts["thread-456"] = .init(gmailDraftID: "draft-1", preview: "test")
-        #expect(vm.shouldShowDiscardAlert(email: email, mailStore: mailStore))
+        #expect(replyBar.shouldShowDiscardAlert(email: email, mailStore: mailStore))
     }
 
     @Test("shouldShowDiscardAlert when gmailDraftID is set")
     func discardAlertWithGmailDraftID() {
-        let vm = makeVM()
+        let (compose, replyBar) = makeVMs()
         let email = makeEmail()
         let mailStore = makeMailStore()
 
-        vm.gmailDraftID = "remote-draft-id"
-        #expect(vm.shouldShowDiscardAlert(email: email, mailStore: mailStore))
+        compose.gmailDraftID = "remote-draft-id"
+        #expect(replyBar.shouldShowDiscardAlert(email: email, mailStore: mailStore))
     }
 
     // MARK: - replyBodyIsEmpty
 
     @Test("replyBodyIsEmpty reflects cached stripped text")
     func replyBodyIsEmptyBaseline() {
-        let vm = makeVM()
-        #expect(vm.replyBodyIsEmpty)
+        let (_, replyBar) = makeVMs()
+        #expect(replyBar.replyBodyIsEmpty)
     }
 
     // MARK: - resetForEmail
 
     @Test("resetForEmail resets isInitialLoad and isLoadingDraft")
     func resetForEmailResetsGuards() async {
-        let vm = makeVM()
-        vm.isInitialLoad = false
-        vm.isLoadingDraft = true
+        let (_, replyBar) = makeVMs()
+        replyBar.isInitialLoad = false
+        replyBar.isLoadingDraft = true
         let email = makeEmail()
-        vm.resetForEmail(email)
-        #expect(vm.isInitialLoad == true)
-        #expect(vm.isLoadingDraft == false)
+        replyBar.resetForEmail(email)
+        #expect(replyBar.isInitialLoad == true)
+        #expect(replyBar.isLoadingDraft == false)
     }
 }

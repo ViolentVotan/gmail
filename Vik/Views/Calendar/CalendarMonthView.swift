@@ -112,12 +112,7 @@ struct MonthDayCellContent: Identifiable {
 
 struct CalendarMonthView: View {
     @Bindable var viewModel: CalendarViewModel
-    var onSelectEvent: (CalendarEvent) -> Void = { _ in }
-    var onCreateEvent: (Date, Int) -> Void = { _, _ in }
-    var onEdit: (CalendarEvent) -> Void = { _ in }
-    var onDelete: (CalendarEvent) -> Void = { _ in }
-    var onRSVP: (CalendarEvent, CalendarRSVPStatus) -> Void = { _, _ in }
-    var onEmailAttendees: (CalendarEvent) -> Void = { _ in }
+    var actions: CalendarEventActions = CalendarEventActions()
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -252,8 +247,8 @@ struct CalendarMonthView: View {
                                 viewModel.selectDate(date)
                                 viewModel.viewMode = .day
                             },
-                            onSelectEvent: onSelectEvent,
-                            onCreateEvent: onCreateEvent
+                            onSelectEvent: actions.onSelectEvent,
+                            onCreateEvent: actions.onCreateEvent
                         )
                     }
                 }
@@ -273,7 +268,7 @@ struct CalendarMonthView: View {
                     columnWidth: spanningBarColumnWidth,
                     isClippedAtStart: placement.isClippedAtStart,
                     isClippedAtEnd: placement.isClippedAtEnd,
-                    onSelect: { onSelectEvent($0) }
+                    onSelect: { actions.onSelectEvent($0) }
                 )
                 .offset(y: CGFloat(placement.rowIndex) * CalendarLayout.monthSpanningBarHeight)
             }

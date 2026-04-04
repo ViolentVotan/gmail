@@ -60,7 +60,7 @@ struct LabelEditorView: View {
     }
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: Spacing.xsm) {
             ForEach(cachedCurrentUser) { label in
                 LabelChipView(label: emailLabel(from: label), isRemovable: true) {
                     let newIDs = currentLabelIDs.filter { $0 != label.id }
@@ -70,7 +70,7 @@ struct LabelEditorView: View {
             }
 
             if isAddingLabel {
-                HStack(spacing: 4) {
+                HStack(spacing: Spacing.xs) {
                     Image(systemName: "tag")
                         .font(Typography.captionSmallRegular)
                         .foregroundStyle(.tertiary)
@@ -160,7 +160,7 @@ struct LabelEditorView: View {
             case .create: createNewLabel()
             }
         } label: {
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.sm) {
                 switch item {
                 case .existing(let label):
                     Circle()
@@ -186,7 +186,7 @@ struct LabelEditorView: View {
                     Spacer(minLength: 0)
                 }
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
             .background(
                 RoundedRectangle(cornerRadius: CornerRadius.sm)

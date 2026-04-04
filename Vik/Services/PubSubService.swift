@@ -165,7 +165,7 @@ actor PubSubService {
         request.httpBody = try JSONSerialization.data(withJSONObject: ["maxMessages": 10])
         request.timeoutInterval = PubSubConfig.pullTimeout
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await GmailAPIClient.sharedSession.data(for: request)
 
         if let httpResponse = response as? HTTPURLResponse {
             if httpResponse.statusCode == 403 {
@@ -194,7 +194,7 @@ actor PubSubService {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: ["ackIds": ackIds])
 
-        let (_, response) = try await URLSession.shared.data(for: request)
+        let (_, response) = try await GmailAPIClient.sharedSession.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse,
               (200...299).contains(httpResponse.statusCode) else {
             Self.logger.warning("Acknowledge failed for \(ackIds.count) messages")

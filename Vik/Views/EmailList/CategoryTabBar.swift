@@ -12,8 +12,8 @@ struct CategoryTabBar: View {
 
     private var tabBarContent: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            GlassEffectContainer(spacing: 4) {
-                HStack(spacing: 4) {
+            GlassEffectContainer(spacing: Spacing.xs) {
+                HStack(spacing: Spacing.xs) {
                     ForEach(InboxCategory.allCases) { category in
                         CategoryTabButton(
                             category: category,
@@ -46,7 +46,7 @@ private struct CategoryTabButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 4) {
+            HStack(spacing: Spacing.xs) {
                 Text(category.displayName)
                     .font(Typography.subheadRegular)
                     .fontWeight(isSelected ? .semibold : .regular)

@@ -38,7 +38,7 @@ struct ShortcutsHelpView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             ForEach(sections, id: \.title) { section in
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: Spacing.sm) {
                     Text(section.title)
                         .font(Typography.captionSemibold)
                         .foregroundStyle(.tertiary)

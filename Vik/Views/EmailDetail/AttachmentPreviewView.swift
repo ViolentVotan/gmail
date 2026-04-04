@@ -48,7 +48,7 @@ struct AttachmentPreviewView: View {
             Spacer()
 
             if fileType == .image {
-                HStack(spacing: 4) {
+                HStack(spacing: Spacing.xs) {
                     Button {
                         withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                             zoomScale = max(0.25, zoomScale - 0.25)

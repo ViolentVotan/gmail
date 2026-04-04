@@ -201,6 +201,7 @@ enum CalendarInviteParser {
 
 /// URLSession delegate that blocks redirects to non-Google hosts.
 /// Used by `CalendarInviteParser.sendRSVP` to prevent open-redirect exploitation.
+// Stateless delegate — no mutable properties, safe for @unchecked Sendable
 private final class GoogleRedirectDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
     func urlSession(
         _ session: URLSession,

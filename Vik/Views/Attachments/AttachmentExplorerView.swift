@@ -47,7 +47,7 @@ struct AttachmentExplorerView: View {
 
                 Spacer()
 
-                HStack(spacing: 6) {
+                HStack(spacing: Spacing.xsm) {
                     ProgressView()
                         .controlSize(.small)
                     Text("\(store.stats.indexed)/\(store.stats.total) indexed")
@@ -68,7 +68,7 @@ struct AttachmentExplorerView: View {
 
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
+            HStack(spacing: Spacing.xsm) {
                 // "All" file type chip
                 filterChip(label: "All", isSelected: store.filterFileType == nil) {
                     store.filterFileType = nil
@@ -173,7 +173,7 @@ struct AttachmentExplorerView: View {
 
     private var rulesChip: some View {
         Button { showRulesPopover.toggle() } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: Spacing.xs) {
                 Image(systemName: "eye.slash")
                     .font(Typography.captionSmallRegular)
                 Text(store.exclusionRules.isEmpty ? "Rules" : "Rules (\(store.exclusionRules.count))")
@@ -204,7 +204,7 @@ struct AttachmentExplorerView: View {
                     .font(Typography.captionRegular)
                     .foregroundStyle(.tertiary)
             } else {
-                VStack(spacing: 4) {
+                VStack(spacing: Spacing.xs) {
                     ForEach(store.exclusionRules, id: \.self) { rule in
                         HStack {
                             Text(rule)
@@ -228,7 +228,7 @@ struct AttachmentExplorerView: View {
 
             Divider()
 
-            HStack(spacing: 6) {
+            HStack(spacing: Spacing.xsm) {
                 TextField("Pattern (e.g. image-*)", text: $newRuleText)
                     .textFieldStyle(.plain)
                     .font(Typography.subheadRegular)
@@ -260,7 +260,7 @@ struct AttachmentExplorerView: View {
 
     private func filterChip(icon: String? = nil, label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
-            HStack(spacing: 4) {
+            HStack(spacing: Spacing.xs) {
                 if let icon = icon {
                     Image(systemName: icon)
                         .font(Typography.captionSmallRegular)

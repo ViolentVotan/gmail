@@ -146,10 +146,12 @@ actor CalendarSyncEngine {
         snap.postEdit?.cancel()
         snap.triggered?.cancel()
 
-        await snap.sync?.value
-        await snap.calList?.value
-        await snap.postEdit?.value
-        await snap.triggered?.value
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await snap.sync?.value }
+            group.addTask { await snap.calList?.value }
+            group.addTask { await snap.postEdit?.value }
+            group.addTask { await snap.triggered?.value }
+        }
 
         state = .idle
     }

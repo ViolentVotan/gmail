@@ -280,17 +280,35 @@ final class AppCoordinator {
         if let account = authViewModel.primaryAccount {
             navigation.selectedAccountID = account.id
             AccountStore.shared.selectedAccountID = account.id
-            mailboxViewModel.accountID = account.id
-            mailStore.accountID = account.id
-            SubscriptionsStore.shared.accountID = account.id
-            SummaryService.shared.accountID = account.id
-            attachmentStore.accountID = account.id
+            applyAccountID(account.id)
             compose.loadSignatures(for: account.id)
             await setupAccount(account.id)
             sync.loadContacts(accountID: account.id)
             updateDisplayedEmails()
         } else {
             selection.selectedEmail = mailStore.emails(for: .inbox).first
+        }
+    }
+
+    /// Handles a message restored from undo (e.g. un-archive/un-delete).
+    /// Clears the trigger and selects the restored email if found.
+    func handleRestoredMessage(_ msgID: String) {
+        mailboxViewModel.lastRestoredMessageID = nil
+        if let restoredEmail = mailboxViewModel.emails.first(where: { $0.gmailMessageID == msgID }) {
+            selection.selectedEmail = restoredEmail
+            selection.selectedEmailIDs = [restoredEmail.id.uuidString]
+        }
+    }
+
+    /// Handles network reconnection: drains offline queues and triggers sync.
+    func handleNetworkReconnection() {
+        OfflineActionQueue.shared.startDraining()
+        Task { await sync.syncEngine?.triggerIncrementalSync() }
+        if let calendarEngine = calendar.calendarSyncEngine {
+            Task {
+                await CalendarOfflineActionQueue.shared.processQueue(accountID: calendarEngine.accountID)
+                await calendarEngine.triggerSync()
+            }
         }
     }
 
@@ -353,6 +371,15 @@ final class AppCoordinator {
     }
 
     // MARK: - Shared Account Setup
+
+    /// Propagates the given account ID to all services that need it.
+    private func applyAccountID(_ id: String) {
+        mailboxViewModel.accountID = id
+        mailStore.accountID = id
+        SubscriptionsStore.shared.accountID = id
+        SummaryService.shared.accountID = id
+        attachmentStore.accountID = id
+    }
 
     private func setupAccount(_ id: String) async {
         let indexer = AttachmentIndexer(
@@ -425,12 +452,21 @@ final class AppCoordinator {
         await indexer.scanForAttachments()
     }
 
+    /// Resets selection state and search trigger, then cancels the current lifecycle task.
+    /// Called at the start of folder, label, category, and account change handlers.
+    private func resetSelectionAndCancelLifecycle() {
+        selection.selectedEmail = nil
+        selection.selectedEmailIDs = []
+        navigation.searchResetTrigger += 1
+        sync.cancelLifecycleTasks()
+    }
+
     func handleFolderChange(_ folder: Folder) {
         if sync.accountSwitchTask != nil {
-            sync.pendingFolderChange = folder
+            sync.setPendingFolderChange(folder)
             return
         }
-        sync.pendingFolderChange = nil
+        sync.setPendingFolderChange(nil)
         if let pending = compose.consumePendingDraftSelection() {
             selection.selectedEmail = pending
         } else {
@@ -439,7 +475,7 @@ final class AppCoordinator {
         selection.selectedEmailIDs = []
         navigation.searchResetTrigger += 1
         if folder != .labels { navigation.selectedLabel = nil }
-        sync.lifecycleTask?.cancel()
+        sync.cancelLifecycleTasks()
         if folder == .subscriptions {
             SubscriptionsStore.shared.analyze(mailboxViewModel.emails)
         } else if folder == .snoozed {
@@ -447,7 +483,7 @@ final class AppCoordinator {
         } else if folder == .scheduled {
             sync.refreshScheduledCache(fromAddress: navigation.fromAddress)
         } else if folder == .attachments {
-            sync.lifecycleTask = Task { [weak self] in
+            sync.startLifecycle { [weak self] in
                 guard let self else { return }
                 await attachmentStore.refreshIfNeeded()
                 if let indexer = sync.attachmentIndexer {
@@ -455,13 +491,13 @@ final class AppCoordinator {
                 }
             }
         } else if folder == .drafts {
-            sync.lifecycleTask = Task { [weak self] in
+            sync.startLifecycle { [weak self] in
                 guard let self else { return }
                 await mailStore.syncGmailDrafts(accountID: navigation.accountID)
                 self.updateDisplayedEmails()
             }
         } else {
-            sync.lifecycleTask = Task { [weak self] in
+            sync.startLifecycle { [weak self] in
                 await self?.loadCurrentFolder()
             }
         }
@@ -470,22 +506,16 @@ final class AppCoordinator {
 
     func handleLabelChange() {
         guard navigation.selectedFolder == .labels, navigation.selectedLabel != nil else { return }
-        selection.selectedEmail = nil
-        selection.selectedEmailIDs = []
-        navigation.searchResetTrigger += 1
-        sync.lifecycleTask?.cancel()
-        sync.lifecycleTask = Task { [weak self] in
+        resetSelectionAndCancelLifecycle()
+        sync.startLifecycle { [weak self] in
             await self?.loadCurrentFolder()
         }
         updateDisplayedEmails()
     }
 
     func handleCategoryChange(_ category: InboxCategory?) {
-        selection.selectedEmail = nil
-        selection.selectedEmailIDs = []
-        navigation.searchResetTrigger += 1
-        sync.lifecycleTask?.cancel()
-        sync.lifecycleTask = Task { [weak self] in
+        resetSelectionAndCancelLifecycle()
+        sync.startLifecycle { [weak self] in
             await self?.loadCurrentFolder()
         }
         updateDisplayedEmails()
@@ -501,11 +531,9 @@ final class AppCoordinator {
         mailboxViewModel.accountID = id
         AccountStore.shared.selectedAccountID = id
         compose.loadSignatures(for: id)
-        selection.selectedEmail = nil
-        selection.selectedEmailIDs = []
+        resetSelectionAndCancelLifecycle()
         navigation.selectedInboxCategory = .all
         navigation.selectedLabel = nil
-        navigation.searchResetTrigger += 1
         withAnimation(NSWorkspace.reduceMotion ? nil : VikAnimation.folderSwitch) {
             navigation.selectedFolder = .inbox
         }
@@ -513,18 +541,13 @@ final class AppCoordinator {
         ThumbnailCache.shared.clearAll()
         EmailContentCache.shared.clear()
         EmailContentPrefetcher.shared.cancel()
-        mailStore.accountID = id
-        SubscriptionsStore.shared.accountID = id
-        attachmentStore.accountID = id
-        SummaryService.shared.accountID = id
+        applyAccountID(id)
         let oldEngine = sync.syncEngine
         let oldCalendarEngine = calendar.calendarSyncEngine
         sync.clearSyncEngines()
         calendar.clearState()
         calendar.viewMode = .mail
-        sync.cancelLifecycleTasks()
-        sync.accountSwitchTask?.cancel()
-        let task = Task { [weak self] in
+        sync.startAccountSwitch { [weak self] in
             guard let self else { return }
             await SnoozeStore.shared.load(accountID: id)
             await ScheduledSendStore.shared.load(accountID: id)
@@ -532,9 +555,9 @@ final class AppCoordinator {
             await UnsubscribeService.shared.load(accountID: id)
             defer {
                 if self.sync.currentAccountSwitchGeneration == generation {
-                    self.sync.accountSwitchTask = nil
+                    self.sync.clearAccountSwitchTask()
                     if let folder = self.sync.pendingFolderChange {
-                        self.sync.pendingFolderChange = nil
+                        self.sync.setPendingFolderChange(nil)
                         self.navigation.selectedFolder = folder
                         self.handleFolderChange(folder)
                     }
@@ -551,7 +574,6 @@ final class AppCoordinator {
             self.sync.loadContacts(accountID: id)
             self.updateDisplayedEmails()
         }
-        sync.accountSwitchTask = task
     }
 
     func handleAccountsChange(old: [GmailAccount], new accounts: [GmailAccount]) {
@@ -622,8 +644,7 @@ final class AppCoordinator {
             EmailContentCache.shared.clear()
             EmailContentPrefetcher.shared.cancel()
             ThumbnailCache.shared.clearAll()
-            sync.lifecycleTask?.cancel()
-            sync.lifecycleTask = Task { [weak self] in
+            sync.startLifecycle { [weak self] in
                 await engineToStop?.stop()
                 await calendarEngineToStop?.stop()
                 self?.sync.setMailDatabase(nil)

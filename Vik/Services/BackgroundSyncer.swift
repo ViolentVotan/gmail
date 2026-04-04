@@ -28,27 +28,11 @@ actor BackgroundSyncer {
                 try label.insert(db, onConflict: .ignore)
             }
 
-            // Batch-prefetch existing message records for all messages in a single query
-            // instead of N per-message fetchOne calls inside upsertSingleMessage.
+            // Batch-prefetch existing records and label sets for all messages in single queries
+            // instead of N per-message calls inside upsertSingleMessage.
             let gmailIds = gmailMessages.map(\.id)
-            let fetchedRecords = try MessageRecord.fetchAll(db, keys: gmailIds)
-            let existingRecords = Dictionary(uniqueKeysWithValues: fetchedRecords.map { ($0.gmailId, $0) })
-
-            // Batch-prefetch existing label sets for all messages in a single query
-            // instead of N per-message queries inside upsertSingleMessage.
-            var existingLabelSets: [String: Set<String>] = [:]
-            if !gmailIds.isEmpty {
-                let placeholders = gmailIds.sqlPlaceholders
-                let rows = try Row.fetchAll(db, sql:
-                    "SELECT message_id, label_id FROM message_labels WHERE message_id IN (\(placeholders))",
-                    arguments: StatementArguments(gmailIds)
-                )
-                for row in rows {
-                    let messageId: String = row["message_id"]
-                    let labelId: String = row["label_id"]
-                    existingLabelSets[messageId, default: []].insert(labelId)
-                }
-            }
+            let existingRecords = try Self.fetchExistingRecords(for: gmailIds, in: db)
+            let existingLabelSets = try Self.fetchLabelSets(for: gmailIds, in: db)
 
             var affectedThreadIds = Set<String>()
 
@@ -226,27 +210,11 @@ actor BackgroundSyncer {
                 try MessageRecord.deleteAll(db, keys: deletedIds)
             }
 
-            // Batch-prefetch existing message records for all new messages in a single query
-            // instead of N per-message fetchOne calls inside upsertSingleMessage.
+            // Batch-prefetch existing records and label sets for all new messages in single queries
+            // instead of N per-message calls inside upsertSingleMessage.
             let newIds = newMessages.map(\.id)
-            let fetchedRecords = try MessageRecord.fetchAll(db, keys: newIds)
-            let existingRecords = Dictionary(uniqueKeysWithValues: fetchedRecords.map { ($0.gmailId, $0) })
-
-            // Batch-prefetch existing label sets for all new messages in a single query
-            // instead of N per-message queries inside upsertSingleMessage.
-            var existingLabelSets: [String: Set<String>] = [:]
-            if !newIds.isEmpty {
-                let placeholders = newIds.sqlPlaceholders
-                let rows = try Row.fetchAll(db, sql:
-                    "SELECT message_id, label_id FROM message_labels WHERE message_id IN (\(placeholders))",
-                    arguments: StatementArguments(newIds)
-                )
-                for row in rows {
-                    let messageId: String = row["message_id"]
-                    let labelId: String = row["label_id"]
-                    existingLabelSets[messageId, default: []].insert(labelId)
-                }
-            }
+            let existingRecords = try Self.fetchExistingRecords(for: newIds, in: db)
+            let existingLabelSets = try Self.fetchLabelSets(for: newIds, in: db)
 
             // Insert new messages
             for gmail in newMessages {
@@ -330,6 +298,32 @@ actor BackgroundSyncer {
     }
 
     // MARK: - Private Helpers
+
+    /// Batch-prefetch existing MessageRecords for a set of Gmail IDs.
+    /// Returns a dictionary keyed by gmail_id, avoiding N per-message fetchOne calls.
+    private static func fetchExistingRecords(for gmailIds: [String], in db: Database) throws -> [String: MessageRecord] {
+        guard !gmailIds.isEmpty else { return [:] }
+        let fetchedRecords = try MessageRecord.fetchAll(db, keys: gmailIds)
+        return Dictionary(uniqueKeysWithValues: fetchedRecords.map { ($0.gmailId, $0) })
+    }
+
+    /// Batch-prefetch existing label sets for a set of Gmail IDs.
+    /// Returns a dictionary keyed by message_id, avoiding N per-message queries.
+    private static func fetchLabelSets(for gmailIds: [String], in db: Database) throws -> [String: Set<String>] {
+        var result: [String: Set<String>] = [:]
+        guard !gmailIds.isEmpty else { return result }
+        let placeholders = gmailIds.sqlPlaceholders
+        let rows = try Row.fetchAll(db, sql:
+            "SELECT message_id, label_id FROM message_labels WHERE message_id IN (\(placeholders))",
+            arguments: StatementArguments(gmailIds)
+        )
+        for row in rows {
+            let messageId: String = row["message_id"]
+            let labelId: String = row["label_id"]
+            result[messageId, default: []].insert(labelId)
+        }
+        return result
+    }
 
     /// Upsert a single message: record, labels, attachments, FTS.
     /// Checks whether the message already exists and skips unchanged writes to reduce

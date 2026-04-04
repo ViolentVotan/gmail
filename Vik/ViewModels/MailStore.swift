@@ -41,6 +41,7 @@ final class MailStore {
     }
     var replyDrafts: [String: ReplyDraftInfo] = [:]
 
+    // Draft metadata only (IDs + timestamps) — UserDefaults for quick cross-account access; content is never stored
     private static let replyDraftsKeyPrefix = "replyDrafts."
     /// Current account ID for scoping reply drafts persistence.
     var accountID: String = "" {

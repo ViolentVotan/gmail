@@ -7,12 +7,7 @@ import SwiftUI
 struct CalendarAgendaView: View {
 
     @Bindable var viewModel: CalendarViewModel
-    let onSelectEvent: (CalendarEvent) -> Void
-    var onCreateEvent: (Date, Int) -> Void = { _, _ in }
-    var onEdit: (CalendarEvent) -> Void = { _ in }
-    var onDelete: (CalendarEvent) -> Void = { _ in }
-    var onRSVP: (CalendarEvent, CalendarRSVPStatus) -> Void = { _, _ in }
-    var onEmailAttendees: (CalendarEvent) -> Void = { _ in }
+    var actions: CalendarEventActions = CalendarEventActions()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private struct AgendaSection {
@@ -36,14 +31,14 @@ struct CalendarAgendaView: View {
                     ForEach(groupedDays, id: \.date) { group in
                         Section {
                             ForEach(group.events) { event in
-                                AgendaEventRow(event: event, onSelect: onSelectEvent)
+                                AgendaEventRow(event: event, onSelect: actions.onSelectEvent)
                                     .contextMenu {
                                         CalendarEventContextMenu(
                                             event: event,
-                                            onEdit: onEdit,
-                                            onDelete: onDelete,
-                                            onRSVP: onRSVP,
-                                            onEmailAttendees: onEmailAttendees
+                                            onEdit: actions.onEdit,
+                                            onDelete: actions.onDelete,
+                                            onRSVP: actions.onRSVP,
+                                            onEmailAttendees: actions.onEmailAttendees
                                         )
                                     }
                                     .padding(.horizontal, Spacing.md)
@@ -115,7 +110,7 @@ struct CalendarAgendaView: View {
             Text("No events in the next 30 days starting from the selected date.")
         } actions: {
             Button {
-                onCreateEvent(viewModel.selectedDate, 9)
+                actions.onCreateEvent(viewModel.selectedDate, 9)
             } label: {
                 Label("Create Event", systemImage: "plus")
             }
@@ -255,6 +250,6 @@ private struct AgendaEventRow: View {
 
 #Preview {
     @Previewable @State var vm = CalendarViewModel(db: try! MailDatabase(accountID: "preview"))
-    CalendarAgendaView(viewModel: vm, onSelectEvent: { _ in })
+    CalendarAgendaView(viewModel: vm)
         .frame(width: 500, height: 600)
 }

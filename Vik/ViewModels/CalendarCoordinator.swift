@@ -1,8 +1,11 @@
 import Foundation
+private import os
 
 @Observable
 @MainActor
 final class CalendarCoordinator {
+
+    nonisolated private static let logger = Logger(category: "CalendarCoordinator")
 
     // MARK: - State
 
@@ -34,9 +37,15 @@ final class CalendarCoordinator {
 
     func loadMiniAgendaEvents(db: MailDatabase?, accountID: String) async {
         guard let db else { return }
-        let records = (try? await db.dbPool.read { db in
-            try MailDatabaseQueries.eventsForToday(accountId: accountID, in: db)
-        }) ?? []
+        let records: [CalendarEventRecord]
+        do {
+            records = try await db.dbPool.read { db in
+                try MailDatabaseQueries.eventsForToday(accountId: accountID, in: db)
+            }
+        } catch {
+            Self.logger.debug("Failed to load mini-agenda events: \(error)")
+            return
+        }
         guard !Task.isCancelled else { return }
         miniAgendaEvents = records.map { $0.toCalendarEvent(attendees: [], calendarColor: BrandColor.blue) }
     }

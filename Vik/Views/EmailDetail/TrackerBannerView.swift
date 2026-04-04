@@ -10,7 +10,7 @@ struct TrackerBannerView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.sm) {
                 Image(systemName: "eye.slash.fill")
                     .font(Typography.caption)
                     .foregroundStyle(.tint)
@@ -55,7 +55,7 @@ struct TrackerBannerView: View {
 
                 VStack(alignment: .leading, spacing: Spacing.xs) {
                     ForEach(groupedTrackers) { group in
-                        HStack(spacing: 6) {
+                        HStack(spacing: Spacing.xsm) {
                             Image(systemName: group.icon)
                                 .font(Typography.trackerLabel)
                                 .foregroundStyle(.tertiary)

@@ -26,7 +26,7 @@ enum CalendarAPIError: Error, LocalizedError, Sendable {
         case .encodingError:                 return "Failed to prepare request"
         case .networkError(let e):           return "Network error: \(e.localizedDescription)"
         case .notFound:                      return "Calendar resource not found"
-        case .conflict(let etag):            return "Conflict — resource modified (etag: \(etag))"
+        case .conflict:                       return "This event was modified elsewhere — please refresh and try again"
         case .rateLimited(let after):        return "Rate limited — retry after \(after)s"
         case .gone:                          return "Calendar resource permanently deleted"
         case .insufficientPermissions:       return "Calendar access not granted — reauthorization required"

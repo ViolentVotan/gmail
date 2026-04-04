@@ -175,7 +175,7 @@ struct EmailRowView: View, Equatable {
                 )
 
                 // Content
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: Spacing.xs) {
                     HStack {
                         Text(email.isDraft && email.recipients.isEmpty ? "Draft" : email.sender.name)
                             .font(email.isRead ? Typography.callout : Typography.calloutSemibold)
@@ -215,7 +215,7 @@ struct EmailRowView: View, Equatable {
 
                     if !labelBadges.isEmpty || (showTags && !tagBadges.isEmpty) {
                         let visibleLabelCount = showTags ? 2 : 1
-                        HStack(spacing: 4) {
+                        HStack(spacing: Spacing.xs) {
                             ForEach(labelBadges.prefix(visibleLabelCount)) { badge in
                                 badgeView(badge)
                             }
@@ -240,7 +240,7 @@ struct EmailRowView: View, Equatable {
                 }
 
                 // Indicators
-                VStack(spacing: 4) {
+                VStack(spacing: Spacing.xs) {
                     if email.isStarred {
                         Image(systemName: "star.fill")
                             .font(Typography.captionSmallRegular)
@@ -272,7 +272,7 @@ struct EmailRowView: View, Equatable {
             .padding(.horizontal, Spacing.sm)
             .contentShape(Rectangle())
         }
-        .buttonStyle(PressTrackingStyle(isPressed: $isPressed))
+        .buttonStyle(PressTrackingButtonStyle(isPressed: $isPressed))
         .overlay(alignment: .topTrailing) {
             if !isMultiSelect {
                 HoverActionButtonsView(
@@ -375,16 +375,7 @@ struct EmailRowView: View, Equatable {
     }
 }
 
-private struct PressTrackingStyle: ButtonStyle {
-    @Binding var isPressed: Bool
 
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .onChange(of: configuration.isPressed) { _, newValue in
-                isPressed = newValue
-            }
-    }
-}
 
 // MARK: - NSPopover wrapper
 

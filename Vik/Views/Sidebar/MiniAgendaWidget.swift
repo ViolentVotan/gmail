@@ -59,7 +59,7 @@ struct MiniAgendaWidget: View {
     }
 
     private var eventsList: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
             ForEach(cachedSortedEvents) { event in
                 eventRow(event)
             }
@@ -89,7 +89,7 @@ struct MiniAgendaWidget: View {
                             .font(Typography.calendarMiniEventTime)
                             .foregroundStyle(.secondary)
                     } else {
-                        HStack(spacing: 4) {
+                        HStack(spacing: Spacing.xs) {
                             Text(timeLabel)
                                 .font(Typography.calendarMiniEventTime)
                                 .foregroundStyle(.secondary)

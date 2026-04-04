@@ -193,7 +193,7 @@ struct ThreadMessageCardView: View, Equatable {
                 .onHover { isHovering = $0 }
 
             if !isExpanded && !attachmentPairs.isEmpty {
-                HStack(spacing: 4) {
+                HStack(spacing: Spacing.xs) {
                     Image(systemName: "paperclip")
                         .font(Typography.captionSmallRegular)
                     Text(collapsedAttachmentSummary)
@@ -282,7 +282,7 @@ struct ThreadMessageCardView: View, Equatable {
     // MARK: - Header Row
 
     private var headerRow: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Spacing.sm) {
             ZStack {
                 if message.isUnread {
                     Circle()
@@ -368,7 +368,7 @@ struct ThreadMessageCardView: View, Equatable {
                 .padding(.horizontal, Spacing.xl)
 
             if hasRemoteImages && !allowRemoteImages && !alwaysLoadRemoteImages {
-                HStack(spacing: 6) {
+                HStack(spacing: Spacing.xsm) {
                     Image(systemName: "photo.badge.exclamationmark")
                         .font(Typography.captionSmallRegular)
                         .foregroundStyle(.secondary)
@@ -448,7 +448,7 @@ struct ThreadMessageCardView: View, Equatable {
 
             if !attachmentPairs.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: Spacing.xsm) {
                         Image(systemName: "paperclip")
                             .font(Typography.subheadRegular)
                         Text("\(attachmentPairs.count) Attachment\(attachmentPairs.count > 1 ? "s" : "")")
@@ -472,7 +472,7 @@ struct ThreadMessageCardView: View, Equatable {
                     .foregroundStyle(.secondary)
 
                     if let progress = batchProgress {
-                        HStack(spacing: 8) {
+                        HStack(spacing: Spacing.sm) {
                             ProgressView(
                                 value: Double(progress.completed),
                                 total: Double(progress.total)
@@ -487,8 +487,8 @@ struct ThreadMessageCardView: View, Equatable {
                         .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: progress)
                     }
 
-                    GlassEffectContainer(spacing: 8) {
-                        HStack(spacing: 8) {
+                    GlassEffectContainer(spacing: Spacing.sm) {
+                        HStack(spacing: Spacing.sm) {
                             ForEach(attachmentPairs, id: \.0.id) { (attachment, part) in
                                 AttachmentChipView(
                                     attachment: attachment,

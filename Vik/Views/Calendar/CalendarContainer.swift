@@ -17,34 +17,36 @@ struct CalendarContainer: View {
                 newEventStartTime = nil
                 showNewCalendarEvent = true
             },
-            onSelectEvent: { event in
-                calendarVM.selectedEvent = event
-            },
-            onCreateEvent: { date, hour in
-                calendarVM.selectedDate = date
-                newCalendarEventDraft = nil
-                var comps = Calendar.current.dateComponents([.year, .month, .day], from: date)
-                comps.hour = hour
-                newEventStartTime = Calendar.current.date(from: comps)
-                showNewCalendarEvent = true
-            },
-            onEdit: { event in
-                calendarVM.selectedEvent = nil
-                newCalendarEventDraft = EventEditDraft(from: event)
-                showNewCalendarEvent = true
-            },
-            onDelete: { event in
-                pendingDeleteEvent = event
-                showDeleteConfirmation = true
-            },
-            onRSVP: { event, status in
-                Task { try? await calendarVM.respondToEvent(event, status: status) }
-            },
-            onEmailAttendees: { event in
-                CalendarEventQuickActions.emailAttendees(event: event) { mode in
-                    coordinator.startCompose(mode: mode)
+            actions: CalendarEventActions(
+                onSelectEvent: { event in
+                    calendarVM.selectedEvent = event
+                },
+                onCreateEvent: { date, hour in
+                    calendarVM.selectedDate = date
+                    newCalendarEventDraft = nil
+                    var comps = Calendar.current.dateComponents([.year, .month, .day], from: date)
+                    comps.hour = hour
+                    newEventStartTime = Calendar.current.date(from: comps)
+                    showNewCalendarEvent = true
+                },
+                onEdit: { event in
+                    calendarVM.selectedEvent = nil
+                    newCalendarEventDraft = EventEditDraft(from: event)
+                    showNewCalendarEvent = true
+                },
+                onDelete: { event in
+                    pendingDeleteEvent = event
+                    showDeleteConfirmation = true
+                },
+                onRSVP: { event, status in
+                    Task { try? await calendarVM.respondToEvent(event, status: status) }
+                },
+                onEmailAttendees: { event in
+                    CalendarEventQuickActions.emailAttendees(event: event) { mode in
+                        coordinator.startCompose(mode: mode)
+                    }
                 }
-            },
+            ),
             composeTo: { email in
                 coordinator.startCompose(mode: .newTo(to: email))
             },

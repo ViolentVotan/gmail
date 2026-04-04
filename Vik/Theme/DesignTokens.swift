@@ -661,6 +661,9 @@ enum CalendarLayout {
     /// Meeting/conference icon size for the Join Meeting row in the detail view.
     static let detailMeetingIconSize: CGFloat = 13
 
+    /// Diameter of the today-highlight circle behind day numbers in week headers.
+    static let todayCircleSize: CGFloat = 26
+
     // MARK: - Month View
 
     /// Maximum number of event chips shown per day cell in month view before "+N more".

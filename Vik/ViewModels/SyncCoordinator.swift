@@ -24,13 +24,13 @@ final class SyncCoordinator {
 
     // MARK: - Private State
 
-    @ObservationIgnored var lifecycleTask: Task<Void, Never>?
+    @ObservationIgnored private(set) var lifecycleTask: Task<Void, Never>?
     @ObservationIgnored private var cleanupTask: Task<Void, Never>?
     @ObservationIgnored private var accountSwitchGeneration = 0
-    @ObservationIgnored var accountSwitchTask: Task<Void, Never>?
+    @ObservationIgnored private(set) var accountSwitchTask: Task<Void, Never>?
     @ObservationIgnored private var cachedSnoozedEmails: [Email] = []
     @ObservationIgnored private var cachedScheduledEmails: [Email] = []
-    @ObservationIgnored var pendingFolderChange: Folder?
+    @ObservationIgnored private(set) var pendingFolderChange: Folder?
 
     // MARK: - Callbacks
 
@@ -150,6 +150,28 @@ final class SyncCoordinator {
         contactsStore.cancelLoad()
         cleanupTask?.cancel()
         accountSwitchTask?.cancel()
+    }
+
+    /// Cancels the current lifecycle task and starts a new one.
+    func startLifecycle(_ work: @escaping @MainActor () async -> Void) {
+        lifecycleTask?.cancel()
+        lifecycleTask = Task { await work() }
+    }
+
+    /// Cancels the current account switch task and starts a new one.
+    func startAccountSwitch(_ work: @escaping @MainActor () async -> Void) {
+        accountSwitchTask?.cancel()
+        accountSwitchTask = Task { await work() }
+    }
+
+    /// Clears the account switch task reference (called from within the task on completion).
+    func clearAccountSwitchTask() {
+        accountSwitchTask = nil
+    }
+
+    /// Sets or clears the pending folder change.
+    func setPendingFolderChange(_ folder: Folder?) {
+        pendingFolderChange = folder
     }
 
     isolated deinit {

@@ -2,7 +2,7 @@ import Foundation
 internal import GRDB
 
 struct CalendarRecord: Codable, Identifiable, FetchableRecord, PersistableRecord, Sendable {
-    var id: String { "\(calendarId)_\(accountId)" }
+    var id: String { "\(calendarId)||\(accountId)" }
 
     static let databaseTableName = "calendars"
     static let databaseColumnDecodingStrategy: DatabaseColumnDecodingStrategy = .convertFromSnakeCase

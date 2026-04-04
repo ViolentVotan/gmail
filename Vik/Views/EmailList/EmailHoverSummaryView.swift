@@ -8,7 +8,7 @@ struct EmailHoverSummaryView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             // Header
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.sm) {
                 AvatarView(
                     initials: email.sender.initials,
                     color: email.sender.avatarColor,
@@ -34,7 +34,7 @@ struct EmailHoverSummaryView: View {
 
             // Metadata pills
             if !email.recipients.isEmpty || email.hasAttachments {
-                HStack(spacing: 6) {
+                HStack(spacing: Spacing.xsm) {
                     if !email.recipients.isEmpty {
                         metadataPill(
                             icon: "person.2",
@@ -58,7 +58,7 @@ struct EmailHoverSummaryView: View {
 
             // Summary body
             if summaryVM.displayedText.isEmpty && summaryVM.isStreaming {
-                HStack(spacing: 6) {
+                HStack(spacing: Spacing.xsm) {
                     ProgressView()
                         .controlSize(.small)
                     Text("Summarizing...")
@@ -74,9 +74,9 @@ struct EmailHoverSummaryView: View {
 
                 #if canImport(FoundationModels)
                 if let insight = summaryVM.insight {
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: Spacing.xsm) {
                         if let action = insight.actionNeeded {
-                            HStack(spacing: 4) {
+                            HStack(spacing: Spacing.xs) {
                                 Image(systemName: "exclamationmark.circle.fill")
                                     .foregroundStyle(SemanticColor.warning)
                                 Text(action)
@@ -84,7 +84,7 @@ struct EmailHoverSummaryView: View {
                             }
                         }
                         if let deadline = insight.deadline {
-                            HStack(spacing: 4) {
+                            HStack(spacing: Spacing.xs) {
                                 Image(systemName: "calendar.badge.clock")
                                     .foregroundStyle(SemanticColor.warning)
                                 Text(deadline)

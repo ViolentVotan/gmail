@@ -12,7 +12,7 @@ struct EmailDetailSkeletonView: View {
                     Circle()
                         .fill(.tertiary.opacity(animate ? 0.1 : 0.2))
                         .frame(width: 40, height: 40)
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: Spacing.xsm) {
                         bar(width: 140, height: 11)
                         bar(width: 190, height: 9)
                     }

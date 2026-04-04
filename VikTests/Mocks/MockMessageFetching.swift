@@ -4,7 +4,7 @@ import Foundation
 /// Minimal mock for `MessageFetching` that returns empty responses.
 /// Used by `FullSyncEngineTests` and other tests that need a non-network API layer.
 @MainActor
-final class MockMessageFetching: MessageFetching {
+final class MockMessageFetching: MessageReading, MessageMutating, AttachmentFetching, MailboxManaging {
     // MARK: - Configurable responses (nonisolated for @concurrent method access in tests)
 
     nonisolated(unsafe) var listMessagesResponse = GmailMessageListResponse(messages: nil, nextPageToken: nil, resultSizeEstimate: 0)
@@ -12,7 +12,7 @@ final class MockMessageFetching: MessageFetching {
     nonisolated(unsafe) var getMessagesResponse: [GmailMessage] = []
     nonisolated(unsafe) var listHistoryResponse = GmailHistoryListResponse(history: nil, nextPageToken: nil, historyId: "1")
 
-    // MARK: - MessageFetching
+    // MARK: - MessageReading / MessageMutating / AttachmentFetching / MailboxManaging
 
     @concurrent func listMessages(accountID: String, labelIDs: [String], query: String?, pageToken: String?, maxResults: Int) async throws(GmailAPIError) -> GmailMessageListResponse {
         listMessagesResponse

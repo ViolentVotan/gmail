@@ -4,12 +4,7 @@ import SwiftUI
 
 struct CalendarWeekView: View {
     @Bindable var viewModel: CalendarViewModel
-    var onSelectEvent: (CalendarEvent) -> Void
-    var onCreateEvent: (Date, Int) -> Void
-    var onEdit: (CalendarEvent) -> Void = { _ in }
-    var onDelete: (CalendarEvent) -> Void = { _ in }
-    var onRSVP: (CalendarEvent, CalendarRSVPStatus) -> Void = { _, _ in }
-    var onEmailAttendees: (CalendarEvent) -> Void = { _ in }
+    var actions: CalendarEventActions = CalendarEventActions()
 
     @State private var currentTime: Date = .now
     @State private var scrollProxy: ScrollViewProxy?
@@ -102,32 +97,7 @@ struct CalendarWeekView: View {
     }
 
     private func allDayChip(event: CalendarEvent, width: CGFloat, dayDate: Date? = nil) -> some View {
-        let dayLabel = dayDate.map { ", \($0.formattedWeekdayFull)" } ?? ""
-        return Button {
-            onSelectEvent(event)
-        } label: {
-            Text(event.summary)
-                .font(Typography.calendarWeekAllDayEvent)
-                .foregroundStyle(CalendarColor.contrastingForeground(forId: Int(event.colorId ?? "")))
-                .lineLimit(1)
-                .padding(.horizontal, Spacing.xs)
-                .frame(height: CalendarLayout.allDayEventHeight)
-                .frame(width: width - 2, alignment: .leading)
-                .background(event.resolvedColor.opacity(0.8), in: .rect(cornerRadius: CornerRadius.xs))
-                .glassEffect(.regular.interactive(), in: .rect(cornerRadius: CornerRadius.xs))
-        }
-        .buttonStyle(.plain)
-        .contextMenu {
-            CalendarEventContextMenu(
-                event: event,
-                onEdit: onEdit,
-                onDelete: onDelete,
-                onRSVP: onRSVP,
-                onEmailAttendees: onEmailAttendees
-            )
-        }
-        .accessibilityLabel("\(event.summary), all day\(dayLabel)")
-        .help(event.summary)
+        CalendarAllDayChip(event: event, actions: actions, width: width, dayDate: dayDate)
     }
 
     // MARK: - Day Header Row
@@ -165,7 +135,7 @@ struct CalendarWeekView: View {
                 if isToday {
                     Circle()
                         .fill(CalendarSemanticColor.todayHeaderCircle)
-                        .frame(width: 26, height: 26)
+                        .frame(width: CalendarLayout.todayCircleSize, height: CalendarLayout.todayCircleSize)
                 }
                 Text("\(dayNumber)")
                     .font(Typography.calendarEventTitle)
@@ -218,7 +188,7 @@ struct CalendarWeekView: View {
             ForEach(hours, id: \.self) { hour in
                 HStack(spacing: 0) {
                     // Hour label
-                    Text(hourLabel(for: hour))
+                    Text(CalendarLayout.hourLabels[hour])
                         .font(Typography.calendarWeekHourLabel)
                         .foregroundStyle(.tertiary)
                         .frame(width: CalendarLayout.timeColumnWidth, alignment: .trailing)
@@ -263,11 +233,11 @@ struct CalendarWeekView: View {
                 .frame(height: CalendarLayout.hourRowHeight)
                 .id("hour-\(hour)")
                 .contentShape(Rectangle())
-                .accessibilityLabel(hour == 0 ? "Create event at midnight" : "Create event at \(hourLabel(for: hour))")
+                .accessibilityLabel(hour == 0 ? "Create event at midnight" : "Create event at \(CalendarLayout.hourLabels[hour])")
                 .accessibilityAddTraits(.isButton)
                 .help("Create event")
                 .onTapGesture { [hour] in
-                    onCreateEvent(dateForTap(hour: hour), hour)
+                    actions.onCreateEvent(dateForTap(hour: hour), hour)
                 }
             }
         }
@@ -329,15 +299,15 @@ struct CalendarWeekView: View {
             + CGFloat(colIndex) * colWidth
             + 2
         CalendarEventCard(event: event, height: height) { ev in
-            onSelectEvent(ev)
+            actions.onSelectEvent(ev)
         }
         .contextMenu {
             CalendarEventContextMenu(
                 event: event,
-                onEdit: onEdit,
-                onDelete: onDelete,
-                onRSVP: onRSVP,
-                onEmailAttendees: onEmailAttendees
+                onEdit: actions.onEdit,
+                onDelete: actions.onDelete,
+                onRSVP: actions.onRSVP,
+                onEmailAttendees: actions.onEmailAttendees
             )
         }
         .frame(width: colWidth - 1)
@@ -419,9 +389,7 @@ struct CalendarWeekView: View {
         return weekday == 1 || weekday == 7
     }
 
-    private func hourLabel(for hour: Int) -> String {
-        CalendarLayout.hourLabels[hour]
-    }
+
 
     private func dateForTap(hour: Int) -> Date {
         Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: viewModel.selectedDate) ?? viewModel.selectedDate

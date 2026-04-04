@@ -18,7 +18,7 @@ struct AttachmentChipView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: Spacing.sm) {
             if isDownloading {
                 ProgressView()
                     .controlSize(.small)

@@ -7,9 +7,9 @@ enum GmailThreadMessageView {
     static func computeFullHTML(message: GmailMessage, resolvedHTML: String?) -> String {
         if let resolved = resolvedHTML, !resolved.isEmpty { return resolved }
         if let html = message.htmlBody, !html.isEmpty { return html }
-        if let plain = message.plainBody, !plain.isEmpty { return "<p>\(plain)</p>" }
+        if let plain = message.plainBody, !plain.isEmpty { return "<p>\(plain.htmlEscaped)</p>" }
         let body = message.body
-        return body.isEmpty ? "" : "<p>\(body)</p>"
+        return body.isEmpty ? "" : "<p>\(body.htmlEscaped)</p>"
     }
 
     /// Removes quoted/replied content from HTML, returning (original, quoted?).

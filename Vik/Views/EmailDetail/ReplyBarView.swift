@@ -10,6 +10,7 @@ struct ReplyBarView: View {
     var contacts: [StoredContact] = []
 
     @State private var composeVM: ComposeViewModel
+    @State private var replyBarVM: ReplyBarViewModel
     @State private var isExpanded = false
     @State private var showDiscardAlert = false
     @State private var sendHapticTrigger = false
@@ -35,11 +36,15 @@ struct ReplyBarView: View {
         self.onOpenLink = onOpenLink
         self.onLoadDraft = onLoadDraft
         self.contacts = contacts
-        self._composeVM = State(initialValue: ComposeViewModel(
+        let vm = ComposeViewModel(
             accountID: accountID,
             fromAddress: fromAddress,
             threadID: email.gmailThreadID
-        ))
+        )
+        let rbVM = ReplyBarViewModel(compose: vm)
+        vm.replyBar = rbVM
+        self._composeVM = State(initialValue: vm)
+        self._replyBarVM = State(initialValue: rbVM)
     }
 
     var body: some View {
@@ -57,16 +62,16 @@ struct ReplyBarView: View {
         )
         .background(ClickOutsideDetector(isExpanded: isExpanded, onClickOutside: { minimize() }))
         .onChange(of: composeVM.body) { _, newValue in
-            composeVM.updateCachedText(html: newValue)
-            composeVM.updateCollapsedPlaceholder(for: email, in: mailStore)
-            composeVM.scheduleReplyAutoSaveUnified(email: email, mailStore: mailStore)
+            replyBarVM.updateCachedText(html: newValue)
+            replyBarVM.updateCollapsedPlaceholder(for: email, in: mailStore)
+            replyBarVM.scheduleReplyAutoSaveUnified(email: email, mailStore: mailStore)
         }
         .task {
-            try? await Task.sleep(for: ComposeViewModel.autoSaveGuardDelay)
-            composeVM.isInitialLoad = false
+            try? await Task.sleep(for: ReplyBarViewModel.autoSaveGuardDelay)
+            replyBarVM.isInitialLoad = false
         }
         .task(id: email.id) {
-            composeVM.resetForEmail(email)
+            replyBarVM.resetForEmail(email)
         }
         .onChange(of: composeVM.isSent) { _, isSent in
             guard isSent else { return }
@@ -82,7 +87,7 @@ struct ReplyBarView: View {
             Text("Your reply draft will be permanently deleted.")
         }
         .composeTranslation(html: $composeVM.body, editorState: editorState)
-        .onDisappear { composeVM.cancelReplyTasks() }
+        .onDisappear { replyBarVM.cancelReplyTasks() }
     }
 
     // MARK: - Collapsed
@@ -92,18 +97,18 @@ struct ReplyBarView: View {
             if composeVM.to.isEmpty {
                 composeVM.to = email.sender.email
             }
-            composeVM.loadExistingDraftForReply(email: email, mailStore: mailStore, loader: onLoadDraft, editorState: editorState)
+            replyBarVM.loadExistingDraftForReply(email: email, mailStore: mailStore, loader: onLoadDraft, editorState: editorState)
             withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
                 isExpanded = true
             }
         } label: {
             HStack(spacing: 10) {
-                Text(composeVM.collapsedPlaceholderText)
+                Text(replyBarVM.collapsedPlaceholderText)
                     .font(Typography.body)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
                 Spacer()
-                Image(systemName: composeVM.hasSavedDraft(for: email, in: mailStore) ? "arrow.uturn.forward" : "square.and.pencil")
+                Image(systemName: replyBarVM.hasSavedDraft(for: email, in: mailStore) ? "arrow.uturn.forward" : "square.and.pencil")
                     .font(Typography.body)
                     .foregroundStyle(.tertiary)
             }
@@ -126,15 +131,15 @@ struct ReplyBarView: View {
 
                 Divider().padding(.horizontal, Spacing.lg)
 
-                HStack(spacing: 8) {
+                HStack(spacing: Spacing.sm) {
                     Text("Subject")
                         .font(Typography.captionRegular)
                         .foregroundStyle(.tertiary)
                         .frame(width: 50, alignment: .leading)
 
                     TextField("Subject", text: Binding(
-                        get: { composeVM.subjectOverride ?? email.subject.withReplyPrefix },
-                        set: { composeVM.subjectOverride = $0 }
+                        get: { replyBarVM.subjectOverride ?? email.subject.withReplyPrefix },
+                        set: { replyBarVM.subjectOverride = $0 }
                     ))
                     .textFieldStyle(.plain)
                     .font(Typography.captionRegular)
@@ -152,7 +157,7 @@ struct ReplyBarView: View {
                 htmlContent: $composeVM.body,
                 placeholder: "Write a reply...",
                 autoFocus: true,
-                onFileDrop: { url in composeVM.handleFileDropForReply(url, editorState: editorState) },
+                onFileDrop: { url in replyBarVM.handleFileDropForReply(url, editorState: editorState) },
                 onOpenLink: onOpenLink
             )
             .frame(minHeight: 120, maxHeight: 400)
@@ -161,13 +166,13 @@ struct ReplyBarView: View {
                     .strokeBorder(Color.accentColor.opacity(isEditorFocused ? 0.3 : 0), lineWidth: 1)
             )
             .overlay {
-                if composeVM.isLoadingDraft {
+                if replyBarVM.isLoadingDraft {
                     ContentShimmerView()
                         .padding(Spacing.lg)
                         .transition(.opacity)
                 }
             }
-            .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: composeVM.isLoadingDraft)
+            .animation(reduceMotion ? nil : VikAnimation.contentSwitch, value: replyBarVM.isLoadingDraft)
             .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isEditorFocused)
             .padding(.horizontal, Spacing.lg)
             .padding(.top, Spacing.lg)
@@ -186,15 +191,15 @@ struct ReplyBarView: View {
             Divider().background(Color(.separatorColor))
 
             // Error banner
-            if let err = composeVM.sendError {
-                HStack(spacing: 8) {
+            if let err = replyBarVM.sendError {
+                HStack(spacing: Spacing.sm) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(Typography.captionRegular)
                     Text(err)
                         .font(Typography.captionRegular)
                     Spacer()
                     Button {
-                        composeVM.sendError = nil
+                        replyBarVM.sendError = nil
                     } label: {
                         Image(systemName: "xmark")
                             .font(Typography.captionSmall)
@@ -219,7 +224,7 @@ struct ReplyBarView: View {
                 onSend: {
                     sendHapticTrigger.toggle()
                     Task {
-                        await composeVM.sendReplyFromBar(
+                        await replyBarVM.sendReplyFromBar(
                             email: email,
                             editorInlineImages: editorState.pendingInlineImages,
                             mailStore: mailStore
@@ -228,7 +233,7 @@ struct ReplyBarView: View {
                 },
                 onSchedule: { date in
                     Task {
-                        await composeVM.scheduleReplyFromBar(
+                        await replyBarVM.scheduleReplyFromBar(
                             at: date,
                             email: email,
                             editorInlineImages: editorState.pendingInlineImages,
@@ -237,7 +242,7 @@ struct ReplyBarView: View {
                     }
                 },
                 onAttach: {
-                    Task { await composeVM.attachFilesForReply() }
+                    Task { await replyBarVM.attachFilesForReply() }
                 },
                 sendHapticTrigger: $sendHapticTrigger
             )
@@ -248,7 +253,7 @@ struct ReplyBarView: View {
     // MARK: - Actions
 
     private func discardAction() {
-        if composeVM.shouldShowDiscardAlert(email: email, mailStore: mailStore) {
+        if replyBarVM.shouldShowDiscardAlert(email: email, mailStore: mailStore) {
             showDiscardAlert = true
         } else {
             collapse()
@@ -262,7 +267,7 @@ struct ReplyBarView: View {
     }
 
     private func collapse() {
-        composeVM.collapse(email: email, mailStore: mailStore)
+        replyBarVM.collapse(email: email, mailStore: mailStore)
         withAnimation(reduceMotion ? nil : VikAnimation.springSnappy) {
             isExpanded = false
         }
@@ -350,7 +355,7 @@ private struct ClickOutsideDetector: NSViewRepresentable {
 private struct OfflineBanner: View {
     var body: some View {
         if !NetworkMonitor.shared.isConnected {
-            HStack(spacing: 6) {
+            HStack(spacing: Spacing.xsm) {
                 Image(systemName: "wifi.slash")
                     .font(Typography.captionRegular)
                 Text("You're offline — replies will be queued")

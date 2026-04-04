@@ -57,7 +57,7 @@ struct FiltersSettingsView: View {
     }
 
     private func filterRow(_ filter: GmailFilter) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
             Text(filterSummary(filter)).font(Typography.subheadRegular)
             Text(actionSummary(filter)).font(Typography.captionRegular).foregroundStyle(.secondary)
         }

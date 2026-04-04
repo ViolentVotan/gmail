@@ -6,9 +6,9 @@ struct AttachmentChipRow: View {
     var body: some View {
         if !attachments.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
+                HStack(spacing: Spacing.xsm) {
                     ForEach(attachments, id: \.absoluteString) { url in
-                        HStack(spacing: 4) {
+                        HStack(spacing: Spacing.xs) {
                             Image(systemName: url.sfSymbolIcon)
                                 .font(Typography.captionRegular)
                             Text(url.lastPathComponent)

@@ -389,11 +389,11 @@ final class EmailActionCoordinator {
         }
     }
 
-    func emptyTrash(accountID: String, onConfirm: @escaping (Int) -> Void) {
+    func requestEmptyTrash(accountID: String, onConfirm: @escaping (Int) -> Void) {
         confirmEmptyFolder(labelID: GmailSystemLabel.trash, accountID: accountID, onConfirm: onConfirm)
     }
 
-    func emptySpam(accountID: String, onConfirm: @escaping (Int) -> Void) {
+    func requestEmptySpam(accountID: String, onConfirm: @escaping (Int) -> Void) {
         confirmEmptyFolder(labelID: GmailSystemLabel.spam, accountID: accountID, onConfirm: onConfirm)
     }
 

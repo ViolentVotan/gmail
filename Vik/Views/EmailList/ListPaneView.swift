@@ -204,12 +204,12 @@ private struct EmailListSection: View {
                 onBulkMarkRead:   { Task { await actionCoordinator.bulkMarkRead(selectedEmails) { selectedEmailIDs = [] } } },
                 onBulkToggleStar: { Task { for e in selectedEmails { await actionCoordinator.toggleStarEmail(e) } } },
                 onEmptyTrash: {
-                    actionCoordinator.emptyTrash(accountID: accountID) { count in
+                    actionCoordinator.requestEmptyTrash(accountID: accountID) { count in
                         emptyTrashRequested(count)
                     }
                 },
                 onEmptySpam: {
-                    actionCoordinator.emptySpam(accountID: accountID) { count in
+                    actionCoordinator.requestEmptySpam(accountID: accountID) { count in
                         emptySpamRequested(count)
                     }
                 },

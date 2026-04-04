@@ -117,7 +117,7 @@ struct CalendarEventDetailView: View {
                 }
 
                 if event.isRecurring {
-                    HStack(spacing: 4) {
+                    HStack(spacing: Spacing.xs) {
                         Image(systemName: "repeat")
                             .font(.system(size: CalendarLayout.detailSmallIconSize))
                         Text("Recurring event")
@@ -248,7 +248,7 @@ struct CalendarEventDetailView: View {
                     )
                 }
             }
-            .padding(.leading, 26)
+            .padding(.leading, 18 + Spacing.sm) // icon frame width + row spacing
         }
     }
 
@@ -280,7 +280,7 @@ struct CalendarEventDetailView: View {
                 .frame(width: 18)
                 .padding(.top, Spacing.xxs)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: Spacing.xs) {
                 ForEach(Array(event.reminders.enumerated()), id: \.offset) { _, reminder in
                     Text(reminderLabel(reminder))
                         .font(Typography.callout)
@@ -362,7 +362,7 @@ struct CalendarEventDetailView: View {
             onRSVP(status)
             rsvpHapticTrigger.toggle()
         } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: Spacing.xs) {
                 Image(systemName: icon)
                     .font(Typography.calendarEventTitle)
                 Text(label)
@@ -491,7 +491,7 @@ private struct ActionBarButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 4) {
+            HStack(spacing: Spacing.xs) {
                 Image(systemName: icon)
                     .font(Typography.calendarAgendaTime)
                 Text(label)

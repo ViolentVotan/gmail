@@ -88,7 +88,7 @@ struct OriginalMessageView: View {
                         downloadOriginal(source)
                     }
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: Spacing.xs) {
                         Image(systemName: "arrow.down.doc")
                             .font(Typography.captionRegular)
                         Text("Download Original")
@@ -113,7 +113,7 @@ struct OriginalMessageView: View {
                         }
                     }
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: Spacing.xs) {
                         Image(systemName: copied ? "checkmark" : "doc.on.doc")
                             .font(Typography.captionRegular)
                         Text(copied ? "Copied!" : "Copy to Clipboard")
@@ -220,7 +220,7 @@ struct OriginalMessageView: View {
                 .padding(.vertical, Spacing.md)
                 .padding(.leading, Spacing.lg)
 
-            HStack(spacing: 6) {
+            HStack(spacing: Spacing.xsm) {
                 Text(authStatusLabel(value))
                     .font(Typography.captionSemiboldMonospaced)
                     .foregroundStyle(authStatusColor(value))

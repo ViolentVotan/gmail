@@ -364,7 +364,7 @@ struct FormattingToolbar: View {
                 .accessibilityLabel("Insert link")
                 .popover(isPresented: $showLinkPopover, arrowEdge: .bottom) {
                     VStack(spacing: 10) {
-                        HStack(spacing: 6) {
+                        HStack(spacing: Spacing.xsm) {
                             Text("URL")
                                 .font(Typography.captionRegular)
                                 .foregroundStyle(.secondary)
@@ -373,7 +373,7 @@ struct FormattingToolbar: View {
                                 .textFieldStyle(.roundedBorder)
                                 .font(Typography.subheadRegular)
                         }
-                        HStack(spacing: 6) {
+                        HStack(spacing: Spacing.xsm) {
                             Text("Text")
                                 .font(Typography.captionRegular)
                                 .foregroundStyle(.secondary)
@@ -484,9 +484,9 @@ struct ColorPickerPopover: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            VStack(spacing: 6) {
+            VStack(spacing: Spacing.xsm) {
                 ForEach(0..<colorGrid.count, id: \.self) { row in
-                    HStack(spacing: 6) {
+                    HStack(spacing: Spacing.xsm) {
                         ForEach(0..<colorGrid[row].count, id: \.self) { col in
                             let color = colorGrid[row][col]
                             Button {
@@ -516,7 +516,7 @@ struct ColorPickerPopover: View {
 
             Divider()
 
-            HStack(spacing: 8) {
+            HStack(spacing: Spacing.sm) {
                 ColorPicker("", selection: $customColor, supportsOpacity: false)
                     .labelsHidden()
                     .frame(width: 24, height: 24)

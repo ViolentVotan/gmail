@@ -33,7 +33,7 @@ struct DebugMenuView: View {
 
             // MARK: - Attachment Indexer
             debugSection(title: "Attachment Indexer") {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: Spacing.xsm) {
                     indexerStatRow("Total", value: viewModel.indexingStats.total, color: .primary)
                     indexerStatRow("Indexed", value: viewModel.indexingStats.indexed, color: .secondary)
                     indexerStatRow("Pending", value: viewModel.indexingStats.pending, color: .blue)
@@ -145,7 +145,7 @@ struct DebugMenuView: View {
                     expandedEntryID = isExpanded ? nil : entry.id
                 }
             } label: {
-                HStack(spacing: 6) {
+                HStack(spacing: Spacing.xsm) {
                     let badgeBackground = entry.fromCache ? Color.secondary : (entry.method == "GET" ? BrandColor.blueText : SemanticColor.warning)
                     Text(entry.fromCache ? "CACHE" : entry.method)
                         .font(.caption2.weight(.bold).monospaced())
@@ -178,7 +178,7 @@ struct DebugMenuView: View {
                         .font(Typography.captionSmallRegular)
                         .foregroundStyle(.tertiary)
                 }
-                .padding(.horizontal, 10)
+                .padding(.horizontal, Spacing.md)
                 .padding(.vertical, 7)
                 .contentShape(Rectangle())
             }
@@ -259,7 +259,7 @@ struct DebugMenuView: View {
                             }
                             .buttonStyle(.plain)
                         }
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, Spacing.md)
                         .padding(.top, Spacing.xs)
 
                         scrollableMonoBlock(entry.responseBody, maxHeight: 360)
@@ -278,7 +278,7 @@ struct DebugMenuView: View {
             .font(.caption2.weight(.bold).monospaced())
             .foregroundStyle(.tertiary)
             .tracking(1)
-            .padding(.horizontal, 10)
+            .padding(.horizontal, Spacing.md)
             .padding(.top, Spacing.sm)
             .padding(.bottom, Spacing.xxs)
     }
@@ -289,7 +289,7 @@ struct DebugMenuView: View {
         }
         .font(.caption2.monospaced())
         .textSelection(.enabled)
-        .padding(.horizontal, 10)
+        .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.xs)
     }
 
@@ -304,14 +304,14 @@ struct DebugMenuView: View {
         }
         .frame(maxHeight: maxHeight)
         .clipShape(.rect(cornerRadius: CornerRadius.xs))
-        .padding(.horizontal, 10)
+        .padding(.horizontal, Spacing.md)
         .padding(.bottom, Spacing.xs)
     }
 
     // MARK: - Helpers
 
     private func debugSection<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             Text(title)
                 .font(Typography.captionSemibold)
                 .foregroundStyle(.tertiary)
