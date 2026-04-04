@@ -431,7 +431,7 @@ import Foundation
 
     // MARK: - MailStore.replyDrafts persistence
 
-    @Test func replyDraftsPersistenceRoundTrip() {
+    @Test func replyDraftsPersistenceRoundTrip() async throws {
         let testAccountID = "test_persist_account"
         let key = "replyDrafts.\(testAccountID)"
         // Clean up before test
@@ -446,9 +446,16 @@ import Foundation
         )
         store1.saveReplyDrafts()
 
+        // saveReplyDrafts uses Task.detached — wait for the write to complete
+        try await Task.sleep(for: .milliseconds(100))
+
         // New MailStore instance reads from UserDefaults when accountID is set
         let store2 = MailStore()
         store2.accountID = testAccountID
+
+        // loadReplyDrafts also uses Task.detached — wait for the read to complete
+        try await Task.sleep(for: .milliseconds(100))
+
         #expect(store2.replyDrafts[threadID]?.gmailDraftID == "draft_xyz",
                 "Draft ID should survive MailStore recreation")
         // Preview is stripped before persisting to UserDefaults (security: avoid

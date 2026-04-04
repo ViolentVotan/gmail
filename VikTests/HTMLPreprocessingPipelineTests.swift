@@ -13,10 +13,11 @@ import Testing
         #expect(r1.version == HTMLPreprocessingPipeline.currentVersion)
     }
 
-    @Test func stripsHeadAndStyles() {
+    @Test func stripsHeadPreservesStyles() {
         let html = "<html><head><style>body{color:red}</style></head><body><p>Content</p></body></html>"
         let result = HTMLPreprocessingPipeline.preprocess(html)
-        #expect(!result.preprocessedHTML.contains("<style>"))
+        // Style blocks are extracted from <head> and preserved for email layout
+        #expect(result.preprocessedHTML.contains("body{color:red}"))
         #expect(!result.preprocessedHTML.contains("<head>"))
         #expect(result.preprocessedHTML.contains("Content"))
     }

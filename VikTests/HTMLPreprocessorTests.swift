@@ -147,7 +147,8 @@ import Testing
         let html = "<head><style>body { color: red; }</style></head><body><p>Text</p></body>"
         let result = HTMLPreprocessor.strip(html)
         #expect(!result.contains("<head>"))
-        #expect(!result.contains("body { color: red; }"))
+        // Style blocks are extracted and preserved — email CSS is needed for layout
+        #expect(result.contains("body { color: red; }"))
         #expect(result.contains("Text"))
     }
 
@@ -158,35 +159,36 @@ import Testing
         #expect(result.contains("Text"))
     }
 
-    // MARK: - Style Block Stripping (new behavior)
+    // MARK: - Style Block Preservation
 
-    @Test func stripStyle_BasicStyleBlock() {
+    @Test func stripStyle_BasicStyleBlock_Preserved() {
+        // Style blocks are preserved — email CSS is needed for proper layout
         let html = "<style>body { font-family: Arial; color: #333; }</style><p>Content</p>"
         let result = HTMLPreprocessor.strip(html)
-        #expect(!result.contains("<style>"))
-        #expect(!result.contains("font-family"))
+        #expect(result.contains("<style>"))
+        #expect(result.contains("font-family"))
         #expect(result.contains("Content"))
     }
 
-    @Test func stripStyle_CaseInsensitive() {
+    @Test func stripStyle_CaseInsensitive_Preserved() {
         let html = "<STYLE>div { display: block; }</STYLE><p>Text</p>"
         let result = HTMLPreprocessor.strip(html)
-        #expect(!result.contains("display: block"))
+        #expect(result.contains("display: block"))
         #expect(result.contains("Text"))
     }
 
-    @Test func stripStyle_MultipleStyleBlocks() {
+    @Test func stripStyle_MultipleStyleBlocks_Preserved() {
         let html = "<style>.a { color: red; }</style><p>Hello</p><style>.b { color: blue; }</style>"
         let result = HTMLPreprocessor.strip(html)
-        #expect(!result.contains("color: red"))
-        #expect(!result.contains("color: blue"))
+        #expect(result.contains("color: red"))
+        #expect(result.contains("color: blue"))
         #expect(result.contains("Hello"))
     }
 
-    @Test func stripStyle_WithTypeAttribute() {
+    @Test func stripStyle_WithTypeAttribute_Preserved() {
         let html = "<style type=\"text/css\">.foo { margin: 0; }</style><p>Text</p>"
         let result = HTMLPreprocessor.strip(html)
-        #expect(!result.contains("margin: 0"))
+        #expect(result.contains("margin: 0"))
         #expect(result.contains("Text"))
     }
 
@@ -461,10 +463,10 @@ import Testing
         #expect(result.contains("You have 5 new connection requests."))
         #expect(result.contains("View Jobs"))
 
-        // Verify bloat stripped
+        // Verify bloat stripped (style blocks are preserved for email layout)
         #expect(!result.contains("LinkedIn bloat comment padding"))
         #expect(!result.contains("MSO button"))
-        #expect(!result.contains("ExternalClass"))
+        #expect(result.contains("ExternalClass"), "Style blocks are preserved for email layout")
         #expect(!result.contains("Preview text hidden"))
         #expect(!result.contains("data-tracking-id"))
         #expect(!result.contains("data-campaign"))
