@@ -11,7 +11,6 @@ Vik/                      # Main app
 │   ├── MailDatabase.swift
 │   ├── MailDatabaseMigrations.swift
 │   ├── MailDatabaseQueries.swift
-│   ├── FTSManager.swift
 │   └── CacheMigration.swift
 ├── Models/                  # Data models (Email, GmailAccount, ComposeMode, OfflineAction, etc.)
 ├── Services/                # Business logic & API
@@ -43,6 +42,7 @@ Vik/                      # Main app
 │   ├── ContactsStore        # Current account's contacts store
 │   ├── SyncProgressManager  # Always-visible sync bubble (manual sync trigger + progress)
 │   ├── MailStore            # Account/folder state management
+│   ├── ReplyBarViewModel   # Inline quick-reply state (wired from ReplyBarView)
 │   └── ComposeModeInitializer # Compose mode helpers (structs)
 ├── Views/                   # SwiftUI components
 │   ├── Sidebar/             # Left panel (mode switcher, mini-agenda widget)
@@ -113,4 +113,11 @@ Views never call Services directly. ViewModels are the single bridge.
 - `AttachmentSearchService` — Attachment search functionality
 - `EmailContentCache` / `EmailContentPrefetcher` — Email body caching and prefetch
 - `LabelSuggestionService` — Label suggestions
+- `LabelMutationService` — Email label DB mutations + API proxying (extracted from MailboxViewModel)
+- `APILogger` — API request/response debug logging
+- `SnoozeMonitor` — Background timer un-snoozing emails on schedule
+- `SubscriptionsStore` — Newsletter/subscription email detection and unsubscribe state
+- `ThumbnailCache` — Attachment thumbnail generation + LRU caching
+- `ToastManager` — Toast notification state (show/dismiss)
+- `TokenStore` — Secure token persistence (AES-GCM encryption + Keychain)
 - Gmail API layer: `GmailAPIClient` (base), `GmailMessageService`, `GmailLabelService`, `GmailSendService`, `GmailDraftService`, `GmailFilterService`, `GmailProfileService`

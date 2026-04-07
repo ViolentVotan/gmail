@@ -79,8 +79,6 @@ Full calendar feature surface — month, week, day, and agenda views for Google 
 - `CalendarEventEditorView` — Create/edit sheet. Fields: title, start/end date pickers, location, description, calendar picker, attendees (chip input via `AutocompleteTextField`), Google Meet toggle, reminders, recurrence picker, color override, visibility, and busy/free status. Recurring-event edits show a confirmation sheet scoped to `RecurringEditScope` (this / this and following / all). Guards unsaved changes on dismiss.
 - `CalendarMiniMonthView` — Compact month grid for the sidebar calendar panel. Today is marked with a blue circle; the selected week is highlighted with an accent tint band. Tapping a date calls `CalendarViewModel.selectedDate`.
 - `CalendarListSidebarView` — Calendar list grouped by account. Each row shows a color swatch, calendar name, and a visibility toggle (updates `CalendarViewModel.visibleCalendarIDs`). Right-click context menu with Hide/Show Calendar and Open in Google Calendar. Includes a "New Event" CTA.
-- `CalendarQuickAddView` — Natural-language event creation text field. Submits to `CalendarViewModel.quickAddEvent`, which calls the Google Calendar quickAdd API.
-
 **Shared calendar components** (in `Common/`):
 
 | File | Role |
