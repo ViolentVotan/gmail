@@ -34,6 +34,8 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord,
         Column("thread_message_count"),
         Column("gmail_draft_id"),
         Column("attachment_count"),
+        Column("full_body_fetched"),
+        Column("body_fetch_attempts"),
     ]
 
     // Primary key

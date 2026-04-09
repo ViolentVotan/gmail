@@ -427,7 +427,12 @@ actor CalendarSyncEngine {
                         )
                     } catch {
                         Self.logger.error("Failed to wipe events for \(calendarId) before resync: \(error)")
-                        continue  // Skip this calendar's resync — stale data is better than duplicates
+                        // Clear the expired sync token so the next pass forces a full fetch
+                        // instead of looping on the same 410.
+                        try? await syncer.clearSyncToken(
+                            calendarId: calendarId, accountId: accountID
+                        )
+                        continue
                     }
                     let now = Date()
                     let calendar = Calendar.current

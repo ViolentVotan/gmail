@@ -136,6 +136,16 @@ actor CalendarBackgroundSyncer {
         }
     }
 
+    /// Clears the sync token for a calendar so the next pass performs a full fetch.
+    func clearSyncToken(calendarId: String, accountId: String) async throws {
+        try await db.dbPool.write { db in
+            try db.execute(
+                sql: "UPDATE calendars SET sync_token = NULL WHERE calendar_id = ? AND account_id = ?",
+                arguments: [calendarId, accountId]
+            )
+        }
+    }
+
     // MARK: - Optimistic Writes
 
     /// Snapshots and deletes an event atomically in a single write transaction.
