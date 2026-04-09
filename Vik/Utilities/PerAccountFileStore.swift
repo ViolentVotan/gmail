@@ -100,6 +100,8 @@ final class PerAccountFileStore<Item: Codable & Identifiable & Sendable> {
         }
 
         // Re-encrypt legacy plaintext files on first successful read.
+        // Fire-and-forget: writeToDisk logs errors internally. If the app exits
+        // before completion, the file stays plaintext and will be re-encrypted on next read.
         if isPlaintext, let items = decoded {
             Task { await Self.writeToDisk(items: items, url: url) }
         }

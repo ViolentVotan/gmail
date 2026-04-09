@@ -65,8 +65,8 @@ struct SidebarContainer: View {
                 onSignOut: { account in
                     coordinator.authViewModel.signOut(account)
                 },
-                onSetAsDefault: { id in AccountStore.shared.setAsDefault(id: id) },
-                onSetAccentColor: { id, hex in AccountStore.shared.setAccentColor(id: id, hex: hex) },
+                onSetAsDefault: { id in coordinator.setDefaultAccount(id) },
+                onSetAccentColor: { id, hex in coordinator.setAccountAccentColor(id, hex: hex) },
                 onToggleSidebar: {
                     withAnimation(reduceMotion ? nil : VikAnimation.springDefault) {
                         isSidebarCollapsed.toggle()

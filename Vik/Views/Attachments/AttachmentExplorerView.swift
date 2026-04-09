@@ -14,7 +14,7 @@ struct AttachmentExplorerView: View {
     @State private var showRulesPopover = false
     @State private var newRuleText = ""
 
-    private let columns = [GridItem(.adaptive(minimum: 150, maximum: 200), spacing: 16)]
+    private let columns = [GridItem(.adaptive(minimum: 150, maximum: 200), spacing: Spacing.lg)]
 
     var body: some View {
         VStack(spacing: 0) {
@@ -116,7 +116,7 @@ struct AttachmentExplorerView: View {
                 emptyState
             } else {
                 ScrollView {
-                    LazyVGrid(columns: columns, spacing: 16) {
+                    LazyVGrid(columns: columns, spacing: Spacing.lg) {
                         ForEach(store.displayedAttachments) { result in
                             AttachmentCardView(
                                 result: result,

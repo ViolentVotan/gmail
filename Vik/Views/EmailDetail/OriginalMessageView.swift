@@ -82,7 +82,7 @@ struct OriginalMessageView: View {
             Divider().background(Color(.separatorColor))
 
             // Action buttons
-            HStack(spacing: 16) {
+            HStack(spacing: Spacing.lg) {
                 Button {
                     if let source = rawSource {
                         downloadOriginal(source)

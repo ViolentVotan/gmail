@@ -126,7 +126,7 @@ final class EmailDetailViewModel {
         }
         guard let records = threadMessages, !records.isEmpty else { return }
 
-        let allHaveBodies = records.allSatisfy { $0.fullBodyFetched == true }
+        let allHaveBodies = records.allSatisfy(\.fullBodyFetched)
         let gmailMessages = records.map { $0.toGmailMessage() }
 
         // Tier 2: Check preprocessed DB columns — zero regex work
@@ -228,10 +228,15 @@ final class EmailDetailViewModel {
             let unreadMessages = (fresh.messages ?? []).filter(\.isUnread)
             if !unreadMessages.isEmpty {
                 let unreadIds = unreadMessages.map(\.id)
-                try? await api.batchModifyLabels(
-                    ids: unreadIds, add: [], remove: [GmailSystemLabel.unread], accountID: accountID
-                )
-                onMessagesRead?(unreadIds)
+                do {
+                    try await api.batchModifyLabels(
+                        ids: unreadIds, add: [], remove: [GmailSystemLabel.unread], accountID: accountID
+                    )
+                    onMessagesRead?(unreadIds)
+                } catch {
+                    // Mark-as-read is best-effort — next sync will reconcile.
+                    // Intentionally not calling onMessagesRead to avoid optimistic state drift.
+                }
             }
         } catch {
             // Keep cached thread if API fails (offline mode)
@@ -277,7 +282,7 @@ final class EmailDetailViewModel {
     private func backfillPreprocessedColumns(records: [MessageRecord], allHaveBodies: Bool, db: MailDatabase) {
         guard allHaveBodies else { return }
         let recordsToBackfill = records.filter {
-            $0.fullBodyFetched == true && $0.bodyHtml != nil && $0.preprocessedHtml == nil
+            $0.fullBodyFetched && $0.bodyHtml != nil && $0.preprocessedHtml == nil
         }
         guard !recordsToBackfill.isEmpty else { return }
         let t = Task<Void, Never>.detached { [db] in
@@ -516,17 +521,6 @@ final class EmailDetailViewModel {
             updated[idx].labelIds = labelIDs
         }
         thread = GmailThread(id: current.id, historyId: current.historyId, messages: updated)
-    }
-
-    /// Optimistically toggles the STARRED label on the latest message.
-    func toggleStar() {
-        guard var labelIDs = latestMessage?.labelIds else { return }
-        if labelIDs.contains(GmailSystemLabel.starred) {
-            labelIDs.removeAll { $0 == GmailSystemLabel.starred }
-        } else {
-            labelIDs.append(GmailSystemLabel.starred)
-        }
-        updateLabelIDs(labelIDs)
     }
 
     // MARK: - Label Suggestions

@@ -367,7 +367,7 @@ actor BackgroundSyncer {
                 || existing.unsubscribeUrl != record.unsubscribeUrl
             let contentChanged = headersChanged || fieldsChanged || metaChanged
 
-            let bodyChanged: Bool = (record.fullBodyFetched == true && existing.fullBodyFetched != true)
+            let bodyChanged: Bool = (record.fullBodyFetched && !existing.fullBodyFetched)
                 || (record.bodyHtml != nil && existing.bodyHtml != record.bodyHtml)
                 || (record.bodyPlain != nil && existing.bodyPlain != record.bodyPlain)
 
@@ -388,7 +388,7 @@ actor BackgroundSyncer {
             if contentChanged || bodyChanged || labelsChanged {
                 // Preserve body if the new record doesn't have it but the old one does
                 var toSave = record
-                if record.fullBodyFetched != true && existing.fullBodyFetched == true {
+                if !record.fullBodyFetched && existing.fullBodyFetched {
                     toSave.bodyHtml = existing.bodyHtml
                     toSave.bodyPlain = existing.bodyPlain
                     toSave.fullBodyFetched = true
@@ -401,7 +401,7 @@ actor BackgroundSyncer {
                 // Preserve thread count — updateThreadCounts only runs for newly-inserted messages.
                 toSave.threadMessageCount = existing.threadMessageCount
                 // Set preprocessing columns if available and body is present
-                if let p = preprocessing, toSave.fullBodyFetched == true {
+                if let p = preprocessing, toSave.fullBodyFetched {
                     toSave.preprocessedHtml = p.preprocessedHTML
                     toSave.sanitizedHtml = p.sanitizedHTML
                     toSave.originalHtml = p.originalHTML
@@ -424,7 +424,7 @@ actor BackgroundSyncer {
         } else {
             // --- New message: full insert ---
             var newRecord = record
-            if let p = preprocessing, newRecord.fullBodyFetched == true {
+            if let p = preprocessing, newRecord.fullBodyFetched {
                 newRecord.preprocessedHtml = p.preprocessedHTML
                 newRecord.sanitizedHtml = p.sanitizedHTML
                 newRecord.originalHtml = p.originalHTML

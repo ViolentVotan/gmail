@@ -192,7 +192,7 @@ struct AttachmentPreviewView: View {
     // MARK: - Unsupported
 
     private var unsupportedPreview: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: Spacing.lg) {
             Spacer()
 
             ZStack {

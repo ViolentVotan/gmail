@@ -421,9 +421,14 @@ actor CalendarSyncEngine {
                     // Per Google Calendar API 410 spec: wipe local store before full resync
                     // to remove server-side deletions that won't appear in the new full fetch.
                     Self.logger.warning("SyncToken expired for calendar \(calendarId), performing full resync")
-                    try? await syncer.deleteEventsForCalendar(
-                        calendarId: calendarId, accountId: accountID
-                    )
+                    do {
+                        try await syncer.deleteEventsForCalendar(
+                            calendarId: calendarId, accountId: accountID
+                        )
+                    } catch {
+                        Self.logger.error("Failed to wipe events for \(calendarId) before resync: \(error)")
+                        continue  // Skip this calendar's resync — stale data is better than duplicates
+                    }
                     let now = Date()
                     let calendar = Calendar.current
                     let timeMin = calendar.date(byAdding: .day, value: -30, to: now) ?? now.addingTimeInterval(-30 * 86400)

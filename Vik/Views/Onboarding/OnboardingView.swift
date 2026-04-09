@@ -132,7 +132,7 @@ struct OnboardingView: View {
             .opacity(showName ? 1 : 0)
             .offset(y: showName ? 0 : 12)
 
-        Spacer().frame(height: 4)
+        Spacer().frame(height: Spacing.xs)
 
         // Tagline
         Text("CONQUER YOUR INBOX")

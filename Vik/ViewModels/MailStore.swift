@@ -63,10 +63,8 @@ final class MailStore {
             ReplyDraftInfo(gmailDraftID: draft.gmailDraftID, preview: "", lastModified: draft.lastModified)
         }
         let key = Self.replyDraftsKeyPrefix + accountID
-        Task.detached {
-            guard let data = try? JSONEncoder().encode(sanitized) else { return }
-            UserDefaults.standard.set(data, forKey: key)
-        }
+        guard let data = try? JSONEncoder().encode(sanitized) else { return }
+        UserDefaults.standard.set(data, forKey: key)
     }
 
     private func loadReplyDrafts() {

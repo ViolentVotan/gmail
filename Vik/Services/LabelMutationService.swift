@@ -412,10 +412,18 @@ final class LabelMutationService {
             // Delete the message record (CASCADE handles message_labels, email_tags, attachments).
             // Use BackgroundSyncer when available for FTS cleanup; fall back to direct delete.
             if let syncer = backgroundSyncer {
-                try? await syncer.deleteMessages(gmailIds: [messageID])
+                do {
+                    try await syncer.deleteMessages(gmailIds: [messageID])
+                } catch {
+                    Self.logger.error("Failed to delete message \(messageID, privacy: .private) from local DB after API delete: \(error)")
+                }
             } else {
-                _ = try? await mailDatabase?.dbPool.write { db in
-                    try MessageRecord.deleteOne(db, key: messageID)
+                do {
+                    _ = try await mailDatabase?.dbPool.write { db in
+                        try MessageRecord.deleteOne(db, key: messageID)
+                    }
+                } catch {
+                    Self.logger.error("Failed to delete message \(messageID, privacy: .private) from local DB after API delete: \(error)")
                 }
             }
         } catch {

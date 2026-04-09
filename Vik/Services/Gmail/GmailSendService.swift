@@ -173,15 +173,15 @@ final class GmailSendService {
             "MIME-Version: 1.0",
             "Message-ID: <\(UUID().uuidString)@vik.app>",
             "Date: \(Date().formattedRFC2822)",
-            "From: \(from)",
-            "To: \(to)",
-            "Subject: \(mimeEncodeHeader(subject))",
+            "From: \(sanitizeMIMEHeaderValue(from))",
+            "To: \(sanitizeMIMEHeaderValue(to))",
+            "Subject: \(sanitizeMIMEHeaderValue(mimeEncodeHeader(subject)))",
             "Content-Type: \(contentType)"
         ]
-        if !cc.isEmpty  { lines.append("Cc: \(cc)") }
-        if !bcc.isEmpty { lines.append("Bcc: \(bcc)") }
-        if let inReplyTo { lines.append("In-Reply-To: \(inReplyTo)") }
-        if let references { lines.append("References: \(references)") }
+        if !cc.isEmpty  { lines.append("Cc: \(sanitizeMIMEHeaderValue(cc))") }
+        if !bcc.isEmpty { lines.append("Bcc: \(sanitizeMIMEHeaderValue(bcc))") }
+        if let inReplyTo { lines.append("In-Reply-To: \(sanitizeMIMEHeaderValue(inReplyTo))") }
+        if let references { lines.append("References: \(sanitizeMIMEHeaderValue(references))") }
         return lines
     }
 
@@ -380,9 +380,15 @@ final class GmailSendService {
 
     // MARK: - Helpers
 
+    /// Strips CR/LF from header values to prevent MIME header injection.
+    nonisolated private static func sanitizeMIMEHeaderValue(_ value: String) -> String {
+        value.replacingOccurrences(of: "\r", with: "")
+             .replacingOccurrences(of: "\n", with: "")
+    }
+
     /// RFC 2047 encode a header value when it contains non-ASCII characters (e.g. emojis).
     nonisolated private static func mimeEncodeHeader(_ value: String) -> String {
-        let needsEncoding = value.unicodeScalars.contains { !$0.isASCII }
+        let needsEncoding = value.unicodeScalars.contains { !$0.isASCII || $0.value < 0x20 }
         guard needsEncoding, let data = value.data(using: .utf8) else { return value }
         let encoded = data.base64EncodedString()
         return "=?UTF-8?B?\(encoded)?="

@@ -112,6 +112,9 @@ final class AppCoordinator {
 
     func loadContacts() { sync.loadContacts(accountID: navigation.accountID) }
 
+    func setDefaultAccount(_ id: String) { AccountStore.shared.setAsDefault(id: id) }
+    func setAccountAccentColor(_ id: String, hex: String) { AccountStore.shared.setAccentColor(id: id, hex: hex) }
+
     func refreshSnoozedCacheIfNeeded() {
         sync.refreshSnoozedCacheIfNeeded(folder: navigation.selectedFolder, fromAddress: navigation.fromAddress)
     }

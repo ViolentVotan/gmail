@@ -63,8 +63,6 @@ struct LabelEditorView: View {
         HStack(spacing: Spacing.xsm) {
             ForEach(cachedCurrentUser) { label in
                 LabelChipView(label: emailLabel(from: label), isRemovable: true) {
-                    let newIDs = currentLabelIDs.filter { $0 != label.id }
-                    detailVM.updateLabelIDs(newIDs)
                     onRemoveLabel?(label.id)
                 }
             }
@@ -243,9 +241,6 @@ struct LabelEditorView: View {
             labelSearchText = ""
             return
         }
-        var newIDs = currentLabelIDs
-        newIDs.append(label.id)
-        detailVM.updateLabelIDs(newIDs)
         onAddLabel?(label.id)
         labelSearchText = ""
     }
@@ -254,12 +249,6 @@ struct LabelEditorView: View {
         let name = labelSearchText.trimmingCharacters(in: .whitespaces)
         guard !name.isEmpty else { return }
         labelSearchText = ""
-        onCreateAndAddLabel?(name) { labelID in
-            if let labelID {
-                var newIDs = currentLabelIDs
-                newIDs.append(labelID)
-                detailVM.updateLabelIDs(newIDs)
-            }
-        }
+        onCreateAndAddLabel?(name) { _ in }
     }
 }

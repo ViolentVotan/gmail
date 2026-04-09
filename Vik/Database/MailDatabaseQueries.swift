@@ -348,7 +348,7 @@ enum MailDatabaseQueries {
     /// Events for today (midnight to midnight in the system's local time zone), optionally scoped to an account.
     /// Only returns events from visible/selected calendars.
     static func eventsForToday(accountId: String?, limit: Int = 50, in db: Database) throws -> [CalendarEventRecord] {
-        let calendar = Calendar(identifier: .gregorian)
+        let calendar = Calendar.current
         let startOfToday = calendar.startOfDay(for: Date())
         let todayStart = startOfToday.timeIntervalSince1970
         let todayEnd = calendar.date(byAdding: .day, value: 1, to: startOfToday)!.timeIntervalSince1970

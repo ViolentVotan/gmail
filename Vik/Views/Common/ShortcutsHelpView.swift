@@ -36,7 +36,7 @@ struct ShortcutsHelpView: View {
     ]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
+        VStack(alignment: .leading, spacing: Spacing.xl) {
             ForEach(sections, id: \.title) { section in
                 VStack(alignment: .leading, spacing: Spacing.sm) {
                     Text(section.title)

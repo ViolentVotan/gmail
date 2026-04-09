@@ -49,7 +49,12 @@ final class AttachmentStore {
         didSet { scheduleRecompute() }
     }
     var exclusionRules: [String] = [] {
-        didSet { scheduleRecompute() }
+        didSet {
+            var seen = Set<String>()
+            let deduped = exclusionRules.filter { seen.insert($0).inserted }
+            if deduped.count != exclusionRules.count { exclusionRules = deduped; return }
+            scheduleRecompute()
+        }
     }
 
     /// Cached result of filtering, exclusion, and deduplication. Updated only when inputs change.

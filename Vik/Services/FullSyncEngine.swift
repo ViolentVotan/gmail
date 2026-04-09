@@ -94,6 +94,8 @@ actor FullSyncEngine {
 
     /// Tracks the active engine per account so `setupAccount` can stop a zombie
     /// engine from a previous window before creating a replacement.
+    /// SAFETY: `start()` must be preceded by `stopActive()` or `stop()` to prevent
+    /// registry races where a new engine overwrites an old one still running.
     private static let activeEngines = Mutex<[String: FullSyncEngine]>([:])
 
     /// Stops and removes any active engine for the given account.
@@ -1009,20 +1011,22 @@ actor FullSyncEngine {
             }
     }
 
-    @MainActor
-    private func fireNotifications(for messages: [GmailMessage]) {
+    private func fireNotifications(for messages: [GmailMessage]) async {
         let prepared = Self.prepareNotifications(from: messages)
-        for (msg, senderName) in prepared {
-            let priority = notificationPriority(for: msg)
-            NotificationService.shared.notifyNewEmail(
-                messageId: msg.id,
-                threadId: msg.threadId,
-                senderName: senderName,
-                subject: msg.subject,
-                snippet: msg.snippet ?? "",
-                accountID: accountID,
-                priority: priority
-            )
+        let acctID = accountID
+        await MainActor.run {
+            for (msg, senderName) in prepared {
+                let priority = notificationPriority(for: msg)
+                NotificationService.shared.notifyNewEmail(
+                    messageId: msg.id,
+                    threadId: msg.threadId,
+                    senderName: senderName,
+                    subject: msg.subject,
+                    snippet: msg.snippet ?? "",
+                    accountID: acctID,
+                    priority: priority
+                )
+            }
         }
     }
 
@@ -1042,8 +1046,13 @@ actor FullSyncEngine {
     // MARK: - DB Helpers
 
     private func readSyncState() async -> AccountSyncStateRecord? {
-        try? await db.dbPool.read { db in
-            try MailDatabaseQueries.syncState(in: db)
+        do {
+            return try await db.dbPool.read { db in
+                try MailDatabaseQueries.syncState(in: db)
+            }
+        } catch {
+            Self.logger.error("Failed to read sync state: \(error)")
+            return nil
         }
     }
 

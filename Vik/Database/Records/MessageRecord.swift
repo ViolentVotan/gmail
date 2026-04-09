@@ -63,8 +63,8 @@ struct MessageRecord: Codable, Identifiable, FetchableRecord, PersistableRecord,
     var isStarred: Bool
     var isFromMailingList: Bool
     var unsubscribeUrl: String?
-    var fullBodyFetched: Bool?
-    var bodyFetchAttempts: Int?
+    var fullBodyFetched: Bool = false
+    var bodyFetchAttempts: Int = 0
     var threadMessageCount: Int
     var fetchedAt: Double?
 
