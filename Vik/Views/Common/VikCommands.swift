@@ -59,7 +59,7 @@ struct VikCommands: Commands {
                 guard let coordinator, let email = selectedEmail else { return }
                 Task { await coordinator.actionCoordinator.deleteEmail(email, selectNext: { coordinator.selection.selectNext($0) }) }
             } label: {
-                Label("Delete", systemImage: "trash")
+                Label("Move to Trash", systemImage: "trash")
             }
             .keyboardShortcut(.delete, modifiers: .command)
             .disabled(!hasSelection)
@@ -70,6 +70,7 @@ struct VikCommands: Commands {
             } label: {
                 Label("Move to Inbox", systemImage: "tray.and.arrow.down")
             }
+            .keyboardShortcut("i", modifiers: .command)
             .disabled(!hasSelection || coordinator?.navigation.selectedFolder == .inbox)
 
             Divider()
@@ -160,6 +161,7 @@ struct VikCommands: Commands {
             } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")
             }
+            .keyboardShortcut("r", modifiers: [.command, .option])
 
             Button {
                 coordinator?.navigation.searchFocusTrigger = true

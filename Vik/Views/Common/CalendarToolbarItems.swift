@@ -8,7 +8,7 @@ struct CalendarToolbarItems: ToolbarContent {
             Button(action: onNewEvent) {
                 Label("New Event", systemImage: "calendar.badge.plus")
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.glass)
             .controlSize(.large)
             .help("New Event (\u{2318}N)")
         }

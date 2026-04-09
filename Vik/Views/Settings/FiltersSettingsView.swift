@@ -49,6 +49,8 @@ struct FiltersSettingsView: View {
                 }
                 filterToDelete = nil
             }
+        } message: {
+            Text("Future emails matching this filter will no longer be automatically organized.")
         }
         .task(id: accountID) {
             viewModel = FiltersViewModel(accountID: accountID)

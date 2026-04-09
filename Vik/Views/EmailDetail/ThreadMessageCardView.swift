@@ -4,6 +4,12 @@ import AppKit
 /// Equatable compares only value-type fields — closure properties (onToggle, onOpenLink, etc.)
 /// are excluded because closures cannot conform to Equatable.
 struct ThreadMessageCardView: View, Equatable {
+    // Remote image detection markers — covers `src="http`, `src='http`, and variants with spaces.
+    private static let remoteImageMarker1 = "src=\"http"
+    private static let remoteImageMarker2 = "src='http"
+    private static let remoteImageMarker3 = "src = \"http"
+    private static let remoteImageMarker4 = "src = 'http"
+
     static func == (lhs: ThreadMessageCardView, rhs: ThreadMessageCardView) -> Bool {
         lhs.message.id == rhs.message.id &&
         lhs.fromAddress == rhs.fromAddress &&
@@ -147,7 +153,8 @@ struct ThreadMessageCardView: View, Equatable {
         }
 
         self.cachedFormattedDate = message.date?.formattedRelative
-        self.cachedHasRemoteImages = cachedFullHTML.range(of: #"<img[^>]+src\s*=\s*["']https?://"#, options: .regularExpression) != nil
+        self.cachedHasRemoteImages = cachedFullHTML.contains(Self.remoteImageMarker1) || cachedFullHTML.contains(Self.remoteImageMarker2)
+            || cachedFullHTML.contains(Self.remoteImageMarker3) || cachedFullHTML.contains(Self.remoteImageMarker4)
 
         let attNames = attachmentPairs.prefix(2).map { pair in
             let name = pair.0.name

@@ -51,6 +51,8 @@ struct CalendarEventDetailView: View {
         .alert("Delete Event?", isPresented: $showDeleteConfirmation) {
             Button("Delete", role: .destructive) { onDelete() }
             Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This event will be permanently removed from your calendar.")
         }
         .sensoryFeedback(.success, trigger: rsvpHapticTrigger)
     }
@@ -156,7 +158,7 @@ struct CalendarEventDetailView: View {
         .buttonStyle(.plain)
         .accessibilityLabel("Open location: \(event.location ?? "")")
         .accessibilityHint("Opens in Maps")
-        .scaleEffect(isHoveringLocation ? ScaleToken.hover : 1.0)
+        .scaleEffect(reduceMotion ? 1.0 : (isHoveringLocation ? ScaleToken.hover : 1.0))
         .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHoveringLocation)
         .onHover { isHoveringLocation = $0 }
     }
@@ -183,7 +185,7 @@ struct CalendarEventDetailView: View {
         .buttonStyle(.plain)
         .accessibilityLabel("Join meeting")
         .accessibilityHint("Opens in browser")
-        .scaleEffect(isHoveringConference ? ScaleToken.hover : 1.0)
+        .scaleEffect(reduceMotion ? 1.0 : (isHoveringConference ? ScaleToken.hover : 1.0))
         .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHoveringConference)
         .onHover { isHoveringConference = $0 }
     }
@@ -505,7 +507,7 @@ private struct ActionBarButton: View {
         .buttonStyle(.plain)
         .accessibilityLabel(label)
         .help(label)
-        .scaleEffect(isHovered ? ScaleToken.hover : 1.0)
+        .scaleEffect(reduceMotion ? 1.0 : (isHovered ? ScaleToken.hover : 1.0))
         .animation(reduceMotion ? nil : VikAnimation.springDefault, value: isHovered)
         .onHover { isHovered = $0 }
     }

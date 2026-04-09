@@ -162,6 +162,10 @@ private struct KeyboardEventMonitor: NSViewRepresentable {
                 guard let event = calVM.selectedEvent else { return nil }
                 Task { await calVM.respondToEvent(event, status: .tentative) }
                 return true
+            case "n":
+                guard let event = calVM.selectedEvent else { return nil }
+                Task { await calVM.respondToEvent(event, status: .declined) }
+                return true
             default:
                 return nil
             }

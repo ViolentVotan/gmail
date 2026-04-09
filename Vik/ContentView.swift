@@ -5,7 +5,7 @@ struct ContentView: View {
     var appearanceManager: AppearanceManager
     @State private var coordinator = AppCoordinator()
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
-    @State private var isSidebarCollapsed = false
+    @AppStorage("isSidebarCollapsed") private var isSidebarCollapsed = false
     @State private var commandPalette = CommandPaletteViewModel()
     @State private var showSnoozePicker = false
     @State private var showNewCalendarEvent = false
@@ -328,7 +328,10 @@ struct ContentView: View {
                         newCalendarEventDraft: $newCalendarEventDraft,
                         newEventStartTime: $newEventStartTime
                     )
-                    .transition(.opacity)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .offset(x: OffsetToken.medium)),
+                        removal: .opacity.combined(with: .offset(x: -OffsetToken.medium))
+                    ))
                 } else {
                     ListDetailSplitView(
                         coordinator: coordinator,
@@ -336,7 +339,10 @@ struct ContentView: View {
                         appFocus: appFocus,
                         isSidebarCollapsed: isSidebarCollapsed
                     )
-                    .transition(.opacity)
+                    .transition(.asymmetric(
+                        insertion: .opacity.combined(with: .offset(x: -OffsetToken.medium)),
+                        removal: .opacity.combined(with: .offset(x: OffsetToken.medium))
+                    ))
                 }
             }
             .animation(reduceMotion ? nil : VikAnimation.folderSwitch, value: coordinator.calendar.viewMode)

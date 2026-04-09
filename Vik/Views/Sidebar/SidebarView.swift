@@ -119,8 +119,8 @@ struct SidebarView: View {
     // MARK: - Mode Switcher
 
     private var modeSwitcher: some View {
-        GlassEffectContainer(spacing: 2) {
-            HStack(spacing: 2) {
+        GlassEffectContainer(spacing: Spacing.xxs) {
+            HStack(spacing: Spacing.xxs) {
                 modeSwitcherButton(
                     icon: "envelope.fill",
                     label: "Mail",
@@ -197,7 +197,7 @@ struct SidebarView: View {
             ContentUnavailableView(
                 "Calendar Loading",
                 systemImage: "calendar",
-                description: Text("Sign in to view your calendars.")
+                description: Text("Switch to Calendar to load your calendars.")
             )
             .frame(maxHeight: .infinity)
         }
@@ -618,7 +618,7 @@ private struct SidebarItemModifier: ViewModifier {
                 RoundedRectangle(cornerRadius: CornerRadius.sm)
                     .strokeBorder(Color.accentColor.opacity(isDropTarget ? 0.4 : 0), lineWidth: 1.5)
             )
-            .scaleEffect(isDropTarget ? ScaleToken.rowHover : 1.0)
+            .scaleEffect(reduceMotion ? 1.0 : (isDropTarget ? ScaleToken.rowHover : 1.0))
             .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isHovered)
             .animation(reduceMotion ? nil : VikAnimation.springSnappy, value: isDropTarget)
             .onHover { hovering in onHoverChanged(hovering) }

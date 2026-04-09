@@ -73,7 +73,7 @@ private struct UndoToastCard: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 14) {
+            HStack(spacing: Spacing.lg) {
                 Text(action.label)
                     .font(Typography.bodyMedium)
                     .foregroundStyle(.primary)

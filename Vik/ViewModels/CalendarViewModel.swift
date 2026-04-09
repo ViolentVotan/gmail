@@ -9,7 +9,9 @@ final class CalendarViewModel {
 
     // MARK: - State
 
-    var viewMode: CalendarViewMode = .month
+    var viewMode: CalendarViewMode = .month {
+        didSet { UserDefaults.standard.set(viewMode.rawValue, forKey: "calendarViewMode") }
+    }
     var selectedDate: Date = .now
     var events: [CalendarEvent] = []
     var calendars: [CalendarInfo] = []
@@ -65,6 +67,10 @@ final class CalendarViewModel {
         self.calendarSyncer = CalendarBackgroundSyncer(db: db)
         self.eventService = eventService
         self.listService = listService
+        if let raw = UserDefaults.standard.string(forKey: "calendarViewMode"),
+           let mode = CalendarViewMode(rawValue: raw) {
+            viewMode = mode
+        }
     }
 
     isolated deinit {
@@ -301,12 +307,14 @@ final class CalendarViewModel {
     /// - Parameters:
     ///   - offlineAction: If provided, enqueued when a ``GoogleAPIError/offline`` is caught.
     ///   - operation: The async throwing work to perform.
-    /// - Returns: `true` if the operation succeeded or was queued offline, `false` on error.
+    private enum MutationResult { case committed, queued, failed }
+
+    /// - Returns: `.committed` on real success, `.queued` when offline-enqueued, `.failed` on error.
     @discardableResult
     private func performCalendarMutation(
         offlineAction: CalendarOfflineActionQueue.CalendarOfflineAction? = nil,
         _ operation: () async throws -> Void
-    ) async -> Bool {
+    ) async -> MutationResult {
         isLoading = true
         defer { isLoading = false }
         do {
@@ -316,18 +324,18 @@ final class CalendarViewModel {
                 await CalendarOfflineActionQueue.shared.enqueue(action)
             }
             ToastManager.shared.show(message: "Event queued (will sync when online)")
-            return true
+            return .queued
         } catch {
             Self.logger.error("Calendar mutation failed: \(error.localizedDescription)")
             ToastManager.shared.show(message: error.localizedDescription, type: .error)
-            return false
+            return .failed
         }
         await onEventMutated?()
-        return true
+        return .committed
     }
 
     func createEvent(_ input: CalendarAPIEventInput, calendarId: String, accountID: String) async {
-        await performCalendarMutation(
+        let success = await performCalendarMutation(
             offlineAction: .init(
                 id: UUID(),
                 accountID: accountID,
@@ -340,6 +348,9 @@ final class CalendarViewModel {
                 event: input,
                 accountID: accountID
             )
+        }
+        if success == .committed {
+            ToastManager.shared.show(message: "Event created", type: .success)
         }
     }
 
@@ -354,7 +365,7 @@ final class CalendarViewModel {
     }
 
     func updateEvent(calendarId: String, eventId: String, accountID: String, etag: String?, input: CalendarAPIEventInput) async {
-        await performCalendarMutation(
+        let success = await performCalendarMutation(
             offlineAction: .init(
                 id: UUID(),
                 accountID: accountID,
@@ -375,6 +386,9 @@ final class CalendarViewModel {
                 etag: etag
             )
         }
+        if success == .committed {
+            ToastManager.shared.show(message: "Event updated", type: .success)
+        }
     }
 
     func deleteEvent(_ event: CalendarEvent) async {
@@ -392,7 +406,7 @@ final class CalendarViewModel {
             return
         }
 
-        await performCalendarMutation(
+        let success = await performCalendarMutation(
             offlineAction: .init(
                 id: UUID(),
                 accountID: event.accountID,
@@ -420,6 +434,9 @@ final class CalendarViewModel {
                 throw error
             }
         }
+        if success == .committed {
+            ToastManager.shared.show(message: "Event deleted", type: .success)
+        }
     }
 
     func respondToEvent(_ event: CalendarEvent, status: CalendarRSVPStatus) async {
@@ -438,7 +455,7 @@ final class CalendarViewModel {
             Self.logger.error("Optimistic RSVP update failed: \(error.localizedDescription)")
         }
 
-        await performCalendarMutation(
+        let success = await performCalendarMutation(
             offlineAction: .init(
                 id: UUID(),
                 accountID: event.accountID,
@@ -469,6 +486,10 @@ final class CalendarViewModel {
                 }
                 throw error
             }
+        }
+        if success == .committed {
+            let statusLabel = status == .accepted ? "Accepted" : status == .declined ? "Declined" : "Tentative"
+            ToastManager.shared.show(message: "RSVP: \(statusLabel)", type: .success)
         }
     }
 

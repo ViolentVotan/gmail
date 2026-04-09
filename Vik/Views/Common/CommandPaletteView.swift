@@ -98,7 +98,10 @@ struct CommandPaletteView: View {
         }
         .padding(.horizontal, Spacing.md)
         .padding(.vertical, Spacing.sm)
-        .background(isSelected ? Color.accentColor.opacity(0.25) : .clear)
+        .glassEffect(
+            isSelected ? .regular.interactive() : .identity,
+            in: .rect(cornerRadius: CornerRadius.sm)
+        )
         .contentShape(Rectangle())
         .accessibilityLabel(command.title)
         .accessibilityAddTraits(.isButton)

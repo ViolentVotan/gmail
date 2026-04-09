@@ -42,7 +42,30 @@ final class SelectionCoordinator {
     // MARK: - Actions
 
     func selectNext(_ email: Email?) {
-        selectedEmail = email
+        if let email {
+            selectedEmail = email
+        } else {
+            // Auto-advance to adjacent email when current is removed (archive/delete/snooze/etc.)
+            guard let current = selectedEmail,
+                  let idx = emailIndexMap[current.id] else {
+                selectedEmail = nil
+                return
+            }
+            if idx + 1 < displayedEmails.count {
+                let next = displayedEmails[idx + 1]
+                selectionDirection = .bottom
+                selectedEmail = next
+                selectedEmailIDs = [next.id.uuidString]
+            } else if idx > 0 {
+                let prev = displayedEmails[idx - 1]
+                selectionDirection = .top
+                selectedEmail = prev
+                selectedEmailIDs = [prev.id.uuidString]
+            } else {
+                selectedEmail = nil
+                selectedEmailIDs = []
+            }
+        }
     }
 
     /// Navigate to the previous email in the displayed list.

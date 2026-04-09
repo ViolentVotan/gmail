@@ -221,7 +221,12 @@ final class EmailActionCoordinator {
     func unsubscribeEmail(_ email: Email) {
         guard let url = email.unsubscribeURL else { return }
         SubscriptionsStore.shared.removeEntry(for: email)
-        Task { await UnsubscribeService.shared.unsubscribe(url: url, oneClick: false) }
+        Task {
+            let success = await UnsubscribeService.shared.unsubscribe(url: url, oneClick: false)
+            if success {
+                ToastManager.shared.show(message: "Unsubscribed from \(email.sender.name)", type: .success)
+            }
+        }
     }
 
     func unsubscribe(url: URL, oneClick: Bool, messageID: String?, accountID: String) async -> Bool {
@@ -518,34 +523,38 @@ final class EmailActionCoordinator {
     }
 
     func bulkMarkUnread(_ emails: [Email], onClear: () -> Void) async {
-        await performBulkLabelUpdate(
+        let ok = await performBulkLabelUpdate(
             emails: emails,
             addLabelIDs: [GmailSystemLabel.unread],
             removeLabelIDs: [],
             onClear: onClear
         )
+        if ok { ToastManager.shared.show(message: "\(emails.count) emails marked unread") }
     }
 
     func bulkMarkRead(_ emails: [Email], onClear: () -> Void) async {
-        await performBulkLabelUpdate(
+        let ok = await performBulkLabelUpdate(
             emails: emails,
             addLabelIDs: [],
             removeLabelIDs: [GmailSystemLabel.unread],
             onClear: onClear
         )
+        if ok { ToastManager.shared.show(message: "\(emails.count) emails marked read") }
     }
 
     /// Optimistically updates labels in the DB, calls the Gmail API, and reverts on failure.
     /// Uses `batchModifyLabels` for multiple messages (more efficient) and `modifyLabels` for a single message.
+    /// Returns `true` if the API call succeeded, `false` if it failed and was rolled back.
+    @discardableResult
     private func performBulkLabelUpdate(
         emails: [Email],
         addLabelIDs: [String],
         removeLabelIDs: [String],
         onClear: () -> Void
-    ) async {
+    ) async -> Bool {
         let mutations = mailboxViewModel.labelMutations
         let msgIDs = emails.compactMap(\.gmailMessageID)
-        guard !msgIDs.isEmpty else { return }
+        guard !msgIDs.isEmpty else { return false }
         let originalLabelsMap = await mutations.updateLabelsInDatabaseBatch(msgIDs, addLabelIds: addLabelIDs, removeLabelIds: removeLabelIDs)
         onClear()
         let accountID = mailboxViewModel.accountID
@@ -555,11 +564,13 @@ final class EmailActionCoordinator {
             } else {
                 try await api.batchModifyLabels(ids: msgIDs, add: addLabelIDs, remove: removeLabelIDs, accountID: accountID)
             }
+            return true
         } catch {
             for (id, labels) in originalLabelsMap {
                 await mutations.restoreLabelsInDatabase(id, originalLabelIds: labels)
             }
             ToastManager.shared.show(message: "Failed to update labels", type: .error)
+            return false
         }
     }
 

@@ -68,7 +68,7 @@ private struct CategoryTabButton: View {
         }
         .buttonStyle(.plain)
         .glassEffect(
-            .regular.interactive(),
+            isSelected || isHovered ? .regular.interactive() : .identity,
             in: .capsule
         )
         .glassEffectID(isSelected ? "selectedTab" : category.rawValue, in: tabNamespace)

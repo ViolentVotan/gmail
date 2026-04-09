@@ -101,6 +101,7 @@ struct SettingsView: View {
                     Text("20 seconds").tag(20)
                     Text("30 seconds").tag(30)
                 }
+                .help("How long you have to undo actions like archive, trash, and star before they are committed.")
             }
 
             Section("Privacy") {
@@ -135,6 +136,7 @@ struct SettingsView: View {
         Form {
             Section("Intelligence") {
                 Toggle("AI label suggestions", isOn: $aiLabelSuggestions)
+                    .help("Use Apple Intelligence to suggest labels for incoming emails based on their content.")
             }
 
             Section("Developer") {

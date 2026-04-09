@@ -9,6 +9,7 @@ struct CalendarHeaderView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var cachedDateRangeText: String = ""
+    @State private var viewModeHovers: [CalendarViewMode: Bool] = [:]
 
     var body: some View {
         HStack(spacing: Spacing.sm) {
@@ -95,8 +96,8 @@ struct CalendarHeaderView: View {
     }
 
     private var viewModePicker: some View {
-        GlassEffectContainer(spacing: 2) {
-            HStack(spacing: 2) {
+        GlassEffectContainer(spacing: Spacing.xxs) {
+            HStack(spacing: Spacing.xxs) {
                 ForEach([CalendarViewMode.month, .week, .day, .agenda], id: \.self) { mode in
                     let isSelected = viewModel.viewMode == mode
                     Button {
@@ -112,8 +113,9 @@ struct CalendarHeaderView: View {
                             .contentShape(.rect)
                     }
                     .buttonStyle(.plain)
+                    .onHover { viewModeHovers[mode] = $0 }
                     .glassEffect(
-                        .regular.interactive(),
+                        isSelected || (viewModeHovers[mode] ?? false) ? .regular.interactive() : .identity,
                         in: .capsule
                     )
                     .glassEffectID(isSelected ? "selectedViewMode" : mode.rawValue, in: viewModeNamespace)

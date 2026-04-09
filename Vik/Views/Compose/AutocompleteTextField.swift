@@ -24,7 +24,7 @@ struct AutocompleteTextField: View {
 
     private func recomputeSuggestions() {
         let query = currentSegment.lowercased()
-        guard query.count >= 3 else { suggestions = []; return }
+        guard query.count >= 1 else { suggestions = []; return }
         suggestions = contacts.filter {
             $0.name.lowercased().contains(query) || $0.email.lowercased().contains(query)
         }
@@ -129,9 +129,9 @@ struct AutocompleteTextField: View {
             }
             .padding(.horizontal, Spacing.md)
             .padding(.vertical, Spacing.sm)
-            .background(
-                RoundedRectangle(cornerRadius: CornerRadius.sm)
-                    .fill(isHighlighted ? Color.accentColor.opacity(0.1) : Color.clear)
+            .glassEffect(
+                isHighlighted ? .regular.interactive() : .identity,
+                in: .rect(cornerRadius: CornerRadius.sm)
             )
             .contentShape(Rectangle())
         }

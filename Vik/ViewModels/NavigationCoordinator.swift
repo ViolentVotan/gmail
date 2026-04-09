@@ -13,7 +13,9 @@ final class NavigationCoordinator {
     var selectedAccountID: String? {
         didSet { updateAccountProperties() }
     }
-    var selectedFolder: Folder = .inbox
+    var selectedFolder: Folder = .inbox {
+        didSet { UserDefaults.standard.set(selectedFolder.rawValue, forKey: "selectedFolder") }
+    }
     var selectedInboxCategory: InboxCategory? = .all
     var selectedLabel: GmailLabel?
     var searchResetTrigger = 0
@@ -30,6 +32,12 @@ final class NavigationCoordinator {
 
     init(authViewModel: AuthViewModel) {
         self.authViewModel = authViewModel
+        if let raw = UserDefaults.standard.string(forKey: "selectedFolder"),
+           let folder = Folder(rawValue: raw),
+           folder != .labels {
+            // Skip restoring .labels — it requires selectedLabel which isn't persisted.
+            selectedFolder = folder
+        }
         updateAccountProperties()
     }
 

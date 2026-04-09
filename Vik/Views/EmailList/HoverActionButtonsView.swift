@@ -91,7 +91,7 @@ struct HoverActionButtonsView: View {
             .sensoryFeedback(.impact(flexibility: .soft), trigger: actionTrigger)
             .padding(.trailing, Spacing.sm)
             .opacity(isVisible ? 1 : 0)
-            .scaleEffect(isVisible ? 1 : 0.9, anchor: .trailing)
+            .scaleEffect(reduceMotion ? 1 : (isVisible ? 1 : 0.9), anchor: .trailing)
             .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isVisible)
             .allowsHitTesting(isVisible)
         }
@@ -147,7 +147,7 @@ private struct HoverActionButton: View {
             .primary.opacity(isButtonHovered ? OpacityToken.interactive : 0),
             in: .rect(cornerRadius: CornerRadius.xs)
         )
-        .scaleEffect(isButtonHovered ? ScaleToken.hover : 1)
+        .scaleEffect(reduceMotion ? 1 : (isButtonHovered ? ScaleToken.hover : 1))
         .animation(reduceMotion ? nil : VikAnimation.hoverFeedback, value: isButtonHovered)
         .onHover { isButtonHovered = $0 }
         .help(help)

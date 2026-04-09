@@ -248,7 +248,11 @@ struct CalendarMonthView: View {
                                 viewModel.viewMode = .day
                             },
                             onSelectEvent: actions.onSelectEvent,
-                            onCreateEvent: actions.onCreateEvent
+                            onCreateEvent: actions.onCreateEvent,
+                            onEdit: actions.onEdit,
+                            onDelete: actions.onDelete,
+                            onRSVP: actions.onRSVP,
+                            onEmailAttendees: actions.onEmailAttendees
                         )
                     }
                 }
@@ -270,6 +274,15 @@ struct CalendarMonthView: View {
                     isClippedAtEnd: placement.isClippedAtEnd,
                     onSelect: { actions.onSelectEvent($0) }
                 )
+                .contextMenu {
+                    CalendarEventContextMenu(
+                        event: placement.event,
+                        onEdit: actions.onEdit,
+                        onDelete: actions.onDelete,
+                        onRSVP: actions.onRSVP,
+                        onEmailAttendees: actions.onEmailAttendees
+                    )
+                }
                 .offset(y: CGFloat(placement.rowIndex) * CalendarLayout.monthSpanningBarHeight)
             }
         }
@@ -342,6 +355,10 @@ private struct CalendarMonthDayCell: View {
     let onSwitchToDay: (Date) -> Void
     let onSelectEvent: (CalendarEvent) -> Void
     let onCreateEvent: (Date, Int) -> Void
+    var onEdit: (CalendarEvent) -> Void = { _ in }
+    var onDelete: (CalendarEvent) -> Void = { _ in }
+    var onRSVP: (CalendarEvent, CalendarRSVPStatus) -> Void = { _, _ in }
+    var onEmailAttendees: (CalendarEvent) -> Void = { _ in }
 
     @State private var isHovered = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -353,6 +370,15 @@ private struct CalendarMonthDayCell: View {
             ForEach(content.visibleChips, id: \.id) { event in
                 CalendarMonthEventChip(event: event) { selected in
                     onSelectEvent(selected)
+                }
+                .contextMenu {
+                    CalendarEventContextMenu(
+                        event: event,
+                        onEdit: onEdit,
+                        onDelete: onDelete,
+                        onRSVP: onRSVP,
+                        onEmailAttendees: onEmailAttendees
+                    )
                 }
             }
 

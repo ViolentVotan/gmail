@@ -536,7 +536,7 @@ private struct AttendeeChip: View {
             .accessibilityLabel("Remove \(email)")
         }
         .padding(.horizontal, Spacing.xs)
-        .padding(.vertical, 3)
+        .padding(.vertical, Spacing.xxs)
         .background(Color.secondary.opacity(OpacityToken.tag))
         .clipShape(.rect(cornerRadius: CornerRadius.sm))
     }

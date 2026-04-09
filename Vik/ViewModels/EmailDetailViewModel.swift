@@ -681,8 +681,12 @@ final class EmailDetailViewModel {
         onPreviewAttachment: ((Data?, String, Attachment.FileType) -> Void)?
     ) async {
         onPreviewAttachment?(nil, attachment.name, attachment.fileType)
-        guard let data = try? await downloadAttachment(messageID: messageID, part: part) else { return }
-        onPreviewAttachment?(data, attachment.name, attachment.fileType)
+        do {
+            let data = try await downloadAttachment(messageID: messageID, part: part)
+            onPreviewAttachment?(data, attachment.name, attachment.fileType)
+        } catch {
+            ToastManager.shared.show(message: "Preview failed: \(error.localizedDescription)", type: .error)
+        }
     }
 
     func downloadAndSave(

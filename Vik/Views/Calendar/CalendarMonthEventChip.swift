@@ -30,7 +30,7 @@ struct CalendarMonthEventChip: View {
 
     var body: some View {
         Button { onSelect(event) } label: {
-            HStack(spacing: 3) {
+            HStack(spacing: Spacing.xxs) {
                 if !event.isAllDay {
                     Circle()
                         .fill(event.resolvedColor)

@@ -64,12 +64,12 @@ struct BulkActionBarView: View {
                 actionButton(icon: "archivebox", label: "Archive", action: onArchive)
             }
             if selectedFolder != .trash {
-                actionButton(icon: "trash", label: "Delete", action: { showDeleteConfirmation = true }, destructive: true)
-                    .alert("Delete \(count) email\(count == 1 ? "" : "s")?", isPresented: $showDeleteConfirmation) {
-                        Button("Delete", role: .destructive) { onDelete() }
+                actionButton(icon: "trash", label: "Move to Trash", action: { showDeleteConfirmation = true }, destructive: true)
+                    .alert("Move \(count) email\(count == 1 ? "" : "s") to Trash?", isPresented: $showDeleteConfirmation) {
+                        Button("Move to Trash", role: .destructive) { onDelete() }
                         Button("Cancel", role: .cancel) { }
                     } message: {
-                        Text("This will move the selected emails to Trash.")
+                        Text("You can recover these emails from Trash.")
                     }
             }
             actionButton(icon: "envelope.badge", label: "Unread", action: onMarkUnread)

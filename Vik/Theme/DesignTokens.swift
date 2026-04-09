@@ -237,6 +237,8 @@ enum OffsetToken {
     static let nudge: CGFloat = 4
     /// Pop-in animations, small reveals
     static let small: CGFloat = 12
+    /// Major context switches (folder, mode)
+    static let medium: CGFloat = 24
 }
 
 // MARK: - Duration Tokens

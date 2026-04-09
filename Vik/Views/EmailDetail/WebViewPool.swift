@@ -44,6 +44,7 @@ final class WebViewPool {
                 arguments: [:],
                 contentWorld: .page
             )
+            guard available.count < 3 else { return }
             available.append(webView)
         }
     }

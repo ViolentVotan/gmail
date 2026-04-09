@@ -30,7 +30,7 @@ struct EmailToolbarItems: ToolbarContent {
                 Button { onCompose() } label: {
                     Label("Compose", systemImage: "square.and.pencil")
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.glass)
                 .controlSize(.large)
                 .help("Compose (\u{2318}N)")
             }
@@ -45,7 +45,7 @@ struct EmailToolbarItems: ToolbarContent {
                         Label("Reply", systemImage: "arrowshape.turn.up.left")
                     }
                     .buttonStyle(.glass)
-                    .help("Reply")
+                    .help("Reply (\u{2318}R)")
 
                     if selectedFolder != .archive {
                         Button {
@@ -61,10 +61,10 @@ struct EmailToolbarItems: ToolbarContent {
                         Button {
                             onDelete(email)
                         } label: {
-                            Label("Delete", systemImage: "trash")
+                            Label("Move to Trash", systemImage: "trash")
                         }
                         .buttonStyle(.glass)
-                        .help("Delete (\u{2318}\u{232B})")
+                        .help("Move to Trash (\u{2318}\u{232B})")
                     }
 
                     Button {
@@ -101,7 +101,7 @@ struct EmailToolbarItems: ToolbarContent {
                         Button {
                             onToggleStar(email)
                         } label: {
-                            Label(email.isStarred ? "Remove from Favorites" : "Add to Favorites", systemImage: email.isStarred ? "star.slash" : "star")
+                            Label(email.isStarred ? "Remove Star" : "Add Star", systemImage: email.isStarred ? "star.slash" : "star")
                         }
 
                         Button {
