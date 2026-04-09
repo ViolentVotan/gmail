@@ -92,8 +92,8 @@ final class CalendarOfflineActionQueue {
                 try? await Task.sleep(for: .seconds(max(retryAfter, 2)))
                 break
             } catch GoogleAPIError.tokenRevoked, GoogleAPIError.unauthorized {
-                Self.logger.warning("Auth failure for calendar action \(action.id) — discarding")
-                processed.append(action.id)
+                Self.logger.warning("Auth failure for calendar action \(action.id) — keeping queued, stopping drain")
+                break
             } catch let error where error.isNonRetriable {
                 Self.logger.warning("Discarding calendar offline action \(action.id) (non-retriable): \(error)")
                 processed.append(action.id)

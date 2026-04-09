@@ -142,6 +142,14 @@ actor CalendarSyncEngine {
                     switch error {
                     case .tokenRevoked, .unauthorized:
                         Self.logger.error("Auth failure in calendar sync — stopping engine")
+                        // Clean up sibling tasks so start() can be called again after reauth
+                        self.calendarListSyncTask?.cancel()
+                        self.calendarListSyncTask = nil
+                        self.postEditRevertTask?.cancel()
+                        self.postEditRevertTask = nil
+                        self.triggeredSyncTask?.cancel()
+                        self.triggeredSyncTask = nil
+                        self.syncTask = nil
                         return
                     default:
                         if self.consecutiveFailures >= Self.maxConsecutiveFailures {
