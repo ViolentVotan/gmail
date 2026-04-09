@@ -439,13 +439,13 @@ struct CalendarEventEditorView: View {
 
             VStack(spacing: Spacing.sm) {
                 RecurringScopeButton(label: "This event", subtitle: "Only this occurrence") {
-                    viewModel.commitSave(scope: .thisEvent, onSave: onSave)
+                    viewModel.commitSave(editDraft: editDraft, scope: .thisEvent, onSave: onSave)
                 }
                 RecurringScopeButton(label: "This and following events", subtitle: "This and all future occurrences") {
-                    viewModel.commitSave(scope: .thisAndFollowing, onSave: onSave)
+                    viewModel.commitSave(editDraft: editDraft, scope: .thisAndFollowing, onSave: onSave)
                 }
                 RecurringScopeButton(label: "All events", subtitle: "Every occurrence of this event") {
-                    viewModel.commitSave(scope: .allEvents, onSave: onSave)
+                    viewModel.commitSave(editDraft: editDraft, scope: .allEvents, onSave: onSave)
                 }
             }
 

@@ -26,7 +26,7 @@ protocol CalendarEventMutating: Sendable {
     @discardableResult
     @concurrent func respondToEvent(calendarId: String, eventId: String, accountID: String, status: String, sendUpdates: String?) async throws(GoogleAPIError) -> CalendarAPIEvent
     @discardableResult
-    @concurrent func quickAdd(calendarId: String, text: String, accountID: String) async throws(GoogleAPIError) -> CalendarAPIEvent
+    @concurrent func quickAdd(calendarId: String, text: String, accountID: String, sendUpdates: String?) async throws(GoogleAPIError) -> CalendarAPIEvent
 }
 
 // MARK: - CalendarEventMutating defaults
@@ -49,6 +49,11 @@ extension CalendarEventMutating {
     @discardableResult
     func respondToEvent(calendarId: String, eventId: String, accountID: String, status: String, sendUpdates: String? = "all") async throws(GoogleAPIError) -> CalendarAPIEvent {
         try await respondToEvent(calendarId: calendarId, eventId: eventId, accountID: accountID, status: status, sendUpdates: sendUpdates)
+    }
+
+    @discardableResult
+    func quickAdd(calendarId: String, text: String, accountID: String, sendUpdates: String? = "all") async throws(GoogleAPIError) -> CalendarAPIEvent {
+        try await quickAdd(calendarId: calendarId, text: text, accountID: accountID, sendUpdates: sendUpdates)
     }
 }
 

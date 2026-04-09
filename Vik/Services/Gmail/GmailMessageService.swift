@@ -8,6 +8,14 @@ final class GmailMessageService {
     private let client = GmailAPIClient.shared
     private let encoder = JSONEncoder()
 
+    private struct WatchRequest: Encodable {
+        let topicName: String
+        var labelIds: [String]?
+        var labelFilterBehavior: String?
+    }
+
+    nonisolated private static let batchDeleteQuotaCost = 50
+
     /// Field masks for message formats, avoiding repetition across getMessage/getMessages.
     private enum MessageFields {
         static func fields(for format: String) -> String? {
@@ -125,29 +133,18 @@ final class GmailMessageService {
         topicName: String,
         labelIds: [String]? = nil
     ) async throws(GoogleAPIError) -> GmailWatchResponse {
-        struct WatchRequest: Encodable {
-            let topicName: String
-            var labelIds: [String]?
-            var labelFilterBehavior: String?
-        }
-        var payload = WatchRequest(topicName: topicName)
-        if let labelIds {
-            payload.labelIds = labelIds
-            payload.labelFilterBehavior = "INCLUDE"
-        }
-        let jsonData: Data
         do {
-            jsonData = try encoder.encode(payload)
+            let jsonData = try Self.watchRequestPayload(topicName: topicName, labelIds: labelIds)
+            return try await client.request(
+                path: "/users/me/watch",
+                method: "POST",
+                body: jsonData,
+                contentType: "application/json",
+                accountID: accountID
+            )
         } catch {
             throw .encodingError(error)
         }
-        return try await client.request(
-            path: "/users/me/watch",
-            method: "POST",
-            body: jsonData,
-            contentType: "application/json",
-            accountID: accountID
-        )
     }
 
     /// Stops receiving push notifications for the user's mailbox.
@@ -219,7 +216,7 @@ final class GmailMessageService {
         var failedIDs: [String] = []
         for batch in stride(from: 0, to: ids.count, by: chunkSize) {
             let chunk = Array(ids[batch..<min(batch + chunkSize, ids.count)])
-            await QuotaTracker.shared.waitForBudget(min(ids.count, chunkSize))
+            await QuotaTracker.shared.waitForBudget(Self.batchDeleteQuotaUnits(forBatchSize: chunk.count))
             do {
                 struct BatchDeleteRequest: Encodable { let ids: [String] }
                 let body = try encoder.encode(BatchDeleteRequest(ids: chunk))
@@ -243,6 +240,19 @@ final class GmailMessageService {
         if !failedIDs.isEmpty {
             throw .partialFailure(failedCount: failedIDs.count)
         }
+    }
+
+    nonisolated static func watchRequestPayload(topicName: String, labelIds: [String]?) throws -> Data {
+        var payload = WatchRequest(topicName: topicName)
+        if let labelIds, !labelIds.isEmpty {
+            payload.labelIds = labelIds
+            payload.labelFilterBehavior = "include"
+        }
+        return try JSONEncoder().encode(payload)
+    }
+
+    nonisolated static func batchDeleteQuotaUnits(forBatchSize batchSize: Int) -> Int {
+        batchSize > 0 ? batchDeleteQuotaCost : 0
     }
 
     @concurrent func spamMessage(id: String, accountID: String) async throws(GoogleAPIError) {

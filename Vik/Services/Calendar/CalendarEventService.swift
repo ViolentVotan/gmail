@@ -27,12 +27,19 @@ final class CalendarEventService {
 
     nonisolated private static let jsonEncoder = JSONEncoder()
 
+    struct PreparedMutationRequest {
+        let method: String
+        let body: Data
+        let queryItems: [URLQueryItem]
+        let extraHeaders: [String: String]?
+    }
+
     nonisolated private static let eventFieldMask =
-        "items(id,status,htmlLink,created,updated,summary,description,location,colorId,creator,organizer,start,end,recurrence,recurringEventId,transparency,visibility,iCalUID,sequence,attendees,conferenceData,reminders,attachments,eventType,etag,hangoutLink,guestsCanModify,extendedProperties),nextPageToken,nextSyncToken"
+        "items(id,status,htmlLink,created,updated,summary,description,location,colorId,creator,organizer,start,end,recurrence,recurringEventId,originalStartTime,transparency,visibility,iCalUID,sequence,attendees,attendeesOmitted,conferenceData,reminders,attachments,eventType,etag,hangoutLink,guestsCanModify,guestsCanInviteOthers,guestsCanSeeOtherGuests,extendedProperties),nextPageToken,nextSyncToken"
 
     /// Field mask for single-event endpoints (getEvent, insertEvent, updateEvent, quickAdd, moveEvent).
     nonisolated private static let singleEventFieldMask =
-        "id,status,htmlLink,created,updated,summary,description,location,colorId,creator,organizer,start,end,recurrence,recurringEventId,transparency,visibility,iCalUID,sequence,attendees,conferenceData,reminders,attachments,eventType,etag,hangoutLink,guestsCanModify,extendedProperties"
+        "id,status,htmlLink,created,updated,summary,description,location,colorId,creator,organizer,start,end,recurrence,recurringEventId,originalStartTime,transparency,visibility,iCalUID,sequence,attendees,attendeesOmitted,conferenceData,reminders,attachments,eventType,etag,hangoutLink,guestsCanModify,guestsCanInviteOthers,guestsCanSeeOtherGuests,extendedProperties"
 
     // MARK: - List
 
@@ -117,31 +124,31 @@ final class CalendarEventService {
         conferenceDataVersion: Int? = nil,
         sendUpdates: String? = "all"
     ) async throws(GoogleAPIError) -> CalendarAPIEvent {
-        let body: Data
+        let request: PreparedMutationRequest
         do {
-            body = try Self.jsonEncoder.encode(event)
+            request = try Self.prepareMutationRequest(
+                event: event,
+                method: "POST",
+                etag: nil,
+                conferenceDataVersion: conferenceDataVersion,
+                sendUpdates: sendUpdates
+            )
         } catch {
             throw .encodingError(error)
         }
-        var queryItems = [URLQueryItem(name: "fields", value: Self.singleEventFieldMask)]
-        if let version = conferenceDataVersion {
-            queryItems.append(URLQueryItem(name: "conferenceDataVersion", value: "\(version)"))
-        }
-        if let sendUpdates {
-            queryItems.append(URLQueryItem(name: "sendUpdates", value: sendUpdates))
-        }
         return try await client.request(
             path: "/calendars/\(Self.encodePath(calendarId))/events",
-            method: "POST",
-            body: body,
-            queryItems: queryItems,
+            method: request.method,
+            body: request.body,
+            queryItems: request.queryItems,
+            extraHeaders: request.extraHeaders,
             accountID: accountID
         )
     }
 
     // MARK: - Update
 
-    /// Replaces an event (PUT). Sends the full event representation.
+    /// Partially updates an event using PATCH semantics.
     /// If an etag is provided, sends `If-Match` for optimistic concurrency control.
     @concurrent func updateEvent(
         calendarId: String,
@@ -152,29 +159,24 @@ final class CalendarEventService {
         conferenceDataVersion: Int? = nil,
         sendUpdates: String? = "all"
     ) async throws(GoogleAPIError) -> CalendarAPIEvent {
-        let body: Data
+        let request: PreparedMutationRequest
         do {
-            body = try Self.jsonEncoder.encode(event)
+            request = try Self.prepareMutationRequest(
+                event: event,
+                method: "PUT",
+                etag: etag,
+                conferenceDataVersion: conferenceDataVersion,
+                sendUpdates: sendUpdates
+            )
         } catch {
             throw .encodingError(error)
         }
-        var headers: [String: String]? = nil
-        if let etag {
-            headers = ["If-Match": etag]
-        }
-        var queryItems = [URLQueryItem(name: "fields", value: Self.singleEventFieldMask)]
-        if let version = conferenceDataVersion {
-            queryItems.append(URLQueryItem(name: "conferenceDataVersion", value: "\(version)"))
-        }
-        if let sendUpdates {
-            queryItems.append(URLQueryItem(name: "sendUpdates", value: sendUpdates))
-        }
         return try await client.request(
             path: "/calendars/\(Self.encodePath(calendarId))/events/\(Self.encodePath(eventId))",
-            method: "PUT",
-            body: body,
-            queryItems: queryItems,
-            extraHeaders: headers,
+            method: request.method,
+            body: request.body,
+            queryItems: request.queryItems,
+            extraHeaders: request.extraHeaders,
             accountID: accountID
         )
     }
@@ -235,18 +237,60 @@ final class CalendarEventService {
     @concurrent func quickAdd(
         calendarId: String,
         text: String,
-        accountID: String
+        accountID: String,
+        sendUpdates: String? = "all"
     ) async throws(GoogleAPIError) -> CalendarAPIEvent {
-        let queryItems = [
-            URLQueryItem(name: "text", value: text),
-            URLQueryItem(name: "fields", value: Self.singleEventFieldMask),
-        ]
+        let queryItems = Self.quickAddQueryItems(text: text, sendUpdates: sendUpdates)
         return try await client.request(
             path: "/calendars/\(Self.encodePath(calendarId))/events/quickAdd",
             method: "POST",
             queryItems: queryItems,
             accountID: accountID
         )
+    }
+
+    nonisolated static func prepareMutationRequest(
+        event: CalendarAPIEventInput,
+        method: String,
+        etag: String?,
+        conferenceDataVersion: Int? = nil,
+        sendUpdates: String? = "all"
+    ) throws -> PreparedMutationRequest {
+        var queryItems = [URLQueryItem(name: "fields", value: singleEventFieldMask)]
+        let effectiveConferenceDataVersion = conferenceDataVersion ?? inferredConferenceDataVersion(for: event)
+        if let version = effectiveConferenceDataVersion {
+            queryItems.append(URLQueryItem(name: "conferenceDataVersion", value: "\(version)"))
+        }
+        if event.attachments?.isEmpty == false {
+            queryItems.append(URLQueryItem(name: "supportsAttachments", value: "true"))
+        }
+        if let sendUpdates {
+            queryItems.append(URLQueryItem(name: "sendUpdates", value: sendUpdates))
+        }
+        return PreparedMutationRequest(
+            method: method == "PUT" ? "PATCH" : method,
+            body: try jsonEncoder.encode(event),
+            queryItems: queryItems,
+            extraHeaders: etag.map { ["If-Match": $0] }
+        )
+    }
+
+    nonisolated static func quickAddQueryItems(
+        text: String,
+        sendUpdates: String? = "all"
+    ) -> [URLQueryItem] {
+        var queryItems = [
+            URLQueryItem(name: "text", value: text),
+            URLQueryItem(name: "fields", value: singleEventFieldMask),
+        ]
+        if let sendUpdates {
+            queryItems.append(URLQueryItem(name: "sendUpdates", value: sendUpdates))
+        }
+        return queryItems
+    }
+
+    nonisolated private static func inferredConferenceDataVersion(for event: CalendarAPIEventInput) -> Int? {
+        event.conferenceData == nil ? nil : 1
     }
 
     // MARK: - RSVP

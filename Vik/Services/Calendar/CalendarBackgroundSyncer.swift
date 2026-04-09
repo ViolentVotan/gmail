@@ -72,21 +72,14 @@ actor CalendarBackgroundSyncer {
     func upsertEvents(_ events: [CalendarEventRecord], attendees: [CalendarAttendeeRecord]) async throws {
         guard !events.isEmpty else { return }
         try await db.dbPool.write { db in
-            // Track which events we've already cleared attendees for
-            // to avoid redundant deletes when the same event appears multiple times.
-            var clearedEvents: Set<EventKey> = []
-
+            let eventKeys = Array(Set(events.map {
+                EventKey(eventId: $0.eventId, calendarId: $0.calendarId, accountId: $0.accountId)
+            }))
             for event in events {
                 try event.upsert(db)
-
-                let key = EventKey(eventId: event.eventId, calendarId: event.calendarId, accountId: event.accountId)
-                if clearedEvents.insert(key).inserted {
-                    try CalendarAttendeeRecord
-                        .filter(Column("event_id") == event.eventId)
-                        .filter(Column("calendar_id") == event.calendarId)
-                        .filter(Column("account_id") == event.accountId)
-                        .deleteAll(db)
-                }
+            }
+            if !eventKeys.isEmpty {
+                try Self.deleteAttendees(for: eventKeys, in: db)
             }
 
             for attendee in attendees {
@@ -271,5 +264,16 @@ actor CalendarBackgroundSyncer {
         let eventId: String
         let calendarId: String
         let accountId: String
+    }
+
+    private nonisolated static func deleteAttendees(for eventKeys: [EventKey], in db: Database) throws {
+        let conditions = eventKeys.map { _ in
+            "(event_id = ? AND calendar_id = ? AND account_id = ?)"
+        }.joined(separator: " OR ")
+        let args: [DatabaseValueConvertible] = eventKeys.flatMap { [$0.eventId, $0.calendarId, $0.accountId] }
+        try db.execute(
+            sql: "DELETE FROM calendar_attendees WHERE \(conditions)",
+            arguments: StatementArguments(args)
+        )
     }
 }

@@ -62,6 +62,8 @@ import SwiftUI
             || location != (draft.location ?? "")
             || eventDescription != (draft.description ?? "")
             || attendeeEntries.map(\.email) != draft.attendeeEmails
+            || reminders.map { EventReminder(method: $0.method, minutes: $0.minutes) } != draft.reminders
+            || addGoogleMeet != draft.hasConferenceLink
             || colorId != draft.colorId
     }
 
@@ -78,10 +80,11 @@ import SwiftUI
             return
         }
 
-        commitSave(scope: nil, onSave: onSave)
+        commitSave(editDraft: editDraft, scope: nil, onSave: onSave)
     }
 
     func commitSave(
+        editDraft: EventEditDraft?,
         scope: RecurringEditScope?,
         onSave: (CalendarAPIEventInput, String?, RecurringEditScope?) -> Void
     ) {
@@ -95,21 +98,55 @@ import SwiftUI
             ? CalendarAPIDateTime(date: endTime.formattedAllDayISO, dateTime: nil, timeZone: nil)
             : CalendarAPIDateTime(date: nil, dateTime: endTime.rfc3339String, timeZone: TimeZone.current.identifier)
 
-        let attendeeInputs = attendeeEntries.map { CalendarAPIAttendeeInput(email: $0.email) }
+        let attendeeEmails = attendeeEntries.map(\.email)
+        let attendeeInputs = attendeeEmails.map { CalendarAPIAttendeeInput(email: $0) }
 
         let reminderOverrides = reminders.map { r in
             CalendarAPIReminderOverride(method: r.method.rawValue, minutes: r.minutes)
         }
 
+        let currentReminders = reminders.map { EventReminder(method: $0.method, minutes: $0.minutes) }
+
+        let descriptionValue: String? = if let editDraft {
+            eventDescription == (editDraft.description ?? "") ? nil : eventDescription
+        } else {
+            eventDescription.isEmpty ? nil : eventDescription
+        }
+
+        let locationValue: String? = if let editDraft {
+            location == (editDraft.location ?? "") ? nil : location
+        } else {
+            location.isEmpty ? nil : location
+        }
+
+        let attendeeValue: [CalendarAPIAttendeeInput]? = if let editDraft {
+            attendeeEmails == editDraft.attendeeEmails ? nil : attendeeInputs
+        } else {
+            attendeeInputs.isEmpty ? nil : attendeeInputs
+        }
+
+        let reminderValue: CalendarAPIReminders? = if let editDraft {
+            currentReminders == editDraft.reminders
+                ? nil
+                : CalendarAPIReminders(useDefault: false, overrides: reminderOverrides)
+        } else {
+            CalendarAPIReminders(useDefault: false, overrides: reminderOverrides)
+        }
+
+        let conferenceData: CalendarAPIConferenceData? =
+            addGoogleMeet && !(editDraft?.hasConferenceLink ?? false)
+                ? Self.googleMeetConferenceData()
+                : nil
+
         let input = CalendarAPIEventInput(
             summary: summary,
-            description: eventDescription.isEmpty ? nil : eventDescription,
-            location: location.isEmpty ? nil : location,
+            description: descriptionValue,
+            location: locationValue,
             start: startDTO,
             end: endDTO,
-            attendees: attendeeInputs.isEmpty ? nil : attendeeInputs,
-            reminders: CalendarAPIReminders(useDefault: false, overrides: reminderOverrides),
-            conferenceData: nil,
+            attendees: attendeeValue,
+            reminders: reminderValue,
+            conferenceData: conferenceData,
             colorId: colorId,
             recurrence: recurrence.rruleStrings(for: startTime),
             transparency: showAs == .free ? "transparent" : nil,
@@ -160,8 +197,24 @@ import SwiftUI
         endTime = draft.endTime
         isAllDay = draft.isAllDay
         attendeeEntries = draft.attendeeEmails.map { AttendeeEntry(email: $0) }
+        reminders = draft.reminders.map { DraftReminder(method: $0.method, minutes: $0.minutes) }
+        addGoogleMeet = draft.hasConferenceLink
         colorId = draft.colorId
         selectedCalendarID = draft.calendarId
+    }
+
+    private static func googleMeetConferenceData() -> CalendarAPIConferenceData {
+        CalendarAPIConferenceData(
+            createRequest: CalendarAPICreateConferenceRequest(
+                requestId: UUID().uuidString,
+                conferenceSolutionKey: CalendarAPIConferenceSolutionKey(type: "hangoutsMeet")
+            ),
+            entryPoints: nil,
+            conferenceSolution: nil,
+            conferenceId: nil,
+            signature: nil,
+            notes: nil
+        )
     }
 
     func roundToNextHour(_ date: Date) -> Date {

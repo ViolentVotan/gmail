@@ -349,15 +349,9 @@ actor CalendarSyncEngine {
     // MARK: - Incremental Sync
 
     /// Result of fetching incremental changes for a single calendar.
-    /// Produced off-actor by the task group, consumed on-actor for DB writes.
+    /// Produced off-actor by the task group after each calendar has streamed its own DB writes.
     private enum IncrementalFetchResult: Sendable {
-        case success(
-            calendarId: String,
-            calendarTimeZone: String?,
-            cancelled: [CalendarAPIEvent],
-            active: [CalendarAPIEvent],
-            syncToken: String?
-        )
+        case success(calendarId: String)
         case gone(calendarId: String, calendarTimeZone: String?)
         case failed(calendarId: String, errorDescription: String)
     }
@@ -374,6 +368,7 @@ actor CalendarSyncEngine {
             // Capture actor properties for use in off-actor task group closures
             let eventService = self.eventService
             let accountID = self.accountID
+            let syncer = self.syncer
 
             let calendars = try await db.dbPool.read { db in
                 try MailDatabaseQueries.visibleCalendars(accountId: accountID, in: db)
@@ -404,12 +399,13 @@ actor CalendarSyncEngine {
                     let calTZ = calendar.timeZone
                     let syncToken = calendar.syncToken!
                     group.addTask {
-                        await Self.fetchIncrementalChanges(
+                        await Self.syncIncrementalCalendar(
                             calendarId: calId,
                             calendarTimeZone: calTZ,
                             syncToken: syncToken,
                             accountID: accountID,
-                            eventService: eventService
+                            eventService: eventService,
+                            syncer: syncer
                         )
                     }
                     inFlight += 1
@@ -422,31 +418,11 @@ actor CalendarSyncEngine {
                 return collected
             }
 
-            // Process results on-actor (DB writes, sync token updates, 410 recovery)
+            // Process results on-actor (410 recovery, error handling)
             for result in results {
                 switch result {
-                case .success(let calendarId, let calendarTimeZone, let cancelled, let active, let syncToken):
-                    if !cancelled.isEmpty {
-                        let deleteIds = cancelled.compactMap { event -> (eventId: String, calendarId: String, accountId: String)? in
-                            guard let id = event.id else { return nil }
-                            return (eventId: id, calendarId: calendarId, accountId: accountID)
-                        }
-                        try await syncer.deleteEvents(deleteIds)
-                    }
-
-                    if !active.isEmpty {
-                        let (eventRecords, attendeeRecords) = Self.convertToRecords(
-                            events: active, calendarId: calendarId, accountId: accountID,
-                            calendarTimeZone: calendarTimeZone
-                        )
-                        try await syncer.upsertEvents(eventRecords, attendees: attendeeRecords)
-                    }
-
-                    if let syncToken {
-                        try await syncer.updateSyncToken(
-                            calendarId: calendarId, accountId: accountID, token: syncToken
-                        )
-                    }
+                case .success:
+                    continue
 
                 case .gone(let calendarId, let calendarTimeZone):
                     // SyncToken expired — clear stale events and trigger full resync for this calendar
@@ -497,18 +473,17 @@ actor CalendarSyncEngine {
         }
     }
 
-    /// Fetches incremental changes for a single calendar. Runs off-actor (nonisolated)
-    /// so multiple calendars can be fetched concurrently in a task group.
-    private nonisolated static func fetchIncrementalChanges(
+    /// Fetches and applies incremental changes for a single calendar page-by-page.
+    /// Runs off-actor so multiple calendars can be processed concurrently in a task group.
+    private nonisolated static func syncIncrementalCalendar(
         calendarId: String,
         calendarTimeZone: String?,
         syncToken: String,
         accountID: String,
-        eventService: any CalendarEventFetching
+        eventService: any CalendarEventFetching,
+        syncer: CalendarBackgroundSyncer
     ) async -> IncrementalFetchResult {
         do {
-            var allCancelled: [CalendarAPIEvent] = []
-            var allActive: [CalendarAPIEvent] = []
             var pageToken: String? = nil
             var finalSyncToken: String? = nil
             var isFirstPage = true
@@ -525,30 +500,58 @@ actor CalendarSyncEngine {
                 )
                 isFirstPage = false
 
-                let items = response.items ?? []
-                for item in items {
-                    if item.status == "cancelled" {
-                        allCancelled.append(item)
-                    } else {
-                        allActive.append(item)
-                    }
-                }
+                try await applyIncrementalPage(
+                    response.items ?? [],
+                    calendarId: calendarId,
+                    accountId: accountID,
+                    calendarTimeZone: calendarTimeZone,
+                    syncer: syncer
+                )
 
                 pageToken = response.nextPageToken
                 if response.nextSyncToken != nil { finalSyncToken = response.nextSyncToken }
             } while pageToken != nil
 
-            return .success(
-                calendarId: calendarId,
-                calendarTimeZone: calendarTimeZone,
-                cancelled: allCancelled,
-                active: allActive,
-                syncToken: finalSyncToken
-            )
+            if let finalSyncToken {
+                try await syncer.updateSyncToken(
+                    calendarId: calendarId,
+                    accountId: accountID,
+                    token: finalSyncToken
+                )
+            }
+
+            return .success(calendarId: calendarId)
         } catch GoogleAPIError.gone {
             return .gone(calendarId: calendarId, calendarTimeZone: calendarTimeZone)
         } catch {
             return .failed(calendarId: calendarId, errorDescription: String(describing: error))
+        }
+    }
+
+    nonisolated static func applyIncrementalPage(
+        _ items: [CalendarAPIEvent],
+        calendarId: String,
+        accountId: String,
+        calendarTimeZone: String?,
+        syncer: CalendarBackgroundSyncer
+    ) async throws {
+        let deleteIds = items.compactMap { event -> (eventId: String, calendarId: String, accountId: String)? in
+            guard event.status == "cancelled", let id = event.id else { return nil }
+            return (eventId: id, calendarId: calendarId, accountId: accountId)
+        }
+        if !deleteIds.isEmpty {
+            try await syncer.deleteEvents(deleteIds)
+        }
+
+        let active = items.filter { $0.status != "cancelled" }
+        if !active.isEmpty {
+            let (eventRecords, attendeeRecords) = convertToRecords(
+                events: active,
+                calendarId: calendarId,
+                accountId: accountId,
+                calendarTimeZone: calendarTimeZone
+            )
+            try await syncer.upsertEvents(eventRecords, attendees: attendeeRecords)
         }
     }
 

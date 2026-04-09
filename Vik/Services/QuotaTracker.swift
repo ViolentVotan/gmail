@@ -27,6 +27,7 @@ actor QuotaTracker {
     private let interactiveReserve: Int
 
     private var ledger: [(timestamp: Date, units: Int)] = []
+    private var ledgerStartIndex = 0
     private var _cachedSpend: Int = 0
 
     init(budgetPerMinute: Int = 15_000, interactiveReserve: Int = 0) {
@@ -84,10 +85,14 @@ actor QuotaTracker {
     /// Removes entries older than 60 seconds, subtracting their units from the cached spend.
     private func pruneIfNeeded() {
         let cutoff = Date().addingTimeInterval(-60)
-        guard let oldest = ledger.first, oldest.timestamp < cutoff else { return }
-        while let first = ledger.first, first.timestamp < cutoff {
-            _cachedSpend -= first.units
-            ledger.removeFirst()
+        guard ledgerStartIndex < ledger.count, ledger[ledgerStartIndex].timestamp < cutoff else { return }
+        while ledgerStartIndex < ledger.count, ledger[ledgerStartIndex].timestamp < cutoff {
+            _cachedSpend -= ledger[ledgerStartIndex].units
+            ledgerStartIndex += 1
+        }
+        if ledgerStartIndex > 64, ledgerStartIndex * 2 >= ledger.count {
+            ledger.removeFirst(ledgerStartIndex)
+            ledgerStartIndex = 0
         }
     }
 }
