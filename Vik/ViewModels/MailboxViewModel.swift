@@ -158,6 +158,7 @@ final class MailboxViewModel {
             } catch is CancellationError {
                 // Normal task cancellation (e.g. folder/account switch) — not an error
             } catch {
+                self?.isLoading = false
                 ToastManager.shared.show(message: "Database observation failed: \(error.localizedDescription)", type: .error)
             }
         }
@@ -190,6 +191,7 @@ final class MailboxViewModel {
                 // AND we haven't already loaded all available messages
                 self.hasMoreEmails = fetchedCount >= limit
                 self.isLoadingMore = false
+                self.isLoading = false
                 self.emails = threadEmails
             }
         }
@@ -206,7 +208,9 @@ final class MailboxViewModel {
             hasher.combine(row.message.historyId)
             hasher.combine(row.message.isRead)
             hasher.combine(row.message.isStarred)
-            hasher.combine(row.labels.count)
+            for label in row.labels {
+                hasher.combine(label.gmailId)
+            }
         }
         return hasher.finalize()
     }
@@ -247,6 +251,7 @@ final class MailboxViewModel {
 
         // DB-only path: start observing the label(s)
         if !labelIDs.isEmpty, mailDatabase != nil {
+            if emails.isEmpty { isLoading = true }
             startObservingLabels(labelIDs)
         }
     }

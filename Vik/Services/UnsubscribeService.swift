@@ -45,7 +45,7 @@ final class UnsubscribeService {
     /// Returns `true` when we can confirm the unsubscribe succeeded (one-click with 2xx).
     @discardableResult
     func unsubscribe(url: URL, oneClick: Bool, messageID: String? = nil, accountID: String = "") async -> Bool {
-        if oneClick && (url.scheme == "https" || url.scheme == "http") {
+        if oneClick && url.scheme == "https" {
             let success = await performOneClickPost(url: url)
             if success, let messageID { markUnsubscribed(messageID: messageID, accountID: accountID) }
             return success

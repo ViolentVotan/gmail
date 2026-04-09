@@ -149,6 +149,10 @@ actor FullSyncEngine {
             Self.logger.warning("start() skipped — syncTask already exists, state=\(String(describing: self.state))")
             return
         }
+        guard !Task.isCancelled else {
+            Self.logger.info("start() skipped — current task cancelled")
+            return
+        }
         Self.logger.info("start() — launching sync lifecycle")
         state = .idle
         isTokenRevoked = false

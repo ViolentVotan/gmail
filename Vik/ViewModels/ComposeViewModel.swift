@@ -1,9 +1,12 @@
 import SwiftUI
+private import os
 
 /// Drives the compose / reply / draft editing flow.
 @Observable
 @MainActor
 final class ComposeViewModel {
+    nonisolated private static let logger = Logger(category: "ComposeViewModel")
+
     var to:        String = ""
     var cc:        String = ""
     var bcc:       String = ""
@@ -152,7 +155,8 @@ final class ComposeViewModel {
                                 sendSucceeded = true
                                 ToastManager.shared.show(message: "Email queued — will send when online")
                             } catch {
-                                self?.error = error.localizedDescription
+                                Self.logger.error("Offline MIME build failed: \(error)")
+                                self?.error = "Failed to prepare email for offline sending"
                             }
                         } else {
                             self?.error = apiError.localizedDescription

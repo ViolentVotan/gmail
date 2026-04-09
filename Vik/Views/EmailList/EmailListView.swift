@@ -20,6 +20,7 @@ private final class EmailListSortModel {
 
     private var lastEmailIDs: [UUID] = []
     private var lastUseDateSections = false
+    private var sortTask: Task<Void, Never>?
 
     func recompute(
         emails: [Email],
@@ -35,11 +36,13 @@ private final class EmailListSortModel {
         case .dateNewest, .unreadFirst: sortedEmails = emails
         case .dateOldest:               sortedEmails = emails.reversed()
         case .sender:
+            sortTask?.cancel()
             let snapshot = emails
-            Task {
+            sortTask = Task {
                 let sorted = await Task.detached {
                     snapshot.sorted { $0.sender.name.localizedCaseInsensitiveCompare($1.sender.name) == .orderedAscending }
                 }.value
+                guard !Task.isCancelled else { return }
                 sortedEmails = sorted
                 applyPostSortUpdates(
                     sortedEmails: sorted, sourceEmails: snapshot,

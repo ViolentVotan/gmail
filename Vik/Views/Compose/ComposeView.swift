@@ -231,7 +231,7 @@ struct ComposeView: View {
 
     private func scheduleAutoSave() {
         guard !isInitialLoad else { return }
-        Task { await mailStore.updateDraft(id: draftId, subject: subject, body: bodyHTML, to: to, cc: cc) }
+        mailStore.updateDraftSync(id: draftId, subject: subject, body: bodyHTML, to: to, cc: cc)
         saveTask?.cancel()
         saveTask = Task {
             try? await Task.sleep(for: .seconds(2))

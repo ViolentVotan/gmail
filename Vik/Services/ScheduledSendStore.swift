@@ -74,11 +74,12 @@ final class ScheduledSendStore {
         await store.removeAllAndWait(accountID: accountID) { $0.draftId == draftId }
     }
 
-    func markFailed(draftId: String, accountID: String) {
+    func markFailed(draftId: String, accountID: String) async {
         var items = store.itemsByAccount[accountID] ?? []
         guard let idx = items.firstIndex(where: { $0.draftId == draftId }) else { return }
         items[idx].failedPermanently = true
         store.replaceItems(items, accountID: accountID)
+        await store.saveAndWait(accountID: accountID)
     }
 
     /// Removes all in-memory data and the on-disk JSON file for the given account.

@@ -90,7 +90,7 @@ final class SnoozeMonitor {
                 ToastManager.shared.show(message: "Scheduled email sent: \(item.subject)")
             },
             onPermanentFailure: { item in
-                ScheduledSendStore.shared.markFailed(draftId: item.draftId, accountID: item.accountID)
+                await ScheduledSendStore.shared.markFailed(draftId: item.draftId, accountID: item.accountID)
             },
             getFailureCount: { self.scheduledSendFailureCounts[$0] ?? 0 },
             setFailureCount: { self.scheduledSendFailureCounts[$0] = $1 },
@@ -110,7 +110,7 @@ final class SnoozeMonitor {
         action: (T) async throws(GoogleAPIError) -> Void,
         remove: (T) async -> Void,
         onSuccess: ((T) -> Void)? = nil,
-        onPermanentFailure: ((T) -> Void)? = nil,
+        onPermanentFailure: ((T) async -> Void)? = nil,
         getFailureCount: (String) -> Int,
         setFailureCount: (String, Int) -> Void,
         removeFailureCount: (String) -> Void,
@@ -139,7 +139,7 @@ final class SnoozeMonitor {
                         ToastManager.shared.show(message: failureToast, type: .error)
                         if let onPermanentFailure {
                             removeFailureCount(compoundKey)
-                            onPermanentFailure(item)
+                            await onPermanentFailure(item)
                         } else {
                             // Keep the item for future retry rather than silently dropping it.
                             // Reset failure count so the next monitor tick retries.

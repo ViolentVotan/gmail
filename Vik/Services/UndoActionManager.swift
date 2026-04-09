@@ -32,6 +32,7 @@ final class UndoActionManager {
         if pendingActions.count >= maxStack {
             let oldest = pendingActions.removeFirst()
             oldest.onConfirm()
+            ToastManager.shared.show(message: "'\(oldest.label)' confirmed")
         }
 
         let action = PendingUndoAction(label: label, onConfirm: onConfirm, onUndo: onUndo)

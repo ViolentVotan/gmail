@@ -101,6 +101,11 @@ final class EmailActionCoordinator {
                             accountID: expectedAccountID
                         )
                         await OfflineActionQueue.shared.enqueue(action)
+                    } else {
+                        ToastManager.shared.show(
+                            message: "Action failed — will reconcile on next sync",
+                            type: .error
+                        )
                     }
                 }
             } },

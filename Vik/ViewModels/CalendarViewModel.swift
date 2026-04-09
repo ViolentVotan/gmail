@@ -365,6 +365,20 @@ final class CalendarViewModel {
     }
 
     func updateEvent(calendarId: String, eventId: String, accountID: String, etag: String?, input: CalendarAPIEventInput) async {
+        // Optimistic update: snapshot + apply input locally before API call.
+        let snapshot: CalendarEventRecord?
+        do {
+            snapshot = try await calendarSyncer.optimisticUpdateEvent(
+                eventId: eventId,
+                calendarId: calendarId,
+                accountId: accountID,
+                input: input
+            )
+        } catch {
+            Self.logger.error("Optimistic update failed: \(error.localizedDescription)")
+            snapshot = nil
+        }
+
         let success = await performCalendarMutation(
             offlineAction: .init(
                 id: UUID(),
@@ -377,14 +391,28 @@ final class CalendarViewModel {
                     etag: etag ?? ""
                 )
             )
-        ) {
-            _ = try await eventService.updateEvent(
-                calendarId: calendarId,
-                eventId: eventId,
-                event: input,
-                accountID: accountID,
-                etag: etag
-            )
+        ) { [calendarSyncer] in
+            do {
+                _ = try await eventService.updateEvent(
+                    calendarId: calendarId,
+                    eventId: eventId,
+                    event: input,
+                    accountID: accountID,
+                    etag: etag
+                )
+            } catch GoogleAPIError.offline {
+                throw GoogleAPIError.offline
+            } catch {
+                // Rollback: restore the original record.
+                if let snapshot {
+                    do {
+                        try await calendarSyncer.rollbackUpdateEvent(snapshot)
+                    } catch {
+                        Self.logger.error("Rollback failed after updateEvent API error: \(error.localizedDescription)")
+                    }
+                }
+                throw error
+            }
         }
         if success == .committed {
             ToastManager.shared.show(message: "Event updated", type: .success)

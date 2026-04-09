@@ -60,7 +60,16 @@ actor CalendarSyncEngine {
     // Shared reentrancy guard pattern — also in FullSyncEngine
     private var isSyncingIncrementally = false
 
-    deinit {
+    /// Circuit breaker: tracks consecutive sync failures to pause on persistent errors
+    /// and stop on auth failures (mirrors FullSyncEngine pattern).
+    private var consecutiveFailures = 0
+    private static let maxConsecutiveFailures = 5
+    private static let circuitBreakerPause: TimeInterval = 900  // 15 minutes
+
+    /// Reentrancy guard for syncCalendarList (prevents overlapping list syncs).
+    private var isSyncingCalendarList = false
+
+    isolated deinit {
         syncTask?.cancel()
         calendarListSyncTask?.cancel()
         postEditRevertTask?.cancel()
@@ -127,6 +136,21 @@ actor CalendarSyncEngine {
                 try? await Task.sleep(for: .seconds(self.pollingInterval))
                 guard !Task.isCancelled else { break }
                 await self.syncIncremental()
+
+                // Circuit breaker: pause after repeated failures, stop on auth errors
+                if case .error(let error) = self.state {
+                    switch error {
+                    case .tokenRevoked, .unauthorized:
+                        Self.logger.error("Auth failure in calendar sync — stopping engine")
+                        return
+                    default:
+                        if self.consecutiveFailures >= Self.maxConsecutiveFailures {
+                            Self.logger.warning("Calendar sync pausing for 15m after \(self.consecutiveFailures) consecutive failures")
+                            try? await Task.sleep(for: .seconds(Self.circuitBreakerPause))
+                            self.consecutiveFailures = 0
+                        }
+                    }
+                }
             }
         }
     }
@@ -455,11 +479,13 @@ actor CalendarSyncEngine {
             }
 
             state = .idle
+            consecutiveFailures = 0
             // Refresh calendar reminder notifications after successful sync
             await NotificationService.shared.refreshCalendarReminders(db: db, accountID: accountID)
         } catch {
+            consecutiveFailures += 1
             state = .error(GoogleAPIError.wrap(error))
-            Self.logger.error("Incremental calendar sync failed: \(String(describing: error))")
+            Self.logger.error("Incremental calendar sync failed (\(self.consecutiveFailures) consecutive): \(String(describing: error))")
         }
     }
 
@@ -531,46 +557,55 @@ actor CalendarSyncEngine {
     }
 
     private func syncCalendarList() async {
+        guard !isSyncingCalendarList else { return }
+        isSyncingCalendarList = true
+        defer { isSyncingCalendarList = false }
+
+        var didRetryAfterGone = false
+
         do {
-            if let token = calendarListSyncToken {
-                // Incremental sync — only changed calendars
-                do {
-                    let (items, newSyncToken) = try await listService.syncCalendars(accountID: accountID, syncToken: token)
+            while true {
+                if let token = calendarListSyncToken {
+                    // Incremental sync — only changed calendars
+                    do {
+                        let (items, newSyncToken) = try await listService.syncCalendars(accountID: accountID, syncToken: token)
 
-                    // Partition: deleted entries are removed, the rest are upserted
-                    let deletedIds = items
-                        .filter { $0.deleted == true }
-                        .compactMap { entry -> (calendarId: String, accountId: String)? in
-                            guard let id = entry.id else { return nil }
-                            return (calendarId: id, accountId: accountID)
+                        // Partition: deleted entries are removed, the rest are upserted
+                        let deletedIds = items
+                            .filter { $0.deleted == true }
+                            .compactMap { entry -> (calendarId: String, accountId: String)? in
+                                guard let id = entry.id else { return nil }
+                                return (calendarId: id, accountId: accountID)
+                            }
+                        if !deletedIds.isEmpty {
+                            try await syncer.deleteCalendars(deletedIds)
                         }
-                    if !deletedIds.isEmpty {
-                        try await syncer.deleteCalendars(deletedIds)
-                    }
 
-                    let records = items
-                        .filter { $0.deleted != true }
-                        .compactMap { Self.calendarRecord(from: $0, accountId: accountID) }
-                    if !records.isEmpty {
-                        try await syncer.upsertCalendars(records)
-                    }
+                        let records = items
+                            .filter { $0.deleted != true }
+                            .compactMap { Self.calendarRecord(from: $0, accountId: accountID) }
+                        if !records.isEmpty {
+                            try await syncer.upsertCalendars(records)
+                        }
 
-                    if let newSyncToken {
-                        await persistCalendarListSyncToken(newSyncToken)
+                        if let newSyncToken {
+                            await persistCalendarListSyncToken(newSyncToken)
+                        }
+                        return  // Success — exit loop
+                    } catch GoogleAPIError.gone where !didRetryAfterGone {
+                        await persistCalendarListSyncToken(nil)
+                        Self.logger.info("Calendar list sync token expired, retrying full fetch")
+                        didRetryAfterGone = true
+                        continue  // Retry — token is now nil so the full-fetch path runs
                     }
-                } catch GoogleAPIError.gone {
-                    await persistCalendarListSyncToken(nil)
-                    Self.logger.info("Calendar list sync token expired, retrying full fetch")
-                    // Retry immediately — token is now nil so the full-fetch path runs,
-                    // which calls listCalendars() (not syncCalendars) and cannot return 410.
-                    await syncCalendarList()
+                } else {
+                    // Full fetch — no sync token available yet
+                    let (calendars, listSyncToken) = try await listService.listCalendars(accountID: accountID)
+                    let records = calendars.compactMap { Self.calendarRecord(from: $0, accountId: accountID) }
+                    try await syncer.upsertCalendars(records)
+                    await persistCalendarListSyncToken(listSyncToken)
+                    return  // Success — exit loop
                 }
-            } else {
-                // Full fetch — no sync token available yet
-                let (calendars, listSyncToken) = try await listService.listCalendars(accountID: accountID)
-                let records = calendars.compactMap { Self.calendarRecord(from: $0, accountId: accountID) }
-                try await syncer.upsertCalendars(records)
-                await persistCalendarListSyncToken(listSyncToken)
             }
         } catch {
             Self.logger.error("Calendar list sync failed: \(String(describing: error))")
@@ -706,7 +741,7 @@ actor CalendarSyncEngine {
     /// Parses a `CalendarAPIDateTime` into a Unix timestamp.
     /// For all-day events, `calendarTimeZone` is used as the fallback when the event itself
     /// has no timezone — prevents incorrect date display in negative-UTC timezones.
-    nonisolated private static func parseDateTime(
+    nonisolated static func parseDateTime(
         _ dt: CalendarAPIDateTime,
         calendarTimeZone: String? = nil
     ) -> Double {

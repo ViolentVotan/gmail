@@ -283,6 +283,11 @@ final class TrackerBlockerService: Sendable {
     }
 
     private func isAllowlisted(_ src: String) -> Bool {
+        // Don't allowlist URLs from known tracker domains regardless of path content
+        if let url = URL(string: src), let host = url.host?.lowercased() {
+            let (isTracker, _) = isTrackerDomain(host)
+            if isTracker { return false }
+        }
         let lower = src.lowercased()
         return Self.allowlistPatterns.contains { lower.contains($0) }
     }

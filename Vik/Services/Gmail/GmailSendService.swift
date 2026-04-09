@@ -350,8 +350,10 @@ final class GmailSendService {
             let encoded = img.data.base64EncodedString(options: .lineLength76Characters)
             mime += "--\(boundary)\r\n"
             mime += "Content-Type: \(img.mimeType)\r\n"
-            mime += "Content-ID: <\(img.contentID)>\r\n"
-            mime += "Content-Disposition: inline; filename=\"\(img.filename)\"\r\n"
+            let safeContentID = sanitizeMIMEHeaderValue(img.contentID).replacingOccurrences(of: "\"", with: "")
+            let safeInlineName = sanitizeMIMEHeaderValue(img.filename).replacingOccurrences(of: "\"", with: "")
+            mime += "Content-ID: <\(safeContentID)>\r\n"
+            mime += "Content-Disposition: inline; filename=\"\(safeInlineName)\"\r\n"
             mime += "Content-Transfer-Encoding: base64\r\n\r\n"
             mime += encoded + "\r\n"
         }
@@ -370,7 +372,8 @@ final class GmailSendService {
             let encoded = data.base64EncodedString(options: .lineLength76Characters)
             mime += "--\(boundary)\r\n"
             mime += "Content-Type: \(url.mimeType)\r\n"
-            mime += "Content-Disposition: attachment; filename=\"\(url.lastPathComponent)\"\r\n"
+            let safeName = sanitizeMIMEHeaderValue(url.lastPathComponent).replacingOccurrences(of: "\"", with: "")
+            mime += "Content-Disposition: attachment; filename=\"\(safeName)\"\r\n"
             mime += "Content-Transfer-Encoding: base64\r\n\r\n"
             mime += encoded + "\r\n"
         }

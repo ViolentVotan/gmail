@@ -15,7 +15,7 @@ actor GmailWatchService {
     private var renewalTask: Task<Void, Never>?
     private let api: GmailMessageService
 
-    deinit {
+    isolated deinit {
         renewalTask?.cancel()
     }
 
@@ -64,7 +64,10 @@ actor GmailWatchService {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(PubSubConfig.watchRenewalInterval))
                 guard !Task.isCancelled else { return }
-                for accountID in accountIDs {
+                // Fetch current account list to pick up accounts added/removed since launch
+                let currentAccountIDs = await AccountStore.shared.accounts.map(\.id)
+                let activeIDs = currentAccountIDs.isEmpty ? accountIDs : currentAccountIDs
+                for accountID in activeIDs {
                     await registerWatch(accountID: accountID)
                 }
             }

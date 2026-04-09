@@ -315,26 +315,29 @@ final class AppCoordinator {
         sync.pubSubTask = Task { [weak self] in
             guard let self else { return }
             let accounts = AccountStore.shared.accounts
-            guard let first = accounts.first else { return }
+            guard !accounts.isEmpty else { return }
 
-            // Check that the token has the pubsub scope before making any API calls.
+            // Filter to accounts whose token has the pubsub scope.
             // Tokens issued before the scope was added will not have it; refreshing
-            // does not grant new scopes. Skip Pub/Sub silently — polling works fine.
-            guard let token = await TokenStore.shared.retrieve(for: first.id),
-                  token.hasScope("https://www.googleapis.com/auth/pubsub") else {
-                return
-            }
-
-            // Register watches for ALL accounts
+            // does not grant new scopes. Skip those accounts — polling covers sync.
+            var pubsubAccounts: [GmailAccount] = []
             for account in accounts {
+                guard let token = await TokenStore.shared.retrieve(for: account.id),
+                      token.hasScope("https://www.googleapis.com/auth/pubsub") else { continue }
+                pubsubAccounts.append(account)
+            }
+            guard let first = pubsubAccounts.first else { return }
+
+            // Register watches only for accounts with the pubsub scope
+            for account in pubsubAccounts {
                 await sync.watchService.registerWatch(accountID: account.id)
             }
 
-            // Start pull loop with first account's token
+            // Start pull loop with first pubsub-capable account's token
             await sync.pubSubService.start(tokenAccountID: first.id)
 
-            // Start daily renewal
-            await sync.watchService.startRenewalLoop(accountIDs: accounts.map(\.id))
+            // Start daily renewal for pubsub-capable accounts
+            await sync.watchService.startRenewalLoop(accountIDs: pubsubAccounts.map(\.id))
         }
     }
 

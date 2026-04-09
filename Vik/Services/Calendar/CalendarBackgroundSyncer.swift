@@ -213,6 +213,57 @@ actor CalendarBackgroundSyncer {
         }
     }
 
+    /// Snapshots an event record for rollback, then applies input fields optimistically.
+    /// Returns the original record for rollback on failure, or nil if the event was not found.
+    func optimisticUpdateEvent(
+        eventId: String,
+        calendarId: String,
+        accountId: String,
+        input: CalendarAPIEventInput
+    ) async throws -> CalendarEventRecord? {
+        try await db.dbPool.write { db -> CalendarEventRecord? in
+            guard var record = try CalendarEventRecord
+                .filter(Column("event_id") == eventId)
+                .filter(Column("calendar_id") == calendarId)
+                .filter(Column("account_id") == accountId)
+                .fetchOne(db)
+            else { return nil }
+
+            let snapshot = record
+
+            // Apply scalar input fields to local record for optimistic UI.
+            // Time fields require CalendarSyncEngine.parseDateTime which is
+            // tightly coupled to calendar timezone — the sync engine will
+            // overwrite with the API response shortly after.
+            if let summary = input.summary { record.summary = summary }
+            if let desc = input.description { record.description = desc }
+            if let location = input.location { record.location = location }
+            if let colorId = input.colorId { record.colorId = colorId }
+            if let start = input.start {
+                if let dateTime = start.dateTime {
+                    record.startTime = CalendarSyncEngine.parseDateTime(start, calendarTimeZone: record.timeZone)
+                    record.isAllDay = false
+                } else if start.date != nil {
+                    record.startTime = CalendarSyncEngine.parseDateTime(start, calendarTimeZone: record.timeZone)
+                    record.isAllDay = true
+                }
+            }
+            if let end = input.end {
+                record.endTime = CalendarSyncEngine.parseDateTime(end, calendarTimeZone: record.timeZone)
+            }
+
+            try record.update(db)
+            return snapshot
+        }
+    }
+
+    /// Restores an event record to its pre-update state (rollback after API failure).
+    func rollbackUpdateEvent(_ snapshot: CalendarEventRecord) async throws {
+        try await db.dbPool.write { db in
+            try snapshot.update(db)
+        }
+    }
+
     // MARK: - Private Types
 
     /// Hashable key for deduplicating events by their composite primary key.

@@ -18,7 +18,7 @@ actor PubSubService {
     private var debounceTask: Task<Void, Never>?
     private var scopeAlertPosted = false
 
-    deinit {
+    isolated deinit {
         pullTask?.cancel()
         debounceTask?.cancel()
     }
@@ -91,7 +91,11 @@ actor PubSubService {
                             handleNotification(emailAddress: notification.emailAddress)
                         }
                     }
-                    try? await acknowledge(ackIds: ackIds)
+                    do {
+                        try await acknowledge(ackIds: ackIds)
+                    } catch {
+                        Self.logger.warning("Pub/Sub ack failed (\(ackIds.count) IDs): \(error)")
+                    }
                 }
             } catch is CancellationError {
                 return

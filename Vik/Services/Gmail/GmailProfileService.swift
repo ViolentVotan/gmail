@@ -4,7 +4,6 @@ import Foundation
 final class GmailProfileService {
     static let shared = GmailProfileService()
     private let client = GmailAPIClient.shared
-    nonisolated private static let encoder = JSONEncoder()
     private init() {}
 
     // MARK: - Gmail Profile
@@ -47,7 +46,7 @@ final class GmailProfileService {
         struct UpdateRequest: Encodable { let signature: String }
         let body: Data
         do {
-            body = try Self.encoder.encode(UpdateRequest(signature: signature))
+            body = try JSONEncoder().encode(UpdateRequest(signature: signature))
         } catch {
             throw .encodingError(error)
         }

@@ -198,6 +198,17 @@ final class MailStore {
         }
     }
 
+    /// Synchronous local draft update (no HTML stripping). Used by auto-save to avoid
+    /// unstructured Task races — preview is approximated from raw body prefix.
+    func updateDraftSync(id: UUID, subject: String, body: String, to: String, cc: String) {
+        let preview: String? = body.isEmpty ? nil : String(body.prefix(120))
+        if let index = emails.firstIndex(where: { $0.id == id }) {
+            applyDraftFields(&emails[index], subject: subject, body: body, to: to, cc: cc, preview: preview)
+        } else if let index = gmailDrafts.firstIndex(where: { $0.id == id }) {
+            applyDraftFields(&gmailDrafts[index], subject: subject, body: body, to: to, cc: cc, preview: preview)
+        }
+    }
+
     private func applyDraftFields(_ email: inout Email, subject: String, body: String, to: String, cc: String, preview: String? = nil) {
         email.subject    = subject.isEmpty ? "(No subject)" : subject
         email.body       = body
